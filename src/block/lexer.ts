@@ -29,7 +29,7 @@ const DIRECTIONS = ['right', 'left', 'x', 'y', 'up', 'down']
 // Characters that end a node id: ( ) [ { } < > - : = and whitespace.
 const ID_STOP = new Uint8Array(128)
 for (const c of [9, 10, 11, 12, 13, 32, 40, 41, 45, 58, 60, 61, 62, 91, 123, 125]) ID_STOP[c]! = 1
-export function tokenize(src: string): Tokens {
+export function tokenize(src: string, onComment?: (start: number, end: number) => void): Tokens {
   const n = src.length
   const types: number[] = []
   const texts: string[] = []
@@ -136,6 +136,7 @@ export function tokenize(src: string): Tokens {
   const initial = (c: number): boolean => {
     if (c === 37 && src.charCodeAt(p + 1) === 37) {
       const end = src.indexOf('\n', p + 2)
+      onComment?.(p, end < 0 ? n : end)
       p = end < 0 ? n : end
       return true
     }

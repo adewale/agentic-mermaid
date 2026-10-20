@@ -1,3 +1,4 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship, RelationshipType } from './types.ts';
 import { inkOnNodeFill } from '../color-resolver.ts'
 import { escapeAttr, escapeDisplayAttr } from '../multiline-utils.ts';
@@ -5,7 +6,6 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import type { MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from '../scene/ir.ts'
 
-import * as marks from '../scene/marks.ts'
 import { hashId } from '../scene/seed.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
@@ -13,7 +13,7 @@ import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.t
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import type { ResolvedRenderStyle } from '../styles.ts';
-import { diagramTitleMark, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts';
+import { diagramTitleFields, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts';
 import { type DiagramColors } from '../theme.ts';
 import type { RenderContext } from '../types.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
@@ -93,12 +93,12 @@ export function renderClassSvg(ctx: RenderContext<PositionedClassDiagram>): stri
 /**
  * Lower a positioned class diagram to the SceneGraph IR in canonical mark order.
  */
-export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): SceneDoc {
+export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedClassDiagram>): DrawingDocument<T> {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, resolved.styleFace)
   const uid = `class-${hashId(diagram.width, diagram.height, diagram.classes.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
@@ -134,13 +134,13 @@ export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): Sce
   }
 
   // The diagram's frontmatter title, in the band layout reserved above.
-  if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
+  if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, style)))
 
   // 0. Namespace boxes (behind everything, parent-first so children draw on
   // top). Only namespaced diagrams add marks here, so namespace-free output
   // stays byte-identical to previous releases.
   for (const ns of diagram.namespaces) {
-    parts.push(renderNamespaceBox(ns, style))
+    parts.push(renderNamespaceBox(marks, ns, style))
   }
 
   // 1. Relationship lines (rendered behind boxes)
@@ -150,7 +150,7 @@ export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): Sce
     const pairKey = `${rel.from}->${rel.to}`
     const k = relOccurrence.get(pairKey) ?? 0
     relOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationship(rel, style, `rel:${pairKey}#${k}`, markerResources, relationshipEmissions))
+    parts.push(renderRelationship(marks, rel, style, `rel:${pairKey}#${k}`, markerResources, relationshipEmissions))
   }
 
   // 2. Class boxes
@@ -159,7 +159,7 @@ export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): Sce
   // at most128 keys and never cache a rendered mark or request across calls.
   const memberEmissions = new Map<string, SvgTextEmission>()
   for (const cls of diagram.classes) {
-    parts.push(renderClassBox(cls, style, options.security !== 'strict', colors, memberEmissions))
+    parts.push(renderClassBox(marks, cls, style, options.security !== 'strict', colors, memberEmissions))
   }
 
   // 2b. Endpoint markers must sit above class surfaces. SVG paints a marker
@@ -172,12 +172,12 @@ export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): Sce
     const pairKey = `${rel.from}->${rel.to}`
     const occurrence = overlayOccurrence.get(pairKey) ?? 0
     overlayOccurrence.set(pairKey, occurrence + 1)
-    const overlay = renderRelationshipMarkerOverlay(rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources, overlayEmissions)
+    const overlay = renderRelationshipMarkerOverlay(marks, rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources, overlayEmissions)
     if (overlay) parts.push(overlay)
   })
 
   // 3. Notes are first-class UML marks; anchored notes include a connector.
-  for (let index = 0; index < diagram.notes.length; index++) parts.push(renderClassNote(diagram.notes[index]!, style, index))
+  for (let index = 0; index < diagram.notes.length; index++) parts.push(renderClassNote(marks, diagram.notes[index]!, style, index))
 
   // 4. Relationship labels and cardinality
   const labelOccurrence = new Map<string, number>()
@@ -185,7 +185,7 @@ export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): Sce
     const pairKey = `${rel.from}->${rel.to}`
     const k = labelOccurrence.get(pairKey) ?? 0
     labelOccurrence.set(pairKey, k + 1)
-    parts.push(...renderRelationshipLabels(rel, style, `${pairKey}#${k}`))
+    parts.push(...renderRelationshipLabels(marks, rel, style, `${pairKey}#${k}`))
   }
 
   parts.push(marks.documentClose())
@@ -267,8 +267,8 @@ function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescri
  * are absolute (the layout flattens compound nesting), so children need no
  * recursive transform here — nested boxes simply draw after their parents.
  */
-function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderStyle): SceneNode {
-  const children: Array<{ node: SceneNode; indent: number }> = []
+function renderNamespaceBox<T>(marks: DrawingFactory<T>, ns: PositionedClassNamespace, style: ResolvedRenderStyle): T {
+  const children: Array<{ node: T; indent: number }> = []
   const emission = classConstructionGroup('namespace', { kind: 'group' as const, attributes: [attr('class', v.meta('namespace')), attr('data-id', v.meta(ns.id)),
     { ...attr('data-label', v.meta(ns.label)), display: true }, ...(ns.parentId ? [attr('data-parent-id', v.meta(ns.parentId))] : [])] })
 
@@ -338,9 +338,9 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
  * Render a class box with 3 compartments: header, attributes, methods.
  * Wrapped in <g class="class-node"> with semantic data attributes.
  */
-function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors, memberEmissions: Map<string, SvgTextEmission>): SceneNode {
+function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors, memberEmissions: Map<string, SvgTextEmission>): T {
   const { x, y, width, height, headerHeight, attrHeight } = cls
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
   if (cls.isInterface) {
     const block = cls.labelBlock ?? classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     return marks.group({
@@ -455,25 +455,25 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
 
   // Divider line between header and attributes
   const attrTop = y + headerHeight
-  children.push({ indent: 2, node: renderDivider(cls.id, 'attrs', x, attrTop, width, style) })
+  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'attrs', x, attrTop, width, style) })
 
   // Attributes
   const memberRowH = 20
   for (let i = 0; i < cls.attributes.length; i++) {
     const member = cls.attributes[i]!
     const memberY = attrTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.attributeBlocks?.[i]) })
+    children.push({ indent: 2, node: renderMember(marks, member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.attributeBlocks?.[i]) })
   }
 
   // Divider line between attributes and methods
   const methodTop = attrTop + attrHeight
-  children.push({ indent: 2, node: renderDivider(cls.id, 'methods', x, methodTop, width, style) })
+  children.push({ indent: 2, node: renderDivider(marks, cls.id, 'methods', x, methodTop, width, style) })
 
   // Methods
   for (let i = 0; i < cls.methods.length; i++) {
     const member = cls.methods[i]!
     const memberY = methodTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.methodBlocks?.[i]) })
+    children.push({ indent: 2, node: renderMember(marks, member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.methodBlocks?.[i]) })
   }
 
   return marks.group({
@@ -485,7 +485,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
 }
 
 /** Compartment divider line (header/attributes and attributes/methods). */
-function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lineY: number, width: number, style: ResolvedRenderStyle): SceneNode {
+function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs' | 'methods', x: number, lineY: number, width: number, style: ResolvedRenderStyle): T {
   const stroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   const strokeWidth = Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)
   return marks.shape({
@@ -505,7 +505,7 @@ function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lin
  *   - type annotation → textMuted
  * Abstract members are italic and static members underlined.
  */
-function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, memberEmissions: Map<string, SvgTextEmission>, prepared?: PixelTextBlock): SceneNode {
+function renderMember<T>(marks: DrawingFactory<T>, member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, memberEmissions: Map<string, SvgTextEmission>, prepared?: PixelTextBlock): T {
   const block = prepared ?? classMemberBlock(member)
   const profile = Number(!!member.isAbstract) | (Number(!!member.isStatic) << 1)
   const spans: { start: number; end: number; text?: string; attributes: SvgAttribute[] }[] = []
@@ -560,12 +560,12 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   }, emission)
 }
 
-function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, index: number): SceneNode {
+function renderClassNote<T>(marks: DrawingFactory<T>, note: PositionedClassNote, style: ResolvedRenderStyle, index: number): T {
   const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const fill = style.groupFillColor ?? 'var(--_group-hdr)'
   const text = style.groupTextColor ?? 'var(--_text)'
   const noteBlock = note.textBlock ?? preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
   if (note.targetX !== undefined && note.targetY !== undefined) {
     children.push({ node: marks.connector({
       id: `class-note:${index}:connector`, role: 'relationship',
@@ -607,7 +607,7 @@ function classRelationshipEndpoints(rel: PositionedClassRelationship) {
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
  */
-function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string, markerResources: readonly MarkerDescriptor[], emissions: Map<string, SvgEmissionRecipe>): SceneNode {
+function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string, markerResources: readonly MarkerDescriptor[], emissions: Map<string, SvgEmissionRecipe>): T {
   const labels = rel.label ? [{
     text: rel.label,
     textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
@@ -720,14 +720,15 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
 /** Marker-only carrier painted after class boxes. The connector remains the
  * semantic authority; this carrier exists only to prevent node surfaces
  * from occluding endpoint symbols. */
-function renderRelationshipMarkerOverlay(
+function renderRelationshipMarkerOverlay<T>(
+  marks: DrawingFactory<T>,
   rel: PositionedClassRelationship,
   style: ResolvedRenderStyle,
   index: number,
   relationshipId: string,
   resources: readonly MarkerDescriptor[],
   emissions: Map<string, SvgEmissionRecipe>,
-): SceneNode | null {
+): T | null {
   if (rel.points.length < 2) return null
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? (rel.fromType ?? rel.type) : undefined
   const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? (rel.toType ?? rel.type) : undefined
@@ -798,12 +799,12 @@ function getMarkerDefId(type: RelationshipType): string | null {
 /** Render relationship labels and cardinality text (supports multi-line).
  *  Returns one text mark per label/cardinality; when the relationship has
  *  none, a single empty mark keeps the historical '' part (blank line). */
-function renderRelationshipLabels(rel: PositionedClassRelationship, style: ResolvedRenderStyle, key: string): SceneNode[] {
+function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, key: string): T[] {
   if ((!rel.label && !rel.fromCardinality && !rel.toCardinality) || rel.points.length < 2) {
     return [marks.documentContent({ id: `rel-labels:${key}`, role: 'chrome' }, EMPTY_EMISSION)]
   }
 
-  const out: SceneNode[] = []
+  const out: T[] = []
   const textColor = style.edgeTextColor ?? 'var(--_text-muted)'
   // Labels and cardinalities sit beside their edge and can touch it (or a
   // neighbor's) where routes bend; a page-colored halo keeps the line off the
@@ -903,3 +904,5 @@ function canHighlightBlock(block: PixelTextBlock): boolean {
 function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): Pick<TextMark, 'spans'> {
   return canHighlightBlock(block) && spans.map(span => span.text).join('') === block.text ? { spans } : {}
 }
+
+export const lowerClassScene = sceneLowering<PositionedClassDiagram>(lowerClassDrawing)

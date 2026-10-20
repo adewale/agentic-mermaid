@@ -53,8 +53,8 @@ export function ensureWebsiteBuilt(): void {
     runStableFingerprintBuild({
       fingerprint: buildFingerprint,
       build() {
-        const result = Bun.spawnSync(['bun', 'run', 'website/build.ts'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit' })
-        if (result.exitCode !== 0) throw new Error('website and Worker artifact fixture build failed')
+        const result = Bun.spawnSync(['bun', 'run', 'website/build.ts'], { cwd: ROOT, stdout: 'inherit', stderr: 'inherit', timeout: 60_000, killSignal: 'SIGKILL' })
+        if (result.exitCode !== 0) throw new Error(`website and Worker artifact fixture build failed: exit=${result.exitCode}, signal=${result.signalCode}`)
       },
       reset() {
         rmSync(OUT, { recursive: true, force: true })

@@ -357,24 +357,28 @@ export function diagramTitleBand(
   return { text: block.text, width: block.width, height: block.height + DIAGRAM_TITLE_GAP, block }
 }
 
+/** The canvas of a diagram with nothing but a title: the title alone, padded
+ * on every side, as the families whose title is their own furniture draw it.
+ * Without a title, a diagram with no content stays an empty canvas. */
+export function titleOnlyCanvas(band: DiagramTitleBand, padX: number, padY = padX): { width: number; height: number; title: PositionedDiagramTitle } {
+  const width = band.width + 2 * padX
+  return { width, height: band.height - DIAGRAM_TITLE_GAP + 2 * padY, title: positionDiagramTitle(band, width, padY) }
+}
+
 /** Where a band's title sits on a canvas `width` wide with `top` padding. */
 export function positionDiagramTitle(band: DiagramTitleBand, width: number, top: number): PositionedDiagramTitle {
   return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2, ...(band.block ? { block: band.block } : {}) }
 }
 
 export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
+  return marks.text(diagramTitleFields(title, style))
+}
+
+export function diagramTitleFields(title: PositionedDiagramTitle, style: ResolvedRenderStyle): Parameters<typeof marks.text>[0] {
   const fill = style.groupTextColor ?? 'var(--_text)'
-  const attributes: SvgAttribute[] = [
-    { name: 'class', value: v.meta('diagram-title') }, { name: 'text-anchor', value: v.text('anchor') },
-    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
-    ...(style.groupFont ? [{ name: 'font-family' as const, value: v.meta(style.groupFont) }] : []),
-    ...(style.groupLetterSpacing !== 0 ? [{ name: 'letter-spacing' as const, value: v.text('letterSpacing') }] : []),
-    { name: 'fill', value: v.paint('fill') },
-  ]
-  return marks.text(
-    { id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
-      fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: title.block?.fontWeight ?? DIAGRAM_TITLE_FONT_WEIGHT,
-      letterSpacing: title.block?.letterSpacing ?? style.groupLetterSpacing, anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' } },
-    { kind: 'text', layout: 'multiline', attributes },
-  )
+  return {
+    id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
+    fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: title.block?.fontWeight ?? DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: title.block?.letterSpacing ?? style.groupLetterSpacing,
+    anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' },
+  }
 }

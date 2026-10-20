@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
-import { QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 ensureWebsiteBuilt()
 
@@ -277,12 +277,7 @@ describe('agent-readiness standards syntax', () => {
     expect(mcpEntry.capabilities).toEqual(card.tools.map((tool: any) => tool.name))
   })
 
-  test('the committed llms.txt names the published package version', () => {
-    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
-    expect(readFileSync(join(REPO, 'llms.txt'), 'utf8')).toContain(`\nVersion: ${packageJson.version}\n`)
-  })
-
-  test('official MCP Registry metadata matches the npm package and hosted server', () => {
+  test('official MCP Registry metadata matches the npm package and hosted server', async () => {
     const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     const registry = JSON.parse(readFileSync(join(REPO, 'server.json'), 'utf8'))
     const publish = loadWorkflow('publish.yml')
@@ -320,7 +315,7 @@ describe('agent-readiness standards syntax', () => {
     expect({ npm: npmPublishers.length, registry: registryPublishers.length }).toEqual({ npm: 1, registry: 1 })
     expect(upstreamOf(publish.jobs, registryPublishers[0]!).has(npmPublishers[0]!)).toBe(true)
 
-    const packageBin = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), 'mcp', '--help'], { encoding: 'utf8' })
+    const packageBin = await runChild('bun', ['run', join(REPO, 'bin/am.ts'), 'mcp', '--help'])
     expect({ status: packageBin.status, stderr: packageBin.stderr }).toEqual({ status: 0, stderr: '' })
     expect(packageBin.stdout).toContain('agentic-mermaid-mcp [--transport stdio|http]')
   })

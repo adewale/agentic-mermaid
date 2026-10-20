@@ -1,5 +1,7 @@
 import { formatPercent1 } from '../shared/percent-format.ts'
 import { layoutTooltip } from '../shared/tooltip-layout.ts'
+import { formatChartValue } from '../shared/chart-value-format.ts'
+import { pieTotal } from './semantics.ts'
 import type {
   PieChart,
   PositionedPieChart,
@@ -15,6 +17,7 @@ import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { layoutTextRows } from '../shared/text-rows.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -88,8 +91,7 @@ export const PIE_STYLE_DEFAULTS: RenderStyleDefaults = {
 
 /** Format a numeric value compactly (drops trailing `.0`). */
 export function formatPieValue(value: number): string {
-  if (Number.isInteger(value)) return String(value)
-  return String(Math.round(value * 100) / 100)
+  return formatChartValue(value)
 }
 
 /**
@@ -171,8 +173,7 @@ interface LegendRowMetrics {
   lines: string[]
   fraction: number
   textWidth: number
-  /** Row content height (swatch-height floor + extra multiline advances). */
-  contentHeight: number
+  reservedWidth: number
 }
 
 /**
@@ -186,7 +187,7 @@ export function layoutPieChart(
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedPieChart {
   const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, styleFace)
-  const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
+  const total = pieTotal(chart.entries)
 
   const radius = PIE.radius
   const diameter = radius * 2
@@ -228,13 +229,11 @@ export function layoutPieChart(
     const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       ? measuredTextWidth * PIE.legendHighlightWidthScale
       : measuredTextWidth
-    const contentHeight = Math.max(PIE.legendSwatch, block.height)
-    return { block, lines, fraction, textWidth, contentHeight }
+    return { block, lines, fraction, textWidth, reservedWidth: textWidth }
   })
-  const legendTextWidth = rows.length > 0 ? Math.max(...rows.map(r => r.textWidth)) : 0
-  const legendWidth = PIE.legendSwatch + PIE.legendSwatchToText + legendTextWidth
-  const legendHeight = rows.reduce((sum, r) => sum + r.contentHeight, 0) +
-    Math.max(0, rows.length - 1) * PIE.legendRowGap
+  const legendRows = layoutTextRows(rows, { gap: PIE.legendRowGap, minRowHeight: PIE.legendSwatch })
+  const legendWidth = PIE.legendSwatch + PIE.legendSwatchToText + legendRows.width
+  const legendHeight = legendRows.height
 
   // Geometry: circle + legend arranged by legendPosition; the canvas always
   // contains both plus the title (a repositioned legend must never clip).
@@ -317,8 +316,8 @@ export function layoutPieChart(
   for (const slice of slices) if (slice.pctLabel) slice.pctLabel.block = preparePixelText(slice.pctLabel.text, { display: 'literal', fontSize: slice.pctLabel.fontSize, fontWeight: PIE.sliceLabelFontWeight })
 
   // Legend rows.
-  let rowY = legendTop
-  const legend: PositionedPieLegendItem[] = rows.map((row, i) => {
+  const placedLegendRows = layoutTextRows(rows, { top: legendTop, gap: PIE.legendRowGap, minRowHeight: PIE.legendSwatch })
+  const legend: PositionedPieLegendItem[] = placedLegendRows.rows.map(({ item: row, top, textY }, i) => {
     const entry = chart.entries[i]!
     const item: PositionedPieLegendItem = {
       label: entry.label,
@@ -326,15 +325,14 @@ export function layoutPieChart(
       value: entry.value,
       fraction: row.fraction,
       x: round(legendX),
-      y: round(rowY),
+      y: round(top),
       swatchSize: PIE.legendSwatch,
       textX: round(legendX + PIE.legendSwatch + PIE.legendSwatchToText),
-      textY: round(rowY + row.contentHeight / 2),
+      textY: round(textY),
       lines: row.lines,
       block: row.block,
       textWidth: round(row.textWidth),
     }
-    rowY += row.contentHeight + PIE.legendRowGap
     return item
   })
 

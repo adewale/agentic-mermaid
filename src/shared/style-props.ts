@@ -1,8 +1,10 @@
 import { drawableAuthoredCssPaint } from './css-color.ts'
 import { syntaxError } from './syntax-error.ts'
 
-/** Split CSS-like Mermaid style pairs without splitting functional color commas. */
-function splitTopLevelCommas(value: string): string[] {
+/** Split CSS-like Mermaid style pairs at a `,` or `;` without splitting
+ *  functional color commas. Mermaid joins pairs a `;` separates into one
+ *  invalid declaration (`fill:#f9fstroke:red`); ours reads them as CSS does. */
+function splitStylePairs(value: string): string[] {
   const out: string[] = []
   let depth = 0
   let start = 0
@@ -13,7 +15,7 @@ function splitTopLevelCommas(value: string): string[] {
     if (char === '\\') { escaped = true; continue }
     if (char === '(') depth++
     else if (char === ')') depth = Math.max(0, depth - 1)
-    else if (char === ',' && depth === 0) { out.push(value.slice(start, index)); start = index + 1 }
+    else if ((char === ',' || char === ';') && depth === 0) { out.push(value.slice(start, index)); start = index + 1 }
   }
   out.push(value.slice(start))
   return out.map(part => part.replace(/\\,/g, ','))
@@ -23,7 +25,7 @@ function splitTopLevelCommas(value: string): string[] {
 export function parseStyleProps(source: string): Record<string, string> {
   const cleaned = source.replace(/;\s*$/, '')
   const props: Record<string, string> = {}
-  for (const pair of splitTopLevelCommas(cleaned)) {
+  for (const pair of splitStylePairs(cleaned)) {
     const colon = pair.indexOf(':')
     if (colon <= 0) continue
     const key = pair.slice(0, colon).trim()

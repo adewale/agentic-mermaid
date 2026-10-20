@@ -1,4 +1,5 @@
 import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { formatChartValue as fmt } from '../shared/chart-value-format.ts'
 // ============================================================================
 // ASCII renderer — Radar (spider) chart
 //
@@ -19,10 +20,6 @@ import { wrapText } from './wrap.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 const MAX_BAR = 24
-
-function fmt(n: number): string {
-  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100)
-}
 
 function cellLines(label: string, width?: number): string[] {
   const lines = label.split('\n').flatMap(line => wrapText(line.trim(), width)).filter(Boolean)

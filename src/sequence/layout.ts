@@ -1,10 +1,10 @@
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
-import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
+import type { SequenceBounds, SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
 import type { RenderOptions } from '../types.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle, titleOnlyCanvas } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import type { ResolvedSequenceConfig } from './config.ts'
@@ -112,7 +112,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   // preceding `alt` whenever a public Style selected roomy group geometry.
   const blockHeaderExtra = Math.max(SEQ.blockHeaderExtra, blockPadTop + style.groupPaddingY + 20 - messageRowHeight)
   if (diagram.actors.length === 0) {
-    return {
+    return withSequenceTitle({
       width: 0,
       height: 0,
       accessibilityTitle: diagram.accessibilityTitle,
@@ -125,7 +125,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       notes: [],
       boxes: [],
       destructions: [],
-    }
+    }, diagram.title === undefined ? undefined : resolveLabelContent(diagram.title, diagram.titleContent), style, padX, padY)
   }
 
   // 1. Measure actor header specs and message specs
@@ -259,7 +259,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     : blockSpecs[indices[0]!]!.blockHeaderExtra + indices.slice(1).reduce((sum, bi) => sum + blockSpecs[bi]!.enclosingHeaderStep, 0)
 
   for (let bi = 0; bi < diagram.blocks.length; bi++) {
-    if (anchoredSections.has(bi)) continue
+    if (anchoredSections.has(bi) || diagram.blocks[bi]!.type === 'par_over') continue
     const spec = blockSpecs[bi]!
     const scope = blockScopes[bi]!
     for (const [di, divSpec] of spec.dividers.entries()) {
@@ -388,6 +388,43 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   let nextNoteIndex = 0
   let nextBlockIndex = 0
   let nextBoundaryIndex = 0
+  let overlayEpoch = 0
+  // Each overlay branch starts at one shared timeline origin. Finished
+  // branches retain their ink as obstacles and join at their greatest extent.
+  const overlays = new Map<number, {
+    messageY: number; contentBottom: number; completedBottom: number; reservedBottom: number
+    bottom: number; messageEnd: number; noteEnd: number; priorChildren: number[]
+  }>()
+  const overlayClearance = (bounds: SequenceBounds, messageIndex?: number, noteIndex?: number): number => {
+    let shift = 0
+    const obstacles: SequenceBounds[] = []
+    for (const [bi, state] of overlays) {
+      const block = diagram.blocks[bi]!
+      for (let i = block.startIndex; i < state.messageEnd; i++) if (messages[i]) obstacles.push(messages[i]!.bounds)
+      for (const i of blockScopes[bi]!.noteIndices) if (i < state.noteEnd && positionedNotes[i]) obstacles.push(positionedNotes[i]!)
+      for (const i of state.priorChildren) if (blocks[i]) obstacles.push(blocks[i]!)
+      for (const [di, divider] of block.dividers.entries()) {
+        const spec = blockSpecs[bi]!.dividers[di]!
+        if (!divider.label) continue
+        const leading = sequenceDividerLeadingNote(block, blockScopes[bi]!, diagram, di)
+        const priorContent = leading !== undefined && leading < state.noteEnd ? positionedNotes[leading]
+          : leading === undefined && divider.index < state.messageEnd ? messages[divider.index]?.bounds : undefined
+        if (priorContent) obstacles.push({ x: priorContent.x, y: priorContent.y - spec.metrics.height - 8, width: spec.metrics.width, height: spec.metrics.height })
+        if ((leading === undefined && messageIndex === divider.index) || (leading !== undefined && noteIndex === leading)) {
+          const height = spec.metrics.height + 8
+          bounds = { x: bounds.x, y: bounds.y - height, width: Math.max(bounds.width, spec.metrics.width), height: bounds.height + height }
+        }
+      }
+    }
+    // Each move passes the bottom of at least one finite obstacle.
+    for (let pass = 0; pass <= obstacles.length; pass++) {
+      const hit = obstacles.find(other => bounds.x < other.x + other.width + 8 && bounds.x + bounds.width + 8 > other.x
+        && bounds.y + shift < other.y + other.height + 8 && bounds.y + bounds.height + shift + 8 > other.y)
+      if (!hit) break
+      shift = hit.y + hit.height + 8 - bounds.y
+    }
+    return shift
+  }
   const reserveFrame = (bi: number): void => {
     const ancestors: number[] = []
     for (let current: number | undefined = bi; current !== undefined && !openedBlocks.has(current); current = parentBlock.get(current)) ancestors.push(current)
@@ -410,6 +447,12 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     const positioned = positionSequenceBlock(block, blockSpecs[bi]!, scope, diagram, actorIndex, actors, messages, positionedNotes, blocks, style, edgeTextHeight, anchorY, placements[bi])
     blocks[bi] = positioned
     completedBottom = Math.max(completedBottom, positioned.y + positioned.height)
+    const overlay = overlays.get(bi)
+    if (overlay) {
+      contentBottom = Math.max(contentBottom, overlay.bottom, completedBottom)
+      messageY = Math.max(messageY, contentBottom + messageRowHeight / 2)
+      overlays.delete(bi)
+    }
   }
   const completeBlocks = (): void => {
     // Consume source boundaries in lexical order. Message/note cursors alone
@@ -420,7 +463,28 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
         if (boundary.messageIndex > messages.length || boundary.noteIndex > nextNoteIndex) break
         const bi = boundary.blockIndex
         if (boundary.kind === 'open' && anchoredSections.has(bi)) reserveFrame(bi)
+        if (boundary.kind === 'open' && diagram.blocks[bi]!.type === 'par_over') {
+          reserveFrame(bi)
+          const branchHeaderSpace = Math.max(0, ...blockSpecs[bi]!.dividers.map(divider => divider.noteContentOffset))
+          reservedBottom += branchHeaderSpace
+          contentBottom = reservedBottom
+          messageY = Math.max(messageY, reservedBottom + messageRowHeight / 2)
+          overlays.set(bi, { messageY, contentBottom, completedBottom, reservedBottom, bottom: contentBottom,
+            messageEnd: diagram.blocks[bi]!.startIndex, noteEnd: boundary.noteIndex, priorChildren: [] })
+          overlayEpoch++
+        }
         if (boundary.kind === 'divider') {
+          const overlay = overlays.get(bi)
+          if (overlay) {
+            overlay.bottom = Math.max(overlay.bottom, contentBottom, completedBottom, reservedBottom)
+            overlay.messageEnd = boundary.messageIndex
+            overlay.noteEnd = boundary.noteIndex
+            overlay.priorChildren = blockScopes[bi]!.childBlockIndices.filter(index => blocks[index])
+            ;({ messageY, contentBottom, completedBottom, reservedBottom } = overlay)
+            overlayEpoch++
+            nextBoundaryIndex++
+            continue
+          }
           const divSpec = blockSpecs[bi]!.dividers[boundary.dividerIndex!]!
           const y = Math.max(contentBottom, completedBottom, reservedBottom) + 8
           if (anchoredSections.has(bi)) {
@@ -450,7 +514,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   const placeNotes = (afterIndex: number, initialY: number): void => {
     let noteY = initialY
     for (const { note, index } of notesByAfterIndex.get(afterIndex) ?? []) {
+      const epoch = overlayEpoch
       completeBlocks()
+      if (epoch !== overlayEpoch) noteY = messageY
       noteY = Math.max(noteY, completedBottom + 8, reservedBottom)
       for (const bi of blocksStartingAtNote.get(index) ?? []) {
         const top = placements[bi]?.top
@@ -463,7 +529,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
         noteY = Math.max(noteY, Math.max(contentBottom, completedBottom) + 8 + topInset)
         for (const bi of opening) openedBlocks.add(bi)
       }
-      const positioned = positionNote(note, noteY)
+      let positioned = positionNote(note, noteY)
+      const clearance = overlayClearance(positioned, undefined, index)
+      if (clearance > 0) { noteY += clearance; positioned = positionNote(note, noteY) }
       positionedNotes[index] = positioned
       contentBottom = Math.max(contentBottom, positioned.y + positioned.height)
       nextNoteIndex = index + 1
@@ -531,6 +599,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       messageY += shift
       positionedMsg = positionRow()
     }
+    const overlayShift = overlayClearance(positionedMsg.bounds, msgIdx)
+    if (overlayShift > 0) { messageY += overlayShift; positionedMsg = positionRow() }
     for (const bi of opening) openedBlocks.add(bi)
     contentBottom = Math.max(contentBottom, positionedMsg.bounds.y + positionedMsg.bounds.height,
       ...(createAtIndex.get(msgIdx) ?? []).map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height))
@@ -711,6 +781,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
 function withSequenceTitle(positioned: PositionedSequenceDiagram, title: DisplayTextInput | undefined, style: ResolvedRenderStyle, padX: number, padY: number): PositionedSequenceDiagram {
   const band = diagramTitleBand(title, style)
   if (!band) return positioned
+  if (positioned.width === 0 && positioned.height === 0) return { ...positioned, ...titleOnlyCanvas(band, padX, padY) }
   const dy = band.height
   translatePositionedSequence(positioned, 0, dy)
   const width = Math.max(positioned.width, band.width + 2 * padX)

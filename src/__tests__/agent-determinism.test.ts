@@ -12,11 +12,14 @@ import { verifyMermaid } from '../agent/verify.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 function findNodeBinary(): string | null {
   const candidates = [process.env.NODE_BINARY, 'node', '/opt/node22/bin/node'].filter((x): x is string => Boolean(x))
   for (const candidate of candidates) {
-    try { if (spawnSync(candidate, ['--version'], { encoding: 'utf8' }).status === 0) return candidate } catch {}
+    try { if (spawnSync(candidate, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0) return candidate } catch {}
   }
   return null
 }
@@ -180,7 +183,7 @@ describe('determinism — locale-independent ordering authority', () => {
       expect(built.outputs).toHaveLength(1)
       const moduleUrl = pathToFileURL(built.outputs[0]!.path).href
       const script = `import { canonicalizeSceneNodeSerialization as canonicalize } from ${JSON.stringify(moduleUrl)}; process.stdout.write(canonicalize('<svg data-z="1" data-ä="2"></svg>'))`
-      const run = (lang: string) => spawnSync(NODE!, ['--input-type=module', '-e', script], {
+      const run = (lang: string) => spawnSync(NODE!, ['--input-type=module', '-e', script], { timeout: 20_000, killSignal: 'SIGKILL',
         encoding: 'utf8',
         env: { ...process.env, LANG: lang, LC_ALL: lang },
       })
@@ -212,9 +215,9 @@ describe('determinism — REAL cross-process (the test I claimed but never wrote
     },
   ] as const
   for (const { source: src, nodeIds } of samples) {
-    test(`identical across 3 child processes: ${src.slice(0, 24).replace(/\n/g, ' ')}…`, () => {
-      const run = () => {
-        const result = spawnSync('bun', ['run', RUNNER, src], { encoding: 'utf8' })
+    test(`identical across 3 child processes: ${src.slice(0, 24).replace(/\n/g, ' ')}…`, async () => {
+      const run = async () => {
+        const result = await runChild('bun', ['run', RUNNER, src])
         expect(result.status, result.stderr).toBe(0)
         const layout = JSON.parse(result.stdout) as RenderedLayout
         expect(layout).toMatchObject({ version: 1, kind: 'flowchart' })
@@ -229,7 +232,7 @@ describe('determinism — REAL cross-process (the test I claimed but never wrote
         }
         return result.stdout
       }
-      const a = run(), b = run(), c = run()
+      const a = await run(), b = await run(), c = await run()
       expect(b).toEqual(a)
       expect(c).toEqual(a)
     })
@@ -244,7 +247,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -259,7 +262,7 @@ describe('determinism — cross-runtime (bun vs node)', () => {
       const nodeOut = spawnSync(NODE!, ['-e', `
         const { verifyMermaid } = require('${DIST}')
         process.stdout.write(JSON.stringify(verifyMermaid(${JSON.stringify(src)}).layout))
-      `], { encoding: 'utf8' })
+      `], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
       expect(nodeOut.status).toBe(0)
       // Compare structurally (parsed JSON), immune to whitespace differences.
       const nodeLayout = JSON.parse(nodeOut.stdout)
@@ -281,7 +284,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
   const haveResvg = (() => {
@@ -307,7 +310,7 @@ describe('determinism — cross-runtime PNG (Loop 8)', () => {
       const png = m.renderMermaidPNG(${JSON.stringify(src)});
       process.stdout.write(require('node:crypto').createHash('sha256').update(png).digest('hex'))
     `
-    const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
+    const r = spawnSync(NODE!, ['-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
     expect(r.status).toBe(0)
     const nodeHash = r.stdout.trim()
 
@@ -324,7 +327,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
   const NODE = findNodeBinary()
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'agent.js')
   const haveNode = (() => {
-    try { return NODE !== null && spawnSync(NODE, ['--version'], { encoding: 'utf8' }).status === 0 } catch { return false }
+    try { return NODE !== null && spawnSync(NODE, ['--version'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' }).status === 0 } catch { return false }
   })()
   const haveDist = (() => { try { return require('node:fs').existsSync(DIST) } catch { return false } })()
 
@@ -345,7 +348,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
         const ascii = m.renderMermaidASCII(${JSON.stringify(src)});
         process.stdout.write(require('node:crypto').createHash('sha256').update(ascii).digest('hex'))
       `
-      const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
+      const r = spawnSync(NODE!, ['-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
       expect(r.status, JSON.stringify({ stderr: r.stderr, error: r.error?.message, signal: r.signal })).toBe(0)
       const nodeHash = r.stdout.trim()
       // Honest comparison. Any divergence fails — convert to test.todo +

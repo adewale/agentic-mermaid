@@ -1,84 +1,43 @@
-import { sanitizeDisplayLines } from '../shared/text-controls.ts';
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { RenderContext, PositionedNode, PositionedGroup } from '../types.ts'
 import type { PositionedC4Diagram } from './layout.ts'
 import type { C4Boundary, C4Element } from './types.ts'
-import type { MarkAttributes, SceneDoc, SceneNode, MarkPaint } from '../scene/ir.ts';
-import * as marks from '../scene/marks.ts'
-import { graphSceneShell, graphEdgeFields, renderGraphEdgeFields, renderGraphSceneNote } from '../graph-scene-shared.ts'
+import type { Geometry, MarkAttributes, MarkPaint } from '../scene/ir.ts'
+import * as typedMarks from '../scene/marks.ts'
+import { lowerGraphDrawing } from '../renderer.ts'
+import { escapeAttr } from '../multiline-utils.ts'
 import { c4Appearance, effectiveC4Shape } from './config.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { toneOnFill, resolveInlineNodeTextColor } from '../color-resolver.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
-import type { SerializableShapeGeometry } from '../scene/svg-serialize.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgGroupEmission, type SvgValue } from '../scene/svg-emission.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { c4LabelRect } from './pixel-labels.ts'
 import { c4SourceLine } from './projection.ts'
 
-const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
-  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
-  { name: 'stroke-dasharray', value: v.paint('strokeDasharray') }, { name: 'stroke-dashoffset', value: v.paint('strokeDashoffset') },
-  { name: 'stroke-linecap', value: v.paint('strokeLinecap') }, { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') },
-  { name: 'stroke-miterlimit', value: v.paint('strokeMiterlimit') }, { name: 'vector-effect', value: v.paint('vectorEffect') },
-  { name: 'paint-order', value: v.paint('paintOrder') }, { name: 'opacity', value: v.paint('opacity') },
-]
-const GEOMETRY_FIELDS: Record<SerializableShapeGeometry['kind'], readonly SvgGeometryField[]> = {
-  rect: ['x', 'y', 'width', 'height', 'rx', 'ry'], circle: ['cx', 'cy', 'r'], ellipse: ['cx', 'cy', 'rx', 'ry'],
-  line: ['x1', 'y1', 'x2', 'y2'], polygon: ['points'], polyline: ['points'], path: ['d'],
-}
-const SHAPE_EMISSIONS = Object.fromEntries(Object.entries(GEOMETRY_FIELDS).map(([kind, fields]) => [kind,
-  snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-    ...fields.map(name => ({ name, value: v.geometry(name), ...(kind === 'rect' && (name === 'rx' || name === 'ry') ? { fallback: 0 } : {}) })),
-    ...PAINT_ATTRIBUTES,
-  ] }),
-])) as Record<SerializableShapeGeometry['kind'], ReturnType<typeof snapshotSvgEmissionRecipe>>
-const LABEL_ATTRIBUTES: readonly SvgAttribute[] = [
-  { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') },
-  { name: 'font-weight', value: v.text('fontWeight') }, { name: 'letter-spacing', value: v.text('letterSpacing') }, { name: 'fill', value: v.paint('fill') },
-]
-const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: LABEL_ATTRIBUTES })
-function cardTextEmission(fontFamily?: string) {
-  return { kind: 'text' as const, layout: 'multiline' as const, attributes: [
-    LABEL_ATTRIBUTES[0]!, LABEL_ATTRIBUTES[4]!, ...LABEL_ATTRIBUTES.slice(1, 4),
-    ...(fontFamily ? [{ name: 'font-family' as const, value: v.meta(fontFamily) }] : []),
-  ] }
-}
-const HEADING_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...LABEL_ATTRIBUTES.slice(1, 4), LABEL_ATTRIBUTES[0]!, LABEL_ATTRIBUTES[4]!,
-] })
-const LEGEND_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('c4-legend') }] }) as SvgGroupEmission
-
 /** C4 cards and frames are typed Scene shapes. Shared graph lowering supplies
  * native routed connectors, marker resources, edge labels and title chrome. */
-export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc {
+export function lowerC4Drawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedC4Diagram>): DrawingDocument<T> {
   const positioned = ctx.positioned, { body, config, identities } = positioned
-  const shell = graphSceneShell(ctx)
-  const notes: SceneNode[] = []
-  for (const note of positioned.notes ?? []) notes.push(renderGraphSceneNote(note, shell.font, shell.style))
   const style = resolveRenderStyle(ctx.resolved.renderOptions, undefined, ctx.resolved.styleFace)
-  const link = (value: string | undefined): SvgAttribute[] => value && ctx.resolved.renderOptions.security !== 'strict' && isSafeActionHref(value) ? [
-    { name: 'data-href', value: v.meta(value), before: '  ' }, { name: 'role', value: v.meta('link') }, { name: 'tabindex', value: v.meta(0) },
-  ] : []
+  const link = (value: string | undefined): string => value && ctx.resolved.renderOptions.security !== 'strict' && isSafeActionHref(value) ? ` data-href="${escapeAttr(value)}" role="link" tabindex="0"` : ''
   const id = (owner: string, feature: string) => identities.generated(`c4:${owner}:${feature}`, ['c4', owner, feature])
-  const shape = (owner: string, feature: string, geometry: SerializableShapeGeometry, paint: MarkPaint, group = false) => marks.shape({ id: id(owner, feature), role: group ? 'group' : 'node', geometry, paint }, SHAPE_EMISSIONS[geometry.kind])
-  const metadata = (item: C4Element | C4Boundary): SvgAttribute[] => [
-    { name: 'data-id', value: v.meta(item.id) }, { name: 'data-c4-kind', value: v.meta(item.kind) }, { name: 'data-c4-macro', value: v.meta(item.macro) },
-    ...(item.parentId ? [{ name: 'data-parent-id' as const, value: v.meta(item.parentId) }] : []),
-    ...(item.tags.length ? [{ name: 'data-tags' as const, value: v.meta(JSON.stringify(item.tags)) }] : []),
-    ...link(item.effectiveLink ?? item.link),
-    ...(item.sprite ? [{ name: 'data-sprite' as const, value: v.meta(item.sprite) }] : []),
-    ...(c4SourceLine(body, item.statementId) !== undefined ? [{ name: 'data-source-line' as const, value: v.meta(c4SourceLine(body, item.statementId)!) }] : []),
-    ...('external' in item ? [
-      { name: 'data-external' as const, value: v.meta(item.external) }, { name: 'data-c4-shape' as const, value: v.meta(item.shape) },
-      { name: 'data-effective-c4-shape' as const, value: v.meta(effectiveC4Shape(item)) },
-    ] : [{ name: 'data-alignment' as const, value: v.meta(item.alignment ?? 'center') }]),
-  ]
-  const card = (item: C4Element, node: PositionedNode): SceneNode => {
+  const shape = (owner: string, feature: string, geometry: Geometry, paint: MarkPaint, group = false) => marks.shape({ id: id(owner, feature), role: group ? 'group' : 'node', geometry, paint })
+  const metadata = (item: C4Element | C4Boundary) => [
+    `data-id="${escapeAttr(item.id)}"`, `data-c4-kind="${escapeAttr(item.kind)}"`, `data-c4-macro="${escapeAttr(item.macro)}"`,
+    ...(item.parentId ? [`data-parent-id="${escapeAttr(item.parentId)}"`] : []),
+    ...(item.tags.length ? [`data-tags="${escapeAttr(JSON.stringify(item.tags))}"`] : []),
+    ...(link(item.effectiveLink ?? item.link) ? [link(item.effectiveLink ?? item.link)] : []),
+    ...(item.sprite ? [`data-sprite="${escapeAttr(item.sprite)}"`] : []),
+    ...(c4SourceLine(body, item.statementId) !== undefined ? [`data-source-line="${c4SourceLine(body, item.statementId)}"`] : []),
+    ...('external' in item ? [`data-external="${item.external}"`, `data-c4-shape="${item.shape}"`, `data-effective-c4-shape="${effectiveC4Shape(item)}"`] : [`data-alignment="${item.alignment ?? 'center'}"`]),
+  ].join(' ')
+  const card = (item: C4Element, node: PositionedNode): T => {
     const { x, y, width, height } = node, appearance = c4Appearance(item, config), renderedShape = effectiveC4Shape(item)
     const fill = appearance.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke = appearance.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', color = appearance.text ?? resolveInlineNodeTextColor(appearance.fill ? { fill: appearance.fill } : undefined, style.nodeTextColor ?? toneOnFill('var(--_text)', fill, ctx.colors)), lineWidth = String(style.nodeLineWidth)
     const paint: MarkPaint = { fill, stroke, strokeWidth: lineWidth, ...(appearance.dashed ? { strokeDasharray: '5 3' } : {}) }
-    const children: Array<{ node: SceneNode; indent: number }> = [], add = (mark: SceneNode) => children.push({ node: mark, indent: 2 })
+    const children: Array<{ node: T; indent: number }> = [], add = (mark: T) => children.push({ node: mark, indent: 2 })
     if (renderedShape === 'database') {
       const ry = 8, d = `M ${x} ${y + ry} A ${width / 2} ${ry} 0 0 1 ${x + width} ${y + ry} L ${x + width} ${y + height - ry} A ${width / 2} ${ry} 0 0 1 ${x} ${y + height - ry} Z`
       add(shape(item.id, 'surface', { kind: 'path', d }, paint))
@@ -97,43 +56,43 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
       }
     }
     const block = node.labelBlock!, cx = x + width / 2, cy = y + height / 2 + (renderedShape === 'person' ? 19 : renderedShape === 'database' ? 4 : 0)
-    add(marks.text({ id: id(item.id, 'text'), role: 'label', text: block.text, block, x: cx, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'middle', paint: { fill: color } }, cardTextEmission(appearance.fontFamily)))
-    return marks.group({ id: id(item.id, 'card'), role: 'node', emission: { kind: 'group', attributes: [{ name: 'class', value: v.meta(`node c4-${item.kind}`) }, ...metadata(item)] }, children, channels: { category: `${item.external ? 'external-' : ''}${item.kind}`, ...(item.tags.length ? { status: item.tags.join(',') } : {}) } })
+    // The block is measured in the appearance's font; the writer draws that face.
+    add(marks.text({ id: id(item.id, 'text'), role: 'label', text: block.text, block, x: cx, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'middle', paint: { fill: color } }))
+    return marks.group({ id: id(item.id, 'card'), role: 'node', open: `<g class="node c4-${item.kind}" ${metadata(item)}>`, close: '</g>', children, channels: { category: `${item.external ? 'external-' : ''}${item.kind}`, ...(item.tags.length ? { status: item.tags.join(',') } : {}) } })
   }
   const byBoundary = new Map(body.boundaries.map(item => [item.id, item]))
-  const frame = (group: PositionedGroup): SceneNode => {
+  const frame = (group: PositionedGroup): T => {
     const item = byBoundary.get(group.id)!, appearance = c4Appearance(item, config), { x, y, width, height } = group
     const stroke = appearance.stroke ?? style.groupBorderColor ?? 'var(--_node-stroke)', fill = appearance.fill ?? style.groupFillColor ?? 'var(--_group-fill)', headerFill = appearance.fill ?? style.groupHeaderFillColor ?? 'var(--_group-hdr)', color = appearance.text ?? resolveInlineNodeTextColor(appearance.fill ? { fill: appearance.fill } : undefined, style.groupTextColor ?? toneOnFill('var(--_text-sec)', headerFill, ctx.colors)), headerHeight = group.headerHeight ?? 36
-    const children: Array<{ node: SceneNode; indent: number }> = [], add = (mark: SceneNode) => children.push({ node: mark, indent: 2 })
+    const children: Array<{ node: T; indent: number }> = [], add = (mark: T) => children.push({ node: mark, indent: 2 })
     const dash = item.style.lineStyle === 'solid' ? undefined : item.style.lineStyle === 'dotted' ? '1 3' : item.style.lineStyle === 'dashed' ? '5 3' : item.kind === 'deployment' ? undefined : '6 4'
     add(shape(item.id, 'boundary-frame', { kind: 'rect', x, y, width, height, rx: style.groupCornerRadius, ry: style.groupCornerRadius }, { fill, stroke, strokeWidth: String(style.groupLineWidth), ...(dash ? { strokeDasharray: dash } : {}) }, true))
     const band = topRoundedRectPath(x, y, width, headerHeight, style.groupCornerRadius)
     const bandGeometry = { kind: 'path', d: band } as const, bandPaint = { fill: headerFill, stroke, strokeWidth: String(style.groupLineWidth) }
-    add(marks.shape({ id: id(item.id, 'boundary-band'), role: 'group-header', geometry: bandGeometry, paint: bandPaint }, SHAPE_EMISSIONS.path))
+    add(marks.shape({ id: id(item.id, 'boundary-band'), role: 'group-header', geometry: bandGeometry, paint: bandPaint }))
     const block = group.labelBlock!, anchor = item.alignment === 'left' ? 'start' : item.alignment === 'right' ? 'end' : 'middle', cx = item.alignment === 'left' ? x + config.padding : item.alignment === 'right' ? x + width - config.padding : x + width / 2, cy = y + headerHeight / 2
-    const fontFamily = appearance.fontFamily ?? style.groupFont
-    add(marks.text({ id: id(item.id, 'boundary-text'), role: 'group-header', text: block.text, block, x: cx, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor, paint: { fill: color } }, cardTextEmission(fontFamily)))
+    // The block is measured in the appearance's font, else the group font; the writer draws that face.
+    add(marks.text({ id: id(item.id, 'boundary-text'), role: 'group-header', text: block.text, block, x: cx, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor, paint: { fill: color } }))
     for (const child of group.children) add(frame(child))
-    return marks.group({ id: id(item.id, 'frame'), role: 'group', emission: { kind: 'group', attributes: [{ name: 'class', value: v.meta('cluster c4-boundary') }, ...metadata(item)] }, children, channels: { category: item.kind } })
+    return marks.group({ id: id(item.id, 'frame'), role: 'group', open: `<g class="cluster c4-boundary" ${metadata(item)}>`, close: '</g>', children, channels: { category: item.kind } })
   }
-  // Construct only C4 surfaces and labels. Route semantics and resources share
-  // the graph projection, with one final connector normalization per route.
+  // Preserve the common root/resources/title/routes, replacing generic graph
+  // surfaces with C4-owned typed primitives and explicit semantic metadata.
   const relationshipById = new Map(body.relationships.map(item => [item.id, item]))
-  const routes: SceneNode[] = [], edgeOccurrence = new Map<string, number>()
-  for (const edge of positioned.edges) {
-    if (edge.points.length < 2) continue
-    const pairKey = `${edge.source}->${edge.target}`, occurrence = edgeOccurrence.get(pairKey) ?? 0
-    edgeOccurrence.set(pairKey, occurrence + 1)
-    const common = graphEdgeFields(edge, shell.style, `edge:${pairKey}#${occurrence}`, shell.markerResources)
-    const item = relationshipById.get(common.identity?.id ?? '')
-    if (!item) { routes.push(renderGraphEdgeFields(edge, common)); continue }
-    const stroke = item.style.lineStyle === 'dotted' ? { ...common.stroke, dash: { array: '1 3' } } : common.stroke
+  const connector = (fields: typedMarks.ConnectorFields): T => {
+    const part = typedMarks.connector(fields)
+    const item = relationshipById.get(part.identity?.id ?? '')
+    if (!item) return marks.connector(fields)
+    const stroke = item.style.lineStyle === 'dotted' ? { ...part.stroke, dash: { array: '1 3' } } : part.stroke
+    // Inspection hooks: the drawn style, arrow presence and markers, the
+    // label, and the authored C4 source (macro, endpoints, order, index, tags
+    // and a safe link). Identity and relationship come from typed fields.
     const href = ctx.resolved.renderOptions.security === 'strict' ? undefined : item.effectiveLink ?? item.link
-    const markers = common.markers ?? { mid: [] }, label = common.labels?.[0]
+    const { markers } = part, label = part.labels[0]
     const attributes: MarkAttributes = {
       className: 'edge',
       data: {
-        style: common.lineStyle, 'arrow-start': String(!!markers.start), 'arrow-end': String(!!markers.end),
+        style: part.lineStyle, 'arrow-start': String(!!markers.start), 'arrow-end': String(!!markers.end),
         ...(markers.start ? { 'marker-start': markers.start.shape } : {}),
         ...(markers.end ? { 'marker-end': markers.end.shape } : {}),
         ...(label ? { label: sanitizeDisplayLines(label.text) } : {}),
@@ -144,54 +103,27 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
       },
       ...(href && isSafeActionHref(href) ? { tabIndex: 0 as const } : {}),
     }
-    const fields: marks.ConnectorFields = { ...common, id: id(item.id, 'relationship'), relationship: { ...common.relationship, kind: `c4-${item.macro}` }, stroke, labels: (common.labels ?? []).map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) }, attributes }
-    const geometryAttributes = GEOMETRY_FIELDS[common.geometry.kind].map(name => ({ name, value: v.geometry(name) }))
-    const blend: SvgValue = { source: 'style', declarations: [{ property: 'mix-blend-mode', value: v.connector('mixBlendMode') }] }
-    routes.push(marks.connector(fields, { kind: 'primitive', attributes: [
-      { name: 'class', value: v.meta('edge') }, { name: 'data-style', value: v.connector('lineStyle') },
-      { name: 'data-arrow-start', value: v.connector('hasMarkerStart') }, { name: 'data-arrow-end', value: v.connector('hasMarkerEnd') },
-      ...(common.markers?.start ? [{ name: 'data-marker-start' as const, value: v.connector('markerStartShape') }] : []),
-      ...(common.markers?.end ? [{ name: 'data-marker-end' as const, value: v.connector('markerEndShape') }] : []),
-      ...(common.labels?.[0] ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
-      { name: 'data-c4-macro', value: v.meta(item.macro) }, { name: 'data-authored-from', value: v.meta(item.from) }, { name: 'data-authored-to', value: v.meta(item.to) },
-      { name: 'data-order', value: v.meta(item.order) }, ...(item.index === undefined ? [] : [{ name: 'data-index' as const, value: v.meta(item.index) }]),
-      ...(item.tags.length ? [{ name: 'data-tags' as const, value: v.meta(JSON.stringify(item.tags)) }] : []),
-      ...(href && isSafeActionHref(href) ? [{ name: 'data-href' as const, value: v.meta(href) }, { name: 'tabindex' as const, value: v.meta(0) }] : []),
-      ...geometryAttributes, ...PAINT_ATTRIBUTES, { name: 'pathLength', value: v.connector('pathLength') },
-      ...(stroke?.mixBlendMode ? [{ name: 'style' as const, value: blend }] : []),
-    ] }))
+    const replacement: typedMarks.ConnectorFields = { id: id(item.id, 'relationship'), role: 'edge', identity: part.identity, geometry: part.route.geometry, paint: { stroke: stroke.color, strokeWidth: String(stroke.width) }, lineStyle: part.lineStyle, endpoints: part.endpoints, relationship: { ...part.relationship, kind: `c4-${item.macro}` }, route: part.route, stroke, markers: part.markers, hit: part.hit, labels: part.labels.map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) }, attributes }
+    return marks.connector(replacement)
   }
-  // Generated C4 identities are allocated to routes before frames, while the
-  // frames paint first. Without routes, existing notes precede the frames.
-  const frames = positioned.groups.map(frame), parts = shell.opening
-  if (routes.length) {
-    for (const mark of frames) parts.push(mark)
-    for (const mark of routes) parts.push(mark)
-    for (const mark of notes) parts.push(mark)
-  } else {
-    for (const mark of notes) parts.push(mark)
-    for (const mark of frames) parts.push(mark)
-  }
-  parts.push(marks.documentClose())
+  const base = lowerGraphDrawing({ ...marks, connector }, ctx, { surfaces: false, edgeLabels: false, beforeEdges: () => positioned.groups.map(frame) })
+  const parts = base.parts
   const labels = positioned.edges.flatMap(edge => {
     if (!edge.label || !edge.labelBlock || !edge.labelPosition) return []
     const item = relationshipById.get(edge.id!)!, block = edge.labelBlock, { x, y } = edge.labelPosition, color = item.style.textColor ?? item.style.fontColor ?? style.edgeTextColor ?? 'var(--_text-sec)'
     const halo = c4LabelRect(edge)!, haloGeometry = { kind: 'rect', ...halo, rx: 3, ry: 3 } as const, haloPaint = { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' }
-    return [marks.group({ id: id(item.id, 'relationship-label'), role: 'edge-label', emission: { kind: 'group', attributes: [
-      { name: 'class', value: v.meta('edge-label') }, { name: 'data-id', value: v.meta(id(item.id, 'label')) }, { name: 'data-role', value: v.identity('role') },
-      { name: 'data-edge-id', value: v.meta(item.id) }, { name: 'data-from', value: v.meta(item.source) }, { name: 'data-to', value: v.meta(item.target) },
-    ] }, children: [
-      { indent: 2, node: marks.shape({ id: id(item.id, 'label-halo'), role: 'chrome', geometry: haloGeometry, paint: haloPaint }, SHAPE_EMISSIONS.rect) },
-      { indent: 2, node: marks.text({ id: id(item.id, 'label-text'), role: 'label', text: block.text, block, x, y, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'middle', paint: { fill: color }, pageFill: item.style.textColor ?? item.style.fontColor ?? toneOnFill('var(--_text-sec)', 'var(--bg)', ctx.colors) }, LABEL_EMISSION) },
+    return [marks.group({ id: id(item.id, 'relationship-label'), role: 'edge-label', open: `<g class="edge-label" data-id="${escapeAttr(id(item.id, 'label'))}" data-role="edge-label" data-edge-id="${escapeAttr(item.id)}" data-from="${escapeAttr(item.source)}" data-to="${escapeAttr(item.target)}">`, close: '</g>', children: [
+      { indent: 2, node: marks.shape({ id: id(item.id, 'label-halo'), role: 'chrome', geometry: haloGeometry, paint: haloPaint }) },
+      { indent: 2, node: marks.text({ id: id(item.id, 'label-text'), role: 'label', text: block.text, block, x, y, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'middle', paint: { fill: color }, pageFill: item.style.textColor ?? item.style.fontColor ?? toneOnFill('var(--_text-sec)', 'var(--bg)', ctx.colors) }) },
     ] })]
   })
   parts.splice(parts.length - 1, 0, ...labels, ...positioned.nodes.map(node => card(body.elements.find(item => item.id === node.id)!, node)))
   if (positioned.legend) {
-    const legend = positioned.legend, children: Array<{ node: SceneNode; indent: number }> = []
+    const legend = positioned.legend, children: Array<{ node: T; indent: number }> = []
     const legendStyle = resolveRoleStyle(ctx.resolved.styleFace, 'legend', {}, { includeFallback: false })
     const textColor = legendStyle?.textColor ?? 'var(--_text)'
     const headingBlock = legend.heading, headingX = legend.x + 12, headingY = legend.y + 8 + headingBlock.height / 2
-    const heading = marks.text({ id: id('legend', 'heading'), role: 'legend', text: headingBlock.text, block: headingBlock, x: headingX, y: headingY, fontSize: headingBlock.fontSize, fontWeight: headingBlock.fontWeight, letterSpacing: headingBlock.letterSpacing, anchor: 'start', paint: { fill: textColor } }, HEADING_EMISSION)
+    const heading = marks.text({ id: id('legend', 'heading'), role: 'legend', text: headingBlock.text, block: headingBlock, x: headingX, y: headingY, fontSize: headingBlock.fontSize, fontWeight: headingBlock.fontWeight, letterSpacing: headingBlock.letterSpacing, anchor: 'start', paint: { fill: textColor } })
     children.push({ node: heading, indent: 2 })
     let y = legend.y + 20 + headingBlock.height
     for (const entry of legend.entries) {
@@ -201,7 +133,7 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
       const dash = entry.style.lineStyle === 'dotted' ? '1 3' : entry.style.lineStyle === 'dashed' || entry.external ? '5 3' : undefined
       const paint = { fill, stroke: color, strokeWidth: lineWidth, ...(dash ? { strokeDasharray: dash } : {}) }
       const sx = legend.x + 10, sw = 18, sh = block.height
-      const swatch = (feature: string, geometry: SerializableShapeGeometry) => children.push({ indent: 2, node: marks.shape({ id: id(entry.id, feature), role: 'legend', geometry, paint }, SHAPE_EMISSIONS[geometry.kind]) })
+      const swatch = (feature: string, geometry: Geometry) => children.push({ indent: 2, node: marks.shape({ id: id(entry.id, feature), role: 'legend', geometry, paint }) })
       if (entry.kind === 'relationship') swatch('legend-swatch', { kind: 'line', x1: sx, y1: cy, x2: sx + sw, y2: cy })
       else if (entry.shape === 'database') {
         const ry = Math.min(3, sh / 4), d = `M ${sx} ${y + ry} A 9 ${ry} 0 0 1 ${sx + sw} ${y + ry} L ${sx + sw} ${y + sh - ry} A 9 ${ry} 0 0 1 ${sx} ${y + sh - ry} Z`
@@ -219,10 +151,12 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
       // Legend labels sit on the page; node/tag font colors describe the
       // colored card, while the legend role owns its own text ink.
       const ink = textColor
-      children.push({ indent: 2, node: marks.text({ id: id(entry.id, 'legend-text'), role: 'legend', text: block.text, block, x, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'start', paint: { fill: ink } }, LABEL_EMISSION) })
+      children.push({ indent: 2, node: marks.text({ id: id(entry.id, 'legend-text'), role: 'legend', text: block.text, block, x, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'start', paint: { fill: ink } }) })
       y += block.height + 10
     }
-    parts.splice(parts.length - 1, 0, marks.group({ id: id('legend', 'container'), role: 'legend', emission: LEGEND_EMISSION, children }))
+    parts.splice(parts.length - 1, 0, marks.group({ id: id('legend', 'container'), role: 'legend', open: '<g class="c4-legend">', close: '</g>', children }))
   }
-  return { family: 'c4', width: positioned.width, height: positioned.height, colors: ctx.colors, transparent: shell.transparent, parts }
+  return { ...base, family: 'c4', parts }
 }
+
+export const lowerC4Scene = sceneLowering<PositionedC4Diagram>(lowerC4Drawing)

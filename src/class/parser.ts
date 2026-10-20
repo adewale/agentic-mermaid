@@ -151,7 +151,9 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
 // Shared class declaration grammar. The structured serializer emits bracket
 // labels, so the renderer and agent parser must resolve them to the same
 // logical ID instead of treating `A["Label"]` as an identifier.
-const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?(?:\s*:::([\w-]+))?\s*(\{\s*\}|\{)?\s*$/
+const CLASS_ID_SOURCE = '`[^`]+`|[\\w$\\p{L}\\p{N}\\p{M}]+(?:[.-][\\w$\\p{L}\\p{N}\\p{M}]+)*'
+const CLASS_DECLARATION_RE = new RegExp(`^class\\s+(${CLASS_ID_SOURCE})(?:\\s*~([^~]+)~)?(?:\\s*\\[\\s*"([^"]*)"\\s*\\])?(?:\\s+as\\s+"([^"]+)")?(?:\\s+~([^~]+)~)?(?:\\s*:::([\\w-]+))?\\s*(\\{\\s*\\}|\\{)?\\s*$`, 'u')
+const CLASS_REFERENCE_RE = new RegExp(`^(${CLASS_ID_SOURCE})(?:~([^~]+)~)?$`, 'u')
 
 export interface ParsedClassDeclaration {
   id: string
@@ -180,7 +182,7 @@ export function parseClassDeclaration(line: string): ParsedClassDeclaration | nu
  * `Box` plus a generic parameter. The same identity rule is used by
  * declarations, relationships, notes, and member statements. */
 export function parseClassReference(token: string): { id: string; generic?: string } | null {
-  const match = token.trim().match(/^(`[^`]+`|[\w$]+)(?:~([^~]+)~)?$/)
+  const match = token.trim().match(CLASS_REFERENCE_RE)
   if (!match) return null
   const rawId = match[1]!
   return {
@@ -375,6 +377,14 @@ export function classCommentStart(line: string): number {
   return -1
 }
 
+/** The paint of a `classDef` or `style` line without a trailing `%%`
+ * comment. Mermaid's LABEL token reads the comment into the last property's
+ * value, which CSS then drops; ours reads it as the comment it is. */
+export function withoutStyleComment(style: string): string {
+  const comment = style.indexOf('%%')
+  return comment < 0 ? style : style.slice(0, comment).trimEnd()
+}
+
 /** A class statement line without its trailing `%%` comment. Member lines
  * inside a class body are text, not statements. */
 export function classStatement(line: string): string {
@@ -474,7 +484,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   const classDef = text.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
   if (classDef) {
-    const props = parseStyleProps(classDef[2]!)
+    const props = parseStyleProps(withoutStyleComment(classDef[2]!))
     if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props }
   }
   const assignment = text.match(/^(class|cssClass)\s+(.+?)\s+([\w-]+)$/)
@@ -495,7 +505,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const style = text.match(/^style\s+(.+?)\s+(.+)$/)
   if (style) {
     const refs = references(style[1]!)
-    const props = parseStyleProps(style[2]!)
+    const props = parseStyleProps(withoutStyleComment(style[2]!))
     if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props }
   }
   const annotation = parseClassAnnotationStatement(text)
@@ -505,6 +515,9 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   if (annotation) return { kind: 'annotation', annotation }
   const declaration = parseClassDeclaration(text)
+  if (declaration && !readsAsClassName(declaration.id, /^class\s+`/.test(text), false)) {
+    return { kind: 'unknown', reason: `Unrecognized class statement "${text}": Mermaid reads \`${declaration.id}\` there as a keyword, not a class name` }
+  }
   if (declaration) return { kind: 'class', declaration }
   const shorthand = text.match(/^(.+?):::([\w-]+)$/)
   if (shorthand) {
@@ -514,6 +527,9 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const member = text.match(/^(\S+?)\s*:\s*(.+)$/)
   if (member) {
     const reference = parseClassReference(member[1]!)
+    if (reference && (!readsAsClassName(reference.id, member[1]!.startsWith('`'), true) || /^call\s/.test(text))) {
+      return { kind: 'unknown', reason: `Unrecognized class member statement "${text}": Mermaid reads \`${reference.id}\` there as a keyword, not a class name` }
+    }
     if (reference) return { kind: 'member', reference, text: member[2]!.trim() }
   }
   const relationship = parseClassRelationship(text)
@@ -653,6 +669,11 @@ export function classStatementEnds(lines: readonly string[]): number[] {
   return ends
 }
 
+/** Mermaid's directive (`%%{…}%%`, `diagram-api/regexes.ts`), which its
+ * preprocessing removes from the source wherever it stands, before any
+ * grammar reads it; its `init` and `wrap` configure the diagram. */
+export const MERMAID_DIRECTIVE_RE = /%{2}\{\s*(?:(\w+)\s*:|(\w+))\s*(?:(\w+)|((?:(?!\}%{2}).|\r?\n)*))?\s*(?:\}%{2})?/gi
+
 /** Whole physical rows owned by style declarations, excluding class members
  * and compact rows that also carry a body boundary or another statement. */
 export function classStyleStatementLines(lines: readonly string[]): ReadonlySet<number> {
@@ -672,10 +693,12 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
   const stack: ClassStatementNode[] = []
   let offset = 0
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    let raw = lines[lineIndex]!
-    const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + raw.length }
-    offset += raw.length + 1
-    const authored = authoredLines ? authoredLines[lineIndex] : raw
+    const line = lines[lineIndex]!
+    const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + line.length }
+    offset += line.length + 1
+    // Read the line as Mermaid's grammar meets it, without its directives.
+    let raw = line.replace(MERMAID_DIRECTIVE_RE, '')
+    const authored = authoredLines ? authoredLines[lineIndex]?.replace(MERMAID_DIRECTIVE_RE, '') : raw
     const scanned = scanInlineNamespaceStatement(raw.trim())
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
     let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))
@@ -732,9 +755,15 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
       if (!source || source.startsWith('%%')) value = { kind: 'trivia' }
       else if (inClass && text !== '}') {
         const annotation = parseClassBodyAnnotationToken(text)
-        value = annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
+        // A `{` in a class body opens nothing Mermaid reads (OPEN_IN_STRUCT),
+        // on the line that opens the block or a later one, and where the
+        // author meant the block to close cannot be told.
+        value = text.includes('{') ? { kind: 'unknown', reason: `Unrecognized class member "${text}": a class body cannot hold "{"` }
+          : annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
       } else value = classifyClassStatement(text, fragment.authored)
-      const parts = value.kind === 'unknown' ? splitClassBlockStatement(text, owner?.value.kind === 'namespace') : null
+      // A member is never split: inside a body the splitter would hand back
+      // the same text and the reader would never end.
+      const parts = value.kind === 'unknown' && !inClass ? splitClassBlockStatement(text, owner?.value.kind === 'namespace') : null
       if (parts) {
         putBack(fragment, parts)
         continue
@@ -1305,6 +1334,7 @@ function classRelationText(label?: string, fromCardinality?: string, toCardinali
 /** Endpoints, generics, cardinalities and labels share one bounded scanner for
  * one-ended and mixed relationships, including escaped IDs with spaces. */
 function parseClassRelationEndpoints(leftSource: string, rightSource: string): (Omit<ClassRelationship, 'type' | 'markerAt'> & { fromGeneric?: string; toGeneric?: string }) | null {
+  if (callBeforeBlank(leftSource, rightSource)) return null
   let left = leftSource.trim()
   let right = rightSource.trim()
   let fromCardinality: string | undefined
@@ -1377,7 +1407,7 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string): (
  * arrow grammar below remains responsible for marked relationships. */
 function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
   const operator = findMarkerlessRelationshipOperator(line)
-  if (operator < 0) return null
+  if (operator < 0 || callBeforeBlank(line.slice(0, operator), line.slice(operator + 2))) return null
 
   const left = line.slice(0, operator).trim()
   let right = line.slice(operator + 2).trim()
@@ -1456,14 +1486,34 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   }
 }
 
-const BARE_RELATION_RESERVED_IDS = new Set(['o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass'])
-const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
+// Words Mermaid's class lexer reads as keywords where a class name stands:
+// in any lexer state, inside backticks too; in any state, bare; and, bare,
+// where a statement starts (a relationship or `A : member`), as `call`
+// before a blank is too.
+const CLASS_KEYWORDS_IN_BACKTICKS = new Set(['note', 'click', 'link', 'cssClass', 'href', 'callback'])
+const CLASS_KEYWORDS = new Set([...CLASS_KEYWORDS_IN_BACKTICKS, 'o', '_self', '_blank', '_parent', '_top'])
+const CLASS_STATEMENT_KEYWORDS = new Set([...CLASS_KEYWORDS, 'class', 'classDiagram', 'namespace', 'style', 'classDef'])
+
+/** Whether Mermaid's class lexer reads `id`, written bare or in backticks,
+ *  as a class name: after `class`, or where a statement starts. */
+export function readsAsClassName(id: string, backticked: boolean, statementStart: boolean): boolean {
+  return !(backticked ? CLASS_KEYWORDS_IN_BACKTICKS : statementStart ? CLASS_STATEMENT_KEYWORDS : CLASS_KEYWORDS).has(id)
+}
+
+/** Whether a relationship's source or target is `call` before a blank or
+ *  the line's end, as written around its arrow: Mermaid's lexer reads it
+ *  there as a callback, where `call-->A` and `A --> call: x` name a class. */
+function callBeforeBlank(leftSource: string, rightSource: string): boolean {
+  return /^\s*call\s/.test(leftSource) || /^\s*(?:"[^"]*"\s*)?call(?:\s|$)/.test(rightSource)
+}
 
 /** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
  * unescaped dollar signs. Escaped IDs containing `~` denote a generic base
  * identity upstream, which this relationship model cannot yet preserve. */
 export function supportedRelationEndpoint(id: string, raw: string): boolean {
-  return raw.startsWith('`') ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~') : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
+  return raw.startsWith('`')
+    ? readsAsClassName(id, true, true) && !id.includes('~')
+    : !id.includes('$') && readsAsClassName(id, false, true)
 }
 
 function findMarkerlessRelationshipOperator(line: string): number {

@@ -624,8 +624,7 @@ export function styleKind(spec: StyleSpec): StyleRegistryKind {
   return Object.keys(spec).every(k => k === 'formatVersion' || k === '$schema' || k === 'name' || k === 'blurb' || k === 'colors') ? 'palette' : 'look'
 }
 
-/** True when a merged spec changes anything beyond metadata — i.e. when
- *  rendering must go through the styled scene path. */
+/** True when a merged spec changes appearance beyond metadata. */
 export function isStyledSpec(spec: StyleSpec): boolean {
   return inferBackend(spec) !== 'default'
     || spec.colors !== undefined

@@ -8,8 +8,13 @@
 // ============================================================================
 
 import { MermaidFrontmatterError, normalizeMermaidSource } from '../mermaid-source.ts'
-import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { stripStateComment } from '../state/comment.ts'
+import { stripMindmapComment } from '../mindmap/parser.ts'
+import { classCommentStart, readClassStatements, type ClassStatementNode } from '../class/parser.ts'
+import { tokenize as tokenizeBlock } from '../block/lexer.ts'
+import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
+import { parseKanbanDiagram } from '../kanban/parser.ts'
 import { statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { statementEndAt } from '../shared/accessibility-directives.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
@@ -21,6 +26,7 @@ import {
   maskAccessibilityDirectivesForSourceMap,
   sourcePreservationSpans,
 } from '../family-detection.ts'
+import { retainBodyComments } from './body-comments.ts'
 import { serializeMermaid } from './serialize.ts'
 import { attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
@@ -268,14 +274,24 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // structured-or-opaque for the narrow families, error semantics for
   // flowchart/state. Families without a hook stay source-level.
   if (plugin.parse) {
-    const parsed = plugin.parse({
+    const context = {
       source: normalized,
       lines: normalized.familyLines,
       envelopeLines: normalized.lines,
       opaqueSource,
       meta,
       canonicalSource,
-    })
+    }
+    let parsed: ReturnType<NonNullable<typeof plugin.parse>>
+    try {
+      parsed = plugin.parse(context)
+    } catch (error) {
+      // A registered family's hook throwing is a fault in its descriptor,
+      // reported as one; a built-in parser's throw stays ours to surface.
+      if (isBuiltinFamilyId(kind)) throw error
+      const reason = error instanceof Error ? error.message : String(error)
+      return err([{ code: 'FAMILY_DESCRIPTOR_CONTRACT', message: `Family "${kind}" parse hook threw: ${reason}`, line: 1 }])
+    }
     if (!parsed.ok) {
       errors.push(...parsed.error)
       return err(errors)
@@ -345,6 +361,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     )
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     markDroppedComments(diagram, source, plugin.statementEnds)
+    retainBodyComments(diagram, source)
     return ok(diagram)
   }
 
@@ -367,86 +384,92 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
   attachAccessibilityToBody(body, meta.accessibility)
 }
 
-/**
- * 2C comment policy: structured bodies serialize to canonical source, which
- * does not model standalone or trailing `%%` comments. Rather than dropping
- * them *silently*,
- * diff the parsed comments against what actually survives serialization
- * (wrapper comments ride along verbatim via meta.wrapperSource; sequence
- * opaque segments may preserve in-body comments) and record the casualties so
- * verify can surface the Tier 3 COMMENT_DROPPED lint. Opaque bodies preserve
- * everything and never reach here.
- */
+/** Identify comments that canonical serialization does not already own. Counts
+ * distinguish repeated comments and quoted text never counts as a comment. */
 function markDroppedComments(diagram: ValidDiagram, authoredSource: string, statementEnds?: (lines: readonly string[]) => readonly number[]): void {
-  // Structured Sequence bodies keep comments as source-preserved segments;
-  // whole-body opaque Sequence and wrapper comments are preserved as before.
-  if (diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
+  if (!authoredSource.includes('%%') || diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
 
-  const sourceLines = authoredSource.split(/\r?\n/).map(line => line.trim())
-  // A `%%` comment after a statement is a comment only where the family's
-  // grammar ends that statement there; elsewhere it is text the serializer
-  // keeps. So a trailing comment counts as dropped when its bytes are gone.
-  const commentLines = new Set(diagram.meta.comments.map(comment => comment.line))
-  // Quoted text that runs onto later lines holds its `%%` as text, so each
-  // statement is read whole, by the family's string rule; the wrapper holds none.
-  const wrapperLines = (diagram.meta.wrapperSource?.match(/\n/g) ?? []).length
-  const ends = statementEnds && authoredSource.includes('%%') ? statementEnds(sourceLines.map((line, index) => index < wrapperLines ? '' : line)) : undefined
-  const trailing: Array<{ line: number; comment: string }> = []
-  for (let index = 0; index < sourceLines.length; index++) {
-    const end = statementEndAt(ends, index, sourceLines.length)
-    const statement = statementText(sourceLines, index, end)
-    const start = trailingCommentStart(statement)
-    if (start > 0) {
-      const line = index + 1 + (statement.slice(0, start).match(/\n/g) ?? []).length
-      if (!commentLines.has(line)) trailing.push({ line, comment: statement.slice(start).split('\n', 1)[0]! })
+  const commentsIn = (source: string, normalized: Pick<ValidDiagramMeta, 'comments' | 'wrapperSource'>): SourceComment[] => {
+    // Directives configure the diagram; they are not comment casualties. Mask
+    // their bytes while retaining physical lines for the owning grammar.
+    const blank = (directive: string): string => directive.replace(/[^\r\n]/g, ' ')
+    const withoutDirectives = source.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), blank).replace(MERMAID_DIRECTIVE_REGEX, blank)
+    const lines = withoutDirectives.split(/\r?\n/).map(line => line.trim())
+    const comments = [...normalized.comments]
+    const knownLines = new Set(comments.map(comment => comment.line))
+    // These grammars either expose every real comment in envelope metadata,
+    // or keep percent pairs inside their statement text.
+    if (['flowchart', 'state', 'journey', 'timeline', 'ishikawa', 'sankey'].includes(diagram.kind)) return comments
+    if (diagram.kind === 'block' || diagram.kind === 'requirement') {
+      const tokenize = diagram.kind === 'block' ? tokenizeBlock : tokenizeRequirement
+      const normalized = normalizeMermaidSource(source)
+      const start = normalized.wrapperSource?.length ?? 0
+      const prefixLines = (source.slice(0, start).match(/\n/g) ?? []).length
+      const text = withoutDirectives.slice(start)
+      let cursor = 0, line = prefixLines + 1
+      tokenize(text, (begin, end) => {
+        for (; cursor < begin; cursor++) if (text.charCodeAt(cursor) === 10) line++
+        if (!knownLines.has(line)) comments.push({ line, text: text.slice(begin + 2, end).trim() })
+      })
+      return comments.sort((a, b) => a.line - b.line)
     }
-    index = end
+    if (diagram.kind === 'kanban') {
+      const envelope = normalizeMermaidSource(source)
+      const start = envelope.wrapperSource?.length ?? 0
+      const prefixLines = (source.slice(0, start).match(/\n/g) ?? []).length
+      parseKanbanDiagram(withoutDirectives.slice(start), {}, undefined, (text, row) => {
+        const line = prefixLines + row
+        if (!knownLines.has(line)) { comments.push({ line, text }); knownLines.add(line) }
+      })
+      return comments.sort((a, b) => a.line - b.line)
+    }
+    if (diagram.kind === 'class') {
+      const visit = (nodes: ClassStatementNode[]): void => {
+        for (const node of nodes) {
+          if (node.value.kind !== 'member' && node.value.kind !== 'body-annotation') {
+            const start = classCommentStart(node.raw)
+            if (start >= 0) {
+              const line = node.source.line + (node.raw.slice(0, start).match(/\n/g) ?? []).length
+              if (!knownLines.has(line)) {
+                comments.push({ line, text: node.raw.slice(start + 2).split('\n', 1)[0]!.trim() })
+                knownLines.add(line)
+              }
+            }
+          }
+          if (node.children) visit(node.children)
+          if (node.closing) visit([node.closing])
+        }
+      }
+      visit(readClassStatements(lines, undefined, false).statements)
+      return comments.sort((a, b) => a.line - b.line)
+    }
+    const wrapperLines = (normalized.wrapperSource?.match(/\n/g) ?? []).length
+    const ends = statementEnds && source.includes('%%') ? statementEnds(lines.map((line, index) => index < wrapperLines ? '' : line)) : undefined
+    for (let index = 0; index < lines.length; index++) {
+      const end = statementEndAt(ends, index, lines.length)
+      const statement = statementText(lines, index, end)
+      const stripped = diagram.kind === 'mindmap' ? stripMindmapComment(statement) : undefined
+      const start = stripped === undefined ? trailingCommentStart(statement) : stripped.length < statement.length ? stripped.length : -1
+      if (start > 0) {
+        const line = index + 1 + (statement.slice(0, start).match(/\n/g) ?? []).length
+        if (!knownLines.has(line)) comments.push({ line, text: statement.slice(start + 2).split('\n', 1)[0]!.trim() })
+      }
+      index = end
+    }
+    return comments.sort((a, b) => a.line - b.line)
   }
-  if (diagram.meta.comments.length === 0 && trailing.length === 0) return
-
+  const comments = commentsIn(authoredSource, diagram.meta)
+  if (!comments.length) return
   const serialized = serializeMermaid(diagram)
-  const serializedLines = serialized.split(/\r?\n/).map(line => line.trim())
-  const comments = [
-    ...diagram.meta.comments,
-    ...trailing
-      .filter(({ comment }) => !serialized.includes(comment))
-      .map(({ line, comment }) => ({ text: comment.slice(2).trim(), line })),
-  ].sort((a, b) => a.line - b.line)
-  if (comments.length === 0) return
-  const keptSourceLines = longestCommonSubsequenceIndices(sourceLines, serializedLines)
-  const keptCommentLines = new Set<number>()
-  for (const sourceIndex of keptSourceLines) {
-    if (sourceLines[sourceIndex]!.includes('%%')) keptCommentLines.add(sourceIndex + 1)
-  }
-
-  const dropped: SourceComment[] = comments.filter(comment => !keptCommentLines.has(comment.line))
-  if (dropped.length > 0) diagram.meta.droppedComments = dropped
-}
-
-function longestCommonSubsequenceIndices(a: string[], b: string[]): number[] {
-  const dp: number[][] = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0))
-  for (let i = a.length - 1; i >= 0; i--) {
-    for (let j = b.length - 1; j >= 0; j--) {
-      dp[i]![j] = a[i] === b[j]
-        ? dp[i + 1]![j + 1]! + 1
-        : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!)
-    }
-  }
-  const indices: number[] = []
-  let i = 0
-  let j = 0
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      indices.push(i)
-      i++
-      j++
-    } else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
-      i++
-    } else {
-      j++
-    }
-  }
-  return indices
+  const owned = new Map<string, number>()
+  for (const comment of commentsIn(serialized, normalizeMermaidSource(serialized))) owned.set(comment.text, (owned.get(comment.text) ?? 0) + 1)
+  const dropped = comments.filter(comment => {
+    const remaining = owned.get(comment.text) ?? 0
+    if (!remaining) return true
+    owned.set(comment.text, remaining - 1)
+    return false
+  })
+  if (dropped.length) diagram.meta.droppedComments = dropped
 }
 
 // ---- Meta extraction -----------------------------------------------------

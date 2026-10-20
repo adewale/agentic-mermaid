@@ -193,7 +193,7 @@ ${CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS}
 
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }
-interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':')
 
 const CODE_MODE_RENDER_METHOD_DECLARATIONS = codeModeRenderMethodDeclarations()
 
@@ -636,7 +636,7 @@ interface StateBody { unresolvedClasses?: Array<{ id: string; className: string 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 interface SeqParticipant { id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
 interface SeqMessage { from: string; to: string; text: string; textContent?: LabelContent; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
-type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
+type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
 interface SeqFragmentBranch { label?: string; labelContent?: LabelContent; messages: SeqMessage[] }
 interface SeqFragment { fragmentKind: SeqFragmentKind; label?: string; labelContent?: LabelContent; branches: SeqFragmentBranch[]; rawLines?: string[] }
 // BUILD-18: ordered statement list. participant/message refs index into the
@@ -680,7 +680,7 @@ interface JourneyBody { kind: 'journey'; title?: string; accessibilityTitle?: st
 type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
 type ArchitectureEndpointBoundary = 'item' | 'group'
 interface ArchitectureGroup { id: string; label: string; icon?: string; parentId?: string }
-interface ArchitectureService { id: string; label: string; icon?: string; parentId?: string }
+interface ArchitectureService { id: string; label: string; icon?: string; iconText?: string; parentId?: string }
 interface ArchitectureJunction { id: string; parentId?: string }
 interface ArchitectureEndpoint { id: string; side: ArchitectureSide; boundary?: ArchitectureEndpointBoundary }
 interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
@@ -781,7 +781,7 @@ type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
   | { kind: 'remove_node'; id: string }
   | { kind: 'rename_node'; from: string; to: string }
-  | { kind: 'set_label'; target: string; label: string }   // target: node id, authored edge ID (e1), or 'from->to'/'from->to#k'
+  | { kind: 'set_label'; target: string; label: string }   // target: node id, authored edge ID (e1), or 'from->to'/'from->to#k'; an id a node and an edge share names the node
   | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' | 'invisible' }
   | { kind: 'remove_edge'; id: string }                    // id: authored edge ID (e1), or 'from->to'/'from->to#k'
   | { kind: 'set_shape'; id: string; shape: string }       // geometry name or v11 @{ shape } name/alias
@@ -901,11 +901,12 @@ type ArchitectureMutationOp =
   | { kind: 'set_title'; title: string | null }
   | { kind: 'set_accessibility_title'; title: string | null }
   | { kind: 'set_accessibility_description'; description: string | null }
-  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
+  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; iconText?: string | null; group?: string | null }
   | { kind: 'remove_service'; id: string }
   | { kind: 'rename_service'; from: string; to: string }
   | { kind: 'set_service_label'; id: string; label: string }
   | { kind: 'set_service_icon'; id: string; icon: string | null }
+  | { kind: 'set_service_icon_text'; id: string; text: string | null }
   | { kind: 'move_service'; id: string; group: string | null }
   | { kind: 'add_junction'; id: string; group?: string | null }
   | { kind: 'remove_junction'; id: string }
@@ -1034,7 +1035,7 @@ type GanttMutationOp =
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE,
 // DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN,
-// BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
+// SCALE_RANGE_EXCLUDES_ZERO, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
 type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
 type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
@@ -1051,10 +1052,11 @@ type WarningCode =
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
   | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO'
-  | 'VALUES_OUTSIDE_RANGE'
+  | 'SCALE_RANGE_EXCLUDES_ZERO' | 'VALUES_OUTSIDE_RANGE'
   | 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
 
 interface VerifyResult {
+  checks?: { renderability: 'passed' | 'failed' | 'not-checked'; sourceLoss: 'detected' | 'not-detected'; taskCorrectness: 'not-checked' }
   ok: boolean
   warnings: { code: WarningCode; [field: string]: unknown }[]
   layout: RenderedLayout

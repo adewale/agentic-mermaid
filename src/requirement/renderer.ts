@@ -1,13 +1,13 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/families.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { canvasOf, f, labelRect, retainedLabelBounds, retainedLabelGeometry } from '../positioned-views/geometry.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
-import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor } from '../scene/ir.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
-import * as marks from '../scene/marks.ts'
-import { diagramTitleMark } from '../styles.ts'
+import { diagramTitleFields } from '../styles.ts'
 import { buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedRequirementDiagram } from './types.ts'
@@ -29,11 +29,11 @@ const defaultContains: MarkerDescriptor = {
   },
   paint: { fill: 'var(--bg)', stroke: 'var(--_arrow)', strokeWidth: '1' },
 }
-export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDiagram>): SceneDoc {
+export function lowerRequirementDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedRequirementDiagram>): DrawingDocument<T> {
   const { positioned: p, colors } = ctx,
     transparent = ctx.resolved.renderOptions.transparent ?? false,
     font = colors.font ?? 'Inter',
-    parts: SceneNode[] = [],
+    parts: T[] = [],
     arrow = p.style.edgeStrokeColor ? { ...defaultArrow, paint: { ...defaultArrow.paint, stroke: p.style.edgeStrokeColor } } : defaultArrow,
     contains = p.style.edgeStrokeColor ? { ...defaultContains, paint: { ...defaultContains.paint, stroke: p.style.edgeStrokeColor } } : defaultContains,
     resources = [arrow, contains]
@@ -48,7 +48,7 @@ export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDi
     const fill = node.style.fill ?? p.style.nodeFillColor ?? 'var(--_node-fill)',
       stroke = node.style.stroke ?? p.style.nodeBorderColor ?? 'var(--_node-stroke)',
       ink = node.style.color ?? p.style.nodeTextColor ?? fillInk('var(--_text)', fill)
-    const children: { node: SceneNode; indent: number }[] = [
+    const children: { node: T; indent: number }[] = [
       {
         indent: 2,
         node: marks.shape({
@@ -101,7 +101,7 @@ export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDi
     )
   }
 
-  if (p.title) parts.push(diagramTitleMark(p.title, p.style))
+  if (p.title) parts.push(marks.text(diagramTitleFields(p.title, p.style)))
   parts.push(marks.documentClose())
   return { family: 'requirement', width: p.width, height: p.height, colors, transparent, parts }
 }
@@ -120,3 +120,5 @@ export function projectRequirementPositioned({ positioned: p }: FamilyPositioned
     labels,
   }
 }
+
+export const lowerRequirementScene = sceneLowering<PositionedRequirementDiagram>(lowerRequirementDrawing)

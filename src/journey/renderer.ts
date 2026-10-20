@@ -1,3 +1,4 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   PositionedJourneyActor,
@@ -18,13 +19,13 @@ import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
 import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
+import type { MarkerDescriptor, SemanticChannels } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
-import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
+import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
 import { hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, legibleInk, mixHex, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
@@ -131,14 +132,15 @@ export function renderJourneySvg(
 /**
  * Lower a positioned journey diagram to the SceneGraph IR.
  */
-export function lowerJourneyScene(
+export function lowerJourneyDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedJourneyDiagram>,
-): SceneDoc {
+): DrawingDocument<T> {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const appearance = resolved.familyAppearance as JourneyRequestAppearance | undefined
   if (!appearance) throw new Error('Journey rendering requires request-boundary family appearance resolution')
   const style = resolveRenderStyle(options, appearance.styleDefaults, resolved.styleFace)
@@ -192,17 +194,17 @@ export function lowerJourneyScene(
   }))
   if (journeyCss) parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome', nonPaint: 'stylesheet' }, { kind: 'stylesheet', css: journeyCss }))
 
-  parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
+  parts.push(renderScoreGuide(marks, diagram.scoreGuide, style, arrowMarker))
 
   if (diagram.actors.length > 0) {
-    parts.push(renderActorLegend(diagram.actors, style, paints, diagram.actorLegendTitle))
+    parts.push(renderActorLegend(marks, diagram.actors, style, paints, diagram.actorLegendTitle))
   }
 
   const rawJourneyConfig = options.mermaidConfig?.journey as Record<string, unknown> | undefined
   const authoredSectionPaint = rawJourneyConfig?.sectionFills !== undefined || rawJourneyConfig?.sectionColours !== undefined
   diagram.sections.forEach((section, index) => {
     if (section.framed) {
-      parts.push(renderSectionFrame(section, style, paints, index, resolved.styleFace, authoredSectionPaint))
+      parts.push(renderSectionFrame(marks, section, style, paints, index, resolved.styleFace, authoredSectionPaint))
     }
   })
 
@@ -211,12 +213,12 @@ export function lowerJourneyScene(
   // Mermaid positions faces but never connects them; render(source,
   // { journey: { experienceCurve: false } }) restores that classic look.
   if (drawCurve) {
-    parts.push(renderExperienceCurve(curveMarkers, style, paints))
+    parts.push(renderExperienceCurve(marks, curveMarkers, style, paints))
   }
 
   for (const section of diagram.sections) {
     for (const task of section.tasks) {
-      parts.push(renderTask(task, section.label, style, paints))
+      parts.push(renderTask(marks, task, section.label, style, paints))
     }
   }
 
@@ -290,11 +292,12 @@ function journeyStyles(visual: JourneyVisualConfig): string {
   return visual.taskFontFamily ? `\n  .journey-task-text { font-family: ${visual.taskFontFamily}; }\n` : ''
 }
 
-function renderExperienceCurve(
+function renderExperienceCurve<T>(
+  marks: DrawingFactory<T>,
   markers: PositionedJourneyScoreMarker[],
   style: ResolvedRenderStyle,
   paints: JourneyPaints,
-): SceneNode {
+): T {
   const points = markers.map(marker => ({ x: marker.cx, y: marker.cy }))
   const projection = smoothCurveProjection(points)
   return marks.connector({
@@ -333,8 +336,8 @@ function smoothCurveProjection(points: Array<{ x: number; y: number }>): Connect
   return projectConnectorPath(d, first, segments)
 }
 
-function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRenderStyle, arrowMarker: MarkerDescriptor): SceneNode {
-  const children: Array<{ node: SceneNode; indent: number }> = []
+function renderScoreGuide<T>(marks: DrawingFactory<T>, guide: PositionedJourneyScoreGuide, style: ResolvedRenderStyle, arrowMarker: MarkerDescriptor): T {
+  const children: Array<{ node: T; indent: number }> = []
 
   for (const tick of guide.ticks) {
     children.push({
@@ -406,12 +409,12 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
   })
 }
 
-function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRenderStyle, paints: JourneyPaints, titleBlock?: PixelTextBlock): SceneNode {
+function renderActorLegend<T>(marks: DrawingFactory<T>, actors: PositionedJourneyActor[], style: ResolvedRenderStyle, paints: JourneyPaints, titleBlock?: PixelTextBlock): T {
   const first = actors[0]!
   const titleX = first.x - JY.legendDotRadius
   const titleY = first.y - JY.legendTitleGap
   const title = titleBlock?.text ?? applyTextTransform('Actors', style.groupTextTransform)
-  const children: Array<{ node: SceneNode; indent: number }> = [
+  const children: Array<{ node: T; indent: number }> = [
     {
       indent: 2,
       node: marks.text(
@@ -438,13 +441,13 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
       indent: 2,
       node: marks.shape(
         {
-          id: `actor-legend-dot:${actor.label}`,
+          id: `actor-legend-dot:${actor.category}`,
           role: 'actor',
           geometry: { kind: 'circle', cx: actor.x, cy: actor.y, r: JY.legendDotRadius },
           paint: { fill: actorFill(actor.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
-          channels: { category: actor.label },
+          channels: { category: actor.category },
 
-          attributes: { className: `journey-actor-dot ${actorClass(actor.colorIndex, paints)}`, data: { actor: actor.label } },
+          attributes: { className: `journey-actor-dot ${actorClass(actor.colorIndex, paints)}`, data: { actor: actor.category } },
         },
         { kind: 'primitive', attributes: [
           { name: 'class', value: v.meta(`journey-actor-dot ${actorClass(actor.colorIndex, paints)}`) },
@@ -457,7 +460,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
       indent: 2,
       node: marks.text(
         {
-          id: `actor-legend-label:${actor.label}`,
+          id: `actor-legend-label:${actor.category}`,
           role: 'legend',
           text: actor.label,
           block: actor.block,
@@ -466,7 +469,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
           anchor: 'start',
           paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
-          channels: { category: actor.label },
+          channels: { category: actor.category },
 
           attributes: { className: 'journey-actor-legend-text' },
         },
@@ -483,16 +486,17 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
   })
 }
 
-function renderSectionFrame(
+function renderSectionFrame<T>(
+  marks: DrawingFactory<T>,
   section: PositionedJourneySection,
   style: ResolvedRenderStyle,
   paints: JourneyPaints,
   sectionIndex: number,
   face: Readonly<InternalStyleFace> | undefined,
   authoredSectionPaint: boolean,
-): SceneNode {
+): T {
   const name = section.category
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
 
   children.push({
     indent: 2,
@@ -523,7 +527,7 @@ function renderSectionFrame(
     const labelColor = authoredSectionPaint ? sectionTextColor(sectionIndex, paints) : semanticStyle?.textColor ?? sectionTextColor(sectionIndex, paints)
     children.push({
       indent: 2,
-      node: renderSectionLabelBand(section, style, paints, sectionIndex, face, authoredSectionPaint),
+      node: renderSectionLabelBand(marks, section, style, paints, sectionIndex, face, authoredSectionPaint),
     })
     children.push({
       indent: 2,
@@ -563,14 +567,15 @@ function renderSectionFrame(
   })
 }
 
-function renderSectionLabelBand(
+function renderSectionLabelBand<T>(
+  marks: DrawingFactory<T>,
   section: PositionedJourneySection,
   style: ResolvedRenderStyle,
   paints: JourneyPaints,
   sectionIndex: number,
   face: Readonly<InternalStyleFace> | undefined,
   authoredSectionPaint: boolean,
-): SceneNode {
+): T {
   const channels = { category: section.category }
   const semanticStyle = resolveRoleStyle(face, 'group-header', channels, { includeFallback: false })
   const fill = authoredSectionPaint ? sectionHeaderFill(sectionIndex, paints) : semanticStyle?.fillColor ?? sectionHeaderFill(sectionIndex, paints)
@@ -622,20 +627,20 @@ function renderSectionLabelBand(
   )
 }
 
-function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefined, style: ResolvedRenderStyle, paints: JourneyPaints): SceneNode {
+function renderTask<T>(marks: DrawingFactory<T>, task: PositionedJourneyTask, sectionLabel: string | undefined, style: ResolvedRenderStyle, paints: JourneyPaints): T {
   const value = task.score / JOURNEY_MAX_SCORE
   const channels: SemanticChannels = sectionLabel ? { value, category: sectionLabel } : { value }
-  const children: Array<{ node: SceneNode; indent: number }> = [
-    { indent: 2, node: renderTrack(task.track, task, style, paints) },
-    { indent: 2, node: renderTaskBox(task, style, paints, channels) },
-    { indent: 2, node: renderTaskLabel(task, style, paints, channels) },
+  const children: Array<{ node: T; indent: number }> = [
+    { indent: 2, node: renderTrack(marks, task.track, task, style, paints) },
+    { indent: 2, node: renderTaskBox(marks, task, style, paints, channels) },
+    { indent: 2, node: renderTaskLabel(marks, task, style, paints, channels) },
   ]
 
   for (const dot of task.actorDots) {
-    children.push({ indent: 2, node: renderActorDot(dot, task.id, paints) })
+    children.push({ indent: 2, node: renderActorDot(marks, dot, task.id, paints) })
   }
 
-  children.push({ indent: 2, node: renderScoreMarker(task.marker, task.id, paints, channels) })
+  children.push({ indent: 2, node: renderScoreMarker(marks, task.marker, task.id, paints, channels) })
 
   return marks.group({
     id: `task:${task.id}`,
@@ -651,7 +656,7 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
   })
 }
 
-function renderTrack(track: PositionedJourneyTrack, task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints): SceneNode {
+function renderTrack<T>(marks: DrawingFactory<T>, track: PositionedJourneyTrack, task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints): T {
   return marks.connector({
     id: `track:${task.id}`,
     role: 'marker-line',
@@ -670,7 +675,7 @@ function renderTrack(track: PositionedJourneyTrack, task: PositionedJourneyTask,
   )
 }
 
-function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
+function renderTaskBox<T>(marks: DrawingFactory<T>, task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): T {
   return marks.shape({
     id: `task-box:${task.id}`,
     role: 'task',
@@ -688,7 +693,7 @@ function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, 
   )
 }
 
-function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
+function renderTaskLabel<T>(marks: DrawingFactory<T>, task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): T {
   return marks.text(
     {
       id: `task-label:${task.id}`,
@@ -708,7 +713,7 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
   )
 }
 
-function renderActorDot(dot: PositionedJourneyActorDot, taskId: string, paints: JourneyPaints): SceneNode {
+function renderActorDot<T>(marks: DrawingFactory<T>, dot: PositionedJourneyActorDot, taskId: string, paints: JourneyPaints): T {
   return marks.shape(
     {
       id: `actor-dot:${taskId}:${dot.label}`,
@@ -726,7 +731,7 @@ function renderActorDot(dot: PositionedJourneyActorDot, taskId: string, paints: 
   )
 }
 
-function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
+function renderScoreMarker<T>(marks: DrawingFactory<T>, marker: PositionedJourneyScoreMarker, taskId: string, paints: JourneyPaints, channels: SemanticChannels): T {
   const eyeY = marker.cy - 4.5
   const leftEyeX = marker.cx - 5.5
   const rightEyeX = marker.cx + 5.5
@@ -935,10 +940,8 @@ function contrastGuardedLabelColor(
   return fallback
 }
 
-/** Actor identity is carried by small dots. Keep Journey's established colors
- * through six actors; above that compatibility boundary, use the shared
- * measured separation and visibility contract. Authored actorColours still
- * win in journeyPaints. */
+/** Keep established low-count actor colors where they satisfy the same
+ * visibility and separation contract as the shared palette. */
 function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle, actorCount: number): string[] {
   const count = Math.max(actorCount, 1)
   if (count > 6 && isOpaqueConcreteCssColor(colors.bg)) {
@@ -949,7 +952,10 @@ function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRende
     const resolved = resolveColors(colors)
     const accent = firstHexColor(style.edgeStrokeColor, colors.accent, resolved.arrow)
     if (accent) {
-      if (count <= 6) return legacyActorPalette(accent, colors.bg, count)
+      if (count <= 6) {
+        const legacy = legacyActorPalette(accent, colors.bg, count)
+        if ((count < 2 || minPairwiseDeltaEOK(legacy)! >= 0.10) && legacy.every(color => wcagCssContrastRatio(color, colors.bg)! >= 1.25 && Math.abs(apcaContrast(color, colors.bg)!) >= 15)) return legacy
+      }
       return categoricalPalette(count, { accent, bg: colors.bg })
     }
   }
@@ -1037,3 +1043,5 @@ function sectionStroke(index: number, paints: JourneyPaints): string {
 function sectionTextColor(index: number, paints: JourneyPaints): string {
   return paints.sectionTextColors[index % paints.sectionTextColors.length]!
 }
+
+export const lowerJourneyScene = sceneLowering<PositionedJourneyDiagram>(lowerJourneyDrawing)

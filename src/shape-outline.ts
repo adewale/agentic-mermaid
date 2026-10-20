@@ -155,6 +155,8 @@ export function shapeOutline(
       return outline({ kind: 'rect', x, y, width: w, height: h, rx: r, ry: r }, paint,
         { kind: 'stadium', cx, cy, halfWidth: w / 2, radius: r }, RECT_EMISSION)
     }
+    case 'ellipse': return outline({ kind: 'ellipse', cx, cy, rx: w / 2, ry: h / 2 }, paint,
+      { kind: 'ellipse', cx, cy, rx: w / 2, ry: h / 2 }, primitive(geometryAttributes('cx', 'cy', 'rx', 'ry')))
     case 'circle':
     case 'state-history': return circle(cx, cy, Math.min(w, h) / 2, paint)
     case 'doublecircle': return doubleCircle(cx, cy, Math.min(w, h) / 2, paint)

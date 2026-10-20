@@ -31,7 +31,7 @@ import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
-import { retainedPositionedScene, positionedPaintCertification } from './scene/positioned.ts'
+import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
 import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
@@ -162,7 +162,8 @@ function renderPositionedWithTextMeasurement(
   let textAlreadyFitted = false
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
-    const scene = measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
+    const drawing = measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
+    const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
     const backend = executionPlan.backend!.backend
@@ -170,12 +171,13 @@ function renderPositionedWithTextMeasurement(
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
     }
-    rawSvg = measureRenderStage('backend', () => {
-      if (!isBuiltinDefaultBackend(backend)) return backend.render(scene, backendContext)
-      const emitted = renderDefaultScene(scene, backendContext, SCENE_VALIDATION_LIMITS.maxFinalSvgBytes)
+    rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
+      if (!isBuiltinDefaultBackend(backend)) return backend.render(scene!, backendContext)
+      const emitted = renderDefaultScene(scene!, backendContext, SCENE_VALIDATION_LIMITS.maxFinalSvgBytes)
       textAlreadyFitted = emitted.textAlreadyFitted
       return emitted.svg
     })
+    if (drawing) textAlreadyFitted = drawing.preparedText
   } else {
     if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
     rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
@@ -269,9 +271,28 @@ function executeInspectedGraphicalRequest(
     outputOptions,
     resolutionOptions,
   ))
+  return consumeResolvedGraphicalRequest(request)
+}
+
+/** Async entries retain one immutable request across dependency loading.
+ * Diagnostics and lazy receipts consume that same admitted identity. */
+export function executeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
+  return withSvgInspectionCache(() => consumeResolvedGraphicalRequest(request))
+}
+
+function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
+  return graphicalSvgArtifact(request, rendered, securityDiagnostics)
+}
+
+/** Complete an already-rendered private request without positioning again. */
+export function graphicalSvgArtifact(
+  request: ResolvedRenderRequest,
+  rendered: ResolvedGraphicalExecution,
+  securityDiagnostics: OutputSecurityDiagnostic[],
+): GraphicalSvgArtifact {
   const layoutCertification = Object.hasOwn(rendered, 'layoutCertification') ? rendered.layoutCertification : undefined
   return lazyGraphicalArtifact(rendered.svg, () => {
     const outputDigest = renderedSvgDigest(rendered.svg)

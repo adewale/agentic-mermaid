@@ -1,3 +1,4 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
 import type { RenderContext, RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -9,9 +10,8 @@ import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
-import type { MarkAttributes, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkAttributes } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
-import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField, type SvgValue } from '../scene/svg-emission.ts'
 
@@ -99,9 +99,10 @@ export function renderTimelineSvg(
 /**
  * Lower a positioned timeline diagram to the SceneGraph IR in canonical mark order.
  */
-export function lowerTimelineScene(
+export function lowerTimelineDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedTimelineDiagram>,
-): SceneDoc {
+): DrawingDocument<T> {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
@@ -109,7 +110,7 @@ export function lowerTimelineScene(
   const timelineAppearance = resolved.familyAppearance as TimelineRequestAppearance | undefined
   if (!timelineAppearance) throw new Error('Timeline rendering requires request-boundary family appearance resolution')
   const timelineConfig = timelineAppearance.timelineConfig
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const style = resolveRenderStyle(options, TIMELINE_STYLE_DEFAULTS, resolved.styleFace)
   const familyPalettes = timelineAppearance.familyPalettes
   const eventText = eventTextFill(style, colors, familyPalettes)
@@ -152,7 +153,7 @@ export function lowerTimelineScene(
     const section = diagram.sections[sectionIndex]!
     const familyIndex = useSectionFamilies ? sectionIndex : 0
     if (section.framed) {
-      parts.push(lowerSectionFrame(section, familyIndex, familyPalettes, style, paints))
+      parts.push(lowerSectionFrame(marks, section, familyIndex, familyPalettes, style, paints))
     }
   }
 
@@ -175,7 +176,7 @@ export function lowerTimelineScene(
     const sectionFamilyIndex = useSectionFamilies ? sectionIndex : undefined
     for (const period of section.periods) {
       const familyIndex = sectionFamilyIndex ?? (allowMulticolor ? periodFamilyIndex++ : 0)
-      parts.push(lowerPeriod(period, section.label, familyIndex, familyPalettes, style, paints))
+      parts.push(lowerPeriod(marks, period, section.label, familyIndex, familyPalettes, style, paints))
     }
   }
 
@@ -264,17 +265,18 @@ function literalTextHooks(className: string): MarkAttributes {
   return { className, data: { 'literal-text': 'true' } }
 }
 
-function lowerSectionFrame(
+function lowerSectionFrame<T>(
+  marks: DrawingFactory<T>,
   section: PositionedTimelineSection,
   familyIndex: number,
   familyPalettes: readonly TimelineFamilyPalette[],
   style: ResolvedRenderStyle,
   paints: TimelinePaints,
-): SceneNode {
+): T {
   const sectionName = section.label ?? section.id
   const sectionLabel = section.label ? sanitizeDisplayLines(section.label) : undefined
   const family = familyAttributes(familyIndex, familyPalettes)
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
 
   children.push({
     indent: 2,
@@ -347,17 +349,18 @@ function lowerSectionFrame(
   })
 }
 
-function lowerPeriod(
+function lowerPeriod<T>(
+  marks: DrawingFactory<T>,
   period: PositionedTimelinePeriod,
   sectionLabel: string | undefined,
   familyIndex: number,
   familyPalettes: readonly TimelineFamilyPalette[],
   style: ResolvedRenderStyle,
   paints: TimelinePaints,
-): SceneNode {
+): T {
   const sectionAttributes: SvgAttribute[] = sectionLabel ? [{ name: 'data-section', value: v.meta(sectionLabel) }] : []
   const family = familyAttributes(familyIndex, familyPalettes)
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
 
   children.push({
     indent: 2,
@@ -435,7 +438,7 @@ function lowerPeriod(
   for (let k = 0; k < period.events.length; k++) {
     children.push({
       indent: 0,
-      node: lowerEvent(period.events[k]!, sectionLabel, familyIndex, familyPalettes, style, paints),
+      node: lowerEvent(marks, period.events[k]!, sectionLabel, familyIndex, familyPalettes, style, paints),
     })
   }
 
@@ -452,14 +455,15 @@ function lowerPeriod(
   })
 }
 
-function lowerEvent(
+function lowerEvent<T>(
+  marks: DrawingFactory<T>,
   event: PositionedTimelineEvent,
   sectionLabel: string | undefined,
   familyIndex: number,
   familyPalettes: readonly TimelineFamilyPalette[],
   style: ResolvedRenderStyle,
   paints: TimelinePaints,
-): SceneNode {
+): T {
   const sectionAttributes: SvgAttribute[] = sectionLabel ? [{ name: 'data-section', value: v.meta(sectionLabel) }] : []
   const family = `${familyIndex % familyPalettes.length}`
   const idBase = `event:${event.id}`
@@ -575,3 +579,5 @@ function readTimelineScale(
   const value = themeVariables[`${prefix}${index}`]
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
+
+export const lowerTimelineScene = sceneLowering<PositionedTimelineDiagram>(lowerTimelineDrawing)

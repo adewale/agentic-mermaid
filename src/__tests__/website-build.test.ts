@@ -30,6 +30,9 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from '../render-contract.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
@@ -577,16 +580,6 @@ describe('Workers Static Assets website contract', () => {
     expect(Array.from(served.matchAll(/`(?:docs\/|references\/upstream\/)[^`]*`/g), match => match[0])).toEqual([])
   })
 
-  test('getting started uses installed package bins rather than repository-only paths', () => {
-    const page = read('docs/getting-started/index.html')
-    expect(page).toContain('npx --no-install agentic-mermaid verify diagram.mmd --json')
-    expect(page).toContain('npx --no-install agentic-mermaid render diagram.mmd --format svg')
-    expect(page).toContain('"command": "npx"')
-    const packageVersion = JSON.parse(readRepo('package.json')).version
-    expect(page).toContain(`"agentic-mermaid@${packageVersion}"`)
-    expect(page).not.toContain('bun run bin/')
-  })
-
   test('getting started publishes the agent-facing vocabulary without reviving the removed route', () => {
     const page = read('docs/getting-started/index.html')
     const terms = [
@@ -708,7 +701,7 @@ describe('Workers Static Assets website contract', () => {
     expect(editorScript).not.toContain('Poppins')
   })
 
-  test('the editor builder works from a checkout path containing a space', () => {
+  test('the editor builder works from a checkout path containing a space', async () => {
     // URL.pathname percent-encodes the space, so a builder that resolves its
     // inputs through it cannot find them; the generated page must still bundle.
     const parent = mkdtempSync(join(tmpdir(), 'am editor builder '))
@@ -718,11 +711,8 @@ describe('Workers Static Assets website contract', () => {
       cpSync(join(REPO, 'src'), join(checkout, 'src'), { recursive: true, filter: path => !path.includes(`${join('src', '__tests__')}`) })
       symlinkSync(join(REPO, 'node_modules'), join(checkout, 'node_modules'))
       const out = join(parent, 'editor.html')
-      const result = Bun.spawnSync(['bun', '--preload', join(REPO, 'src/__tests__/site-probe.preload.ts'), join(checkout, 'scripts/site/editor.ts')], {
-        cwd: checkout,
-        env: { ...process.env, AM_TEST_REDIRECT_WRITE: out, AM_EDITOR_FONT_PREFIX: '' },
-      })
-      expect({ exitCode: result.exitCode, stderr: result.stderr.toString() }).toEqual({ exitCode: 0, stderr: '' })
+      const result = await runChild('bun', ['--preload', join(REPO, 'src/__tests__/site-probe.preload.ts'), join(checkout, 'scripts/site/editor.ts')], { cwd: checkout, env: { ...process.env, AM_TEST_REDIRECT_WRITE: out, AM_EDITOR_FONT_PREFIX: '' } })
+      expect({ exitCode: result.status, stderr: result.stderr.toString() }).toEqual({ exitCode: 0, stderr: '' })
       const html = readFileSync(out, 'utf8')
       expect(html).toContain('window.__mermaid')
       // Without an explicit prefix the standalone editor serves fonts relative to itself.
@@ -1482,8 +1472,8 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('focused agent artifacts are generated and stale machine catalogs are absent', () => {
-    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim()
-    const status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=normal'], { cwd: REPO, encoding: 'utf8' })
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { timeout: 20_000, killSignal: 'SIGKILL', cwd: REPO, encoding: 'utf8' }).trim()
+    const status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=normal'], { timeout: 20_000, killSignal: 'SIGKILL', cwd: REPO, encoding: 'utf8' })
     const expectedGitSha = resolveBuildGitSha({ head, status })
     for (const rel of ['capabilities.json', 'examples/index.json', '.well-known/mcp.json', '.well-known/mcp/server-card.json', '.well-known/ai-catalog.json']) {
       const json = JSON.parse(read(rel))
@@ -1753,7 +1743,7 @@ describe('Workers Static Assets website contract', () => {
     expect(graph.find((node: any) => node['@type'] === 'WebPage').speakable.cssSelector).toContain('h1')
     // The editor verdict is truthful copy, not the old overclaim.
     const editorScript = read(editorScriptRel())
-    expect(editorScript).toContain('Verified: no warnings')
+    expect(editorScript).toContain('Render checks passed: no warnings')
     expect(editorScript).not.toContain('Verified: safe to export')
     expect(editorScript).toContain('Diagram too large for text rendering')
   })

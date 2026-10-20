@@ -16,6 +16,14 @@ is historical; its removed reports and receipts are not current requirements.
 
 ## Local CI parity
 
+The scheduled nightly finder also runs the unit file set in randomized order
+and starts a fresh OS process for each file. These modes search for test-order,
+module-state and native-runtime interference without adding randomness to PR
+gates. Each log records its seed and exact files. Replay a focused failure with
+`AM_TEST_ORDER_SEED=<seed> bun run scripts/ci/find-test-order.ts shuffled <files>`
+or replace `shuffled` with `fresh-process`. The new modes retain artifact logs;
+they do not create issues automatically.
+
 Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
 the dependency audit, the font-subset, lazy browser-family catalog, and website
@@ -35,14 +43,27 @@ a second full package build. Generic PR render evidence is generated on demand
 with `scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`;
 automatic rendering of the same fixtures is no longer appended to every PR.
 
+Both tarball-consumer lanes also execute the Getting Started commands from the
+built website's shell blocks and `docs/getting-started.md`'s bash fences in fresh
+consumer directories. Only the registry package spec is replaced with the packed
+tarball; the guide's separate repository-development alternative is excluded.
+The gate checks verification JSON, parsed SVG and PNG files, terminal output,
+style discovery, and stdio MCP initialization/tool discovery for both the CLI
+command and the version-pinned config card. Failures name the page, step, and
+copied command. Run it locally with
+`cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000`.
+
 Committed galleries and before/after sheets are dated review snapshots, not
 gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
 gaps and the Section B sheet, which is regenerated in memory and
-byte-compared). Committed text/JSON generated
-from source is refreshed with `bun run generate`, and its unit test fails when
-it is stale. There are no input-hash receipts.
+byte-compared). Generated runtime modules are the narrow committed exception
+when production code imports them. Other derived discovery views are generated
+at delivery: `am llms-txt` and the website use current registries, while the
+repository's authored `llms.txt` points readers to those sources. A second
+committed capability roster and its snapshot-freshness test are unnecessary.
+There are no input-hash receipts.
 
 ## The central problem: this is a partly non-testable program
 
@@ -89,8 +110,9 @@ advisory, while measured `CONTENT_OCCLUDED` and an explicit error policy fail ve
 Alongside it sit the **contract gates**: `am capabilities --json` schema
 tests, the `agent-doc-sync` tests, and the behavioural
 diagram-family citizenship loop. For an agent-native product the docs, schemas, CLI
-help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
-like code, not treated as prose.
+help, and live generated discovery *are* runtime surfaces (Loop 14), so their
+behavior is tested like code. The repository `llms.txt` is an authored pointer
+to those live surfaces.
 
 Citizenship requires a small smoke input and a domain-rich scenario for every
 registered built-in family. Required witnesses in the existing closed
@@ -232,7 +254,12 @@ sources we did not write:
   authored strings are not globally rewritten. None of these selected scopes
   proves full semantic fidelity. The default is 5,000
   seeded mutations per family; CI uses 100 per family on PRs/main and the full
-  default weekly and on manual dispatch. Per-input JSONL and detailed counterexamples are
+  default weekly and on manual dispatch, all at seed 7. Mutations draw on the
+  corpus's own token images and on fixed lexer-boundary fragments
+  (`grammar-fragments.ts`). Each run counts **silent reads** per family (pinned
+  Mermaid rejects, ours reads, verify names no problem) and lists them reduced;
+  the nightly finder runs the native families at a fresh seed and files new
+  ones in one issue. Per-input JSONL and detailed counterexamples are
   ignored build artifacts. This measures native admission and reference grammar
   round trips as well as the scoped native semantics/operations. Agentic has
   no homologous Mermaid token/`yy` interface, so exact protocol equality
@@ -370,15 +397,25 @@ under `eval/`, or deliberate `AM_FC_SEED=random` sweeps.
 
 The nightly finder rolls fresh seeds across every fast-check file with
 `AM_FC_NUM_RUNS=300` (at least 300 cases, including locally pinned properties).
-It never blocks a pull request. A failure files or comments on one
-issue carrying the seed, path, and counterexample
-(`scripts/ci/nightly-finder-report.ts`). Fix a real counterexample and keep it
-forever as a fast-check `examples` entry on the property: seeds and paths do not
+It never blocks a pull request. A newly failing property files or comments on one
+collector issue with its owning test file and replay command
+(`scripts/ci/nightly-finder-report.ts`). Repeated properties do not notify the
+collector again while it remains open. Every failing run retains the complete
+`sweep.log` and JSON seeds, paths and untruncated counterexamples in the
+`property-finder-evidence` artifact for 30 days, including repeated findings.
+Review those artifacts when investigating another input from a known property.
+Fix a real counterexample and keep it forever as a fast-check `examples` entry on the property: seeds and paths do not
 survive fast-check upgrades, `examples` do. Its first local run found a real
 Architecture routing counterexample (`AM_FC_SEED=1102132276` in
-`architecture-layout.test.ts`) that the pinned seed never reached. It is not
-fixed yet: the shrunk case is an `examples` entry inside an `it.failing` pin
-that names BUG-37 in `TODO.md`.
+`architecture-layout.test.ts`) that the pinned seed never reached. Its fixed exit
+distance could enter a neighboring card’s clearance envelope; exits now stop at that envelope before the visibility
+search. The reduced input and the other recovered #362 Architecture cases are
+permanent passing `examples` entries in the grouped-layout property.
+
+The workflow's second job does the same for the Mermaid grammar comparison,
+which keeps seed 7 in the PR gate: it runs the native families at a fresh seed
+and lists each new silent read, reduced, with its seed in one issue
+(`scripts/ci/grammar-finder-report.ts`).
 
 Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
@@ -575,6 +612,91 @@ table here, which would drift. In broad strokes:
   Timing is source through SVG return, not visual/semantic fidelity or
   paint. The post does not specify its warm-up selection; choosing the
   first 30 is an explicit adaptation. Generated reports are not committed.
+  To include Bezel's Rust renderer, install Rust's `wasm32-unknown-unknown`
+  target and `wasm-bindgen-cli` 0.2.104, then run:
+
+  ```sh
+  bun run eval/benchmark/bezel-wasm/build.ts --checkout ../bezel --out /tmp/bezel-bench
+  bun run bench:dave --bezel-dir /tmp/bezel-bench --executable /path/to/chromium
+  ```
+
+  The adapter compiles an unmodified, clean Bezel checkout at `opt-level=3`
+  with LTO. Its manifest records the revision, compiler, dependency lock and
+  wrapper/WASM byte identities. Instantiation is outside the render timer;
+  timed calls use `render(source, &Options::default(), &Metrics).svg`. Reported
+  bundle size includes the WASM embedded in its JS wrapper. This measures
+  standalone browser rendering, not Bezel's GPUI gallery or native execution.
+  WASM memory is outside the separate V8 JS-memory diagnostic.
+  `bun run eval/benchmark/editor-preview-bench.ts --site website/public --out
+  bench-report/editor-preview --executable /path/to/chromium` complements that
+  render-only score with actual editor input through verified DOM and two
+  animation frames. It changes the root label in 5/50/150-node trees, keeps
+  default cache behavior and adaptive debounce, and records a 5 ms main-thread
+  heartbeat. Run baseline and candidate builds sequentially on an otherwise
+  idle runner. These targeted UI samples are separate from the full corpus.
+  The standalone editor embeds one module used by both the main thread and
+  its Blob worker; it does not embed separate copies of the rendering engine.
+  The real-browser standalone contract also caps the complete generated HTML
+  at 4,100,000 raw / 1,250,000 gzip bytes and checks worker crash recovery,
+  text output and the actual Canvas PNG download. The hosted editor retains
+  its separate, lazy worker asset and existing route payload budgets.
+
+  Two optional investigations expand these diagnostics without adding timing
+  gates:
+
+  ```sh
+  # AGENTIC_ROOT contains package.json and the actual dist/browser.global.js.
+  bun run eval/benchmark/renderer-profile.ts --agentic-root /path/to/extracted/package \
+    --bezel-dir /tmp/bezel-bench --out bench-report/renderer-profile --executable /path/to/chromium
+  bun run eval/benchmark/editor-session-bench.ts --site website/public \
+    --out bench-report/editor-session --session-edits 120 --executable /path/to/chromium
+  ```
+
+  The renderer investigation records family-level SVG acceptance, differential
+  inputs/errors and paired timing over the complete occurrence inventory. Its
+  separate source-build pass attributes stages over distinct sources after
+  warmup, both through SVG return and fully consumed receipts; layout includes
+  ELK, so those stage totals must not be added together. Chrome CPU profiles
+  cover the slowest shared-success example in eight families. Source profiles
+  retain function names; only the packaged pass establishes competitor ratios.
+  `--timing-report /path/to/renderer-profile.json` can reuse a completed timing
+  pass with identical artifact hashes/rounds and a complete adjacent
+  `samples.json`; it still reruns stage attribution and profiling.
+
+  The editor session runner covers trees, nested crosslinks, sequence, class,
+  ER, state, mindmap, Gantt and pie. Defaults are five fresh browser contexts,
+  20 warm edits, 60 subsequent edits and a 30-edit burst requesting 80 ms intervals per
+  case. It records median/p95 latency, heartbeat gaps, receipt invalidation,
+  visible final labels, worker concurrency and forced-GC JS heaps in both
+  realms. Fresh contexts do not clear browser-process or OS caches; localhost
+  transfer is uncompressed and unshaped. Heap figures exclude native/DOM/Blob
+  backing allocations and process RSS. Use `--case tree-150` for longer focused
+  sessions, `--memory-every 100` for periodic retained-heap checkpoints outside
+  timed edits, and `--entry /original.html` for standalone builds served in a site
+  directory alongside its `capabilities.json` and fonts. Baseline/candidate
+  runs must remain sequential on an otherwise idle runner.
+
+  The editor's persistent worker owns preview/verification, ASCII/Unicode and
+  PNG projection/validation. A PNG operation invokes the existing main-thread
+  font/Canvas callback and transfers an allocation-bounded copy of its bytes
+  back for canonical PNG validation. Callback buffers are never detached.
+  One operation is active, with one replaceable preview and four queued exports;
+  source/config changes cancel stale work, including a PNG awaiting font/Canvas
+  I/O, so a new preview can proceed. Timeouts and crashes reject all waiters and
+  the next operation starts a fresh worker.
+
+  `editor-ownership-bench.ts --site /path/to/site --out bench-report/ownership
+  --executable /path/to/chromium` compares frozen `original.html` and current
+  `candidate.html` in alternating fresh contexts. Serve their fonts alongside
+  them. It separately measures the empty shell, first preview, ASCII/Unicode
+  and a real Canvas PNG, with heap checkpoints before/after preview and exports.
+  `--case tree-5,tree-50,tree-150,nested-crosslinks,sequence-40,class-20,er-20,state-25,mindmap-30,gantt-20,pie-12`
+  expands it to the full editor portfolio; `--style hand-drawn` measures a seeded
+  alternate backend. The runner attempts every format even after a render
+  rejection, retains incremental samples and reports per-format acceptance.
+  Successful SVG/ASCII/Unicode/PNG bytes and request identities must match
+  across variants and repetitions; rejected outputs must have matching errors.
+  Report rejected attempts separately from successful-operation latency.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;

@@ -384,12 +384,14 @@
         "svgText": [
           "Long release labels in top-to-bottom history",
           "Add traces, logs, metrics, and structured events",
-          "release-2026.08-observability-general-availability"
+          "release-2026.08-observability-general-availability",
+          "observability-merge"
         ],
         "terminalText": [
           "Long release labels in top-to-bottom history",
           "feature/observability",
-          "main"
+          "main",
+          "observability-merge"
         ],
         "parentCount": 4,
         "parentRelations": {
@@ -401,7 +403,6 @@
         "commitLabelFontSize": 18,
         "rotateCommitLabel": false,
         "warningCodes": [
-          "LABEL_OVERFLOW",
           "LABEL_OVERFLOW",
           "LABEL_OVERFLOW"
         ]
@@ -523,12 +524,14 @@
         "svgText": [
           "Merge commit backports",
           "selected-backport",
-          "Verify maintenance release"
+          "Verify maintenance release",
+          "MERGE"
         ],
         "terminalText": [
           "Merge commit backports",
           "release/1.x",
-          "Feature B"
+          "Feature B",
+          "MERGE"
         ],
         "parentCount": 9,
         "parentRelations": {
@@ -546,9 +549,7 @@
         },
         "cherrySource": "MERGE",
         "cherryParent": "feature-b",
-        "warningCodes": [
-          "LABEL_OVERFLOW"
-        ]
+        "warningCodes": []
       }
     },
     {

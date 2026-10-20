@@ -255,54 +255,21 @@ Omitting both width options preserves the unconstrained output path.
 
 ## Shared render options
 
-SVG, PNG, ASCII, and Unicode adapters accept this serializable `RenderOptions`
-field set. The built-in-family column exposes family applicability; the
-terminal column records whether text output consumes a field, projects it with
-an explicit diagnostic, or declares it inapplicable. Output-specific controls
-remain in their respective sections.
+SVG, PNG, ASCII, and Unicode accept the shared `RenderOptions` contract.
+The complete field definitions live in the exported TypeScript
+[`RenderOptions`](../src/types.ts) and the generated
+[render-options JSON schema](https://agentic-mermaid.dev/schemas/render-options.schema.json).
+Those are derived from the runtime authority; this guide describes usage and
+output-specific controls rather than maintaining another complete field roster.
 
-<!-- BEGIN GENERATED SHARED RENDER OPTIONS -->
-| Option | Type | Effective default | Meaning | Built-in families | Terminal |
-|---|---|---|---|---|---|
-| `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence. | all | consumed |
-| `bg` | `string` | `#FFFFFF` | Background color or CSS variable. | all | consumed |
-| `fg` | `string` | `#27272A` | Primary foreground and text color. | all | consumed |
-| `line` | `string` | derived | Connector and secondary-line color. | all | consumed |
-| `accent` | `string` | derived | Arrowhead, highlight, and data accent color. | all | consumed |
-| `muted` | `string` | derived | Secondary text and label color. | all | projected — terminal themes have no dedicated muted-text role |
-| `surface` | `string` | derived | Node and group surface color. | all | projected — terminal cells do not paint graphical surfaces |
-| `border` | `string` | derived | Node and group border color. | all | consumed |
-| `font` | `string` | `Inter` | CSS font family or stack. | all | projected — the host terminal owns the font face |
-| `style` | `StyleInput \| StyleInput[]` | `crisp` | Registered Style/Palette name, inline StyleSpec, or left-to-right stack. | all | consumed |
-| `padding` | `number` | `40` | Canvas padding in SVG user units. | flowchart, state, architecture, c4 | not-applicable — terminal output uses paddingX, paddingY, and boxBorderPadding |
-| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. | flowchart, state, class, er, architecture, c4 | not-applicable — terminal layout has a cell-grid spacing contract |
-| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. | flowchart, state, class, er, architecture, c4 | not-applicable — terminal layout has a cell-grid spacing contract |
-| `wrappingWidth` | `number` | unset | Flowchart measured-label wrapping budget in pixels. | flowchart | not-applicable — terminal output uses maxWidth or targetWidth |
-| `componentSpacing` | `number` | extension-defined | Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it. | none — extension-defined | not-applicable — terminal layout has a cell-grid spacing contract |
-| `transparent` | `boolean` | `false` | Omit the painted SVG canvas background. | all | projected — terminal output has no painted canvas background |
-| `interactive` | `boolean` | `false` | Enable hover tooltips for supported chart data points. | xychart, pie, quadrant | projected — terminal output is a static semantic projection |
-| `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. | flowchart, state, sequence, timeline, class, er, journey, xychart, pie, quadrant, gantt, mindmap, gitgraph, sankey | projected — elevation projects to borders and labels |
-| `class` | `{ hierarchicalNamespaces?: boolean }` | `hierarchicalNamespaces: true` | Class-diagram rendering controls. | class | not-applicable — this option configures graphical class layout |
-| `kanban` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Kanban column wrapping with readable column widths. | kanban | not-applicable — terminal layout uses its own targetWidth |
-| `architecture` | `{ visual?: ArchitectureVisualOverrides }` | built-in metrics | Sparse architecture renderer visual metric and paint overrides. | architecture | not-applicable — this option configures graphical architecture rendering |
-| `timeline` | `{ maxWidth?: number }` | `maxWidth`: unset | Timeline layout controls. | timeline | not-applicable — terminal output uses maxWidth or targetWidth |
-| `journey` | `{ experienceCurve?: boolean }` | `experienceCurve: true` | User-journey graphical controls. | journey | not-applicable — experience curves are graphical-only |
-| `gantt` | `{ dependencyArrows?: boolean; criticalPath?: boolean }` | both `false` | Gantt dependency and critical-path overlays. | gantt | not-applicable — graphical Gantt connector emphasis is not represented in cells |
-| `mermaidConfig` | `MermaidRuntimeConfig` | source config | Mermaid-style recursive runtime configuration. | all | consumed |
-| `embedFontImport` | `boolean` | `false` | Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization. | all | not-applicable — terminal output embeds no web-font import |
-| `compact` | `boolean` | `false` | Compact SVG serialization while preserving agent hooks. | all | not-applicable — compact controls SVG serialization |
-| `idPrefix` | `string` | unset | Non-empty namespace for generated SVG definition IDs and local references. | all | not-applicable — terminal output has no SVG definition ids |
-| `security` | `'default' \| 'strict'` | `default` | Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes. | all | not-applicable — terminal text has its own control-character and HTML-color safety projection |
-| `ganttToday` | `string` | unset | Explicit deterministic date for the Gantt today marker. | gantt | consumed |
-| `seed` | `number` | `0` | Deterministic re-roll seed for stochastic Styles. | all | not-applicable — terminal glyph geometry is deterministic and has no stochastic ink |
-<!-- END GENERATED SHARED RENDER OPTIONS -->
+A family-scoped value that a renderer cannot consume receives
+`RENDER_OPTION_NOT_APPLICABLE` in its receipt. External descriptors opt into
+such fields through `applicableRenderOptions`.
 
-`Built-in families: all` means the field is family-neutral. `none —
-extension-defined` means no built-in currently consumes it. An external
-`FamilyDescriptor` opts into any family-scoped field it consumes through its
-frozen `applicableRenderOptions` array; an omitted or empty declaration means
-none, and authored values receive `RENDER_OPTION_NOT_APPLICABLE` in the render
-receipt.
+`layoutHints` accepts relative `ranks`, sibling `adjacent` groups, and
+`shortEdges` references for Flowchart and State graphical layout. These are
+layout preferences: they do not guarantee coordinates, absolute adjacency,
+or shortest paths. Terminal layout does not consume them.
 
 `onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void` is deliberately
 outside the serializable field set. Library callers can collect qualified
@@ -425,6 +392,17 @@ for the current roster and field schemas, or call `describeOps(family)` and
 `opSignatures(family)` at runtime. The generated SDK declaration projects the
 same descriptors; this reference deliberately does not copy an exhaustive
 family/operation table.
+
+### Preserved Sequence and XY label facts
+
+Sequence facts include recognized messages inside preserved segments as
+`preserved-message#<segment>.<statement> ...` and their title directives.
+These identifiers do not change the typed `message#<index>` mutation indexes.
+XY facts include authored point labels as `series#<index> point#<index> : <label>`;
+the point index stays aligned with the data even when labels are sparse.
+Consumers using `exact: true` must add these facts to their reviewed expected
+inventory. Subset checks can keep their existing required facts. Do not build
+an expected inventory by copying the output being checked.
 
 ### Class relation facts and `exact: true`
 
@@ -571,10 +549,20 @@ PNG is single-input and requires `--output` so binary bytes are never accidental
 The published package exposes Node-runnable bins: `am`, the package-runner
 alias `agentic-mermaid`, and `agentic-mermaid-mcp`.
 
-Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
+Local `agentic-mermaid-mcp` supports declarative editing and custom Code Mode:
 
 <!-- complete: local-mcp-tools -->
-- `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
+- `mutate({ source, ops })` and `build({ family, ops })` — atomic JSON edits, verified before source is emitted.
+- `execute(code)` — custom synchronous logic with global `mermaid.*` SDK.
+
+Local and hosted Code Mode execute a strict JavaScript function body with
+`mermaid` and `console` parameters. Bare expressions return their value; a
+statement body captures its final top-level expression, ignoring trailing empty
+statements and comments. An explicit `return` follows normal JavaScript rules.
+At the outer body, `this` and `new.target` are undefined; undeclared variable
+writes fail. Async work, dynamic imports, blocking/realm-creating globals and
+runtime code generation are unsupported. Host timeouts and hosted strict render
+security remain environment-specific.
 - `describe_sdk({ family, detail })` — version-matched compact signatures or exact mutation fields for one family.
 - `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`; accepts portable `scale`/`background`/`fitTo`/`minLabelPx`, plus local-only `fontDirs`/`loadSystemFonts`, and returns configuration, glyph-coverage, and raster-legibility warnings with every output mode.
 - `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
@@ -582,3 +570,35 @@ Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
 Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`; that bearer token protects `/rpc`, `/sse`, `/message`, and `/artifacts/*`.
 
 A hosted Streamable HTTP endpoint also runs at `https://agentic-mermaid.dev/mcp`. It is MCP JSON-RPC only (not REST), stateless, public/unauthenticated, and capped at 64 KB inputs. Hosted tools are <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->; `describe_sdk` returns compact signatures or exact mutation fields for one family, hosted `execute` uses a Cloudflare Dynamic Worker isolate with no network, and hosted `render_png` returns base64 only while retaining portable `scale`/`background`/`fitTo`/`minLabelPx`. Prefer local CLI/library/MCP for sensitive diagrams, offline work, larger inputs, native font controls, or file/URL PNG artifacts. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.
+
+## Verification scope
+
+`verify.ok` remains the backward-compatible error gate. The additive `checks`
+object distinguishes `renderability` (`passed`, `failed`, or `not-checked`),
+`sourceLoss` (`detected` or `not-detected`), and `taskCorrectness` (always
+`not-checked`). No detected loss is not a general losslessness proof. Read warnings
+and compare semantic facts to the requested edit before publishing a diagram.
+Suppressing error codes makes renderability `not-checked`.
+
+## Graph layout hints
+
+Flowchart and State graphical renders accept explicit deterministic preferences:
+
+```ts
+const options = {
+  layoutHints: {
+    ranks: { UI: 0, API: 1, Cache: 2, DB: 3 },
+    adjacent: [['Cache', 'DB']],
+    shortEdges: ['API->Cache'],
+  },
+}
+```
+
+Ranks are ordered ELK partitions, with unlisted nodes in partition zero; they
+are not absolute pixel positions. Adjacency prefers consecutive sibling model
+order within one container. Short-edge preferences use authored IDs or
+`from->to` / `from->to#k` occurrence IDs. All references are checked; unknown
+identities and conflicting adjacency groups fail explicitly. These preferences
+never delete relationships, remain subject to geometry certification, and do not
+guarantee a shortest route or fixed positions. Retain render options beside the
+Mermaid source; hints participate in request digests, editor config, and receipts.

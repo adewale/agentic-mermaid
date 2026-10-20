@@ -389,9 +389,17 @@ function hooks<K extends StableBody['kind']>(
   verify: (body: Extract<StableBody, { kind: K }>, opts: VerifyOptions) => LayoutWarning[],
   parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
 ): FamilyOperations {
-  const readSource = (source: string) => parseSource ? parseSource(source) : parse(source.split(/\r?\n/))
+  // familyBody retains indentation and can retain wrapper comments after
+  // frontmatter removal. Header-relative readers must start at the header,
+  // rather than blindly dropping the first physical line.
+  const headerLines = (source: string): string[] => {
+    const lines = source.split(/\r?\n/)
+    const first = lines.findIndex(line => line.trim() && !line.trimStart().startsWith('%%'))
+    return first < 0 ? [] : lines.slice(first)
+  }
+  const readSource = (source: string) => parseSource ? parseSource(source) : parse(headerLines(source))
   return {
-    parse: ctx => ok((parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(ctx.source.familyBody.split(/\r?\n/))) ?? { kind: 'opaque', family: kind, source: ctx.opaqueSource }),
+    parse: ctx => ok((parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(headerLines(ctx.source.familyBody))) ?? { kind: 'opaque', family: kind, source: ctx.opaqueSource }),
     serialize: body => {
       if (body.kind !== kind) throw new Error(`Expected ${kind} body`)
       return serialize(body as Extract<StableBody, { kind: K }>)

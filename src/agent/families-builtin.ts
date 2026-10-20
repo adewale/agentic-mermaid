@@ -28,6 +28,7 @@ import { readGanttStatements } from '../gantt/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
+import { sequenceFamilySource } from '../sequence/family-source.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
@@ -117,8 +118,8 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
 function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
   return {
     parse: ({ source, opaqueSource }) => {
-      if (containsFlowchartOpaqueSyntax(source.familyText)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
-      return parseFlowchartBody(source.familyText)
+      if (containsFlowchartOpaqueSyntax(source.familyBody)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
+      return parseFlowchartBody(source.familyBody)
     },
     buildSourceMap: (body, canonicalSource) => (body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
     serialize: body => {
@@ -212,7 +213,10 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
 const SEQUENCE_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractSequenceLabels,
-  parse: ({ source, lines, opaqueSource }) => {
+  parse: ({ source: authored, lines: authoredLines, opaqueSource }) => {
+    // The statements the renderer reads, references decoded as it decodes them.
+    const source = sequenceFamilySource(authored, 'authored')
+    const lines = source === authored ? authoredLines : source.familyLines
     const expandedLines = splitSequenceStatementLines(lines)
       .map(line => line.trim())
       .filter(Boolean)
@@ -1261,11 +1265,10 @@ const ARCHITECTURE_AGENT_HOOKS = {
 const MINDMAP_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractLabelsGeneric,
-  parse: ({ source, opaqueSource, meta }) => {
+  parse: ({ source, opaqueSource }) => {
     try {
       // The opaque source starts at the header, after the wrapper's lines.
-      const line = (meta.wrapperSource?.match(/\n/g)?.length ?? 0) + 1
-      return ok(parseMindmapBody(source.familyBody, { source: opaqueSource, line }))
+      return ok(parseMindmapBody(source.familyBody, opaqueSource))
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }

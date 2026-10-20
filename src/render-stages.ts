@@ -1,6 +1,6 @@
 /** Internal diagnostic observation. No clock reads occur in normal renders. */
 export type RenderStage =
-  | 'request' | 'layout' | 'elk'
+  | 'request' | 'layout' | 'elk' | 'drawing'
   | 'scene' | 'scene-lowering' | 'scene-admission' | 'scene-capture' | 'scene-validation'
   | 'paint-certification' | 'backend'
   | 'svg-colors' | 'svg-viewport' | 'svg-fonts' | 'svg-namespace' | 'svg-accessibility'

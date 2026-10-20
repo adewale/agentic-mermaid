@@ -29,7 +29,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const REPO = join(import.meta.dir, '..')
@@ -315,13 +315,16 @@ describe('async family-loaded browser renderer', () => {
         const result = await page.evaluate(async ([entryUrl, source]) => {
           try {
             const api = await import(entryUrl)
-            return { svg: await api.renderMermaidSVGAsync(source, { security: 'strict' }), error: null }
+            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' })
+            return { svg: result.svg, receipt: result.receipt, error: null }
           } catch (error) {
-            return { svg: null, error: String(error) }
+            return { svg: null, receipt: null, error: String(error) }
           }
         }, [`${base}/dist/browser-lazy/index.js`, family.example] as const)
         expect(result.error, `${family.id} threw in the async browser entry`).toBeNull()
-        expect(result.svg).toBe(renderMermaidSVG(family.example, { security: 'strict' }))
+        const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict' })
+        expect(result.svg).toBe(expected.svg)
+        expect(result.receipt).toEqual(expected.receipt)
       }
     } finally {
       await page.close()
@@ -372,6 +375,46 @@ describe('async family-loaded browser renderer', () => {
         await api.renderMermaidSVGAsync('flowchart LR\n  A --> B')
         await api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready')
       }, `${base}/dist/browser-lazy/index.js`)
+      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
+    } finally {
+      await page.close()
+    }
+  })
+
+  test('a certified forest renders before ELK loads and a cyclic named-reference flow loads it once', async () => {
+    const page = await browser.newPage()
+    const requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    try {
+      await page.goto(`${base}/blank.html`)
+      const forest = 'flowchart LR\n  A[Start] --> B[End]'
+      const result = await page.evaluate(async ([entryUrl, source]) => {
+        const api = await import(entryUrl)
+        return api.renderMermaidSVGAsync(source, { security: 'strict' })
+      }, [`${base}/dist/browser-lazy/index.js`, forest] as const)
+      expect(result).toBe(renderMermaidSVG(forest, { security: 'strict' }))
+      expect(requests).not.toContain(lazyElkChunk())
+
+      const cycle = 'flowchart LR\n  A["x#hearts;y"] --> B[End]\n  B --> A'
+      const resumed = await page.evaluate(async ([entryUrl, source]) => {
+        const api = await import(entryUrl)
+        const diagnostics: string[] = []
+        let reads = 0
+        const options = {
+          security: 'strict',
+          get mermaidConfig() { reads++; return { flowchart: { defaultRenderer: 'dagre' } } },
+          onConfigDiagnostic: (item: { field: string }) => diagnostics.push(item.field),
+        }
+        const first = await api.renderMermaidSVGWithReceiptAsync(source, options)
+        const repeated = await api.renderMermaidSVGAsync(source, { security: 'strict' })
+        return { first, repeated, diagnostics, reads }
+      }, [`${base}/dist/browser-lazy/index.js`, cycle] as const)
+      expect(resumed.first.svg).toBe(renderMermaidSVG(cycle, { security: 'strict' }))
+      expect(resumed.repeated).toBe(resumed.first.svg)
+      expect(resumed.first.svg).toContain('x♥y')
+      expect(resumed.first.receipt.layoutCertification?.status).toBe('passed')
+      expect(resumed.diagnostics).toEqual(['flowchart.defaultRenderer'])
+      expect(resumed.reads).toBe(1)
       expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
     } finally {
       await page.close()

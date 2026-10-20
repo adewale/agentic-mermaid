@@ -1,5 +1,12 @@
 # Flowchart — family contracts
 
+Legacy `A(-text-)` nodes have an elliptical outline. Quoted labels, typed
+`set_shape {shape: "ellipse"}` edits and serialization retain that geometry
+and label independently. Layout encloses the padded label inside the curve;
+routing clips against the same ellipse that SVG and PNG paint. Terminal
+output uses the existing circular corner markers and preserves the node's
+ellipse identity and complete label.
+
 Status: living contract for the flowchart-family elevation
 (plan §Flowchart items 3, 6, 7, 8; repo issues #44 and #102).
 Last updated: 2026-09-28.

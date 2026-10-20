@@ -57,6 +57,8 @@ export interface QuotedTextRule {
   /** The character a quote must follow to open a string (default: one where
    * a token can start, as above). The start of a line counts as a line break. */
   opensAfter?: RegExp
+  /** Grammar-specific quote opening context, when one preceding character is insufficient. */
+  opensAt?: (line: string, index: number) => boolean
   /** A statement that runs to the end of its line whatever it holds, such as a title. */
   wholeLine?: (line: string) => boolean
   /** A sticky pattern for a keyword that, outside a string, takes the rest of
@@ -72,7 +74,7 @@ export interface QuotedTextRule {
 type Quote = '"' | "'" | '{' | null
 
 /** The string or block `line` leaves open when it starts inside `quote`'s. */
-function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter: RegExp, restOfLine?: RegExp, block?: RegExp): Quote {
+function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter: RegExp, restOfLine?: RegExp, block?: RegExp, opensAt?: QuotedTextRule['opensAt']): Quote {
   for (let index = 0; index < line.length; index++) {
     const char = line[index]!
     if (quote === '{') {
@@ -87,7 +89,7 @@ function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter
     } else if (block && (block.lastIndex = index, block.test(line))) {
       quote = '{'
       index = block.lastIndex - 1
-    } else if ((char === '"' || char === "'") && opensAfter.test(index === 0 ? '\n' : line[index - 1]!)) {
+    } else if ((char === '"' || char === "'") && (opensAt ? opensAt(line, index) : opensAfter.test(index === 0 ? '\n' : line[index - 1]!))) {
       quote = char
     }
   }
@@ -111,11 +113,11 @@ export function quotedTextEnds(lines: readonly string[], rule: QuotedTextRule = 
   let closes = new Map(spanning.map(quote => [quote, -1]))
   for (let index = lines.length - 1; index >= 0; index--) {
     const line = lines[index]!
-    const open = rule.wholeLine?.(line.trim()) ? null : openQuoteAtEnd(line, null, escapes, opensAfter, rule.restOfLine, rule.block)
+    const open = rule.wholeLine?.(line.trim()) ? null : openQuoteAtEnd(line, null, escapes, opensAfter, rule.restOfLine, rule.block, rule.opensAt)
     const end = open ? closes.get(open) ?? -1 : -1
     ends[index] = end < 0 ? index : end
     closes = new Map(spanning.map(quote => {
-      const still = openQuoteAtEnd(line, quote, escapes, opensAfter, rule.restOfLine, rule.block)
+      const still = openQuoteAtEnd(line, quote, escapes, opensAfter, rule.restOfLine, rule.block, rule.opensAt)
       return [quote, still && closes.has(still) ? closes.get(still)! : index]
     }))
   }

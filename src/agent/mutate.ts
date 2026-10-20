@@ -1,3 +1,4 @@
+import { rebaseBodyComments, restoreBodyComments } from './body-comments.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
@@ -83,7 +84,7 @@ export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagra
   return r
 }
 
-function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {
+function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerialization = false): Result<ParsedDiagram, MutationError> {
   // Every structured family mutates through its FamilyDescriptor hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
   // carries stale source. Lookup is by DIAGRAM kind, not body kind. State
@@ -105,53 +106,78 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDia
   if (plugin?.mutate && plugin.serialize) {
     const r = plugin.mutate(d.body, op)
     if (!r.ok) return r
-    // 1C wrapper policy: a mutated diagram keeps its leading wrapper
-    // (frontmatter/directives/comments) byte-verbatim; only the body changes.
-    const bodyAccessibility = accessibilityFromBody(r.value)
-    const meta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
-    const bodySource = ensureAccessibilityLines(plugin.serialize(r.value), meta.accessibility)
-    const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource) + bodySource
-    // Source locations, exact authored spans, and wrapper ownership describe a
-    // particular source artifact. Rebuild all three from the mutated
-    // serialization; retaining pre-mutation metadata can make wrapperSource
-    // disagree with the source map after a body-authored directive is moved.
-    const reparsed = parseMermaid(canonicalSource)
-    if (!reparsed.ok) {
-      return err({
-        code: 'INVALID_OP',
-        message: `Mutation produced source that could not be reparsed: ${reparsed.error.map(error => error.message).join('; ')}`,
-      })
-    }
-    const sameFamily = reparsed.value.kind === d.kind
-    const sameRepresentation = reparsed.value.body.kind === r.value.kind
-    // Blank-slate builders deliberately admit a narrow intermediate state:
-    // the typed body may remain structured while it is still below the
-    // family's source grammar floor (for example, a Sankey diagram before its
-    // first link, which Mermaid rejects). Keep that exception family-owned and structural. A descriptor
-    // must identify the candidate as EMPTY_DIAGRAM; every non-empty mutation
-    // must close back through the shared parser to the same representation.
-    const verifiedEmptyScaffold = !sameRepresentation && reparsed.value.body.kind === 'opaque' && plugin.verify?.(r.value, {}).some(warning => warning.code === 'EMPTY_DIAGRAM') === true
-    if (!sameFamily || (!sameRepresentation && !verifiedEmptyScaffold)) {
-      return err({
-        code: 'INVALID_OP',
-        message: `Mutation changed semantic family while reparsing: expected ${d.kind}/${r.value.kind}, got ${reparsed.value.kind}/${reparsed.value.body.kind}`,
-      })
-    }
-    return ok({
-      ...d,
-      body: r.value,
-      meta: {
-        ...reparsed.value.meta,
-        // This receipt describes loss from the originally parsed artifact.
-        // Reparsing the already-canonical mutation output cannot rediscover a
-        // comment that structured serialization intentionally omitted.
-        ...(d.meta.droppedComments ? { droppedComments: d.meta.droppedComments } : {}),
-      },
-      canonicalSource,
-      source: reparsed.value.source,
-    } as ParsedDiagram)
+    d = rebaseBodyComments(d, r.value, op)
+    return deferSerialization ? ok({ ...d, body: r.value } as ParsedDiagram) : commitMutation(d, r.value)
   }
+
   return err({ code: 'INVALID_OP', message: `Unsupported mutable diagram kind: ${d.kind}` })
+}
+
+/** Commit one private transaction: serialize, rebuild spans, and check parser closure once. */
+function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<ParsedDiagram, MutationError> {
+  if (body.kind === 'preserved' || body.kind === 'extension') return err({ code: 'INVALID_OP', message: 'This source has no typed mutation contract' })
+  const plugin = getFamily(d.kind)!
+  // 1C wrapper policy: a mutated diagram keeps its leading wrapper
+  // (frontmatter/directives/comments) byte-verbatim; only the body changes.
+  const bodyAccessibility = accessibilityFromBody(body)
+  const meta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
+  const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body), meta.accessibility), d.kind, body, meta)
+  const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource) + bodySource
+  // Source locations, exact authored spans, and wrapper ownership describe a
+  // particular source artifact. Rebuild all three from the mutated
+  // serialization; retaining pre-mutation metadata can make wrapperSource
+  // disagree with the source map after a body-authored directive is moved.
+  const reparsed = parseMermaid(canonicalSource)
+  if (!reparsed.ok) {
+    return err({
+      code: 'INVALID_OP',
+      message: `Mutation produced source that could not be reparsed: ${reparsed.error.map(error => error.message).join('; ')}`,
+    })
+  }
+  const sameFamily = reparsed.value.kind === d.kind
+  const sameRepresentation = reparsed.value.body.kind === body.kind
+  // Blank-slate builders deliberately admit a narrow intermediate state:
+  // the typed body may remain structured while it is still below the
+  // family's source grammar floor (for example, a Sankey diagram before its
+  // first link, which Mermaid rejects). Keep that exception family-owned and structural. A descriptor
+  // must identify the candidate as EMPTY_DIAGRAM; every non-empty mutation
+  // must close back through the shared parser to the same representation.
+  const verifiedEmptyScaffold = !sameRepresentation && reparsed.value.body.kind === 'opaque' && plugin.verify?.(body, {}).some(warning => warning.code === 'EMPTY_DIAGRAM') === true
+  if (!sameFamily || (!sameRepresentation && !verifiedEmptyScaffold)) {
+    return err({
+      code: 'INVALID_OP',
+      message: `Mutation changed semantic family while reparsing: expected ${d.kind}/${body.kind}, got ${reparsed.value.kind}/${reparsed.value.body.kind}`,
+    })
+  }
+  return ok({
+    ...d,
+    body,
+    meta: {
+      ...reparsed.value.meta,
+      // This receipt describes loss from the originally parsed artifact.
+      // Reparsing the already-canonical mutation output cannot rediscover a
+      // comment that structured serialization intentionally omitted.
+      ...(d.meta.droppedComments ? { droppedComments: d.meta.droppedComments } : {}),
+    },
+    canonicalSource,
+    source: reparsed.value.source,
+  } as ParsedDiagram)
+
+}
+
+export type MutationBatchError = MutationError & { opIndex: number }
+
+/** Intermediate bodies stay private; public source/maps are rebuilt only at commit. */
+export function applyMutationBatch(d: ParsedDiagram, ops: readonly unknown[]): Result<ParsedDiagram, MutationBatchError> {
+  let current = d
+  for (let index = 0; index < ops.length; index++) {
+    const next = checkedMutation(current, ops[index], true)
+    if (!next.ok) return err({ ...next.error, opIndex: index })
+    current = next.value
+  }
+  if (!ops.length) return ok(d)
+  const committed = commitMutation(current, current.body)
+  return committed.ok ? committed : err({ ...committed.error, opIndex: ops.length - 1 })
 }
 
 /**
@@ -172,6 +198,10 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDia
 export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<MutableValidDiagram, MutationError>
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError>
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError> {
+  return checkedMutation(d, op, false)
+}
+
+function checkedMutation(d: ParsedDiagram, op: unknown, deferSerialization: boolean): Result<ParsedDiagram, MutationError> {
   if (hasOpSchema(d.kind)) {
     const admitted = admitOpRecord(op)
     const checkedOp = admitted.ok ? admitted.value : op
@@ -183,9 +213,13 @@ export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagr
       logToolInvocation('mutate', false)
       return err(invalid)
     }
-    return mutate(d, checkedOp as AnyMutationOp)
+    const result = applyOneMutation(d, checkedOp as AnyMutationOp, deferSerialization)
+    logToolInvocation('mutate', result.ok)
+    return result
   }
-  return mutate(d, op as AnyMutationOp)
+  const result = applyOneMutation(d, op as AnyMutationOp, deferSerialization)
+  logToolInvocation('mutate', result.ok)
+  return result
 }
 
 // Flowchart graph mutation + helpers live in flowchart-body.ts; edgeIdOf is

@@ -157,7 +157,7 @@ radar-beta
     expect(svg).toMatch(/class="radar-title"[^>]*font-size="80"/)
   })
 
-  test('curve opacity reaches legend and styled replacement geometry', () => {
+  test('curve opacity reaches areas and styled geometry while legend keys stay opaque', () => {
     const source = `---
 config:
   themeVariables:
@@ -169,7 +169,8 @@ radar-beta
   curve x{1,2,3}
   max 5`
     const crisp = renderMermaidSVG(source)
-    expect(crisp).toMatch(/class="radar-legend-swatch"[^>]*fill-opacity="0.2"/)
+    expect(crisp).toMatch(/class="radar-area"[^>]*fill-opacity="0.2"/)
+    expect(crisp).toMatch(/class="radar-legend-swatch"[^>]*fill-opacity="1"/)
     expect(renderMermaidSVG(source, { style: 'watercolor' })).toContain('fill-opacity="0.2"')
     // A sketched area keeps the crisp chart's paint: translucent fill, opaque outline.
     const sketched = renderMermaidSVG(source, { style: 'hand-drawn' })

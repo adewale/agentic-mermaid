@@ -119,7 +119,7 @@ function runStep(name: string, options: {
   const summaryFile = join(root, 'github-summary')
   writeFileSync(outputFile, '')
   writeFileSync(summaryFile, '')
-  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], {
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], { timeout: 20_000, killSignal: 'SIGKILL',
     cwd: target['working-directory'] ? join(root, target['working-directory']) : root,
     encoding: 'utf8',
     env: {

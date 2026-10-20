@@ -22,6 +22,7 @@ import type {
 
 const EDGE_EXIT_GAP = 16
 const GROUP_EDGE_PAD = 18
+const JUNCTION_PLACEMENT_PADDING = 6
 /** The title is drawn at this size and weight in every style (renderer.ts),
  * so the canvas reserves it at the same metrics. */
 export const ARCHITECTURE_TITLE_FONT_SIZE = 18
@@ -71,7 +72,17 @@ export function layoutArchitectureDiagram(
   const groupText = new Map(diagram.groups.map(group => [group.id, roleBlock(group.label, 'group')]))
   const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)
+  const junctionDiameter = 2 * (typography.junctionOuterRadius ?? DEFAULT_ARCHITECTURE_VISUAL.junctionOuterRadius)
   for (const [id, block] of serviceText) graph.nodes.get(id)!.label = block.text
+  const iconTextBlocks = new Map(diagram.services.filter(service => service.iconText !== undefined).map(service => [service.id, preparePixelText(service.iconText!, {
+    display: 'literal', fontSize: typography.serviceFontSize, fontWeight: 700,
+  })]))
+  for (const [id, iconBlock] of iconTextBlocks) {
+    const labelBlock = serviceText.get(id)!
+    // Placement reserves the combined footprint; lowering retains two text
+    // blocks so literal icon text never acquires label formatting semantics.
+    graph.nodes.get(id)!.labelBlock = { ...labelBlock, width: labelBlock.width + iconBlock.width + (iconBlock.width ? 10 : 0), height: Math.max(labelBlock.height, iconBlock.height) }
+  }
   const prepareGroup = (group: typeof graph.subgraphs[number]): void => {
     group.label = groupText.get(group.id)!.text
     group.children.forEach(prepareGroup)
@@ -79,6 +90,12 @@ export function layoutArchitectureDiagram(
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
   const positioned = layoutGraphSync(graph, {
+    // Keep placement clearance separate from the drawn surface. Larger rings
+    // reserve their own footprint instead of borrowing State's fixed size.
+    nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
+      width: junctionDiameter + 2 * JUNCTION_PLACEMENT_PADDING,
+      height: junctionDiameter + 2 * JUNCTION_PLACEMENT_PADDING,
+    }])),
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
@@ -121,7 +138,7 @@ export function layoutArchitectureDiagram(
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
-  const junctionIds = new Set(diagram.junctions.map((junction) => junction.id))
+  const junctionsById = new Map(diagram.junctions.map((junction) => [junction.id, junction]))
 
   const services: PositionedArchitectureService[] = []
   const junctions: PositionedArchitectureJunction[] = []
@@ -132,12 +149,18 @@ export function layoutArchitectureDiagram(
     const bounds = { x: node.x, y: node.y, width: node.width, height: node.height }
     if (servicesById.has(node.id)) {
       const service = servicesById.get(node.id)!
-      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
+      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
       serviceBounds.set(node.id, bounds)
-    } else if (junctionIds.has(node.id)) {
-      const junction = diagram.junctions.find((entry) => entry.id === node.id)!
-      junctions.push({ ...bounds, id: junction.id, parentId: junction.parentId })
-      junctionBounds.set(node.id, bounds)
+    } else if (junctionsById.has(node.id)) {
+      const junction = junctionsById.get(node.id)!
+      const ring = {
+        x: node.x + (node.width - junctionDiameter) / 2,
+        y: node.y + (node.height - junctionDiameter) / 2,
+        width: junctionDiameter,
+        height: junctionDiameter,
+      }
+      junctions.push({ ...ring, id: junction.id, parentId: junction.parentId })
+      junctionBounds.set(node.id, ring)
     }
   }
 
@@ -262,7 +285,9 @@ export function layoutArchitectureDiagram(
   for (const service of services) {
     const iconX = service.x + typography.servicePaddingX
     service.labelPosition = {
-      x: service.icon
+      x: service.iconTextBlock
+        ? iconX + service.iconTextBlock.width + (service.iconTextBlock.width ? 10 : 0)
+        : service.icon
         ? iconX + (typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize) + Math.max(10, typography.servicePaddingX * 0.7)
         : iconX,
       y: service.y + service.height / 2,
@@ -803,6 +828,32 @@ function routeArchitectureEdge(
   const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups)
   const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
+  // Only the anchor-to-exit lead may touch its incident card. The middle
+  // route must remain outside both endpoints so it cannot reverse through
+  // the target and hide an arrowhead under the card's paint.
+  for (const endpoint of [edge.source, edge.target]) {
+    const group = endpoint.boundary === 'group' ? groups.get(servicesById.get(endpoint.id)!.parentId!) : undefined
+    const bounds = group ?? serviceBounds.get(endpoint.id) ?? junctionBounds.get(endpoint.id)!
+    obstacles.push({ ...bounds, id: group?.id ?? endpoint.id, kind: group ? 'group' : serviceBounds.has(endpoint.id) ? 'service' : 'junction' })
+  }
+  // A fixed exit can land inside the clearance envelope of a neighboring
+  // card. Stop at that envelope so the visibility search has a reachable
+  // start/end, while retaining the authored attachment side.
+  for (const [endpoint, side] of [[source, edge.source.side], [target, edge.target.side]] as const) {
+    const horizontal = side === 'L' || side === 'R'
+    const forward = side === 'R' || side === 'B'
+    let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
+    for (const obstacle of obstacles) {
+      const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
+      const lo = horizontal ? obstacle.y : obstacle.x
+      const size = horizontal ? obstacle.height : obstacle.width
+      if (cross <= lo + ROUTE_EPSILON || cross >= lo + size - ROUTE_EPSILON) continue
+      const face = horizontal ? obstacle.x + (forward ? 0 : obstacle.width) : obstacle.y + (forward ? 0 : obstacle.height)
+      const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
+      if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
+    }
+    endpoint.exit = movePoint(endpoint.anchor, side, distance)
+  }
   const directMiddle = simplifyOrthogonalPoints([
     source.exit,
     ...routeBetween(source.exit, target.exit, edge.source.side, edge.target.side),

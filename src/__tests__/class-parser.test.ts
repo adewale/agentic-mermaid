@@ -71,13 +71,23 @@ describe('parseClassDiagram – class definitions', () => {
     ['unterminated class body', 'class A {\n+String name', 'Unclosed class block'],
     ['unterminated namespace', 'namespace Domain {\nclass A', 'Unclosed namespace block'],
     ['extra close', 'class A\n}', 'Unexpected closing brace'],
-    ['partially invalid class assignment', 'class A\nclass A,bad-id hot', 'Unrecognized class statement'],
+    ['partially invalid class assignment', 'class A\nclass A,bad/id hot', 'Unrecognized class statement'],
     // Text that cannot hold a line break stays on its line.
     ['backtick name spanning lines', 'class `A\nB`', 'Unrecognized class statement'],
     ['link tooltip spanning lines', 'class A\nclick A href "https://example.com" "first\nsecond"', 'Unrecognized class link statement'],
     // A member runs to a brace: Mermaid rejects a `{` inside a class block.
     ['open brace among the members on a block\'s line', 'namespace N {\nclass A {   lass B{\nint x\n}\n}', 'Unrecognized class statement "class A {   lass B{"'],
     ['open brace before the block closes on its line', 'class A { +x{ }', 'Unrecognized class statement "class A { +x{ }"'],
+    // Mermaid's class lexer reads these words as keywords where a class name stands.
+    ['a keyword as the class of a member statement', 'class A\nclass: +deposit(amount)', 'Unrecognized class member statement "class: +deposit(amount)"'],
+    ['a keyword Mermaid reads inside backticks too', 'class A\n`note` : x', 'Unrecognized class member statement "`note` : x"'],
+    ['`call` before a blank where a statement starts', 'class A\ncall : x', 'Unrecognized class member statement "call : x"'],
+    ['a keyword as a declared class', 'class href', 'Unrecognized class statement "class href"'],
+    ['a link target as a relationship endpoint', 'A --> _self', 'Unrecognized class relationship statement "A --> _self"'],
+    ['`call` before a blank as a relationship source', 'call "1" --> A', 'Unrecognized class relationship statement "call "1" --> A"'],
+    ['`call` ending a relationship', 'A -- call', 'Unrecognized class relationship statement "A -- call"'],
+    ['open brace in a member below the block\'s line', 'namespace N {\nclass A {\nint x\nstrontend {\ncing : foo\n}\nclass B\n}', 'Unrecognized class member "strontend {"'],
+    ['a class block opened inside another', 'class C {\nclass A {\n}\n}', 'Unrecognized class member "class A {"'],
   ])('refuses a partial drawing for %s', (_name, source, reason) => {
     expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
   })

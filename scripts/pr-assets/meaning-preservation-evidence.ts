@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { denseDag } from '../../eval/degenerate-etn/generators.ts'
+import { denseDag, diamondFan } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
@@ -83,6 +83,145 @@ const stableRepresentativeCues = {
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
 const fixtures: Fixture[] = [
+  {
+    id: 'architecture-junction-contact',
+    title: 'Architecture junction contact',
+    source: 'architecture-beta\njunction j\nservice b(database)[B]\nj:R<-->L:b',
+    cue: 'Before: the shaft and visible start tip stop 6px outside the drawn ring. After: both meet the ring; service placement and arrow resources stay unchanged.',
+    renderOptions: { architecture: { visual: { edgeStroke: '#dc2626' } } },
+    pngScale: 1,
+    captureLayout: true,
+  },
+  {
+    id: 'architecture-junction-custom-contact',
+    title: 'Architecture configured junction in nested groups',
+    source: '---\ntitle: Junction connections\n---\narchitecture-beta\ngroup outer(cloud)[Outer]\ngroup g(cloud)[Group] in outer\njunction j in g\nservice b(database)[B] in g\nb:B<-->T:j\nalign column b j',
+    cue: 'The configured 20px ring now reserves its footprint and owns the public bounds and final endpoint, after alignment, group fitting and title translation.',
+    renderOptions: { architecture: { visual: { junctionOuterRadius: 20, edgeStroke: '#dc2626' } } },
+    pngScale: 1,
+    captureLayout: true,
+  },
+  {
+    id: 'architecture-junction-branching',
+    title: 'Existing branching Architecture corpus example',
+    source: corpusSamples.find(sample => sample.id === 'corpus/architecture/4')!.source,
+    cue: 'Inspect all junction contacts and the side-constraint placement adjustments. Crossing count, measured label legibility and minimum node spacing remain unchanged.',
+    pngScale: 1,
+    captureLayout: true,
+  },
+  ...knownBuiltinFamilies().map(family => ({
+    id: `endpoint-control-${family}`,
+    title: `${family}: unchanged endpoint audit control`,
+    source: getFamily(family)!.example,
+    cue: 'Same-source registry control. Compare the complete production SVG and native-size PNG at both revisions; this example does not establish every route or style.',
+    ...(family === 'gantt' ? { renderOptions: { gantt: { dependencyArrows: true } } } : {}),
+    pngScale: 1,
+    captureLayout: true as const,
+  })),
+  {
+    id: 'nightly-architecture-card-clearance',
+    title: 'Nightly Architecture routes clear an unrelated service card',
+    source:
+      'architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_2\n  s1_1:L --> L:s0_1\n  s0_1:L --> L:s1_0\n  s0_0:B --> B:s0_1',
+    captureLayout: true,
+    cue: 'The baseline refuses public rendering because the s0_0-to-s0_1 shaft crosses the unrelated s0_2 card; preserve that actual error instead of manufacturing a before image. Inspect the complete bottom-side connection after the fix, clearance from s0_2, and retained authored side attachments. The owning Architecture property independently checks containment, separation and card-clear routes; this one fixture does not prove routing completeness.',
+  },
+  {
+    id: 'compat-ellipse',
+    title: 'Ellipse identity, complete label and curved attachment',
+    source: 'flowchart LR\nA(-this is an ellipse-) --> B[Done]',
+    captureLayout: true,
+    cue: 'The baseline draws a rounded rectangle and retains delimiter hyphens in the label. Inspect the elliptical boundary, exact text and arrow attachment. This is a finite geometry witness, not a general layout continuity claim.',
+  },
+  {
+    id: 'compat-parallel-overlay',
+    title: 'Parallel branches share time and join after the longest branch',
+    source: 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nparticipant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined',
+    captureLayout: true,
+    cue: 'The baseline refuses the and branch. Compare first and second at the same height, the Other label, the complete longest branch and joined below the frame. Owning tests separately challenge shared actors, notes, self messages and nested frames.',
+  },
+  {
+    id: 'compat-architecture-text-icon',
+    title: 'Literal text icons retain their own text and measured space',
+    source: 'architecture-beta\ngroup app(cloud)[Application]\nservice api "API" [Backend] in app\nservice db "SQL" [Storage]\napi:R-->L:db',
+    captureLayout: true,
+    cue: 'The baseline refuses STRING icons. Inspect API and SQL as literal icon text, separate Backend/Storage labels, containment and the attached edge. Semantic tests cover quotes, escapes, empty strings and markup-looking literal text.',
+  },
+  {
+    id: 'compat-flowchart-block-label',
+    title: 'Flowchart block-scalar metadata retains physical indentation',
+    source: 'flowchart TD\n  A@{\n    shape: rect\n    label: |\n      First line\n      Second line\n  }\n  A --> B[Done]',
+    cue: 'The baseline refuses this valid metadata block. Inspect both label lines and the unchanged relationship to Done after the fix; this does not establish arbitrary YAML field support.',
+  },
+  {
+    id: 'compat-sequence-spaced-metadata',
+    title: 'Sequence participant metadata may follow whitespace',
+    source: 'sequenceDiagram\nparticipant Gina@{ "type": "database" }\nparticipant Harry @{ "type": "database", "alias": "Orders" }\nGina->>Harry: Save',
+    cue: 'The baseline refuses the spaced declaration. Both database participants, the Orders alias and the Save message must survive; the unspaced Gina declaration is a control.',
+  },
+  {
+    id: 'compat-class-identifiers',
+    title: 'Class relationships retain hyphenated and dotted identities',
+    source: 'classDiagram\nAnimal <|-- Bugs-Bunny\nBugs-Bunny --> domain.Order',
+    cue: 'The baseline refuses these ordinary identifiers. Inspect all three complete class names and the distinct inheritance/association endpoints; this does not establish every possible identifier token.',
+  },
+  {
+    id: 'compat-architecture-compact-edge',
+    title: 'Architecture compact edges retain group-boundary anchors',
+    source: 'architecture-beta\ngroup cloud(cloud)[Cloud]\nservice api(server)[API] in cloud\nservice db(database)[DB]\napi{group}:R-->L:db',
+    cue: 'The baseline refuses the compact edge. The arrow must leave the Cloud boundary at the right and enter DB at the left, while API remains inside Cloud.',
+  },
+  {
+    id: 'compat-gitgraph-repeated-pick',
+    title: 'GitGraph can copy a merge relative to each parent',
+    source: 'gitGraph\ncommit id: "ZERO"\nbranch feature\nbranch release\ncheckout feature\ncommit id: "A"\ncommit id: "B"\ncheckout main\nmerge feature id: "M"\ncheckout release\ncommit id: "C"\ncherry-pick id:"M" parent: "ZERO" tag:""\ncommit id: "D"\ncherry-pick id:"M" tag:"" parent: "B"',
+    captureLayout: true,
+    cue: 'The baseline incorrectly refuses the second pick as an ancestor. Inspect both cherry-pick marks on release and the retained copy-provenance edges; ancestry correctness is checked separately against the pinned upstream test.',
+  },
+  {
+    id: 'agent-flat-namespace',
+    title: 'Flat Class namespaces retain distinguishing paths',
+    source: '---\nconfig:\n  class:\n    hierarchicalNamespaces: false\n---\nclassDiagram\nnamespace Company.Platform {\nclass API\n}\nnamespace Vendor.Platform {\nclass Worker\n}\nAPI --> Worker : invokes',
+    captureLayout: true,
+    cue: 'Compare Company.Platform and Vendor.Platform: their distinguishing paths must remain visible in flat mode, without empty ancestor frames or orphan headers. This finite witness does not prove arbitrary dense Class layout.',
+  },
+  {
+    id: 'agent-category-role',
+    title: 'Pie legend keys follow authored role paint',
+    source: 'pie\n"Actual": 3\n"Forecast": 2',
+    renderOptions: { style: { roles: { 'pie-slice': { fillColor: '#b42318' } } } },
+    cue: 'The authored role intentionally makes both slices red. Each legend key must match its slice instead of retaining a stale generated blue/teal palette. This checks correspondence, not distinguishability under an intentional single-color override.',
+  },
+  {
+    id: 'agent-journey-visibility',
+    title: 'Small Journey actor palettes remain visible on a gray page',
+    source: 'journey\nsection Team\nTask A:3:Actor A\nTask B:3:Actor B\nTask C:3:Actor C\nTask D:3:Actor D\nTask E:3:Actor E\nTask F:3:Actor F',
+    renderOptions: { style: { colors: { bg: '#808080', fg: '#111111', accent: '#1d4ed8' } } },
+    cue: 'Inspect the six actor dots and their matching keys. Only noncompliant legacy category colors are repaired. The independent raster census measures effective category ink; this image is not an accessibility certificate for all diagram text.',
+  },
+  {
+    id: 'agent-gitgraph-rails',
+    title: 'GitGraph rails retain their category ink',
+    source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/gitgraph-basic.mmd'), 'utf8'),
+    renderOptions: { style: 'architectural-plan' },
+    cue: 'The two branch rails retain opaque category ink, and the authored merge label replaces the generated merge message. Inspect the merge label and its canvas extent; branch and commit identities/connectivity remain. The opacity change is subtle at native size; the raster color-separation oracle is the stronger evidence for paint.',
+  },
+  {
+    id: 'agent-small-values',
+    title: 'Visible Pie values stay nonzero below default rounding precision',
+    source: 'pie showData\n"Actual": 0.0001\n"Forecast": 0.0002',
+    cue: 'Inspect the values in legend brackets: the baseline prints zero for both nonzero entries. Slice ratios stay one to two. Source/value roundtrip and numeric-boundary tests check the corresponding data contract.',
+  },
+  ...[1000].map(seed => ({
+    id: `feasible-dense-dag-${seed}`, title: `Keep feasible dense DAG geometry: ${seed}`,
+    source: denseDag(seed), captureLayout: true as const,
+    cue: 'Before: preserve the real port-rate contract refusal. After: inspect all original nodes and directed connections. The losing straightening proposal keeps the existing feasible route; the owning public-render regression checks hard geometry and certificates.',
+  })),
+  ...[111, 431].map(seed => ({
+    id: `feasible-diamond-fan-${seed}`, title: `Keep feasible diamond fan geometry: ${seed}`,
+    source: diamondFan(seed), captureLayout: true as const,
+    cue: 'Before: preserve the real symmetry contract refusal. After: inspect all nodes, labels and arrows. A losing cosmetic centering proposal restores its owned geometry; independent contract tests reject incomplete restoration. This witness does not establish arbitrary layout readability.',
+  })),
   ...['Z', 'AC', 'AL'].map((letter): Fixture => ({
     id: `performance-${letter.toLowerCase()}`,
     title: `Default forest: ${letter} geometry golden`,

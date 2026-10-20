@@ -31,6 +31,7 @@ import { createExampleRenderState, createStyledExampleRenderState, WEBSITE_EXAMP
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
 import { LEGACY_RICH_EXAMPLE_ALIASES } from '../scripts/site/website-example-legacy-aliases.ts'
 import interSubsetManifestJson from './source/assets/fonts/inter/manifest.json'
+import { buildDocsEditDemo } from './docs-edit-demo.ts'
 import { WEBSITE_INTER_SUBSET_DIRECTORY, WEBSITE_INTER_UNICODE_RANGES, validateWebsiteInterSubsetManifest, type WebsiteInterSubsetManifest } from '../scripts/site/website-font-subsets.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -457,6 +458,9 @@ async function generateEditorHtml() {
   // semantics; do not ship them in the production editor document.
   transformed = transformed.replace(/<!--[\s\S]*?-->/g, '')
   transformed = transformed.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, block => block.replace(/\/\*[\s\S]*?\*\//g, ''))
+  // Drop authoring indentation while retaining whitespace between inline tags.
+  // Preserve whitespace-sensitive elements verbatim.
+  transformed = transformed.replace(/<(pre|textarea|style)\b[^>]*>[\s\S]*?<\/\1>|^[ \t]+(?=<)/gim, block => block.startsWith('<') ? block : '')
   // The bundle is the editor's whole app; let the preload scanner fetch it
   // before the parser reaches the end-of-body script tag.
   transformed = transformed.replace('</head>', `<link rel="modulepreload" href="/${scriptRel}">\n</head>`)
@@ -1936,7 +1940,13 @@ for (const [source, target] of pageOutputs) {
     html = injectHomeStyleShowcase(html)
     html = injectWorkflowUnicode(html)
   }
-  if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
+  if (source === 'docs-article.html') {
+    html = injectDocsIndex(injectLoopHeadings(html)).replace('{{EDIT_DEMO}}', buildDocsEditDemo().html)
+    const script = await Bun.file(join(SOURCE_ASSETS, 'docs-edit-demo.js')).text()
+    const scriptRel = `docs-edit-demo-${sha256(script).slice(0, 12)}.js`
+    await emit(scriptRel, script)
+    html = html.replace('</body>', `<script src="/${scriptRel}" defer></script>\n</body>`)
+  }
   await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())
@@ -2574,20 +2584,20 @@ ${vocabularyGroups.map(group => `<h3>${escapeHtml(group.heading)}</h3><dl class=
 
 const gettingStartedBody = `<p>Use this page to install the tool and render once yourself. When you hand work to an agent, do not copy a long prompt from this page. Give it three things: your task, the Mermaid source, and one bootstrap line that tells it to fetch the maintained instructions.</p>
 <ol class="start-rail">
-<li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code>${escapeHtml(installCommand)}</code></pre></li>
-<li><strong>Create a diagram.</strong><p>This first pass uses source directly. Add <code>--style watercolor</code>, <code>--style blueprint</code>, or a JSON style file when you render.</p><pre><code>cat > diagram.mmd &lt;&lt;'MMD'
+<li><strong>Install Agentic Mermaid.</strong><p>${escapeHtml(installNotice)}</p><pre><code class="language-bash">${escapeHtml(installCommand)}</code></pre></li>
+<li><strong>Create a diagram.</strong><p>This first pass uses source directly. Add <code>--style watercolor</code>, <code>--style blueprint</code>, or a JSON style file when you render.</p><pre><code class="language-bash">cat > diagram.mmd &lt;&lt;'MMD'
 flowchart LR
   Idea[Idea] --&gt; Draft[Draft]
   Draft --&gt; Review{Review}
   Review --&gt;|ok| Ship[Ship]
 MMD</code></pre></li>
-<li><strong>Verify, then render.</strong><pre><code>npx --no-install agentic-mermaid verify diagram.mmd --json
+<li><strong>Verify, then render.</strong><pre><code class="language-bash">npx --no-install agentic-mermaid verify diagram.mmd --json
 npx --no-install agentic-mermaid render diagram.mmd --format svg --style publication-figure --output diagram.svg
 npx --no-install agentic-mermaid render diagram.mmd --format unicode</code></pre></li>
 <li><strong>Hand the edit to an agent.</strong><p>Paste the task, paste the Mermaid source, then add this line:</p><pre><code>${escapeHtml(HOMEPAGE_AGENT_POINTER)}</code></pre><p>That line is the only prompt to copy from this page. The fetched file tells the agent how to choose library, CLI, or MCP and verify before returning, so this page does not duplicate the protocol.</p><a class="go" href="/">Copy this line on the homepage</a></li>
 <li><strong>Optional: wire MCP.</strong><p>Self-hosting over stdio is the default path; a hosted MCP endpoint is also available at <code>https://agentic-mermaid.dev/mcp</code> (streamable HTTP).</p>
 ${mcpConfigCardHtml('getting-started')}
-<pre><code>npx --no-install agentic-mermaid mcp</code></pre><p>Use the installed package over stdio, use the version-pinned config above, or point an MCP client at the hosted endpoint.</p></li>
+<pre><code class="language-bash">npx --no-install agentic-mermaid mcp</code></pre><p>Use the installed package over stdio, use the version-pinned config above, or point an MCP client at the hosted endpoint.</p></li>
 </ol>
 <h2>Agent style/palette recipe</h2>
 <p>Keep appearance out of the Mermaid source. Ask the agent to edit structure with typed ops, verify the result, and pass style and palette as render options.</p>
@@ -2597,7 +2607,7 @@ renderMermaidSVG(source, {
   seed: 0,
   security: 'strict'
 })</code></pre>
-<pre><code># CLI
+<pre><code class="language-bash"># CLI
 npx --no-install agentic-mermaid styles --json
 npx --no-install agentic-mermaid render diagram.mmd --format svg --style ops-schematic,nord-light --output diagram.svg</code></pre>
 <pre><code>// Hosted MCP render_svg arguments

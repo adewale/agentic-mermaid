@@ -55,8 +55,12 @@ describe('verify — unclosed flowchart delimiters are reported, not silent', ()
     expect(syntaxes("flowchart TD\n  A[Don't panic] --> B")).toEqual([])     // apostrophe is not a quote
     expect(syntaxes('flowchart TD\n  A["says [hi]"] --> B')).toEqual([])     // brackets inside quotes
     expect(syntaxes('flowchart TD\n  A["(a\\"] --> B')).toEqual([])          // `\` is literal; the `"` closes
-    expect(syntaxes('flowchart TD\n  subgraph Photos (2024\n    A --> B\n  end')).toEqual([]) // free-text subgraph label
     expect(syntaxes('flowchart TD\n  accDescr {\n    a "b\n  }\n  A --> B')).toEqual([])  // accessibility text, not a statement
+  })
+
+  test('a free-text subgraph title is no unclosed bracket', () => {
+    // Mermaid rejects the `(` in a title without quotes, which verify names.
+    expect(syntaxes('flowchart TD\n  subgraph Photos (2024\n    A --> B\n  end')).toEqual(['flowchart_subgraph_title'])
   })
 })
 
@@ -135,6 +139,16 @@ describe('render-parity gate (RENDER_FAILED)', () => {
     }
   })
 
+  test.each([
+    ['refused config', '%%{init: {"themeCSS": ".node rect { fill: red }"}}%%\nflowchart LR\n'],
+    ['a layout past the canvas cap', '%%{init: {"flowchart": {"nodeSpacing": 1e9}}}%%\nflowchart LR\n  A --> C\n'],
+  ])('a render that fails over %s still reports the body\'s own findings', (_case, head) => {
+    const label = 'x'.repeat(80)
+    const codes = verifyMermaid(`${head}  A[${label}] --> B`).warnings.map(w => w.code)
+    expect(codes).toContain('RENDER_FAILED')
+    expect(codes).toContain('LABEL_OVERFLOW')
+  })
+
   test('malformed or refused frontmatter is a parse failure, not a throw or flowchart statements', () => {
     for (const [source, code, origin] of [
       ['---\ntitle: [unclosed\nconfig: {\n---\nflowchart LR\n  A --> B', 'INVALID_FRONTMATTER', 'source'],
@@ -170,10 +184,28 @@ describe('render-parity gate (RENDER_FAILED)', () => {
     for (const source of [
       '%%{init: {"flowchart": {"rankSpacing": 300}}}%%\nflowchart LR\n  A --> B',
       '---\nconfig:\n  class:\n    nodeSpacing: 200\n---\nclassDiagram\n  A <|-- B\n  A <|-- C',
+      // Axis and grid lines end on the canvas edge.
+      'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      '---\ntitle: Chart\n---\nxychart-beta horizontal\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      '%%{init: {"xyChart": {"width": 400, "height": 300}}}%%\nxychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      // Marks centered on a plot edge that meets the canvas edge: a line point
+      // and tick at a linear axis end, values clamped past the range, and the
+      // end grid lines and ticks where no labels or title stand between.
+      'xychart-beta\n  x-axis 0 --> 100\n  line [0, 10]',
+      // A Journey legend title whose top is floating-point noise below zero.
+      'journey\n  Only task: 3: Me',
+      'xychart-beta\n  x-axis [a, b, c]\n  y-axis 0 --> 10\n  line [20, -5, 10]',
+      '%%{init: {"xyChart": {"showTitle": false, "yAxis": {"showLabel": false}}}}%%\nxychart-beta\n  x-axis [a, b]\n  line [3.5, 8]',
+      '%%{init: {"xyChart": {"yAxis": {"showLabel": false}}}}%%\nxychart-beta horizontal\n  x-axis [a, b]\n  y-axis 0 --> 10\n  line [12, 4]',
+      // Thick curved ribbons: bent, off-centre control points (rounded
+      // midpoints), and a ribbon thicker than its bend that folds past its end.
+      'sankey-beta\nA,B,10\nB,C,5',
+      '---\ntitle: Flow\n---\n%%{init: {"sankey": {"width": 500, "height": 300}}}%%\nsankey-beta\nA,B,10\nB,C,10\nC,D,10\nA,E,3\nE,D,3',
+      'sankey-beta\nA,B,10\nB,C,10\nC,D,10\nD,E,6',
     ]) {
-      const [, , width, height] = /viewBox="([^"]+)"/.exec(renderMermaidSVG(source))![1]!.split(' ').map(Number)
+      const [x, y, width, height] = /viewBox="([^"]+)"/.exec(renderMermaidSVG(source))![1]!.split(' ').map(Number)
       const { bounds } = verifyMermaid(source).layout
-      expect({ source, w: Math.round(bounds.w), h: Math.round(bounds.h) }).toEqual({ source, w: Math.round(width!), h: Math.round(height!) })
+      expect({ source, x: 0, y: 0, w: Math.round(bounds.w), h: Math.round(bounds.h) }).toEqual({ source, x: x!, y: y!, w: Math.round(width!), h: Math.round(height!) })
     }
   })
 

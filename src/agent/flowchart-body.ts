@@ -40,6 +40,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
+import { edgeSelectorIndices } from '../shared/edge-selectors.ts'
 
 export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
@@ -347,7 +348,7 @@ function edgeIdOperatorAt(
     && /^(?:<)?(?:-{2,}|-\.+|={2,})\s*$/.test(line.slice(operator, range.start)))
 }
 
-function edgeSourceMapKey(index: number, edge: MermaidEdge): string { return `edge#${index}:${edge.source}->${edge.target}` }
+export function edgeSourceMapKey(index: number, edge: MermaidEdge): string { return `edge#${index}:${edge.source}->${edge.target}` }
 
 interface EdgeMention { sourceCol: number; targetCol: number }
 
@@ -548,6 +549,7 @@ function renderShape(node: MermaidNode): string {
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
+    case 'ellipse': return `(-${lbl}-)`
     case 'stadium': return `([${lbl}])`
     case 'subroutine': return `[[${lbl}]]`
     case 'cylinder': return `[(${lbl})]`
@@ -723,6 +725,8 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'set_label': {
+      // A node wins over an edge with its id, as the SVG identifies them; the
+      // endpoint forms name that edge.
       if (graph.nodes.has(op.target)) {
         const n = graph.nodes.get(op.target)!
         if (op.label.trim() !== n.label) delete n.labelContent
@@ -868,7 +872,7 @@ function edgeLabelInput(label: string | undefined): string | undefined {
 /** Runtime NodeShape vocabulary for set_shape/add_node — mirrors the
  *  NodeShape type (the op-schema enum is transcribed from the same list). */
 const GEOMETRY_SHAPES: readonly NodeShape[] = [
-  'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine',
+  'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine',
   'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt',
   'lean-r', 'lean-l', 'state-start', 'state-end',
 ]
@@ -955,21 +959,8 @@ export function edgeIdOf(edge: MermaidEdge, idx = 0): string {
   return idx === 0 ? `${edge.source}->${edge.target}` : `${edge.source}->${edge.target}#${idx}`
 }
 
-function findEdgeIndexById(graph: MermaidGraph, id: string): number {
-  // Authored v11.6 edge IDs are the primary selector (`e1@-->` identity);
-  // the endpoint forms `from->to` / `from->to#k` remain valid.
-  const authored = graph.edges.findIndex(e => e.id === id)
-  if (authored >= 0) return authored
-  const [endpoints, suffix] = id.split('#')
-  const [from, to] = (endpoints ?? '').split('->')
-  if (!from || !to) return -1
-  const occ = suffix ? parseInt(suffix, 10) : 0
-  let seen = 0
-  for (let i = 0; i < graph.edges.length; i++) {
-    const e = graph.edges[i]!
-    if (e.source === from && e.target === to) { if (seen === occ) return i; seen++ }
-  }
-  return -1
+export function findEdgeIndexById(graph: MermaidGraph, id: string): number {
+  return edgeSelectorIndices(graph.edges).get(id) ?? -1
 }
 
 function ensureNode(graph: MermaidGraph, id: string): void {

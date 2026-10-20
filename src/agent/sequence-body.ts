@@ -34,9 +34,11 @@ import { ok, err } from './types.ts'
 import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, type SequenceSourceStatement } from '../sequence/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
-import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
+import { isCharacterReference, sequenceGrammarText } from '../sequence/family-source.ts'
+import { isSequenceCommentLine, scanSequenceStatementLines, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 import { normalizeSequenceMessageText, readSequenceText, writeSequenceText } from '../sequence/text.ts'
+import { readMetadataBlock } from '../shared/metadata-yaml.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -110,10 +112,6 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
-    // `par_over` remains a distinct upstream construct, not a typed `par`
-    // fragment. Preserve the previous whole-body opaque disposition until
-    // its own #264 projection is implemented.
-    if (syntax?.kind === 'block' && syntax.opener.type === 'par_over') return null
     if (syntax?.kind === 'message') {
       fold.applyAll(participantEventsOf(syntax))
       messages.push(sequenceMessageFromParsed(syntax.message))
@@ -125,7 +123,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     if (syntax?.kind === 'block' || syntax?.kind === 'box') {
       // The shared reader, not a second depth scanner, owns this boundary.
       const block = raw.slice(i, entry.endIndex! + 1)
-      const blockLines = block.map(entry => entry.raw)
+      const blockLines = block.map(portableRaw)
       i = entry.endIndex! + 1
       const fragment = parseTypedFragment(block)
       for (const inner of block) fold.applyAll(participantEventsOf(inner.syntax))
@@ -182,10 +180,21 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
   }
 }
 
+/** A statement's source as kept verbatim, but with a local arrow spelling
+ * replaced by Mermaid's arrow that draws the same, so the kept source is
+ * source Mermaid reads. */
+function portableRaw(entry: SequenceSourceStatement): string {
+  const message = entry.syntax?.kind === 'message' ? entry.syntax.message : undefined
+  if (!message?.localArrow) return entry.raw
+  // Only `()` and spaces stand between the sender and its arrow.
+  const at = entry.raw.indexOf(message.localArrow, entry.raw.length - entry.raw.trimStart().length + message.from.length)
+  return entry.raw.slice(0, at) + message.arrow + entry.raw.slice(at + message.localArrow.length)
+}
+
 function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
   const syntax = entries[0]?.syntax
   const opener = syntax?.kind === 'block' ? syntax.opener : undefined
-  if (!opener || !['alt', 'opt', 'loop', 'par'].includes(opener.type)) return null
+  if (!opener || !['alt', 'opt', 'loop', 'par', 'par_over'].includes(opener.type)) return null
   const fragmentKind = opener.type as SequenceFragment['fragmentKind']
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
   for (const entry of entries.slice(1, -1)) {
@@ -210,7 +219,7 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
     ...(text.value ? { label: text.value } : {}),
     ...(text.content ? { labelContent: text.content } : {}),
     branches,
-    rawLines: entries.map(entry => entry.raw),
+    rawLines: entries.map(portableRaw),
   }
 }
 
@@ -272,12 +281,26 @@ function styleForArrow(a: string): SequenceMessageStyle {
 
 /** Sequence source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a participant a second `box` meets stays in its first box
- * (sequence/participants.ts). */
+ * (sequence/participants.ts), and deactivating a participant that is not
+ * active does nothing, where Mermaid's database throws. */
 export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
-  const lines = canonicalSource.split(/\r?\n/)
-  const header = lines.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
-  if (header < 0) return []
+  const authored = canonicalSource.split(/\r?\n/)
+  const authoredHeader = authored.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
+  if (authoredHeader < 0) return []
   const warnings: LayoutWarning[] = []
+  // Pinned Mermaid ends a statement at a named reference's `;`, which the
+  // renderer reads as text (sequence/family-source.ts).
+  const body = authored.slice(authoredHeader + 1)
+  for (const span of scanSequenceStatementLines(body)) {
+    const name = /&([a-zA-Z][a-zA-Z\d]{0,31})$/.exec(span.raw)?.[1]
+    if (name !== undefined && body[span.line]![span.endColumn] === ';' && isCharacterReference(name)) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_named_reference_semicolon', line: authoredHeader + span.line + 2,
+      message: 'The renderer reads a named reference such as &amp; or &nbsp; as text, but pinned Mermaid ends the statement at its ";". Write its Mermaid entity (#amp;, #nbsp;) instead.',
+    })
+  }
+  const lines = sequenceGrammarText(canonicalSource).split(/\r?\n/)
+  const header = lines.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
+  if (header < 0) return warnings
   let line = header + 1
   const fold = new SequenceParticipantFold({
     onBoxConflict: id => warnings.push({
@@ -302,10 +325,25 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
   for (const issue of source.issues) warnings.push({
     code: 'UNSUPPORTED_SYNTAX', syntax: issue.syntax, line: header + issue.line + 2, message: issue.message,
   })
+  // Mermaid counts each participant's activations in statement order: `+`
+  // activates a message's receiver, `-` deactivates its sender.
+  const active = new Map<string, number>()
+  const deactivate = (id: string, how: string): void => {
+    const count = active.get(id) ?? 0
+    if (count > 0) { active.set(id, count - 1); return }
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_inactive_deactivation', line,
+      message: `${how} deactivates participant "${id}", which is not active; ours ignores it. Pinned Mermaid rejects this ("Trying to inactivate an inactive participant"); activate "${id}" first or remove the deactivation.`,
+    })
+  }
   for (const entry of source.statements) {
     line = header + entry.line + 2
     const statement = entry.syntax
     fold.applyAll(participantEventsOf(statement))
+    if (statement?.kind === 'message' && statement.message.activationMark === '+') active.set(statement.message.to, (active.get(statement.message.to) ?? 0) + 1)
+    else if (statement?.kind === 'message' && statement.message.activationMark === '-') deactivate(statement.message.from, 'The "-" on this message')
+    else if (statement?.kind === 'activation' && statement.activate) active.set(statement.actorId, (active.get(statement.actorId) ?? 0) + 1)
+    else if (statement?.kind === 'activation') deactivate(statement.actorId, 'This statement')
     if (statement?.kind === 'box') fold.openBox({ actorIds: [] })
     else if (entry.closes !== undefined && source.statements[entry.closes]?.syntax?.kind === 'box') {
       fold.closeBox()
@@ -352,7 +390,7 @@ function renderFragment(fragment: SequenceFragment): string[] {
   const lines = [fragment.label ? prefix + writeSequenceText(fragment.label, fragment.labelContent, prefix) : prefix.trimEnd()]
   fragment.branches.forEach((branch, index) => {
     if (index > 0) {
-      const branchPrefix = `  ${fragment.fragmentKind === 'par' ? 'and' : 'else'} `
+      const branchPrefix = `  ${fragment.fragmentKind === 'par' || fragment.fragmentKind === 'par_over' ? 'and' : 'else'} `
       lines.push(branch.label ? branchPrefix + writeSequenceText(branch.label, branch.labelContent, branchPrefix) : branchPrefix.trimEnd())
     }
     for (const message of branch.messages) lines.push(`  ${renderMessage(message).trimStart()}`)
@@ -482,16 +520,19 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       // As in Mermaid, a participant's first mention places it and its last
       // aliased declaration names it. The label only survives serialize →
       // re-parse through a declaration statement: when the naming declaration
-      // is preserved source (a boxed `participant A as …`), declare the new
-      // label right after it. An implied participant is declared right after
+      // is preserved source (a boxed `participant A as …`), edit that original
+      // declaration in place. An implied participant is declared right after
       // the statement that creates it, where the declaration renames it in
       // place; ahead of that statement it could jump a participant the
       // statement creates first (`A->>B`, relabelling B).
       const ref = participants.indexOf(p)
       const naming = namingDeclaration(statements, ref, p.id)
+      if (naming?.preserved && relabelPreservedDeclaration(statements[naming.index]!, p)) break
       const at = naming === undefined ? creatingStatement(statements, participants, messages, p.id) + 1 : naming.preserved ? naming.index + 1 : undefined
       if (at === undefined) break
+      const actorData = actorDataBefore({ kind: 'sequence', participants, messages, statements: statements.slice(0, at) }, p.id)
       statements.splice(at, 0, { kind: 'participant', ref })
+      if (actorData.length) statements.splice(at + 1, 0, { kind: 'opaque-block', lines: actorData })
       // A naming declaration resets the links in Mermaid (ours keeps them):
       // when it lands after statements that linked the participant, link it
       // again right after, so Mermaid reads them too.
@@ -548,7 +589,7 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     case 'add_fragment_branch': {
       const target = fragmentStatements(statements)[op.fragmentIndex]
       if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      if (target.statement.fragment.fragmentKind !== 'alt' && target.statement.fragment.fragmentKind !== 'par') return err({ code: 'INVALID_OP', message: 'Only alt and par fragments can have multiple branches' })
+      if (!['alt', 'par', 'par_over'].includes(target.statement.fragment.fragmentKind)) return err({ code: 'INVALID_OP', message: 'Only alt, par and par_over fragments can have multiple branches' })
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
       delete target.statement.fragment.rawLines
@@ -677,6 +718,51 @@ function namingDeclaration(statements: SequenceStatement[], ref: number, id: str
     if (statement.kind === 'opaque-block' && statement.lines.some(names)) return { index, preserved: true }
   }
   return undefined
+}
+
+/** Update the existing declaration inside a preserved segment. Adding a new
+ * declaration after the entire segment can reset later actor properties or
+ * duplicate box membership, even though every original source line survives. */
+function relabelPreservedDeclaration(statement: SequenceStatement, participant: SequenceParticipant): boolean {
+  if (statement.kind !== 'opaque-block') return false
+  const entries = readSequenceStatements(statement.lines).statements
+  const entry = entries.findLast(candidate => candidate.syntax?.kind === 'declaration'
+    && candidate.syntax.declaration.id === participant.id && candidate.syntax.declaration.aliased)
+  if (!entry || entry.syntax?.kind !== 'declaration') return false
+  const declaration = entry.syntax.declaration
+  const prefix = `${declaration.keyword} ${declaration.id}`
+  const label = writeSequenceText(participant.label, participant.labelContent, `${prefix} as `)
+  const raw = entry.raw.trim()
+  const metadataAt = raw.indexOf('@{')
+  let replacement: string
+  if (metadataAt >= 0) {
+    const block = readMetadataBlock(raw, metadataAt + 1, 'sequence')
+    if (!block.ok) return false
+    // Keep unmodeled metadata values while making this alias authoritative,
+    // including when the new label equals the participant's identity.
+    // CONFIG ends at the first closing brace even inside a quoted scalar.
+    // YAML escapes avoid that boundary without adding Mermaid entity tokens.
+    const metadata = JSON.stringify({ ...Object.fromEntries(block.entries), alias: label })
+      .replace(/"(?:\\.|[^"\\])*"/g, scalar => scalar.replace(/}/g, '\\u007d'))
+    replacement = `${prefix}@${metadata}`
+  } else replacement = `${prefix} as ${label}`
+  const line = statement.lines[entry.line]!
+  const indent = entry.raw.match(/^\s*/)?.[0] ?? ''
+  statement.lines[entry.line] = line.slice(0, entry.column) + indent + replacement + line.slice(entry.endColumn)
+  return true
+}
+
+/** Actor-data writes merge in author order, and an aliased declaration resets
+ * them in Mermaid. Replay only data still live immediately before a newly
+ * inserted naming declaration, as we already do for actor-menu links. */
+function actorDataBefore(body: SequenceBody, id: string): string[] {
+  let data: string[] = []
+  for (const entry of readSequenceStatements(renderSequence(body).split('\n').slice(1)).statements) {
+    const syntax = entry.syntax
+    if (syntax?.kind === 'declaration' && syntax.declaration.id === id && syntax.declaration.aliased) data = []
+    if (syntax?.kind === 'actor-data' && syntax.actorId === id) data.push(entry.raw)
+  }
+  return data
 }
 
 /** Index of the first statement that names participant `id` (and so creates

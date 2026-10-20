@@ -24,8 +24,9 @@ const PROPERTY_RUNS = 100
 const LABEL_PIECES = ['a', 'Zed', '&', ' < ', ' > ', '<', '>', "'", 'ü', '😀', '👩‍💻', 'é', 'שלום', 'مرحبا', '東京', '&amp;', '&lt;', '42', 'c', '<b>', '</b>', '<c>', '<br/>', '#', ']]>', '</text><script>inert</script>']
 
 // Construct XML-valid non-ASCII scalars, not fast-check's default ASCII-only
-// strings. Family grammar delimiters are exercised by LABEL_PIECES separately.
-const unicodeArb = fc.oneof(fc.integer({ min: 0xa0, max: 0xd7ff }), fc.integer({ min: 0xe000, max: 0xfffd }), fc.integer({ min: 0x10000, max: 0x10ffff })).map(code => String.fromCodePoint(code))
+// strings. Line separators cannot be inserted into unquoted family statements.
+// Family grammar delimiters are exercised by LABEL_PIECES separately.
+const unicodeArb = fc.oneof(fc.integer({ min: 0xa0, max: 0xd7ff }), fc.integer({ min: 0xe000, max: 0xfffd }), fc.integer({ min: 0x10000, max: 0x10ffff })).filter(code => code !== 0x2028 && code !== 0x2029).map(code => String.fromCodePoint(code))
 const labelArb = fc
   .array(fc.oneof(fc.constantFrom(...LABEL_PIECES), unicodeArb), { maxLength: 6 })
   // Every family's label context requires some content. Keep empty generated
@@ -80,7 +81,10 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
       fcParameters({
         numRuns: PROPERTY_RUNS,
         includeErrorInReport: true,
-        examples: [['label <br/>', { compact: false, transparent: false, style: 'hand-drawn', seed: 0, embedFontImport: false }]],
+        examples: family === 'pie'
+          ? [['label \u2028a', { compact: false, transparent: false, style: 'crisp', seed: 0, embedFontImport: false }],
+            ['label <br/>', { compact: false, transparent: false, style: 'hand-drawn', seed: 0, embedFontImport: false }]]
+          : [['label <br/>', { compact: false, transparent: false, style: 'hand-drawn', seed: 0, embedFontImport: false }]],
       }),
     )
     // Keep fast-check's shrunk replay details while exposing an assertion to

@@ -1,3 +1,4 @@
+import type { DrawingFactory } from '../scene/drawing.ts'
 // ============================================================================
 // Shared SVG hover-tooltip primitive.
 //
@@ -62,6 +63,10 @@ const TOOLTIP_EMISSIONS = new Map(['pie', 'quadrant', 'xychart'].map(prefix => [
 
 /** The same owned tooltip geometry, retained as paint rather than opaque SVG. */
 export function tooltipArtwork(prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): GroupMark {
+  return drawTooltipArtwork(marks, prefix, plan, id, owner) as GroupMark
+}
+
+export function drawTooltipArtwork<T>(marks: DrawingFactory<T>, prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): T {
   if (!plan) throw new TypeError(`Missing retained tooltip layout for ${id}`)
   const { text, block, bgW, bgX, bgY, textX, textY, ptrPath } = plan
   const emission = TOOLTIP_EMISSIONS.get(prefix) ?? tooltipEmissions(prefix)

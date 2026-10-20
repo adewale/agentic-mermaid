@@ -27,17 +27,17 @@ describe('xychart layout – dimensions and bounds', () => {
     expect(svg).toContain('viewBox="0 0 700 500"')
   })
 
-  it('an invisible out-of-domain single line sample retains its value without an off-canvas measurement footprint', () => {
+  it('an invisible out-of-domain single line sample retains its value with its footprint inside the plot', () => {
     const source = '---\nconfig:\n  xyChart:\n    width: 300\n    height: 241\n    showDataLabel: false\n---\nxychart-beta\nx-axis [a]\ny-axis 0 --> 100\nline S0 [-17]'
     const positioned = layout(source)
     const point = positioned.lines[0]!.points[0]!
+    const plotBottom = positioned.plotArea.y + positioned.plotArea.height
     expect(point.value).toBe(-17)
-    expect(point.y).toBeGreaterThan(positioned.height)
+    expect(point.y).toBe(plotBottom)
     const original = { ...point }
     const projected = projectXyChartPositioned({ positioned, options: {} })
     const sample = projected.nodes.find(node => node.id === 'line#0:pt#0')!
-    expect(Number(sample.y)).toBe(241)
-    expect(Number(sample.h)).toBe(0)
+    expect(Number(sample.y) + Number(sample.h)).toBeCloseTo(plotBottom, 1)
     expect(point).toEqual(original)
     const svg = renderMermaidSVG(source)
     // A lone sample has neither a connector nor an unrequested marker. Its
@@ -107,6 +107,20 @@ xychart
       expect(point.x).toBeLessThanOrEqual(chart.plotArea.x + chart.plotArea.width)
       expect(point.y).toBeGreaterThanOrEqual(chart.plotArea.y)
       expect(point.y).toBeLessThanOrEqual(chart.plotArea.y + chart.plotArea.height)
+    }
+  })
+  // Mermaid insets a numeric x-axis by half a bar band at each end when the
+  // chart has bars. Without it the end bars hung off the plot, and the chart
+  // failed to render.
+  it('keeps numeric x-axis bars inside the plot area, with lines on their centres', () => {
+    for (const source of ['xychart\n  x-axis 0 --> 10\n  bar [1, 2]', 'xychart\n  x-axis 10 --> 0\n  bar [1, 2, 3]\n  line [3, 2, 1]', 'xychart\n  x-axis 0 --> 10\n  bar [5]']) {
+      const chart = layout(source)
+      for (const bar of chart.bars) {
+        expect(bar.x, source).toBeGreaterThanOrEqual(chart.plotArea.x)
+        expect(bar.x + bar.width, source).toBeLessThanOrEqual(chart.plotArea.x + chart.plotArea.width)
+      }
+      for (const [index, point] of (chart.lines[0]?.points ?? []).entries()) expect(point.x).toBeCloseTo(chart.bars[index]!.x + chart.bars[index]!.width / 2, 5)
+      expect(renderMermaidSVG(source), source).toContain('<svg')
     }
   })
 })

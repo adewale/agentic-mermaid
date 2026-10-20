@@ -27,7 +27,7 @@ describe('class — parse', () => {
     expect(classUnsupportedSyntaxWarnings(source)).toEqual([])
   })
 
-  test.each(['class A\nfuture statement', 'class A {\n+String name', 'namespace Domain {\nclass A', 'class A\n}', 'class A\nclass A,bad-id hot', 'note "A &#10; B"', 'note for A "A &#13; B"'])('preserves source rather than exposing a partial editable model: %s', body => {
+  test.each(['class A\nfuture statement', 'class A {\n+String name', 'namespace Domain {\nclass A', 'class A\n}', 'class A\nclass A,bad/id hot', 'note "A &#10; B"', 'note for A "A &#13; B"'])('preserves source rather than exposing a partial editable model: %s', body => {
     const source = `classDiagram\n${body}`
     const diagram = parse(source)
     expect(diagram.body.kind).toBe('opaque')
@@ -195,6 +195,10 @@ describe('class — mutate', () => {
       text,
       message: 'Class members cannot be accessibility directives',
     })),
+    // Mermaid removes a directive wherever it stands, before it reads a member.
+    ...['+literal(%%{init: {}}%%)', '+x %%{wrap}%%'].map(text => ({
+      text, message: 'Class members cannot hold a %%{…}%% directive, which Mermaid removes from the source',
+    })),
   ])('refuses member text that source preprocessing would remove: $text', ({ text, message }) => {
     const source = 'classDiagram\nclass A'
     const original = asClass(parse(source))!
@@ -215,7 +219,7 @@ describe('class — mutate', () => {
     }
   })
 
-  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()', '+value: 50%%', '+literal(%%{init: {}}%%)', String.raw`\%% literal`, '+accTitle: String', '+accDescr { kept }', 'accTitle() lost', 'accTitle:'])('keeps single-line member text through either authoring op and reload: %j', text => {
+  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()', '+value: 50%%', '+literal(%%{ }%%)', String.raw`\%% literal`, '+accTitle: String', '+accDescr { kept }', 'accTitle() lost', 'accTitle:'])('keeps single-line member text through either authoring op and reload: %j', text => {
     const original = asClass(parse('classDiagram\nclass A'))!
     for (const op of [
       { kind: 'add_member', class: 'A', text },
@@ -377,6 +381,17 @@ describe('class — mutate', () => {
     expect(r.ok).toBe(false)
     if (r.ok) return
     expect(r.error.code).toBe('DUPLICATE_CLASS')
+  })
+
+  // Mermaid's class lexer reads these as keywords even in backticks, so the
+  // reader refuses a class named so; the edits refuse to create one.
+  test.each(['note', 'click', 'link', 'cssClass', 'href', 'callback'])('refuses a class id Mermaid reads as a keyword even in backticks: %s', id => {
+    const d0 = asClass(parse('classDiagram\n  class A'))!
+    const error = { code: 'INVALID_OP' as const, message: `Class id "${id}" is a keyword to Mermaid's class lexer, which reads \`${id}\` as a keyword even in backticks; choose another id` }
+    for (const op of [{ kind: 'add_class', id }, { kind: 'rename_class', from: 'A', to: id }] satisfies ClassMutationOp[]) {
+      for (const apply of [mutate, mutateChecked]) expect(apply(d0, op)).toEqual({ ok: false, error })
+    }
+    expect(parse(`classDiagram\n  class \`${id}\``).body.kind).toBe('opaque')
   })
 
   test('remove_class on missing id', () => {

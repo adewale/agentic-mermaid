@@ -35,7 +35,8 @@ function toLines(source: string): string[] {
 
 describe('property-based sequence parsing', () => {
   it('auto-creates referenced actors and preserves message count', () => {
-    const sequenceArb = fc.uniqueArray(idArb, { minLength: 2, maxLength: 5 }).chain(ids =>
+    // Prefix names so the generator cannot emit Sequence keywords such as Par.
+    const sequenceArb = fc.uniqueArray(idArb.map(id => `Actor${id}`), { minLength: 2, maxLength: 5 }).chain(ids =>
       fc.record({
         ids: fc.constant(ids),
         declaredIds: fc.subarray(ids, { maxLength: ids.length }),

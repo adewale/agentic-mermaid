@@ -112,12 +112,12 @@ accessibility directives and decoded line breaks; the source reader still
 handles comments as source metadata. Initial member arrays are copied so later caller changes do not
 alter the returned diagram. See `docs/api.md` for the complete-fact migration.
 
-The official relationship section's aggregate capability is still only
-`diagnosed`, not `native`: upstream-valid unescaped hyphenated, dotted, and
-Unicode endpoint IDs remain opaque to the agent and fail loudly in native
-rendering. A separate executed receipt keeps that gap visible. The broader
-lossless statement authority and remaining identity/source-normalization
-work remain tracked by #260.
+Unescaped word-like Class names may contain hyphens, dots and Unicode letters
+or digits. Declarations, relationships, members and typed edits retain the same
+identity; canonical writing quotes a name when the statement requires it.
+Escaped names containing `~` still require generic-identity work and remain
+source-preserved rather than exposing a partial editable model. This does not
+claim support for every token combination Mermaid's Class lexer can assemble.
 
 ## Safe link hover text (issue #248)
 

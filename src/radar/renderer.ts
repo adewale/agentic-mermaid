@@ -1,11 +1,11 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedRadarChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { radarStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
+import type { SceneNode } from '../scene/ir.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
@@ -124,13 +124,13 @@ export function renderRadarSvg(ctx: RenderContext<PositionedRadarChart>): string
   return DefaultBackend.render(lowerRadarScene(ctx), { seed: 0 })
 }
 
-export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): SceneDoc {
+export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedRadarChart>): DrawingDocument<T> {
   const { positioned: chart, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const style = resolveRenderStyle(options, radarStyleDefaults(chart.visual), resolved.styleFace)
-  const parts: SceneNode[] = []
+  const parts: T[] = []
 
   const fills = pieSliceColors(chart.curves.length, {
     accent: colors.accent,
@@ -229,6 +229,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     ))
   }
 
+  const curvePaint = new Map<number, string>()
   // Curve areas (reuse the pie-slice filled-data role so styled looks sketch
   // them). Drawn back-to-front in source order; a value-count mismatch draws
   // nothing but still legends (upstream parity).
@@ -242,6 +243,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
     const fill = authoredFill ?? roleStyle?.fillColor ?? fills[curve.colorIndex]!
     const stroke = authoredFill ?? roleStyle?.strokeColor ?? roleStyle?.borderColor ?? fill
+    curvePaint.set(curve.colorIndex, stroke)
     const strokeWidth = roleStyle?.lineWidth ?? style.nodeLineWidth
     const attributes = { className: 'radar-area', data: { curve: curve.label } }
     const emission = AREA_EMISSIONS[roleStyle?.lineWidth !== undefined ? 1 : 0]!
@@ -281,7 +283,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     const channels = { category: curve.label }
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'point', channels, { includeFallback: false })
     const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
-    const fill = authoredFill ?? roleStyle?.fillColor ?? fills[curve.colorIndex]!
+    const fill = authoredFill ?? roleStyle?.fillColor ?? curvePaint.get(curve.colorIndex) ?? fills[curve.colorIndex]!
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? dotStroke
     const strokeWidth = roleStyle?.lineWidth ?? 1.2
     curve.vertices.forEach((v, vi) => {
@@ -390,7 +392,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     const channels = { category: item.label }
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'legend', channels, { includeFallback: false })
     const authoredFill = chart.visual.paletteOverrides?.[item.colorIndex]
-    const fill = authoredFill ?? roleStyle?.fillColor ?? fills[item.colorIndex]!
+    const fill = authoredFill ?? roleStyle?.fillColor ?? curvePaint.get(item.colorIndex) ?? fills[item.colorIndex]!
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
     const strokeWidth = roleStyle?.lineWidth ?? 1
     parts.push(marks.shape(
@@ -398,7 +400,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         id: `legend-swatch:${item.colorIndex}`,
         role: 'legend',
         geometry: { kind: 'rect', x: item.x, y: item.y, width: item.swatchSize, height: item.swatchSize, rx: 2, ry: 2 },
-        paint: { fill, fillOpacity: String(curveOpacity), stroke, strokeWidth: String(strokeWidth) },
+        paint: { fill, fillOpacity: '1', stroke, strokeWidth: String(strokeWidth) },
         channels,
         attributes: { className: 'radar-legend-swatch' },
       },
@@ -472,3 +474,5 @@ function occurrenceIdentities(values: readonly string[]): string[] {
     return `${value}#${occurrence}`
   })
 }
+
+export const lowerRadarScene = sceneLowering<PositionedRadarChart>(lowerRadarDrawing)

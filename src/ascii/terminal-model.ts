@@ -1,5 +1,5 @@
 import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { parseMermaid } from '../parser.ts'
+import { parseFlowchartRenderSource, type parseMermaid } from '../parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 
 /** One execution's authored model. Graph drawing can reuse it when source
@@ -11,11 +11,12 @@ export function terminalInputModel(source: string, admittedFamilyText: string) {
     parsed: () => parsed ??= parseRegisteredMermaid(source),
     graph() {
       if (graph) return graph
-      if (normalizeMermaidSource(source).familyText === admittedFamilyText) {
+      const authored = normalizeMermaidSource(source).familyBody
+      if (authored === admittedFamilyText) {
         const result = this.parsed()
         if (result.ok && result.value.body.kind === 'flowchart') return graph = result.value.body.graph
       }
-      return graph = parseMermaid(admittedFamilyText)
+      return graph = parseFlowchartRenderSource(authored, admittedFamilyText)
     },
   })
 }

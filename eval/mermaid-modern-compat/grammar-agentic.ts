@@ -1,5 +1,5 @@
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
-import { parseArchitectureDiagram } from '../../src/architecture/parser.ts'
+import { architectureSourceLines, parseArchitectureDiagram } from '../../src/architecture/parser.ts'
 import { parseBlockDiagram } from '../../src/block/parser.ts'
 import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { parseClassDiagram } from '../../src/class/parser.ts'
@@ -10,10 +10,11 @@ import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
 import { parseIshikawaDiagram } from '../../src/ishikawa/parser.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
 import { parseKanbanDiagram } from '../../src/kanban/parser.ts'
-import { frontmatterTitle, normalizeMermaidSource } from '../../src/mermaid-source.ts'
+import { frontmatterTitle, normalizeMermaidSource, withFrontmatterTitle } from '../../src/mermaid-source.ts'
+import { withAccessibilityFields } from '../../src/shared/accessibility-directives.ts'
 import { parseMindmap } from '../../src/mindmap/parser.ts'
 import { parsePacketDiagram } from '../../src/packet/parser.ts'
-import { parseMermaid } from '../../src/parser.ts'
+import { parseFlowchartRenderSource, parseMermaid } from '../../src/parser.ts'
 import { parsePieChart } from '../../src/pie/parser.ts'
 import { pieFamilyLines } from '../../src/pie/source-title.ts'
 import { parseQuadrantChart } from '../../src/quadrant/parser.ts'
@@ -66,18 +67,21 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
     const parse = (): unknown => {
       switch (family) {
         case 'flowchart':
+          return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyBody, normalized.familyBody)
         case 'state':
           return parseMermaid(normalized.familyText)
         case 'c4': {
           const authored = normalizeMermaidSource(normalized.originalText)
           return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
         }
+        // As the render hooks do, the envelope's accessibility and the
+        // frontmatter title join the family's own reading.
         case 'architecture':
-          return parseArchitectureDiagram(lines)
+          return withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(architectureSourceLines(normalized)), normalized.accessibility), normalized.frontmatter)
         case 'class':
           return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
         case 'er':
-          return parseErDiagram(lines)
+          return withFrontmatterTitle(withAccessibilityFields(parseErDiagram(lines), normalized.accessibility), normalized.frontmatter)
         case 'gantt':
           return parseGanttModel(lines)
         case 'gitgraph': {

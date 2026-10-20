@@ -55,12 +55,13 @@ describe('C4 authored semantics', () => {
     for (const alias of ['constructor', 'rounded', 'component']) expect(c4ShapeOverride(alias)).toBeUndefined()
   })
   test('public routing decodes only encoded headers and preserves leading comments and case', () => {
-    for (const source of ['C4&#67;ontext\nSystem(a,"Visible")', '%% leading\nc4context\nSystem(a,"Visible")', 'C4&#67;ontext; System(a,"Visible")']) {
+    // A `;` separator is written as the line break Mermaid reads.
+    for (const [source, written] of [['C4&#67;ontext\nSystem(a,"Visible")'], ['%% leading\nc4context\nSystem(a,"Visible")'], ['C4&#67;ontext; System(a,"Visible")', 'C4&#67;ontext\nSystem(a,"Visible")']] as const) {
       const parsed = parseRegisteredMermaid(source)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) throw new Error(parsed.error[0]?.message)
       expect(parsed.value.body.kind).toBe('c4')
-      expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(serializeMermaid(parsed.value)).toBe(written ?? source)
       expect(renderMermaidSVG(source)).toContain('Visible')
       expect(renderMermaidASCII(source, { colorMode: 'none' })).toContain('Visible')
     }
@@ -326,6 +327,8 @@ UpdateElementStyle(g,$borderColor="navy")`
       body = edit(body, { kind: 'add_element', element: { id: 'A\nB', label: 'Line identity' } })
       body = edit(body, { kind: 'add_element', element: { id: 'A\tB', label: 'Tab identity' } })
       body = edit(body, { kind: 'add_relationship', relationship: { from: '資料 é 👩‍💻', to: 'A\nB', label: 'Quoted "edge"' } })
+      // Mermaid trims each argument, so blanks at either end must survive as entity codes.
+      body = edit(body, { kind: 'add_element', element: { id: ' Padded ', label: '\u3000 Padded label ' } })
       const result = await upstream.project(renderC4(body), diagram => ({
         elements: diagram.db.getC4ShapeArray('global').map((record: any) => ({ id: record.alias, label: record.label.text })),
         relationships: diagram.db.getRels().map((record: any) => ({ from: record.from, to: record.to, label: record.label.text })),
@@ -334,25 +337,29 @@ UpdateElementStyle(g,$borderColor="navy")`
       if (!result.ok) throw new Error(result.error)
       expect(result.value.elements.map((record: { id: string }) => projectEntityMarkers(record.id))).toEqual(body.elements.map(record => record.id))
       expect(projectEntityMarkers(breakLineTags(result.value.elements[0].label))).toBe(label)
+      expect(projectEntityMarkers(result.value.elements[3].label)).toBe('\u3000 Padded label ')
       expect(result.value.relationships.map((record: { from: string; to: string; label: string }) => ({ from: projectEntityMarkers(record.from), to: projectEntityMarkers(record.to), label: projectEntityMarkers(record.label) }))).toEqual([{ from: '資料 é 👩‍💻', to: 'A\nB', label: 'Quoted "edge"' }])
     } finally { upstream.close() }
   })
 
   // Pinned Mermaid C4 needs a line break after each statement and after `{`
   // (a closing `}` may share the line before it), and its comments take the
-  // line breaks after them. Ours reads these layouts, reports each, and keeps
-  // the authored source; a comment ending the source or a block is Mermaid's.
+  // line breaks after them. Ours reads these layouts, reports each, and writes
+  // the line break Mermaid needs (a comment sharing the line moves to a line
+  // of its own, a statement after `{` one level deeper); a comment ending the
+  // source or a block is Mermaid's.
   test.each([
-    ['C4Context\nSystem_Boundary(b, "B") { Person(a, "A") }', true],
-    ['C4Context\nPerson(a, "A") Person(b, "B")', true],
-    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n} Person(c, "C")', true],
-    ['C4Context\nPerson(a, "A") %% note\nPerson(b, "B")', true],
-    ['C4Context\nPerson(a, "A") %% note', false],
-    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") %% note\n}', false],
-  ] as const)('%j is reported as a reader extension: %p', (source, reported) => {
+    ['C4Context\nSystem_Boundary(b, "B") { Person(a, "A") }', true, 'C4Context\nSystem_Boundary(b, "B") {\n  Person(a, "A") }'],
+    ['C4Context\n  System_Boundary(b, "B") { Person(a, "A"); Person(c, "C") }', true, 'C4Context\n  System_Boundary(b, "B") {\n    Person(a, "A")\n    Person(c, "C") }'],
+    ['C4Context\nPerson(a, "A") Person(b, "B")', true, 'C4Context\nPerson(a, "A")\nPerson(b, "B")'],
+    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n} Person(c, "C")', true, 'C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n}\nPerson(c, "C")'],
+    ['C4Context\nPerson(a, "A") %% note\nPerson(b, "B")', true, 'C4Context\nPerson(a, "A")\n%% note\nPerson(b, "B")'],
+    ['C4Context\nPerson(a, "A") %% note', false, 'C4Context\nPerson(a, "A") %% note'],
+    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") %% note\n}', false, 'C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") %% note\n}'],
+  ] as const)('%j is reported as a reader extension: %p', (source, reported, written) => {
     const body = parseC4Diagram(source)
     expect(body.diagnostics.some(record => record.message.includes('Statements sharing a line'))).toBe(reported)
-    expect(renderC4(body)).toBe(source)
+    expect(renderC4(body)).toBe(written)
   })
 
   test('source map addresses independent relationships and exact label starts', () => {
@@ -361,6 +368,9 @@ UpdateElementStyle(g,$borderColor="navy")`
     expect(map.edges.get(body.relationships[0]!.id)).toEqual({ line: 8, col: 1 })
     expect(map.edges.get(body.relationships[1]!.id)).toEqual({ line: 9, col: 1 })
     expect(map.labels.get('node:a')).toEqual({ line: 4, col: 13 })
+    // A label starts after the blanks the reader trims inside its quotes.
+    const padded = 'C4Context\nPerson(a, "  Ann")'
+    expect(buildC4SourceMap(parseC4Diagram(padded), padded).labels.get('node:a')).toEqual({ line: 2, col: 14 })
     expect(map.groups.get('g')).toEqual({ line: 3, col: 1 })
   })
 })

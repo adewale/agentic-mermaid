@@ -71,11 +71,11 @@ interface OpSpec {
 }
 
 // Enum value lists, kept in sync with the type aliases they mirror.
-const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
+const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
 const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisible']
 const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'async', 'async-dashed', 'lost', 'lost-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
-const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par'] as const
+const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
@@ -116,7 +116,7 @@ const FLOWCHART_SCHEMA: Record<string, OpSpec> = {
   add_node: { fields: { id: str(), label: str(), shape: withNote(oneOf(FLOWCHART_SHAPE_VALUES, false), 'default: rectangle; also accepts Mermaid v11 @{ shape } names/aliases (e.g. manual-input)'), parent: str(false) } },
   remove_node: { fields: { id: str() } },
   rename_node: { fields: { from: str(), to: str() } },
-  set_label: { fields: { target: withNote(str(), 'a node id, an authored edge ID (e1), or "from->to"/"from->to#k"'), label: str() } },
+  set_label: { fields: { target: withNote(str(), 'a node id, an authored edge ID (e1), or "from->to"/"from->to#k"; an id a node and an edge share names the node'), label: str() } },
   add_edge: { fields: { from: str(), to: str(), label: str(false), style: withNote(oneOf(EDGE_STYLES, false), 'default: solid') } },
   remove_edge: { fields: { id: withNote(str(), 'an authored edge ID (e1), or "from->to"/"from->to#k" for the k-th parallel edge') } },
   set_shape: { fields: { id: str(), shape: withNote(oneOf(FLOWCHART_SHAPE_VALUES), 'a geometry name or a Mermaid v11 @{ shape } name/alias; v11 names render with the documented geometry mapping and serialize with the authored spelling') } },
@@ -263,11 +263,12 @@ const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {
   set_title: { fields: { title: strOrNull() } },
   set_accessibility_title: { fields: { title: strOrNull() } },
   set_accessibility_description: { fields: { description: strOrNull() } },
-  add_service: { fields: { id: str(), label: str(false), icon: strOrNull(false), group: strOrNull(false) } },
+  add_service: { fields: { id: str(), label: str(false), icon: strOrNull(false), iconText: strOrNull(false), group: strOrNull(false) } },
   remove_service: { fields: { id: str() } },
   rename_service: { fields: { from: str(), to: str() } },
   set_service_label: { fields: { id: str(), label: str() } },
   set_service_icon: { fields: { id: str(), icon: strOrNull() } },
+  set_service_icon_text: { fields: { id: str(), text: strOrNull() } },
   move_service: { fields: { id: str(), group: strOrNull() } },
   add_junction: { fields: { id: str(), group: strOrNull(false) } },
   remove_junction: { fields: { id: str() } },

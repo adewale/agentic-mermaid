@@ -16,8 +16,7 @@ import { svgEmissionMetadataCounts, svgGroupMetadata, svgGroupMetadataCounts, ty
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization, sceneNodeEmission, attachGroupEmissionViews, hasOwnedSceneEmissionView } from './serialization.ts'
 import { measureRenderStage } from '../render-stages.ts'
-import { deferredTerminalProjectionInput, materializeOwnTerminalProjection, reserveDeferredTerminalProjection } from './deferred-terminal-projection.ts'
-import type { ConnectorTerminalProjectionInput } from './connector-terminal.ts'
+import { materializeOwnTerminalProjection } from './deferred-terminal-projection.ts'
 import { accountConstructionOperands } from './construction-operands.ts'
 
 export interface ExternalDataSnapshotLimits {
@@ -274,24 +273,11 @@ export function snapshotBoundedExternalData(
 }
 
 /**
- * Freeze a document a built-in family just lowered, in place. It is plain
- * object and array literals from our own code, with no caller Proxy, accessor
- * or iterator to defend against, so it is not copied: the walk applies the
- * same limits and the prototype, cycle and sparse-array checks as
- * `snapshotBoundedExternalData`, counting a shared object at every reference
- * as that copy does, then freezes each object where it stands. Shapes only a
- * lowering bug could produce are not diagnosed here: symbol and non-enumerable
- * keys and extra array properties are skipped, and accessors are read.
- * Registered terminal-projection getters may instead reserve their full
- * payload envelope; near a limit the walk materializes and visits its graph.
- * Validation still runs on the result. Everything the document references is
- * frozen with it, including first-party objects a lowering shares, such as a
- * layout's edge points and label positions or a family's module-level marker
- * table; nothing mutates those after lowering. A lowering must therefore never
- * hand admission an object anything else still mutates. Caller input never
- * reaches it: render options arrive as frozen copies, and typed diagrams are
- * re-serialized before they render. A document that fails admission may be
- * left partly frozen.
+ * Documents that passed admission, with the rule set they passed. Every document
+ * is a recursively frozen own-data snapshot, including any registered built-in
+ * terminal projection. Its validation result cannot change: passing it through
+ * another admission gate re-proves nothing. Only this module records documents,
+ * so a caller cannot forge membership.
  */
 export function freezeBoundedFirstPartyData(
   value: unknown,
@@ -337,170 +323,11 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
       throw new Error('Private SVG emission metadata exceeds the aggregate Scene data limits')
     }
   }
-  let reservedProjection = false
-  const reservations: Array<{
-    node: object
-    depth: number
-    objects: number
-    text: number
-    entries: number
-    properties: number
-    keys: number
-  } | undefined> = []
-  let nextReservation = 0
-  let reconciling = false
-  let materializedOutOfOrder = false
-  const COUNT_PROJECTION = Symbol('count this projection')
-
-  /** Replace older upper bounds with their actual graphs only as needed.
-   * The pending increment stays uncommitted while we visit a projection, so
-   * its proven envelope makes room for every intermediate visit. Any doubt
-   * replays the original exact walk to preserve rejection order and paths. */
-  const makeRoom = (neededObjects = 0, neededText = 0, neededEntries = 0, neededProperties = 0, neededKeys = 0): void => {
-    while (objects + neededObjects > limits.maxObjects || textBytes + neededText > limits.maxTextBytes
-      || arrayEntries + neededEntries > limits.maxAggregateArrayEntries
-      || properties + neededProperties > limits.maxAggregateProperties
-      || propertyKeyBytes + neededKeys > limits.maxAggregatePropertyKeyBytes) {
-      if (exact || reconciling || nextReservation === reservations.length) throw RECOUNT_EXACTLY
-      const reservation = reservations[nextReservation]!
-      reservations[nextReservation++] = undefined
-      objects -= reservation.objects
-      textBytes -= reservation.text
-      arrayEntries -= reservation.entries
-      properties -= reservation.properties
-      propertyKeyBytes -= reservation.keys
-      reconciling = true
-      materializedOutOfOrder = true
-      try {
-        visit((reservation.node as Record<string, unknown>).terminalProjection, reservation.depth + 1)
-      } catch {
-        throw RECOUNT_EXACTLY
-      } finally {
-        reconciling = false
-      }
-    }
-  }
-
-  /** A projection copies selected parts of its normalized input and creates
-   * bounded marker placements/loss diagnostics. Count a generous envelope
-   * without building those copies. Repeated references are deliberately not
-   * deduplicated here. Ordinary projection fields copy or reuse each input
-   * occurrence at most once; placement point copies add at most two more.
-   * Factor 8 covers these structural copies. Polyline placement wrappers are
-   * charged separately, so this bound does not depend on shared geometry or
-   * particular point keys. Fixed overhead covers line endpoint placements,
-   * the extra endpoint of a degenerate/closed polyline and projection-only
-   * keys/arrays.
-   * Text retains factor 32 for copied strings, loss strings and diagnostics.
-   * An envelope that cannot fit counts its own projection instead. Ordinary
-   * field pressure can reconcile older reservations. No cap is weakened. */
-  const reserveProjection = (node: object, input: ConnectorTerminalProjectionInput, depth: number): void => {
-    let extraObjects = 64, extraText = 4096, extraEntries = 128, extraProperties = 256, extraKeys = 8192
-    const inputDepthLimit = limits.maxDepth - depth - 8
-    const check = (): void => {
-      if (objects + extraObjects > limits.maxObjects || textBytes + extraText > limits.maxTextBytes
-        || arrayEntries + extraEntries > limits.maxAggregateArrayEntries
-        || properties + extraProperties > limits.maxAggregateProperties
-        || propertyKeyBytes + extraKeys > limits.maxAggregatePropertyKeyBytes) {
-        throw COUNT_PROJECTION
-      }
-    }
-    const measure = (item: unknown, level: number): void => {
-      if (typeof item === 'string') extraText += item.length * 3 * 32
-      else if (item !== null && typeof item === 'object') {
-        if (level > inputDepthLimit) throw RECOUNT_EXACTLY
-        extraObjects += 8
-        if (Array.isArray(item)) {
-          if (Math.max(18, item.length + 1) > limits.maxArrayEntries) throw COUNT_PROJECTION
-          extraEntries += item.length * 8
-          check()
-          for (const entry of item) measure(entry, level + 1)
-        } else {
-          const keys = Object.keys(item)
-          if (Math.max(24, keys.length) > limits.maxPropertiesPerObject) throw COUNT_PROJECTION
-          extraProperties += keys.length * 8
-          check()
-          for (const key of keys) {
-            if (Math.max(24, key.length) * 3 > limits.maxPropertyKeyBytes) throw COUNT_PROJECTION
-            extraKeys += key.length * 3 * 8
-            measure((item as Record<string, unknown>)[key], level + 1)
-          }
-        }
-      }
-      check()
-    }
-    try {
-      check()
-      measure(input, 0)
-      if (input.geometry.kind === 'polyline') {
-        const vertices = input.geometry.points.length
-        extraObjects += vertices * 2 // Placement and point copy.
-        extraProperties += vertices * 3 // markerId, point, contourIndex.
-        extraEntries += vertices
-        extraKeys += vertices * 25 * 3 // UTF-8 upper bound for the three keys.
-        check()
-      }
-      // One repeated mid marker contributes its identifier at every interior
-      // vertex. Unlike object/key counts, this string fan-out is not bounded by
-      // a constant multiple of the input's string bytes.
-      if (input.geometry.kind === 'polyline' && input.markers.mid.length > 0) {
-        let longestId = 0
-        for (const marker of input.markers.mid) {
-          if (typeof marker.id !== 'string') throw RECOUNT_EXACTLY
-          longestId = Math.max(longestId, marker.id.length)
-        }
-        extraText += input.geometry.points.length * longestId * 3
-        check()
-      }
-    } catch (error) {
-      if (error !== COUNT_PROJECTION) throw error
-      // Public input fields were visited first. Prove the complete depth
-      // envelope before counting out of order: an early budget check may have
-      // stopped measurement before a deeper shared transform was reached.
-      // Memoized heights also bound work on heavily shared input graphs.
-      const heights = new WeakMap<object, number>()
-      const height = (item: unknown, level: number): number => {
-        if (item === null || typeof item !== 'object') return -1
-        if (level > inputDepthLimit) throw RECOUNT_EXACTLY
-        const prior = heights.get(item)
-        if (prior !== undefined) {
-          if (level + prior > inputDepthLimit) throw RECOUNT_EXACTLY
-          return prior
-        }
-        let result = 0
-        if (Array.isArray(item)) {
-          if (item.length > limits.maxArrayEntries) throw RECOUNT_EXACTLY
-          for (const entry of item) result = Math.max(result, 1 + height(entry, level + 1))
-        } else {
-          const keys = Object.keys(item)
-          if (keys.length > limits.maxPropertiesPerObject) throw RECOUNT_EXACTLY
-          for (const key of keys) result = Math.max(result, 1 + height((item as Record<string, unknown>)[key], level + 1))
-        }
-        heights.set(item, result)
-        return result
-      }
-      height(input, 0)
-      materializedOutOfOrder = true
-      keyPath.push('terminalProjection')
-      try { visit((node as Record<string, unknown>).terminalProjection, depth + 1) }
-      finally { keyPath.pop() }
-      return
-    }
-    objects += extraObjects
-    textBytes += extraText
-    arrayEntries += extraEntries
-    properties += extraProperties
-    propertyKeyBytes += extraKeys
-    reservedProjection = true
-    reservations.push({ node, depth, objects: extraObjects, text: extraText, entries: extraEntries, properties: extraProperties, keys: extraKeys })
-    reserveDeferredTerminalProjection(node)
-  }
-
   const visit = (candidate: unknown, depth: number): void => {
     if (typeof candidate === 'string') {
       if (!exact) {
         const bytes = candidate.length * 3
-        if (textBytes + bytes > limits.maxTextBytes) makeRoom(0, bytes)
+        if (textBytes + bytes > limits.maxTextBytes) (() => { throw RECOUNT_EXACTLY })()
         textBytes += bytes
         return
       }
@@ -523,8 +350,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     }
     metadata(candidate, depth, consumeMetadata)
     if (objects + 1 > limits.maxObjects) {
-      if (!exact && reservedProjection) makeRoom(1)
-      else throw new Error('External Scene input object graph is too large')
+      throw new Error('External Scene input object graph is too large')
     }
     objects++
     if (active.has(candidate)) throw new Error('External Scene input must be acyclic')
@@ -539,8 +365,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
         throw new Error(`External Scene ${path()} contains too many entries`)
       }
       if (arrayEntries + length > limits.maxAggregateArrayEntries) {
-        if (!exact && reservedProjection) makeRoom(0, 0, length)
-        else throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
+        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
       }
       arrayEntries += length
       for (let index = 0; index < length; index++) {
@@ -560,8 +385,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
         throw new Error(`External Scene ${path()} contains too many properties`)
       }
       if (properties + keys.length > limits.maxAggregateProperties) {
-        if (!exact && reservedProjection) makeRoom(0, 0, 0, keys.length)
-        else throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
+        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
       }
       properties += keys.length
       for (const key of keys) {
@@ -570,7 +394,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
           // so the exact pass reports it.
           if (key.length * 3 > limits.maxPropertyKeyBytes && boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes) > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
           const bytes = key.length * 3
-          if (propertyKeyBytes + bytes > limits.maxAggregatePropertyKeyBytes) makeRoom(0, 0, 0, 0, bytes)
+          if (propertyKeyBytes + bytes > limits.maxAggregatePropertyKeyBytes) (() => { throw RECOUNT_EXACTLY })()
           propertyKeyBytes += bytes
           continue
         }
@@ -585,41 +409,31 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
         propertyKeyBytes += bytes
       }
       const record = candidate as Record<string, unknown>
-      // Once pressure requires real projections, count subsequent ones in
-      // their original key order instead of measuring and then retiring more
-      // envelopes. Earlier reservations remain available to make room.
-      const deferredInput = !exact && nextReservation === 0 ? deferredTerminalProjectionInput(candidate) : undefined
       for (const key of keys) {
-        if (hasOwnedSceneEmissionView(candidate, key) || key === 'terminalProjection' && deferredInput) continue
+        if (hasOwnedSceneEmissionView(candidate, key)) continue
+        const descriptor = Object.getOwnPropertyDescriptor(candidate, key)!
+        if (!('value' in descriptor)) {
+          const projection = materializeOwnTerminalProjection(candidate, key, descriptor)
+          if (projection === undefined) throw new TypeError(`External Scene ${path()}.${key} must be an enumerable data property`)
+          Object.defineProperty(candidate, key, { value: projection, enumerable: true, configurable: true, writable: true })
+        }
         keyPath.push(key)
         visit(record[key], depth + 1)
         keyPath.pop()
       }
-      // All normalized input fields are now deeply frozen. Only private,
-      // copied diagnostic strings live outside the public connector fields.
-      if (deferredInput) reserveProjection(candidate, deferredInput, depth)
     }
     Object.freeze(candidate)
     frozen.add(candidate)
     active.delete(candidate)
   }
 
-  try {
-    visit(value, 0)
-  } catch (error) {
-    // Deferred projections may be visited outside their original key position.
-    // Replay any later failure in canonical order before reporting it.
-    if (!exact && materializedOutOfOrder) throw RECOUNT_EXACTLY
-    throw error
-  }
+  visit(value, 0)
 }
 
 /**
  * Documents that passed admission, with the rule set they passed: copies from
  * `snapshotBoundedExternalData`, and built-in lowerings frozen in place by
- * `freezeBoundedFirstPartyData`. Values are recursively frozen; the one
- * registered built-in projection getter derives only from admitted own data
- * within its reserved budget and memoizes a frozen result. Its validation
+ * `freezeBoundedFirstPartyData`. Values are recursively frozen; registered built-in terminal projections are materialized as own data. Its validation
  * result therefore cannot change: passing it through another admission gate
  * re-proves nothing. Only this module records documents, so a caller cannot
  * forge membership.
@@ -651,14 +465,10 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
     }
     return value as SceneDoc
   }
-  // Only built-in family admission names 'internal': its document is our own
-  // lowering output, frozen in place. An inferred mode copies through the
-  // full descriptor path. The test-only replaceFamilyForTest installs lowering
-  // under a built-in id, so a test of hostile Scenes must register a `family:`
-  // extension instead.
-  const admitted = measureRenderStage('scene-capture', () => mode === 'internal'
-    ? freezeBoundedFirstPartyData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
-    : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene'))
+  // Retained Scene consumers receive the upstream immutable own-data snapshot;
+  // ordinary native drawing avoids retaining this tree altogether.
+  const admitted = measureRenderStage('scene-capture', () =>
+    snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene'))
   measureRenderStage('scene-validation', () => assertAdmissibleSceneDoc(admitted, mode, mode !== 'internal' || crossChecks))
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), mode !== 'internal' || crossChecks)
   return admitted as SceneDoc

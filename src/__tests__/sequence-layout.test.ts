@@ -41,6 +41,51 @@ function overlaps(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
 }
 
+it('parallel overlay branches share time, retain their labels, and join after the longest branch', () => {
+  const source = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nparticipant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined'
+  expect(() => layout(source)).not.toThrow()
+  const positioned = layout(source)
+  expect(positioned.blocks[0]?.type).toBe('par_over')
+  expect(positioned.messages[0]!.y).toBe(positioned.messages[2]!.y)
+  const frame = positioned.blocks[0]!
+  const tag = frame.dividers[0]!.labelPosition!
+  expect(tag.text).toBe('[Other]')
+  expect(overlaps(tag.bounds, positioned.messages[2]!.bounds)).toBe(false)
+  for (const message of positioned.messages.slice(0, 3)) {
+    expect(message.bounds.y).toBeGreaterThan(frame.y + frame.header!.height)
+    expect(message.bounds.y + message.bounds.height).toBeLessThan(frame.y + frame.height)
+  }
+  expect(positioned.messages[3]!.bounds.y).toBeGreaterThan(frame.y + frame.height)
+  const ordinary = layout(source.replace('par_over', 'par'))
+  expect(ordinary.messages[2]!.y).toBeGreaterThan(ordinary.messages[1]!.y)
+  expect(positioned.height).toBeLessThan(ordinary.height)
+})
+
+it('parallel overlays clear shared actors, self messages, notes and nested frames before joining', () => {
+  const source = 'sequenceDiagram\npar_over Work\nrect rgb(240,240,240)\nA->>+B: first\nNote right of B: owned note\nB-->>-A: reply\nend\nand Retry\nA->>A: self\nNote over A: retry note\nend\nA->>B: joined'
+  expect(() => layout(source)).not.toThrow()
+  const positioned = layout(source)
+  const outer = positioned.blocks.find(block => block.type === 'par_over')!
+  const child = positioned.blocks.find(block => block.type === 'rect')!
+  const self = positioned.messages[2]!
+  expect(overlaps(child, self.bounds)).toBe(false)
+  expect(positioned.notes.every(note => note.y > outer.y && note.y + note.height < outer.y + outer.height)).toBe(true)
+  expect(positioned.activations).toHaveLength(1)
+  expect(positioned.activations[0]!.bottomY).toBeGreaterThan(positioned.activations[0]!.topY)
+  expect(positioned.messages[3]!.bounds.y).toBeGreaterThan(outer.y + outer.height)
+})
+
+it('note-only overlay branches share time and keep a later branch label above its nested frame', () => {
+  const notes = layout('sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nparticipant D\npar_over Notes\nNote over A: first\nand Other\nNote over D: second\nend\nA->>D: joined')
+  expect(notes.notes[0]!.y).toBe(notes.notes[1]!.y)
+  const nested = layout('sequenceDiagram\npar_over Work\nA->>B: first\nand Other\nrect rgb(240,240,240)\nC->>D: second\nend\nend\nA->>D: joined')
+  const overlay = nested.blocks.find(block => block.type === 'par_over')!
+  const child = nested.blocks.find(block => block.type === 'rect')!
+  expect(overlay.dividers[0]!.labelPosition!.bounds.y + overlay.dividers[0]!.labelPosition!.bounds.height).toBeLessThan(child.y)
+  const shared = layout('sequenceDiagram\npar_over Work\nA->>B: first\nand Other\nrect rgb(240,240,240)\nA->>B: second\nend\nend\nA->>B: joined')
+  expect(overlaps(shared.blocks.find(block => block.type === 'rect')!, shared.messages[0]!.bounds)).toBe(false)
+})
+
 function actorRect(actor: PositionedSequenceDiagram['actors'][number]): Rect {
   return { x: actor.x - actor.width / 2, y: actor.y, width: actor.width, height: actor.height }
 }

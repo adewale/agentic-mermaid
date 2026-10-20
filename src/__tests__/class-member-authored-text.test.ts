@@ -3,6 +3,7 @@ import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from 
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
 const source = `classDiagram
   class Account {
@@ -201,4 +202,43 @@ test('Class member overflow measures the same literal text as native layout and 
     ['A#m0', '+♥'.length], ['A#m1', '+<b>x</b>'.length], ['A#m2', '#protected'.length],
     ['A#m3', '+List<int> value'.length], ['A#m4', '<<♥>>'.length], ['A#m5', '+value'.length],
   ])
+})
+
+test('a %%{…}%% directive in a member is removed before the member is read, as Mermaid removes it', async () => {
+  // Mermaid's preprocessing removes every directive from the source before
+  // its grammar reads it, a `}` in it too, and applies an init's config.
+  const sources = [
+    'classDiagram\n  class A {\n    +literal(%%{init: {}}%%)\n  }',
+    'classDiagram\n  class A\n  A : +x %%{wrap}%%',
+    'classDiagram\n  class A\n  A : +x %%{init: {"theme": "dark"}}%%',
+  ]
+  const members = (source: string): string[] => {
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'class') throw new Error(`structured Class required: ${source}`)
+    return parsed.value.body.classes[0]!.members
+  }
+  expect(sources.map(members)).toEqual([['+literal()'], ['+x'], ['+x']])
+  expect(sources.map(source => drawnTexts(source).slice(1))).toEqual([['+ literal()'], ['+x'], ['+x']])
+  expect(sources.map(source => verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])))
+    .toEqual([[], [], []])
+  // A warning on such a line names its authored line, though the line is read without the directive.
+  expect(verifyMermaid('---\ntitle: t\n---\nclassDiagram\n  class A\n  A : a:b %%{init: {"theme": "dark"}}%%').warnings
+    .flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])).toEqual(['class_member_text@6'])
+  const upstream = startUpstreamMermaid()
+  try {
+    expect(await upstream.projectAll(sources, diagram => {
+      const node = diagram.db.getClasses().get('A')
+      return [...node.members, ...node.methods].map((member: { getDisplayDetails(): { displayText: string } }) => member.getDisplayDetails().displayText)
+    })).toEqual([['+literal()'], ['+x'], ['+x']])
+    // Text an edit adds keeps its `%%{`: the writer spells the brace `#123;`.
+    const parsed = parseRegisteredMermaid('classDiagram\n  class A')
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const edited = mutate(parsed.value, { kind: 'add_note', for: 'A', text: 'a %%{x}%% b' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const written = serializeMermaid(edited.value)
+    const reloaded = parseRegisteredMermaid(written)
+    expect(reloaded.ok && reloaded.value.body.kind === 'class' && reloaded.value.body.notes.map(note => note.text)).toEqual(['a %%{x}%% b'])
+    expect((await upstream.projectAll([written], diagram => [...diagram.db.getNotes().values()].map((note: { text: string }) => note.text))).map(texts => texts.map(text => projectEntityMarkers(text))))
+      .toEqual([['a %%{x}%% b']])
+  } finally { upstream.close() }
 })

@@ -123,10 +123,11 @@ describe('Mindmap full-family citizenship', () => {
       ['final', 'Final'],
     ])
     expect(diagram.body.root.children[2]).toMatchObject({ icon: 'mdi:foo%%bar', className: 'hot%%class' })
-    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([{ code: 'COMMENT_DROPPED', count: 4, lines: [2, 5, 6, 8] }])
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([])
     const changed = mutate(diagram, { kind: 'add_node', id: 'added', label: 'more%%text', shape: 'rect', parent: 'root' })
     if (!changed.ok) throw new Error(changed.error.message)
     const written = serializeMermaid(changed.value)
+    for (const text of ['root comment', 'cloud comment', 'icon comment', 'real comment']) expect(written.split(`%% ${text}`)).toHaveLength(2)
     const reloaded = parseMermaid(written)
     if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
     expect(describeMermaidFacts(reloaded.value)).toEqual(describeMermaidFacts(changed.value))
@@ -497,7 +498,7 @@ describe('GitGraph full-family citizenship', () => {
     expect(text).toContain('main')
     expect(text).toContain('feature')
     expect(text).toContain('[Foundation]')
-    expect(text).toContain('[merged branch feature into main]')
+    expect(text).toContain('[merge]')
 
     const equalOrder = renderMermaidASCII(`gitGraph
   commit id:"base"
@@ -562,6 +563,24 @@ describe('GitGraph full-family citizenship', () => {
       expect(svg).toContain('class="git-edge git-edge-cherry-pick" data-from="patch" data-to="c5"')
       expect(svg).toContain('Late Ω &amp; repeats')
       expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+
+    }
+  })
+
+  test('authored merge IDs remain visible while explicit commit messages and automatic merge labels retain their precedence', () => {
+    for (const [merge, label] of [['merge feature id:"release-merge"', 'release-merge'], ['merge feature', 'merged branch feature into main']]) {
+      const source = `gitGraph\n commit id:"base" msg:"Foundation"\n branch feature\n commit id:"work"\n checkout main\n ${merge}`
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized).toContain(merge!)
+      expect(serialized).not.toContain('msg:"merged branch')
+      for (const input of [source, serialized]) {
+        expect(renderMermaidSVG(input)).toContain(`>${label}<`)
+        const text = renderMermaidASCII(input)
+        expect(text).toContain(`[${label}]`)
+        expect(text).toContain('[Foundation]')
+      }
     }
   })
 

@@ -8,6 +8,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { decodeXML } from 'entities'
 import { renderMermaidSVG } from '../index.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { describeViolations, HONESTY_STYLES, textHonestyViolations } from './helpers/chart-honesty.ts'
@@ -42,10 +43,27 @@ describe('chart honesty: generated diagrams with random titles', () => {
         fcParameters({
           numRuns: fc.readConfigureGlobal().numRuns ?? 6,
           // Nightly finder #362: the one-line title exceeded the fixed canvas.
-          examples: kind === 'xychart' ? [[1, 'Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly', undefined]] : kind === 'treemap' ? [[2, 'W'.repeat(70), 'accessible-high-contrast']] : [],
+          examples: kind === 'xychart' ? [[1, 'Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly', undefined]] : kind === 'sequence' ? [[3, 'revenue and Quarterly market region Quarterly region', undefined]] : kind === 'treemap' ? [[2, 'W'.repeat(70), 'accessible-high-contrast']] : [],
         }),
       )
     }, 120_000)
+
+    it(`${kind} draws its title over an empty body, unless it refuses the body`, () => {
+      const source = `---\ntitle: Empty body\n---\n${untitled(family.build(family.kRange[0], 'n')).split('\n')[0]}`
+      let svg: string
+      try {
+        svg = renderMermaidSVG(source)
+      } catch (error) {
+        // A family whose body needs content (a Gantt task, a mindmap root)
+        // refuses it; a layout that cannot place the title is no refusal.
+        expect(error).not.toBeInstanceOf(LayoutCertificationError)
+        return
+      }
+      const drawn = [...svg.matchAll(/<text\b[^>]*\bdata-role="title"[^>]*>([\s\S]*?)<\/text>/g)]
+        .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join(' ')
+      const [, , width, height] = (/viewBox="([^"]*)"/.exec(svg)?.[1] ?? '').split(' ').map(Number)
+      expect({ drawn, onCanvas: width! > 0 && height! > 0 }).toEqual({ drawn: 'Empty body', onCanvas: true })
+    })
 
     it(`${kind} preserves exact title case through soft wrapping`, () => {
       const title = 'antidisestablishmentarianism'.repeat(5)

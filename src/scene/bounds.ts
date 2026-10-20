@@ -248,7 +248,7 @@ export interface ConnectorMarkerPaintRegion {
 }
 
 /** Individual marker occurrences from the native connector authority. */
-export function connectorMarkerPaintRegions(node: ConnectorMark, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
+export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
   const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
   const mids = connectorMidpoints(geometry, node.route.closed)
   const transform = composedTransform(parentTransform, node.transform)
@@ -433,22 +433,64 @@ function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, tr
   return world ? expandSceneBounds(world, extent) : undefined
 }
 
-/** A single symmetric cubic with horizontal endpoint tangents has no joins.
- * Its normal's horizontal component is bounded by the midpoint slope; butt
- * caps add no tangent extension. This keeps thick flow ribbons measurable
- * without applying an unrelated polyline miter envelope to the whole curve.
+/** A butt-capped straight segment paints only its perpendicular half-width
+ * band, nothing past its endpoints, so an axis line that ends on the canvas
+ * edge stays on the canvas. Round and square caps, and a zero-length segment,
+ * keep the axis-free envelope. */
+function lineStrokeBox(line: Extract<Geometry, { kind: 'line' }>, extent: number, cap: MarkPaint['strokeLinecap']): AxisAlignedBox {
+  const box = geometryBounds(line)!
+  const length = Math.hypot(line.x2 - line.x1, line.y2 - line.y1)
+  if ((cap !== undefined && cap !== 'butt') || length === 0) return expandSceneBounds(box, extent)
+  const x = extent * Math.abs(line.y2 - line.y1) / length, y = extent * Math.abs(line.x2 - line.x1) / length
+  return { x0: box.x0 - x, y0: box.y0 - y, x1: box.x1 + x, y1: box.y1 + y }
+}
+
+function strokedBox(geometry: Geometry, box: AxisAlignedBox, extent: number, cap: MarkPaint['strokeLinecap'], nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
+  return geometry.kind === 'line' && !nonScaling ? transformedBounds(lineStrokeBox(geometry, extent, cap), transform) : paintedBox(box, extent, nonScaling, transform)
+}
+
+/** A flow ribbon `M x0 y0 C c y0, c y3, x3 y3`, its shared control abscissa
+ * strictly between the ends (a Sankey link's rounded midpoint), has
+ * horizontal end tangents and no joins, and its butt caps add no tangent
+ * extension. Its x moves monotonically from end to end, so the stroke reaches
+ * past an end only where the half-width normal outruns the run left to that
+ * end, which a gently bent ribbon never does. This keeps thick ribbons
+ * measured to their ink rather than by a polyline miter envelope.
  */
-function symmetricCubicStrokeBounds(d: string, halfWidth: number): AxisAlignedBox | undefined {
+function ribbonCubicStrokeBounds(d: string, halfWidth: number): AxisAlignedBox | undefined {
   if (!/^[\s,0-9eE.+\-MC]+$/.test(d)) return undefined
   const tokens = d.match(/[MC]|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)
   if (!tokens || tokens.length !== 10 || tokens[0] !== 'M' || tokens[3] !== 'C') return undefined
   const values = tokens.filter(token => token !== 'M' && token !== 'C').map(Number)
   if (!values.every(Number.isFinite)) return undefined
   const [x0, y0, x1, y1, x2, y2, x3, y3] = values as [number, number, number, number, number, number, number, number]
-  const dx = (x3 - x0) / 2, dy = y3 - y0
-  if (dx === 0 || x1 !== x2 || Math.abs(x1 - (x0 + x3) / 2) > 1e-8 || y1 !== y0 || y2 !== y3) return undefined
-  const horizontal = halfWidth * Math.abs(dy) / Math.hypot(dx, dy)
-  return { x0: Math.min(x0, x3) - horizontal, y0: Math.min(y0, y3) - halfWidth, x1: Math.max(x0, x3) + horizontal, y1: Math.max(y0, y3) + halfWidth }
+  if (x1 !== x2 || y1 !== y0 || y2 !== y3 || !((x1 - x0) * (x3 - x1) > 0)) return undefined
+  const near = Math.abs(x1 - x0), far = Math.abs(x3 - x1), rise = Math.abs(y3 - y0), toward = Math.sign(x3 - x0)
+  const ends = [x0 - toward * ribbonEndOvershoot(far, near, rise, halfWidth), x3 + toward * ribbonEndOvershoot(near, far, rise, halfWidth)]
+  return { x0: Math.min(...ends), y0: Math.min(y0, y3) - halfWidth, x1: Math.max(...ends), y1: Math.max(y0, y3) + halfWidth }
+}
+
+/** An upper bound on how far a flow ribbon's stroke of half width `half`
+ * reaches past its t = 1 end along x. `near` and `far` are the control
+ * abscissa's distances from the t = 0 and t = 1 ends, `rise` the ends'
+ * vertical offset. At t the reach is (1 − t)(6·half·rise·t / |B'(t)| − run(t)),
+ * where run(t) = near(1 − t)² + far(1 + t + t²) is the x still to go per unit
+ * of (1 − t). Each slice of t bounds both terms by their interval extremes
+ * (x' and run are convex quadratics, t(1 − t) is concave). The reach is never
+ * more than `half`, and is 0 when no slice can reach past the end. */
+export function ribbonEndOvershoot(near: number, far: number, rise: number, half: number): number {
+  const slices = 32
+  let reach = 0
+  for (let i = 0; i < slices; i++) {
+    const t0 = i / slices, t1 = (i + 1) / slices
+    const at = (t: number): number => Math.min(t1, Math.max(t0, t))
+    const speed = (t: number): number => 3 * (near * (1 - t) ** 2 + far * t * t)
+    const run = (t: number): number => near * (1 - t) ** 2 + far * (1 + t + t * t)
+    const lift = 6 * rise * Math.min(t0 * (1 - t0), t1 * (1 - t1))
+    const excess = 6 * half * rise * t1 / Math.hypot(speed(at(near / (near + far))), lift) - run(at((2 * near - far) / (2 * (near + far))))
+    if (excess > 0) reach = Math.max(reach, (1 - t0) * excess)
+  }
+  return Math.min(half, reach)
 }
 
 function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
@@ -457,7 +499,7 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
   const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
   if (!local || extent === undefined) return undefined
   const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
-    ? symmetricCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined
+    ? ribbonCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined
   let result = singleCubic ? transformedBounds(singleCubic, transform) : paintedBox(local, extent, node.stroke.nonScaling, transform)
   if (!result) return undefined
   const width = numericStrokeWidth(node.stroke.width)
@@ -509,14 +551,14 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAli
     let base: AxisAlignedBox | undefined
     for (const paint of [node.paint, ...node.childPaints ?? []]) {
       const extent = paintedStrokeExtent(paint, open)
-      const box = extent === undefined ? undefined : paintedBox(local, extent, paint.vectorEffect === 'non-scaling-stroke', transform)
+      const box = extent === undefined ? undefined : strokedBox(node.geometry, local, extent, paint.strokeLinecap, paint.vectorEffect === 'non-scaling-stroke', transform)
       if (!box) return undefined
       base = base ? unionSceneBounds(base, box) : box
     }
     if (!node.conditionalPaint) return base
     const alternate = paintedStrokeExtent(node.conditionalPaint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
     if (!base || alternate === undefined) return undefined
-    const alternateBounds = paintedBox(local, alternate, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
+    const alternateBounds = strokedBox(node.geometry, local, alternate, node.conditionalPaint.strokeLinecap, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
     return alternateBounds ? unionSceneBounds(base, alternateBounds) : undefined
   } else if (node.kind === 'connector') {
     return connectorPaintBounds(node, transform)

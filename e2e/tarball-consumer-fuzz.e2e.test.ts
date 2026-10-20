@@ -27,6 +27,7 @@ import { createHash } from 'node:crypto'
 import fc from 'fast-check'
 import '../src/__tests__/fc-seed.preload.ts'
 import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
+import { runGettingStartedCommands } from './helpers/getting-started.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
@@ -102,6 +103,7 @@ const codeArb = fc.oneof(
 
 // Consumer install state (populated by beforeAll).
 let work = ''
+let tarball = ''
 let packageDir = ''
 let amBin = ''
 let mcpBin = ''
@@ -127,7 +129,7 @@ beforeAll(() => {
     rmSync(privateProbeDir, { recursive: true, force: true })
   }
   if (pack.status !== 0) throw new Error(`npm pack failed (${pack.status}):\n${pack.stderr ?? ''}`)
-  const tarball = join(work, `agentic-mermaid-${version}.tgz`)
+  tarball = join(work, `agentic-mermaid-${version}.tgz`)
   if (!existsSync(tarball)) throw new Error(`expected tarball missing: ${tarball}`)
 
   writeFileSync(join(work, 'package.json'), JSON.stringify({ name: 'am-consumer', private: true, version: '1.0.0' }))
@@ -144,6 +146,11 @@ beforeAll(() => {
   binShimMcp = join(work, 'node_modules', '.bin', 'agentic-mermaid-mcp')
   for (const p of [amBin, mcpBin]) if (!existsSync(p)) throw new Error(`installed bin missing: ${p}`)
   haveConsumer = true
+}, BUILD_TIMEOUT_MS + INSTALL_TIMEOUT_MS + RUN_TIMEOUT_MS)
+
+test('Getting Started shell commands and pinned MCP config work against the packed package', () => {
+  expect(haveConsumer).toBe(true)
+  runGettingStartedCommands(REPO, tarball)
 }, BUILD_TIMEOUT_MS + INSTALL_TIMEOUT_MS + RUN_TIMEOUT_MS)
 
 // ---------------------------------------------------------------------------

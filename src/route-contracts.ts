@@ -37,6 +37,7 @@ import { clipEdgeToShape } from './shape-clipping.ts'
 import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
 import { LABEL_PILL_PADDING, labelRect, pillRect } from './shared/edge-label-geometry.ts'
 
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -68,7 +69,7 @@ const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine', 'sta
  */
 export const PORT_EXACT = new Set([
   ...RECT_LIKE, 'diamond',
-  'circle', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
+  'circle', 'ellipse', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
   // State pseudostates: choice is an inscribed diamond, history an inscribed
   // circle — their bbox side midpoints lie exactly on the outline.
   'state-choice', 'state-history',
@@ -1229,7 +1230,13 @@ function tryStraighten(
     if (current.length === 2 && Math.abs(current[0]![axis.cross] - current[1]![axis.cross]) <= EPS) {
       const priorContacts = Number(Boolean(portAt(source, current[0]!))) + Number(Boolean(portAt(target, current[1]!)))
       const nextContacts = Number(Boolean(portAt(source, proven.start))) + Number(Boolean(portAt(target, proven.end)))
-      if (nextContacts < priorContacts && countRouteCrossings([proven.start, proven.end], edge, ctx) >= countRouteCrossings(current, edge, ctx)) {
+      const losesContacts = nextContacts < priorContacts
+      const reducesOpposingInk = () => {
+        const others = ctx.edges.filter(other => other !== edge)
+        return countOpposingRouteOverlaps([{ ...edge, points: [proven.start, proven.end] }, ...others]) <
+          countOpposingRouteOverlaps([{ ...edge, points: current }, ...others])
+      }
+      if (losesContacts && countRouteCrossings([proven.start, proven.end], edge, ctx) >= countRouteCrossings(current, edge, ctx) && !reducesOpposingInk()) {
         const lane = current[0]![axis.cross]
         // The aesthetic inset may exclude an existing valid contact near a
         // corner. Re-prove its actual boundary and clear lane, rather than
@@ -1247,6 +1254,11 @@ function tryStraighten(
           if (edge.label) edge.labelPosition = priorProof.slot ?? undefined
           return { applied: true, blockers: [] }
         }
+        // A cosmetic spacing candidate that loses canonical contacts is not a
+        // repair. Keep searching; the current route stays available for later
+        // label/obstacle repair and receives an honest certificate below.
+        if ('blockers' in priorProof) blockers.push(...priorProof.blockers)
+        continue
       }
     }
     edge.points = [proven.start, proven.end]
@@ -2616,10 +2628,11 @@ function sharedTrunkConflict(
   edge: PositionedEdge,
   edges: PositionedEdge[],
   style: LabelMetricsStyle,
+  labelPosition = edge.labelPosition,
 ): PositionedEdge | null {
-  if (!edge.label || !edge.labelPosition) return null
+  if (!edge.label || !labelPosition) return null
   const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
-  const pill = pillRect(edge.labelPosition.x, edge.labelPosition.y, m)
+  const pill = pillRect(labelPosition.x, labelPosition.y, m)
   for (const other of edges) {
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
     for (let i = 1; i < other.points.length; i++) {
@@ -2694,21 +2707,25 @@ export function repairLabelsOnSharedTrunks(
 
     const saved = edge.labelPosition
     let fixed = false
-    for (const seg of segs) {
+    // A narrow private segment beside a shared trunk can have no centered
+    // slot. Keep the shaft inside its pill while trying either side, within
+    // the existing on-route allowance; the route itself remains frozen.
+    const shift = Math.min(pw, ph) / 2 - 1
+    for (const offset of [0, shift, -shift]) {
       if (fixed) break
-      const half = (seg.vertical ? ph : pw) / 2
-      if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
-      const tMargin = half / seg.len
-      // Sample the fitting interval, ordered center-out (the midpoint reads best).
-      const N = 11
-      const ts: number[] = []
-      for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
-      ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
-      for (const t of ts) {
-        const cx = seg.a.x + (seg.b.x - seg.a.x) * t
-        const cy = seg.a.y + (seg.b.y - seg.a.y) * t
-        edge.labelPosition = { x: cx, y: cy }
-        if (!pillOverNode(pillRect(cx, cy, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
+      for (const seg of segs) {
+        if (fixed) break
+        const half = (seg.vertical ? ph : pw) / 2
+        if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
+        const tMargin = half / seg.len
+        // Sample the fitting interval, ordered center-out (the midpoint reads best).
+        for (const k of [5, 4, 6, 3, 7, 2, 8, 1, 9, 0, 10]) {
+          const t = tMargin + (1 - 2 * tMargin) * (k / 10)
+          const cx = seg.a.x + (seg.b.x - seg.a.x) * t + (seg.vertical ? offset : 0)
+          const cy = seg.a.y + (seg.b.y - seg.a.y) * t + (seg.vertical ? 0 : offset)
+          edge.labelPosition = { x: cx, y: cy }
+          if (!pillOverNode(pillRect(cx, cy, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
+        }
       }
     }
 
@@ -2765,7 +2782,7 @@ export function repairLabelsOffOwnRoute(
     if (routeDist(edge.labelPosition) <= allow) continue // already on its own route — no-op (the corpus case)
     const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow &&
       !pillOverNode(pillRect(x, y, m), edge) &&
-      !sharedTrunkConflict({ ...edge, labelPosition: { x, y } }, positioned.edges, style)
+      !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
 
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
     for (let i = 1; i < edge.points.length; i++) {
@@ -2886,6 +2903,9 @@ export function separateEdgeLabelPills(
         const r = rectOf(o)
         if (r && intersects(pill, r)) return false
       }
+      // Separating opaque label halos must not move a label onto a shared
+      // route and undo the earlier ownership repair.
+      if (sharedTrunkConflict(edge, positioned.edges, style, { x, y })) return false
       return true
     }
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []

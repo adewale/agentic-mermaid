@@ -5,6 +5,10 @@ import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
 import { writeSync } from 'node:fs';
 
+// JSON leaves U+2028/U+2029 raw, and the parent's Bun readline ends a line at
+// either, so a reply holding one would arrive split in two.
+const wire = value => '\u0001modern-mermaid\u0001' + JSON.stringify(value).replace(/[\u2028\u2029]/g, c => `\\u${c.charCodeAt(0).toString(16)}`) + '\n';
+
 const require = createRequire(resolve(process.argv[2], 'package.json'));
 const { JSDOM } = require('jsdom');
 const dom = new JSDOM('<!doctype html><html><body></body></html>');
@@ -21,7 +25,7 @@ function plain(value, seen = new Set(), depth = 0) {
   if (typeof value === 'function' || typeof value === 'undefined') return undefined;
   if (depth > 14) return '<depth-limit>';
   if (typeof value === 'number' && !Number.isFinite(value)) return String(value);
-  if (typeof value === 'string') return value.replace(/\b\d+-[0-9a-f]{7}\b/g, '<generated-commit>');
+  if (typeof value === 'string') return value;
   if (!value || typeof value !== 'object') return value;
   if (value instanceof Date) return value.toISOString();
   if (seen.has(value)) return '<circular>';
@@ -54,7 +58,10 @@ function snapshot(db) {
     if (!/^get[A-Z]|^(?:topAxisEnabled|inclusiveEndDates)$/.test(name)) continue;
     if (/Config|Logger|DomId|Tooltip|Mapping|Position/.test(name)) continue;
     const getter = db[name];
-    if (typeof getter !== 'function' || getter.length !== 0) continue;
+    // These C4 getters take an optional parent filter. Calling them without
+    // one returns the complete authored collection, needed for label census.
+    const optionalFilter = name === 'getC4ShapeArray' || name === 'getBoundaries';
+    if (typeof getter !== 'function' || (getter.length !== 0 && !optionalFilter)) continue;
     try {
       const value = getter.call(db);
       if (value && typeof value.then === 'function') continue;
@@ -73,8 +80,8 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
     // applying their config, which would incorrectly reject configured GitGraph.
     await mermaid.parse(source);
     const diagram = await mermaid.mermaidAPI.getDiagramFromText(source);
-    writeSync(1, '\u0001modern-mermaid\u0001' + JSON.stringify({ ok: true, type: diagram.type, snapshot: snapshot(diagram.db) }) + '\n');
+    writeSync(1, wire({ ok: true, type: diagram.type, snapshot: snapshot(diagram.db) }));
   } catch (error) {
-    writeSync(1, '\u0001modern-mermaid\u0001' + JSON.stringify({ ok: false, error: String(error?.message ?? error).slice(0, 3000) }) + '\n');
+    writeSync(1, wire({ ok: false, error: String(error?.message ?? error).slice(0, 3000) }));
   }
 }

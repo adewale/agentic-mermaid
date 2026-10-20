@@ -5,8 +5,8 @@ import { inlineResolvedColors } from '../theme.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
-import { inspectScenePrimitives, scenePrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintPrimitive } from './inspection.ts'
-import type { ConnectorMark, Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
+import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
@@ -44,6 +44,9 @@ const MAX_OCCLUSION_PAIRS = 100_000
 const MAX_OCCLUSION_OPERATIONS = 400_000
 const MAX_ISSUES = 64
 const TOLERANCE = 0.5
+/** Floating-point noise in layout arithmetic (a legend top at -3.6e-15); ink
+ * within it of the canvas edge is on the canvas, not past it. */
+const ARITHMETIC_NOISE = 1e-6
 const contains = (a: AxisAlignedBox, b: AxisAlignedBox, tolerance = 0): boolean => a.x0 <= b.x0 + tolerance && a.y0 <= b.y0 + tolerance && a.x1 >= b.x1 - tolerance && a.y1 >= b.y1 - tolerance
 const overlaps = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
 const box = (r: { x: number; y: number; w: number; h: number }): AxisAlignedBox => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h })
@@ -64,7 +67,7 @@ function tree(items: readonly Surface[]): Tree | undefined {
 /** A filled rectangle's inset is known to be solid, unlike an arbitrary path's
  * conservative envelope. Rounded corners are excluded before transformation.
  */
-function solidInteriors(scene: SceneDoc, primitives: readonly ScenePaintPrimitive[]): Surface[] {
+function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePaintPrimitive[]): Surface[] {
   const resolved = new Map<string, boolean>()
   const opaque = (fill: string): boolean => {
     if (resolved.has(fill)) return resolved.get(fill)!
@@ -77,13 +80,13 @@ function solidInteriors(scene: SceneDoc, primitives: readonly ScenePaintPrimitiv
   const outlines = new Map<string, number>()
   const outlineKey = (primitive: ScenePaintPrimitive, geometry: Geometry) => JSON.stringify([primitive.owner, geometry, scenePrimitiveMatrix(primitive)])
   for (const primitive of primitives) {
-    const node = scenePrimitiveSource(primitive)
+    const node = paintPrimitiveSource(primitive)
     if (node?.kind !== 'shape' || node.paint.vectorEffect === 'non-scaling-stroke' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional' || !node.paint.stroke || !opaque(node.paint.stroke) || node.paint.stroke === 'none' || node.paint.stroke === 'transparent' || Number(node.paint.opacity ?? 1) !== 1) continue
     const width = Number(node.paint.strokeWidth?.replace(/px$/, '') ?? 1)
     if (Number.isFinite(width)) outlines.set(outlineKey(primitive, node.geometry), width)
   }
   return primitives.flatMap(primitive => {
-    const node = scenePrimitiveSource(primitive)
+    const node = paintPrimitiveSource(primitive)
     if (!node || node.kind !== 'shape' || node.geometry.kind === 'line' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') return []
     const paint = shapeSurfacePaint(node)
     // A translucent wrapper lets what lies beneath show through, as a translucent fill does.
@@ -108,7 +111,7 @@ function solidInteriors(scene: SceneDoc, primitives: readonly ScenePaintPrimitiv
  * A separating side or radius proves absence; other intersections stay unknown.
  */
 function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: boolean, hull?: readonly ScenePoint[], padding = 0, work: () => boolean = () => true): boolean {
-  const shape = scenePrimitiveSource(surface.primitive)
+  const shape = paintPrimitiveSource(surface.primitive)
   if (shape?.kind !== 'shape') return false
   const inverse = inverseMatrix(scenePrimitiveMatrix(surface.primitive)!)
   if (!inverse) return false
@@ -164,7 +167,13 @@ const ENDPOINT_ROLES = new Set([...CARD_ROLES, 'group', 'note', 'actor', 'juncti
  * or arbitrary CSS/backend changes. It never treats path-hull overlap as proof.
  */
 export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLayout, 'nodes' | 'labels'>, options: { outputSupported?: boolean } = {}): PaintLayoutCertification {
-  const inspection = inspectScenePrimitives(scene)
+  return certifyNativePaint(scene, inspectScenePaintGeometry(scene), projection, options)
+}
+
+export type NativePaintHeader = Pick<SceneDoc, 'family' | 'width' | 'height' | 'colors'>
+
+/** Certify a native drawing's flat paint evidence without constructing a Scene. */
+export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePaintGeometryInspection, projection?: Pick<RenderedLayout, 'nodes' | 'labels'>, options: { outputSupported?: boolean } = {}): PaintLayoutCertification {
   const issues: PaintCertificationIssue[] = []
   let failed = false, unverified = false
   const issue = (value: PaintCertificationIssue, failure = false): void => {
@@ -182,6 +191,8 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   }
   if (conditional) issue({ code: 'CONDITIONAL_PAINT', message: `${conditional} primitives depend on interaction state` })
   if (options.outputSupported === false || scene.family.startsWith('family:')) issue({ code: 'OUTPUT_SCOPE', message: 'Selected backend, style or external family has no native final-paint proof' })
+  x0 = Math.min(0, x0 + ARITHMETIC_NOISE); y0 = Math.min(0, y0 + ARITHMETIC_NOISE)
+  x1 = Math.max(scene.width, x1 - ARITHMETIC_NOISE); y1 = Math.max(scene.height, y1 - ARITHMETIC_NOISE)
   const repaired = x0 < 0 || y0 < 0 || x1 > scene.width || y1 > scene.height
   // Outward rounding adds a bounded safety margin without moving semantic
   // geometry, chart coordinates, routes, dates or authored memberships.
@@ -194,7 +205,7 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   const viewport = Object.freeze(repaired ? expanded : { x: 0, y: 0, width: scene.width, height: scene.height })
   const finalBounds = viewportBox(viewport)
   if (repaired && inspection.primitives.some(primitive => {
-    const node = scenePrimitiveSource(primitive)
+    const node = paintPrimitiveSource(primitive)
     return node?.kind === 'connector' ? node.stroke.nonScaling : node?.kind === 'shape' || node?.kind === 'text' ? node.paint.vectorEffect === 'non-scaling-stroke' : false
   })) issue({ code: 'OUTPUT_SCOPE', message: 'Viewport expansion changes the user-unit extent of non-scaling strokes; final painted containment is unverified' })
   let labels = 0
@@ -227,7 +238,7 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
       endpointRoles.set(owner.id, roles)
     }
   }
-  const endpointRelation = (connector: ConnectorMark, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
+  const endpointRelation = (connector: NativeConnectorPaintSource, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
     let ambiguous = false
     for (const [id, anchor] of [[connector.endpoints.from, connector.endpoints.start], [connector.endpoints.to, connector.endpoints.end]] as const) {
       if (id !== owner.id) continue
@@ -254,7 +265,7 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   const strokeAlpha = new Map<string, number | undefined>()
   for (const primitive of inspection.primitives) {
     if (!work()) break
-    const node = scenePrimitiveSource(primitive)
+    const node = paintPrimitiveSource(primitive)
     // Semantic relationships must not cross unrelated cards even when their
     // shafts paint above those cards. Missing endpoint ownership leaves an
     // intersection unverified; chrome rails retain their separate semantics.
@@ -310,7 +321,7 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   type MarkerTarget = { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number }
   const lastMarkers = new Map<string, MarkerTarget>()
   for (const primitive of inspection.primitives) {
-    const node = scenePrimitiveSource(primitive)
+    const node = paintPrimitiveSource(primitive)
     if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.visibility === 'conditional') continue
     const ownInverse = inverseMatrix(transformMatrix(node.transform))
     if (!ownInverse) continue
@@ -333,7 +344,7 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
         issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
         continue
       }
-      const connector = scenePrimitiveSource(target.primitive)
+      const connector = paintPrimitiveSource(target.primitive)
       const attached = connector?.kind === 'connector' && endpointRelation(connector, surface.primitive.owner) === 'attached'
       if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work)) continue
       issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
@@ -342,7 +353,7 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   for (const target of lastMarkers.values()) markerCheck(surfaces, target)
   if (exhausted) issue({ code: 'CHECK_BUDGET', message: `Occlusion checking reached its ${MAX_OCCLUSION_PAIRS}-pair or ${MAX_OCCLUSION_OPERATIONS}-operation limit` })
   // Mandatory final certification of the chosen viewport, including markers.
-  for (const primitive of inspection.primitives) if (primitive.bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, primitive.bounds)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain retained paint' }, true)
+  for (const primitive of inspection.primitives) if (primitive.bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, primitive.bounds, ARITHMETIC_NOISE)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain retained paint' }, true)
   return Object.freeze({ version: 1, unit: 'px', scope: 'native-scene', status: failed ? 'failed' : unverified ? 'unverified' : 'passed', viewport, attempts: repaired ? 2 : 1, repairs: Object.freeze(repaired ? ['expand-viewport' as const] : []), coverage: Object.freeze({ measured: inspection.coverage.measured, unmeasured: inspection.coverage.unmeasured, preparedText: inspection.coverage.preparedText, fallbackText: inspection.coverage.fallbackText, conditional }), checks: Object.freeze({ primitives: inspection.primitives.length, labels, occlusionPairs: Math.min(pairs, MAX_OCCLUSION_PAIRS), maxOcclusionPairs: MAX_OCCLUSION_PAIRS, operations, maxOperations: MAX_OCCLUSION_OPERATIONS, markers: lastMarkers.size }), issues: Object.freeze(issues), limitations: Object.freeze(['Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.', 'Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof.']) })
 }
 

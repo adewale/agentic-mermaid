@@ -120,7 +120,8 @@ export function parseTimelineDiagram(
       }
       diagram.sections.push(currentSection)
       if (parserObservationActive('timeline')) observeParserMutation('timeline', 'addSection', currentSection, { line: i + 1, unit: 'normalized' })
-      currentPeriod = undefined
+      // A section does not end the latest period: Mermaid adds a continuation
+      // after it to that period, in the earlier section.
       continue
     }
 

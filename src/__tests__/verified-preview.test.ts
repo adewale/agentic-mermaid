@@ -1,0 +1,239 @@
+import { describe, expect, test } from 'bun:test'
+import { getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
+import { renderAndVerifyMermaid, verifyMermaid } from '../agent/verify.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { verifyNoExternalRefs } from '../output-security.ts'
+import { PreviewWorkerClient, PreviewSupersededError } from '../browser-preview-client.ts'
+import { buildDocsEditDemo } from '../../website/docs-edit-demo.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { asFlowchart } from '../agent/types.ts'
+
+describe('one positioned artifact for preview and verification', () => {
+  test('positions once while keeping canonical SVG, receipt and verification for every built-in example', () => {
+    for (const id of knownBuiltinFamilies()) {
+      const descriptor = getFamily(id)!, source = descriptor.example
+      const options = { security: 'strict' as const, style: ['crisp', 'paper'], idPrefix: 'preview-test-' }
+      const expected = renderMermaidSVGWithReceipt(source, options)
+      const expectedVerification = verifyMermaid(source, { renderOptions: options })
+      let calls = 0
+      const restore = replaceFamilyForTest(id, { ...descriptor, layout: context => { calls++; return descriptor.layout!(context) } })
+      try {
+        const result = renderAndVerifyMermaid(source, options)
+        expect(calls, id).toBe(1)
+        expect(result.svg, id).toBe(expected.svg)
+        expect(result.receipt, id).toEqual(expected.receipt)
+        expect(result.verification, id).toEqual(expectedVerification)
+      } finally { restore() }
+    }
+  })
+
+  test('preserves authored config, accessibility, strict output security and source warnings', () => {
+    const source = '---\nconfig:\n  flowchart:\n    nodeSpacing: 75\n---\nflowchart LR\naccTitle: Review safely\nA["&lt;script&gt;alert(1)&lt;/script&gt;"] --> B[Done]\n%% Keep a review note'
+    const options = { security: 'strict' as const, style: ['hand-drawn', 'paper'], seed: 7 }
+    const result = renderAndVerifyMermaid(source, options)
+    expect(result.svg).toBe(renderMermaidSVGWithReceipt(source, options).svg)
+    expect(result.verification).toEqual(verifyMermaid(source, { renderOptions: options }))
+    expect(result.svg).toContain('Review safely')
+    expect(verifyNoExternalRefs(result.svg).ok).toBe(true)
+    expect(() => renderAndVerifyMermaid('this is not a diagram')).toThrow()
+  })
+})
+
+interface FakePreviewWorker {
+  onmessage: ((event: { data: unknown }) => void) | null
+  onerror: ((event: { preventDefault(): void }) => void) | null
+  onmessageerror: (() => void) | null
+  terminated: boolean
+  postMessage(request: { id: number; source: string }): void
+  terminate(): void
+}
+function workerHarness(timeout = 30_000) {
+  const sent: Array<{ id: number; source: string; options?: unknown; operation?: string; kind?: string; png?: Uint8Array; ok?: boolean }> = []
+  const workers: FakePreviewWorker[] = []
+  function create(): FakePreviewWorker {
+    const worker = {
+      onmessage: null as ((event: { data: unknown }) => void) | null,
+      onerror: null as ((event: { preventDefault(): void }) => void) | null,
+      onmessageerror: null as (() => void) | null,
+      terminated: false,
+      postMessage(request: { id: number; source: string }) { sent.push(request) },
+      terminate() { this.terminated = true },
+    }
+    workers.push(worker)
+    return worker
+  }
+  const client = new PreviewWorkerClient(create as unknown as () => Worker, timeout)
+  const replyArtifact = (id: number, artifact: unknown) => workers.at(-1)!.onmessage?.({ data: { id, ok: true, artifact } })
+  const reply = (id: number, svg = '<svg/>') => replyArtifact(id, { svg, receipt: { output: 'svg' } })
+  const raster = (id: number) => workers.at(-1)!.onmessage?.({ data: { id, kind: 'rasterize', svg: '<svg/>', context: { rasterDimensions: { width: 1, height: 1, pixels: 1 } } } })
+  return { client, sent, workers, reply, replyArtifact, raster }
+}
+
+describe('persistent preview worker queue', () => {
+  test('orders text exports with the newest preview and bounds pending exports', async () => {
+    const h = workerHarness()
+    try {
+      const first = h.client.render('first', {})
+      const ascii = h.client.renderText('first', {}, true)
+      const preview = h.client.render('latest', {})
+      const unicode = h.client.renderText('first', {}, false)
+      h.reply(1)
+      await first
+      expect(h.sent.map(r => r.operation)).toEqual(['preview', 'ascii'])
+      h.replyArtifact(2, { text: 'plain', receipt: { output: 'ascii' } })
+      expect((await ascii).text).toBe('plain')
+      expect(h.sent.at(-1)?.source).toBe('latest')
+      h.reply(3)
+      await preview
+      h.replyArtifact(4, { text: 'unicode', receipt: { output: 'unicode' } })
+      expect((await unicode).text).toBe('unicode')
+      const active = h.client.render('active', {}).catch(error => error)
+      const exports = Array.from({ length: 4 }, () => h.client.renderText('queued', {}, true).catch(error => error))
+      await expect(h.client.renderText('overflow', {}, true)).rejects.toThrow('queue is full')
+      h.client.invalidate()
+      for (const error of await Promise.all(exports)) expect(error).toBeInstanceOf(PreviewSupersededError)
+      h.reply(5)
+      await active
+      expect(h.workers).toHaveLength(1)
+    } finally { h.client.dispose() }
+  })
+
+  test('PNG raster transport snapshots bytes and host metadata without detaching the caller buffer', async () => {
+    const h = workerHarness(), bytes = new Uint8Array([137, 80, 78, 71])
+    let reads = 0
+    try {
+      const png = h.client.renderPng('PNG', {}, 1, async (_svg, context) => {
+        expect(context.rasterDimensions.width).toBe(1)
+        return { get png() { reads++; return bytes }, diagnostics: [{ code: 'FONT_NOTE', message: 'host note' }], fontSources: ['embedded-data-uri'] }
+      })
+      h.raster(1)
+      await Promise.resolve(); await Promise.resolve()
+      const transfer = h.sent.at(-1)!
+      expect(transfer.kind).toBe('rasterized')
+      expect(transfer.png).toEqual(bytes)
+      expect(transfer.png).not.toBe(bytes)
+      expect(bytes.byteLength).toBe(4)
+      expect(reads).toBe(1)
+      h.replyArtifact(1, { png: bytes, receipt: { output: 'png' }, diagnostics: [{ code: 'WORKER_NOTE' }] })
+      const artifact = await png
+      expect(artifact.diagnostics.map(d => d.code)).toEqual(['WORKER_NOTE', 'FONT_NOTE'])
+      expect(artifact.runtime.fontSources).toEqual(['embedded-data-uri'])
+    } finally { h.client.dispose() }
+  })
+
+  test('rejects oversized raster buffers before copying and ignores callback completion after a crash', async () => {
+    const h = workerHarness()
+    try {
+      const rejected = h.client.renderPng('large', {}, 1, async () => ({ png: new Uint8Array(2_000_000) })).catch(error => error)
+      h.raster(1)
+      await Promise.resolve(); await Promise.resolve()
+      expect(h.sent.at(-1)).toMatchObject({ kind: 'rasterized', ok: false })
+      h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'allocation-derived limit' } })
+      expect((await rejected).message).toContain('allocation-derived')
+      let finish!: (value: { png: Uint8Array }) => void
+      const pending = h.client.renderPng('pending', {}, 1, () => new Promise(resolve => { finish = resolve })).catch(error => error)
+      h.raster(2)
+      h.workers[0]!.onerror?.({ preventDefault() {} })
+      expect((await pending).message).toContain('crashed')
+      const sentBefore = h.sent.length
+      finish({ png: new Uint8Array([137, 80]) })
+      await Promise.resolve(); await Promise.resolve()
+      expect(h.sent).toHaveLength(sentBefore)
+      const recovered = h.client.render('recovered', {})
+      h.reply(3)
+      expect((await recovered).svg).toBe('<svg/>')
+    } finally { h.client.dispose() }
+  })
+
+  test('a wrong output receipt terminates the transaction and rejects queued callers', async () => {
+    const h = workerHarness()
+    const active = h.client.render('first', {}).catch(error => error)
+    const queued = h.client.renderText('second', {}, true).catch(error => error)
+    h.replyArtifact(1, { text: 'wrong', receipt: { output: 'ascii' } })
+    for (const error of await Promise.all([active, queued])) expect(error.message).toContain('wrong output receipt')
+    expect(h.workers[0]!.terminated).toBe(true)
+    h.client.dispose()
+  })
+
+  test('a new source releases a PNG awaiting Canvas so the preview can proceed', async () => {
+    const h = workerHarness()
+    let finish!: (value: { png: Uint8Array }) => void
+    try {
+      const png = h.client.renderPng('old', {}, 1, () => new Promise(resolve => { finish = resolve })).catch(error => error)
+      h.raster(1)
+      h.client.invalidate()
+      expect(h.sent.at(-1)).toMatchObject({ id: 1, kind: 'rasterized', ok: false })
+      const preview = h.client.render('new', {})
+      h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'cancelled raster' } })
+      expect(await png).toBeInstanceOf(PreviewSupersededError)
+      expect(h.sent.at(-1)?.source).toBe('new')
+      h.reply(2)
+      await preview
+      const count = h.sent.length
+      finish({ png: new Uint8Array([137, 80]) })
+      await Promise.resolve(); await Promise.resolve()
+      expect(h.sent).toHaveLength(count)
+      expect(h.workers).toHaveLength(1)
+    } finally { h.client.dispose() }
+  })
+
+  test('keeps only the newest pending edit and ignores unmatched replies', async () => {
+    const h = workerHarness()
+    try {
+      const first = h.client.render('first', {})
+      const replaced = h.client.render('replaced', {})
+      const rejected = replaced.catch(error => error)
+      const options = { style: ['crisp', 'paper'] }
+      const newest = h.client.render('newest', options)
+      options.style[1] = 'dusk'
+      expect(await rejected).toBeInstanceOf(PreviewSupersededError)
+      expect(h.sent.map(r => r.source)).toEqual(['first'])
+      h.reply(99)
+      expect(h.sent).toHaveLength(1)
+      h.reply(1, '<svg>first</svg>')
+      expect((await first).svg).toContain('first')
+      expect(h.sent.map(r => r.source)).toEqual(['first', 'newest'])
+      expect(h.sent[1]?.options).toEqual({ style: ['crisp', 'paper'] })
+      h.reply(3, '<svg>newest</svg>')
+      expect((await newest).svg).toContain('newest')
+      expect(h.workers).toHaveLength(1)
+    } finally { h.client.dispose() }
+  })
+
+  test('a worker crash rejects all waiting callers, and the next edit starts a new worker', async () => {
+    const h = workerHarness()
+    try {
+      const first = h.client.render('first', {}).catch(error => error)
+      const next = h.client.render('queued', {}).catch(error => error)
+      h.workers[0]!.onerror?.({ preventDefault() {} })
+      for (const error of await Promise.all([first, next])) expect(error.message).toContain('crashed')
+      expect(h.workers[0]!.terminated).toBe(true)
+      const recovered = h.client.render('recovered', {})
+      expect(h.workers).toHaveLength(2)
+      h.reply(3)
+      expect((await recovered).svg).toBe('<svg/>')
+    } finally { h.client.dispose() }
+  })
+
+  test('a hung job terminates its worker instead of leaving a permanent pending preview', async () => {
+    const h = workerHarness(5)
+    await expect(h.client.render('hang', {})).rejects.toThrow('exceeded')
+    expect(h.workers[0]!.terminated).toBe(true)
+  })
+})
+
+test('the docs replay changes one label and preserves the authored identities and directed connections', () => {
+  const demo = buildDocsEditDemo()
+  const read = (source: string) => {
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Example did not parse')
+    const diagram = asFlowchart(parsed.value)
+    if (!diagram) throw new Error('Example is not a flowchart')
+    return diagram.body.graph
+  }
+  const before = read(demo.beforeSource), after = read(demo.afterSource)
+  expect([...before.nodes.values()].map(node => [node.id, node.label])).toEqual([['Draft', 'Draft'], ['Review', 'Review'], ['Publish', 'Publish']])
+  expect([...after.nodes.values()].map(node => [node.id, node.label])).toEqual([['Draft', 'Draft'], ['Review', 'Approved'], ['Publish', 'Publish']])
+  for (const body of [before, after]) expect(body.edges.map(edge => [edge.source, edge.target])).toEqual([['Draft', 'Review'], ['Review', 'Publish']])
+  for (const state of demo.states) expect(state.warnings).toEqual([])
+})

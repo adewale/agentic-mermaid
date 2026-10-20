@@ -1,11 +1,11 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { Geometry } from '../scene/ir.ts';
 import type { RenderContext } from '../types.ts'
-import { resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
 import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 
-import * as marks from '../scene/marks.ts'
 import { pathArtwork } from '../scene/artwork.ts'
 import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -46,7 +46,7 @@ export function renderMindmapSvg(ctx: RenderContext<PositionedMindmapDiagram>): 
   return DefaultBackend.render(lowerMindmapScene(ctx), { seed: 0 })
 }
 
-export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>): SceneDoc {
+export function lowerMindmapDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedMindmapDiagram>): DrawingDocument<T> {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
@@ -74,7 +74,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
     const index = branchByNode.get(nodeId) ?? 0
     return branchPalette[index] ?? accent
   }
-  const parts: SceneNode[] = [marks.documentOpen({
+  const parts: T[] = [marks.documentOpen({
     id: 'prelude', width: diagram.width, height: diagram.height, colors,
     transparent, font, hasMonoFont: false,
   }, { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
@@ -85,7 +85,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   if (title) parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: title }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
   // The diagram's frontmatter title, in the band layout reserved above.
-  if (diagram.title) parts.push(diagramTitleMark(diagram.title, resolveRenderStyle(options, undefined, resolved.styleFace)))
+  if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, resolveRenderStyle(options, undefined, resolved.styleFace))))
 
   for (const edge of diagram.edges) {
     const stroke = branchPaint(edge.to)
@@ -113,17 +113,18 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
       attributes: { className: 'mindmap-edge', data: { 'branch-index': String(branchByNode.get(edge.to) ?? 0) } },
     }, EDGE_EMISSION))
   }
-  for (const node of diagram.nodes) parts.push(renderNode(node, colors, branchByNode.get(node.id), branchPaint(node.id)))
+  for (const node of diagram.nodes) parts.push(renderNode(marks, node, colors, branchByNode.get(node.id), branchPaint(node.id)))
   parts.push(marks.documentClose())
   return { family: 'mindmap', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
-function renderNode(
+function renderNode<T>(
+  marks: DrawingFactory<T>,
   node: PositionedMindmapNode,
   colors: RenderContext<PositionedMindmapDiagram>['colors'],
   branchIndex: number | undefined,
   branchColor: string,
-): SceneNode {
+): T {
   const concretePalette = isHexColor(colors.bg) && isHexColor(colors.fg)
     && (colors.accent === undefined || isHexColor(colors.accent))
   const rootFill = concretePalette ? resolveColors(colors).arrow : 'var(--_arrow)'
@@ -136,7 +137,7 @@ function renderNode(
     ? concretePalette ? ensureContrast(colors.bg, rootFill, 4.5, colors.fg) : 'var(--bg)'
     : concretePalette ? ensureContrast(colors.fg, branchFill, 4.5) : 'var(--_text)'
   const shape = nodeGeometry(node)
-  const children: Array<{ node: SceneNode; indent: number }> = [
+  const children: Array<{ node: T; indent: number }> = [
     { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, SHAPE_EMISSIONS[shape.kind as keyof typeof SHAPE_EMISSIONS]), indent: 2 },
   ]
   if (node.icon) {
@@ -146,7 +147,7 @@ function renderNode(
       const x = node.x + node.width / 2 - size / 2
       const y = node.y + 4
       const scale = size / 24
-      children.push({ node: pathArtwork({ id: semanticChildId(node.id, 'icon'), paths: glyph.paths,
+      children.push({ node: marks.pathArtwork({ id: semanticChildId(node.id, 'icon'), paths: glyph.paths,
         owner: { id: node.id, role: 'node' },
         emission: { kind: 'group', attributes: [
           { name: 'class', value: v.meta('mindmap-icon-glyph') }, { name: 'data-icon', value: v.meta(node.icon) }, { name: 'data-icon-source', value: v.meta(glyph.source) },
@@ -233,3 +234,5 @@ function mindmapBranchIndices(diagram: PositionedMindmapDiagram): Map<string, nu
 }
 
 function round(value: number): number { return Math.round(value * 1000) / 1000 }
+
+export const lowerMindmapScene = sceneLowering<PositionedMindmapDiagram>(lowerMindmapDrawing)

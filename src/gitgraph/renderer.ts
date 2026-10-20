@@ -1,10 +1,10 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { Geometry } from '../scene/ir.ts';
 import { gitGraphText, gitTagOffset, gitCommitLabelY } from './layout.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedGitGraphCommit, PositionedGitGraphDiagram } from './types.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 
-import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgGroupEmission } from '../scene/svg-emission.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -87,7 +87,7 @@ export function renderGitGraphSvg(ctx: RenderContext<PositionedGitGraphDiagram>)
   return DefaultBackend.render(lowerGitGraphScene(ctx), { seed: 0 })
 }
 
-export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>): SceneDoc {
+export function lowerGitGraphDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedGitGraphDiagram>): DrawingDocument<T> {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
@@ -99,7 +99,7 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   if (!familyAppearance) throw new Error('GitGraph rendering requires request-boundary family appearance resolution')
   const projectedTheme = familyAppearance.themeVariables
   const paints = gitGraphPaints(diagram, projectedTheme, colors)
-  const parts: SceneNode[] = [marks.documentOpen({ id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false }, { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
+  const parts: T[] = [marks.documentOpen({ id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false }, { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
     attributes: Object.entries(attrs).filter((entry): entry is [string, string] => entry[1] !== undefined).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
     children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : [])],
   })]
@@ -177,18 +177,18 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
       { name: 'points', value: v.geometry('points'), format: 'round3' }, ...PAINT_ATTRIBUTES, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
     ] }))
   }
-  for (const commit of diagram.commits) parts.push(renderCommit(commit, diagram, paints))
+  for (const commit of diagram.commits) parts.push(renderCommit(marks, commit, diagram, paints))
   parts.push(marks.documentClose())
   return { family: 'gitgraph', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
-function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGraphDiagram, paints: GitGraphPaints): SceneNode {
+function renderCommit<T>(marks: DrawingFactory<T>, commit: PositionedGitGraphCommit, diagram: PositionedGitGraphDiagram, paints: GitGraphPaints): T {
   const visualType = commit.customType ?? commit.type
   const geometry = commitGeometry(commit)
   const branchPaint = paints.branches.get(commit.branch)!
   const fill = visualType === 'HIGHLIGHT' ? branchPaint.highlight : visualType === 'MERGE' ? branchPaint.line : branchPaint.normalFill
   const stroke = branchPaint.line
-  const children: Array<{ node: SceneNode; indent: number }> = [
+  const children: Array<{ node: T; indent: number }> = [
     { node: marks.shape({ id: semanticChildId(commit.id, 'shape'), role: 'chrome', geometry, paint: { fill, stroke, strokeWidth: '2' }, channels: { status: visualType.toLowerCase(), category: commit.branch } }, COMMIT_EMISSIONS[geometry.kind as keyof typeof COMMIT_EMISSIONS]), indent: 2 },
   ]
   if (visualType === 'MERGE') {
@@ -309,3 +309,5 @@ function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors
 function r(value: number): number {
   return Math.round(value * 1000) / 1000
 }
+
+export const lowerGitGraphScene = sceneLowering<PositionedGitGraphDiagram>(lowerGitGraphDrawing)

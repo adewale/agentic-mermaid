@@ -20,6 +20,7 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 import { parsePieChart } from '../pie/parser.ts'
 import { formatPieValue, formatPiePercent } from '../pie/layout.ts'
 import { pieSliceColors } from '../pie/palette.ts'
+import { pieTotal } from '../pie/semantics.ts'
 import { resolvePieVisualConfig } from '../pie/config.ts'
 import type { PieVisualConfig } from '../pie/config.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
@@ -56,7 +57,7 @@ export function renderPieTerminal(
   chart.title ??= config.title
   const barChar = config.useAscii ? '#' : '█'
 
-  const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
+  const total = pieTotal(chart.entries)
   const document = new TerminalDocument()
 
   const visual = resolvedVisual ?? resolvePieVisualConfig(frontmatter)

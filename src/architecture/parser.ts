@@ -36,25 +36,37 @@ import type {
 // They admit a loose id, (icon) and [title]; the terminals below say which
 // ones Mermaid's lexer rejects.
 const IDENT = '[\\w-]+'
-const ICON = '\\(([^)]+)\\)'
-const LABEL = '\\[(.+)\\]'
+const ICON = '\\((?<icon>[^)]+)\\)'
+const LABEL = '\\[(?<content>.+)\\]'
+const ICON_TEXT = String.raw`(?<iconText>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`
 
-export const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`, 's')
-export const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`, 's')
+export const GROUP_RE = new RegExp(`^group\\s+(?<id>${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(?<parentId>${IDENT}))?\\s*$`, 's')
+export const SERVICE_RE = new RegExp(`^service\\s+(?<id>${IDENT})(?:\\s*(?:${ICON}|${ICON_TEXT}))?\\s*(?:${LABEL})?(?:\\s+in\\s+(?<parentId>${IDENT}))?\\s*$`, 's')
 export const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${IDENT}))?\\s*$`)
 export const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
 export const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
 export const LABELED_ARROW_RE = /^(<)?-\[(.*)\]-(>)?$/s
-const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/s
+const EDGE_RE = new RegExp(`^(${IDENT}(?:\\{group\\})?:[LRTB])\\s*(.+?)\\s*([LRTB]:${IDENT}(?:\\{group\\})?)$`, 's')
 
 // A [title] that is one "…" or '…' string runs to its closing quote across
 // line breaks, which it keeps. A quote elsewhere in a title is text, and a
 // title statement runs to the end of its line.
-const QUOTED_TEXT = { spanning: `"'`, opensAfter: /\[/, wholeLine: (line: string) => /^title\s/i.test(line) }
+const QUOTED_TEXT = {
+  spanning: `"'`,
+  opensAt: (line: string, index: number) => line[index - 1] === '[' || /^service\s+[\w-]+\s*$/.test(line.slice(0, index)),
+  wholeLine: (line: string) => /^title\s/i.test(line),
+}
 
 /** For each line, the last line of the statement that starts there. */
 export function architectureStatementEnds(lines: readonly string[]): number[] {
   return quotedTextEnds(lines, QUOTED_TEXT)
+}
+
+/** Keep physical STRING whitespace through normalized public entry points. */
+export function architectureSourceLines(source: { familyBody: string; familyLines: readonly string[] }): string[] {
+  const raw = source.familyBody.split(/\r?\n/)
+  const header = raw.findIndex(line => line.trim() === source.familyLines[0])
+  return [raw[header]?.trim() ?? source.familyLines[0] ?? '', ...raw.slice(header + 1)]
 }
 
 // Mermaid's architecture lexer terminals. An id is word characters with
@@ -103,11 +115,22 @@ export function architectureTitleSource(title: string): string {
 
 /** A group or service declaration: its id, icon, title (the id when it has
  * none) and parent, read as written. */
-export function architectureDeclaration(match: RegExpMatchArray): { id: string; icon?: string; title: string; parentId?: string } {
-  const [, id, rawIcon, content, parentId] = match
+export function architectureDeclaration(match: RegExpMatchArray): { id: string; icon?: string; iconText?: string; title: string; parentId?: string } {
+  const { id, icon: rawIcon, iconText: rawIconText, content, parentId } = match.groups!
   const icon = rawIcon?.trim() || undefined
   const title = content === undefined ? id! : architectureTitle(content)
-  return { id: id!, ...(icon !== undefined ? { icon } : {}), title, ...(parentId !== undefined ? { parentId } : {}) }
+  return { id: id!, ...(icon !== undefined ? { icon } : {}), ...(rawIconText !== undefined ? { iconText: architectureIconText(rawIconText) } : {}), title, ...(parentId !== undefined ? { parentId } : {}) }
+}
+
+/** The pinned grammar's Langium STRING escape vocabulary. */
+export function architectureIconText(token: string): string {
+  const escapes: Record<string, string> = { b: '\b', f: '\f', n: '\n', r: '\r', t: '\t', v: '\v', 0: '\0' }
+  return token.slice(1, -1).replace(/\\(.)/gs, (_, char: string) => escapes[char] ?? char)
+}
+
+export function architectureIconTextSource(text: string): string {
+  const escapes: Record<string, string> = { '\b': '\\b', '\f': '\\f', '\n': '\\n', '\r': '\\r', '\t': '\\t', '\v': '\\v', '\0': '\\0', '\\': '\\\\', '"': '\\"' }
+  return `"${text.replace(/[\b\f\n\r\t\v\0\\"]/g, char => escapes[char]!)}"`
 }
 
 export type ArchitectureTerminal = 'id' | 'icon' | 'title'
@@ -127,7 +150,7 @@ export function architectureTerminalRejections(statement: string): Array<{ termi
   }
   const declaration = line.match(GROUP_RE) ?? line.match(SERVICE_RE)
   if (declaration) {
-    const [, declared, icon, content, parentId] = declaration
+    const { id: declared, icon, content, parentId } = declaration.groups!
     id(declared)
     const name = icon?.trim()
     if (name && architectureIconError(name)) rejections.push({ terminal: 'icon', what: `Architecture icon (${name}) has a character an icon name cannot hold, and is read as written` })
@@ -197,7 +220,8 @@ export function readArchitectureStatements(lines: readonly string[]): Architectu
       continue
     }
     index = ends[index]!
-    const line = stripTrailingComment(statementText(lines, start, index).trim())
+    const hasTextIcon = /^service\s+[\w-]+\s*["']/.test(rawText)
+    const line = stripTrailingComment((hasTextIcon ? lines.slice(start, index + 1).join('\n') : statementText(lines, start, index)).trim())
     try {
       const title = line.match(/^title\s+(.+)$/i)
       const group = line.match(GROUP_RE)
@@ -277,10 +301,10 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
 
     if (statement.kind === 'service') {
       const declared = statement.declaration
-      const { id, icon, parentId } = declared
+      const { id, icon, iconText, parentId } = declared
       const label = normalizeBrTags(declared.title)
       ensureIdentifierAvailable(id, groups, services, junctions)
-      const service: ArchitectureService = { id, label, icon, parentId }
+      const service: ArchitectureService = { id, label, icon, ...(iconText !== undefined ? { iconText } : {}), parentId }
       ensureParentGroup(parentId, groups, line)
       services.set(id, service)
       if (parserObservationActive('architecture')) observeParserMutation('architecture', 'addService', service, { line: statement.startLine + 1, unit: 'normalized' })

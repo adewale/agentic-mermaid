@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { join } from 'path'
-import { deflateRawSync } from 'node:zlib'
+import { deflateRawSync, gzipSync } from 'node:zlib'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { renderMermaidSVG } from '../src/index.ts'
@@ -283,6 +283,78 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+it('standalone editor stays within its single-renderer payload budget', async () => {
+  const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
+  // About 1% gzip headroom over the rebased single-renderer control
+  // (1,247,550 bytes with main 297eaaf). A second embedded engine still fails.
+  expect(html.byteLength).toBeLessThanOrEqual(4_100_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_260_000)
+})
+
+it('standalone editor renders and verifies with one persistent Blob worker', async () => {
+  const standalone = await browser.newPage()
+  try {
+    await standalone.goto(`${BASE}/editor?empty=1`, { waitUntil: 'networkidle' })
+    const started = standalone.waitForEvent('worker')
+    await standalone.locator('#code-editor').fill('flowchart LR\nStandalone --> Verified')
+    const worker = await started
+    await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
+    expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
+    expect(worker.url()).toStartWith('blob:')
+    const checks = await standalone.evaluate(async () => {
+      const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt('flowchart LR\nStandalone --> Verified')
+      return artifact.verification.checks
+    })
+    expect(checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
+    await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
+    expect(standalone.workers()).toEqual([worker])
+    expect(await standalone.locator('#render-time').textContent()).toContain('Rendered and verified')
+    // The first Blob URL has already been revoked. Recovery must create a
+    // fresh URL from the retained module, not reuse that dead URL.
+    const stopped = new Promise<void>(done => worker.once('close', () => done()))
+    await worker.evaluate(() => { setTimeout(() => { throw new Error('intentional worker crash') }, 0) })
+    await stopped
+    const restarted = standalone.waitForEvent('worker')
+    await standalone.locator('#code-editor').fill('flowchart LR\nRecovered --> Verified')
+    const replacement = await restarted
+    await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Recovered') && document.getElementById('status-text')?.textContent === 'OK')
+    expect(replacement.url()).toStartWith('blob:')
+    expect(replacement.url()).not.toBe(worker.url())
+    expect(standalone.workers()).toEqual([replacement])
+
+    await replacement.evaluate(() => {
+      const host = globalThis as any, original = host.onmessage
+      host.__exportOperations = []
+      host.onmessage = (event: MessageEvent) => {
+        if (event.data.operation) host.__exportOperations.push(event.data.operation)
+        return original(event)
+      }
+    })
+    const text = await standalone.evaluate(async () => {
+      const api = (window as any).__mermaid
+      const source = 'flowchart LR\nRecovered --> Verified'
+      const [ascii, unicode] = await Promise.all([
+        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
+        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none' }),
+      ])
+      return {
+        ascii: ascii.text,
+        unicode: unicode.text,
+      }
+    })
+    expect(text.ascii).toContain('Recovered')
+    expect(text.unicode).toContain('Verified')
+    // Exercise the real Canvas/font/export path, which remains on the main thread.
+    await standalone.locator('#export-chevron-btn').click()
+    const downloaded = standalone.waitForEvent('download')
+    await standalone.locator('#export-png-btn').click()
+    const png = new Uint8Array(await Bun.file((await (await downloaded).path())!).arrayBuffer())
+    expect([...png.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+    expect(await replacement.evaluate(() => (globalThis as any).__exportOperations)).toEqual(['ascii', 'unicode', 'png'])
+  } finally { await standalone.close() }
+})
 
 describe('browser: live editor integration', () => {
   it('matches pinned Mermaid 11.16 browser-visible Pie entity labels', async () => {

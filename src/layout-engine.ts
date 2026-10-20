@@ -1,3 +1,4 @@
+import { applyLayoutHints } from './layout/layout-hints.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
@@ -43,7 +44,7 @@ import type {
   DiamondFacet,
   RouteClass,
 } from './types.ts'
-import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleBand, positionDiagramTitle, titleOnlyCanvas } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
@@ -76,6 +77,8 @@ import {
   layoutEnvFlag,
 } from './layout/geometry.ts'
 import type { MarginInfo } from './layout/geometry.ts'
+import { directionToElk } from './layout/direction.ts'
+export { directionToElk } from './layout/direction.ts'
 import {
   translateGeometryToNonNegativeOrigin,
   extractEdgesRecursively,
@@ -100,6 +103,8 @@ import {
 export { alignLayerNodes, orthogonalizeEdgePoints } from './layout/passes/index.ts'
 
 interface LayoutEngineOptions extends RenderOptions {
+  /** @internal Family-owned geometry for placement; labels do not size these marks. */
+  nodeSizes?: ReadonlyMap<string, { width: number; height: number }>
   /** @internal Preserve direct child order in compound nodes for projected families. */
   preserveSubgraphChildOrder?: boolean
   /** @internal Precomputed built-in style face for projected family layout. */
@@ -121,26 +126,11 @@ interface LayoutEngineOptions extends RenderOptions {
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn'> & { stateVisual?: ResolvedStateVisualConfig }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes'> & { stateVisual?: ResolvedStateVisualConfig }
 
 // ============================================================================
 // Layout options
 // ============================================================================
-
-/** Default render options (layout-only) */
-/** Convert Mermaid direction to ELK direction. Exported so the class/ER
- *  layouts wire their `direction` statements through the SAME mapping the
- *  flowchart engine uses (no parallel copy to drift). */
-export function directionToElk(dir: MermaidGraph['direction']): string {
-  switch (dir) {
-    case 'LR': return 'RIGHT'
-    case 'RL': return 'LEFT'
-    case 'BT': return 'UP'
-    case 'TD':
-    case 'TB':
-    default: return 'DOWN'
-  }
-}
 
 /**
  * ELK's model-order options are useful for keeping feedback-loop diagrams
@@ -245,6 +235,12 @@ function estimateNodeSize(id: string, label: DisplayTextInput, shape: string, st
     const diameter = Math.ceil(Math.sqrt(width * width + height * height)) + 8
     width = shape === 'doublecircle' ? diameter + 12 : diameter
     height = width
+  }
+
+  if (shape === 'ellipse') {
+    // Enclose the padded label rectangle inside the curved boundary.
+    width = Math.ceil(width * Math.SQRT2)
+    height = Math.ceil(height * Math.SQRT2)
   }
 
   if (shape === 'hexagon') {
@@ -656,7 +652,7 @@ function mermaidToElk(
     }
     const node = graph.nodes.get(id)
     if (node && !subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
-      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction, opts.stateVisual))
+      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction, opts.stateVisual, opts.nodeSizes?.get(id)))
     }
   }
 
@@ -690,6 +686,7 @@ function mermaidToElk(
     elkGraph.edges!.push(crossHierarchyElkEdge(info, style, balancingLabels))
   }
 
+  applyLayoutHints(elkGraph, graph, opts.layoutHints)
   return elkGraph
 }
 
@@ -889,8 +886,8 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
   }
 }
 
-function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig): ElkGraphNode {
-  const size = estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock)
+function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, placementSize?: { width: number; height: number }): ElkGraphNode {
+  const size = placementSize ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock)
   const elkNode: ElkGraphNode = {
     id,
     width: size.width,
@@ -1048,7 +1045,7 @@ function subgraphToElk(
   for (const nodeId of childNodeOrder) {
     const node = graph.nodes.get(nodeId)
     if (node) {
-      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual))
+      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual, opts.nodeSizes?.get(nodeId)))
     }
   }
 
@@ -1276,6 +1273,21 @@ function hasParallelPair(edges: readonly Pick<PositionedEdge, 'source' | 'target
   return false
 }
 
+/** A cosmetic centering proposal owns only coordinates, routes and label anchors.
+ * Capture those channels on its first actual move; authored data, prepared text,
+ * groups and certificates are neither copied nor replaced. */
+function checkpointCentering(context: LayoutPassContext): () => void {
+  const nodes = context.nodes.map(node => ({ node, x: node.x, y: node.y }))
+  const edges = context.edges.map(edge => ({ edge,
+    points: edge.points.map(point => ({ ...point })),
+    labelPosition: edge.labelPosition ? { ...edge.labelPosition } : undefined,
+  }))
+  return () => {
+    for (const { node, x, y } of nodes) { node.x = x; node.y = y }
+    for (const { edge, points, labelPosition } of edges) { edge.points = points; edge.labelPosition = labelPosition }
+  }
+}
+
 // The post-ELK geometry pipeline, reified (docs/design/system/route-contracts.md).
 // The array IS the execution path; each `run` delegates to the existing pass function
 // with byte-identical arguments. The three symmetric passes carry no `after` among each
@@ -1312,10 +1324,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
   },
   {
-    id: 'centerPeerBarycenters', doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
+    id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
-    run: c => { centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
+    run: c => {
+      let rollback: (() => void) | undefined
+      centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, () => { rollback ??= checkpointCentering(c) })
+      return rollback
+    },
   },
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
@@ -1357,7 +1373,8 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => {
       const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
       for (const edge of c.edges) {
-        edge.points = edge.points.filter((point, index, points) => index === 0 || Math.hypot(point.x - points[index - 1]!.x, point.y - points[index - 1]!.y) > 0.01)
+        // Remove zero-length shafts, but preserve every nonzero approach vector.
+        edge.points = edge.points.filter((point, index, points) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y)
         const sourceNode = nodeMap.get(edge.source)
         const targetNode = nodeMap.get(edge.target)
         trimBoundaryEndpointRuns(edge, sourceNode, targetNode)
@@ -1805,6 +1822,7 @@ export function layoutGraphSync(
   // The title takes a band above everything the layout placed; the graph
   // moves down beneath it and the canvas widens to a title wider than it.
   const padding = options.padding ?? DEFAULTS.padding
+  if (positioned.width === 0 && positioned.height === 0) return Object.assign(positioned, titleOnlyCanvas(band, padding))
   translatePositionedGraph(positioned, band.height)
   positioned.height += band.height
   positioned.width = Math.max(positioned.width, band.width + 2 * padding)

@@ -11,9 +11,12 @@ import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
-import { executeGraphicalRequest, lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
+import { executeGraphicalRequest, graphicalSvgArtifact, lowerPositionedFamilyScene, renderPositionedMermaidSVG, type GraphicalSvgArtifact, type ResolvedGraphicalExecution } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
-import { resolveRenderRequest } from '../render-contract.ts'
+import { captureRenderOptions, resolveRenderRequest, resolveRenderRequestForExecution } from '../render-contract.ts'
+import { assertScenesOf } from '../scene/assertions.ts'
+import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
+import type { OutputSecurityDiagnostic } from '../output-security.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
 import { walkJourneyLines } from '../journey/parse-core.ts'
@@ -23,8 +26,9 @@ import { isSequenceCommentLine } from '../sequence/statements.ts'
 import { readSequenceText } from '../sequence/text.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
+import { edgeEndpointSelectors, edgeSelectorIndices } from '../shared/edge-selectors.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
-import type { PositionedGraph } from '../types.ts'
+import type { PositionedGraph, RenderOptions } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
@@ -37,7 +41,7 @@ import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { detectsFlowchartFamily } from './family-router.ts'
-import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
+import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact, positionResolvedFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
@@ -48,16 +52,19 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
-import { authoredLineForCanonical, sourceCleanup } from './source-map-spans.ts'
+import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
+import { timelineUnsupportedSyntaxWarnings } from './timeline-body.ts'
 import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
 import { radarUnsupportedSyntaxWarnings } from './radar-body.ts'
+import { sankeyUnsupportedSyntaxWarnings } from './sankey-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { logToolInvocation } from './trace-log.ts'
 import type { ExtensionValidDiagram, LayoutWarning, ParseError, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
 import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
 import type { PositionedC4Diagram } from '../c4/layout.ts'
+import { c4DiagnosticMessage } from '../c4/parser.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -65,7 +72,7 @@ function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   return familyConfigDiagnostics(d.kind, roots, family?.config, family?.configDiagnostics)
 }
 
-const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end', 'state-fork', 'state-join', 'state-choice', 'state-history'])
+const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end', 'state-fork', 'state-join', 'state-choice', 'state-history'])
 
 /**
  * The one bare-header verdict behind EMPTY_DIAGRAM's documented trigger ("a
@@ -111,12 +118,12 @@ function sourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolea
  * helper so it now runs on EVERY verify, for every family. Opaque bodies carry
  * no structured arrays (their faithfulness is byte-verbatim) and are skipped.
  */
-function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
+function roundtripFaithfulnessWarnings(d: ParsedDiagram): LayoutWarning[] {
   // Thin I/O wrapper: do the parse → serialize → re-parse, then defer the
   // verdict to the pure (mutation-gated, unit-tested) faithfulnessWarning.
-  const before = countStructuralElements(d)
-  if (!before) return []
   try {
+    const before = countStructuralElements(d)
+    if (!before) return []
     const reparsed = parseRegisteredMermaid(serializeMermaid(d))
     if (!reparsed.ok) return faithfulnessWarning(before, null) // total loss
     const after = countStructuralElements(reparsed.value)
@@ -129,9 +136,49 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
   }
 }
 
+/** The legacy ok flag is an error gate, never a task-correctness certificate. */
 export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions = {}): VerifyResult {
+  return verifyMermaidInternal(input, opts)
+}
+
+interface SharedVerificationRender {
+  source: string
+  artifact?: ProjectedFamilyArtifact
+  rendered?: ResolvedGraphicalExecution
+  diagnostics: OutputSecurityDiagnostic[]
+}
+
+/** Internal editor operation. No caller-owned positioned evidence is accepted. */
+export function renderAndVerifyMermaid(source: string, options: RenderOptions = {}): GraphicalSvgArtifact & { verification: VerifyResult } {
+  const captured = captureRenderOptions(options)
+  const shared: SharedVerificationRender = { source, diagnostics: [] }
+  const verification = verifyMermaidInternal(source, { renderOptions: captured }, shared)
+  const positioned = shared.artifact
+  const artifact = positioned
+    ? graphicalSvgArtifact(positioned.request, shared.rendered ?? renderPositionedMermaidSVG(positioned.request, positioned.layoutResult, shared.diagnostics), shared.diagnostics)
+    : executeGraphicalRequest(source, captured, 'svg')
+  return { svg: artifact.svg, receipt: artifact.receipt, verification }
+}
+
+function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, shared?: SharedVerificationRender): VerifyResult {
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
+  // Capture source evidence before any config/layout/render early return.
+  // Result branches and diagnostic suppression cannot revoke an observed loss.
+  const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value)] : []
+  const result = verifyParsedMermaid(input, opts, parsed, shared)
+  const suppressed = new Set(opts.suppress ?? [])
+  const warnings = dedupedConcat(result.warnings, sourceEvidence.filter(warning => !suppressed.has(warning.code)))
+  const suppressedErrors = (opts.suppress ?? []).some(code => WARNING_SEVERITY[code] === 'error')
+  const renderFailed = warnings.some(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
+  return { ...result, warnings, checks: {
+    renderability: renderFailed ? 'failed' : result.ok && !suppressedErrors ? 'passed' : 'not-checked',
+    sourceLoss: sourceEvidence.length > 0 || result.checks?.sourceLoss === 'detected' ? 'detected' : 'not-detected',
+    taskCorrectness: 'not-checked',
+  } }
+}
+
+function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>, shared?: SharedVerificationRender): VerifyResult {
   if (!parsed.ok) {
     // Strict parsing must fail closed, but source-level repair diagnostics are
     // still valuable (and were historically part of verify's contract).
@@ -152,9 +199,9 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     const { diagnostic } = parsed.value.body
     return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}`, origin: 'source' }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
-  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
+  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined, shared)
   // Check the merged source/options theme and family config colors before all
-  // verification tiers, so a refused color is the whole finding.
+  // geometry tiers, while retaining any source loss already known at parse time.
   try {
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
@@ -169,7 +216,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   }
   try {
     const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
-    return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
+    return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared)
   } catch (error) {
     // Family layouts, color admission and a work limit only a render-path
     // parser enforces (state nesting) are findings, not verify failures.
@@ -253,7 +300,7 @@ function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positio
 
 /** One lazy artifact per verify call; failures are memoized as well as values,
  * and so is the ordinary render an engine failure is checked against. */
-function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string): VerificationArtifact {
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string, shared?: SharedVerificationRender): VerificationArtifact {
   let attempted = false
   let artifact: ProjectedFamilyArtifact | null = null
   let failure: unknown
@@ -274,11 +321,19 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
       // parsed diagram position from one render source: the diagram's body
       // under its config wrapper (init directives, frontmatter, themeCSS),
       // which is also what every structural tier reads.
-      artifact = positionFamilyArtifact(d, {
-        renderOptions: opts.renderOptions,
-        output: 'svg',
-        assertScenes: true,
-      })
+      if (shared) {
+        const request = resolveRenderRequestForExecution(shared.source, opts.renderOptions ?? {}, 'svg', undefined, { expectedFamilyId: d.kind })
+        emitResolvedConfigDiagnostics(request)
+        assertScenesOf(request)
+        artifact = positionResolvedFamilyArtifact(d, request)
+        if (artifact) shared.artifact = artifact
+      } else {
+        artifact = positionFamilyArtifact(d, {
+          renderOptions: opts.renderOptions,
+          output: 'svg',
+          assertScenes: true,
+        })
+      }
       return artifact
     } catch (error) {
       failure = error
@@ -301,12 +356,13 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
  * failure under a different name (e.g. suppress UNRESOLVABLE_SCHEDULE on a
  * gantt whose render still throws for exactly that reason).
  */
-function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
+function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact, shared?: SharedVerificationRender): VerifyResult {
   if (!result.ok || (opts.suppress ?? []).some(code => code === 'RENDER_FAILED' || WARNING_SEVERITY[code] === 'error')) return result
   try {
     const artifact = positioned()
     if (!artifact) throw new Error(`Mermaid family "${result.layout.kind}" has no positioned graphical artifact`)
-    const rendered = renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
+    const rendered = renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, shared?.diagnostics ?? [])
+    if (shared) shared.rendered = rendered
     return { ...result, ...(rendered.layoutCertification ? { layoutCertification: rendered.layoutCertification } : {}) }
   } catch (e) {
     return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, positioned.failure(e)] }
@@ -426,18 +482,27 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   radar: radarUnsupportedSyntaxWarnings,
+  sankey: sankeyUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
   state: stateUnsupportedSyntaxWarnings,
+  timeline: timelineUnsupportedSyntaxWarnings,
   xychart: xychartUnsupportedSyntaxWarnings,
 }
 
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
+  if (!rule) return []
   const lines = authored?.split(/\r\n?|\n/)
-  const authoredLine = lines && ((line: number) => lines[authoredLineForCanonical(d.source, line) - 1])
-  return (rule?.(d.canonicalSource, authoredLine) ?? []).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
-    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
-    : warning)
+  // A diagram parsed from source keeps its authored lines with its source map.
+  const authoredLine = lines ? (line: number) => lines[authoredLineForCanonical(d.source, line) - 1] : (line: number) => authoredTextForCanonical(d.source, line)
+  return atAuthoredLines(rule(d.canonicalSource, authoredLine), line => authoredLineForCanonical(d.source, line))
+}
+
+/** Verify names the authored line. A rule that reads the canonical source
+ * reports canonical lines, and a family verify hook lines of its body, which
+ * starts at the header; `authoredLine` maps either to the authored line. */
+function atAuthoredLines(warnings: LayoutWarning[], authoredLine: (line: number) => number): LayoutWarning[] {
+  return warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined ? { ...warning, line: authoredLine(warning.line) } : warning)
 }
 
 function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
@@ -499,7 +564,8 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
         }
       }
       if (diagnostic.code === 'C4_WIDTH_EXCEEDED') return { code: 'LAYOUT_LIMIT_EXCEEDED', constraint: 'c4.maxWidth', message: `${diagnostic.code}: ${diagnostic.message}` }
-      return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: statement?.raw ?? 'C4 layout', message: `${diagnostic.code}: ${diagnostic.message}` }
+      // A stable code (C4_LAYOUT_CONFLICT is c4_layout_conflict); the statement is in the message.
+      return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: diagnostic.code.toLowerCase(), message: `${diagnostic.code}: ${c4DiagnosticMessage(layout.body, diagnostic)}` }
     })
   } catch {
     return []
@@ -606,6 +672,12 @@ export function configWarningsForMermaid(source: string): LayoutWarning[] {
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
+function commentLossWarnings(parsed: ParsedDiagram): LayoutWarning[] {
+  return parsed.meta.droppedComments?.length
+    ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(comment => comment.line) }]
+    : []
+}
+
 function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact, authored?: string): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
@@ -613,13 +685,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // hook gets a chance to contribute warnings. Runs ahead of per-body branches
   // so descriptors can hook into any body kind (structured or opaque). Closes the
   // dead-code gap where `FamilyDescriptor.verify` was declared but never invoked.
-  // 2C comment policy: in-body comments that structured serialization drops
-  // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
-  // so the loss is announced rather than silent.
-  const metaWarnings: LayoutWarning[] = [
-    ...(parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED' as const, count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []),
-    ...cleanupWarningsForDiagram(parsed, authored),
-  ]
+  const metaWarnings = cleanupWarningsForDiagram(parsed, authored)
   const dispatchedWarnings = dispatchFamilyVerify(parsed, opts, positioned)
   const configWarnings = configWarningsForDiagram(parsed)
   if (parsed.body.kind === 'extension') {
@@ -628,11 +694,13 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
 
   const d = parsed as ValidDiagram
   const familySourceWarnings =
-    d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
+    d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
-  const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
-  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
+  // The header starts the body, on the line after the authored wrapper.
+  const wrapperLines = d.meta.wrapperSource?.match(/\n/g)?.length ?? 0
+  const hookWarnings = atAuthoredLines(dispatchedWarnings, line => line + wrapperLines)
+  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, hookWarnings), sourceWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
   // Mermaid treats universal accessibility metadata as renderable document
   // furniture. A classDiagram containing only accTitle/accDescr therefore is
   // not an empty source even though its structural layout has zero classes.
@@ -836,23 +904,48 @@ function familyLayoutForVerify(d: ParsedDiagram, positioned: VerificationArtifac
  * layout; the caller finalizes (suppress + ok flag).
  */
 function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram, cap: number, positionedArtifact: VerificationArtifact): { warnings: LayoutWarning[]; layout: RenderedLayout } {
+  // Tier 1 structural checks and the Tier 3 lint read the graph alone, so a
+  // render that fails (refused config, a layout fault) still reports them.
+  const structural = graphStructureWarnings(graph, cap)
+  const lint = lintFlowchartGraph(graph)
   let artifact: ProjectedFamilyArtifact | null
   try {
     artifact = positionedArtifact()
   } catch (error) {
-    return { warnings: [positionedArtifact.failure(error)], layout: emptyRenderedLayout(d.kind) }
+    return { warnings: [positionedArtifact.failure(error), ...structural, ...lint], layout: emptyRenderedLayout(d.kind) }
   }
   if (!artifact || !isPositionedGraph(artifact.positioned)) {
     return {
-      warnings: [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'positioned_artifact', message: `The ${d.kind} family did not produce its declared positioned-graph artifact.` }],
+      warnings: [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'positioned_artifact', message: `The ${d.kind} family did not produce its declared positioned-graph artifact.` }, ...structural, ...lint],
       layout: emptyRenderedLayout(d.kind),
     }
   }
   const positioned = artifact.positioned
   const layout = artifact.rendered
-  const warnings: LayoutWarning[] = []
+  const warnings: LayoutWarning[] = [...structural]
 
-  // Tier 1 — structural
+  // Tier 1 + Tier 2 — box and polyline geometry.
+  warnings.push(...graphGeometryWarnings(positioned, graph))
+
+  // Route-contract tripwires over FINAL geometry: the layout pipeline already
+  // upholds these invariants itself (straight clear lanes, border-anchored
+  // containers, on-shape endpoints, labels on their own lines), so any hit
+  // here means some pass mutated geometry after route certification.
+  // See docs/design/system/route-contracts.md.
+  for (const hitch of findRouteHitches(positioned, graph)) {
+    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
+  }
+  warnings.push(...auditRouteContracts(positioned, graph))
+
+  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
+  warnings.push(...lint)
+
+  return { warnings, layout }
+}
+
+/** Tier 1 — structural: misanchored edges, unknown shapes, overlong labels. */
+function graphStructureWarnings(graph: import('../types.ts').MermaidGraph, cap: number): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
   for (const edge of graph.edges) {
     const hasSource = graph.nodes.has(edge.source) || Boolean(findSubgraphById(graph.subgraphs, edge.source))
     const hasTarget = graph.nodes.has(edge.target) || Boolean(findSubgraphById(graph.subgraphs, edge.target))
@@ -875,23 +968,7 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
     const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, resolveLabelContent(edge.label, edge.labelContent), cap, 'plain') : null
     if (w) warnings.push(w)
   }
-  // Tier 1 + Tier 2 — box and polyline geometry.
-  warnings.push(...graphGeometryWarnings(positioned, graph))
-
-  // Route-contract tripwires over FINAL geometry: the layout pipeline already
-  // upholds these invariants itself (straight clear lanes, border-anchored
-  // containers, on-shape endpoints, labels on their own lines), so any hit
-  // here means some pass mutated geometry after route certification.
-  // See docs/design/system/route-contracts.md.
-  for (const hitch of findRouteHitches(positioned, graph)) {
-    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
-  }
-  warnings.push(...auditRouteContracts(positioned, graph))
-
-  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
-  warnings.push(...lintFlowchartGraph(graph))
-
-  return { warnings, layout }
+  return warnings
 }
 
 /**
@@ -993,7 +1070,10 @@ function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyO
   if (merged === prev.warnings) return prev
   // prev already went through the caller's guardEmptyLayout choice — don't
   // second-guess it here.
-  return finalize(merged, prev.layout, opts, false)
+  const result = finalize(merged, prev.layout, opts, false)
+  return prev.checks?.sourceLoss === 'detected'
+    ? { ...result, checks: { ...result.checks!, sourceLoss: 'detected' } }
+    : result
 }
 
 function warningKey(w: LayoutWarning): string {
@@ -1011,6 +1091,11 @@ function warningKey(w: LayoutWarning): string {
 
 function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
+  const selectors = edgeSelectorIndices(graph.edges)
+  const edgeIds = edgeEndpointSelectors(graph.edges).map((selector, index) => {
+    const authored = graph.edges[index]!.id
+    return authored && selectors.get(authored) === index ? authored : selector
+  })
   const firstBySignature = new Map<string, { edge: string; from: string; to: string; label?: string }>()
   graph.edges.forEach((edge, index) => {
     const signature = JSON.stringify({
@@ -1023,7 +1108,7 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
       startMarker: edge.startMarker ?? 'arrow',
       endMarker: edge.endMarker ?? 'arrow',
     })
-    const id = `${edge.source}->${edge.target}#${index}`
+    const id = edgeIds[index]!
     const first = firstBySignature.get(signature)
     if (first) {
       warnings.push({ code: 'DUPLICATE_EDGE', edge: id, duplicateOf: first.edge, from: edge.source, to: edge.target, label: edge.label })
@@ -1041,7 +1126,7 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
     if (!node || node.shape !== 'diamond' || edge.source === edge.target) return
     const entry = outEdges.get(edge.source) ?? { labeled: 0, unlabeled: [] }
     if (edge.label && edge.label.trim().length > 0) entry.labeled++
-    else entry.unlabeled.push(`${edge.source}->${edge.target}#${index}`)
+    else entry.unlabeled.push(edgeIds[index]!)
     outEdges.set(edge.source, entry)
   })
   for (const [nodeId, entry] of outEdges) {
@@ -1188,6 +1273,11 @@ function isPositionedGraph(positioned: import('../types.ts').PositionedDiagram):
 }
 
 function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: VerifyOptions, guardEmptyLayout = true): VerifyResult {
+  const checks: NonNullable<VerifyResult['checks']> = {
+    renderability: 'not-checked',
+    sourceLoss: warnings.some(warning => warning.code === 'COMMENT_DROPPED' || warning.code === 'CONTENT_DROPPED_ON_ROUNDTRIP') ? 'detected' : 'not-detected',
+    taskCorrectness: 'not-checked',
+  }
   const suppress = new Set<WarningCode>(opts.suppress ?? [])
   const kept = warnings.filter(w => !suppress.has(w.code))
   const ok = !kept.some(w => WARNING_SEVERITY[w.code] === 'error')
@@ -1219,11 +1309,12 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   ) {
     return {
       ok,
+      checks,
       warnings: [...kept, { code: 'UNSUPPORTED_SYNTAX', syntax: 'empty_layout', message: 'The source carries content, but the local layout renders nothing (0x0 canvas with no nodes, edges, or groups).' }],
       layout,
     }
   }
-  return { ok, warnings: kept, layout }
+  return { ok, warnings: kept, layout, checks }
 }
 
 function rectIntersection(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): number {

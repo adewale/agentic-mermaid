@@ -94,7 +94,7 @@ client-side exact-identity check.
 2. **Bump the package and MCP server versions together.** Update `version` in
    `package.json`, `PACKAGE_VERSION` in `src/version.ts`, the top-level `version` in `server.json`, and
    `packages[0].version` in `server.json`. The readiness tests require an exact
-   match. Generated surfaces such as `llms.txt` and `am capabilities` read the
+   match. Generated surfaces such as `am llms-txt` and `am capabilities` read the
    runtime-safe `PACKAGE_VERSION`, so no additional generated-file edit is needed.
 3. **Roll the changelog.** Retitle `## Unreleased` in
    [`CHANGELOG.md`](../../CHANGELOG.md) to `## <version> — <YYYY-MM-DD>` and open a

@@ -30,6 +30,15 @@ on:
         type: string
         default: ''
 
+      baseline-ref:
+        description: Optional immutable Git commit instead of an npm baseline (on-demand only)
+        type: string
+        default: ''
+      review-fixtures:
+        description: Optional space-separated existing visual review fixture IDs
+        type: string
+        default: ''
+
 permissions:
   contents: read
   actions: read
@@ -66,7 +75,23 @@ jobs:
           npm install -g npm@11.18.0 --ignore-scripts
           test "$(npm --version)" = "11.18.0"
 
+      - name: Build an immutable Git baseline
+        if: inputs.baseline-ref != ''
+        env:
+          BASELINE_REF: ${{ inputs.baseline-ref }}
+        run: |
+          [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]]
+          git fetch --no-tags origin "$BASELINE_REF"
+          git worktree add --detach "$RUNNER_TEMP/benchmark-baseline" "$BASELINE_REF"
+          cd "$RUNNER_TEMP/benchmark-baseline"
+          bun install --frozen-lockfile
+          bun run build
+          mkdir -p "$GITHUB_WORKSPACE/benchmark-baseline"
+          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/benchmark-baseline"
+          mv "$GITHUB_WORKSPACE"/benchmark-baseline/*.tgz "$GITHUB_WORKSPACE/benchmark-baseline/package.tgz"
+
       - name: Restore and resolve the immutable benchmark baseline
+        if: inputs.baseline-ref == ''
         env:
           GH_TOKEN: ${{ github.token }}
           BASELINE: ${{ inputs.baseline }}
@@ -84,6 +109,7 @@ jobs:
           bun run eval/benchmark/release-baseline.ts "$BASELINE" benchmark-baseline/baseline.json
 
       - name: Persist the baseline before measuring
+        if: inputs.baseline-ref == ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-benchmark-baseline-${{ github.run_id }}
@@ -132,7 +158,37 @@ jobs:
           overwrite: true
           retention-days: 30
 
+      - name: Record Git comparison provenance
+        if: inputs.baseline-ref != ''
+        env:
+          BASELINE_REF: ${{ inputs.baseline-ref }}
+        run: |
+          test "$(git -C "$RUNNER_TEMP/benchmark-baseline" rev-parse HEAD)" = "$BASELINE_REF"
+          mkdir -p bench-report
+          jq -n --arg baselineRevision "$BASELINE_REF" --arg candidateRevision "$GITHUB_SHA" \
+            --arg baselinePackageSha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" \
+            --arg candidatePackageSha256 "$(jq -er '.sha256' release-artifact/package-manifest.json)" \
+            --arg baselineEntrySha256 "$(sha256sum "$RUNNER_TEMP/benchmark-baseline/dist/index.js" | cut -d ' ' -f 1)" \
+            --arg candidateEntrySha256 "$(tar -xOf release-artifact/package.tgz package/dist/index.js | sha256sum | cut -d ' ' -f 1)" \
+            '$ARGS.named' > bench-report/build-provenance.json
+
+      - name: Generate requested visual review evidence
+        if: inputs.review-fixtures != '' && inputs.baseline-ref != ''
+        env:
+          BASELINE_REF: ${{ inputs.baseline-ref }}
+          REVIEW_FIXTURES: ${{ inputs.review-fixtures }}
+        run: |
+          read -r -a fixtures <<< "$REVIEW_FIXTURES"
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASELINE_REF" "$GITHUB_SHA" bench-report/visual "${fixtures[@]}"
+
+      - name: Benchmark candidate against the Git baseline
+        if: inputs.baseline-ref != ''
+        run: |
+          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
+          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline "$RUNNER_TEMP/benchmark-baseline" --out bench-report
+
       - name: Benchmark candidate against the baseline release
+        if: inputs.baseline-ref == ''
         env:
           BASELINE: ${{ inputs.baseline }}
         run: |
@@ -149,9 +205,15 @@ jobs:
         if: ${{ !cancelled() }}
         continue-on-error: true
         timeout-minutes: 13
+        env:
+          BASELINE_REF: ${{ inputs.baseline-ref }}
         run: |
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          timeout 12m bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-lock benchmark-baseline/baseline.json --out bench-report
+          baseline_args=(--baseline-lock benchmark-baseline/baseline.json)
+          if [ -n "$BASELINE_REF" ]; then
+            baseline_args=(--baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)")
+          fi
+          timeout 12m bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" "${baseline_args[@]}" --out bench-report
 
       - name: Upload the benchmark report
         if: always()

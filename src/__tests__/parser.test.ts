@@ -12,28 +12,27 @@
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 // ============================================================================
 // Graph header parsing
 // ============================================================================
 
 describe('parseMermaid – graph header', () => {
-  it('parses graph families in a fresh process without registry side effects', () => {
+  it('parses graph families in a fresh process without registry side effects', async () => {
     const script = `
       const { parseMermaid } = await import('./src/parser.ts')
       const flowchart = parseMermaid('flowchart LR\\n  A --> B')
       const state = parseMermaid('stateDiagram-v2\\n  [*] --> Ready')
       if (flowchart.direction !== 'LR' || state.direction !== 'TD') process.exit(1)
     `
-    const result = spawnSync('bun', ['-e', script], {
-      cwd: join(import.meta.dir, '..', '..'),
-      encoding: 'utf8',
-    })
+    const result = await runChild('bun', ['-e', script], { cwd: join(import.meta.dir, '..', '..') })
     expect(result.status, result.stderr || result.stdout).toBe(0)
   })
 
@@ -156,9 +155,9 @@ describe('parseMermaid – node shapes (original)', () => {
 
   // Upstream's node string (flow.jison NODE_STRING) holds `!"#$%&'*+.`?\/`,
   // and its id grammar `:`, besides letters, digits, `_` and `-`; a `"` only
-  // after an id's first character, and a first `&` only before another id
-  // character (`& ` joins a list). An `x` or `o` right after id characters is
-  // the id's, not a link's marker.
+  // after an id's first character. Its AMP token is an id token too, so a
+  // lone `&` is a node, and `& ` after a node joins a list. An `x` or `o`
+  // right after id characters is the id's, not a link's marker.
   it.each([
     ['A.B --> C', ['A.B', 'C']],
     ['A.-B', ['A.-B']],
@@ -168,6 +167,7 @@ describe('parseMermaid – node shapes (original)', () => {
     ['A&B --> C & D', ['A&B', 'C', 'D']],
     ['A:B:::c --> C', ['A:B', 'C']],
     [':a --> &b & C & &&', [':a', '&b', 'C', '&&']],
+    ['& --> B & &', ['&', 'B']],
     ['.A --> B. --> 1.5', ['.A', 'B.', '1.5']],
     ['é.b[label] --> c', ['é.b', 'c']],
     ['Xo--xY', ['Xo', 'Y']],
@@ -949,6 +949,13 @@ describe('parseMermaid – edge cases', () => {
     // Upstream's id grammar takes a `,` into the id (`A,B` is one node);
     // ours reads none, since `style` and `class` read it as a separator.
     ['an id holding `,`', 'graph TD\n  A --> B,C', /upstream reads the "," before "C" as part of one node id/],
+    ['an id starting with `,`', 'graph TD\n  ,A --> B', /upstream reads the "," before "A --> B" as part of one node id/],
+    // Upstream's grammar has a subgraph with no id or title, which its DB
+    // fails to read.
+    // Upstream reads a link label with an `x` start and another end as a
+    // link of no type.
+    ['a link label with an `x` start and an arrow end', 'graph TD\n  A x--e1@--> B', /starts with an `x` marker and ends otherwise/],
+    ['a subgraph with no title', 'graph TD\n  subgraph\n    A\n  end', /a subgraph needs an id or a title/],
   ])('names the construct when rejecting %s', (_construct, source, message) => {
     expect(() => parseMermaid(source)).toThrow(message)
   })
@@ -1087,6 +1094,22 @@ describe('parseMermaid – state diagrams', () => {
     expect(g.subgraphs[0]!.nodeIds).toContain('parse')
     expect(g.subgraphs[0]!.nodeIds).toContain('validate')
     expect(g.subgraphs[0]!.nodeIds).toContain('execute')
+  })
+
+  it('a state belongs to the first composite or region that mentions it, and a transition reaches across', () => {
+    type Group = { id: string; nodeIds: string[]; children: Group[] }
+    const tree = (group: Group): string => `${group.id}(${group.nodeIds.join(',')})${group.children.length ? `{${group.children.map(tree).join(' ')}}` : ''}`
+    for (const [source, groups] of [
+      ['stateDiagram-v2\n  state B {\n    y\n  }\n  state A {\n    x --> y\n  }', 'B(y) A(x)'],
+      ['stateDiagram-v2\n  state A {\n    x --> y\n  }\n  state B {\n    y\n  }', 'A(x,y) B()'],
+      ['stateDiagram-v2\n  state A {\n    x\n    --\n    y\n  }\n  state B {\n    x --> z\n  }', 'A(){A__r1(x) A__r2(y)} B(z)'],
+      ['stateDiagram-v2\n  state A {\n    x --> y\n    --\n    y --> z\n  }', 'A(){A__r1(x,y) A__r2(z)}'],
+      // A top-level mention first places nothing, as in Mermaid.
+      ['stateDiagram-v2\n  y\n  state A {\n    x --> y\n  }', 'A(x,y)'],
+    ] as const) {
+      expect({ source, groups: parseMermaid(source).subgraphs.map(tree).join(' ') }).toEqual({ source, groups })
+      expect(() => renderMermaidSVG(source)).not.toThrow()
+    }
   })
 
   it('a reopened composite state continues the one state and renders', () => {

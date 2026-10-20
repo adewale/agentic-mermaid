@@ -1,12 +1,12 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedQuadrantChart, PositionedQuadrantPoint } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { quadrantStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
+import type { SceneNode } from '../scene/ir.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
+import { drawTooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
@@ -86,16 +86,17 @@ export function renderQuadrantSvg(
 /**
  * Lower a positioned quadrant chart to the SceneGraph IR in canonical mark order.
  */
-export function lowerQuadrantScene(
+export function lowerQuadrantDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedQuadrantChart>,
-): SceneDoc {
+): DrawingDocument<T> {
   const { positioned: chart, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const interactive = options.interactive ?? false
   const style = resolveRenderStyle(options, quadrantStyleDefaults(chart.visual), resolved.styleFace)
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const accessibility = {
     title: chart.accessibility?.title ?? chart.title?.text,
     description: chart.accessibility?.description,
@@ -225,7 +226,7 @@ export function lowerQuadrantScene(
 
   // Points. Interaction chrome (hover targets + tooltips) is collected into
   // an overlay appended after all data marks, mirroring the xychart pattern.
-  const pointOverlay: SceneNode[] = []
+  const pointOverlay: T[] = []
   const pointOccurrences = new Map<string, number>()
   for (const point of chart.points) {
     const occurrence = pointOccurrences.get(point.label) ?? 0
@@ -301,7 +302,7 @@ export function lowerQuadrantScene(
             geometry: { kind: 'circle', cx: point.cx, cy: point.cy, r: point.radius + 6 }, paint: { fill: 'transparent' },
           }, HIT_EMISSION) },
           { indent: 0, node: marks.documentContent({ id: `${pointId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, { kind: 'documentText', element: 'title', text: tipText }) },
-          { indent: 0, node: tooltipArtwork('quadrant', point.tooltip, `${pointId}:tooltip`, owner) },
+          { indent: 0, node: drawTooltipArtwork(marks, 'quadrant', point.tooltip, `${pointId}:tooltip`, owner) },
         ],
       }))
     }
@@ -404,3 +405,5 @@ function quadrantFill(number: 1 | 2 | 3 | 4, style: ResolvedRenderStyle): string
 function quadrantStyles(interactive: boolean): string {
   return interactive ? `${tooltipCss('quadrant', ['quadrant-point-group'])}\n` : ''
 }
+
+export const lowerQuadrantScene = sceneLowering<PositionedQuadrantChart>(lowerQuadrantDrawing)

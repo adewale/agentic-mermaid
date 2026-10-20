@@ -92,3 +92,18 @@ An opaque fallback path can become structurally mutable only when a scoped imple
 6. update CLI/MCP/capabilities/docs together.
 
 Until then, opaque/source-level editing is the honest behavior for that body.
+
+
+## Comments and transaction boundaries
+
+Flowchart and State body comments are retained in metadata beside semantic
+statement identities. Serialization re-emits safe standalone `%%` comments;
+inline placement may normalize. If an edit removes an anchor, its comment is
+retained at the end rather than discarded. Leading wrapper bytes retain their
+existing verbatim contract. Other families keep their existing segmented/opaque
+policies and report any known loss.
+
+Declarative edits, CLI batches, and builders apply checked operations to private
+intermediate bodies, then serialize and reparse once at commit. A failed operation
+returns its index and emits no edited source; the original diagram stays untouched.
+Single public `mutate` calls retain parser-closure checks at each call boundary.

@@ -18,7 +18,7 @@ import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
 
 import type { Direction } from '../types.ts'
-import { mutate } from './mutate.ts'
+import { applyMutationBatch } from './mutate.ts'
 import { serializeMermaid } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import type {
@@ -209,11 +209,6 @@ export function buildMermaid(kind: 'ishikawa', ops: IshikawaMutationOp[], opts?:
 export function buildMermaid(kind: 'block', ops: BlockMutationOp[], opts?: CreateMermaidOptions): Result<BlockValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<MutableValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts: CreateMermaidOptions = {}): Result<MutableValidDiagram, BuildError> {
-  let d = createMermaid(kind, opts)
-  for (let i = 0; i < ops.length; i++) {
-    const r = mutate(d, ops[i]!)
-    if (!r.ok) return err({ ...r.error, opIndex: i, message: `op[${i}] (${ops[i]!.kind}): ${r.error.message}` })
-    d = r.value
-  }
-  return ok(d)
+  const d = createMermaid(kind, opts)
+  return applyMutationBatch(d, ops) as Result<MutableValidDiagram, BuildError>
 }

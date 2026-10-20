@@ -10,7 +10,6 @@
 // unfaithful mark, not just the first.
 
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
@@ -19,7 +18,7 @@ import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-c
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, freezeBoundedFirstPartyData } from '../scene/external-data-snapshot.ts'
+import { admitSceneDocument, admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, snapshotBoundedExternalData } from '../scene/external-data-snapshot.ts'
 import { buildExternalScene, EXTERNAL_SCENE_API_VERSION } from '../scene/external-scene.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { inspectScenePrimitives } from '../scene/inspection.ts'
@@ -27,6 +26,10 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { SECTION_B_FAMILY_CENSUS_FIXTURES } from '../scene/section-b-census-fixtures.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import type { RenderOptions } from '../types.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+import { markerContact } from './helpers/marker-contact.ts'
+
+const runChild = useTestChildren(20_000)
 
 interface Lowered {
   id: string
@@ -164,6 +167,26 @@ describe('scene fidelity', () => {
     }
   })
 
+  test('registered marker-producing families retain explicit contact meanings and reference points', () => {
+    const resources = new Set<string>(), uses = new Set<string>()
+    for (const { family, doc } of scenes) {
+      const visit = (node: SceneNode): void => {
+        if (node.kind === 'document') for (const marker of node.markerResources ?? []) {
+          resources.add(family)
+          const contact = markerContact(family, marker)
+          if (contact.point && contact.attachment !== 'free-axis') expect(marker.ref, `${family}/${marker.id}: ${contact.attachment}`).toEqual(contact.point)
+        }
+        if (node.kind === 'connector' && (node.markers.start || node.markers.end || node.markers.mid.length)) uses.add(family)
+        if (node.kind === 'group') for (const child of node.children) visit(child.node)
+      }
+      for (const node of doc.parts) visit(node)
+    }
+    // Both sets come from the registry-enrolled corpus above. An unclassified
+    // new family's resource fails at its meaning, without copying family IDs.
+    expect(resources.size).toBeGreaterThan(0)
+    expect([...resources].sort()).toEqual([...uses].sort())
+  })
+
   test('no family stylesheet restyles what a typed mark draws', () => {
     // The writer emits a mark's paint and typography as presentation
     // attributes, which any stylesheet rule overrides; certification reads the
@@ -276,15 +299,27 @@ describe('scene fidelity', () => {
 })
 
 describe('built-in Scene cross-checks', () => {
-  test('render skips them unless scene assertions are on; verify, strict renders and ASCII always run them', () => {
+  test('a cheap admission cannot suppress later strict connector checks', () => {
+    const lowered = lowerSample('flowchart LR\n  A --> B')
+    if (!lowered || !('doc' in lowered)) throw new Error('Expected native Scene')
+    const connectors = (node: SceneNode): Array<Extract<SceneNode, { kind: 'connector' }>> =>
+      node.kind === 'connector' ? [node] : node.kind === 'group' ? node.children.flatMap(child => connectors(child.node)) : []
+    const connector = lowered.doc.parts.flatMap(connectors)[0]!
+    Object.assign(connector, { terminalProjection: { ...connector.terminalProjection, relationship: 'not-derived' } })
+    const admitted = admitSceneDocument(lowered.doc, 'internal', false)
+    expect(admitted).not.toBe(lowered.doc)
+    expect(() => admitSceneDocument(admitted, 'internal', true)).toThrow(/terminalProjection/)
+  })
+
+  test('render skips them unless scene assertions are on; verify, strict renders and ASCII always run them', async () => {
     // A lowering that stores a connector projection disagreeing with the one
     // derived from its own semantics. Fresh processes control the variable the
     // test preload sets.
-    const probe = (assertions: boolean) => {
+    const probe = async (assertions: boolean) => {
       const env = { ...process.env }
       if (assertions) env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
       else delete env.AGENTIC_MERMAID_SCENE_ASSERTIONS
-      const result = spawnSync(
+      const result = await runChild(
         process.execPath,
         [
           '--eval',
@@ -317,7 +352,7 @@ describe('built-in Scene cross-checks', () => {
         assertScenesOf(request)
         const retainedAfter = attempt(() => renderPositionedMermaidSVG(request, positioned, []))
         console.log(JSON.stringify({ render, strict, verify, ascii, retainedBefore, retainedAfter }))
-      `], { cwd: join(import.meta.dir, '..', '..'), env, encoding: 'utf8' })
+      `], { cwd: join(import.meta.dir, '..', '..'), env })
       expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
       return JSON.parse(result.stdout) as { render: string; strict: string; verify: unknown[]; ascii: string[]; retainedBefore: string; retainedAfter: string }
     }
@@ -325,7 +360,7 @@ describe('built-in Scene cross-checks', () => {
     // The mismatch is a lowering defect, never the source's: verify reports it
     // as INTERNAL_ERROR and says whether an ordinary render still draws.
     const defect = (defaultRender: string) => [{ code: 'INTERNAL_ERROR', reason: expect.stringMatching(projectionMismatch), defaultRender }]
-    const off = probe(false)
+    const off = await probe(false)
     expect(off.render).toBe('rendered')
     // Strict layout safety, verify and the ASCII connector projection, which
     // all rely on the derived facts, still cross-check them.
@@ -334,7 +369,7 @@ describe('built-in Scene cross-checks', () => {
     expect(off.ascii).toContain('TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE')
     expect(off.retainedBefore).toBe('rendered')
     expect(off.retainedAfter).toMatch(projectionMismatch)
-    const on = probe(true)
+    const on = await probe(true)
     expect(on.render).toMatch(projectionMismatch)
     expect(on.retainedBefore).toMatch(projectionMismatch)
     expect(on.retainedAfter).toMatch(projectionMismatch)
@@ -342,10 +377,8 @@ describe('built-in Scene cross-checks', () => {
   })
 })
 
-describe('built-in Scene admission walk', () => {
-  // Small limits stand in for the multi-megabyte production ones. The walk
-  // charges three bytes per UTF-16 unit first and recounts exactly only when
-  // that bound passes a limit, so the exact limit must still decide.
+describe('bounded Scene admission snapshot', () => {
+  // Small limits stand in for the multi-megabyte production ones.
   const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 30, maxPropertyKeyBytes: 6, maxAggregatePropertyKeyBytes: 12 }
   test.each([
     ['ASCII text under the byte limit but over the three-byte bound', { a: 'x'.repeat(14), b: 'y'.repeat(16) }, undefined],
@@ -357,11 +390,13 @@ describe('built-in Scene admission walk', () => {
     ['a sparse array, named by its path', { parts: [{ points: [0, , 2] }] }, 'External Scene scene.parts[0].points must not be sparse'],
   ] as const)('%s', (_name, document, error) => {
     const value = structuredClone(document)
-    const admit = () => freezeBoundedFirstPartyData(value, limits, 'scene')
+    const admit = () => snapshotBoundedExternalData(value, limits, 'scene')
     if (error) expect(admit).toThrow(error)
     else {
-      expect(admit()).toBe(value)
-      expect(Object.isFrozen(value)).toBe(true)
+      const snapshot = admit()
+      expect(snapshot).not.toBe(value)
+      expect(snapshot).toEqual(value)
+      expect(Object.isFrozen(snapshot)).toBe(true)
     }
   })
 })

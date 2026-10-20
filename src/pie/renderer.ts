@@ -1,3 +1,4 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedPieChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -13,11 +14,10 @@ import {
 import type { PieVisualConfig } from './config.ts'
 import { pieSliceColors } from './palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
-import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
+import { drawTooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
+import type { SceneNode } from '../scene/ir.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission } from '../scene/svg-emission.ts'
@@ -109,9 +109,10 @@ export function renderPieSvg(
 /**
  * Lower a positioned pie chart to the SceneGraph IR in canonical mark order.
  */
-export function lowerPieScene(
+export function lowerPieDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedPieChart>,
-): SceneDoc {
+): DrawingDocument<T> {
   const { positioned: chart, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
@@ -120,7 +121,7 @@ export function lowerPieScene(
   const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, resolved.styleFace)
   const baseSliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', {}, { includeFallback: false })
   const visual = chart.visual
-  const parts: SceneNode[] = []
+  const parts: T[] = []
 
   // One palette for wedges, legend swatches, and the ASCII renderer (shared
   // module) — surfaces can never disagree about slice identity.
@@ -195,6 +196,9 @@ export function lowerPieScene(
     // An indexed Mermaid `pieN` theme variable is authored concrete paint;
     // role/binding paint is a default beneath it, never a repaint authority.
     const fill = visual.paletteOverrides[index] ?? sliceRole?.fillColor ?? fills[index]!
+    // Labels and legend keys describe this effective paint, including semantic
+    // role overrides, rather than the unmodified generated palette.
+    fills[index] = fill
     const sliceStroke = visual.strokeColor ?? sliceRole?.strokeColor ?? sliceRole?.borderColor ?? style.nodeBorderColor ?? 'var(--bg)'
     const sliceStrokeWidth = visual.strokeWidth ?? sliceRole?.lineWidth ?? style.nodeLineWidth
     const cue = sliceRole?.cue ?? 'none'
@@ -391,7 +395,7 @@ export function lowerPieScene(
           }, HOVER_EMISSIONS[hoverHighlight ? 1 : 0]! ) },
           ...(interactive ? [
             { indent: 0, node: marks.documentContent({ id: `${id}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, { kind: 'documentText', element: 'title', text: tipText }) },
-            { indent: 0, node: tooltipArtwork('pie', slice.tooltip, `${id}:body`, owner) },
+            { indent: 0, node: drawTooltipArtwork(marks, 'pie', slice.tooltip, `${id}:body`, owner) },
           ] : []),
         ],
       }))
@@ -450,3 +454,5 @@ function drawnWedge(fill: string, opacity: number, colors: DiagramColors): strin
 function literalTextData(literal: boolean, text: string): { data?: Record<string, string> } {
   return literal && needsLiteralFontMetrics(text) ? { data: { 'literal-text': 'true' } } : {}
 }
+
+export const lowerPieScene = sceneLowering<PositionedPieChart>(lowerPieDrawing)

@@ -23,6 +23,41 @@ const bottom = (region: TerminalRegion) => region.canvasRow + (region.rowSpan ??
 const right = (region: TerminalRegion) => region.canvasColEnd
 
 describe('Sequence terminal ordered ownership and measured fragment bounds', () => {
+  test('parallel overlays share rows for independent branches and join below their complete owned ink', () => {
+    const { output, doc, region, block } = render('participant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined')
+    const lines = output.split('\n')
+    expect(lines.findIndex(line => line.includes('first'))).toBe(lines.findIndex(line => line.includes('second')))
+    expect(output).toContain('[Other]')
+    expect(region('message:0').canvasRow).toBe(region('message:2').canvasRow)
+    expect(region('message:3').canvasRow).toBeGreaterThan(bottom(block('Independent')))
+    for (const id of ['message:0', 'message:1', 'message:2']) {
+      expect(region(id).parentId).toBe('block:0')
+      expect(region(id).parentKind).toBe('compartment')
+    }
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('parallel overlays keep colliding messages and branch labels on separate rows', () => {
+    const { output, doc, region } = render('par_over Shared\nA->>B: first\nand Other\nB->>A: second\nend\nA->>C: joined')
+    expect(output).toContain('[Other]')
+    expect(region('message:1').canvasRow).toBeGreaterThan(bottom(region('message:0')))
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('empty overlay branches retain every label before the following message', () => {
+    const { output, region, block, doc } = render('par_over Work\nand Empty one\nand Empty two\nend\nA->>B: joined')
+    expect(output).toContain('[Empty one]')
+    expect(output).toContain('[Empty two]')
+    expect(region('message:0').canvasRow).toBeGreaterThan(bottom(block('Work')))
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('a later nested frame cannot cover a message from an earlier overlay branch', () => {
+    const { output, doc, region, block } = render('par_over Work\nA->>B: first\nand Other\nloop Nested\nA->>B: second\nend\nend\nA->>B: joined')
+    expect(output).toContain('first')
+    expect(block('Nested').canvasRow).toBeGreaterThan(bottom(region('message:0')))
+    expect(doc.diagnostics).toEqual([])
+  })
   test('closes a fragment before a later note at the same message cursor (#391)', () => {
     const { output, doc, region, block } = render(`loop inside
 A->>B: hi

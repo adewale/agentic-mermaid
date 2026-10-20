@@ -1,3 +1,4 @@
+import { inheritNativeDrawing } from '../scene/drawing.ts'
 import type {
   FamilyDescriptor,
   FamilyLayoutResult,
@@ -43,7 +44,7 @@ function sceneWrapper<TPositioned extends PositionedDiagram>(
   const wrapper: NonNullable<FamilyDescriptor['lowerScene']> = ctx => withSceneLoweringRepresentation(
     wrapper, ctx, () => lowerer(ctx as RenderContext<TPositioned>),
   )
-  return ownSceneLowering(wrapper, publicConstruction)
+  return inheritNativeDrawing(lowerer, ownSceneLowering(wrapper, publicConstruction))
 }
 
 export function layoutResult<TPositioned extends PositionedDiagram>(

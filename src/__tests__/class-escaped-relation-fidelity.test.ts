@@ -23,6 +23,9 @@ const upstreamEndpoints = async (statements: readonly string[]) =>
   })).map(reply => reply.ok ? reply.value : null)
 
 const cases = [
+  { statement: 'Animal <|-- Bugs-Bunny', from: 'Animal', to: 'Bugs-Bunny', kind: 'inheritance', lineType: 0, type1: 1, type2: 'none' },
+  { statement: 'domain.Order --> domain.Item', from: 'domain.Order', to: 'domain.Item', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
+  { statement: '注文 --> 商品', from: '注文', to: '商品', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
   { statement: '`A B` --> C', from: 'A B', to: 'C', kind: 'association', lineType: 0, type1: 'none', type2: 3 },
   { statement: '`A B` ..> C', from: 'A B', to: 'C', kind: 'dependency', lineType: 1, type1: 'none', type2: 3 },
   { statement: 'A <|-- `B C`', from: 'A', to: 'B C', kind: 'inheritance', lineType: 0, type1: 1, type2: 'none' },
@@ -93,6 +96,7 @@ describe('Class escaped relationship IDs', () => {
   test('native, agent, verify, SVG, and serialization preserve the same endpoints', () => {
     for (const item of cases) {
       const source = `classDiagram\n${item.statement}`
+      expect(() => parseClassDiagram(source.split('\n'))).not.toThrow()
       const native = parseClassDiagram(source.split('\n'))
       expect(native.classes.map(node => node.id)).toEqual([item.from, item.to])
       expect(native.relationships).toEqual([expect.objectContaining({
@@ -219,14 +223,13 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('tilde and unescaped hyphenated identities remain diagnosed until modeled', async () => {
+  test('escaped tilde identities remain diagnosed until generic identity is modeled', async () => {
     const diagnosed = [
       '`A~B` --> C',
       '`A~B` -- C',
       '`A~B` .. C',
       'A -- `A~B`',
       'A .. `A~B`',
-      'A-B --> C',
     ]
     expect(await upstreamLinks(diagnosed)).toEqual([
       { from: 'A', to: 'C', lineType: 0 },
@@ -234,7 +237,6 @@ describe('Class escaped relationship IDs', () => {
       { from: 'A', to: 'C', lineType: 1 },
       { from: 'A', to: 'A', lineType: 0 },
       { from: 'A', to: 'A', lineType: 1 },
-      { from: 'A-B', to: 'C', lineType: 0 },
     ])
     for (const statement of diagnosed) {
       expect(parseClassRelationship(statement)).toBeNull()

@@ -39,6 +39,7 @@ export const shapeRegistry: ShapeRegistry = new Map<AsciiNodeShape, ShapeRendere
   ['diamond', diamondRenderer],
   ['stadium', stadiumRenderer],
   ['circle', circleRenderer],
+  ['ellipse', circleRenderer],
 
   // Batch 1 additions
   ['subroutine', subroutineRenderer],

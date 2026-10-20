@@ -157,11 +157,13 @@ describe('xychart bars encode value as length from a shared baseline', () => {
             expect(Math.min(...filled)).toBeLessThan(zeroRow)
           } else {
             expect(Math.min(...filled)).toBe(zeroRow)
-            expect(Math.max(...filled)).toBeGreaterThan(zeroRow)
+            // A short negative interval can quantize to the zero-row cell
+            // alone; it must never paint above that boundary.
+            expect(Math.max(...filled)).toBeGreaterThanOrEqual(zeroRow)
           }
         })
       }),
-      fcParameters({ numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]]] }),
+      fcParameters({ numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]], [[-91, -20, 81]]] }),
     )
   })
 })

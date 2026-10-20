@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import fc from 'fast-check'
 import { layoutCertificateProof } from '../agent/certificates.ts'
 import type { FamilyDescriptor, FamilyLayoutResult } from '../agent/families.ts'
@@ -16,6 +15,9 @@ import { DEFAULTS } from '../theme.ts'
 import type { EdgeRouteCertificate, FamilyEdgeRouteCertificate, PositionedDiagram, RegionContainmentCertificate, RenderContext, RenderOptions, RouteCertificate } from '../types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const RUNS = 24
 const TAG = fc.integer({ min: 0, max: 1_000_000 }).map(n => `p${n.toString(36)}`)
@@ -376,7 +378,7 @@ describe('property: FamilyDescriptor render waist', () => {
     )
   })
 
-  test('external plugins sort after metadata-ordered built-ins in an isolated registry process', () => {
+  test('external plugins sort after metadata-ordered built-ins in an isolated registry process', async () => {
     const script = String.raw`
       import fc from 'fast-check'
       import { BUILTIN_FAMILY_METADATA, getFamily, knownFamilies } from './src/agent/families.ts'
@@ -441,11 +443,7 @@ describe('property: FamilyDescriptor render waist', () => {
         }
       }), { numRuns: 25 })
     `
-    const result = spawnSync('bun', ['-e', script], {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-      maxBuffer: 1024 * 1024,
-    })
+    const result = await runChild('bun', ['-e', script], { cwd: process.cwd() })
     expect(result.status, result.stderr || result.stdout).toBe(0)
   })
 })

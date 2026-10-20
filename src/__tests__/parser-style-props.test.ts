@@ -48,6 +48,24 @@ describe('M4 style props — comma-aware splitting', () => {
   })
 })
 
+// Mermaid joins the pairs a `;` separates into one declaration
+// (`fill:#f9fstroke:#0a0`), which paints nothing; ours reads them as CSS does.
+const SEMICOLON_SEPARATED: ReadonlyArray<readonly [string, string]> = [
+  ['class style', 'classDiagram\n  class A\n  style A fill:#f9f;stroke:#0a0'],
+  ['class classDef', 'classDiagram\n  class A:::hot\n  classDef hot fill:#f9f; stroke:#0a0'],
+  ['state style', 'stateDiagram-v2\n  A --> B\n  style A fill:#f9f;stroke:#0a0'],
+  ['state classDef', 'stateDiagram-v2\n  A --> B\n  classDef hot fill:#f9f;stroke:#0a0\n  class A hot'],
+  ['ER style', 'erDiagram\n  A ||--|| B : x\n  style A fill:#f9f;stroke:#0a0'],
+  ['ER classDef', 'erDiagram\n  A:::hot ||--|| B : x\n  classDef hot fill:#f9f;stroke:#0a0'],
+]
+
+describe('a `;` between style properties', () => {
+  test.each(SEMICOLON_SEPARATED)('%s: separates them, and each is drawn', (_case, source) => {
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'RENDER_FAILED')).toEqual([])
+    expect(renderMermaidSVG(source)).toContain('fill="#f9f" stroke="#0a0"')
+  })
+})
+
 describe('an authored paint the renderer cannot draw', () => {
   test('fails the render with the directive, the property, the value and a fix', () => {
     expect(() => renderMermaidSVG('flowchart TD\n  A --> B\n  style A fill:#12345')).toThrow(

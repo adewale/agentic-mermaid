@@ -61,6 +61,7 @@ export type ArchitectureVisualOverrides = Partial<ArchitectureVisualConfig>
 export interface ArchitectureLayoutMetrics {
   iconSize?: number
   serviceIconSize?: number
+  junctionOuterRadius?: number
   groupFontSize: number
   groupFontWeight: number
   groupLetterSpacing: number
@@ -309,6 +310,7 @@ export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): Arc
   return {
     iconSize: visual.iconSize,
     serviceIconSize: visual.serviceIconSize,
+    junctionOuterRadius: visual.junctionOuterRadius,
     groupFontSize: visual.groupFontSize,
     groupFontWeight: visual.groupFontWeight,
     groupLetterSpacing: visual.groupLetterSpacing,

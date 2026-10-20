@@ -1,24 +1,24 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import type { SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
 import { resolveRoleStyle, sceneRoleTraits } from '../scene/roles.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { contrastRatio, toHex, tryParseCssColor, WCAG_AA_TEXT_CONTRAST } from '../shared/color-math.ts'
 import { hierarchyChildren } from '../shared/hierarchy-model.ts'
-import { sceneDocument } from '../shared/scene-document.ts'
-import { diagramTitleMark, FLOWCHART_STYLE_DEFAULTS, resolveRenderStyle } from '../styles.ts'
+import { drawingDocument } from '../shared/scene-document.ts'
+import { diagramTitleFields, FLOWCHART_STYLE_DEFAULTS, resolveRenderStyle } from '../styles.ts'
 import type { RenderContext } from '../types.ts'
 import { resolvedColorValue } from '../theme.ts'
 import type { PositionedTreemap } from './types.ts'
 
-export function lowerTreemapScene({ positioned: chart, colors, resolved }: RenderContext<PositionedTreemap>) {
+export function lowerTreemapDrawing<T>(marks: DrawingFactory<T>, { positioned: chart, colors, resolved }: RenderContext<PositionedTreemap>): DrawingDocument<T> {
   const style = resolveRenderStyle(resolved.renderOptions, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: chart.config.labelFontSize }, resolved.styleFace)
   const categoryCount = chart.body.nodes.filter(node => !node.parentId).length,
     paletteInputs = { accent: colors.accent, bg: colors.bg },
     palette = categoricalPalette(categoryCount, paletteInputs)
-  const parts: SceneNode[] = []
-  const contents = new Map<string, SceneNode[]>()
+  const parts: T[] = []
+  const contents = new Map<string, T[]>()
   const inkForFill = createFillInkResolver(colors)
   // At most the two Style role inks add a palette. Source-class inks never
   // multiply palette work and retain their authored-paint limitations.
@@ -40,7 +40,7 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
   }
   const childrenByParent = hierarchyChildren(chart.body.nodes)
   const total = chart.cells.filter(cell => !cell.node.parentId).reduce((sum, cell) => sum + cell.total, 0)
-  if (chart.title) parts.push(diagramTitleMark(chart.title, style))
+  if (chart.title) parts.push(marks.text(diagramTitleFields(chart.title, style)))
   for (const cell of chart.cells) {
     if (cell.width <= 0 || cell.height <= 0) {
       contents.set(cell.node.id, [])
@@ -65,7 +65,7 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
     const textFill = headerFill ?? fill
     const ink = explicitInk ?? inkForFill('var(--_text)', textFill, Boolean(authored?.fill || roleStyle?.fillColor || headerFill || !roleFill))
     const owner = { id: cell.node.id, role: section ? ('group' as const) : ('node' as const) }
-    const children: SceneNode[] = []
+    const children: T[] = []
     if (cell.width > 0 && cell.height > 0)
       children.push(
         marks.shape({
@@ -103,7 +103,7 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
   }
   // Actual Scene containment follows the authored hierarchy. Quantitative
   // rectangles and their measured text remain owned by that section or leaf.
-  const groups = new Map<string, SceneNode>()
+  const groups = new Map<string, T>()
   for (const cell of [...chart.cells].reverse()) {
     const children = contents.get(cell.node.id)!
     for (const child of childrenByParent.get(cell.node.id) ?? []) {
@@ -127,5 +127,7 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
     )
   }
   for (const cell of chart.cells) if (!cell.node.parentId) parts.push(groups.get(cell.node.id)!)
-  return sceneDocument('treemap', chart, colors, resolved.renderOptions.transparent ?? false, parts)
+  return drawingDocument(marks, 'treemap', chart, colors, resolved.renderOptions.transparent ?? false, parts)
 }
+
+export const lowerTreemapScene = sceneLowering<PositionedTreemap>(lowerTreemapDrawing)

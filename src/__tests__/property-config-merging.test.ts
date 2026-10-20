@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
+import { verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 import {
   mergeFrontmatterMaps,
@@ -502,6 +504,35 @@ describe('property-based config merging', () => {
         expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
       }),
       fcParameters({ numRuns: NUM_RUNS }),
+    )
+  })
+})
+
+describe('a theme that names no Mermaid theme', () => {
+  // Config is untyped JSON, so a theme value may be any type. One that is not
+  // a Mermaid theme name leaves the default colors, as an unknown name does,
+  // rather than failing the render.
+  const THEME_NAMES = new Set(['default', 'base', 'neutral', 'dark', 'forest'])
+  const word = fc.stringMatching(/^[a-z]{1,8}$/)
+  type ThemeValue = string | number | boolean | null | string[] | Record<string, number>
+  const notATheme: fc.Arbitrary<ThemeValue> = fc.oneof(
+    word.filter(name => !THEME_NAMES.has(name)),
+    fc.integer(),
+    fc.boolean(),
+    fc.constant(null),
+    fc.array(word, { maxLength: 3 }),
+    fc.dictionary(word, fc.integer(), { maxKeys: 2 }),
+  )
+  const NO_THEME = renderMermaidSVG('flowchart LR\n  A --> B')
+
+  it('renders as no theme and verifies, whatever its type', () => {
+    fc.assert(
+      fc.property(notATheme, theme => {
+        const source = `%%{init: ${JSON.stringify({ theme })}}%%\nflowchart LR\n  A --> B`
+        expect(renderMermaidSVG(source)).toBe(NO_THEME)
+        expect(verifyMermaid(source).ok).toBe(true)
+      }),
+      fcParameters<[ThemeValue]>({ numRuns: 40, examples: [[5], [true], [['dark']], [{ a: 1 }]] }),
     )
   })
 })
