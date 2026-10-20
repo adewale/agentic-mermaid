@@ -545,9 +545,11 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
  * does not, or a link label whose markers make no link type there
  * (mismatchedLinkMarkers). An empty quoted label (`A[""]`), which
- * upstream's string token cannot read, is noted too, and a link whose edge
- * id an earlier link has, which the parser leaves off it, as upstream does. */
-export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers' | 'duplicate-edge-id'
+ * upstream's string token cannot read, is noted too, as is a pipe label with
+ * nothing between its pipes (`A -->|| B`), which upstream's grammar cannot,
+ * and a link whose edge id an earlier link has, which the parser leaves off
+ * it, as upstream does. */
+export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'empty-pipe-label' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers' | 'duplicate-edge-id'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -1489,6 +1491,8 @@ function parseEdgeLine(
         if (!pipeLabel) return failure(labelSuffix, 'expected edge target')
         if (labelTextHoldsDelimiter(pipeLabel.rawLabel, 'text')) notes?.add('label-delimiter')
         if (EMPTY_STRING_LABEL_RE.test(pipeLabel.rawLabel)) notes?.add('empty-string')
+        // Upstream's pipe label needs text, a blank at least (`| |`).
+        if (pipeLabel.rawLabel === '') notes?.add('empty-pipe-label')
         const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
         edgeLabel = parsedLabel.text || undefined
         labelContent = parsedLabel.labelContent

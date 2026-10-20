@@ -323,6 +323,12 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['an empty quoted text-arrow label', 'flowchart LR\n  A -- "" --> B', '>B<', 'flowchart_empty_string', 2],
   ['an empty quoted subgraph bracket title', 'flowchart LR\n  subgraph S[""]\n    B\n  end', '>B<', 'flowchart_empty_string', 2],
   ['an empty quoted subgraph title', 'flowchart LR\n  subgraph ""\n    B\n  end', '>B<', 'flowchart_empty_string', 2],
+  // Its pipe label needs text, a blank at least.
+  ['an empty pipe label', 'flowchart LR\n  A -->|| B', '>B<', 'flowchart_empty_pipe_label', 2],
+  ['an empty pipe label on an open link', 'flowchart LR\n  A ---|| B', '>B<', 'flowchart_empty_pipe_label', 2],
+  ['an empty pipe label on a dotted link', 'flowchart LR\n  A -.->|| B', '>B<', 'flowchart_empty_pipe_label', 2],
+  ['an empty pipe label on a thick link, glued to its nodes', 'flowchart LR\n  A==>||B', '>B<', 'flowchart_empty_pipe_label', 2],
+  ['an empty pipe label after a blank, on a named link', 'flowchart LR\n  A e1@--> || B', 'data-id="e1"', 'flowchart_empty_pipe_label', 2],
   // Mermaid reads a run without blanks or `"` from a node's start to an `@`
   // as an edge id.
   ['an `@` the node text runs on to', 'flowchart LR\n  A[a@b.com]', '>a@b.com<', 'flowchart_node_edge_id', 2],
@@ -453,6 +459,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
   ['flowchart', 'a `&` list with a blank on each side, and a lone `&` node', 'flowchart LR\n  A & B --> C & &\n  D &\tE'],
+  ['flowchart', 'blanks between the pipes of a label', 'flowchart LR\n  A -->| | B ==>|\t| C'],
   // The render path decodes `&quot;` before it reads the lines, so the
   // label begins with a `"` that no later line closes.
   ['flowchart', 'labels beginning with an entity quote that run across lines', 'flowchart LR\n  A[&quot;x\n  y] --> B\n  subgraph S[&quot;t\n  u]\n    C\n  end'],
