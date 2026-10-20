@@ -5,7 +5,7 @@ import type { DocumentMark, SceneDoc, ShapeMark } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { admitSceneDocument, freezeBoundedFirstPartyData, snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } from '../scene/external-data-snapshot.ts'
 import {
-  measureSvgEmission, serializeSvgEmission, snapshotSvgEmissionRecipe,
+  measureSvgEmission, serializeSvgEmission, snapshotSvgEmissionRecipe, validateSvgEmissionRecipe,
   SVG_EMISSION_METADATA_LIMITS, svgEmissionMetadataCounts, svgValue as v,
   snapshotSvgGroupMetadata, attachSvgGroupMetadata, svgGroupMetadataCounts,
   type SvgEmissionRecipe,
@@ -309,6 +309,33 @@ describe('private typed SVG recipes', () => {
     const cycle: unknown[] = []
     cycle.push(cycle)
     expect(() => snapshotSvgEmissionRecipe({ kind: 'sequence', children: cycle } as SvgEmissionRecipe)).toThrow(/cycles/)
+  })
+
+  test('capture preserves copied numeric-key error order while direct validation observes caller keys', () => {
+    const source = new Proxy({ kind: 'close', zeta: true, 10: true, 2: true }, {
+      ownKeys() { return ['zeta', '10', '2', 'kind'] },
+      get() { throw new Error('caller property read') },
+    }) as unknown as SvgEmissionRecipe
+    // Copying into an ordinary record orders integer keys before other keys.
+    expect(() => snapshotSvgEmissionRecipe(source)).toThrow('Unknown SVG recipe field 2')
+    // Direct validation retains the caller-facing ownKeys order instead.
+    expect(() => validateSvgEmissionRecipe(source)).toThrow('Unknown SVG recipe field zeta')
+  })
+
+  test('direct validation retains repeated own-key and accessor observations', () => {
+    let enumerations = 0
+    const changing = new Proxy({ kind: 'close' }, {
+      ownKeys() { return ++enumerations === 1 ? ['kind'] : ['kind', 'late'] },
+    }) as unknown as SvgEmissionRecipe
+    expect(() => validateSvgEmissionRecipe(changing)).toThrow('Unknown SVG recipe field late')
+    expect(enumerations).toBe(2)
+
+    let reads = 0
+    const accessor = { kind: 'primitive', get attributes() { reads++; return [] } } as SvgEmissionRecipe
+    expect(() => validateSvgEmissionRecipe(accessor)).not.toThrow()
+    expect(reads).toBe(1)
+    expect(() => snapshotSvgEmissionRecipe(accessor)).toThrow('enumerable data properties')
+    expect(reads).toBe(1)
   })
 
   test('a Proxy of owned metadata cannot execute caller reads', () => {
