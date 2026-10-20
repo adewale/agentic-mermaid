@@ -105,6 +105,10 @@ function typedIdentity(fields: { id: string; role: SceneRole; identity?: Omit<Sv
 import { attachSvgGroupMetadata, snapshotSvgGroupMetadata, projectSvgCoordinate, snapshotSvgEmissionRecipe, SVG_EMISSION_METADATA_LIMITS, type SvgEmissionRecipe, type SvgGroupEmission, type SvgGroupMetadata } from './svg-emission.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { decorateEmission, emissionAttribute, emissionIdentity, firstEmission } from './svg-mark-emission.ts'
+import { classConstructionOpeningLimit, originalConstructionNode } from './construction-operands.ts'
+import { publicConstructionOperandsRequired } from './lowering-invocation.ts'
+import { SvgWriter } from './svg-writer.ts'
+import { writeSvgGroupOpen } from './svg-emission.ts'
 
 export function shape(fields: {
   id: string
@@ -941,6 +945,7 @@ export function group(fields: {
 }): GroupMark {
   if (fields.emission) {
     const recipe = snapshotSvgEmissionRecipe(fields.emission) as SvgGroupEmission
+    const openingLimit = publicConstructionOperandsRequired() ? classConstructionOpeningLimit(fields.emission, recipe, fields.id) : undefined
     const metadataDescriptor = Object.getOwnPropertyDescriptor(fields, 'emissionMetadata')
     const identityDescriptor = Object.getOwnPropertyDescriptor(fields, 'identity')
     if (metadataDescriptor && !('value' in metadataDescriptor) || identityDescriptor && !('value' in identityDescriptor)) throw new TypeError('Typed group inputs require data properties')
@@ -968,7 +973,16 @@ export function group(fields: {
       ...(fields.visibility ? { visibility: fields.visibility } : {}), ...(fields.transform ? { transform: fields.transform } : {}) }
     if (metadata) attachSvgGroupMetadata(node, metadata)
     const decorated = decorateEmission(recipe, node) as SvgGroupEmission
-    return attachGroupEmissionViews(attachSceneNodeEmission(node, decorated), decorated)
+    attachSceneNodeEmission(node, decorated)
+    if (openingLimit !== undefined) {
+      const writer = new SvgWriter({ maxBytes: openingLimit })
+      writeSvgGroupOpen(originalConstructionNode(node), decorated, writer)
+      const open = writer.finish()
+      node.open = open
+      node.close = '</g>'
+      return node
+    }
+    return attachGroupEmissionViews(node, decorated)
   }
   if (Object.hasOwn(fields, 'identity') || Object.hasOwn(fields, 'emissionMetadata')) throw new TypeError('Group identity and emission metadata require a typed program')
   if (typeof fields.open !== 'string' || typeof fields.close !== 'string') throw new TypeError('Group requires open/close strings or typed emission')

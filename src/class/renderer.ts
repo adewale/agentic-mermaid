@@ -20,20 +20,9 @@ import { classInterfaceMarker } from './interface-occurrences.ts'
 import { CLASS_STYLE_DEFAULTS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts';
 import { classRelationshipLineStyle } from './parser.ts'
 import { decodeClassText, memberToString } from './text.ts'
-
-
-
-
-
-
-
 import { capturedMarkAttributes } from '../scene/svg-mark-emission.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgTextEmission } from '../scene/svg-emission.ts'
-
-
-
-
-
+import { classConstructionGroup } from '../scene/construction-operands.ts'
 
 // ============================================================================
 // Class diagram SVG renderer
@@ -280,8 +269,8 @@ function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescri
  */
 function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderStyle): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const emission = { kind: 'group' as const, attributes: [attr('class', v.meta('namespace')), attr('data-id', v.meta(ns.id)),
-    { ...attr('data-label', v.meta(ns.label)), display: true }, ...(ns.parentId ? [attr('data-parent-id', v.meta(ns.parentId))] : [])] }
+  const emission = classConstructionGroup('namespace', { kind: 'group' as const, attributes: [attr('class', v.meta('namespace')), attr('data-id', v.meta(ns.id)),
+    { ...attr('data-label', v.meta(ns.label)), display: true }, ...(ns.parentId ? [attr('data-parent-id', v.meta(ns.parentId))] : [])] })
 
   // Outer rectangle
   const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
@@ -372,10 +361,10 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   const dataClass = cls.className ? [attr('data-class', v.meta(cls.className))] : []
   const interaction = includeInteraction && cls.href
     ? [attr('data-href', v.meta(cls.href)), attr('role', v.meta('link')), attr('tabindex', v.meta('0'))] : []
-  const emission = { kind: 'group' as const, attributes: [
+  const emission = classConstructionGroup('box', { kind: 'group' as const, attributes: [
     attr('class', v.meta(`class-node${className}`)), attr('data-id', v.meta(cls.id)),
     { ...attr('data-label', v.meta(cls.label)), display: true }, ...annotation, ...dataClass, ...interaction,
-  ] }
+  ] })
 
   if (includeInteraction && cls.href && cls.tooltip !== undefined) {
     children.push({
@@ -555,7 +544,9 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   // only when a later caller observation actually changed that slice.
   for (const part of spans) if (part.text === plain.slice(part.start, part.end)) delete part.text
   const highlighted = highlightRuns(block, nativeSpans)
-  const emissionSpans = highlighted.spans ? spans : undefined
+  // Lexical construction observations remain authoritative for fidelity
+  // checking even when they no longer spell the prepared semantic block.
+  const emissionSpans = canHighlightBlock(block) ? spans : undefined
   const key = JSON.stringify([profile, emissionSpans])
   let emission = memberEmissions.get(key)
   if (!emission) {
@@ -599,8 +590,8 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
   }, { kind: 'text', layout: 'multiline', attributes: [attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')), attr('fill', v.paint('fill'))] }), indent: 2 })
   return marks.group({
     id: `class-note:${index}`, role: 'note',
-    emission: { kind: 'group', attributes: [attr('class', v.meta('class-note')), attr('data-note-index', v.meta(index)),
-      ...(note.for ? [attr('data-for', v.meta(note.for))] : [])] }, children,
+    emission: classConstructionGroup('note', { kind: 'group', attributes: [attr('class', v.meta('class-note')), attr('data-note-index', v.meta(index)),
+      ...(note.for ? [attr('data-for', v.meta(note.for))] : [])] }), children,
   })
 }
 
@@ -905,8 +896,10 @@ function cardinalityOffset(from: { x: number; y: number }, to: { x: number; y: n
 // ============================================================================
 
 type HighlightRun = NonNullable<TextMark['spans']>[number]
-function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): Pick<TextMark, 'spans'> {
+function canHighlightBlock(block: PixelTextBlock): boolean {
   const line = block.lineBlocks.length === 1 ? block.lineBlocks[0]! : undefined
-  const plain = !!line && !line.fragments && block.letterSpacing === 0 && /^[\x20-\x7e]*$/.test(block.text) && line.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough) && spans.map(span => span.text).join('') === block.text
-  return plain ? { spans } : {}
+  return !!line && !line.fragments && block.letterSpacing === 0 && /^[\x20-\x7e]*$/.test(block.text) && line.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough)
+}
+function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): Pick<TextMark, 'spans'> {
+  return canHighlightBlock(block) && spans.map(span => span.text).join('') === block.text ? { spans } : {}
 }

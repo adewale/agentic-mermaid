@@ -1,20 +1,18 @@
 import { connectorInlineLabelText } from './bounds.ts'
-import type { DisplayRun } from '../shared/display-text.ts'
 import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
-import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import type { TextMark } from './ir.ts'
-import { projectSvgCoordinate, writeSvgAttributes, type SvgTextEmission } from './svg-emission.ts'
+import { projectSvgCoordinate, writeSvgAttributes, type SvgTextEmission, type SvgTextNode, type SvgTextBlock, type SvgTextRun } from './svg-emission.ts'
 import type { SvgWriter } from './svg-writer.ts'
 import { writeSvgTextWhitespace } from './svg-text-whitespace.ts'
 
-function writeRunAttributes(run: DisplayRun, weight: number, writer: SvgWriter): void {
+function writeRunAttributes(run: SvgTextRun, weight: number, writer: SvgWriter): void {
   if (run.bold) writer.attribute('font-weight', weight > 700 ? String(weight) : 'bold')
   if (run.italic) writer.attribute('font-style', 'italic')
   if (run.underline || run.strikethrough) writer.attribute('text-decoration', `${run.underline ? 'underline' : ''}${run.underline && run.strikethrough ? ' ' : ''}${run.strikethrough ? 'line-through' : ''}`)
 }
 
-function writeRuns(runs: readonly DisplayRun[], weight: number, writer: SvgWriter): void {
+function writeRuns(runs: readonly SvgTextRun[], weight: number, writer: SvgWriter): void {
   for (const run of runs) {
     const decorated = run.bold || run.italic || run.underline || run.strikethrough
     if (decorated) {
@@ -27,7 +25,7 @@ function writeRuns(runs: readonly DisplayRun[], weight: number, writer: SvgWrite
   }
 }
 
-function writePreparedLine(block: PixelTextBlock, index: number, x: number, anchor: TextMark['anchor'], writer: SvgWriter, baseline?: number): void {
+function writePreparedLine(block: SvgTextBlock, index: number, x: number, anchor: TextMark['anchor'], writer: SvgWriter, baseline?: number): void {
   const line = block.lineBlocks[index]!
   const native = line.runs.some(run => /[^\x20-\x7e]/u.test(run.text))
   if (native) {
@@ -62,7 +60,7 @@ function writePreparedLine(block: PixelTextBlock, index: number, x: number, anch
 
 /** The typed text writer consumes the exact layout-retained run allocations.
  * It never recovers text, typography or placement from historical SVG. */
-export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: SvgWriter): void {
+export function writeSceneText(node: SvgTextNode, recipe: SvgTextEmission, writer: SvgWriter): void {
   const block = node.measurement === 'prepared' ? node.block : undefined
   if (recipe.spans) {
     let end = 0
@@ -167,7 +165,7 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
 
 /** Inline labels belong to their typed connector, rather than a retained
  * second SVG subtree. The temporary text view does not escape this call. */
-export function writeConnectorLabels(node: import('./ir.ts').SceneNode, writer: SvgWriter): void {
+export function writeConnectorLabels(node: import('./svg-emission.ts').SvgEmissionNode, writer: SvgWriter): void {
   if (node.kind !== 'connector') throw new TypeError('Expected a typed connector')
   for (const [index, label] of node.labels.entries()) {
     if (label.visual?.kind !== 'inline') continue

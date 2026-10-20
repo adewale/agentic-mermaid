@@ -6,7 +6,7 @@ import { requireSafeCssPaint } from '../shared/css-color.ts'
  * never a second copy of mark geometry, text, or paint. No markup or executable
  * value can enter this vocabulary. Public Scene contracts stay in ir.ts. */
 import type { DiagramColors } from '../theme.ts'
-import type { Geometry, MarkPaint, SceneNode, SemanticChannelName, TextMark, DocumentMark } from './ir.ts'
+import type { Geometry, MarkPaint, SceneNode, SemanticChannelName, TextMark, DocumentMark, GroupMark } from './ir.ts'
 import { SEMANTIC_CHANNEL_NAMES } from './ir.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { serializeTransform } from './transforms.ts'
@@ -15,6 +15,34 @@ import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { serializeLinearGradientResources } from './gradient-resources.ts'
 import { serializeMarkerResources } from './marker-resources.ts'
 import { SvgWriter, type SvgWriterOptions, type SvgAttributeEscape } from './svg-writer.ts'
+
+/** The shared writer needs emission allocations, not source interpretation or
+ * cluster provenance. Full public TextMarks structurally satisfy this type. */
+export interface SvgTextRun {
+  readonly text: string
+  readonly bold?: boolean
+  readonly italic?: boolean
+  readonly underline?: boolean
+  readonly strikethrough?: boolean
+}
+export interface SvgTextBlock {
+  readonly prepared: { readonly source: string; readonly display: NonNullable<TextMark['display']> }
+  readonly width: number
+  readonly height: number
+  readonly lineHeight: number
+  readonly fontWeight: number
+  readonly letterSpacing: number
+  readonly lines: readonly string[]
+  readonly lineBlocks: readonly {
+    readonly runs: readonly SvgTextRun[]
+    readonly width: number
+    readonly originX: number
+    readonly fragments?: readonly { readonly runIndex: number; readonly text: string; readonly x: number; readonly width: number }[]
+  }[]
+}
+export type SvgTextNode = Omit<TextMark, 'block'> & { readonly block?: SvgTextBlock }
+export type SvgEmissionNode = Exclude<SceneNode, TextMark | GroupMark> | SvgTextNode |
+  (Omit<GroupMark, 'children'> & { readonly children: readonly { readonly node: SvgEmissionNode; readonly indent: number }[] })
 
 export type SvgNumberFormat = 'exact' | 'round2' | 'round3' | 'percent1'
 export type SvgGeometryField = 'x' | 'y' | 'width' | 'height' | 'rx' | 'ry' | 'cx' | 'cy' | 'r' | 'x1' | 'y1' | 'x2' | 'y2' | 'd' | 'points'
@@ -202,11 +230,11 @@ export const svgValue = Object.freeze({
 /** Engine functions, not recipe data. Callers are the shared backend and typed
  * theme/text implementations, never a family-supplied recipe callback. */
 export interface SvgEmissionContext {
-  readonly writeChild?: (node: SceneNode, writer: SvgWriter) => void
-  readonly writeText?: (node: TextMark, recipe: SvgTextEmission, writer: SvgWriter) => void
+  readonly writeChild?: (node: SvgEmissionNode, writer: SvgWriter) => void
+  readonly writeText?: (node: SvgTextNode, recipe: SvgTextEmission, writer: SvgWriter) => void
   readonly writePrelude?: (node: DocumentMark, recipe: SvgPreludeEmission, writer: SvgWriter) => void
   readonly writeShadow?: (recipe: SvgShadowEmission, writer: SvgWriter) => void
-  readonly writeConnectorLabels?: (node: SceneNode, writer: SvgWriter) => void
+  readonly writeConnectorLabels?: (node: SvgEmissionNode, writer: SvgWriter) => void
 }
 
 const GEOMETRY_NAMES = new Set<string>(['x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'd', 'points'])
@@ -220,7 +248,7 @@ const ATTRIBUTE_NAMES = new Set<string>([
   'aria-label', 'aria-labelledby', 'aria-describedby', 'aria-roledescription', 'aria-hidden',
 ])
 
-function geometryOf(node: SceneNode, piece?: number): Exclude<Geometry, { kind: 'compound' }> {
+function geometryOf(node: SvgEmissionNode, piece?: number): Exclude<Geometry, { kind: 'compound' }> {
   if (piece !== undefined && (!Number.isSafeInteger(piece) || piece < 0)) throw new TypeError('SVG geometry piece must be a non-negative safe integer')
   const geometry = node.kind === 'shape' ? node.geometry : node.kind === 'connector' ? node.route.geometry : undefined
   if (!geometry) throw new TypeError(`Scene ${node.id} has no primitive geometry`)
@@ -246,7 +274,7 @@ function numberString(value: number, format: SvgNumberFormat | undefined): strin
 }
 
 /** Resolve only declared semantic fields; no caller-selected property paths. */
-export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgPrimitiveEmission, format?: SvgNumberFormat): string | number | boolean | undefined {
+export function svgEmissionValue(node: SvgEmissionNode, value: SvgValue, recipe?: SvgPrimitiveEmission, format?: SvgNumberFormat): string | number | boolean | undefined {
   switch (value.source) {
     case 'geometry': {
       if (!GEOMETRY_NAMES.has(value.field)) throw new TypeError(`Unsupported SVG geometry field ${value.field}`)
@@ -346,7 +374,7 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
 
 /** One lexical value policy for emitted attributes and typed style adapters.
  * XML escaping belongs to SvgWriter; absence is distinct from an empty value. */
-export function resolveSvgAttributeValue(node: SceneNode, attribute: SvgAttribute, recipe?: SvgPrimitiveEmission): string | undefined {
+export function resolveSvgAttributeValue(node: SvgEmissionNode, attribute: SvgAttribute, recipe?: SvgPrimitiveEmission): string | undefined {
   let value = svgEmissionValue(node, attribute.value, recipe, attribute.format) ?? attribute.fallback
   if (value === undefined || attribute.omit === 'zero' && (value === 0 || value === '0') || attribute.omit === 'false' && value === false || attribute.omit === 'empty' && value === '') return undefined
   if (typeof value === 'number') value = numberString(value, attribute.format)
@@ -354,7 +382,7 @@ export function resolveSvgAttributeValue(node: SceneNode, attribute: SvgAttribut
   return attribute.display ? sanitizeDisplayLines(text) : text
 }
 
-export function writeSvgAttributes(node: SceneNode, attributes: readonly SvgAttribute[], writer: SvgWriter, recipe?: SvgPrimitiveEmission): void {
+export function writeSvgAttributes(node: SvgEmissionNode, attributes: readonly SvgAttribute[], writer: SvgWriter, recipe?: SvgPrimitiveEmission): void {
   if (attributes.length > 256) throw new RangeError('SVG elements may declare at most 256 attributes')
   for (const attribute of attributes) {
     if (!ATTRIBUTE_NAMES.has(attribute.name) && !/^data-[a-zA-Z0-9_.:-]+$/.test(attribute.name)) throw new TypeError(`Unsupported SVG attribute ${attribute.name}`)
@@ -374,7 +402,7 @@ export function writeSvgAttributes(node: SceneNode, attributes: readonly SvgAttr
   }
 }
 
-function writeDocumentText(node: SceneNode, recipe: SvgDocumentTextEmission, writer: SvgWriter): void {
+function writeDocumentText(node: SvgEmissionNode, recipe: SvgDocumentTextEmission, writer: SvgWriter): void {
   if (recipe.element !== 'title' && recipe.element !== 'desc') throw new TypeError('Unsupported SVG document text element')
   writer.write(`<${recipe.element}`)
   const domId = recipe.domId ?? (node.kind === 'document' ? node.domId : undefined)
@@ -389,7 +417,7 @@ function separator(value: '' | '\n' | undefined, defaultValue: '' | '\n' = '\n')
   return value ?? defaultValue
 }
 
-export function writeSvgGroupOpen(node: SceneNode, recipe: SvgGroupEmission, writer: SvgWriter): void {
+export function writeSvgGroupOpen(node: SvgEmissionNode, recipe: SvgGroupEmission, writer: SvgWriter): void {
   if (recipe.leadingWhitespace) writer.write(recipe.leadingWhitespace)
   writer.write('<g')
   writeSvgAttributes(node, recipe.attributes, writer)
@@ -397,7 +425,7 @@ export function writeSvgGroupOpen(node: SceneNode, recipe: SvgGroupEmission, wri
   for (const prefix of recipe.prefix ?? []) writeDocumentText(node, prefix, writer)
 }
 
-export function writeSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe, writer: SvgWriter, context: SvgEmissionContext = {}, depth = 0): void {
+export function writeSvgEmission(node: SvgEmissionNode, recipe: SvgEmissionRecipe, writer: SvgWriter, context: SvgEmissionContext = {}, depth = 0): void {
   if (depth > 64) throw new RangeError('SVG emission nesting exceeds 64')
   switch (recipe.kind) {
     case 'primitive': {
@@ -466,7 +494,7 @@ export function writeSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe, wri
   }
 }
 
-export function serializeSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe, context: SvgEmissionContext = {}, options: SvgWriterOptions = {}): string {
+export function serializeSvgEmission(node: SvgEmissionNode, recipe: SvgEmissionRecipe, context: SvgEmissionContext = {}, options: SvgWriterOptions = {}): string {
   const writer = new SvgWriter(options)
   writeSvgEmission(node, recipe, writer, context)
   return writer.finish()
@@ -474,7 +502,7 @@ export function serializeSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe,
 
 /** Exact dry-run, sharing every escaping/number/indent branch with output. It
  * retains no whole-node string, including when the output is close to a cap. */
-export function measureSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe, context: SvgEmissionContext = {}, maxBytes = 5_000_000): number {
+export function measureSvgEmission(node: SvgEmissionNode, recipe: SvgEmissionRecipe, context: SvgEmissionContext = {}, maxBytes = 5_000_000): number {
   const writer = new SvgWriter({ mode: 'count', maxBytes })
   writeSvgEmission(node, recipe, writer, context)
   return writer.bytes

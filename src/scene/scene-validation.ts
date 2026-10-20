@@ -44,19 +44,11 @@ import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
 import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS, SvgByteLimitError } from './svg-writer.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeEmission, sceneNodeSerializationBytes } from './serialization.ts'
+import { hasConstructionOperands } from './construction-operands.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene-limits.ts'
+export { SCENE_VALIDATION_LIMITS } from './scene-limits.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
-export const SCENE_VALIDATION_LIMITS = Object.freeze({
-  maxExtent: 1_000_000,
-  maxNodes: 100_000,
-  maxDepth: 64,
-  maxTextLength: 1_000_000,
-  maxTextBytes: 2_000_000,
-  maxPoints: 50_000,
-  maxSerializationBytesPerNode: 5_000_000,
-  maxAggregateSerializationBytes: 16_000_000,
-  maxFinalSvgBytes: 8_000_000,
-} as const)
 
 export type SceneValidationDiagnosticCode =
   | 'SCENE_DOCUMENT'
@@ -769,7 +761,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     // Native marks previously reached the same cap after producing their string.
     // Preserve that diagnostic when the shared writer now stops construction.
     const oversizedNative = error instanceof SvgByteLimitError && error.maxBytes === MAX_SERIALIZATION_BYTES_PER_NODE
-      && !sceneNodeEmission(value)
+      && (hasConstructionOperands(value) || !sceneNodeEmission(value))
     add(state.diagnostics, 'SCENE_DOCUMENT', path, oversizedNative ? 'has an oversized SVG serialization' : error instanceof Error ? error.message : String(error))
   }
   if (state.external && serialized !== undefined) {

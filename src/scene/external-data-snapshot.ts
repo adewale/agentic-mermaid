@@ -9,7 +9,8 @@
 
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc, GroupMark } from './ir.ts'
-import { SCENE_VALIDATION_LIMITS, assertAdmissibleSceneDoc, sceneValidationMode } from './scene-validation.ts'
+import { assertAdmissibleSceneDoc, sceneValidationMode } from './scene-validation.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene-limits.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
 import { svgEmissionMetadataCounts, svgGroupMetadata, svgGroupMetadataCounts, type SvgEmissionMetadataCounts, type SvgGroupEmission } from './svg-emission.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
@@ -17,6 +18,7 @@ import { transferSceneNodeSerialization, sceneNodeEmission, attachGroupEmissionV
 import { measureRenderStage } from '../render-stages.ts'
 import { deferredTerminalProjectionInput, materializeOwnTerminalProjection, reserveDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import type { ConnectorTerminalProjectionInput } from './connector-terminal.ts'
+import { accountConstructionOperands } from './construction-operands.ts'
 
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
@@ -66,7 +68,7 @@ export const EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS: ExternalDataSnapshotLimits
  * Scene data. Shared templates are charged once, just as shared frozen data. */
 function privateMetadataAccounting(limits: ExternalDataSnapshotLimits) {
   const seen = new WeakSet<object>()
-  return (candidate: object, depth: number, consume: (counts: SvgEmissionMetadataCounts) => void): void => {
+  const basic = (candidate: object, depth: number, consume: (counts: SvgEmissionMetadataCounts) => void): void => {
     const recipe = sceneNodeEmission(candidate)
     if (recipe && !seen.has(recipe)) {
       seen.add(recipe)
@@ -85,6 +87,10 @@ function privateMetadataAccounting(limits: ExternalDataSnapshotLimits) {
       if (key.length > limits.maxPropertyKeyBytes) throw new Error('Private SVG group metadata contains an oversized property key')
     }
     consume(counts)
+  }
+  return (candidate: object, depth: number, consume: (counts: SvgEmissionMetadataCounts) => void): void => {
+    basic(candidate, depth, consume)
+    accountConstructionOperands(candidate, depth, seen, limits, consume, (value, at) => basic(value, at, consume))
   }
 }
 

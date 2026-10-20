@@ -38,7 +38,7 @@ import { ensureSvgIdentity } from './identity.ts'
 import { sceneRoleTraits } from './roles.ts'
 import { graphicalBackendCapabilityClaims } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
-import { sceneNodeEmission, sceneNodeSerialization } from './serialization.ts'
+import { sceneNodeEmission, sceneNodeSerialization, sceneNodeCrispOperands } from './serialization.ts'
 import { resolveSvgAttributeValue, serializeSvgEmission, SVG_EMISSION_METADATA_LIMITS, type SvgEmissionRecipe, type SvgPrimitiveEmission } from './svg-emission.ts'
 import { SvgWriter } from './svg-writer.ts'
 import { escapeAttr } from '../multiline-utils.ts'
@@ -345,7 +345,7 @@ function typedShapePaintAttribute(node: ShapeMark, recipe: SvgPrimitiveEmission,
   let result: string | undefined
   for (const attribute of recipe.attributes) {
     if (attribute.name !== name) continue
-    const value = resolveSvgAttributeValue(node, attribute, recipe)
+    const value = resolveSvgAttributeValue(sceneNodeCrispOperands(node), attribute, recipe)
     if (value === undefined) continue
     if (/[&<>"'\t\n\r]/.test(value)) {
       const writer = new SvgWriter()
@@ -386,14 +386,14 @@ function sketchTypedShape(node: ShapeMark, walk: Walk, recipe: SvgEmissionRecipe
           continue
         }
       }
-      out.push(serializeSvgEmission(node, piece))
+      out.push(serializeSvgEmission(sceneNodeCrispOperands(node), piece))
       continue
     }
     const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
     const sketched = sketchGeometryVia(walk, geom, seed, stroke!, width, wantFill, dash, undefined, opacity)
-    if (!sketched) { out.push(serializeSvgEmission(node, piece)); continue }
+    if (!sketched) { out.push(serializeSvgEmission(sceneNodeCrispOperands(node), piece)); continue }
     if (hasFill && p.fill === 'none' && !isBoxFill(fill!)) {
-      out.push(suppressStroke(serializeSvgEmission(node, piece), geom.kind))
+      out.push(suppressStroke(serializeSvgEmission(sceneNodeCrispOperands(node), piece), geom.kind))
     }
     out.push(transformedStyledGeometry(sketched, node.transform))
   }

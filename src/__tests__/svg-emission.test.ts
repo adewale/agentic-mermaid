@@ -17,6 +17,9 @@ import { SceneValidationError } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { lowerGraphScene } from '../renderer.ts'
+import { captureConstructionOperands, constructionOperands, originalConstructionNode, classConstructionOpeningLimit } from '../scene/construction-operands.ts'
+import { writeSceneText } from '../scene/svg-text-emission.ts'
+import { transferSceneNodeSerialization } from '../scene/serialization.ts'
 
 describe('bounded SVG writer', () => {
   test.each(['string', 'chunks', 'count'] as const)('counts joined UTF-8 across arbitrary chunk boundaries in %s mode', mode => {
@@ -82,6 +85,111 @@ const rectangle = (): ShapeMark => ({
   kind: 'shape', id: 'bar', role: 'bar',
   geometry: { kind: 'rect', x: 1.25, y: 2, width: 3, height: 4 },
   paint: { fill: '#abc' }, identity: { id: 'A&B', role: 'bar' },
+})
+
+describe('private original construction operands', () => {
+  test('copies bounded operands without freezing callers and transfers the original binding', () => {
+    const mark = rectangle()
+    const retained = captureConstructionOperands(mark)
+    mark.paint.fill = '#123456'
+    if (mark.geometry.kind !== 'rect') throw new Error('Expected rectangle')
+    mark.geometry.x = 9
+    const copied = { ...mark }
+    transferSceneNodeSerialization(mark, copied)
+    expect(constructionOperands(copied)).toBe(retained)
+    const projected = originalConstructionNode(copied)
+    expect(projected.kind === 'shape' && projected.paint.fill).toBe('#abc')
+    expect(projected.kind === 'shape' && projected.geometry.kind === 'rect' && projected.geometry.x).toBe(1.25)
+    expect(Object.isFrozen(retained)).toBe(true)
+    expect(Object.isFrozen(mark.paint)).toBe(false)
+    expect(Object.isFrozen(mark.geometry)).toBe(false)
+    expect(Object.getPrototypeOf(retained)).toBe(Array.prototype)
+  })
+
+  test.each(['descriptor copy', 'first-party freeze'] as const)('charges hidden original text through %s admission', boundary => {
+    const mark = rectangle()
+    mark.paint.fill = `var(--${'a'.repeat(2048)})`
+    captureConstructionOperands(mark)
+    mark.paint.fill = 'none'
+    const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 1024 }
+    const admit = boundary === 'descriptor copy' ? snapshotBoundedExternalData : freezeBoundedFirstPartyData
+    expect(() => admit(mark, limits)).toThrow('Private SVG emission metadata exceeds the aggregate Scene data limits')
+    expect(mark.paint.fill).toBe('none')
+    expect(Object.isFrozen(mark.paint)).toBe(false)
+  })
+
+  test.each(['descriptor copy', 'first-party freeze'] as const)('checks hidden object depth at the later alias through %s admission', boundary => {
+    const mark = rectangle()
+    captureConstructionOperands(mark)
+    // The early tuple graph fits depth3; the same hidden tuple reached
+    // through later.nested exceeds it. An earlier alias cannot certify that.
+    const input = { early: mark, later: { nested: mark } }
+    const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxDepth: 3 }
+    const admit = boundary === 'descriptor copy' ? snapshotBoundedExternalData : freezeBoundedFirstPartyData
+    expect(() => admit(input, limits)).toThrow('Construction operands exceed the enclosing Scene depth limit')
+    expect(Object.isFrozen(mark)).toBe(boundary === 'first-party freeze')
+  })
+
+  test.each(['descriptor copy', 'first-party freeze'] as const)('charges every compact tuple entry through %s admission', boundary => {
+    const mark = rectangle()
+    captureConstructionOperands(mark)
+    const admit = boundary === 'descriptor copy' ? snapshotBoundedExternalData : freezeBoundedFirstPartyData
+    // Shape/root6 + distinct identity4 + rect5 + fill1 =16.
+    expect(() => admit(mark, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxAggregateArrayEntries: 15 })).toThrow('Private SVG emission metadata exceeds the aggregate Scene data limits')
+    expect(() => admit(mark, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxAggregateArrayEntries: 16 })).not.toThrow()
+  })
+
+  test('compact text retains original literal Unicode source after public mutation', () => {
+    const source = '<b>e\u0301\ud800 &</b>'
+    const block = preparePixelText(source, { display: 'literal', fontSize: 12, fontWeight: 400 })
+    const mark = marks.text({ id: 'original', role: 'label', text: source, x: 1, y: 2, fontSize: 12,
+      anchor: 'middle', paint: { fill: '#123' }, block }, { kind: 'text', layout: 'direct', content: 'source', attributes: [] })
+    captureConstructionOperands(mark)
+    mark.text = 'changed'
+    mark.block = preparePixelText('changed', { display: 'literal', fontSize: 12, fontWeight: 400 })
+    const view = originalConstructionNode(mark)
+    expect(serializeSvgEmission(view, { kind: 'text', layout: 'direct', content: 'source', attributes: [] }, { writeText: writeSceneText }))
+      .toBe('<text>&lt;b&gt;e\u0301\ud800 &amp;&lt;/b&gt;</text>')
+    expect(Object.isFrozen(mark)).toBe(false)
+  })
+
+  test('transient original operands never read inherited identity or fragment records', () => {
+    const shape = rectangle()
+    delete shape.identity
+    captureConstructionOperands(shape)
+    const mark = marks.text({ id: 'plain', role: 'label', text: 'A', x: 1, y: 2, fontSize: 12,
+      anchor: 'middle', paint: { fill: '#123' }, block: preparePixelText('A', { display: 'literal', fontSize: 12, fontWeight: 400 }) },
+    { kind: 'text', layout: 'multiline', attributes: [] })
+    captureConstructionOperands(mark)
+    const savedIdentity = Object.getOwnPropertyDescriptor(Object.prototype, 'identity')
+    const savedFragments = Object.getOwnPropertyDescriptor(Object.prototype, 'fragments')
+    const reads: string[] = []
+    let shapeIdentity: unknown, svg = ''
+    try {
+      Object.defineProperty(Object.prototype, 'identity', { configurable: true, get() { reads.push('identity'); throw new Error('inherited identity must not run') } })
+      Object.defineProperty(Object.prototype, 'fragments', { configurable: true, get() { reads.push('fragments'); throw new Error('inherited fragments must not run') } })
+      shapeIdentity = originalConstructionNode(shape).identity
+      svg = serializeSvgEmission(originalConstructionNode(mark), { kind: 'text', layout: 'multiline', attributes: [] }, { writeText: writeSceneText })
+    } finally {
+      if (savedIdentity) Object.defineProperty(Object.prototype, 'identity', savedIdentity)
+      else Reflect.deleteProperty(Object.prototype, 'identity')
+      if (savedFragments) Object.defineProperty(Object.prototype, 'fragments', savedFragments)
+      else Reflect.deleteProperty(Object.prototype, 'fragments')
+    }
+    expect(reads).toEqual([])
+    expect(shapeIdentity).toBeUndefined()
+    expect(svg).toStartWith('<text x="1" y="2" data-prepared-text="true" dy="4.199999999999999" textLength="')
+    expect(svg).toEndWith(' lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>')
+  })
+
+  test('does not give an arbitrary Group recipe the public Class opening allowance', () => {
+    const recipe = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
+      { name: 'class', value: v.meta('class-node') }, { name: 'data-id', value: v.meta('A') },
+      { name: 'data-label', value: v.meta('A'), display: true },
+    ] })
+    if (recipe.kind !== 'group') throw new Error('Expected group recipe')
+    expect(() => classConstructionOpeningLimit(recipe, recipe, 'class:A')).toThrow('Public Class Group requires its closed construction program')
+  })
 })
 
 describe('private typed SVG recipes', () => {

@@ -4,11 +4,13 @@ import {
   serializeSvgEmission, snapshotSvgEmissionRecipe, writeSvgEmission, writeSvgGroupOpen,
   measureSvgEmission,
   transferSvgGroupMetadata,
-  type SvgEmissionRecipe, type SvgEmissionContext, type SvgGroupEmission,
+  type SvgEmissionNode, type SvgEmissionRecipe, type SvgEmissionContext, type SvgGroupEmission,
 } from './svg-emission.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, SvgWriter } from './svg-writer.ts'
 import { writeSceneText, writeConnectorLabels } from './svg-text-emission.ts'
 import { writeScenePrelude, writeSceneShadow } from './svg-document-emission.ts'
+import { captureConstructionOperands, originalConstructionNode, transferConstructionOperands, constructionOperands } from './construction-operands.ts'
+import { publicConstructionOperandsRequired } from './lowering-invocation.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
 // Construction-time markup is normalized before admission: callers cannot use
@@ -32,12 +34,20 @@ const emissionContext: SvgEmissionContext = {
 /** Private, copied and bounded emission data. No caller flag or family name
  * can manufacture membership in this ownership table. */
 export function attachSceneNodeEmission<T extends SceneNode>(node: T, recipe: SvgEmissionRecipe): T {
-  TYPED_SCENE_EMISSIONS.set(node, snapshotSvgEmissionRecipe(recipe))
+  const captured = snapshotSvgEmissionRecipe(recipe)
+  if (publicConstructionOperandsRequired()) {
+    const view = captureConstructionOperands(node)
+    TYPED_SCENE_EMISSIONS.set(view, captured)
+  }
+  TYPED_SCENE_EMISSIONS.set(node, captured)
   return node
 }
 
+/** Crisp source operands only; styled redraw still uses current semantics. */
+export function sceneNodeCrispOperands(node: SceneNode): SvgEmissionNode { return originalConstructionNode(node) }
+
 export function sceneNodeEmission(node: object): SvgEmissionRecipe | undefined {
-  return TYPED_SCENE_EMISSIONS.get(node)
+  return TYPED_SCENE_EMISSIONS.get(node) ?? TYPED_SCENE_EMISSIONS.get(constructionOperands(node) ?? node)
 }
 
 /** The compatibility strings are derived views, never retained SVG authority.
@@ -76,19 +86,19 @@ export function hasOwnedSceneEmissionView(source: object, key: string): boolean 
 }
 
 export function sceneNodeSerializationBytes(node: SceneNode, maxBytes: number): number {
-  const recipe = TYPED_SCENE_EMISSIONS.get(node)
-  if (recipe) return measureSvgEmission(node, recipe, emissionContext, maxBytes)
+  const recipe = sceneNodeEmission(node)
+  if (recipe) return measureSvgEmission(originalConstructionNode(node), recipe, emissionContext, maxBytes)
   const writer = new SvgWriter({ maxBytes, mode: 'count' })
   writeSceneNode(node, writer)
   return writer.bytes
 }
 
-export function writeSceneNode(node: SceneNode, writer: SvgWriter, context: SvgEmissionContext = emissionContext): void {
-  const recipe = TYPED_SCENE_EMISSIONS.get(node)
-  if (recipe) { writeSvgEmission(node, recipe, writer, context); return }
+export function writeSceneNode(node: SvgEmissionNode, writer: SvgWriter, context: SvgEmissionContext = emissionContext): void {
+  const recipe = sceneNodeEmission(node)
+  if (recipe) { writeSvgEmission(originalConstructionNode(node), recipe, writer, context); return }
   const stored = SERIALIZED_SCENE_NODES.get(node)
   if (stored !== undefined) { writer.write(stored); return }
-  if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
+  if (!isNativeSceneNode(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   switch (node.kind) {
     case 'shape': writer.write(writeShapeSvg(node)); return
     case 'text': writer.write(writeTextSvg(node)); return
@@ -124,7 +134,7 @@ export function sceneDocumentEmission(writer: SvgWriter): {
     },
     writeChild(node, destination) { writeNode(node, destination) },
   }
-  const writeNode = (node: SceneNode, destination = writer): void => {
+  const writeNode = (node: SvgEmissionNode, destination = writer): void => {
     if (!sceneNodeEmission(node) && !nativePreparedText(node)) textAlreadyFitted = false
     writeSceneNode(node, destination, context)
   }
@@ -232,8 +242,8 @@ export function attachSceneNodeSerialization<T extends SceneNode>(node: T, svg: 
 }
 
 export function sceneNodeSerialization(node: SceneNode): string {
-  const recipe = TYPED_SCENE_EMISSIONS.get(node)
-  if (recipe) return serializeSvgEmission(node, recipe, emissionContext)
+  const recipe = sceneNodeEmission(node)
+  if (recipe) return serializeSvgEmission(originalConstructionNode(node), recipe, emissionContext)
   const svg = SERIALIZED_SCENE_NODES.get(node)
   if (svg !== undefined) return svg
   const writer = new SvgWriter()
@@ -243,6 +253,7 @@ export function sceneNodeSerialization(node: SceneNode): string {
 
 export function transferSceneNodeSerialization(source: object, target: object): void {
   if (WRITABLE_SCENE_NODES.has(source)) WRITABLE_SCENE_NODES.add(target)
+  transferConstructionOperands(source, target)
   transferSvgGroupMetadata(source, target)
   const recipe = TYPED_SCENE_EMISSIONS.get(source)
   if (recipe) TYPED_SCENE_EMISSIONS.set(target, recipe)
@@ -261,7 +272,7 @@ export function admitWritableSceneNode<T extends SceneNode>(node: T): T {
   return node
 }
 
-function nativePreparedText(node: SceneNode): boolean {
+function nativePreparedText(node: SvgEmissionNode): boolean {
   if (node.kind === 'document') {
     const svg = SERIALIZED_SCENE_NODES.get(node)
     return svg !== undefined && !POSSIBLE_FITTED_TEXT.test(svg)
@@ -285,4 +296,9 @@ export function indentLines(value: string, spaces: number): string {
   if (spaces <= 0 || value === '') return value
   const prefix = ' '.repeat(spaces)
   return prefix + value.replace(/\n/g, `\n${prefix}`)
+}
+
+/** A construction view never acquires native writer provenance implicitly. */
+function isNativeSceneNode(node: SvgEmissionNode): node is SceneNode {
+  return WRITABLE_SCENE_NODES.has(node)
 }

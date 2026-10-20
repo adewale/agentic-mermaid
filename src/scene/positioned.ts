@@ -9,6 +9,7 @@ import { withDeferredTerminalProjections } from './deferred-terminal-projection.
 import type { SceneDoc } from './ir.ts'
 import { certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
 import { measureRenderStage } from '../render-stages.ts'
+import { invokeSceneLowering } from './lowering-invocation.ts'
 
 interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
@@ -31,7 +32,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const assertions = sceneAssertionsEnabled(request)
-  const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
+  const lower = () => invokeSceneLowering(plan.family, plan.family.lowerScene!, { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => {
     const lowered = measureRenderStage('scene-lowering', () => !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower())
     return measureRenderStage('scene-admission', () => admitFamilyScene(plan.family, lowered, sceneAssertionsEnabled(request)))
