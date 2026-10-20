@@ -1,5 +1,6 @@
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
+import { emitGraphLayoutDecision, selectElkForGraphFamily } from '../layout/backend.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { assertRequirementDiagramWork } from '../shared/diagram-limits.ts'
@@ -12,6 +13,7 @@ import type { PositionedRequirementDiagram, RequirementBody, RequirementCard } f
 
 export function layoutRequirementDiagram(model: RequirementBody, options: RenderOptions = {}, face?: Readonly<InternalStyleFace>, config: Record<string, unknown> = {}): PositionedRequirementDiagram {
   assertRequirementDiagramWork(model)
+  if (options.graphLayout) emitGraphLayoutDecision(selectElkForGraphFamily(options, 'requirement'))
   const relationship = resolveRoleStyle(face, 'relationship', {}, { includeFallback: false }),
     style = resolveRenderStyle(options, undefined, relationship ? { ...face, edge: { ...face?.edge, ...relationship } } : face),
     pad = options.padding ?? 32
