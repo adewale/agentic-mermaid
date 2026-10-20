@@ -60,12 +60,14 @@ jobs:
     name: Layout backend review evidence
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     continue-on-error: true
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -97,7 +99,33 @@ jobs:
               await Bun.write(`${directory}/${name}-${backend}.json`, JSON.stringify({ source, options: pngOptions, receipt: rendered.receipt, svgOptions: options, svgReceipt: vector.receipt, review: name === "tree-300" ? "PNG is an overview; zoom the full SVG for leaf labels and route crossings." : "Inspect labels, arrows and route clearance." }, null, 2));
             }
           '
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Build the Node package for backend measurements
+        timeout-minutes: 3
+        run: bunx --no-install tsup
+      - name: Measure the backend canary with both cache regimes
+        continue-on-error: true
+        timeout-minutes: 17
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
+        run: |
+          failed=0
+          for cache in off normal; do
+            if ! GITHUB_SHA="$HEAD_SHA" bun run eval/benchmark/release-bench.ts \
+              --candidate . --layout-modes elk,agentic --layout-cache "$cache" \
+              --rounds 3 --reps 5 --budget-ms 480000 \
+              --case 'flowchart:official-syntax/flowchart.md#82,state:official-syntax/stateDiagram.md#16,flowchart:cyclic-labelled-11,flowchart:cyclic-labelled-10' \
+              --out "$LAYOUT_REVIEW/performance-$cache"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: layout-backends-${{ github.event.pull_request.head.sha }}
           path: ${{ runner.temp }}/layout-backends/
