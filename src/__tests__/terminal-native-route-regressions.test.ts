@@ -7,6 +7,18 @@ import { drawGraph } from '../ascii/draw.ts'
 import { shapeRegistry } from '../ascii/shapes/index.ts'
 import { parseMermaid } from '../parser.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
+import { readFileSync } from 'node:fs'
+
+test.each([false, true])('retains an unroutable dense relationship as an owned, explicitly degraded summary (ASCII=%s)', useAscii => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8')
+  const { doc } = render(source, useAscii)
+  const edge = doc.regions().find(region => region.id === 'edge#14:n16->n3')!
+  expect(edge.projectedText).toContain('n16 --> n3')
+  expect(edge.ports!.every(port => port.markerProjection)).toBe(true)
+  expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: 'edge-lane:edge#14:n16->n3' }))
+  expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: edge.ports![0]!.markerProjection }))
+  expect(() => doc.assertMarkers()).not.toThrow()
+})
 
 function visibleEndpointMarkers(doc: TerminalDocument, edge: TerminalRegion) {
   return edge.ports!.flatMap(port => {
