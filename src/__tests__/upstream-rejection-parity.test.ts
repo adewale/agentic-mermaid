@@ -205,6 +205,28 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   })
 })
 
+// Every Mermaid grammar needs the colon after accTitle and accDescr: without
+// it, Mermaid rejects the line, reads its words as diagram text, or drops
+// them. Ours reads the directive, draws it, and reports it.
+const COLONLESS_ACCESSIBILITY: ReadonlyArray<readonly [BuiltinFamilyId, string]> = [
+  ['pie', 'pie\n  accTitle Shares\n  "a" : 1'],
+  ['flowchart', 'flowchart TD\n  accTitle Shares\n  A --> B'],
+  ['sequence', 'sequenceDiagram\n  accDescr Shares\n  A->>B: hi'],
+  ['class', 'classDiagram\n  accTitle Shares\n  class A'],
+  ['state', 'stateDiagram-v2\n  accDescr Shares\n  A --> B'],
+  ['timeline', 'timeline\n  accTitle Shares\n  2020 : a'],
+  ['xychart', 'xychart-beta\n  accTitle Shares\n  bar [1, 2]'],
+]
+
+describe('accessibility directives without their colon', () => {
+  test.each(COLONLESS_ACCESSIBILITY)('%s: is read, drawn and reported, where Mermaid reads no directive', async (family, source) => {
+    const mermaid = await upstream.project(source, diagram => [diagram.db.getAccTitle?.() ?? '', diagram.db.getAccDescription?.() ?? ''])
+    if (mermaid.ok) expect(mermaid.value).toEqual(['', ''])
+    expect(readGenerously(source, 'Shares')).toEqual({ typed: family, draws: true, reported: expect.arrayContaining(['accessibility_colon@2']) })
+    expect(verifyMermaid(source.replace(/(acc(?:Title|Descr))/, '$1:')).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
+})
+
 describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
