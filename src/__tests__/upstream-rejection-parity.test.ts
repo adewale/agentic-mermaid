@@ -162,6 +162,9 @@ const C4_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a space before the closing parenthesis', 'C4Context\n  Person(a, "Ann" )', 'Ann', 'c4_unquoted_argument', 2],
   ['a space before a boundary\'s closing parenthesis', 'C4Context\n  System_Boundary(b, "Bank", ) {\n    Person(a, "Ann")\n  }', 'Bank', 'c4_unquoted_argument', 2],
   ['an unquoted named value', 'C4Context\n  Person(a, "Ann", $descr=Banker, $link="https://example.com")', 'Banker', 'c4_unquoted_argument', 2],
+  // Mermaid's lexer reads only "(" straight after a macro's name.
+  ['a space before the argument list', 'C4Context\n  Person (a, "Ann")', 'Ann', 'c4_space_before_arguments', 2],
+  ['a line break before a boundary\'s argument list', 'C4Context\n  System_Boundary\n  (b, "Bank") {\n    Person(a, "Ann")\n  }', 'Bank', 'c4_space_before_arguments', 2],
 ]
 
 // C4 arguments whose quotes Mermaid's lexer pairs differently from ours

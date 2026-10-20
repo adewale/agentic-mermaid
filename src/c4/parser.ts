@@ -513,6 +513,9 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     if (multiline) diagnostic(body, statement.id, 'c4_multiline_arguments', 'Line breaks between C4 arguments are a reader extension; quoted multiline text remains supported')
     if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'c4_empty_named_argument', 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
+    const mermaidMacro = Boolean(element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro)
+    // Mermaid's lexer enters a macro's state at its name and reads only `(` there.
+    if (mermaidMacro && text[macro.length] !== '(') diagnostic(body, statement.id, 'c4_space_before_arguments', `Pinned Mermaid reads "(" only straight after ${macro} and rejects whitespace between them; ours reads the call. Write ${macro}( with no space`)
     if (element && !(element[1] === 'Person' && element[2])) {
       observeC4Statement(statement, 'element')
       if (call[3]) throw new Error(`C4: ${macro} cannot open a boundary`)
@@ -596,7 +599,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     }
     if (args.some(arg => /^\s*'/.test(arg.raw) || /\\["']/.test(arg.raw))) {
       diagnostic(body, statement.id, 'c4_quoted_string_extension', 'Quoted-string extension is preserved; typed edits write Mermaid entity escapes')
-    } else if (!multiline && ((element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro))) {
+    } else if (!multiline && mermaidMacro) {
       mermaidC4ArgumentDiagnostics(body, statement.id, macro, call[2]!, args, seeks => (lastOffsets.get(seeks) ?? -1) >= statement.span.end)
     }
   }
