@@ -46,6 +46,26 @@ function crossesInterior(a: Point, b: Point, box: Box): boolean {
 }
 
 describe('owned measured layered layout', () => {
+  for (const direction of ['TD', 'BT', 'LR', 'RL'] satisfies Direction[]) {
+    test(`aligns distinct fan-in ports with reserved lanes in ${direction}`, () => {
+      const horizontal = direction === 'LR' || direction === 'RL'
+      const input = measured({ direction, padding: 16, nodeSpacing: 24, layerSpacing: 48,
+        nodes: [80, 80, 220].map((cross, index) => ({ id: String(index), width: horizontal ? 40 : cross, height: horizontal ? cross : 40 })),
+        edges: [{ source: 0, target: 2, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }],
+      })
+      const output = layoutAgenticGraph(input)
+      expect(output.edges.reduce((sum, edge) => sum + edge.points.length - 2, 0)).toBeLessThanOrEqual(2)
+      expect(countPolylineCrossings(output.edges)).toBe(0)
+      const ends = output.edges.map(edge => edge.points.at(-1)!)
+      expect(Math.abs(horizontal ? ends[0]!.y - ends[1]!.y : ends[0]!.x - ends[1]!.x)).toBeGreaterThanOrEqual(8)
+      const boxes = output.nodes.map((node, index) => ({ ...node, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+      for (const [index, edge] of output.edges.entries()) {
+        expect(onOutline(edge.points[0]!, boxes[input.edges[index]!.source]!)).toBe(true)
+        expect(onOutline(edge.points.at(-1)!, boxes[2]!)).toBe(true)
+        for (let i = 1; i < edge.points.length; i++) for (const box of boxes) expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, box)).toBe(false)
+      }
+    })
+  }
   for (const direction of ['TD', 'TB', 'BT', 'LR', 'RL'] satisfies Direction[]) {
     test(`preserves measured geometry, labelled fan-in and long parallel routes in ${direction}`, () => {
       const input = measured({ direction })

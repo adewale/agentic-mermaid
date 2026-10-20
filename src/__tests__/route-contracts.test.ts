@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, recertifyReroutedEdge, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, recertifyReroutedEdge, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -114,6 +114,26 @@ describe('outward exact endpoint approaches', () => {
 })
 
 describe('route proposal crossing consistency', () => {
+  it('keeps settled reciprocal labels as obstacles in the final closure and its auditor', () => {
+    const graph = parseMermaid('flowchart RL\nA --> B\nB -->|feedback| A')
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 400, y: 180, width: 120, height: 60 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 100, y: 180, width: 120, height: 60 },
+    ]
+    const edges: PositionedEdge[] = [
+      { ...graph.edges[0]!, edgeIndex: 0, points: [{ x: 400, y: 190 }, { x: 380, y: 190 }, { x: 380, y: 160 }, { x: 240, y: 160 }, { x: 240, y: 195 }, { x: 220, y: 195 }],
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4, directLaneClear: false } },
+      { ...graph.edges[1]!, edgeIndex: 1, points: [{ x: 220, y: 220 }, { x: 400, y: 220 }], labelPosition: { x: 310, y: 220 },
+        routeCertificate: { edgeIndex: 1, routeClass: 'feedback', invariant: 'straight', bendCount: 0, directLaneClear: true } },
+    ]
+    const positioned = { nodes, edges, groups: [] }, style = resolveRenderStyle()
+    expect(measureLabelConflicts(positioned, style).total).toBe(0)
+    const label = structuredClone(edges[1]!.labelPosition)
+    closeRouteContracts(positioned, graph, style)
+    expect(edges[1]!.labelPosition).toEqual(label)
+    expect(measureLabelConflicts(positioned, style).total).toBe(0)
+    expect(findRouteHitches(positioned, graph, style)).toEqual([])
+  })
   it.each([false, true])('does not add a crossing when the other route is subdivided=%s', subdivided => {
     const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode =>
       ({ id, label: id, shape: 'rectangle', x, y, width, height })
