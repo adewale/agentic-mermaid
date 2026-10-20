@@ -138,8 +138,8 @@ const NODE_STRING_CHAR_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/]/u
  * node-string characters, and `:`, which its id grammar also takes in, where
  *   - `"` belongs to the id only after its first character (where an id
  *     would begin, it opens a string);
- *   - `&` begins an id only before another id character (`&a`); otherwise
- *     it joins a `&` list;
+ *   - `&` begins an id (`&a`, and a lone `&`, as upstream's AMP token is an
+ *     id token); a `&` after a node is read first as joining a `&` list;
  *   - `:` belongs to it unless `:::`, a class, begins there;
  *   - `-` belongs to it unless `-` or `.` follows (a link begins), so `A--x`
  *     and `A-.->` end the id before it, `A.-B` is one id, and so is the
@@ -158,7 +158,7 @@ export function flowchartNodeIdLength(text: string, at = 0): number {
       if (next === '-' || next === '.') break
       continue
     }
-    if (end === at && (char === '"' || (char === '&' && !NODE_STRING_CHAR_RE.test(text[end + 1] ?? ' ')))) break
+    if (end === at && char === '"') break
     if (char === ':') {
       if (text.startsWith(':::', end)) break
       continue
