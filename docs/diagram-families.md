@@ -74,6 +74,11 @@ classDiagram
 ```
 
 Structured ops cover classes, members, relations, notes, and renames.
+One-ended lollipops are independent interface occurrences, even when labels
+repeat or match an ordinary class name. Use `add_interface` with `class` and
+`label` (and optional `side`, `relationLabel`, `lineStyle`) to create one;
+`add_relation` cannot silently turn an ordinary class into an interface.
+The interface label and its relationship label remain distinct.
 
 Removing or moving the last class out of an unlabeled namespace removes that
 empty group, including empty ancestors. An explicit namespace label is authored
@@ -181,7 +186,9 @@ gantt
     another task    :24d
 ```
 
-Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured when narrowed and segment-preserving: `asGantt` edits title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
+An empty Gantt plan renders its authored title/sections and **No tasks scheduled**, without inventing task bars or date ticks. Verification retains the existing `EMPTY_DIAGRAM` diagnostic.
+
+Gantt charts accept the `gantt` header, `title`, calendar directives (`dateFormat`, `axisFormat`, `tickInterval`, `inclusiveEndDates`, `topAxis`, multiple `excludes`/`includes` lines, `weekend friday|saturday`, `weekday <day>`, `todayMarker`), `section` lines, and task lines `Label :[tags,] [id,] [start,] end` where tags are `active`/`done`/`crit`/`milestone`/`vert`, start is a date or `after id…`, and end is a date, a duration token (`ms s m h d w M y`, decimals allowed), or `until id…`. Dependencies resolve in a pure scheduler ([design/families/gantt.md](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/gantt.md)): `after` starts at the latest referenced end, `until` ends at the earliest referenced start, working durations extend over excluded days, `includes` overrides `excludes`, and dependency cycles / unknown references / invalid dates are named structured errors (`GANTT_*`), never wall-clock fallbacks. Rendering is deterministic: the `todayMarker` draws only when the caller passes `ganttToday` (a date in the diagram's `dateFormat`), and `todayMarker off` always wins. `displayMode: compact` (frontmatter or `config.gantt`) packs non-overlapping tasks of a section into shared rows; `vert` markers draw a full-height line without consuming a task row. `click … href` is sanitized under strict security and `click … call` is parsed but never executed. Gantt is structured when narrowed and segment-preserving: `asGantt` edits title/sections/tasks while calendar directives, click lines, and comments ride along verbatim as opaque segments; duplicate task ids or an unclosed `accDescr` block fall back to a lossless whole-opaque body.
 
 ## Mindmap
 
@@ -206,7 +213,7 @@ gitGraph
   merge feature id:"merge"
 ```
 
-GitGraph replays commits and branch movement in source order and exposes structured mutation through `asGitGraph`. Generated ids are deterministic `c<N>` values and duplicate custom ids are rejected. Use `describeOps('gitgraph')` for the exact operation schema; see [`design/families/gitgraph.md`](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/gitgraph.md).
+GitGraph replays commits and branch movement in source order and exposes structured mutation through `asGitGraph`. Generated ids are deterministic `c<N>` values. Repeated authored commit IDs retain separate, collision-free occurrence IDs while rendering and canonical export retain their authored labels; later occurrences expose `sourceId`. Typed edits use public occurrence IDs. Explicit duplicate merge IDs remain invalid. Use `describeOps('gitgraph')` for the exact operation schema; see [`design/families/gitgraph.md`](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/gitgraph.md).
 
 ## Architecture
 
@@ -291,7 +298,7 @@ packet
 +16: "Checksum"
 ```
 
-A packet displays bit-addressed fields with proportional widths and explicit word rows. Narrow with `asPacket` and discover typed edits with `describeOps('packet')`. See [Packet semantics and output](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/packet.md) for placement, portability and pin evidence.
+A packet displays bit-addressed fields with proportional widths and explicit word rows. The Editor supports keyboard field selection, highlighting all fragments and displaying bit ranges and zero-based byte offsets; this preview inspection leaves canonical exports intact. Narrow with `asPacket` and discover typed edits with `describeOps('packet')`. See [Packet semantics and output](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/packet.md) for placement, portability and pin evidence.
 
 ## Kanban
 
@@ -301,7 +308,7 @@ kanban
     task1[Task Description]
 ```
 
-A Kanban board preserves ordered workflow columns containing ordered task cards. Narrow with `asKanban` and discover typed edits with `describeOps('kanban')`. See [Kanban semantics and output](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/kanban.md) for placement, portability and pin evidence.
+A Kanban board preserves ordered workflow columns containing ordered task cards. Opt into whole-column graphical wrapping with render options `kanban: { maxWidth: 720 }`, or use the Editor’s **Wrap board to preview width** control. Columns retain readable fonts and a 160px minimum; the requested width is best-effort. Terminal output uses its separate `targetWidth`. Metadata key/value source spans are available through optional `SourceMap.spans.metadata`. Narrow with `asKanban` and discover typed edits with `describeOps('kanban')`. See [Kanban semantics and output](https://github.com/adewale/agentic-mermaid/blob/8af19b86f53e0ad2683388b01e3c5cef083a4653/docs/design/families/kanban.md) for placement, portability and pin evidence.
 
 ## Treemap
 

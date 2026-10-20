@@ -462,6 +462,21 @@ must still require the marker/shaft facts whose preservation matters.
 
 ### Authoring Class endpoint markers and shafts
 
+Use `add_interface` to create a one-ended lollipop occurrence explicitly:
+
+```ts
+const op = {
+  kind: 'add_interface', class: 'Service', label: 'Protocol',
+  side: 'to', relationLabel: 'provides', lineStyle: 'solid',
+} as const
+```
+
+Each operation creates a separate interface occurrence. Its `label` names the
+interface; `relationLabel` names the connection. Ordinary classes with the same
+spelling remain distinct. `add_relation` rejects one-ended lollipops between
+ordinary class IDs and points callers to `add_interface`, since canonical
+Mermaid source would otherwise change endpoint identity.
+
 Class `add_relation` accepts optional `markerAt`, `fromKind`, `toKind` and
 `lineStyle` fields. Existing calls that omit them retain the relation kind's
 defaults. For example, this operation writes `Port ()..o Service`:
