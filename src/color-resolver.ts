@@ -62,8 +62,10 @@ export function resolveDiagramColors(
   }
 }
 
-export function resolveThemeColors(themeName: string | undefined): DiagramColors | undefined {
-  if (!themeName) return undefined
+/** A theme name that is not one of Mermaid's, or not a string at all (config
+ * is untyped JSON), names no theme and leaves the default colors. */
+export function resolveThemeColors(themeName: unknown): DiagramColors | undefined {
+  if (typeof themeName !== 'string' || !themeName) return undefined
   return MERMAID_THEME_COLORS[themeName.toLowerCase()]
 }
 

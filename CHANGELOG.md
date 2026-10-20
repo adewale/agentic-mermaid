@@ -40,6 +40,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - A registered family whose parse hook throws no longer makes `parseMermaid`
   and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
   which `verify` reports as `RENDER_FAILED` with origin `config`.
+- A `theme` config value that is not a string (`%%{init: {"theme": 5}}%%`)
+  no longer crashes every render and makes `verify` report `INTERNAL_ERROR`.
+  Like an unknown theme name, it names no theme and the default colors apply.
 - The MCP `describe` tool no longer reports success for a source that does
   not parse in its default text format. Every format returns `ok: false`
   with the parser's errors (text also keeps its prose line), as JSON and
