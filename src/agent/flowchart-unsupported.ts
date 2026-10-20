@@ -1,6 +1,6 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
-import { parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
+import { flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
 import { coalesceFlowchartLines, commaInNodeId, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
@@ -68,7 +68,8 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
  * canonical line: a `@{…}` block with a space before `@` or inside `@{`, a
  * text-arrow label that a link of another stroke closes, a `linkStyle`
  * index past the links defined above it, an `end` with no subgraph open
- * (alone or before a statement: `end B`), a subgraph no `end` closes. */
+ * (alone or before a statement: `end B`), a subgraph no `end` closes, and a
+ * `&` list without a blank on each side of the `&`. */
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
@@ -79,6 +80,10 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     else if (text === 'end' && openSubgraphs.length > 0) openSubgraphs.pop()
     else if (text === 'end') {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
+    }
+    const notes = FLOWCHART_KEYWORD_STATEMENT.test(text) || !text.includes('&') ? undefined : flowchartStatementNotes(text)
+    if (notes?.has('amp-spacing')) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_amp_spacing', message: 'A `&` with no blank on one side (A &B) is read as listing the nodes on either side of it. Pinned Mermaid lists nodes only with a blank on each side of `&`, and rejects this; write A & B.' })
     }
     for (const region of scanFlowchart(text).regions) {
       if (region.kind === 'metadata' && (text.slice(region.start, region.contentStart) !== '@{' || /\s/.test(text[region.start - 1] ?? ''))) {

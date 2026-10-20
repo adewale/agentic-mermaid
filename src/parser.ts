@@ -487,6 +487,23 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
   }
 }
 
+/** A spelling ours reads in a node or link statement where pinned Mermaid's
+ * lexer reads otherwise, which verify reports: a `&` list without a blank on
+ * each side of the `&` (`A &B`). */
+export type FlowchartStatementNote = 'amp-spacing'
+
+/** The notes on one node or link statement (not a keyword statement), as
+ * the parser reads it; none when ours rejects it. */
+export function flowchartStatementNotes(statement: string): ReadonlySet<FlowchartStatementNote> {
+  const notes = new Set<FlowchartStatementNote>()
+  const graph: MermaidGraph = { direction: 'TD', nodes: new Map(), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map() }
+  try {
+    return parseEdgeLine(statement, graph, [], new Set(), notes).ok ? notes : new Set()
+  } catch {
+    return new Set() // Metadata ours rejects fails the parse; verify reports that.
+  }
+}
+
 /** The error for a statement the edge grammar could not consume, naming the
  * construct upstream rejects there when there is one. */
 function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): Error {
@@ -1255,7 +1272,8 @@ function parseEdgeLine(
   line: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  declaredSubgraphIds: Set<string> = new Set()): EdgeLineParseResult {
+  declaredSubgraphIds: Set<string> = new Set(),
+  notes?: Set<FlowchartStatementNote>): EdgeLineParseResult {
   // A terminal semicolon is a Mermaid statement delimiter, not authored
   // edge/node content. The top-level splitter normally removes it; trim it
   // here as well for labels containing unmatched quote-like characters, where
@@ -1265,7 +1283,7 @@ function parseEdgeLine(
   // Parse the first node group (possibly with & separators). A structured
   // statement is admitted only when every non-whitespace token is consumed;
   // publishing a parsed prefix would silently invent/drop authored content.
-  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
+  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, notes)
   if (!firstGroup || firstGroup.ids.length === 0) {
     return { ok: false, remaining, reason: 'expected node' }
   }
@@ -1337,7 +1355,7 @@ function parseEdgeLine(
     }
 
     // Parse the next node group
-    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
+    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, notes)
     if (!nextGroup || nextGroup.ids.length === 0) {
       return { ok: false, remaining, reason: 'expected edge target' }
     }
@@ -1384,24 +1402,28 @@ function consumeNodeGroup(
   text: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  declaredSubgraphIds: Set<string>): ConsumedNodeGroup | null {
+  declaredSubgraphIds: Set<string>,
+  notes?: Set<FlowchartStatementNote>): ConsumedNodeGroup | null {
   const first = consumeNode(text, graph, subgraphStack, declaredSubgraphIds)
   if (!first) return null
 
   const ids = [first.id]
-  let remaining = first.remaining.trim()
+  let remaining = first.remaining
 
   // Check for & separators. One that no node follows (upstream reads one on
   // its line only) stays unconsumed, so the statement fails.
-  while (remaining.startsWith('&')) {
+  while (remaining.trimStart().startsWith('&')) {
     if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'parallel-separator', '&')
-    const next = consumeNode(remaining.slice(1).trim(), graph, subgraphStack, declaredSubgraphIds)
+    const after = remaining.trimStart().slice(1)
+    const next = consumeNode(after.trim(), graph, subgraphStack, declaredSubgraphIds)
     if (!next) break
+    // Upstream lists nodes only with a blank on each side of `&`.
+    if (!/^\s/.test(remaining) || !/^\s/.test(after)) notes?.add('amp-spacing')
     ids.push(next.id)
-    remaining = next.remaining.trim()
+    remaining = next.remaining
   }
 
-  return { ids, remaining }
+  return { ids, remaining: remaining.trim() }
 }
 
 interface ConsumedNode {

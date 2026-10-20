@@ -224,6 +224,14 @@ const SANKEY_UNREAD: ReadonlyArray<readonly [string, string]> = [
   ['an unquoted field running into a quoted one', 'sankey\nPumped heat"Heating, homes",193.026'],
 ]
 
+// Flowchart spellings Mermaid's lexer reads otherwise, where what the author
+// meant is clear.
+const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  // Mermaid lists nodes only with a blank on each side of `&` (`&B` is an id).
+  ['a `&` with no blank after it', 'flowchart LR\n  A &B --> C', '>B<', 'flowchart_amp_spacing', 2],
+  ['a `&` with no blank before it, after a shape', 'flowchart LR\n  A --> C\n  A[x]& B', '>B<', 'flowchart_amp_spacing', 3],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -275,6 +283,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['c4', 'an unquoted argument before a comma', 'C4Context\n  Person(a, Ann Lee, "A customer")'],
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
+  ['flowchart', 'a `&` list with a blank on each side, and a lone `&` node', 'flowchart LR\n  A & B --> C & &\n  D &\tE'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
@@ -360,6 +369,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect({ typed, refused: error?.startsWith('C4 unsupported syntax'), reported })
       .toEqual({ typed: 'c4', refused: true, reported: [`c4_argument_quoting@${line}`] })
   })
+
+  test.each(FLOWCHART_READ_GENEROUSLY)('flowchart: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'flowchart', draws: true, reported: [`${syntax}@${line}`] })
+  })
 })
 
 // Every Mermaid grammar needs the colon after accTitle and accDescr: without
@@ -388,7 +402,7 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey' || family === 'flowchart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   test.each(C4_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads it otherwise', async (_construct, source, syntax, line) => {
