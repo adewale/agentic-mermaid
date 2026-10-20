@@ -93,6 +93,11 @@ selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
 is not an Agentic completion. Unexpected engine defects and global work limits
 are not hidden by fallback.
 
+The async `agentic-mermaid/browser/lazy` entry downloads ELK only when the
+selected layout actually needs it. A successful strict Agentic render does not
+fetch ELK; requested fallback still loads it when native placement declines.
+The synchronous `agentic-mermaid/browser` entry remains an all-in-one bundle.
+
 The CLI accepts `am render diagram.mmd --graph-layout agentic
 --graph-layout-fallback elk`. Mermaid source configuration is preserved and is
 not an alias for these options. Terminal-cell placement retains its family
