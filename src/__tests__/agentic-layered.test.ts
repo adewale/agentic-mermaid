@@ -130,11 +130,37 @@ describe('owned measured layered layout', () => {
     expect(() => layoutAgenticGraph(measured({ nodes, edges }))).toThrow('expanded-graph limit')
   })
 
-  test.each([
-    { name: 'self-loop', edges: [{ source: 0, target: 0, minSpan: 1 }] },
-    { name: 'directed cycle', edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 1, target: 0, minSpan: 1 }] },
-  ])('declines a $name explicitly', ({ edges }) => {
-    expect(() => layoutAgenticGraph(measured({ edges }))).toThrow(GraphLayoutUnsupportedError)
+  test('declines a self-loop explicitly', () => {
+    expect(() => layoutAgenticGraph(measured({ edges: [{ source: 0, target: 0, minSpan: 1 }] }))).toThrow(GraphLayoutUnsupportedError)
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('retains authored cyclic and reciprocal routes and labels in %s', direction => {
+    const input = measured({ direction, edges: [
+      { source: 0, target: 1, minSpan: 1, label: { width: 88, height: 18 } },
+      { source: 1, target: 2, minSpan: 1 },
+      { source: 2, target: 0, minSpan: 1, label: { width: 72, height: 18 } },
+      { source: 0, target: 2, minSpan: 1 },
+      { source: 2, target: 3, minSpan: 1 },
+      { source: 3, target: 1, minSpan: 1, label: { width: 63, height: 18 } },
+    ] })
+    const before = structuredClone(input)
+    const output = layoutAgenticGraph(input)
+    expect(input).toEqual(before)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    expect(output.edges).toHaveLength(input.edges.length)
+    const boxes = output.nodes.map((point, index) => ({ ...input.nodes[index]!, ...point }))
+    const onOutline = (point: Point, box: Box): boolean =>
+      ((Math.abs(point.x - box.x) < 1e-7 || Math.abs(point.x - box.x - box.width) < 1e-7) && point.y >= box.y && point.y <= box.y + box.height)
+      || ((Math.abs(point.y - box.y) < 1e-7 || Math.abs(point.y - box.y - box.height) < 1e-7) && point.x >= box.x && point.x <= box.x + box.width)
+    for (const [index, edge] of input.edges.entries()) {
+      const route = output.edges[index]!.points
+      expect(onOutline(route[0]!, boxes[edge.source]!)).toBe(true)
+      expect(onOutline(route.at(-1)!, boxes[edge.target]!)).toBe(true)
+      expect(Boolean(output.edges[index]!.labelPosition)).toBe(Boolean(edge.label))
+      for (let point = 1; point < route.length; point++) {
+        for (const box of boxes) expect(crossesInterior(route[point - 1]!, route[point]!, box)).toBe(false)
+      }
+    }
   })
 
   test('invalid measured endpoints remain defects instead of unsupported capabilities', () => {

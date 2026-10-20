@@ -83,14 +83,38 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
-  test('declines cycles explicitly and attributes a requested ELK fallback consistently across cache states', () => {
-    const cycle = 'flowchart TD\n A --> B\n B --> A'
-    expect(() => renderMermaidSVGWithReceipt(cycle, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
+  test('renders labelled reciprocal cycles without ELK and preserves graph certification', () => {
+    const source = 'flowchart LR\nA[Send] -->|request| B[Process]\nB -->|retry| A\nB --> C[Commit]\nC --> A'
+    const stages: string[] = []
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    for (const label of ['Send', 'Process', 'Commit', 'request', 'retry']) expect(result.svg).toContain(label)
+    JSON.stringify(result.receipt)
+  })
+
+  test('retains separate label corridors beside a disconnected fan-out', () => {
+    // Reduced from the labelled mesh: generic trunk bundling moved a foreign
+    // fan-out route through label 37 despite initially clear native channels.
+    const source = 'flowchart TD\nn58 --> n66\nn58 --> n70\nn29 -->|label 37| n16\nn113 -->|label 38| n16'
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const quality = measureQuality(result.layout)
+    expect(quality.nodeCount).toBe(6)
+    expect(quality.edgeCount).toBe(4)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    JSON.stringify(result.receipt)
+  })
+
+  test('declines compounds explicitly and attributes a requested ELK fallback consistently across cache states', () => {
+    const compound = 'flowchart TD\nsubgraph G[Group]\n A --> B\nend'
+    expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
     clearElkLayoutCache()
     const diagnostics: unknown[] = []
     const options = { ...FALLBACK, onConfigDiagnostic: (value: unknown) => diagnostics.push(value) }
-    const first = renderMermaidSVGWithReceipt(cycle, options)
-    const again = renderMermaidSVGWithReceipt(cycle, options)
+    const first = renderMermaidSVGWithReceipt(compound, options)
+    const again = renderMermaidSVGWithReceipt(compound, options)
     expect(again.svg).toBe(first.svg)
     expect(again.receipt).toEqual(first.receipt)
     expect(first.receipt.layoutDecisions).toEqual([expect.objectContaining({
@@ -100,7 +124,7 @@ describe('checked graph layout selection', () => {
     expect(first.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK' }))
     expect(diagnostics).toHaveLength(2)
     expect(diagnostics[0]).toMatchObject({ field: 'graphLayout.backend', code: 'INEFFECTIVE_CONFIG' })
-    const verified = verifyMermaid(cycle, { renderOptions: AGENTIC })
+    const verified = verifyMermaid(compound, { renderOptions: AGENTIC })
     expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'config' }))
     expect(verified.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
   })
