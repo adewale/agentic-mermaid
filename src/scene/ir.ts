@@ -125,7 +125,8 @@ export interface SceneNodeBase {
    *  (§8 seed contract). */
   id: string
   role: SceneRole
-  /** Typed DOM identity mirrored as data-id/data-role on structured SVG marks. */
+  /** Typed DOM identity mirrored as data-id/data-role on structured SVG marks.
+   * An owned shape may omit it only inside its matching semantic group. */
   identity?: SvgSemanticIdentity
   /** Explicit subject, or the nearest enclosing semantic group's identity. */
   owner?: SceneOwner

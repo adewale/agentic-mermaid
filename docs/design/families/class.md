@@ -96,8 +96,13 @@ IDs and cardinalities. Their shaft style is stored independently of endpoint
 marker kinds, so `o..*` and `()..()` retain their dashed shafts through
 structured edits, SVG/Scene and terminal output. Mixed lollipop markers such as
 `()-->` and `<--()` retain both authored endpoint identities. One-ended
-lollipops also keep authored identities instead of Mermaid's synthetic
-`interface0`; this choice is recorded in `docs/project/divergences.md`.
+lollipops create independent interface occurrences with collision-safe public
+identities. Repeated labels do not share an occurrence, and an ordinary class
+with the same spelling remains separate. Generic interface spelling is retained
+through canonical writing. Use `add_interface` with `class`, `label` and optional
+`side`, `relationLabel` and `lineStyle` to create one explicitly. `add_relation`
+rejects operations that would silently turn an ordinary endpoint into an
+interface; parsed interface occurrences remain editable and removable.
 
 Class relation facts include effective marker ownership, both endpoint kinds
 when present, and `line solid` / `line dashed`. Public `add_relation` operations

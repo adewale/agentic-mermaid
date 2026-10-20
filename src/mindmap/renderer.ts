@@ -4,7 +4,7 @@ import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts
 import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
 import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
-import { pathArtwork } from '../scene/artwork.ts'
+import { pathArtwork } from '../scene/marks.ts'
 import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'

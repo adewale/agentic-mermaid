@@ -3,30 +3,12 @@ import { basename, join, relative, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { plainTextFromInlineFormatting } from '../../src/shared/inline-format.ts'
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
-import {
-  asArchitecture,
-  asC4,
-  asClass,
-  asEr,
-  asFlowchart,
-  asGantt,
-  asJourney,
-  asPie,
-  asQuadrant,
-  asRadar,
-  asSankey,
-  asSequence,
-  asState,
-  asTimeline,
-  asXyChart,
-  layoutMermaid,
-  parseRegisteredMermaid as parseMermaid,
-  serializeMermaid,
-  verifyMermaid,
-} from '../../src/agent/index.ts'
+import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../../src/agent/types.ts'
 
-type Family = Exclude<DiagramKind, 'mindmap' | 'gitgraph'>
+// This dated harvest's adapters define its scope; new native families have
+// separate exact-pin benches rather than rewriting historical provenance.
+type Family = keyof typeof narrowers
 
 interface FamilyConfig {
   family: Family
@@ -85,13 +67,16 @@ interface PinnedCompanionOracle {
     commit: string
     files: Array<{ family: 'mindmap' | 'gitgraph'; path: string; testBlocks: number }>
   }
-  accounting: Record<'mindmap' | 'gitgraph', {
-    consideredBlocks: number
-    importedCases: number
-    importedBlocks: number
-    excludedBlocks: number
-    deferredBlocks: number
-  }>
+  accounting: Record<
+    'mindmap' | 'gitgraph',
+    {
+      consideredBlocks: number
+      importedCases: number
+      importedBlocks: number
+      excludedBlocks: number
+      deferredBlocks: number
+    }
+  >
 }
 
 interface LocalGapBudget {
@@ -162,9 +147,7 @@ const FAMILY_CONFIGS: FamilyConfig[] = [
   {
     family: 'sequence',
     consideredBlocks: 139,
-    files: [
-      { path: 'packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js', testBlocks: 139 },
-    ],
+    files: [{ path: 'packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js', testBlocks: 139 }],
     companionBench: 'src/__tests__/agent-mermaidseqbench.test.ts',
   },
   {
@@ -188,9 +171,7 @@ const FAMILY_CONFIGS: FamilyConfig[] = [
   {
     family: 'timeline',
     consideredBlocks: 11,
-    files: [
-      { path: 'packages/mermaid/src/diagrams/timeline/timeline.spec.js', testBlocks: 11 },
-    ],
+    files: [{ path: 'packages/mermaid/src/diagrams/timeline/timeline.spec.js', testBlocks: 11 }],
   },
   {
     family: 'gantt',
@@ -228,9 +209,7 @@ const FAMILY_CONFIGS: FamilyConfig[] = [
   {
     family: 'pie',
     consideredBlocks: 14,
-    files: [
-      { path: 'packages/mermaid/src/diagrams/pie/pie.spec.ts', testBlocks: 14 },
-    ],
+    files: [{ path: 'packages/mermaid/src/diagrams/pie/pie.spec.ts', testBlocks: 14 }],
   },
   {
     family: 'quadrant',
@@ -243,13 +222,11 @@ const FAMILY_CONFIGS: FamilyConfig[] = [
   {
     family: 'radar',
     consideredBlocks: 19,
-    files: [
-      { path: 'packages/mermaid/src/diagrams/radar/radar.spec.ts', testBlocks: 19 },
-    ],
+    files: [{ path: 'packages/mermaid/src/diagrams/radar/radar.spec.ts', testBlocks: 19 }],
   },
 ]
 
-const narrowers: Record<Family, (d: ValidDiagram) => ValidDiagram | null> = {
+const narrowers = {
   c4: asC4,
   flowchart: asFlowchart,
   state: asState,
@@ -265,7 +242,7 @@ const narrowers: Record<Family, (d: ValidDiagram) => ValidDiagram | null> = {
   radar: asRadar,
   gantt: asGantt,
   sankey: asSankey,
-}
+} satisfies Partial<Record<DiagramKind, (d: ValidDiagram) => ValidDiagram | null>>
 
 const headerPattern = /\b(?:graph|flowchart|stateDiagram(?:-v2)?|sequenceDiagram|classDiagram|erDiagram|timeline|journey|architecture-beta|xychart(?:-beta)?|pie|quadrantChart|radar-beta|swimlane)\b/i
 const LOCAL_GAP_REASONS = new Set(['local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax'])
@@ -341,7 +318,10 @@ function main(): void {
   const manifest = buildManifest(cases, exclusions)
   const ratchet = buildRatchet(cases, exclusions)
   writeJson(join(BENCH, 'cases.json'), cases)
-  writeJson(join(BENCH, 'exclusions.json'), exclusions.sort((a, b) => compareCodePointStrings(a.families[0]!, b.families[0]!) || compareCodePointStrings(a.id, b.id)))
+  writeJson(
+    join(BENCH, 'exclusions.json'),
+    exclusions.sort((a, b) => compareCodePointStrings(a.families[0]!, b.families[0]!) || compareCodePointStrings(a.id, b.id)),
+  )
   writeJson(join(BENCH, 'manifest.json'), manifest)
   writeJson(join(BENCH, 'ratchet.json'), ratchet)
 
@@ -387,35 +367,38 @@ function buildManifest(cases: BenchCase[], exclusions: Exclusion[]): unknown {
       license: 'MIT',
     },
     scope: 'Current Agentic Mermaid renderable built-in families. Every considered upstream parser/DB block is imported as an executable case, excluded with a documented reason, or delegated to a named family companion bench. Mindmap and GitGraph are pinned separately to their declared compatibility revision.',
-    families: [...FAMILY_CONFIGS.map(config => {
-      const importedBlocks = config.family === 'gantt' ? 68 : importedBlocksByFamily.get(config.family) ?? 0
-      const importedCases = config.family === 'gantt' ? 68 : importedCasesByFamily.get(config.family) ?? 0
-      const excludedBlocks = excludedBlocksByFamily.get(config.family) ?? 0
-      const deferredBlocks = config.consideredBlocks - importedBlocks - excludedBlocks
-      return {
-        family: config.family,
-        status: config.family === 'gantt' ? 'dedicated-full-family-bench-existing' : 'full-harvest-accounted',
-        consideredBlocks: config.consideredBlocks,
-        importedCases,
-        importedBlocks,
-        excludedBlocks,
-        deferredBlocks,
-        files: config.files,
-        ...(config.companionBench ? { companionBench: config.companionBench } : {}),
-      }
-    }), ...PINNED_FAMILIES.map(family => {
-      const accounting = PINNED_COMPANION.accounting[family]
-      const file = PINNED_COMPANION.upstream.files.find(entry => entry.family === family)
-      if (!file) throw new Error(`Pinned companion oracle is missing ${family} file provenance.`)
-      return {
-        family,
-        status: 'full-harvest-accounted',
-        ...accounting,
-        compatibilityRevision: PINNED_COMPANION.upstream.commit,
-        files: [{ path: file.path, testBlocks: file.testBlocks }],
-        companionBench: 'src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts',
-      }
-    })],
+    families: [
+      ...FAMILY_CONFIGS.map(config => {
+        const importedBlocks = config.family === 'gantt' ? 68 : (importedBlocksByFamily.get(config.family) ?? 0)
+        const importedCases = config.family === 'gantt' ? 68 : (importedCasesByFamily.get(config.family) ?? 0)
+        const excludedBlocks = excludedBlocksByFamily.get(config.family) ?? 0
+        const deferredBlocks = config.consideredBlocks - importedBlocks - excludedBlocks
+        return {
+          family: config.family,
+          status: config.family === 'gantt' ? 'dedicated-full-family-bench-existing' : 'full-harvest-accounted',
+          consideredBlocks: config.consideredBlocks,
+          importedCases,
+          importedBlocks,
+          excludedBlocks,
+          deferredBlocks,
+          files: config.files,
+          ...(config.companionBench ? { companionBench: config.companionBench } : {}),
+        }
+      }),
+      ...PINNED_FAMILIES.map(family => {
+        const accounting = PINNED_COMPANION.accounting[family]
+        const file = PINNED_COMPANION.upstream.files.find(entry => entry.family === family)
+        if (!file) throw new Error(`Pinned companion oracle is missing ${family} file provenance.`)
+        return {
+          family,
+          status: 'full-harvest-accounted',
+          ...accounting,
+          compatibilityRevision: PINNED_COMPANION.upstream.commit,
+          files: [{ path: file.path, testBlocks: file.testBlocks }],
+          companionBench: 'src/__tests__/mindmap-gitgraph-upstream-oracle.test.ts',
+        }
+      }),
+    ],
   }
 }
 
@@ -489,7 +472,11 @@ function normalizeBudget(budget: LocalGapBudget): LocalGapBudget {
 }
 
 function sortRecord(values: Record<string, number>): Record<string, number> {
-  return Object.fromEntries(Object.entries(values).filter(([, n]) => n > 0).sort(([a], [b]) => compareCodePointStrings(a, b)))
+  return Object.fromEntries(
+    Object.entries(values)
+      .filter(([, n]) => n > 0)
+      .sort(([a], [b]) => compareCodePointStrings(a, b)),
+  )
 }
 
 function minLocalGapBudget(previous: LocalGapBudget, observed: LocalGapBudget): LocalGapBudget {
@@ -543,9 +530,7 @@ function assertBudgetAtOrBelow(label: string, observed: number, budget: number):
   if (observed > budget) throw new Error(`${label} regressed above budget: observed ${observed}, budget ${budget}`)
 }
 
-function classifyBlock(block: TestBlock):
-  | { kind: 'case'; source: string; structured: boolean; nodes: number; edges: number; groups: number; labels: string[] }
-  | { kind: 'exclude'; reason: string; summary: string; source?: string; ours?: Exclusion['ours'] } {
+function classifyBlock(block: TestBlock): { kind: 'case'; source: string; structured: boolean; nodes: number; edges: number; groups: number; labels: string[] } | { kind: 'exclude'; reason: string; summary: string; source?: string; ours?: Exclusion['ours'] } {
   const sources = sourceLiterals(block.body).filter(source => !source.includes('${expr}'))
   if (isNegativeTest(block.body)) {
     return {
@@ -669,7 +654,10 @@ function isHarvestedHelperLiteral(source: string, family: Family): boolean {
 
 function isNonRenderableSourceScaffold(source: string, diagram: ValidDiagram): boolean {
   if (isDeclarationOnlyFlowchartSource(source, diagram)) return true
-  const lines = source.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('%%'))
+  const lines = source
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && !line.startsWith('%%'))
   if (lines.length === 0) return true
   const one = lines.length === 1 ? lines[0]! : ''
   if (diagram.kind === 'class') return /^classDiagram$/i.test(one)
@@ -692,7 +680,10 @@ function isDeclarationOnlyFlowchartSource(source: string, diagram: ValidDiagram)
   if (diagram.body.kind !== 'flowchart') return false
   const graph = diagram.body.graph
   if (graph.nodes.size > 0 || graph.edges.length > 0 || graph.subgraphs.length > 0) return false
-  const statements = source.split(/[;\n]/).map(line => line.trim()).filter(Boolean)
+  const statements = source
+    .split(/[;\n]/)
+    .map(line => line.trim())
+    .filter(Boolean)
   const body = statements.filter(line => !/^(?:graph|flowchart)\b/i.test(line) && !line.startsWith('%%'))
   return body.length === 0 || body.every(line => /^(?:classDef|class|style|linkStyle)\b/i.test(line))
 }
@@ -882,7 +873,10 @@ function slug(text: string): string {
 }
 
 function unescapeDescription(text: string): string {
-  return text.replace(/\\([`"'])/g, '$1').replace(/\s+/g, ' ').trim()
+  return text
+    .replace(/\\([`"'])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function writeJson(path: string, value: unknown): void {

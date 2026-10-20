@@ -53,6 +53,12 @@ const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
   author_c4_source: ['Customer', 'Shop', 'Payments', 'Places orders', 'Sells products', 'Processes payments', 'Uses', 'Charges'],
   author_auth_flow_source: ['User', 'Login Page', 'Dashboard'],
   author_api_sequence_source: ['User', 'App', 'API', 'Render SVG', 'Download'],
+  packet_add_checksum: ['Version', 'Payload', 'Checksum'],
+  kanban_move_completed_task: ['To do', 'Done', 'Build parser', 'Research', 'Maya', 'AM-1'],
+  requirement_rename_evidence: ['fast', 'evidence', 'Respond within 100ms', 'Analysis', 'verifies', 'traces'],
+  block_rename_database: ['API', 'DB'],
+  treemap_update_design_value: ['Product', 'Engineering', 'Design'],
+  ishikawa_add_cache_cause: ['Slow release', 'Process', 'Tooling', 'Manual checks', 'Slow builds', 'Cold caches'],
 }
 
 function escapeXmlText(s: string): string {
@@ -111,7 +117,7 @@ export async function scoreAgentUsageRenderedQuality(cases: AgentUsageEvalCase[]
       const labelsOk = renderOk && semanticLabelsOk(c.id, svg)
       const result: AgentUsageRenderQualityResult = {
         id: c.id,
-        family: c.family ?? (AGENT_USAGE_SUPPORTED_FAMILIES.includes(parsed.value.kind as DiagramKind) ? parsed.value.kind as DiagramKind : 'unknown'),
+        family: c.family ?? (AGENT_USAGE_SUPPORTED_FAMILIES.includes(parsed.value.kind as DiagramKind) ? (parsed.value.kind as DiagramKind) : 'unknown'),
         ok: verify.ok && renderOk && safeSvg.ok && boundsOk && labelsOk,
         sourceOk: true,
         verifyOk: verify.ok,

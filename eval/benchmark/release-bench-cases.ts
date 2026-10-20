@@ -47,6 +47,15 @@ function flowchartSubgraphs(groups: number, perGroup: number): string {
 // A new native family must supply a real scaling workload at this owning
 // boundary. The type closes enrollment without a second family inventory.
 const WORKLOADS = {
+  // Scale variable-width bit encoding with complete field names; narrow flag
+  // wrapping has separate family tests. Authored bitWidth keeps one-bit names
+  // readable without changing the encoded inclusive ranges or label oracle.
+  packet: [{ id: '240-fields', source: lines('---\nconfig:\n  packet:\n    bitWidth: 80\n---\npacket\n  title Protocol fields', 240, i => `+${1 + (i % 24)}: "Field ${i}"`), expectedSvgLabels: Array.from({ length: 240 }, (_, i) => `Field ${i}`) }],
+  kanban: [{ id: '12-columns-240-cards', source: lines('kanban', 12, i => [`  stage${i}[Stage ${i}]`, ...Array.from({ length: 20 }, (_, j) => `    task${i}_${j}[Task ${i}.${j}]@{assigned: "Owner ${j % 4}", ticket: "AM-${i * 20 + j}"}`)]) }],
+  requirement: [{ id: '100-requirements-99-relations', source: lines('requirementDiagram', 100, i => [`  requirement r${i} {`, `    id: R${i}`, `    text: "Requirement ${i}"`, '    risk: medium', '    verifymethod: test', '  }', ...(i ? [`  r${i - 1} - traces -> r${i}`] : [])]) }],
+  treemap: [{ id: '20-groups-240-leaves', source: lines('treemap\ntitle Product allocation', 20, i => [`"Group ${i}"`, ...Array.from({ length: 12 }, (_, j) => `  "Investment ${i}.${j}": ${(j + 1) * 10}`)]) }],
+  ishikawa: [{ id: '12-categories-120-causes', source: lines('ishikawa\n  Delayed delivery', 12, i => [`  Category ${i}`, ...Array.from({ length: 10 }, (_, j) => `    Cause ${i}.${j}`)]) }],
+  block: [{ id: '120-grid-blocks', source: lines('block\n  columns 12', 120, i => [`  b${i}["Component ${i}"]`, ...(i ? [`  b${i - 1} --> b${i}`] : [])]) }],
   flowchart: [
     { id: 'tree-300', source: flowchartTree(300), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `Node ${i}`) },
     { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => `label ${i}`) },

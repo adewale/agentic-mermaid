@@ -29,6 +29,12 @@ const CASES: Array<{ family: string; section: string; source: string; invalidKey
   { family: 'radar', section: 'radar', source: 'radar-beta\n  axis a, b, c\n  curve x{1, 2, 3}\n  max 5', invalidKey: 'curveTension', invalidValue: 5 },
   { family: 'sankey', section: 'sankey', source: 'sankey-beta\n  A,B,10\n  B,C,4', invalidKey: 'nodeWidth', invalidValue: 'bad' },
   { family: 'c4', section: 'c4', source: 'C4Context\n  System(a,"A")\n  System(b,"B")\n  Rel(a,b,"Uses")', invalidKey: 'c4ShapeInRow', invalidValue: 'bad' },
+  { family: 'packet', section: 'packet', source: 'packet\n+8: "Byte"', invalidKey: 'bitsPerRow', invalidValue: 'bad' },
+  { family: 'kanban', section: 'kanban', source: 'kanban\n  todo[To do]\n    task[Build]', invalidKey: 'sectionWidth', invalidValue: 'bad' },
+  { family: 'requirement', section: 'requirement', source: 'requirementDiagram\nrequirement r {\ntext: "Preserve meaning"\n}', invalidKey: 'fontSize', invalidValue: 'bad' },
+  { family: 'treemap', section: 'treemap', source: 'treemap\n"Build": 60\n"Learn": 40', invalidKey: 'nodeWidth', invalidValue: 'bad' },
+  { family: 'ishikawa', section: 'ishikawa', source: 'ishikawa\nSlow release\nTooling\n  Slow builds', invalidKey: 'diagramPadding', invalidValue: 'bad' },
+  { family: 'block', section: 'block', source: 'block\ncolumns 2\nA["API"] B["DB"]\nA --> B', invalidKey: 'padding', invalidValue: 'bad' },
 ]
 
 // Families that export their wired-field table: the registry's config.keys
@@ -156,15 +162,33 @@ describe('family config is exhaustive wire-or-warn', () => {
       expect(warning.message).not.toContain('unknown')
     }
     const diagnostics: string[] = []
-    expect(renderMermaidSVG(source, { embedFontImport: false, mermaidConfig: { c4: config }, onConfigDiagnostic: diagnostic => diagnostics.push(diagnostic.field) }))
-      .toBe(renderMermaidSVG(source, { embedFontImport: false }))
-    expect(diagnostics.sort()).toEqual(Object.keys(config).map(key => `c4.${key}`).sort())
+    expect(renderMermaidSVG(source, { embedFontImport: false, mermaidConfig: { c4: config }, onConfigDiagnostic: diagnostic => diagnostics.push(diagnostic.field) })).toBe(renderMermaidSVG(source, { embedFontImport: false }))
+    expect(diagnostics.sort()).toEqual(
+      Object.keys(config)
+        .map(key => `c4.${key}`)
+        .sort(),
+    )
   })
 
   test('invalid C4 dimensions, row counts and typography warn and retain default geometry', () => {
     const source = CASES.find(entry => entry.family === 'c4')!.source
     const baseline = renderMermaidSVG(source, { embedFontImport: false })
-    for (const config of [{ maxWidth: 0 }, { maxWidth: 10001 }, { compact: 'true' }, { typeLegend: 'false' }, { width: 23 }, { diagramMarginX: -1 }, { c4ShapePadding: 3 }, { c4ShapeInRow: 1.5 }, { c4BoundaryInRow: 10001 }, { wrap: 'false' }, { systemFontSize: 'bad' }, { systemFontWeight: 'bold' }, { systemFontWeight: 1001 }, { systemFontWeight: '10000' }]) {
+    for (const config of [
+      { maxWidth: 0 },
+      { maxWidth: 10001 },
+      { compact: 'true' },
+      { typeLegend: 'false' },
+      { width: 23 },
+      { diagramMarginX: -1 },
+      { c4ShapePadding: 3 },
+      { c4ShapeInRow: 1.5 },
+      { c4BoundaryInRow: 10001 },
+      { wrap: 'false' },
+      { systemFontSize: 'bad' },
+      { systemFontWeight: 'bold' },
+      { systemFontWeight: 1001 },
+      { systemFontWeight: '10000' },
+    ]) {
       const diagnostics: string[] = []
       const output = renderMermaidSVG(source, { embedFontImport: false, mermaidConfig: { c4: config } as MermaidRuntimeConfig, onConfigDiagnostic: diagnostic => diagnostics.push(diagnostic.field) })
       expect(diagnostics).toEqual(Object.keys(config).map(key => `c4.${key}`))

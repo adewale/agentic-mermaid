@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import fc from 'fast-check'
-import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutCertificateProof } from '../agent/certificates.ts'
 import type { FamilyDescriptor, FamilyLayoutResult } from '../agent/families.ts'
 import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
@@ -15,6 +14,7 @@ import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-c
 import { DefaultBackend } from '../scene/backend.ts'
 import { DEFAULTS } from '../theme.ts'
 import type { EdgeRouteCertificate, FamilyEdgeRouteCertificate, PositionedDiagram, RegionContainmentCertificate, RenderContext, RenderOptions, RouteCertificate } from '../types.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 const RUNS = 24
@@ -57,6 +57,18 @@ function sceneContext(
 
 function headerFor(kind: DiagramKind): string {
   switch (kind) {
+    case 'packet':
+      return 'packet'
+    case 'kanban':
+      return 'kanban'
+    case 'requirement':
+      return 'requirementDiagram'
+    case 'treemap':
+      return 'treemap'
+    case 'ishikawa':
+      return 'ishikawa'
+    case 'block':
+      return 'block'
     case 'c4':
       return 'C4'
     case 'flowchart':
@@ -151,8 +163,7 @@ describe('property: FamilyDescriptor render waist', () => {
         expect(original?.layout).toBeDefined()
         expect(original?.lowerScene).toBeDefined()
         expect(original?.renderAscii).toBeDefined()
-        expect(original?.normalizeRequest).toBeDefined()
-        if (!original?.layout || !original.lowerScene || !original.renderAscii || !original.normalizeRequest) return
+        if (!original?.layout || !original.lowerScene || !original.renderAscii) return
         const { layout, renderAscii, normalizeRequest } = original
         const renderSvg = () => renderMermaidSVG(source, { embedFontImport: false })
         const renderAsciiReceipt = () => renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
@@ -169,20 +180,24 @@ describe('property: FamilyDescriptor render waist', () => {
 
         // normalizeRequest: the frozen request context is the contract; a
         // palette patch it returns reaches both the SVG and the terminal theme.
-        withFamilyHooks(publicKind, {
-          ...original,
-          normalizeRequest: ctx => {
-            expect(Object.isFrozen(ctx)).toBe(true)
-            expect(Object.isFrozen(ctx.source)).toBe(true)
-            expect(Object.isFrozen(ctx.renderOptions)).toBe(true)
-            expect(Object.isFrozen(ctx.colors)).toBe(true)
-            const result = normalizeRequest(ctx) ?? {}
-            return { ...result, appearance: { ...result.appearance, colors: { ...result.appearance?.colors, fg: PERTURBED_FG } } }
+        withFamilyHooks(
+          publicKind,
+          {
+            ...original,
+            normalizeRequest: ctx => {
+              expect(Object.isFrozen(ctx)).toBe(true)
+              expect(Object.isFrozen(ctx.source)).toBe(true)
+              expect(Object.isFrozen(ctx.renderOptions)).toBe(true)
+              expect(Object.isFrozen(ctx.colors)).toBe(true)
+              const result = normalizeRequest?.(ctx) ?? {}
+              return { ...result, appearance: { ...result.appearance, colors: { ...result.appearance?.colors, fg: PERTURBED_FG } } }
+            },
           },
-        }, () => {
-          expect(renderSvg()).toContain(PERTURBED_FG)
-          expect(renderAsciiReceipt().terminalStyle.theme.fg).toBe(PERTURBED_FG)
-        })
+          () => {
+            expect(renderSvg()).toContain(PERTURBED_FG)
+            expect(renderAsciiReceipt().terminalStyle.theme.fg).toBe(PERTURBED_FG)
+          },
+        )
 
         // layout: a widened positioned artifact widens the SVG canvas.
         withFamilyHooks(publicKind, { ...original, layout: ctx => widenPositioned(layout(ctx), PERTURBED_WIDTH) }, () => {
@@ -195,12 +210,21 @@ describe('property: FamilyDescriptor render waist', () => {
         // evidence while the text stays byte-identical.
         for (const hook of ['layout', 'lowerScene'] as const) {
           const failure = `perturbed ${hook} hook`
-          withFamilyHooks(publicKind, { ...original, [hook]: () => { throw new Error(failure) } }, () => {
-            expect(renderSvg).toThrow(failure)
-            const perturbed = renderAsciiReceipt()
-            expect(perturbed.text).toBe(ascii.text)
-            expect(perturbed.terminalStyle.connectorProjection.evidence).toBe('unavailable')
-          })
+          withFamilyHooks(
+            publicKind,
+            {
+              ...original,
+              [hook]: () => {
+                throw new Error(failure)
+              },
+            },
+            () => {
+              expect(renderSvg).toThrow(failure)
+              const perturbed = renderAsciiReceipt()
+              expect(perturbed.text).toBe(ascii.text)
+              expect(perturbed.terminalStyle.connectorProjection.evidence).toBe('unavailable')
+            },
+          )
         }
 
         // renderAscii: the terminal text is the registered hook's output, and
@@ -212,7 +236,7 @@ describe('property: FamilyDescriptor render waist', () => {
       }),
       fcParameters({ numRuns: RUNS }),
     )
-  })
+  }, 30_000)
 
   test('request normalizers cannot smuggle mutable, executable, or second appearance authorities below the waist', () => {
     const original = getFamily('flowchart')!

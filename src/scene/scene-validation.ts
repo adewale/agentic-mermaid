@@ -14,6 +14,7 @@ import { safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { parseExtensionId } from '../shared/extension-identity.ts'
 import { nodeWorldBounds } from './bounds.ts'
+import { hasDomSvgIdentityRole } from './identity.ts'
 import { canonicalExternalNode } from './external-projection.ts'
 import type {
   Geometry,
@@ -693,7 +694,7 @@ function validateRole(kind: string, value: unknown, path: string, state: Validat
   return true
 }
 
-function validateNode(value: unknown, path: string, state: ValidationState, depth: number): void {
+function validateNode(value: unknown, path: string, state: ValidationState, depth: number, enclosing?: SceneOwner): void {
   if (depth > MAX_SCENE_DEPTH) {
     add(state.diagnostics, 'SCENE_BOUNDS', path, `exceeds maximum nesting depth ${MAX_SCENE_DEPTH}`)
     return
@@ -789,6 +790,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (value.attributes !== undefined) validateMarkAttributes(value.attributes, `${path}.attributes`, state.diagnostics)
 
   if (kind === 'shape') {
+    if (value.identity === undefined && typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)) {
+      if (!enclosing || !record(value.owner) || value.role !== enclosing.role || value.owner.id !== enclosing.id || value.owner.role !== enclosing.role) {
+        add(state.diagnostics, 'SCENE_FIDELITY', `${path}.identity`, 'owned artwork without DOM identity must be inside its matching semantic group')
+      }
+    }
     if (value.surfaceFragment !== undefined && typeof value.surfaceFragment !== 'boolean') {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.surfaceFragment`, 'must be boolean')
     }
@@ -863,12 +869,15 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     }
     if (value.children.length > MAX_SCENE_NODES) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.children`, 'contains too many Scene nodes')
     const childCount = Math.min(value.children.length, Math.max(0, MAX_SCENE_NODES - state.nodeCount + 1))
+    const subject = typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)
+      ? record(value.identity) && typeof value.identity.id === 'string' && value.identity.role === value.role ? { id: value.identity.id, role: value.role as SceneRole } : undefined
+      : enclosing
     for (let index = 0; index < childCount; index++) {
       const child = value.children[index]
       if (!record(child)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.children[${index}]`, 'must wrap a Scene node')
       else {
         finite(child.indent, `${path}.children[${index}].indent`, state.diagnostics, { nonNegative: true })
-        validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1)
+        validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1, subject)
       }
     }
     if (state.external && (typeof value.open !== 'string' || !/^<g(?:\s|>)/.test(value.open) || value.close !== '</g>')) {

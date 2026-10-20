@@ -30,7 +30,7 @@ describe('Section B reviewed rendering golden', () => {
   test('byte-matches the registry-driven renderer output and is reviewable at native size', () => {
     const checked = readFileSync(PNG)
     expect(buildSectionBBrandEvidence()).toEqual(checked)
-    expect(pngDimensions(checked)).toEqual({ width: 1560, height: 9464 })
+    expect(pngDimensions(checked)).toEqual({ width: 1560, height: 12504 })
     expect(checked.byteLength).toBeGreaterThan(500_000)
   }, 120_000)
 
@@ -44,7 +44,7 @@ describe('Section B reviewed rendering golden', () => {
       reviewer: approval.reviewer,
       audit: approval.audit,
     })
-    expect(approval.scope).toContain('68 family-by-variant cells')
+    expect(approval.scope).toContain('92 family-by-variant cells')
     expect(SECTION_B_BASELINE_COMMIT).toMatch(/^[0-9a-f]{40}$/)
     expect(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/baseline.mmd'), 'utf8')).toContain('flowchart LR')
     expect(JSON.parse(readFileSync(join(ROOT, 'eval/section-b-brand-evidence/role-style.json'), 'utf8'))).toHaveProperty('roles.node')

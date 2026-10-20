@@ -194,7 +194,10 @@ function assertOutlines(
       inkCount++
     })
     if (expectedPaint !== 'none' && override?.strokeWidth !== 0) expect(inkCount, `${where}: structural outline, not only a fill or invisible carrier`).toBeGreaterThan(0)
-    if (expectedPaint === undefined) roles.add(node.role)
+    if (expectedPaint === undefined) {
+      roles.add(node.role)
+      if (node.role === 'chrome' && node.owner) roles.add(node.owner.role)
+    }
     ids.add(node.id)
   })
   if (override) expect([...ids].sort(), `${context}: preserved source owners`).toEqual([...override.ids].sort())
@@ -304,6 +307,14 @@ describe('registry-derived complexity-aware render conformance plan', () => {
       const baseline = assertOutlines(source, options, renderMermaidSVG(source, options), backend)
       const hidden = `${source}\nstyle A stroke:#282a36,stroke-width:0`
       assertOutlines(hidden, options, renderMermaidSVG(hidden, options), `${backend}/authored zero width`, { ids: baseline.ids, paint: '#282a36', strokeWidth: 0 })
+
+      // Treemap separators have no automatic node-outline obligation, but
+      // explicit border paint and suppression still belong to the author.
+      const treemap = 'treemap\n"One": 2\n"Two": 1'
+      for (const paint of ['#282a36', 'none']) {
+        const separators = { ...options, style: [...options.style, { roles: { node: { borderColor: paint } } }] }
+        assertOutlines(treemap, separators, renderMermaidSVG(treemap, separators), `${backend}/authored treemap separators`, { ids: new Set(['cell:treemap-0', 'cell:treemap-1']), paint })
+      }
     }
   }, RENDER_PORTFOLIO_TIMEOUT_MS)
 

@@ -1,15 +1,43 @@
+import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
 // mutate: typed structural edits. Overloaded by family.
 // ============================================================================
 
 import type {
-  FlowchartValidDiagram, StateValidDiagram, SequenceValidDiagram, TimelineValidDiagram,
-  ClassValidDiagram, ErValidDiagram, JourneyValidDiagram, ArchitectureValidDiagram, XyChartValidDiagram, PieValidDiagram, QuadrantValidDiagram, GanttValidDiagram, RadarValidDiagram, SankeyValidDiagram, MutableValidDiagram,
+  FlowchartValidDiagram,
+  StateValidDiagram,
+  SequenceValidDiagram,
+  TimelineValidDiagram,
+  ClassValidDiagram,
+  ErValidDiagram,
+  JourneyValidDiagram,
+  ArchitectureValidDiagram,
+  XyChartValidDiagram,
+  PieValidDiagram,
+  QuadrantValidDiagram,
+  GanttValidDiagram,
+  RadarValidDiagram,
+  SankeyValidDiagram,
+  MutableValidDiagram,
   ParsedDiagram,
-  FlowchartMutationOp, StateMutationOp, SequenceMutationOp, TimelineMutationOp,
-  ClassMutationOp, ErMutationOp, JourneyMutationOp, ArchitectureMutationOp, XyChartMutationOp, PieMutationOp, QuadrantMutationOp, GanttMutationOp, RadarMutationOp, SankeyMutationOp, AnyMutationOp,
-  MutationError, Result,
+  FlowchartMutationOp,
+  StateMutationOp,
+  SequenceMutationOp,
+  TimelineMutationOp,
+  ClassMutationOp,
+  ErMutationOp,
+  JourneyMutationOp,
+  ArchitectureMutationOp,
+  XyChartMutationOp,
+  PieMutationOp,
+  QuadrantMutationOp,
+  GanttMutationOp,
+  RadarMutationOp,
+  SankeyMutationOp,
+  AnyMutationOp,
+  MutationError,
+  Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { wrapperPrefix } from './serialize.ts'
@@ -34,15 +62,18 @@ export function mutate(d: GanttValidDiagram, op: GanttMutationOp): Result<GanttV
 export function mutate(d: RadarValidDiagram, op: RadarMutationOp): Result<RadarValidDiagram, MutationError>
 export function mutate(d: C4ValidDiagram, op: C4MutationOp): Result<C4ValidDiagram, MutationError>
 export function mutate(d: SankeyValidDiagram, op: SankeyMutationOp): Result<SankeyValidDiagram, MutationError>
+export function mutate(d: PacketValidDiagram, op: PacketMutationOp): Result<PacketValidDiagram, MutationError>
+export function mutate(d: KanbanValidDiagram, op: KanbanMutationOp): Result<KanbanValidDiagram, MutationError>
+export function mutate(d: RequirementValidDiagram, op: RequirementMutationOp): Result<RequirementValidDiagram, MutationError>
+export function mutate(d: TreemapValidDiagram, op: TreemapMutationOp): Result<TreemapValidDiagram, MutationError>
+export function mutate(d: IshikawaValidDiagram, op: IshikawaMutationOp): Result<IshikawaValidDiagram, MutationError>
+export function mutate(d: BlockValidDiagram, op: BlockMutationOp): Result<BlockValidDiagram, MutationError>
 // General form for callers holding the union (e.g. the CLI): dispatch is by
 // registry at runtime either way, so kind-agnostic call sites don't need a
 // per-family narrowing cascade.
 export function mutate(d: MutableValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, MutationError>
 export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError>
-export function mutate(
-  d: ParsedDiagram,
-  op: AnyMutationOp,
-): Result<ParsedDiagram, MutationError> {
+export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {
   // Log the OUTCOME (not just the call): an `{ok:false}` trace line records a
   // failed op attempt — the observable signal the agent-usage eval reads to
   // measure a run's op-error rate directly, rather than inferring retries from
@@ -52,10 +83,7 @@ export function mutate(
   return r
 }
 
-function applyOneMutation(
-  d: ParsedDiagram,
-  op: AnyMutationOp,
-): Result<ParsedDiagram, MutationError> {
+function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {
   // Every structured family mutates through its FamilyDescriptor hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
   // carries stale source. Lookup is by DIAGRAM kind, not body kind. State
@@ -80,13 +108,8 @@ function applyOneMutation(
     // 1C wrapper policy: a mutated diagram keeps its leading wrapper
     // (frontmatter/directives/comments) byte-verbatim; only the body changes.
     const bodyAccessibility = accessibilityFromBody(r.value)
-    const meta = bodyAccessibility === undefined
-      ? d.meta
-      : { ...d.meta, accessibility: bodyAccessibility }
-    const bodySource = ensureAccessibilityLines(
-      plugin.serialize(r.value),
-      meta.accessibility,
-    )
+    const meta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
+    const bodySource = ensureAccessibilityLines(plugin.serialize(r.value), meta.accessibility)
     const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource) + bodySource
     // Source locations, exact authored spans, and wrapper ownership describe a
     // particular source artifact. Rebuild all three from the mutated
@@ -107,9 +130,7 @@ function applyOneMutation(
     // first link, which Mermaid rejects). Keep that exception family-owned and structural. A descriptor
     // must identify the candidate as EMPTY_DIAGRAM; every non-empty mutation
     // must close back through the shared parser to the same representation.
-    const verifiedEmptyScaffold = !sameRepresentation
-      && reparsed.value.body.kind === 'opaque'
-      && plugin.verify?.(r.value, {}).some(warning => warning.code === 'EMPTY_DIAGRAM') === true
+    const verifiedEmptyScaffold = !sameRepresentation && reparsed.value.body.kind === 'opaque' && plugin.verify?.(r.value, {}).some(warning => warning.code === 'EMPTY_DIAGRAM') === true
     if (!sameFamily || (!sameRepresentation && !verifiedEmptyScaffold)) {
       return err({
         code: 'INVALID_OP',
@@ -124,9 +145,7 @@ function applyOneMutation(
         // This receipt describes loss from the originally parsed artifact.
         // Reparsing the already-canonical mutation output cannot rediscover a
         // comment that structured serialization intentionally omitted.
-        ...(d.meta.droppedComments
-          ? { droppedComments: d.meta.droppedComments }
-          : {}),
+        ...(d.meta.droppedComments ? { droppedComments: d.meta.droppedComments } : {}),
       },
       canonicalSource,
       source: reparsed.value.source,
@@ -160,7 +179,10 @@ export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagr
     // A shape rejection short-circuits before `mutate`, so record the failed
     // attempt here — otherwise checked-path errors (e.g. the op-array slip)
     // would go uncounted in the op-error rate.
-    if (invalid) { logToolInvocation('mutate', false); return err(invalid) }
+    if (invalid) {
+      logToolInvocation('mutate', false)
+      return err(invalid)
+    }
     return mutate(d, checkedOp as AnyMutationOp)
   }
   return mutate(d, op as AnyMutationOp)

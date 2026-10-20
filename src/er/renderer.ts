@@ -10,7 +10,7 @@ import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { breakLineTags, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
-import { topRoundedRectPath } from '../svg-paths.ts'
+import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import type { Geometry, MarkAttributes, MarkPaint, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'

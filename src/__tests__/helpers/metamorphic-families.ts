@@ -44,6 +44,48 @@ const range = (k: number) => Array.from({ length: k }, (_, i) => i)
 const lines = (...xs: string[]) => xs.join('\n')
 
 export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
+  packet: {
+    family: 'packet',
+    build: (k, tag) => lines('packet', ...range(k).map(i => `+8: "${tag} field ${i}"`)),
+    kRange: [1, 6],
+    addPrimary: { snippet: (_k, tag) => `\n+8: "${tag} extra"`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  kanban: {
+    family: 'kanban',
+    build: (k, tag) => lines('kanban', `  ${tag}todo[To do]`, ...range(k).map(i => `    ${tag}${i}[Task ${i}]@{assigned: "Owner ${i % 2}"}`)),
+    kRange: [1, 6],
+    addPrimary: { snippet: (_k, tag) => `\n    ${tag}extra[Extra task]`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  requirement: {
+    family: 'requirement',
+    build: (k, tag) => lines('requirementDiagram', ...range(k).map(i => `  requirement ${tag}${i} {\n    id: R${i}\n    text: "Requirement ${i}"\n    risk: medium\n    verifymethod: test\n  }`), ...range(k - 1).map(i => `  ${tag}${i} - traces -> ${tag}${i + 1}`)),
+    kRange: [2, 5],
+    addPrimary: { snippet: (_k, tag) => `\n  element ${tag}extra {\n    type: "test"\n  }`, nodeDelta: 1 },
+    addRelation: (_k, tag) => `\n  ${tag}1 - refines -> ${tag}0`,
+  },
+  treemap: {
+    family: 'treemap',
+    build: (k, tag) => lines('treemap', `"${tag} Portfolio"`, ...range(k).map(i => `  "${tag} Investment ${i}": ${(i + 1) * 10}`)),
+    kRange: [2, 6],
+    addPrimary: { snippet: (_k, tag) => `\n"${tag} Extra": 7`, nodeDelta: 1 },
+    addRelation: null,
+  },
+  ishikawa: {
+    family: 'ishikawa',
+    build: (k, tag) => lines('ishikawa', `  ${tag} Outcome`, `  ${tag} Process`, ...range(k).map(i => `    ${tag} Cause ${i}`)),
+    kRange: [1, 6],
+    addPrimary: null,
+    addRelation: null,
+  },
+  block: {
+    family: 'block',
+    build: (k, tag) => lines('block', '  columns 3', ...range(k).map(i => `  ${tag}${i}["Step ${i}"]`), ...range(k - 1).map(i => `  ${tag}${i} --> ${tag}${i + 1}`)),
+    kRange: [2, 6],
+    addPrimary: { snippet: (_k, tag) => `\n  ${tag}extra["Extra"]`, nodeDelta: 1 },
+    addRelation: (_k, tag) => `\n  ${tag}1 --> ${tag}0`,
+  },
   c4: {
     family: 'c4',
     build: (k, t) => lines('C4Container', `  System_Boundary(${t}g, "Platform") {`, ...range(k).map(i => `    Container(${t}${i}, "Service ${i}", "HTTP")`), '  }', ...range(k - 1).map(i => `  Rel(${t}${i}, ${t}${i + 1}, "Call ${i}")`)),

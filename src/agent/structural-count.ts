@@ -1,3 +1,4 @@
+import { stableFamilyCount } from './stable-family-adapters.ts'
 // ============================================================================
 // countStructuralElements — a family-agnostic faithfulness oracle.
 //
@@ -145,6 +146,13 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
       }
       return { nodes: labels.size, edges: body.links.length, groups: 0 }
     }
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'block':
+    case 'treemap':
+    case 'ishikawa':
+      return stableFamilyCount(body)
     case 'opaque':
     case 'extension':
     case 'preserved':

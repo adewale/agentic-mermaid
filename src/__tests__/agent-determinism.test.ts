@@ -325,7 +325,7 @@ describe('determinism — cross-runtime ASCII (Loop 9 M7)', () => {
         process.stdout.write(require('node:crypto').createHash('sha256').update(ascii).digest('hex'))
       `
       const r = spawnSync(NODE!, ['-e', script], { encoding: 'utf8' })
-      expect(r.status).toBe(0)
+      expect(r.status, JSON.stringify({ stderr: r.stderr, error: r.error?.message, signal: r.signal })).toBe(0)
       const nodeHash = r.stdout.trim()
       // Honest comparison. Any divergence fails — convert to test.todo +
       // document in DIVERGENCES if it does.

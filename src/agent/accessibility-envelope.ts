@@ -1,10 +1,7 @@
 import type { Accessibility, DiagramBody } from './types.ts'
 
 /** Serialize universal Mermaid accessibility metadata for structured bodies. */
-export function appendAccessibilityLines(
-  lines: string[],
-  value: { accessibilityTitle?: string; accessibilityDescription?: string },
-): void {
+export function appendAccessibilityLines(lines: string[], value: { accessibilityTitle?: string; accessibilityDescription?: string }): void {
   if (value.accessibilityTitle !== undefined) lines.push(`  accTitle: ${value.accessibilityTitle}`)
   if (value.accessibilityDescription === undefined) return
   if (!value.accessibilityDescription.includes('\n')) {
@@ -72,6 +69,12 @@ export function accessibilityFromBody(body: DiagramBody): Accessibility | undefi
     case 'mindmap':
     case 'gitgraph':
     case 'c4':
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'treemap':
+    case 'ishikawa':
+    case 'block':
       return {
         ...(body.accessibilityTitle !== undefined ? { title: body.accessibilityTitle } : {}),
         ...(body.accessibilityDescription !== undefined ? { descr: body.accessibilityDescription } : {}),
@@ -94,6 +97,12 @@ export function attachAccessibilityToBody(body: DiagramBody, accessibility: Acce
     case 'mindmap':
     case 'gitgraph':
     case 'c4':
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'treemap':
+    case 'ishikawa':
+    case 'block':
       if (accessibility.title !== undefined) body.accessibilityTitle = accessibility.title
       if (accessibility.descr !== undefined) body.accessibilityDescription = accessibility.descr
       break

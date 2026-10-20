@@ -1,3 +1,5 @@
+import { stableFamilyFacts } from './stable-family-adapters.ts'
+
 // ============================================================================
 // Mermaid semantic facts/checks.
 //
@@ -7,10 +9,10 @@
 // renderable while these facts prove it still says the requested thing.
 // ============================================================================
 
+import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts } from './sequence-body.ts'
-import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
@@ -126,7 +128,7 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
     case 'c4': {
       const body = d.body
       // Alias whitespace is identity, even when display whitespace is folded.
-      const identity = (value: string): string => /^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value)
+      const identity = (value: string): string => (/^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value))
       add(out, `variant ${body.variant}`)
       if (body.title !== undefined) add(out, `title ${clean(body.title)}`)
       for (const boundary of body.boundaries) {
@@ -162,6 +164,14 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'block':
+    case 'treemap':
+    case 'ishikawa':
+      out.push(...stableFamilyFacts(d.body))
+      break
     case 'opaque': {
       add(out, `opaque ${d.body.family}`)
       const plugin = getFamily(d.kind)
@@ -287,6 +297,10 @@ function factsClass(out: string[], body: ClassBody): void {
     add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
   }
   for (const c of body.classes) {
+    if (c.isInterface) {
+      add(out, `interface ${clean(c.id)} : ${clean(c.label ?? c.id)}`)
+      continue
+    }
     add(out, `class ${clean(c.id)}`)
     if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
@@ -458,6 +472,7 @@ function factsGitGraph(out: string[], body: GitGraphBody): void {
   for (const commit of body.commits) {
     add(out, `commit ${clean(commit.id)} branch ${clean(commit.branch)}`)
     add(out, `commit ${clean(commit.id)} type ${commit.type}`)
+    if (commit.sourceId) add(out, `commit ${clean(commit.id)} source-id ${clean(commit.sourceId)}`)
     if (commit.message) add(out, `commit ${clean(commit.id)} message ${clean(commit.message)}`)
     commit.tags.forEach(tag => add(out, `commit ${clean(commit.id)} tag ${clean(tag)}`))
     commit.parents.forEach(parent => add(out, edgeFact(parent, commit.id, commit.source === 'commit' ? undefined : commit.source)))

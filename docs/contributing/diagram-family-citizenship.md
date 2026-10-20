@@ -10,7 +10,7 @@ The `FamilyDescriptor` registry in `src/agent/families.ts` is the canonical runt
 
 The version-pinned upstream family index, [`src/upstream-mermaid-family-index.json`](../../src/upstream-mermaid-family-index.json), records every public Mermaid family/header separately from native Agentic Mermaid support, including unsupported and inventory-only dialects; an upstream header is never silently treated as Flowchart. On a Mermaid upgrade, update [`upstream-mermaid-policy.json`](../project/upstream-mermaid-policy.json) and rerun `bun run upstream-family-index`, which checks the policy against the installed package and rewrites the index. (The full upstream manifest and its hash inventory are no longer published.)
 
-The citizenship matrix and the fidelity capability report behind its `mermaidSyntaxParity` cells are no longer published. The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
+The citizenship matrix and the fidelity capability report behind its `mermaidSyntaxParity` cells are no longer published. [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) preserves the dated Mermaid 11.16 audit; it is not an audit of the current registry. The six stable families added for Mermaid 12.2 have current implementation, domain, compatibility, and review evidence in [`stable-family-implementation.md`](../design/families/stable-family-implementation.md) and its linked family design pages. Runtime capability claims still come from the descriptor registry and executable tests.
 
 ## Semantic correctness vs. system citizenship
 
@@ -22,6 +22,43 @@ Keep these distinct in reviews:
 - **System citizenship** asks whether every supported entry point points to the same typed path. Examples: `am capabilities`, `llms.txt`, `am init-agent`, MCP initialize guidance, SDK declarations, Code Mode sandbox narrowers, editor examples/glyphs, eval fixtures, generated site samples, package exports, and docs tables.
 
 A new family can be semantically good and still fail citizenship if an agent discovering the package through a different surface cannot find the same parse → narrow → mutate → verify → serialize path.
+
+## Representative examples are mandatory
+
+The citizenship test exercises both a small smoke input and a domain-rich
+scenario for every registered built-in family. The required `citizenship`
+witness belongs to the existing closed `FAMILY_CONFORMANCE_PROFILES` record;
+adding a `DiagramKind` requires supplying its scenario and expectations.
+The separate `family-risk` rendering inputs remain useful for focused hazards
+such as a long section heading or an alignment directive. A focused hazard alone
+does not constitute a representative scenario.
+
+Choose a believable reader task with interacting family features. More nodes
+or a longer source is not evidence of representativeness. Examples include
+bit fields crossing word boundaries, a board with ordered cards and metadata,
+requirements linked to implementation and verification evidence, a quantitative
+hierarchy, causal subtrees, and nested grids with spans and directed links.
+Established families need equivalent combinations: grouped branching graphs,
+sequence control flow, entity attributes and cardinalities, dependent schedules,
+or multi-series data with authored axes and quantities.
+
+Author expected identities, membership, endpoints, directions, ordering and
+quantities independently of the parser and serializer. The test checks those
+expectations before and after canonical export/reload and a meaningful typed
+edit. It also checks visible sentinel labels, verification, graphical and
+terminal output, real layout regions and uncached determinism. Family-specific
+body/geometry assertions cover important semantics that public fact summaries
+do not expose. Serializer idempotence and “renders without throwing” alone do
+not satisfy this requirement.
+
+The six stable-family representative sources live in
+`eval/stable-families/fixtures/`. They also feed the existing pinned Mermaid
+operation/semantic comparisons, reviewed PNG goldens and PR comparison gallery.
+The upstream comparisons cover the original inputs and canonical output; they
+do not compare Agentic's pixels with Mermaid's. Reviewed goldens detect visual
+changes, while independent domain expectations detect lost meaning. Neither
+claims that arbitrary complexity is readable or that one example exhausts a
+family's syntax.
 
 ## Checklist surfaces
 
@@ -47,6 +84,7 @@ Review each surface below for every family; a gap is closed or tracked as a TODO
 | `divergenceLedger` | Known compatibility divergences in harvested upstream examples/tests are executable and cannot rot, or tracked for ledger work. |
 | `mermaidSyntaxParity` | The pinned Mermaid docs inventory is complete; every stable construct is natively semantic or a named, tested security/offline divergence. Parser acceptance alone does not satisfy this cell. |
 | `domainProperties` | Family-specific invariants/properties exist beyond “renders without throwing.” |
+| `representativeExample` | A mandatory domain-rich citizenship witness combines meaningful features, preserves independent semantic expectations through export/reload and typed editing, and exercises graphical and terminal output. |
 | `familyVisualMetaphor` | Mermaid plus a Wikipedia/domain reference define a hallmark protected by independent geometry/semantic tests and a reviewer-visible artifact. |
 | `chartHonesty` | Every text the family draws, in every registered style, passes the pixel oracle in [`chart-honesty.md`](../design/system/chart-honesty.md): legible against its surround, on the canvas, drawn or reported by `verify`, and read the same in every style. The `chart-honesty-text-<part>.test.ts` partitions check every registered family. |
 | `goldensEvidence` | Text/SVG/visual evidence exists where reviewer judgment needs artifacts. |
@@ -83,8 +121,8 @@ When adding or changing a family:
 1. Add/update the built-in `FamilyDescriptor` seed first; `BUILTIN_FAMILY_METADATA` derives automatically. External families use a validated `family:<owner/name>` id and `registerFamily`. Update the upstream policy and rerun `bun run upstream-family-index` only when the upstream inventory or support classification changes.
 2. Add/update parser, renderer, agent body, mutation ops, verify behavior, and examples.
 3. Map the family to exactly one pinned official Mermaid syntax page in the policy; `src/__tests__/official-fence-corpus.test.ts` exercises every fence on it. Promote every stable construct claimed native to executable fixtures, and do not count parse-only or opaque preservation as support.
-4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, commit a generated PNG/SVG under `docs/design/families/`, and attach captioned renders to the PR (not new files under `docs/pr-assets/`).
-5. Add the family to `FAMILY_COUNT_FIXTURES` so the behavioural citizenship loop exercises it.
+4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, and add an independent invariant. Use reviewed rendering goldens under `src/__tests__/testdata/` for committed visual regression evidence; generate other review renders as CI artifacts or outside the tracked tree and attach captioned renders to the PR. Do not commit derived renders under `docs/design/families/` or `docs/pr-assets/`.
+5. Add the small `FAMILY_COUNT_FIXTURES` input and the required domain-rich `citizenship` witness in `FAMILY_CONFORMANCE_PROFILES`. State independent semantic expectations and a meaningful typed edit; retain a focused risk fixture for the render portfolio. Review actual output before blessing any golden.
 6. Add the family's `HONESTY_SAMPLES`. Fix a violation with the shared mechanisms in [`chart-honesty.md`](../design/system/chart-honesty.md), not by exempting the family.
 7. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
 8. For any citizenship gap introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.

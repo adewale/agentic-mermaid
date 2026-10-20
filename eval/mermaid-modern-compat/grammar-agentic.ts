@@ -1,25 +1,31 @@
-import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
 import { parseArchitectureDiagram } from '../../src/architecture/parser.ts'
+import { parseBlockDiagram } from '../../src/block/parser.ts'
+import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { parseClassDiagram } from '../../src/class/parser.ts'
 import { parseErDiagram } from '../../src/er/parser.ts'
 import { parseGanttModel } from '../../src/gantt/parser.ts'
 import { parseGitGraph } from '../../src/gitgraph/parser.ts'
 import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
+import { parseIshikawaDiagram } from '../../src/ishikawa/parser.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
-import { normalizeMermaidSource } from '../../src/mermaid-source.ts'
+import { parseKanbanDiagram } from '../../src/kanban/parser.ts'
+import { frontmatterTitle, normalizeMermaidSource } from '../../src/mermaid-source.ts'
 import { parseMindmap } from '../../src/mindmap/parser.ts'
+import { parsePacketDiagram } from '../../src/packet/parser.ts'
 import { parseMermaid } from '../../src/parser.ts'
 import { parsePieChart } from '../../src/pie/parser.ts'
 import { pieFamilyLines } from '../../src/pie/source-title.ts'
 import { parseQuadrantChart } from '../../src/quadrant/parser.ts'
 import { parseRadarChart } from '../../src/radar/parser.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf, resolveRenderRequestForExecution } from '../../src/render-contract.ts'
+import { parseRequirementDiagram } from '../../src/requirement/parser.ts'
 import { parseSankeyDiagram } from '../../src/sankey/parser.ts'
 import { resolveSequenceConfig } from '../../src/sequence/config.ts'
 import { parseSequenceDiagram } from '../../src/sequence/parser.ts'
 import { type ParserObservation, snapshotParserObservationValue, withParserObservation } from '../../src/shared/parser-observation.ts'
 import { parseTimelineDiagram } from '../../src/timeline/parser.ts'
+import { parseTreemapDiagram } from '../../src/treemap/parser.ts'
 import { parseXYChart } from '../../src/xychart/parser.ts'
 import { projectNativeSemantic } from './grammar-native-semantics.ts'
 import type { NativeParserObservation } from './grammar-types.ts'
@@ -96,6 +102,27 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
           return parseTimelineDiagram(lines, normalized.accessibility)
         case 'xychart':
           return parseXYChart(lines)
+        case 'packet': {
+          const body = parsePacketDiagram(normalized.familyBody, normalized.accessibility)
+          body.title ??= frontmatterTitle(normalized.frontmatter)
+          return body
+        }
+        case 'kanban':
+          return parseKanbanDiagram(normalized.familyBody, normalized.accessibility)
+        case 'requirement': {
+          const body = parseRequirementDiagram(normalized.familyBody)
+          body.title ??= frontmatterTitle(normalized.frontmatter)
+          return body
+        }
+        case 'block':
+          return parseBlockDiagram(normalized.familyBody)
+        case 'treemap': {
+          const body = parseTreemapDiagram(normalized.familyBody)
+          body.title ??= frontmatterTitle(normalized.frontmatter)
+          return body
+        }
+        case 'ishikawa':
+          return parseIshikawaDiagram(normalized.familyBody)
         default:
           throw new Error(`Missing renderer-parser adapter for native family ${family}`)
       }
@@ -119,7 +146,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
       let semantic: ReturnType<typeof projectNativeSemantic>, projectionError: string | undefined
       if (observed.accepted) {
         try {
-          semantic = projectNativeSemantic(family, observed.raw)
+          semantic = projectNativeSemantic(family, observed.raw, events)
         } catch (error) {
           projectionError = message(error)
         }
@@ -128,7 +155,11 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
         statements: { status: 'available', method: 'Actual native consumed classified statements; positions identify the parser-supplied physical or normalized view', value: events.filter(event => event.unit === 'statement') },
         tokens:
           family === 'flowchart' || family === 'c4'
-            ? { status: 'available', method: family === 'c4' ? 'Actual forward C4 scanner chunks; physical UTF16 offsets and Unicode-code-point columns, not Mermaid terminals' : 'Actual native consumed compound node/link fragments, not Mermaid terminal kinds; positions unavailable where the consumer has only a remaining suffix', value: events.filter(event => event.unit === 'token') }
+            ? {
+                status: 'available',
+                method: family === 'c4' ? 'Actual forward C4 scanner chunks; physical UTF16 offsets and Unicode-code-point columns, not Mermaid terminals' : 'Actual native consumed compound node/link fragments, not Mermaid terminal kinds; positions unavailable where the consumer has only a remaining suffix',
+                value: events.filter(event => event.unit === 'token'),
+              }
             : { status: 'unavailable', reason: 'This native parser exposes classified statements, not a homologous lexer token stream' },
         mutations: { status: 'available', method: 'Actual native builder writes/operations in execution order; values copied at call time, including parent and membership fields', value: events.filter(event => event.unit === 'mutation') },
         ...(observed.model !== undefined ? { model: observed.model } : {}),

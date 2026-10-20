@@ -512,6 +512,7 @@ export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   interactive: { typeScript: 'boolean', description: 'Enable hover tooltips for supported chart data points.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Enable hover tooltips for supported chart data points.', false), terminal: 'projected', terminalNote: 'terminal output is a static semantic projection', applicableBuiltinFamilies: ['xychart', 'pie', 'quadrant'] },
   shadow: { typeScript: 'boolean', description: 'Paint explicit drop shadows on node shapes.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Paint explicit drop shadows on node shapes.', false), terminal: 'projected', terminalNote: 'elevation projects to borders and labels', applicableBuiltinFamilies: SHADOW_OPTION_FAMILIES },
   class: { typeScript: '{ hierarchicalNamespaces?: boolean }', description: 'Class-diagram rendering controls.', defaultLabel: '`hierarchicalNamespaces: true`', validationExpectation: 'be a class options object', schema: closedObjectSchema({ hierarchicalNamespaces: booleanSchema('Nest namespace compounds.', true) }, 'Class-diagram rendering controls.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical class layout', applicableBuiltinFamilies: ['class'] },
+  kanban: { typeScript: '{ maxWidth?: number }', description: 'Opt-in Kanban column wrapping with readable column widths.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a kanban options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort width budget for wrapping whole Kanban columns into rows.') }, 'Kanban layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal layout uses its own targetWidth', applicableBuiltinFamilies: ['kanban'] },
   architecture: { typeScript: '{ visual?: ArchitectureVisualOverrides }', description: 'Sparse architecture renderer visual metric and paint overrides.', defaultLabel: 'built-in metrics', validationExpectation: 'be an architecture options object', schema: closedObjectSchema({ visual: ARCHITECTURE_VISUAL_SCHEMA }, 'Architecture renderer visual metric and paint overrides.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical architecture rendering', applicableBuiltinFamilies: ['architecture'] },
   timeline: { typeScript: '{ maxWidth?: number }', description: 'Timeline layout controls.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a timeline options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort width budget for horizontal timelines.') }, 'Timeline layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['timeline'] },
   journey: { typeScript: '{ experienceCurve?: boolean }', description: 'User-journey graphical controls.', defaultLabel: '`experienceCurve: true`', validationExpectation: 'be a journey options object', schema: closedObjectSchema({ experienceCurve: booleanSchema('Connect journey score markers with an experience curve.', true) }, 'User-journey graphical controls.'), terminal: 'not-applicable', terminalNote: 'experience curves are graphical-only', applicableBuiltinFamilies: ['journey'] },
@@ -1186,9 +1187,12 @@ export function resolvedFamilyRenderContextOf(
 ): ResolvedFamilyRenderContext {
   const prior = FAMILY_CONTEXT_BY_REQUEST.get(request)
   if (prior) return prior
+  const paintBackendId = EXECUTION_PLAN_BY_REQUEST.get(request)?.backend?.identity.id
+    ?? (request.output === 'layout' ? `backend:${request.appearance.inferredBackend}` : undefined)
   const context = Object.freeze({
     renderOptions: request.renderOptions,
     ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+    ...(paintBackendId ? { paintBackendId } : {}),
     ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
     ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
   })
@@ -1563,10 +1567,25 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
     throw new TypeError(`render request contains a non-JSON object at ${path}`)
   }
   ancestors.add(value)
-  const clone: unknown = Array.isArray(value)
-    ? value.map((item, index) => immutableSnapshot(item, `${path}[${index}]`, ancestors))
-    : Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) =>
-        [key, immutableSnapshot(child, `${path}.${key}`, ancestors)]))
+  let clone: unknown
+  if (Array.isArray(value)) {
+    const length = value.length
+    const items: unknown[] = new Array(length)
+    for (let index = 0; index < length; index++) {
+      if (index in value) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors)
+    }
+    clone = items
+  } else {
+    const record: Record<string, unknown> = {}
+    // Capture entries before descending, retaining the existing accessor-read
+    // order without allocating a second array of key/value pairs per object.
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      const captured = immutableSnapshot(child, `${path}.${key}`, ancestors)
+      if (key === '__proto__') Object.defineProperty(record, key, { value: captured, enumerable: true })
+      else record[key] = captured
+    }
+    clone = record
+  }
   ancestors.delete(value)
   IMMUTABLE_SNAPSHOTS.add(clone as object)
   return Object.freeze(clone) as T

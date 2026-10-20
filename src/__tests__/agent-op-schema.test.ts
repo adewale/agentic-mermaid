@@ -103,7 +103,7 @@ describe('op-schema shape validation (§1–3, §5)', () => {
 
   test('typed, checked, and declarative edits accept the same lollipop relation', () => {
     const source = 'classDiagram\n  class Port\n  class Service'
-    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', label: 'provides' } as const
+    const op = { kind: 'add_interface', class: 'Service', label: 'Port', side: 'from', relationLabel: 'provides' } as const
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
@@ -112,7 +112,9 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     const checked = mutateChecked(parsed.value, op)
     const declarative = applyOps({ source, ops: [op] })
     expect({ direct: direct.ok, checked: checked.ok, declarative: declarative.ok }).toEqual({
-      direct: true, checked: true, declarative: true,
+      direct: true,
+      checked: true,
+      declarative: true,
     })
     if (!direct.ok || !checked.ok || !declarative.ok) return
 
@@ -121,9 +123,19 @@ describe('op-schema shape validation (§1–3, §5)', () => {
       const reparsed = parseMermaid(result)
       expect(reparsed.ok).toBe(true)
       if (!reparsed.ok || reparsed.value.body.kind !== 'class') throw new Error('Expected a structured class diagram')
-      expect(reparsed.value.body.relations).toEqual([
-        { from: 'Port', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' },
-      ])
+      expect(reparsed.value.body.relations).toEqual([{ from: 'interface0', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' }])
+    }
+  })
+
+  test('class endpoint relation APIs reject an implicit interface conversion with the same actionable error', () => {
+    const source = 'classDiagram\nclass Port\nclass Service'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('expected class')
+    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop' } as const
+    const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op), applyOps({ source, ops: [op] })]
+    for (const result of results) {
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error).toMatchObject({ code: 'INVALID_OP', message: expect.stringContaining('use add_interface') })
     }
   })
 
@@ -133,7 +145,7 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     { metadata: { markerAt: 'to', lineStyle: 'dashed' }, arrow: '..()' },
   ] as const)('direct, checked and declarative Class edits author $arrow with the same metadata', ({ metadata, arrow }) => {
     const source = 'classDiagram\nclass Port\nclass Service'
-    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const
+    const op = metadata.markerAt === 'to' ? ({ kind: 'add_interface', class: 'Port', label: 'Service', lineStyle: 'dashed' } as const) : ({ kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const)
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error('expected Class diagram')
     const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op)]
@@ -260,6 +272,12 @@ describe('schema covers every mutable family (§11)', () => {
     radar: { kind: 'add_axis', id: 'a' },
     sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
     c4: { kind: 'add_element', element: { id: 'service', label: 'Service', kind: 'system' } },
+    packet: { kind: 'add_field', label: 'Byte', bits: 8 },
+    kanban: { kind: 'add_column', id: 'todo', label: 'To do' },
+    requirement: { kind: 'add_requirement', requirement: { name: 'response', text: 'Respond promptly' } },
+    treemap: { kind: 'add_node', label: 'Investment', value: 10 },
+    ishikawa: { kind: 'set_effect', label: 'Release delay' },
+    block: { kind: 'add_block', block: { id: 'service', label: 'Service', type: 'square' } },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

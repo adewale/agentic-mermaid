@@ -698,7 +698,10 @@ pie showData
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
 
-    const cases = [
+    const cases: Array<
+      | { source: string; markers: string[] }
+      | { example: string; header: string; label: string; editedLabel: string; markers: string[] }
+    > = [
       {
         source: `architecture-beta
   group app(cloud)[Application]
@@ -731,10 +734,27 @@ pie showData
   line [120, 210, 200]`,
         markers: ['Editor Sales', 'xychart-bar', 'xychart-line'],
       },
+      { example: 'packet-basic', header: 'packet', label: 'Source port', editedLabel: 'AuditPort', markers: ['UDP datagram', 'Source port', 'data-field-id="field-0"'] },
+      { example: 'kanban-basic', header: 'kanban', label: 'Packet family', editedLabel: 'AuditPacket', markers: ['Packet family', 'In progress', 'data-parent="doing"'] },
+      { example: 'requirement-basic', header: 'requirementDiagram', label: 'Requests retain authored meaning', editedLabel: 'AuditMeaning', markers: ['data-id="reliable"', 'data-id="suite"', 'verifies'] },
+      { example: 'block-basic', header: 'block', label: 'Client', editedLabel: 'AuditClient', markers: ['Client', 'Primary', 'data-parent="data"'] },
+      { example: 'treemap-basic', header: 'treemap', label: 'Engineering', editedLabel: 'AuditEngineering', markers: ['Product investment', 'Engineering', 'Research'] },
+      { example: 'ishikawa-basic', header: 'ishikawa', label: 'Delayed release', editedLabel: 'AuditRelease', markers: ['Delayed release', 'Cold caches', 'Unstable test data'] },
     ]
 
     for (const testCase of cases) {
-      await page.fill('#code-editor', testCase.source)
+      if ('example' in testCase) {
+        // Start blank so selecting the next template cannot overwrite an
+        // authored draft or depend on a confirmation dialog from a prior case.
+        await page.fill('#code-editor', '')
+        await page.click('#examples-sidebar-btn')
+        await page.click(`#examples-sidebar .example-dropdown-item[data-example="${testCase.example}"]`)
+        const source = await page.inputValue('#code-editor')
+        expect(source).toStartWith(testCase.header)
+        expect(source).toContain(testCase.label)
+      } else {
+        await page.fill('#code-editor', testCase.source)
+      }
       await page.waitForFunction(
         (markers: string[]) => {
           const html = document.querySelector('#preview-inner svg')?.outerHTML ?? ''
@@ -750,6 +770,27 @@ pie showData
         },
         testCase.markers,
       )).toBe(true)
+      if ('example' in testCase) {
+        await waitForEditorRender(60_000)
+        const digest = await page.locator('#preview-inner').getAttribute('data-shared-request-digest')
+        expect(digest).toBeTruthy()
+        await page.fill('#code-editor', (await page.inputValue('#code-editor')).replace(testCase.label, testCase.editedLabel))
+        await page.waitForFunction(({ digest, label }) => {
+          const preview = document.querySelector<HTMLElement>('#preview-inner')
+          return document.getElementById('status-text')?.textContent === 'OK'
+            && Boolean(preview?.dataset.sharedRequestDigest)
+            && preview?.dataset.sharedRequestDigest !== digest
+            && preview?.querySelector('svg')?.textContent?.includes(label)
+        }, { digest, label: testCase.editedLabel }, { timeout: 60_000 })
+        await page.click('#format-ascii')
+        await page.waitForFunction(label => {
+          const preview = document.querySelector<HTMLElement>('#preview-inner')
+          return document.getElementById('ascii-output')?.textContent?.includes(label)
+            && Boolean(preview?.dataset.asciiSharedRequestDigest)
+            && preview?.dataset.asciiSharedRequestDigest === preview?.dataset.sharedRequestDigest
+        }, testCase.editedLabel, { timeout: 60_000 })
+        await page.click('#format-diagram')
+      }
     }
   }, 120_000)
 
