@@ -3,6 +3,8 @@ import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { graphTextBlock } from './graph-text.ts'
+import { performanceExperimentEnabled } from './experimental-performance.ts'
+import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
@@ -1830,11 +1832,21 @@ function layoutCandidate(
   graph: MermaidGraph,
   options: LayoutEngineOptions,
   rememberAlternative?: RememberRouteAlternative,
+  indexed = false,
 ): PositionedGraph {
   const stateVisual = (options as StateRenderOptions).stateVisual
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults, options.styleFace)
   const elkGraph = mermaidToElk(graph, opts, style)
+  if (indexed && !stateVisual) {
+    const result = indexedForestLayout(graph, elkGraph, opts.padding, opts.nodeSpacing, opts.layerSpacing)
+    if (!result) throw new Error('Graph is ineligible for indexed forest layout')
+    const bundled = elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18)
+    if (bundled.genericBundled) {
+      rememberAlternative?.(bundled.positioned, () => elkToPositioned(result, graph, false, opts.padding, style, 18).positioned)
+    }
+    return bundled.positioned
+  }
   // An unconnected leaf has no ranking, crossing, packing or routing choice.
   // Use the same measured node and padding, then retain the complete geometry
   // pipeline and certification. Compound/state/connected graphs still use ELK.
@@ -1916,6 +1928,15 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
     strategy: 'default', produce: () => layoutCandidate(graph, options, rememberAlternative),
     preferNext: preferReadableTitles,
   }]
+  // One conditional producer before the complete established fallback list.
+  // Projected Architecture graphs reserve authored child order and have
+  // side-constrained placement of their own; keep their original producer.
+  // Tight spacing can remove the forest producer's route channels and break
+  // mandatory downstream pass contracts. Preserve ELK for those requests.
+  const forestSpacing = (options.nodeSpacing ?? DEFAULTS.nodeSpacing) > 0 && (options.layerSpacing ?? DEFAULTS.layerSpacing) > 0
+  const preliminary = performanceExperimentEnabled('indexed-layout') && forestSpacing && !options.stateVisual && !options.preserveSubgraphChildOrder && isIndexedForestGraph(graph)
+    ? { strategy: 'indexed-forest', produce: () => layoutCandidate(graph, options, rememberAlternative, true), preferNext: preferReadableTitles }
+    : undefined
   if (!options.separateHierarchy) {
     candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
@@ -1925,13 +1946,13 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   }
   // Search placement strategies first, then test one completed route proposal
   // only for the selected placement, reusing its ELK result and certified score.
-  // At most four placement pipelines plus one route pipeline run; the existing
-  // 16-ELK exceptional upper bound is unchanged.
+  // One preliminary forest, at most four ELK placements and one route pipeline;
+  // the existing 16-ELK exceptional upper bound is unchanged.
   return certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
     const makeRoute = routeAlternatives.get(placed)
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
-  })
+  }, preliminary)
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {

@@ -5,17 +5,18 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { PERFORMANCE_EXPERIMENTS } from '../../src/experimental-performance.ts'
 import { ROOT } from './revision-tree.ts'
 
 function main() {
   const args = process.argv.slice(2)
   if (args.includes('--help')) {
-    console.log('bun run bench:dave [--out DIR] [--rounds N] [--case ID,...] [--executable CHROMIUM]\nBuilds and packs this checkout, then renders every official syntax fence with AM, Pele 1.6.0 and Mermaid 12.2.0. Three rounds, 30 warm-up attempts. Results are advisory; no diagrams are excluded from coverage.')
+    console.log('bun run bench:dave [--out DIR] [--rounds N] [--case ID,...] [--executable CHROMIUM] [--features NAME,...]\nBuilds and packs this checkout, then renders every official syntax fence with AM, Pele 1.6.0 and Mermaid 12.2.0. Three rounds, 30 warm-up attempts. Results are advisory; no diagrams are excluded from coverage.')
     return
   }
   // Validate options before the build or any network work.
   const options = new Map<string, string>()
-  const allowed = new Set(['out', 'rounds', 'case', 'executable'])
+  const allowed = new Set(['out', 'rounds', 'case', 'executable', 'features'])
   for (let i = 0; i < args.length; i += 2) {
     const flag = args[i]!, key = flag.slice(2), value = args[i + 1]
     if (!flag.startsWith('--') || !allowed.has(key) || !value || value.startsWith('--') || options.has(key)) throw new Error(`Invalid Dave benchmark option: ${flag}`)
@@ -23,6 +24,8 @@ function main() {
   }
   const rounds = Number(options.get('rounds') ?? 3)
   if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
+  const features = options.get('features')?.split(',') ?? []
+  if (features.some(feature => !PERFORMANCE_EXPERIMENTS.some(name => name === feature)) || new Set(features).size !== features.length) throw new Error('Invalid experimental feature selection')
   const env = { ...process.env, npm_config_cache: process.env.npm_config_cache ?? join(tmpdir(), 'am-benchmark-npm') }
   const run = (command: string, argv: string[], capture = false): string => {
     const result = spawnSync(command, argv, { cwd: ROOT, env, encoding: 'utf8', stdio: capture ? 'pipe' : 'inherit', maxBuffer: 8 * 1024 * 1024 })
