@@ -14,7 +14,7 @@ import { frontmatterTitle, normalizeMermaidSource, withFrontmatterTitle } from '
 import { withAccessibilityFields } from '../../src/shared/accessibility-directives.ts'
 import { parseMindmap } from '../../src/mindmap/parser.ts'
 import { parsePacketDiagram } from '../../src/packet/parser.ts'
-import { parseMermaid } from '../../src/parser.ts'
+import { parseFlowchartRenderSource, parseMermaid } from '../../src/parser.ts'
 import { parsePieChart } from '../../src/pie/parser.ts'
 import { pieFamilyLines } from '../../src/pie/source-title.ts'
 import { parseQuadrantChart } from '../../src/quadrant/parser.ts'
@@ -67,6 +67,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
     const parse = (): unknown => {
       switch (family) {
         case 'flowchart':
+          return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyText, normalized.familyText)
         case 'state':
           return parseMermaid(normalized.familyText)
         case 'c4': {

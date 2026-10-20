@@ -6,6 +6,7 @@
 // serializer must write source Mermaid accepts.
 
 import { afterAll, describe, expect, test } from 'bun:test'
+import { decodeXML } from 'entities'
 import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import { renderMermaidASCII } from '../index.ts'
@@ -332,6 +333,15 @@ const FLOWCHART_GROUPS: ReadonlyArray<readonly [string, string]> = [
   ['a bracket title after an id holding blanks, repeated', 'flowchart LR\n  subgraph a b[c]\n    A\n  end\n  subgraph a b[d]\n    B\n  end'],
 ]
 
+// The render path decodes entities before it reads a source. Where Mermaid
+// reads the authored text, ours draws what Mermaid and the typed body read:
+// an entity in label text shows its character, and one outside ends at `;`.
+// [construct, source, label text the render draws]
+const FLOWCHART_ENTITY_READINGS: ReadonlyArray<readonly [string, string, string]> = [
+  ['entity quotes around a shape label', 'flowchart LR\n  A[&quot;x&quot;] --> B', '>&quot;x&quot;<'],
+  ['entity quotes in a subgraph title, which `;` ends', 'flowchart LR\n  subgraph &quot;x\n  y&quot;\n    A\n  end', '>&amp;quot<'],
+]
+
 // Flowchart source Mermaid accepts but reads otherwise than its author meant.
 // [construct, source, Mermaid's nodes, ours, text the render draws, syntax verify reports, its line]
 const FLOWCHART_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly string[], readonly string[], string, string, number]> = [
@@ -552,6 +562,24 @@ describe('accessibility directives without their colon', () => {
 })
 
 describe('accept what pinned Mermaid accepts', () => {
+  test.each(FLOWCHART_ENTITY_READINGS)('flowchart: %s are drawn as Mermaid and the typed body read them', async (_construct, source, text) => {
+    const mermaid = await upstream.parse(source)
+    const read = mermaid.ok ? mermaid.flowchart : undefined
+    const svg = renderMermaidSVG(source)
+    const parsed = parseRegisteredMermaid(source)
+    const graph = parsed.ok && parsed.value.body.kind === 'flowchart' ? parsed.value.body.graph : undefined
+    const groupIds = (groups: NonNullable<typeof graph>['subgraphs']): string[] => groups.flatMap(group => [group.id, ...groupIds(group.children)])
+    expect({
+      drawn: [...svg.matchAll(/data-id="([^":]*)"/g)].map(match => decodeXML(match[1]!)).sort(),
+      typed: graph ? [...graph.nodes.keys(), ...groupIds(graph.subgraphs)].sort() : [],
+      label: svg.includes(text),
+    }).toEqual({
+      drawn: [...read?.vertices.map(vertex => vertex.id) ?? [], ...read?.subgraphs.map(group => group.id) ?? []].sort(),
+      typed: [...read?.vertices.map(vertex => vertex.id) ?? [], ...read?.subgraphs.map(group => group.id) ?? []].sort(),
+      label: true,
+    })
+  })
+
   test.each(FLOWCHART_GROUPS)('flowchart: %s has the title and members Mermaid reads', async (_construct, source) => {
     const mermaid = await upstream.parse(source)
     const read = mermaid.ok ? mermaid.flowchart : undefined

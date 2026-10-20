@@ -31,8 +31,10 @@
  *   - A `;` at statement level ends a statement.
  */
 
+import { decodeXML } from 'entities'
 import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 import { scanMetadataBlock } from './shared/metadata-block-scan.ts'
+import { TERMINAL_CONTROL_RE } from './shared/mermaid-entities.ts'
 
 export interface FlowchartTextRange { start: number; end: number }
 
@@ -845,6 +847,46 @@ function continuationPrefix(text: string, scan: FlowchartScan): { prefix: string
 }
 
 const TEXT_ARROW_OPENER: Readonly<Record<TextArrowStroke, string>> = { solid: '--', thick: '==', dotted: '-.' }
+
+/** An XML character reference, as the render path decodes one. */
+const XML_REFERENCE_RE = /&(?:(quot|amp|lt|gt|apos)|#(\d+)|#[xX]([0-9a-fA-F]+));/g
+
+/**
+ * A flowchart's lines with each XML character reference in label text (a
+ * string, shape text, a pipe or text-arrow label, a metadata block) written
+ * as the Mermaid entity code for its character (`&quot;` as `#quot;`,
+ * `&#x22;` as `#34;`), which the label shows as that character and the lexer
+ * reads as text. A reference elsewhere stays as written, where Mermaid's
+ * parser reads it as text and `;` (`subgraph &quot;x` is the title `&quot`).
+ * A code point no label may show (a control) is decoded, as the render path
+ * decodes it, for the terminal and SVG writers to report and replace.
+ */
+export function labelReferencesAsEntityCodes(text: string): string {
+  if (!text.includes('&')) return text
+  const lines = text.split('\n')
+  // Per line, the references to rewrite, last first.
+  const edits = new Map<number, Array<{ col: number; length: number; code: string }>>()
+  for (const group of coalesceFlowchartLines(lines)) {
+    if (group.directive || !group.text.includes('&')) continue
+    const { regions } = scanFlowchart(group.text)
+    for (const match of group.text.matchAll(XML_REFERENCE_RE)) {
+      const at = match.index
+      if (!regions.some(region => at >= region.contentStart && at + match[0].length <= region.contentEnd)) continue
+      const point = match[1] === undefined ? (match[2] !== undefined ? Number(match[2]) : Number.parseInt(match[3]!, 16)) : undefined
+      const shown = point === undefined || (point > 0 && point <= 0x10ffff && (point < 0xd800 || point > 0xdfff) && !TERMINAL_CONTROL_RE.test(String.fromCodePoint(point)))
+      const { line, col } = flowchartGroupPosition(group, at)
+      const list = edits.get(line) ?? []
+      list.unshift({ col, length: match[0].length, code: shown ? `#${match[1] ?? point};` : decodeXML(match[0]) })
+      edits.set(line, list)
+    }
+  }
+  for (const [line, list] of edits) {
+    let written = lines[line]!
+    for (const { col, length, code } of list) written = written.slice(0, col) + code + written.slice(col + length)
+    lines[line] = written
+  }
+  return lines.join('\n')
+}
 
 /** The trimmed text-arrow labels of a line. */
 export function flowchartTextArrowLabelRanges(text: string, scan: FlowchartScan = scanFlowchart(text)): FlowchartTextRange[] {

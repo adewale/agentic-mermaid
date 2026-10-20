@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -49,6 +49,24 @@ import { syntaxError } from './shared/syntax-error.ts'
  * Auto-detects diagram type (flowchart or state diagram).
  * Throws on invalid/unsupported input.
  */
+/**
+ * The flowchart a renderer draws, given its source as authored and as the
+ * render path entity-decodes it (render-contract.ts): the authored text, as
+ * Mermaid's parser and the typed body read it, with each XML reference in
+ * label text read as the Mermaid code for its character, so the label shows
+ * it (flowchart-lexer.ts labelReferencesAsEntityCodes); where ours cannot
+ * read the authored text, the decoded one, as a page hands HTML-escaped
+ * Mermaid (`A --&gt; B`) to Mermaid's browser runner.
+ */
+export function parseFlowchartRenderSource(authoredFamilyText: string, decodedFamilyText: string): MermaidGraph {
+  if (authoredFamilyText === decodedFamilyText) return parseMermaid(decodedFamilyText)
+  try {
+    return parseMermaid(labelReferencesAsEntityCodes(authoredFamilyText))
+  } catch {
+    return parseMermaid(decodedFamilyText)
+  }
+}
+
 export function parseMermaid(text: string): MermaidGraph {
   const rawLines = text.split('\n')
   const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
