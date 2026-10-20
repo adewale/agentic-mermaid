@@ -953,6 +953,9 @@ describe('parseMermaid – edge cases', () => {
     ['an id starting with `,`', 'graph TD\n  ,A --> B', /upstream reads the "," before "A --> B" as part of one node id/],
     // Upstream's grammar has a subgraph with no id or title, which its DB
     // fails to read.
+    // Upstream reads a link label with an `x` start and another end as a
+    // link of no type.
+    ['a link label with an `x` start and an arrow end', 'graph TD\n  A x--e1@--> B', /starts with an `x` marker and ends otherwise/],
     ['a subgraph with no title', 'graph TD\n  subgraph\n    A\n  end', /a subgraph needs an id or a title/],
     // Upstream's LINK_ID takes any run without blanks or `"` before `@`.
     ['an edge id holding `[`', 'graph TD\n  A e[1@--> B', /upstream reads "e\[1@" as an edge id/],

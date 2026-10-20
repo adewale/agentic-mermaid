@@ -289,9 +289,12 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   // does not: upstream's id grammar takes a `,` into a node id (`A,B` and
   // `,A` are one node there), and its edge ids hold region delimiters and
   // `@` (`e[1@-->`), whose `[` is no unclosed bracket.
-  const rejected = /[,@]/.test(statement) ? flowchartStatementNotes(statement) : undefined
+  const rejected = /[,@]|[xo](?:--|-\.|==)/.test(statement) ? flowchartStatementNotes(statement) : undefined
   if (rejected?.has('comma-id')) {
     return { syntax: 'flowchart_comma_id', message: 'A "," in a node id (right after its characters, or where a node begins) is part of the id in Mermaid (`A,B` and `,A` are one node there). Ours reads no "," in a node id and rejects the statement; rename the node, or write `A & B` to list two nodes.' }
+  }
+  if (rejected?.has('link-markers')) {
+    return { syntax: 'flowchart_link_markers', message: 'A link label opened with an `x` or `o` marker and closed by a link with another end (A x-- a --> B) is a link of no type in Mermaid. Ours rejects it; put the same marker at both ends (A x-- a --x B), or none (A -- a --> B).' }
   }
   if (rejected?.has('edge-id')) {
     return { syntax: 'flowchart_edge_id', message: 'An edge id holding `[`, `]`, `(`, `)`, `{`, `}`, `|`, `<`, `>` or `@` (e[1@-->) is one edge id in Mermaid, which reads any run without blanks or `"` before `@` as one. Ours reads none of those characters in an edge id and rejects the statement; rename the edge id (e1@-->).' }

@@ -512,8 +512,9 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * node whose text runs on without a blank to an `@`, which upstream reads as
  * an edge id (`A[a@b]`); and where ours rejects a statement, a node id
  * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
- * does not. */
-export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id'
+ * does not, or a link label whose markers make no link type there
+ * (mismatchedLinkMarkers). */
+export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -535,7 +536,9 @@ export function flowchartStatementNotes(statement: string): ReadonlySet<Flowchar
   try {
     const parsed = parseEdgeLine(statement, graph, [], new Set(), notes)
     if (parsed.ok) return notes
-    return new Set(commaIdStop(statement, parsed) ? ['comma-id'] : unreadableEdgeId(statement, parsed) !== undefined ? ['edge-id'] : [])
+    if (commaIdStop(statement, parsed)) return new Set(['comma-id'])
+    if (unreadableEdgeId(statement, parsed) !== undefined) return new Set(['edge-id'])
+    return new Set(mismatchedLinkMarkers(parsed) !== undefined ? ['link-markers'] : [])
   } catch {
     return new Set() // Metadata ours rejects fails the parse; verify reports that.
   }
@@ -567,6 +570,14 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
       what: `${where}: upstream reads "${edgeId}@" as an edge id (any run without blanks or \`"\` before \`@\` and a link is one there), and ours reads no \`[\`, \`]\`, \`(\`, \`)\`, \`{\`, \`}\`, \`|\`, \`<\`, \`>\` or \`@\` in one`,
       expectedForm: 'an edge id without those characters',
       example: 'A e1@--> B',
+    })
+  }
+  const markers = mismatchedLinkMarkers(parsed)
+  if (markers !== undefined) {
+    return syntaxError({
+      what: `${where}: the link "${markers}" starts with an \`${markers[0]}\` marker and ends otherwise; upstream reads it as a link of no type, and ours reads an \`x\` or \`o\` start only before the same end`,
+      expectedForm: 'the same marker at both ends of a link label, or none',
+      example: 'A x-- label --x B or A -- label --> B',
     })
   }
   if (commaIdStop(line, parsed)) {
@@ -1304,7 +1315,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
 const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
 /** An edge id as upstream's LINK_ID token reads one (`[^\s"]+@`), before a
  * link or a link label's opener. */
-const UPSTREAM_EDGE_ID_REGEX = new RegExp(String.raw`^([^\s"]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'u')
+const UPSTREAM_EDGE_ID_REGEX = new RegExp(String.raw`^(?![xo]?(?:-{2,}|-\.|={2,}))([^\s"]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'u')
 const NODE_ID_CHARACTER_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/:-]/u
 
 /** Where a statement's parse stopped expecting a link after a node, the
@@ -1318,6 +1329,16 @@ function unreadableEdgeId(line: string, parsed: Extract<EdgeLineParseResult, { o
   const before = statement[statement.length - parsed.remaining.length - 1]
   if (!statement.endsWith(parsed.remaining) || before === undefined || NODE_ID_CHARACTER_RE.test(before)) return undefined
   return UPSTREAM_EDGE_ID_REGEX.exec(parsed.remaining)?.[1]
+}
+
+/** Where a statement's parse stopped expecting a link, a link label opened
+ * with an `x` or `o` start marker and closed by a link with another end
+ * (`x-- a -->`), which upstream reads as a link of no type, or undefined. */
+function mismatchedLinkMarkers(parsed: Extract<EdgeLineParseResult, { ok: false }>): string | undefined {
+  if (parsed.reason !== 'expected edge operator') return undefined
+  const arrow = matchTextArrow(parsed.remaining, 0)
+  if (arrow?.startMark !== 'x' && arrow?.startMark !== 'o') return undefined
+  return endMarkerForOp(arrow.closeOp) === (arrow.startMark === 'x' ? 'cross' : 'circle') ? undefined : parsed.remaining.slice(0, arrow.end)
 }
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {

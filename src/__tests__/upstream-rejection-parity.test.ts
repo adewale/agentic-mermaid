@@ -317,10 +317,12 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a style line\'s last `;` before a link', 'flowchart LR\n  style A color:#fff;A-->B', '>B<', 'flowchart_entity_semicolon', 2],
 ]
 
-// Flowchart labels whose text Mermaid reads otherwise than as written:
-// its text joins a leading string to the text after it (`"a" b` is `a b`).
+// Flowchart labels Mermaid's lexer reads otherwise than as written: its text
+// joins a leading string to the text after it (`"a" b` is `a b`), and after
+// a blank `x--` opens a link label even before an `@`.
 // [construct, source]
 const FLOWCHART_LABELS: ReadonlyArray<readonly [string, string]> = [
+  ['marker link labels holding `@`', 'flowchart LR\n  A x--e1@--x B\n  B o--e2@--o C'],
   ['a string then text in shape, pipe, text-arrow and subgraph labels', 'flowchart LR\n  A["a" b] -->|"c" d| B -- "e" f --> C\n  subgraph S["g" h]\n    A\n  end\n  subgraph "i"j\n    B\n  end'],
 ]
 
