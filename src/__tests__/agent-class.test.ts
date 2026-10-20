@@ -383,6 +383,17 @@ describe('class — mutate', () => {
     expect(r.error.code).toBe('DUPLICATE_CLASS')
   })
 
+  // Mermaid's class lexer reads these as keywords even in backticks, so the
+  // reader refuses a class named so; the edits refuse to create one.
+  test.each(['note', 'click', 'link', 'cssClass', 'href', 'callback'])('refuses a class id Mermaid reads as a keyword even in backticks: %s', id => {
+    const d0 = asClass(parse('classDiagram\n  class A'))!
+    const error = { code: 'INVALID_OP' as const, message: `Class id "${id}" is a keyword to Mermaid's class lexer, which reads \`${id}\` as a keyword even in backticks; choose another id` }
+    for (const op of [{ kind: 'add_class', id }, { kind: 'rename_class', from: 'A', to: id }] satisfies ClassMutationOp[]) {
+      for (const apply of [mutate, mutateChecked]) expect(apply(d0, op)).toEqual({ ok: false, error })
+    }
+    expect(parse(`classDiagram\n  class \`${id}\``).body.kind).toBe('opaque')
+  })
+
   test('remove_class on missing id', () => {
     const d0 = parse('classDiagram\n  class A')
     const r = mutate(asClass(d0)!, { kind: 'remove_class', id: 'Missing' })

@@ -33,7 +33,7 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 
 import { decodeXML } from 'entities'
 import type { ClassStatementNode } from '../class/parser.ts'
-import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
 import { classTextLabel, decodeClassText, memberToString, writeClassText } from '../class/text.ts'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
@@ -514,6 +514,13 @@ function normalizeGeneric(value: unknown): Result<string, MutationError> {
   return ok(generic)
 }
 
+/** An id the writer can spell: Mermaid's class lexer reads some words as
+ *  keywords even in backticks, so no class can be named so. */
+function validateClassId(id: string): MutationError | undefined {
+  if (readsAsClassName(id, true, false)) return undefined
+  return { code: 'INVALID_OP', message: `Class id "${id}" is a keyword to Mermaid's class lexer, which reads \`${id}\` as a keyword even in backticks; choose another id` }
+}
+
 function validateClassMembers(members: readonly string[]): MutationError | undefined {
   for (const member of members) {
     const decoded = typeof member === 'string' ? decodeXML(member) : undefined
@@ -583,6 +590,8 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
     }
     case 'add_class': {
       if (findClass(op.id)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.id} already exists` })
+      const invalidId = validateClassId(op.id)
+      if (invalidId) return err(invalidId)
       const invalidMembers = validateClassMembers(op.members ?? [])
       if (invalidMembers) return err(invalidMembers)
       if (op.namespace !== undefined && !NAMESPACE_PATH_RE.test(op.namespace)) {
@@ -661,6 +670,8 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       const c = findClass(op.from)
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.from} not found` })
       if (findClass(op.to)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.to} already exists` })
+      const invalidId = validateClassId(op.to)
+      if (invalidId) return err(invalidId)
       c.id = op.to
       for (const r of b.relations) {
         if (r.from === op.from) r.from = op.to
