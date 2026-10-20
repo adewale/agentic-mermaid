@@ -1,6 +1,6 @@
 import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, RenderContext, RenderOptions } from './types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
@@ -20,6 +20,8 @@ import { serializeMarkerResources } from './scene/marker-resources.ts'
 import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
 import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
+import { LABEL_PILL_PADDING } from './shared/edge-label-geometry.ts'
+import { calculatePathMidpoint } from './layout/geometry.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -347,7 +349,7 @@ function renderEdge(
     : edge.style === 'invisible' ? 'invisible'
     : 'solid'
   const labelSceneId = connectorLabelSceneId(sceneId)
-  const labelAnchor = edge.labelPosition ?? edgeMidpoint(edge.points)
+  const labelAnchor = edge.labelPosition ?? calculatePathMidpoint(edge.points)
   const labelTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
   const labels: readonly ConnectorLabelDescriptor[] = edge.label ? [{
     id: `${sceneId}:label`,
@@ -550,10 +552,10 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
 function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.
-  const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
+  const mid = edge.labelPosition ?? calculatePathMidpoint(edge.points)
   const block = edge.labelBlock ?? graphTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style, 'edge')
   const label = block.text
-  const padding = 8
+  const padding = LABEL_PILL_PADDING
   const strokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const haloPadding = padding + Math.max(4, strokeWidth * 2)
 
@@ -605,38 +607,6 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
       { indent: 2, node: content },
     ],
   })
-}
-
-/** Get the midpoint of a polyline (by walking segments) */
-function edgeMidpoint(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 }
-  if (points.length === 1) return points[0]!
-
-  // Calculate total length
-  let totalLength = 0
-  for (let i = 1; i < points.length; i++) {
-    totalLength += dist(points[i - 1]!, points[i]!)
-  }
-
-  // Walk to the halfway point
-  let remaining = totalLength / 2
-  for (let i = 1; i < points.length; i++) {
-    const segLen = dist(points[i - 1]!, points[i]!)
-    if (remaining <= segLen) {
-      const t = remaining / segLen
-      return {
-        x: points[i - 1]!.x + t * (points[i]!.x - points[i - 1]!.x),
-        y: points[i - 1]!.y + t * (points[i]!.y - points[i - 1]!.y),
-      }
-    }
-    remaining -= segLen
-  }
-
-  return points[points.length - 1]!
-}
-
-function dist(a: Point, b: Point): number {
-  return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
 }
 
 // ============================================================================

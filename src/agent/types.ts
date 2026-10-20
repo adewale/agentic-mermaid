@@ -1724,6 +1724,8 @@ export interface RenderedLayoutEdge {
   from: NodeId
   to: NodeId
   path: [Finite, Finite][]
+  /** Hidden structural routes do not contribute visible crossing metrics. Omitted means visible. */
+  visibility?: 'visible' | 'hidden'
   label?: { x: Finite; y: Finite; text: string; bounds?: RenderedLabelBounds }
   /** Edge route certificate; present only under layoutMermaid(d, { debug: true }) for families with an edge certificate model. */
   route?: EdgeRouteCertificate

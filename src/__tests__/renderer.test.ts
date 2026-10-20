@@ -383,6 +383,14 @@ describe('renderSvg – edges', () => {
 // ============================================================================
 
 describe('renderSvg – edge labels', () => {
+  it('uses a finite label midpoint for a zero-length route with repeated points', () => {
+    const edge = makeEdge({ label: 'Stay', points: [{ x: 100, y: 120 }, { x: 100, y: 120 }] })
+    const svg = renderSvg(makeGraph({ edges: [edge] }), lightColors)
+    expect(svg).toContain('x="100" y="120"')
+    expect(svg).toContain('>Stay</text>')
+    expect(svg).not.toMatch(/NaN|Infinity/)
+  })
+
   it('renders edge label with background pill', () => {
     const edge = makeEdge({ label: 'Yes' })
     const graph = makeGraph({ edges: [edge] })

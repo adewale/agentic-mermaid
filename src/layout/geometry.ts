@@ -1,5 +1,5 @@
 // Shared geometry kernel for the layout pipeline
-// (docs/design/system/layout-pass-pipeline.md §4 step 2 / OQ-D1).
+// (docs/design/system/route-contracts.md §8).
 //
 // Leaf module: depends only on core types, so the relocated post-ELK passes in
 // ./passes/* can import these helpers WITHOUT importing layout-engine.ts — which
@@ -169,7 +169,6 @@ type LayoutDebugEnv = {
   // matches the other APL_NO_* pass switches. See the layout-engine
   // label-injection sites and centerPeerBarycenters.
   APL_NO_CORANK_FANIN?: string
-  APL_CHECK_LAYOUT_PASSES?: string
 }
 
 export function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {

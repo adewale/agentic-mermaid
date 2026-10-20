@@ -6,6 +6,7 @@
 // On a mismatch, ddmin reduces the source to a minimal repro (the "reduce" half).
 
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../../src/agent/index.ts'
+import type { RenderedLayout } from '../../src/agent/types.ts'
 
 /**
  * A geometry signature that is invariant under node-id renaming: node boxes and
@@ -17,10 +18,18 @@ export function geometrySignature(source: string): string | null {
   if (!p.ok) return null
   let layout
   try { layout = layoutMermaid(p.value) } catch { return null }
-  const nodes = layout.nodes.map(n => `${n.x},${n.y},${n.w},${n.h}`).sort().join('|')
-  const edges = layout.edges.map(e => e.path.map(pt => `${pt[0]},${pt[1]}`).join(';')).sort().join('|')
+  return layoutGeometrySignature(layout)
+}
+
+/** Ignore floating arithmetic residue, retaining geometry to one nanopixel.
+ * Same-glyph label permutations can sum widths in a different order; exact
+ * public coordinates expose that residue where integer projections hid it. */
+export function layoutGeometrySignature(layout: RenderedLayout): string {
+  const coordinate = (n: number): number => Number(n.toFixed(9))
+  const nodes = layout.nodes.map(n => `${coordinate(n.x)},${coordinate(n.y)},${coordinate(n.w)},${coordinate(n.h)}`).sort().join('|')
+  const edges = layout.edges.map(e => e.path.map(pt => `${coordinate(pt[0])},${coordinate(pt[1])}`).join(';')).sort().join('|')
   const b = layout.bounds
-  return `${b.w}x${b.h}#${nodes}#${edges}`
+  return `${coordinate(b.w)}x${coordinate(b.h)}#${nodes}#${edges}`
 }
 
 /** Whether two sources render to identical geometry (the metamorphic relation). */
