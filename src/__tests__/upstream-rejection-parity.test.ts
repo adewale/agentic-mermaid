@@ -260,11 +260,16 @@ const TIMELINE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
 ]
 
 // Mermaid's Sankey CSV lexer reads only printable ASCII in a row, quoted or
-// not, apart from the whitespace it trims from the end of the source.
+// not, apart from the whitespace it trims from the end of the source. Its
+// entity prepass turns `#…;` codes into non-ASCII markers first; ours draws
+// the code as written.
 const SANKEY_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a tab inside a quoted field', 'sankey\nGrid,"Heating\tcooling",1', 'Heating', 'sankey_unsupported_character', 2],
   ['a tab indenting a row', 'sankey\nGrid,Homes,1\n\tGrid,Shops,2', 'Shops', 'sankey_unsupported_character', 3],
   ['a non-ASCII letter in an unquoted field', 'sankey\nÉlectricité,Homes,1', 'Électricité', 'sankey_unsupported_character', 2],
+  ['a numeric entity code in an unquoted field', 'sankey\nCaf#233;,Homes,1', 'Caf#233;', 'sankey_unsupported_character', 2],
+  ['an entity code in a quoted field', 'sankey\nGrid,"A#35;B",1', 'A#35;B', 'sankey_unsupported_character', 2],
+  ['a named entity code', 'sankey\nGrid,Homes,1\nA#amp;B,Shops,2', 'A#amp;B', 'sankey_unsupported_character', 3],
   // A space before an opening quote or after a closing one is unquoted text.
   ['a space after the comma before a quoted field', 'sankey\nGrid, "Homes",1', 'Homes', 'sankey_quoted_field_spacing', 2],
   ['a space after a closing quote', 'sankey\nGrid,"Homes" ,1', 'Homes', 'sankey_quoted_field_spacing', 2],

@@ -21,6 +21,7 @@
 
 import { csvQuotedFieldIsOpen, findSankeyCycle, parseSankeyDiagram } from '../sankey/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { LayoutWarning, MutationError, Result, SankeyBody, SankeyMutationOp, VerifyOptions } from './types.ts'
@@ -265,7 +266,9 @@ export function verifySankey(body: SankeyBody, opts: VerifyOptions): LayoutWarni
  * canonical line. Mermaid's CSV lexer reads only printable ASCII in a row
  * (RFC 4180 TEXTDATA, plus commas and quotes), quoted or not: a tab or any
  * non-ASCII character fails, except in the whitespace it trims from the end
- * of the whole source. Ours reads the text as written. A space before an
+ * of the whole source. Its entity prepass first turns each `#name;` or
+ * `#123;` code into a marker of non-ASCII characters, so a row holding one
+ * fails too. Ours reads the text as written. A space before an
  * opening quote or after a closing one is unquoted text there, and a field
  * mixing the two fails too; ours trims it. */
 export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined): LayoutWarning[] {
@@ -292,11 +295,17 @@ export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authore
     while (csvQuotedFieldIsOpen(record) && index < last) record += `\n${rawAt(++index)}`
     for (let at = start; at <= index; at++) {
       const outside = /[^\x20-\x7E\r]/u.exec(rawAt(at))?.[0]
-      if (outside === undefined) continue
-      const what = outside === '\t' ? 'a tab' : `${JSON.stringify(outside)} (U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`
-      warnings.push({
+      if (outside !== undefined) {
+        const what = outside === '\t' ? 'a tab' : `${JSON.stringify(outside)} (U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: at + 1,
+          message: `Pinned Mermaid's Sankey reader takes only printable ASCII characters in a row, quoted or not, and rejects ${what} here. Ours reads the row as written; ${outside === '\t' ? 'use spaces instead' : 'Mermaid has no spelling for this character'}.`,
+        })
+      }
+      const entity = /#\w+;/.exec(mermaidEntityPrepass(rawAt(at)))?.[0]
+      if (entity !== undefined) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: at + 1,
-        message: `Pinned Mermaid's Sankey reader takes only printable ASCII characters in a row, quoted or not, and rejects ${what} here. Ours reads the row as written; ${outside === '\t' ? 'use spaces instead' : 'Mermaid has no spelling for this character'}.`,
+        message: `Pinned Mermaid reads ${entity} as an entity code, which its Sankey reader then rejects as a character outside printable ASCII. Ours reads and draws ${entity} as written; Mermaid has no spelling for this text, so write the character itself if it is printable ASCII.`,
       })
     }
     const spaced = spacedQuotedField(record)
