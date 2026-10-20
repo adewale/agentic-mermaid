@@ -16,7 +16,8 @@ export function layoutSharedFan(
     else if (!outgoing[index]!.length && incoming[index]!.length) targets.push(index)
     else return undefined
   }
-  if (sources.length < 2 || targets.length < 2 || input.edges.length !== sources.length * targets.length) return undefined
+  if (!sources.length || !targets.length || (sources.length === 1 && targets.length === 1)
+    || input.edges.length !== sources.length * targets.length) return undefined
   const sourceSlots = new Map(sources.map((id, index) => [id, index]))
   const targetSlots = new Map(targets.map((id, index) => [id, index]))
   const pairs = new Set<number>()

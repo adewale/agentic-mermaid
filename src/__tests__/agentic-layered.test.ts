@@ -64,6 +64,7 @@ describe('owned measured layered layout', () => {
         expect(box.y + box.height).toBeLessThanOrEqual(output.height - input.padding)
         for (let other = index + 1; other < boxes.length; other++) expect(intersects(box, boxes[other]!)).toBe(false)
       }
+      for (const edge of output.edges) if (edge.labelPosition) expect(edge.points.some(point => point === edge.labelPosition)).toBe(false)
       const labelBoxes = output.edges.flatMap((edge, index) => {
         const measuredLabel = input.edges[index]!.label
         if (!measuredLabel) { expect(edge.labelPosition).toBeUndefined(); return [] }
@@ -165,6 +166,21 @@ describe('owned measured layered layout', () => {
     expect(countOpposingRouteOverlaps(routes)).toBe(0)
     expect(countParallelRouteOverlaps(routes)).toBe(0)
     expect(countPolylineCrossings(routes)).toBeGreaterThan(0)
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('shortens parallel routes between unequal boxes without sharing their shafts in %s', direction => {
+    const input = measured({ direction, nodes: [{ id: 'a', width: 80, height: 40 }, { id: 'b', width: 40, height: 60 }],
+      edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 1, minSpan: 1 }] })
+    const original = structuredClone(input), placed = layoutAgenticGraph(input)
+    const routes = placed.edges.map(edge => ({ ...edge, source: 'a', target: 'b', style: 'solid' as const }))
+    expect(routes).toHaveLength(2)
+    for (const route of routes) expect(route.points.length).toBeLessThanOrEqual(4)
+    expect(countPolylineCrossings(routes)).toBe(0)
+    expect(countParallelRouteOverlaps(routes)).toBe(0)
+    expect(countOpposingRouteOverlaps(routes)).toBe(0)
+    expect(routes[0]!.points).not.toEqual(routes[1]!.points)
+    expect(input).toEqual(original)
+    expect(layoutAgenticGraph(input)).toEqual(placed)
   })
 
   test('keeps nearly coincident terminal columns out of parallel route ink', () => {
