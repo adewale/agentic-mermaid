@@ -268,8 +268,7 @@ export function verifySankey(body: SankeyBody, opts: VerifyOptions): LayoutWarni
  * non-ASCII character fails, except in the whitespace it trims from the end
  * of the whole source. Its entity prepass first turns each `#name;` or
  * `#123;` code into a marker of non-ASCII characters, so a row holding one
- * fails too; before that, it drops the last `;` of a `style`/`classDef` line,
- * so such a row reads otherwise. Ours reads the text as written. */
+ * fails too. Ours reads the text as written. */
 export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined): LayoutWarning[] {
   const lines = canonicalSource.split(/\r?\n/)
   const header = lines.findIndex(line => HEADER_RE.test(line.trim()))
@@ -294,12 +293,8 @@ export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authore
         message: `Pinned Mermaid's Sankey reader takes only printable ASCII characters in a row, quoted or not, and rejects ${what} here. Ours reads the row as written; ${outside === '\t' ? 'use spaces instead' : 'Mermaid has no spelling for this character'}.`,
       })
     }
-    const prepassed = mermaidEntityPrepass(row)
-    if (prepassed !== row) warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_style_semicolon', line: index + 1,
-      message: "Pinned Mermaid's entity prepass drops the last ';' of any line where 'style' or 'classDef' comes before a ':' and a '#' ahead of that ';', so it reads this row without it. Ours reads the row as written; Mermaid has no spelling that keeps the ';' here.",
-    })
-    const entity = /#\w+;/.exec(prepassed)?.[0]
+    // The prepass's own `;` strip is mermaid_cleanup's to report.
+    const entity = /#\w+;/.exec(mermaidEntityPrepass(row))?.[0]
     if (entity !== undefined) warnings.push({
       code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: index + 1,
       message: `Pinned Mermaid reads ${entity} as an entity code, which its Sankey reader then rejects as a character outside printable ASCII. Ours reads and draws ${entity} as written; Mermaid has no spelling for this text, so write the character itself if it is printable ASCII.`,

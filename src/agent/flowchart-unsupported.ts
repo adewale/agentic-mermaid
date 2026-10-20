@@ -5,7 +5,7 @@ import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
-import { mermaidTagAttributeQuotes } from '../mermaid-source-wrapper.ts'
+import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
 
@@ -72,13 +72,12 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
  * index past the links defined above it, an `end` with no subgraph open
  * (alone or before a statement: `end B`), a subgraph no `end` closes, an
  * empty quoted label (`A[""]`) or pipe label (`A -->|| B`), label text
- * holding a character upstream's lexer reads as a delimiter there, a subgraph
- * title it cannot read without quotes, a `;` ours ends a statement at where
- * pinned Mermaid's entity prepass reads it otherwise, a `;` between style
- * properties, which Mermaid reads as ending the statement, and quoted text
- * whose boundaries pinned Mermaid's HTML-like preprocessor rewrites; and a
- * link repeating an earlier link's edge id, which Mermaid accepts and, as
- * ours does, and leaves off that link. */
+ * holding a character upstream's lexer reads as a delimiter there, a
+ * subgraph title it cannot read without quotes, a `;` ours ends a statement
+ * at where pinned Mermaid's entity prepass reads it otherwise, a `;` between
+ * style properties, which Mermaid reads as ending the statement, and a link
+ * repeating an earlier link's edge id, which Mermaid accepts and, as ours
+ * does, leaves off that link. */
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
@@ -92,9 +91,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     else if (text === 'end') {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
     }
-    // Mermaid's prepass gives a tag's attributes single quotes before its
-    // lexer reads a label; quotes it moves across labels are reported above.
-    const notes = text.startsWith('subgraph') || /[@[\](){}|"]/.test(text) ? flowchartStatementNotes(mermaidTagAttributeQuotes(text), graph) : undefined
+    // Mermaid's lexer reads a label after its cleanup gives a tag's
+    // attributes single quotes; that rewrite itself is mermaid_cleanup's.
+    const notes = text.startsWith('subgraph') || /[@[\](){}|"]/.test(text) ? flowchartStatementNotes(text.includes('<') ? cleanupMermaidSource(text).upstreamText : text, graph) : undefined
     if (/^(?:style|classDef|linkStyle)\s/.test(text) && scanFlowchart(text).separators.length > 0) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_style_semicolon', message: 'A `;` between style properties (fill:#f9f;stroke:#0a0) is read as separating them, as in CSS. Pinned Mermaid ends the statement at the `;` and reads the next property as a node (stroke:blue), or, after a `#` color, joins the two into one declaration that paints nothing; separate style properties with `,`.' })
     }

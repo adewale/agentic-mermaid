@@ -36,7 +36,9 @@ function readGenerously(source: string, text: string): { typed: string; draws: b
   return {
     typed: parsed.ok ? parsed.value.body.kind : 'parse error',
     draws: renderMermaidSVG(source).includes(text),
-    reported: verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []),
+    // mermaid_cleanup, that Mermaid's cleanup changed a line, is the shared
+    // cleanup step's, tested where it is owned.
+    reported: verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax !== 'mermaid_cleanup' ? [`${warning.syntax}@${warning.line}`] : []),
   }
 }
 
@@ -222,12 +224,13 @@ const SANKEY_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a named entity code', 'sankey\nGrid,Homes,1\nA#amp;B,Shops,2', 'A#amp;B', 'sankey_unsupported_character', 3],
 ]
 
-// Mermaid's entity prepass strips the last `;` of a line where `style` or
-// `classDef` comes before a `:` and a `#` ahead of it, labels included; ours
-// keeps the label as written. [construct, source, Mermaid's nodes, ours, syntax, line]
+// Mermaid's cleanup strips the last `;` of a line where `style` or `classDef`
+// comes before a `:` and a `#` ahead of it, labels included; ours keeps the
+// label as written, and the shared cleanup step reports the line.
+// [construct, source, Mermaid's nodes, ours, syntax, line]
 const SANKEY_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly string[], readonly string[], string, number]> = [
-  ['a `style` label whose `#` run ends at a semicolon', 'sankey\nstyle:x#a;,B,1', ['style:x#a', 'B'], ['style:x#a;', 'B'], 'sankey_style_semicolon', 2],
-  ['a quoted `classDef` label with a semicolon inside it', 'sankey\nGrid,Homes,1\nGrid,"classDef:#a;b",2', ['Grid', 'Homes', 'classDef:#ab'], ['Grid', 'Homes', 'classDef:#a;b'], 'sankey_style_semicolon', 3],
+  ['a `style` label whose `#` run ends at a semicolon', 'sankey\nstyle:x#a;,B,1', ['style:x#a', 'B'], ['style:x#a;', 'B'], 'mermaid_cleanup', 2],
+  ['a quoted `classDef` label with a semicolon inside it', 'sankey\nGrid,Homes,1\nGrid,"classDef:#a;b",2', ['Grid', 'Homes', 'classDef:#ab'], ['Grid', 'Homes', 'classDef:#a;b'], 'mermaid_cleanup', 3],
 ]
 
 // Mermaid's Sankey CSV lexer reads a quote after unquoted text as the start
@@ -483,8 +486,9 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     const mermaid = await upstream.project(source, diagram => diagram.db.getGraph().nodes.map((node: { id: string }) => node.id))
     const parsed = parseRegisteredMermaid(source)
     const links = parsed.ok && parsed.value.body.kind === 'sankey' ? parsed.value.body.links : []
-    const actual: Record<string, unknown> = { mermaid, ours: [...new Set(links.flatMap(link => [link.source, link.target]))], ...readGenerously(source, ourNodes.at(-1)!) }
-    expect(actual).toEqual({ mermaid: { ok: true, value: mermaidNodes }, ours: ourNodes, typed: 'sankey', draws: true, reported: [`${syntax}@${line}`] })
+    const reported = verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
+    const actual: Record<string, unknown> = { mermaid, ours: [...new Set(links.flatMap(link => [link.source, link.target]))], draws: renderMermaidSVG(source).includes(ourNodes.at(-1)!), reported }
+    expect(actual).toEqual({ mermaid: { ok: true, value: mermaidNodes }, ours: ourNodes, draws: true, reported: [`${syntax}@${line}`] })
   })
 
   test.each(SANKEY_UNREAD)('sankey: %s is refused', async (_construct, source) => {
@@ -567,8 +571,9 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    // `empty_layout` says the local layout draws nothing (an accTitle alone), not that Mermaid rejects the source.
-    if (family === 'architecture' || family === 'class' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey' || family === 'flowchart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax !== 'empty_layout')).toEqual([])
+    // `empty_layout` says the local layout draws nothing (an accTitle alone), and `mermaid_cleanup` that
+    // Mermaid's cleanup changed a line, not that Mermaid rejects the source.
+    if (family === 'architecture' || family === 'class' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey' || family === 'flowchart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax !== 'empty_layout' && warning.syntax !== 'mermaid_cleanup')).toEqual([])
   })
 
   // Participants and messages as Mermaid's database holds them.
