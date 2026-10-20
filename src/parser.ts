@@ -499,15 +499,17 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * otherwise, which verify reports: a `&` list without a blank on each side
  * of the `&` (`A &B`), label text holding a character upstream's lexer reads
  * as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter), and a
- * subgraph title it cannot read without quotes (subgraphTitleUnreadable). */
-export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title'
+ * subgraph title it cannot read without quotes (subgraphTitleUnreadable);
+ * and where ours rejects a statement, an edge id upstream reads that ours
+ * does not (unreadableEdgeId). */
+export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'edge-id'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
 const NON_NODE_STATEMENT_RE = /^(?:end$|(?:direction|classDef|class|style|linkStyle|click|href)\s)/i
 
-/** The notes on one statement, as the parser reads it; none when ours
- * rejects it. */
+/** The notes on one statement, as the parser reads it; when ours rejects
+ * it, only the reason it does. */
 export function flowchartStatementNotes(statement: string): ReadonlySet<FlowchartStatementNote> {
   const notes = new Set<FlowchartStatementNote>()
   const subgraph = statement.match(/^subgraph\s+(.+)$/)
@@ -520,7 +522,9 @@ export function flowchartStatementNotes(statement: string): ReadonlySet<Flowchar
   if (NON_NODE_STATEMENT_RE.test(statement)) return notes
   const graph: MermaidGraph = { direction: 'TD', nodes: new Map(), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map() }
   try {
-    return parseEdgeLine(statement, graph, [], new Set(), notes).ok ? notes : new Set()
+    const parsed = parseEdgeLine(statement, graph, [], new Set(), notes)
+    if (parsed.ok) return notes
+    return new Set(unreadableEdgeId(statement, parsed) !== undefined ? ['edge-id'] : [])
   } catch {
     return new Set() // Metadata ours rejects fails the parse; verify reports that.
   }
@@ -544,6 +548,14 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
       what: `${where}: "${parsed.remaining}" opens a link label that no link closes (\`--\` and \`-.\` always open a link, so a node id cannot hold them)`,
       expectedForm: 'a label closed by a link of the same stroke, or an id without `--`',
       example: 'A -- label --> B, A == label ==> B or A -. label .-> B',
+    })
+  }
+  const edgeId = unreadableEdgeId(line, parsed)
+  if (edgeId !== undefined) {
+    return syntaxError({
+      what: `${where}: upstream reads "${edgeId}@" as an edge id (any run without blanks or \`"\` before \`@\` and a link is one there), and ours reads no \`[\`, \`]\`, \`(\`, \`)\`, \`{\`, \`}\`, \`|\`, \`<\`, \`>\` or \`@\` in one`,
+      expectedForm: 'an edge id without those characters',
+      example: 'A e1@--> B',
     })
   }
   const statement = line.trim().replace(/;\s*$/, '').trim()
@@ -1271,6 +1283,23 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
 }
 
 const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
+/** An edge id as upstream's LINK_ID token reads one (`[^\s"]+@`), before a
+ * link or a link label's opener. */
+const UPSTREAM_EDGE_ID_REGEX = new RegExp(String.raw`^([^\s"]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'u')
+const NODE_ID_CHARACTER_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/:-]/u
+
+/** Where a statement's parse stopped expecting a link after a node, the
+ * edge id (before its `@`) upstream's lexer reads there and ours does not
+ * (FLOWCHART_EDGE_ID_SOURCE leaves out region delimiters, `;` and `@`), or
+ * undefined. Upstream's token begins there only after a blank or a shape,
+ * not inside the node id before it (`A -->e[1@-->`). */
+function unreadableEdgeId(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): string | undefined {
+  if (parsed.reason !== 'expected edge operator' || EDGE_ID_PREFIX_REGEX.test(parsed.remaining)) return undefined
+  const statement = line.trim().replace(/;\s*$/, '').trim()
+  const before = statement[statement.length - parsed.remaining.length - 1]
+  if (!statement.endsWith(parsed.remaining) || before === undefined || NODE_ID_CHARACTER_RE.test(before)) return undefined
+  return UPSTREAM_EDGE_ID_REGEX.exec(parsed.remaining)?.[1]
+}
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
   const parsed = consumeClassShorthandPrefix(text)

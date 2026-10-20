@@ -284,6 +284,12 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
     }
   }
 
+  // Upstream reads an edge id holding a region delimiter or `@` (`e[1@-->`),
+  // which ours rejects; the `[` is no unclosed bracket.
+  if (statement.includes('@') && flowchartStatementNotes(statement).has('edge-id')) {
+    return { syntax: 'flowchart_edge_id', message: 'An edge id holding `[`, `]`, `(`, `)`, `{`, `}`, `|`, `<`, `>` or `@` (e[1@-->) is one edge id in Mermaid, which reads any run without blanks or `"` before `@` as one. Ours reads none of those characters in an edge id and rejects the statement; rename the edge id (e1@-->).' }
+  }
+
   if (DANGLING_LINK_RE.test(statement)) {
     return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target, so Mermaid rejects the diagram. Add the endpoint or remove the operator.' }
   }
