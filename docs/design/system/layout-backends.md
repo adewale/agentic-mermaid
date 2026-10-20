@@ -2,8 +2,9 @@
 
 Status: implementation and qualification contract for an opt-in owned backend.
 Native measured Flowchart/State placement includes cycles, loops and independent
-nested scopes. Cross-hierarchy leaf routes and specialized Class/ER/Architecture/
-Requirement geometry still require ELK. Quality and cost qualification remains
+nested scopes. Requirement cards and relationship labels also use measured
+native placement. Cross-hierarchy leaf routes and specialized Class/ER/Architecture
+geometry still require ELK. Quality and cost qualification remains
 in progress; admission is not proof of parity. Implementation scheduling remains
 in root TODO.md.
 
@@ -721,3 +722,14 @@ measurements disable both layout caches while preserving shared text spans.
 The CI canary enrolls two official corpus inputs and two frozen cyclic workloads
 in both regimes. Its corpus aggregate covers only the official inputs, with the
 frozen workloads reported separately; it is not full-domain qualification.
+
+Requirement's adapter owns its card/header/field measurements, relationship
+stereotypes, title translation and Scene markers. It passes neutral measured
+rectangles and padded relationship labels to the same native kernel; ELK's
+schema is constructed only in the retained ELK callback. Source, parsed,
+layout, PNG and deferred browser entry points retain the selected producer's
+receipt. Only a typed local capability decline can invoke optional ELK fallback;
+dependency loading, unexpected defects and global work errors propagate.
+The adapter's tests cover all four directions, parallel relations, cycles,
+self-loops and foreign-label clearance. Broader cost and quality qualification
+still includes the remaining unsupported families in its denominator.
