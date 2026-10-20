@@ -10,6 +10,8 @@ export interface LayoutSearchWork {
   scorePairs: number
   loopPairs: number
   rankPairs: number
+  /** Joint long-edge ordering shares an independent, bounded score budget. */
+  blockPairs?: number
   routing: ChannelWork
 }
 
@@ -67,7 +69,9 @@ export function layoutCyclicGraph(
   let bestBends = bendCount(best), bestArea = best.width * best.height
   const key = (order: ArrayLike<number>, reverseNodes: boolean, reverseEdges: boolean): string =>
     edges.map(edge => order[edge.source]! > order[edge.target]! ? 1 : 0).join('') + ':' + reverseNodes + ':' + reverseEdges
-  let localAttempts = 12
+  // Larger compact candidates retain the primary plus two optional orders.
+  // The normal producer keeps its full search; compact placement is optional.
+  let localAttempts = input.compactPrivateRanks && nodes.length > 16 ? 2 : 12
   const seen = new Set([key(primary, false, false)])
   const starts = nodes.length <= 12 ? nodes.map((_, index) => index)
     : nodes.length <= 20 ? [0, Math.floor(nodes.length / 4), Math.floor(nodes.length / 2), Math.floor(3 * nodes.length / 4), nodes.length - 1] : []
