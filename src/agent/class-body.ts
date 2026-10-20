@@ -865,6 +865,13 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           message: 'A colon or `;` in the text after `Class :` is read as part of the member. Pinned Mermaid ends that text at either and rejects the line. The writer writes the member in the class body, `class A { … }`, which Mermaid reads.',
         })
       }
+      // Before the first colon of `classDef` and `style`, Mermaid's class
+      // grammar takes only ALPHA (`\w+`), `#`, `%` and commas; a colon then
+      // starts a LABEL token, which reads on to the next colon.
+      if ((value.kind === 'classDef' || value.kind === 'style') && /[^\w\s#%,]/.test(node.text.replace(/^\S+/, '').split(':')[0]!)) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text', line: header + 1 + node.source.line,
+        message: `\`${value.kind}\` is read with its names and CSS as written. Pinned Mermaid's class grammar reads only letters, digits, \`_\`, \`#\`, \`%\` and commas before the line's first colon, and rejects any other character there, such as the \`-\` of \`stroke-width\` or a \`-\` in a name. After a colon it reads any text up to the next colon, so such a property is portable after another: \`fill:#fff,stroke-width:2px\`.`,
+      })
       if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
         message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',

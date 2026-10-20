@@ -58,6 +58,9 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a colon in member text after the class name', 'classDiagram\n  class BankAccount\n  BankAccount : t : +String owner', 't : +String owner', 'class_member_text', 3],
   ['a colon right after the member colon', 'classDiagram\n  A::B', ':B', 'class_member_text', 2],
   ['a semicolon in member text', 'classDiagram\n  A : x; y', 'x; y', 'class_member_text', 2],
+  // Before the first colon of a classDef or style, Mermaid's class grammar takes only words, `#`, `%` and commas.
+  ['a hyphen before the first colon of a classDef', 'classDiagram\n  class A:::thick\n  classDef thick stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3],
+  ['a hyphen before the first colon of a style', 'classDiagram\n  class A\n  style A stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3],
 ]
 
 // Unquoted quadrant text Mermaid's quadrant lexer does not read as text.
@@ -270,6 +273,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', '%% inside a member', 'classDiagram\n  class Animal {\n    +name %% note\n  }\n  class Cat'],
   ['class', '%% inside a relationship label', 'classDiagram\n  Animal <|-- Dog : is a %% note\n  class Cat'],
   ['class', 'an entity code ending in `;` in member text', 'classDiagram\n  Animal : x #59; y'],
+  ['class', 'a hyphenated property after the first colon', 'classDiagram\n  class A:::thick\n  classDef thick fill:#fff,stroke-width:4px\n  style A fill:#eee, stroke-width:2px'],
   ['quadrant', 'a < in a quoted point label', 'quadrantChart\n  "A < B": [0.3, 0.4]'],
   ['quadrant', 'a < in quoted axis text', 'quadrantChart\n  x-axis "Low < x" --> "High"'],
   ['quadrant', 'a <br/> in a quoted quadrant label', 'quadrantChart\n  quadrant-1 "Grow<br/>fast"'],
