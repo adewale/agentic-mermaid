@@ -248,6 +248,11 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a `,` in a subgraph title', 'flowchart LR\n  subgraph a,b\n    A\n  end', '>a,b<', 'flowchart_subgraph_title', 2],
   ['a link in a subgraph title', 'flowchart LR\n  subgraph a-->b\n    A\n  end', '>a--&gt;b<', 'flowchart_subgraph_title', 2],
   ['a string after subgraph title text', 'flowchart LR\n  subgraph a "b"\n    A\n  end', '>a &quot;b&quot;<', 'flowchart_subgraph_title', 2],
+  // Mermaid's entity prepass reads `#fff;` as an entity code, and drops the
+  // last `;` of a line where `style` comes before `:…#`.
+  ['a `;` after a style color, before another style', 'flowchart LR\n  A --> D\n  style A background:#fff;style D border:1px solid red;', '>D<', 'flowchart_entity_semicolon', 3],
+  ['a `;` after a linkStyle color', 'flowchart LR\n  A --> B\n  linkStyle 0 stroke:#f00;', '>B<', 'flowchart_entity_semicolon', 3],
+  ['a style line\'s last `;` before a link', 'flowchart LR\n  style A color:#fff;A-->B', '>B<', 'flowchart_entity_semicolon', 2],
 ]
 
 // [family, construct, source]
@@ -302,7 +307,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
   ['flowchart', 'a `&` list with a blank on each side, and a lone `&` node', 'flowchart LR\n  A & B --> C & &\n  D &\tE'],
-  ['flowchart', 'subgraph titles of letters, digits and the punctuation Mermaid reads unquoted, and a quoted one', "flowchart LR\n  subgraph a.-b!#$%&'*+/:?^_`x\n    A\n  end\n  subgraph \"a(b)\"\n    B\n  end\n  subgraph 東京 Ελλάδα\n    C\n  end"],
+  ['flowchart', '`;` after colors and entity codes Mermaid reads as we do', 'flowchart LR\n  A[#quot;x#quot;] --> B;C\n  style A fill:#f00;\n  classDef c fill:#f9f,stroke:#333;\n  style B fill:#fff ;style C fill:#000;'],
+  ['flowchart', 'subgraph titles of letters, digits and the punctuation Mermaid reads unquoted, and a quoted one',"flowchart LR\n  subgraph a.-b!#$%&'*+/:?^_`x\n    A\n  end\n  subgraph \"a(b)\"\n    B\n  end\n  subgraph 東京 Ελλάδα\n    C\n  end"],
   ['flowchart', 'delimiters inside quoted labels and trapezoid text, and parentheses in a text-arrow label','flowchart LR\n  A["a (b) c"] -->|"x [y]"| B[/a | b "c"/]\n  A -- a (b) --> C["a" ]\n  subgraph S["x (y)"]\n    C\n  end'],
 ]
 
@@ -393,6 +399,15 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(FLOWCHART_READ_GENEROUSLY)('flowchart: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'flowchart', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  // Mermaid accepts this, but its entity prepass drops the style line's
+  // last `;`, so it reads `B` into A's style and draws no node B.
+  test('flowchart: a style line\'s last `;` before a node is read, drawn and reported', async () => {
+    const source = 'flowchart LR\n  style A fill:#f00;B'
+    const mermaid = await upstream.parse(source)
+    expect(mermaid.ok && mermaid.flowchart?.vertices.map(vertex => vertex.id)).toEqual(['A'])
+    expect(readGenerously(source, '>B<')).toEqual({ typed: 'flowchart', draws: true, reported: ['flowchart_entity_semicolon@2'] })
   })
 })
 
