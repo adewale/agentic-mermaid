@@ -545,16 +545,23 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
  * does not, or a link label whose markers make no link type there
  * (mismatchedLinkMarkers). An empty quoted label (`A[""]`), which
- * upstream's string token cannot read, is noted too. */
-export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers'
+ * upstream's string token cannot read, is noted too, and a link whose edge
+ * id an earlier link has, which the parser leaves off it, as upstream does. */
+export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers' | 'duplicate-edge-id'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
 const NON_NODE_STATEMENT_RE = /^(?:end$|(?:direction|classDef|class|style|linkStyle|click|href)\s)/i
 
-/** The notes on one statement, as the parser reads it; when ours rejects
- * it, only the reason it does. */
-export function flowchartStatementNotes(statement: string): ReadonlySet<FlowchartStatementNote> {
+/** A flowchart with nothing read into it yet. */
+export function emptyFlowchartGraph(): MermaidGraph {
+  return { direction: 'TD', nodes: new Map(), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map() }
+}
+
+/** The notes on one statement, as the parser reads it into `graph`; when
+ * ours rejects it, only the reason it does. Reading a diagram's statements
+ * in order into one graph notes a link repeating an earlier link's edge id. */
+export function flowchartStatementNotes(statement: string, graph: MermaidGraph = emptyFlowchartGraph()): ReadonlySet<FlowchartStatementNote> {
   const notes = new Set<FlowchartStatementNote>()
   const subgraph = statement.match(/^subgraph\s+(.+)$/)
   if (subgraph) {
@@ -568,7 +575,6 @@ export function flowchartStatementNotes(statement: string): ReadonlySet<Flowchar
     return notes
   }
   if (NON_NODE_STATEMENT_RE.test(statement)) return notes
-  const graph: MermaidGraph = { direction: 'TD', nodes: new Map(), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map() }
   try {
     const parsed = parseEdgeLine(statement, graph, [], new Set(), notes)
     if (parsed.ok) return notes
@@ -1526,8 +1532,12 @@ function parseEdgeLine(
     assertDiagramWorkLimit('edges', graph.edges.length + prevGroupIds.length * nextGroup.ids.length)
     // Emit Cartesian product of edges: every source × every target. Its edge
     // id names one edge, as upstream's: the first from the last source to
-    // the first target (`A & B e1@--> C & D` names B→C).
-    let pendingId = edgeId
+    // the first target (`A & B e1@--> C & D` names B→C). An id an earlier
+    // link has names none: upstream's `addSingleLink` leaves it off, and
+    // edge ids stay unique.
+    const repeated = edgeId !== undefined && graph.edges.some(edge => edge.id === edgeId)
+    if (repeated) notes?.add('duplicate-edge-id')
+    let pendingId = repeated ? undefined : edgeId
     for (const sourceId of prevGroupIds) {
       for (const targetId of nextGroup.ids) {
         const id = sourceId === prevGroupIds.at(-1) && targetId === nextGroup.ids[0] ? pendingId : undefined

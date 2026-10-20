@@ -106,6 +106,34 @@ describe('flowchart edge IDs — parse', () => {
     } finally { upstream.close() }
   })
 
+  // An edge id names one link. Mermaid's `addSingleLink` leaves an id an
+  // earlier link has off a later one, and ours does too, so the typed body
+  // holds no two edges with one id; verify reports each such link, and the
+  // writer leaves the id off it. Metadata names the first link, also where a
+  // node has the id. [source, the lines verify reports]
+  const REPEATED_IDS: ReadonlyArray<readonly [string, readonly number[]]> = [
+    ['flowchart LR\n  A e1@--> B\n  C e1@--> D', [3]],
+    ['flowchart LR\n  A e1@--> B e1@--> C\n  C e1@-- t --> A', [2, 3]],
+    ['flowchart LR\n  A e1@--> B\n  B & C e1@--> D', [3]],
+    ['flowchart LR\n  A e1@--> B\n  e1 --> C\n  C e1@==> D\n  e1@{ animate: true }', [4]],
+  ]
+  it.each(REPEATED_IDS)('names one link with an edge id an earlier link has, as Mermaid does: %s', async (source, lines) => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const parsed = parseAgent(source)
+      const serialized = serializeMermaid(parsed)
+      const named = (diagram: { db: { getEdges(): Array<{ start: string; end: string; id: string; isUserDefinedId?: boolean; animate?: boolean }> } }) =>
+        diagram.db.getEdges().map(edge => [edge.start, edge.end, edge.isUserDefinedId ? edge.id : '', edge.animate ?? false])
+      const [mermaid, rewritten] = await upstream.projectAll([source, serialized], named)
+      expect(rewritten).toEqual(mermaid)
+      for (const graph of [asFlowchart(parsed)!.body.graph, parseGraph(serialized)]) {
+        expect(graph.edges.map(edge => [edge.source, edge.target, edge.id ?? '', edge.animate ?? false])).toEqual(mermaid!)
+      }
+      expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))
+        .toEqual(lines.map(line => `flowchart_duplicate_edge_id@${line}`))
+    } finally { upstream.close() }
+  })
+
   it('edges without an authored ID carry none', () => {
     expect(parseGraph('flowchart LR\n  A --> B').edges[0]!.id).toBeUndefined()
   })
