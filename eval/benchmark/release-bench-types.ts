@@ -38,6 +38,7 @@ export interface OutputFingerprint {
   category?: 'unsupported' | 'candidate-rejected' | 'error'
 }
 export interface TimeResult {
+  cacheEnvironment?: Readonly<Record<string, string>>
   node: string
   importMs: number
   firstRenderMs: number
@@ -57,6 +58,7 @@ export interface TimeResult {
   }>
 }
 export interface MemoryResult {
+  cacheEnvironment?: Readonly<Record<string, string>>
   perInput: Array<{ id: string; allocatedBytes: number; peakHeapBytes: number }>
   passAllocatedBytes: number
   passPeakHeapBytes: number
