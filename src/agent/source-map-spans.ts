@@ -1,6 +1,6 @@
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
-import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
 
 interface PhysicalLine {
   text: string
@@ -16,6 +16,7 @@ const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, numb
 export interface SourceMapEnds {
   nodes?: Map<string, SourceLocation>
   edges?: Map<string, SourceLocation>
+  groups?: Map<string, SourceLocation>
   labels?: Map<string, SourceLocation>
 }
 
@@ -23,6 +24,12 @@ const sourceMapEnds = new WeakMap<SourceMap, SourceMapEnds>()
 
 export function recordSourceMapEnds(sourceMap: SourceMap, ends: SourceMapEnds): void {
   sourceMapEnds.set(sourceMap, ends)
+}
+
+type MetadataLocations = Map<string, Map<string, { key: { start: SourceLocation; end: SourceLocation }; value: { start: SourceLocation; end: SourceLocation } }>>
+const sourceMapMetadata = new WeakMap<SourceMap, MetadataLocations>()
+export function recordSourceMapMetadata(sourceMap: SourceMap, metadata: MetadataLocations): void {
+  sourceMapMetadata.set(sourceMap, metadata)
 }
 
 /** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
@@ -83,8 +90,7 @@ function authoredLineMap(canonicalSource: string, authoredSource: string, preser
   const header = authored[cursor]
   const split = header && splitHeaderStatement(header.text).split('\n')
   if (header && split?.length === 2) {
-    authored.splice(cursor, 1, { text: split[0]!, start: header.start },
-      { text: split[1]!, start: header.start + header.text.indexOf(split[1]!, split[0]!.length) })
+    authored.splice(cursor, 1, { text: split[0]!, start: header.start }, { text: split[1]!, start: header.start + header.text.indexOf(split[1]!, split[0]!.length) })
   }
   for (let index = 0; index < canonical.length; index++) {
     const wanted = canonical[index]!.text.trim()
@@ -462,13 +468,7 @@ function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: r
 }
 
 /** Add exact authored spans without changing the legacy canonical locations. */
-export function attachSourceMapSpans(
-  sourceMap: SourceMap,
-  canonicalSource: string,
-  authoredSource: string,
-  preserved: PreservedSourceSpans,
-  grammar: SourceSpanGrammar = 'generic',
-): SourceMap {
+export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: string, authoredSource: string, preserved: PreservedSourceSpans, grammar: SourceSpanGrammar = 'generic'): SourceMap {
   const lineStarts = sourceLineStarts(authoredSource)
   const lines = authoredLineMap(canonicalSource, authoredSource, preserved)
   const canonicalLines = physicalLines(canonicalSource)
@@ -530,13 +530,25 @@ export function attachSourceMapSpans(
     preserved,
     nodes: withEnds(mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor), sourceMap.nodes, ends?.nodes),
     edges: withEnds(mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor), sourceMap.edges, ends?.edges),
-    groups: mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor),
+    groups: withEnds(mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor), sourceMap.groups, ends?.groups),
     labels: withEnds(labels, sourceMap.labels, ends?.labels),
   }
+  const metadata = sourceMapMetadata.get(sourceMap)
+  if (metadata?.size) {
+    spans.metadata = new Map()
+    for (const [id, fields] of metadata) {
+      const located = new Map<string, { key: SourceSpan; value: SourceSpan }>()
+      for (const [name, field] of fields) {
+        const keyStart = offsetOf(field.key.start),
+          keyEnd = offsetOf(field.key.end),
+          valueStart = offsetOf(field.value.start),
+          valueEnd = offsetOf(field.value.end)
+        if (keyStart !== undefined && keyEnd !== undefined && valueStart !== undefined && valueEnd !== undefined) located.set(name, { key: span(lineStarts, keyStart, keyEnd), value: span(lineStarts, valueStart, valueEnd) })
+      }
+      if (located.size) spans.metadata.set(id, located)
+    }
+  }
   sourceMap.spans = spans
-  authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [
-    canonicalLine,
-    point(lineStarts, authoredLine.start).line,
-  ])))
+  authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [canonicalLine, point(lineStarts, authoredLine.start).line])))
   return sourceMap
 }

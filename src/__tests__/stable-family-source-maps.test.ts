@@ -43,6 +43,24 @@ describe('stable-family authored declaration source maps', () => {
     expect(diagram.source.spans?.nodes.get('task')?.start.line).toBe(6)
     expect(diagram.source.spans?.nodes.get('task#2')?.start.line).toBe(8)
     for (const key of ['group:todo', 'group:done', 'node:task', 'node:task#2']) expect(span(source, diagram, 'labels', key)).toBe('Same')
+    const metadata = diagram.source.spans?.metadata?.get('task')
+    expect(text(source, metadata?.get('assigned')?.key)).toBe('assigned')
+    expect(text(source, metadata?.get('assigned')?.value)).toBe('"Same"')
+    expect(text(source, metadata?.get('priority')?.value)).toBe('High')
+    const entitySource = 'kanban\nTodo\n  task[Work]@{ assigned: #quot;Iris#quot;, ticket: "GW-1" }', entityMap = parsed(entitySource).source.spans?.metadata?.get('task')
+    expect(text(entitySource, entityMap?.get('assigned')?.value)).toBe('#quot;Iris#quot;')
+    expect(text(entitySource, entityMap?.get('ticket')?.value)).toBe('"GW-1"')
+  })
+  test('Kanban multiline metadata preserves exact quoted keys, collections and repeated item ownership', () => {
+    const source = '---\ntitle: Delivery\n---\nkanban\n  Todo\n    task[Work]@{\n      "assigned": "Iris"\n      tags: [parser, "日本"]\n      priority: High\n    }\n  Done\n    task[Review]@{ ticket: "GW-1" }\n',
+      diagram = parsed(source),
+      metadata = diagram.source.spans?.metadata
+    expect(text(source, metadata?.get('task')?.get('assigned')?.key)).toBe('"assigned"')
+    expect(text(source, metadata?.get('task')?.get('assigned')?.value)).toBe('"Iris"')
+    expect(text(source, metadata?.get('task')?.get('tags')?.value)).toBe('[parser, "日本"]')
+    expect(text(source, metadata?.get('task#2')?.get('ticket')?.value)).toBe('"GW-1"')
+    expect(metadata?.get('task')?.get('tags')?.value.start.line).toBe(8)
+    expect(span(source, diagram, 'nodes', 'task')).toBe('task[Work]@{\n      "assigned": "Iris"\n      tags: [parser, "日本"]\n      priority: High\n    }')
   })
   test('Requirement fields and repeated relations use declaration identities rather than label matches', () => {
     const source = '---\ntitle: proof\n---\nrequirementDiagram\n  requirement r1 {\n    text: "Same"\n    risk: high\n  }\n  requirement r2 {\n    text: "Same"\n  }\n  element proof {\n    type: "Same"\n  }\n  proof - verifies -> r1\n  proof - verifies -> r1\n  r2 <- traces - r1\n',

@@ -10,7 +10,7 @@ import { paintTerminalFrame } from './terminal-geometry.ts'
 import { AsciiWidthError } from './width-error.ts'
 
 export function renderKanbanTerminal(context: AsciiContext): TerminalArtifact {
-  const body = withFrontmatterTitle(parseKanbanDiagram(context.source.familyBody), context.source.frontmatter)
+  const body = withFrontmatterTitle(parseKanbanDiagram(context.source.familyBody, context.source.accessibility, context.source), context.source.frontmatter)
   const visual = (context.familyConfig as { visual?: ReturnType<typeof resolveKanbanConfig> } | undefined)?.visual ?? resolveKanbanConfig(context.source.frontmatter)
   const maxWidth = context.options.targetWidth ?? context.options.maxWidth ?? context.config.maxWidth
   const count = body.columns.length,

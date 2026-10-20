@@ -10,6 +10,7 @@ import { mutateIshikawa, parseIshikawaBody, renderIshikawa, verifyIshikawa } fro
 import { mutateKanban, parseKanbanBody, renderKanban, verifyKanban } from './kanban-body.ts'
 import { mutatePacket, parsePacketBody, renderPacket, verifyPacket } from './packet-body.ts'
 import { mutateRequirement, parseRequirementBody, renderRequirement, verifyRequirement } from './requirement-body.ts'
+import { recordSourceMapEnds, recordSourceMapMetadata } from './source-map-spans.ts'
 import { mutateTreemap, parseTreemapBody, renderTreemap, verifyTreemap } from './treemap-body.ts'
 import type { DiagramBody, FamilyParsedBody, LayoutWarning, MutationError, Result, SourceLocation, SourceMap, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
@@ -89,7 +90,8 @@ export function stableFamilyFacts(body: StableBody): string[] {
       break
     case 'block':
       facts.push(`columns root ${body.root.columns ?? -1}`)
-      for (const { node, parentId } of blockEntries(body)) facts.push(`block ${text(node.id)} parent ${text(parentId ?? null)} type ${node.type === 'na' ? 'square' : node.type ?? 'square'} span ${node.widthInColumns ?? 1} columns ${node.columns ?? -1} label ${text(node.label ?? '')}${node.directions ? ` directions ${text(node.directions)}` : ''}`)
+      for (const { node, parentId } of blockEntries(body))
+        facts.push(`block ${text(node.id)} parent ${text(parentId ?? null)} type ${node.type === 'na' ? 'square' : (node.type ?? 'square')} span ${node.widthInColumns ?? 1} columns ${node.columns ?? -1} label ${text(node.label ?? '')}${node.directions ? ` directions ${text(node.directions)}` : ''}`)
       body.edges.forEach((edge, index) => facts.push(`edge#${index} ${text(edge.start)} -> ${text(edge.end)} label ${text(edge.label ?? '')} markers ${edge.arrowTypeStart ?? 'none'} ${edge.arrowTypeEnd ?? 'none'}`))
       break
     case 'treemap':
@@ -257,6 +259,9 @@ function sourceMap(body: StableBody, source: string): SourceMap {
   // record is appended. Repeated labels and repeated Kanban source IDs are
   // disambiguated by the identity in that actual append event.
   let statement: ParserObservation | undefined
+  const nodeEnds = new Map<string, SourceLocation>(),
+    groupEnds = new Map<string, SourceLocation>(),
+    metadataLocations: Parameters<typeof recordSourceMapMetadata>[1] = new Map()
   const columns = body.kind === 'kanban' ? new Set(body.columns.map(column => column.id)) : undefined
   withParserObservation(
     body.kind,
@@ -279,6 +284,18 @@ function sourceMap(body: StableBody, source: string): SourceMap {
         // metadata-label interpretation. Search only its consumed declaration.
         const declaredLabel = typeof value.declaredLabel === 'string' ? value.declaredLabel : ''
         const local = statement.text ?? raw
+        ;(group ? groupEnds : nodeEnds).set(id, at(starts[line - 1]! + local.length))
+        if (Array.isArray(value.metadataSpans)) {
+          const fields: NonNullable<ReturnType<typeof metadataLocations.get>> = new Map()
+          for (const field of value.metadataSpans) {
+            if (!field || typeof field !== 'object' || Array.isArray(field)) continue
+            const entry = field as Record<string, unknown>
+            if (typeof entry.name !== 'string' || !['keyStart', 'keyEnd', 'valueStart', 'valueEnd'].every(key => typeof entry[key] === 'number')) continue
+            const location = (key: string): SourceLocation => at(starts[line - 1]! + (entry[key] as number))
+            fields.set(entry.name, { key: { start: location('keyStart'), end: location('keyEnd') }, value: { start: location('valueStart'), end: location('valueEnd') } })
+          }
+          if (fields.size) metadataLocations.set(id, fields)
+        }
         const firstLine = local.split('\n')[0]!
         const metadata = firstLine.indexOf('@{')
         const declaration = metadata >= 0 ? firstLine.slice(0, metadata) : firstLine
@@ -310,6 +327,10 @@ function sourceMap(body: StableBody, source: string): SourceMap {
       }
     },
   )
+  if (body.kind === 'kanban') {
+    recordSourceMapEnds(map, { nodes: nodeEnds, groups: groupEnds })
+    recordSourceMapMetadata(map, metadataLocations)
+  }
   return map
 }
 

@@ -30,7 +30,10 @@ export function layoutKanbanDiagram(body: KanbanBody, options: Readonly<RenderOp
     groupPadY = styleFace?.group?.paddingY ?? inset,
     headerPadX = styleFace?.group?.paddingX ?? inset + cardPadX,
     headerPadY = styleFace?.group?.paddingY ?? cardPadY
-  const width = Math.max(visual.sectionWidth, groupPadX * 2 + cardPadX * 2 + 24, headerPadX * 2 + 24)
+  const minWidth = Math.max(160, groupPadX * 2 + cardPadX * 2 + 24, headerPadX * 2 + 24),
+    maxWidth = options.kanban?.maxWidth,
+    width = Math.max(maxWidth === undefined ? 0 : minWidth, Math.min(Math.max(visual.sectionWidth, groupPadX * 2 + cardPadX * 2 + 24, headerPadX * 2 + 24), maxWidth === undefined ? Infinity : maxWidth - 2 * pad)),
+    gap = Math.max(16, inset * 2)
   const band = diagramTitleBand(body.title, style)
   const textBlocks = (item: KanbanItem, header: boolean): KanbanText[] =>
     kanbanItemText(item).map(({ text, kind }) => {
@@ -50,7 +53,7 @@ export function layoutKanbanDiagram(body: KanbanBody, options: Readonly<RenderOp
   const headerHeight = Math.max(32, ...headers.map(texts => texts.reduce((height, text) => height + text.block.height + 6, 2 * headerPadY)))
   const columns: PositionedKanbanColumn[] = []
   body.columns.forEach((column, index) => {
-    const x = pad + index * (width + Math.max(16, inset * 2)),
+    const x = pad + index * (width + gap),
       y = pad + (band?.height ?? 0)
     const texts = headers[index]!
     let textY = y + headerPadY
@@ -80,6 +83,37 @@ export function layoutKanbanDiagram(body: KanbanBody, options: Readonly<RenderOp
   })
   const maxHeight = Math.max(headerHeight + groupPadY * 2, ...columns.map(column => column.height))
   for (const column of columns) column.height = maxHeight
-  const canvasWidth = Math.max(pad * 2 + Math.max(0, columns.length * width + Math.max(0, columns.length - 1) * Math.max(16, inset * 2)), (band?.width ?? 0) + 2 * pad)
-  return { columns, visual, width: canvasWidth, height: pad * 2 + (band?.height ?? 0) + maxHeight, ...(band ? { title: positionDiagramTitle(band, canvasWidth, pad) } : {}) }
+  const perRow = maxWidth === undefined ? Math.max(1, columns.length) : Math.max(1, Math.floor((maxWidth - 2 * pad + gap) / (width + gap)))
+  let contentHeight = maxHeight
+  if (perRow < columns.length) {
+    let rowY = pad + (band?.height ?? 0)
+    for (let start = 0; start < columns.length; start += perRow) {
+      const row = columns.slice(start, start + perRow)
+      // Keep equal-height columns within each row; typography stays at the
+      // authored size and cards retain their original column membership.
+      for (const [index, column] of row.entries()) {
+        const dx = pad + index * (width + gap) - column.x,
+          dy = rowY - column.y
+        column.x += dx
+        column.y += dy
+        for (const text of column.texts) {
+          text.x += dx
+          text.y += dy
+        }
+        for (const task of column.tasks) {
+          task.x += dx
+          task.y += dy
+          for (const text of task.texts) {
+            text.x += dx
+            text.y += dy
+          }
+        }
+      }
+      rowY += maxHeight + gap
+    }
+    contentHeight = rowY - gap - pad - (band?.height ?? 0)
+  }
+  const rowColumns = Math.min(columns.length, perRow)
+  const canvasWidth = Math.max(pad * 2 + Math.max(0, rowColumns * width + Math.max(0, rowColumns - 1) * gap), (band?.width ?? 0) + 2 * pad)
+  return { columns, visual, width: canvasWidth, height: pad * 2 + (band?.height ?? 0) + contentHeight, ...(band ? { title: positionDiagramTitle(band, canvasWidth, pad) } : {}) }
 }

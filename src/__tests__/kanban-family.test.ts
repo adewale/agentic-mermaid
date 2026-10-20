@@ -14,12 +14,39 @@ test('Kanban group padding reserves real space around cards independently of nod
   const source = 'kanban\n  todo[To do]\n    work[日本 delivery]@{assigned: "Alice"}\n  done[Done]',
     style = { roles: { group: { paddingX: 40, paddingY: 37 }, node: { paddingX: 12, paddingY: 11 } } },
     layout = layoutMermaidWithReceipt(source, { style }).layout,
-    group = layout.groups.find(group => group.id === 'todo')!, card = layout.nodes.find(node => node.id === 'work')!
+    group = layout.groups.find(group => group.id === 'todo')!,
+    card = layout.nodes.find(node => node.id === 'work')!
   expect(card.x - group.x).toBe(40)
   expect(group.x + group.w - card.x - card.w).toBe(40)
   expect(card.y - group.y).toBeGreaterThanOrEqual(37 + 32)
   expect(group.y + group.h - card.y - card.h).toBeGreaterThanOrEqual(37)
   expect(renderMermaidSVG(source, { style })).toContain('日本 delivery')
+})
+
+test('Kanban explicit viewport width wraps columns in authored order without shrinking text or losing membership', () => {
+  const source = 'kanban\nBacklog\n  a[日本 gateway]\nActive\n  b[Deliver API]@{assigned: Iris}\nReview\n  c[Verify]\nDone\n  d[Shipped]',
+    body = parseKanbanDiagram(source),
+    horizontal = layoutKanbanDiagram(body),
+    wrapped = layoutKanbanDiagram(body, { kanban: { maxWidth: 560 } })
+  expect(wrapped.width).toBeLessThanOrEqual(560)
+  expect(wrapped.columns.map(column => column.id)).toEqual(['Backlog', 'Active', 'Review', 'Done'])
+  expect(wrapped.columns.map(column => column.tasks.map(task => [task.id, task.parentId]))).toEqual([[['a', 'Backlog']], [['b', 'Active']], [['c', 'Review']], [['d', 'Done']]])
+  expect(wrapped.columns[0]!.y).toBe(wrapped.columns[1]!.y)
+  expect(wrapped.columns[2]!.y).toBeGreaterThan(wrapped.columns[0]!.y + wrapped.columns[0]!.height)
+  expect(wrapped.columns[2]!.x).toBe(wrapped.columns[0]!.x)
+  for (const column of wrapped.columns)
+    for (const task of column.tasks) {
+      const original = horizontal.columns.flatMap(group => group.tasks).find(card => card.id === task.id)!
+      expect(task.texts.map(text => text.block.fontSize)).toEqual(original.texts.map(text => text.block.fontSize))
+      expect(task.x).toBeGreaterThanOrEqual(column.x)
+      expect(task.y + task.height).toBeLessThanOrEqual(column.y + column.height)
+    }
+  const narrow = layoutKanbanDiagram(body, { kanban: { maxWidth: 240 } })
+  expect(narrow.width).toBeLessThanOrEqual(240)
+  expect(new Set(narrow.columns.map(column => column.y)).size).toBe(4)
+  expect(renderMermaidSVG(source, { kanban: { maxWidth: 560 } })).toContain('data-parent="Review"')
+  expect(layoutKanbanDiagram(body, { kanban: {} })).toEqual(horizontal)
+  expect(renderMermaidASCII(source, { kanban: { maxWidth: 560 } })).toBe(renderMermaidASCII(source))
 })
 
 test('Kanban duplicate authored IDs remain distinct across columns and generated-looking identities', () => {
@@ -54,6 +81,17 @@ test('Kanban cards move atomically and nonempty columns require explicit deletio
   expect(mutateKanban(body, { kind: 'remove_column', id: 'Todo' }).ok).toBe(false)
   expect(body.columns[0]!.tasks).toHaveLength(1)
   expect(parseKanbanBody('kanban\nTodo\n  task[Unclosed')).toBeNull()
+})
+
+test('Kanban malformed delimiters report the source opening and expected closing token', () => {
+  for (const [source, expected] of [
+    ['kanban\nTodo\n  task[Unclosed', 'line 3, column 7'],
+    ['kanban\nTodo\n  task["Unclosed', 'line 3, column 8'],
+    ['kanban\nTodo\n  task[Work]@{ assigned: "Alice"', 'line 3, column 13'],
+  ])
+    expect(() => parseKanbanDiagram(source!)).toThrow(expected!)
+  const wrapped = '---\ntitle: Board\n---\n%% comment\nkanban\naccTitle: Accessible board\nTodo\n  task[Missing'
+  for (const render of [renderMermaidSVG, renderMermaidASCII]) expect(() => render(wrapped)).toThrow('line 8, column 7')
 })
 
 test('Kanban wrapped cards and headers own sufficient geometry for all metadata', () => {

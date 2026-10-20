@@ -10,7 +10,7 @@ import { withFrontmatterTitle } from '../mermaid-source.ts'
 export const KANBAN_SVG_HOOKS = {
   configDiagnostics: diagnoseKanbanConfig,
   normalizeRequest: ctx => ({ familyConfig: { visual: resolveKanbanConfig(ctx.source.frontmatter) } }),
-  layout: ctx => layoutResult(layoutKanbanDiagram(withFrontmatterTitle(parseKanbanDiagram(ctx.source.familyBody, ctx.source.accessibility), ctx.source.frontmatter), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolveKanbanConfig> } | undefined)?.visual ?? resolveKanbanConfig(), ctx.styleFace)),
+  layout: ctx => layoutResult(layoutKanbanDiagram(withFrontmatterTitle(parseKanbanDiagram(ctx.source.familyBody, ctx.source.accessibility, ctx.source), ctx.source.frontmatter), ctx.renderOptions, (ctx.familyConfig as { visual?: ReturnType<typeof resolveKanbanConfig> } | undefined)?.visual ?? resolveKanbanConfig(), ctx.styleFace)),
   projectPositioned: positionedView(projectKanbanPositioned),
   lowerScene: scene(lowerKanbanScene),
 } satisfies BrowserSvgFamilyHooks
