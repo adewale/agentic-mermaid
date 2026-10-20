@@ -124,10 +124,9 @@ Build on these existing boundaries:
 The [layered layout proposal](../../project/layered-layout-proposal.md) and
 [conditional forest contract](../../project/conditional-forest-layout.md)
 already landed through PR 443. This specification supplies their public backend
-selection and comparative measurement contract. The existing default-off forest
-experiment and common final-artifact assessor are foundations, not a general
-replacement. Explicit ELK selection bypasses the forest experiment; omission
-preserves existing behavior, including an explicitly enabled legacy experiment.
+selection and comparative measurement contract. The guarded forest optimization and common final-artifact assessor are
+foundations for the general replacement. Explicit ELK selection bypasses forest
+placement; omission preserves main’s existing automatic policy.
 
 ## Backend selection
 
@@ -303,6 +302,15 @@ those reservations. Shared outline clipping and final geometry/paint auditing
 still apply. Per-request limits bound expanded vertices, channel-pair checks,
 routing dependencies and optional crossing-reduction comparisons, including
 recursive scopes and loop expansion.
+Feasible rank compaction moves a vertex only toward a bound that cannot
+increase total edge span. Small cyclic scopes may compare deterministic
+feedback orientations and reversed initial node/edge orders using actual
+visible polyline crossings, then bends and area, retaining the earlier candidate
+on exact ties. This search has shared per-request limits of 128
+optional layouts, eight million point-pair scoring units, and separate routing
+work; optional declines retain the best feasible candidate. It cannot consume
+the mandatory routing budget of later scopes. No ELK result participates in
+candidate selection, and zero-crossing primary layouts skip the search.
 Class/ER compartments, Architecture ports and State semantics remain adapter
 responsibilities even when they share a producer.
 

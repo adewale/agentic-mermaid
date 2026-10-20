@@ -183,8 +183,21 @@ describe('owned measured layered layout', () => {
     expect(countOpposingRouteOverlaps(routes)).toBe(0)
   })
 
-  test('owns shared routing only for complete, unlabelled fan nets', () => {
-    const input = measured({ shareCompleteFans: true, nodes: ['\0agentic-fan:0', 'b', 'c', 'd'].map(id => ({ id, width: 80, height: 40 })), edges: [
+  test('compacts a short incoming branch without lengthening its minimum span', () => {
+    const input = measured({ nodes: ['a', 'b', 'c', 'd'].map(id => ({ id, width: 80, height: 40 })), edges: [
+      { source: 0, target: 1, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }, { source: 3, target: 2, minSpan: 1 },
+    ] })
+    const original = structuredClone(input)
+    const placed = layoutAgenticGraph(input)
+    expect(placed.nodes[3]!.y).toBe(placed.nodes[1]!.y)
+    expect(placed.nodes[1]!.y).toBeGreaterThan(placed.nodes[0]!.y)
+    expect(placed.nodes[2]!.y).toBeGreaterThan(placed.nodes[1]!.y)
+    expect(countPolylineCrossings(placed.edges)).toBe(0)
+    expect(input).toEqual(original)
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('owns shared routing only for complete, unlabelled fan nets in %s', direction => {
+    const input = measured({ direction, shareCompleteFans: true, nodes: ['\0agentic-fan:0', 'b', 'c', 'd'].map((id, index) => ({ id, width: 80 + 10 * index, height: 40 + 20 * index })), edges: [
       { source: 0, target: 2, minSpan: 1 }, { source: 0, target: 3, minSpan: 1 },
       { source: 1, target: 2, minSpan: 1 }, { source: 1, target: 3, minSpan: 1 },
     ] })
@@ -192,6 +205,17 @@ describe('owned measured layered layout', () => {
     expect(shared.nodes).toHaveLength(4)
     expect(shared.edges).toHaveLength(4)
     expect(shared.sharedEdges).toEqual([0, 1, 2, 3])
+    expect(countPolylineCrossings(shared.edges)).toBe(0)
+    const ink = shared.edges.map((edge, index) => ({ ...edge, style: 'solid' as const, source: input.nodes[input.edges[index]!.source]!.id, target: input.nodes[input.edges[index]!.target]!.id }))
+    expect(countParallelRouteOverlaps(ink)).toBe(0)
+    expect(countOpposingRouteOverlaps(ink)).toBe(0)
+    const boxes = shared.nodes.map((point, index) => ({ ...point, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+    for (const [index, edge] of input.edges.entries()) {
+      const path = shared.edges[index]!.points
+      expect(onOutline(path[0]!, boxes[edge.source]!)).toBe(true)
+      expect(onOutline(path.at(-1)!, boxes[edge.target]!)).toBe(true)
+      for (let cursor = 1; cursor < path.length; cursor++) for (const box of boxes) expect(crossesInterior(path[cursor - 1]!, path[cursor]!, box)).toBe(false)
+    }
     expect(shared.edges[0]!.points[0]).toEqual(shared.edges[1]!.points[0])
     expect(shared.edges[0]!.points[0]).not.toBe(shared.edges[1]!.points[0])
     expect(input).toEqual(original)
