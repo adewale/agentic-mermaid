@@ -399,3 +399,13 @@ divergence, not another runtime defect.
 - Do not fold `zhenhuaa/mdv` wholesale into this package; terminal Markdown viewing belongs in a separate tool or companion package.
 - Do not port old dagre-specific layout code directly; translate only ideas that still apply to the current ELK/layout-engine architecture.
 - Do not treat historical archives or process notes as backlog unless an item is promoted here with an ID.
+
+## Owned graph backend qualification (owner request, PR #449)
+
+- [x] Retain explicit ELK, checked native selection, typed fallback and immutable execution receipts.
+- [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement, ER, Class and Architecture adapters.
+- [ ] Close generated crossing regressions and review bends/area with final label, port and route geometry.
+- [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
+- [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
+- [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence.
+- [ ] Resolve or identify the intermittent parallel unit-shard teardown timeout; retain adverse runs and bind final validation to the rebased combined head.

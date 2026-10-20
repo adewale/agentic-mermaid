@@ -811,6 +811,34 @@ owned endpoint/marker summary with explicit projection diagnostics, while its
 geometry-collision diagnostic continues to fail terminal geometry certification.
 A rendered summary is neither a physical route nor evidence of backend parity.
 
+The snapshot runner also accepts a bounded generated Flowchart population. Both
+arms require explicit backend selection, retain every source/outcome and consume
+complete SVG and layout receipts. Generated snapshots omit the independent
+terminal projection and label that omission; they measure quality, not runtime.
+For example, reproduce seeds 96–159 with each backend using:
+
+```sh
+bun run eval/layout-compare/run.ts snapshot --graph-layout elk \
+  --generated-start 96 --generated-count 64 --out /tmp/elk-holdout.json
+bun run eval/layout-compare/run.ts snapshot --graph-layout agentic \
+  --generated-start 96 --generated-count 64 --out /tmp/agentic-holdout.json
+bun run eval/layout-compare/run.ts report --before /tmp/elk-holdout.json \
+  --after /tmp/agentic-holdout.json --out /tmp/holdout.html
+```
+
+The advisory CI diagnostic records all 160 current development cases, including
+adverse results. The clean `9877f370` holdout renders 64/64 natively and 62/64 with
+ELK (one geometry and one paint rejection). Seven shared inputs have additional
+native crossings: seeds 96, 125, 131, 132, 134, 138 and 145. No additional measured
+label conflicts or opposing/parallel spans occur. Once used to choose a
+refinement, these seeds are development evidence, not an unseen holdout.
+
+ELK's [model-constraint documentation](https://eclipse.dev/elk/blog/posts/2023/23-01-09-constraining-the-model.html)
+and [force-node-order option](https://eclipse.dev/elk/reference/options/org-eclipse-elk-layered-crossingMinimization-forceNodeModelOrder.html)
+distinguish order hints from constraints that crossing minimization cannot
+violate. Architecture's compound child order therefore remains an explicit
+capability boundary, even when unconstrained native container placement renders.
+
 Flat Architecture diagrams reuse the graph producer for placement while
 retaining the family adapter's authored side constraints, alignment directives,
 service/junction geometry, obstacle routing and label allocation. Temporary graph
