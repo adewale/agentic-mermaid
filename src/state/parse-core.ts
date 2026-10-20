@@ -217,9 +217,8 @@ export interface StateStatement {
   text: string
   /** Index of the input line the statement starts on. */
   line: number
-  /** Where its text runs, but for a block note's: a description's, a
-   *  transition label's or a one-line note's from its colon, a quoted
-   *  name's from its quote. */
+  /** Where its text runs, when it is not a note's: a description's or a
+   *  transition label's from its colon, a quoted name's from its quote. */
   textSpan?: { start: StatePosition; end: StatePosition }
   /** The input line a transition's target starts on. */
   toLine?: number
@@ -613,7 +612,6 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       // A keyword statement runs to the end of its line.
       const keyword = text.slice(column)
       emit(keyword, line, false)
-      if (NOTE_LINE_RE.test(keyword)) statements.at(-1)!.textSpan = { start: at(row, column + keyword.indexOf(':')), end: at(row, text.length) }
       row++
       column = 0
       // A block note opened after another statement on its line, which the

@@ -562,7 +562,7 @@ stateDiagram-v2
       const graph = parseRenderGraph(source)
       return [...graph.edges.map(edge => edge.label ?? ''), ...[...graph.nodes.values()].flatMap(node => (node.label !== node.id ? [node.label] : [])), ...(graph.stateNotes ?? []).map(note => note.text)]
     }
-    const read = [['style:&f00; x'], ['style:#f00 x; y'], ['classDef x:&fff; y'], ['style:&f00; x'], ['style:&f00; x'], ['x:&f00; y'], ['x:&f00; y'], ['&f00; x']]
+    const read = [['style:&f00; x'], ['style:#f00 x; y'], ['classDef x:&fff; y'], ['style:&f00; x'], ['style:&f00; x']]
     expect(dropped.map(ours)).toEqual(read)
     const written = dropped.map(source => serializeMermaid(state(source)))
     expect(written.map(ours)).toEqual(read)
@@ -570,7 +570,8 @@ stateDiagram-v2
     const texts = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => (item.description ? [item.description] : item.note ? [item.note.text] : []))
     const upstream = startUpstreamMermaid()
     try {
-      expect(await upstream.projectAll(dropped, texts)).toEqual([['style:#f00 x'], ['style:#f00 x y'], ['classDef x:#fff y'], ['style:#f00 x'], ['style:#f00 x']])
+      expect(await upstream.projectAll(dropped, texts))
+        .toEqual([['style:#f00 x'], ['style:#f00 x y'], ['classDef x:#fff y'], ['style:#f00 x'], ['style:#f00 x']])
       expect((await upstream.projectAll(written, texts)).map(read => read.map(text => projectEntityMarkers(text)))).toEqual(read)
     } finally {
       upstream.close()
