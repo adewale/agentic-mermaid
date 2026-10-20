@@ -128,9 +128,13 @@ describe('ER layout backends', () => {
   })
 
   test('retains native empty frames and diagrams even when fallback is permitted', () => {
-    for (const source of ['erDiagram', 'erDiagram\nsubgraph Zone\n A\nend', 'erDiagram\nsubgraph Empty\nend']) {
+    for (const source of ['erDiagram', 'erDiagram\nsubgraph Zone\n A\nend', 'erDiagram\nsubgraph Empty\nend', '---\ntitle: Empty ER title\n---\nerDiagram']) {
       const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'elk' } })
       expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+      if (source.includes('title:')) {
+        expect(result.svg).toContain('Empty ER title')
+        expect(result.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
+      }
     }
   })
 })
