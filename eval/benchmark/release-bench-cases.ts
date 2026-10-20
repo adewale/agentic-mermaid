@@ -68,7 +68,10 @@ const WORKLOADS = {
   // readable without changing the encoded inclusive ranges or label oracle.
   packet: [{ id: '240-fields', source: lines('---\nconfig:\n  packet:\n    bitWidth: 80\n---\npacket\n  title Protocol fields', 240, i => `+${1 + (i % 24)}: "Field ${i}"`), expectedSvgLabels: Array.from({ length: 240 }, (_, i) => `Field ${i}`) }],
   kanban: [{ id: '12-columns-240-cards', source: lines('kanban', 12, i => [`  stage${i}[Stage ${i}]`, ...Array.from({ length: 20 }, (_, j) => `    task${i}_${j}[Task ${i}.${j}]@{assigned: "Owner ${j % 4}", ticket: "AM-${i * 20 + j}"}`)]) }],
-  requirement: [{ id: '100-requirements-99-relations', source: lines('requirementDiagram', 100, i => [`  requirement r${i} {`, `    id: R${i}`, `    text: "Requirement ${i}"`, '    risk: medium', '    verifymethod: test', '  }', ...(i ? [`  r${i - 1} - traces -> r${i}`] : [])]) }],
+  requirement: [
+    { id: '100-requirements-99-relations', source: lines('requirementDiagram', 100, i => [`  requirement r${i} {`, `    id: R${i}`, `    text: "Requirement ${i}"`, '    risk: medium', '    verifymethod: test', '  }', ...(i ? [`  r${i - 1} - traces -> r${i}`] : [])]) },
+    { id: 'cyclic-labelled-relations', source: readFileSync(new URL('../layout-compare/fixtures/requirement-backends.mmd', import.meta.url), 'utf8'), expectedSvgLabels: ['performance-1', 'Respond quickly', 'bench suite', 'verifies', 'traces', 'refines'] },
+  ],
   treemap: [{ id: '20-groups-240-leaves', source: lines('treemap\ntitle Product allocation', 20, i => [`"Group ${i}"`, ...Array.from({ length: 12 }, (_, j) => `  "Investment ${i}.${j}": ${(j + 1) * 10}`)]) }],
   ishikawa: [{ id: '12-categories-120-causes', source: lines('ishikawa\n  Delayed delivery', 12, i => [`  Category ${i}`, ...Array.from({ length: 10 }, (_, j) => `    Cause ${i}.${j}`)]) }],
   block: [{ id: '120-grid-blocks', source: lines('block\n  columns 12', 120, i => [`  b${i}["Component ${i}"]`, ...(i ? [`  b${i - 1} --> b${i}`] : [])]) }],
