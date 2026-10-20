@@ -102,6 +102,7 @@ const WORKLOADS = {
   sankey: [{ id: '120-links', source: lines('sankey-beta', 120, i => `Source ${i % 12},Target ${(i * 5) % 30},${1 + (i % 9)}`) }],
   journey: [{ id: '120-tasks', source: lines('journey\n  title Product delivery', 120, i => [...(i % 12 === 0 ? [`  section Stage ${i / 12}`] : []), `    Task ${i}: ${1 + (i % 5)}: Alice, Bob`]) }],
   architecture: [
+    { id: 'aligned-junction-services', source: readFileSync(new URL('../layout-compare/fixtures/architecture-backends.mmd', import.meta.url), 'utf8'), expectedSvgLabels: ['Source 1', 'Source 2', 'Source 3', 'Processor'] },
     { id: '40-services', source: lines('architecture-beta', 40, i => [`  service s${i}(server)[Service ${i}]`, ...(i > 0 ? [`  s${i - 1}:R --> L:s${i}`] : [])]) },
     ...[16, 32].map(count => ({ id: `${count}-junctions`, source: architectureJunctions(count) })),
     { id: '32-large-junctions', source: `---\nconfig:\n  architecture:\n    iconSize: 40\n---\n${architectureJunctions(32)}` },

@@ -331,7 +331,7 @@ test('agent workload completes a verified edit and renders the original and adde
   expect(() => renderAgentEdit(dropsEdits, agentEditCase.source)).toThrow('requested or preserved facts were lost')
 })
 
-test.each(releaseBenchCases().filter(input => input.id.includes('cyclic-labelled')).flatMap(input =>
+test.each(releaseBenchCases().filter(input => input.id.includes('cyclic-labelled') || input.id === 'architecture:aligned-junction-services').flatMap(input =>
   (['elk', 'agentic'] as const).map(backend => ({ input, backend, id: input.id }))))('frozen labelled workload $id retains exact renderer-owned labels with $backend', ({ input, backend }) => {
   expect(input.expectedSvgLabels!.length).toBeGreaterThan(0)
   const svg = api.renderMermaidSVG(input.source, { graphLayout: { backend } })
