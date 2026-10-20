@@ -878,6 +878,18 @@ describe('State statements across and within lines', () => {
     expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight'], ['A', 'B', 'in-flight'], ['default'], ['state', 'A'], ['X', 'default', 'stateDiagram', 'scale', 'href']])
   })
 
+  test('a note position Mermaid reads only with one space is read, and reported', async () => {
+    const sources = ['A --> B\nnote right  of A : x', 'A --> B\nnote LEFT\tOF B\ntext\nend note'].map(body => `stateDiagram-v2\n${body}`)
+    expect(sources.map(source => readingOf(parseRenderGraph(source)).filter(item => item.startsWith('note'))))
+      .toEqual([['note right of A:x'], ['note left of B:text']])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_note_position@3'], ['state_note_position@3']])
+    expect(await Promise.all(sources.map(source => upstream.accepts(source)))).toEqual([false, false])
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(written.map(unsupportedSyntax)).toEqual([[], []])
+    expect(await upstream.projectAll(written, mermaid => mermaid.db.rootDoc.flatMap((item: any) => item.note ? [[item.note.position, item.id, item.note.text]] : [])))
+      .toEqual([[['right of', 'A', 'x']], [['left of', 'B', 'text']]])
+  })
+
   test('a note on a state Mermaid cannot name as a note target is read, and reported', async () => {
     // A keyword names a note's state there; a hyphen does not.
     const oneLine = 'stateDiagram-v2\nnote right of in-flight : x\nnote left of note : y'

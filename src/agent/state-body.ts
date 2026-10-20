@@ -1509,6 +1509,11 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     const note = noteLine ?? matchNoteOpen(text)
     if (note) {
       noteTextAwaited = noteLine === null
+      // Mermaid's NOTE state reads `left of` and `right of` as literals.
+      const position = /note\s+(?:left|right)(\s+)of\s/i.exec(physicalLine(statement.line))
+      if (position && position[1] !== ' ') {
+        warn(statement, 'state_note_position', `The note is read as a note ${note.side} of '${note.target}'. Pinned Mermaid reads \`left of\` and \`right of\` only with one space between the words, and rejects this line. The writer writes one space.`)
+      }
       if (note.target.includes('-')) {
         warn(statement, 'state_note_target', `The note is on '${note.target}', which pinned Mermaid cannot read as a note's state: there a state name ends at a hyphen. Mermaid rejects a note whose text follows a colon, and puts a block note on the state named before the hyphen, reading the rest as note text, here and in the output. Rename the state to keep it portable.`)
       }
