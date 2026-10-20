@@ -10,13 +10,13 @@
  * membership lives in one grammar consumed by both sides, so the serializer
  * cannot emit a namespace block the renderer would drop.
  */
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { decodeXML } from 'entities'
-import { parseClassDiagram } from '../class/parser.ts'
+import { asClass, describeMermaidFacts, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import type { ClassMutationOp, ClassValidDiagram } from '../agent/types.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
+import { parseClassDiagram } from '../class/parser.ts'
 import type { ClassNamespace } from '../class/types.ts'
-import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts, renderMermaidSVG, renderMermaidASCII, verifyMermaid } from '../agent/index.ts'
-import type { ClassValidDiagram, ClassMutationOp } from '../agent/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function classDiagram(src: string): ClassValidDiagram {
@@ -35,9 +35,134 @@ function apply(d: ClassValidDiagram, op: ClassMutationOp): ClassValidDiagram {
 
 /** Re-parse serialized agent output through the RENDERER parser. */
 function renderParse(source: string) {
-  const lines = source.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const lines = source
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0 && !l.startsWith('%%'))
   return parseClassDiagram(lines)
 }
+
+test('lollipop endpoints are separate named interface occurrences, not invented or shared class boxes', async () => {
+  const cases = [
+    { source: 'classDiagram\nbar ()-- foo', classes: ['foo'], interfaces: ['bar'] },
+    { source: 'classDiagram\nclass Class01 {\nint amount\ndraw()\n}\nClass01 --() bar\nClass02 --() bar\nfoo ()-- Class01', classes: ['Class01', 'Class02'], interfaces: ['bar', 'bar', 'foo'] },
+    { source: 'classDiagram\nclass interface0\nclass bar\nbar ()-- foo', classes: ['bar', 'foo', 'interface0'], interfaces: ['bar'] },
+    { source: 'classDiagram\nPort~T~ ()-- Service', classes: ['Service'], interfaces: ['Port~T~'] },
+    { source: 'classDiagram\nA ()--() B', classes: ['A', 'B'], interfaces: [] },
+    { source: 'classDiagram\nnamespace Domain {\nclass A\n}\nA --() API', classes: ['A'], interfaces: ['API'] },
+  ]
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const entry of cases) {
+      const diagram = classDiagram(entry.source)
+      const native = renderParse(entry.source)
+      const interfaceNodes = native.classes.filter(node => node.isInterface)
+      expect(
+        native.classes
+          .filter(node => !node.isInterface)
+          .map(node => node.id)
+          .sort(),
+      ).toEqual(entry.classes)
+      expect(interfaceNodes.map(node => node.label)).toEqual(entry.interfaces)
+      expect(new Set(native.classes.map(node => node.id)).size).toBe(native.classes.length)
+      expect(diagram.body.classes.filter(node => node.isInterface).map(node => node.label)).toEqual(entry.interfaces)
+      const canonical = serializeMermaid(diagram)
+      expect(classDiagram(canonical).body).toEqual(diagram.body)
+      const projected = await upstream.projectAll([entry.source, canonical], d => ({
+        classes: [...d.db.getClasses().keys()].sort(),
+        interfaces: d.db
+          .getData()
+          .nodes.filter((node: any) => node.cssStyles?.includes('opacity: 0;'))
+          .map((node: any) => node.label),
+      }))
+      expect(projected).toEqual([
+        { classes: entry.classes, interfaces: entry.interfaces },
+        { classes: entry.classes, interfaces: entry.interfaces },
+      ])
+      for (const input of [entry.source, canonical]) {
+        const svg = renderMermaidSVG(input, { embedFontImport: false })
+        for (const node of interfaceNodes) {
+          const group = [...svg.matchAll(/<g\b[^>]*\bclass="class-interface"[^>]*>([\s\S]*?)<\/g>/g)].find(match => match[0].includes(`data-id="${node.id}"`))
+          expect(group, node.id).not.toBeNull()
+          expect(group?.[1]).not.toContain('<rect')
+          expect(group?.[1]).toContain(node.label)
+        }
+        const terminal = renderMermaidASCII(input)
+        for (const label of entry.interfaces) expect(terminal).toContain(label)
+        expect(verifyMermaid(input).warnings.filter(w => w.code === 'RENDER_FAILED')).toEqual([])
+      }
+      if (entry.source.includes('namespace Domain')) expect(native.namespaces[0]?.classIds).toEqual(['A'])
+    }
+  } finally {
+    upstream.close()
+  }
+})
+
+test('add_interface explicitly creates independent portable endpoints without retargeting existing classes', async () => {
+  const original = classDiagram('classDiagram\nnamespace Domain {\nclass Service\n}\nclass Shared\nclass interface0')
+  const mistaken = mutate(original, { kind: 'add_relation', from: 'Service', to: 'Shared', relKind: 'lollipop', markerAt: 'to' })
+  expect(mistaken).toMatchObject({ ok: false, error: { code: 'INVALID_OP', message: expect.stringContaining('use add_interface') } })
+  let current = apply(original, { kind: 'add_interface', class: 'Service', label: 'Shared' })
+  current = apply(current, { kind: 'add_interface', class: 'Service', label: 'Shared', side: 'from' })
+  current = apply(current, { kind: 'add_interface', class: 'Service', label: 'Payment API' })
+  expect(
+    current.body.classes
+      .filter(node => !node.isInterface)
+      .map(node => node.id)
+      .sort(),
+  ).toEqual(['Service', 'Shared', 'interface0'])
+  expect(current.body.classes.filter(node => node.isInterface).map(node => node.label)).toEqual(['Shared', 'Shared', 'Payment API'])
+  expect(current.body.classes.filter(node => node.isInterface).some(node => node.id === 'interface0')).toBe(false)
+  expect(current.body.classes.find(node => node.id === 'Service')?.namespace).toBe('Domain')
+  expect(current.body.classes.filter(node => node.isInterface).every(node => node.namespace === undefined)).toBe(true)
+  expect(current.body.relations.map(relation => [relation.from, relation.to])).toEqual([
+    ['Service', 'interface0#1'],
+    ['interface1', 'Service'],
+    ['Service', 'interface2'],
+  ])
+  const canonical = serializeMermaid(current)
+  expect(classDiagram(canonical).body).toEqual(current.body)
+  const upstream = startUpstreamMermaid()
+  try {
+    expect(
+      await upstream.project(canonical, d => ({
+        classes: [...d.db.getClasses().keys()].sort(),
+        interfaces: d.db
+          .getData()
+          .nodes.filter((node: any) => node.cssStyles?.includes('opacity: 0;'))
+          .map((node: any) => node.label),
+      })),
+    ).toEqual({ ok: true, value: { classes: ['Service', 'Shared', 'interface0'], interfaces: ['Shared', 'Shared', 'Payment API'] } })
+  } finally {
+    upstream.close()
+  }
+  for (const label of ['', 'bad\nclass Injected', 'bad`name', 'Bad~T~']) {
+    expect(mutate(original, { kind: 'add_interface', class: 'Service', label }).ok, label).toBe(false)
+  }
+  const literal = apply(original, { kind: 'add_interface', class: 'Service', label: 'A --> Injected', relationLabel: 'say \"hi\"; literal #quot;', lineStyle: 'dashed' })
+  expect(literal.body.classes.filter(node => node.isInterface).map(node => node.label)).toEqual(['A --> Injected'])
+  expect(literal.body.classes.some(node => node.id === 'Injected')).toBe(false)
+  expect(literal.body.relations.at(-1)?.label).toBe('say \"hi\"; literal #quot;')
+  expect(classDiagram(serializeMermaid(literal)).body).toEqual(literal.body)
+  expect(original.body.classes.some(node => node.isInterface)).toBe(false)
+})
+
+test('typed class edits retain lollipop occurrences and remove only interfaces orphaned by their relationship', () => {
+  let diagram = classDiagram('classDiagram\nclass A\nclass B\nA --() Shared\nB --() Shared')
+  const interfaces = diagram.body.classes.filter(node => node.isInterface)
+  expect(interfaces).toHaveLength(2)
+  expect(diagram.body.relations.map(relation => relation.to)).toEqual(interfaces.map(node => node.id))
+  const invalid = mutate(diagram, { kind: 'add_member', class: interfaces[0]!.id, text: '+invented' })
+  expect(invalid).toMatchObject({ ok: false, error: { code: 'INVALID_OP', message: expect.stringContaining('interface occurrence') } })
+  diagram = apply(diagram, { kind: 'add_member', class: 'B', text: '+real' })
+  expect(diagram.body.classes.filter(node => node.isInterface)).toHaveLength(2)
+  expect(classDiagram(serializeMermaid(diagram)).body).toEqual(diagram.body)
+  diagram = apply(diagram, { kind: 'remove_relation', index: 0 })
+  expect(diagram.body.classes.filter(node => node.isInterface)).toHaveLength(1)
+  expect(diagram.body.relations[0]?.from).toBe('B')
+  expect(classDiagram(serializeMermaid(diagram)).body).toEqual(diagram.body)
+  expect(diagram.body.classes.filter(node => !node.isInterface).map(node => node.id)).toEqual(['A', 'B'])
+})
 
 test('note edits write valid Mermaid while keeping literal quotes, backslashes and entity text', async () => {
   const text = 'A "quote", \\ path, and literal &quot;'
@@ -80,7 +205,11 @@ note for A "#lt;b#gt;note#lt;/b#gt;"`
     }
   }
   const upstream = startUpstreamMermaid()
-  try { expect(await upstream.accepts(serialized)).toBe(true) } finally { await upstream.close() }
+  try {
+    expect(await upstream.accepts(serialized)).toBe(true)
+  } finally {
+    await upstream.close()
+  }
 })
 
 test('Class typed labels and relationship text escape literal entity-looking text and quotes', async () => {
@@ -95,7 +224,11 @@ test('Class typed labels and relationship text escape literal entity-looking tex
   expect(reparsed.body.notes[0]?.text).toBe('literal #quot; and "quote"')
   expect(describeMermaidFacts(reparsed)).toEqual(describeMermaidFacts(diagram))
   const upstream = startUpstreamMermaid()
-  try { expect(await upstream.accepts(source)).toBe(true) } finally { await upstream.close() }
+  try {
+    expect(await upstream.accepts(source)).toBe(true)
+  } finally {
+    await upstream.close()
+  }
 })
 
 test('Class labels preserve real formatting beside literal entity-produced markup and measure the visible text', () => {
@@ -129,8 +262,7 @@ test.each([
     expect(block.prepared.lines.map(line => line.map(run => run.text).join(''))).toEqual(['Top', bottom])
     expect(namespace.headerHeight).toBeGreaterThanOrEqual(block.height)
     for (const cls of positioned.classes) expect(cls.y).toBeGreaterThanOrEqual(namespace.y + namespace.headerHeight)
-    const drawn = [...renderMermaidSVG(current).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
-      .map(match => decodeXML(match[1]!.replace(/<[^>]*>/g, '')))
+    const drawn = [...renderMermaidSVG(current).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => decodeXML(match[1]!.replace(/<[^>]*>/g, '')))
     expect(drawn).toContain(`Top${bottom}`)
     for (const useAscii of [false, true]) {
       const rows = renderMermaidASCII(current, { colorMode: 'none', useAscii }).split('\n')
@@ -139,7 +271,10 @@ test.each([
     }
   }
   expect(verifyMermaid(reloaded, { labelCharCap: bottom.length - 1 }).warnings).toContainEqual({
-    code: 'LABEL_OVERFLOW', target: 'namespace:G', charCount: bottom.length, limit: bottom.length - 1,
+    code: 'LABEL_OVERFLOW',
+    target: 'namespace:G',
+    charCount: bottom.length,
+    limit: bottom.length - 1,
   })
 })
 
@@ -159,7 +294,11 @@ test.each([
   expect(describeMermaidFacts(reparsed)).toEqual(describeMermaidFacts(edited))
   expect(renderMermaidASCII(source)).toContain(expected)
   const upstream = startUpstreamMermaid()
-  try { expect(await upstream.accepts(source)).toBe(true) } finally { await upstream.close() }
+  try {
+    expect(await upstream.accepts(source)).toBe(true)
+  } finally {
+    await upstream.close()
+  }
 })
 
 test('literal braces in inline members remain text through class serialization', async () => {
@@ -176,22 +315,31 @@ test('literal braces in inline members remain text through class serialization',
       expect(renderParse(serialized).classes).toEqual(renderParse(source).classes)
       expect(renderParse(serialized).namespaces).toEqual(renderParse(source).namespaces)
     }
-  } finally { upstream.close() }
+  } finally {
+    upstream.close()
+  }
 })
 
 test('mixed member syntax keeps order, class identity and namespace across serialization', async () => {
   const source = 'classDiagram\nnamespace N["Domain"] {\nclass A~T~["Display"] {\n<<interface>>\n+foo : string\n}\n}\nA : String map{key}\nclass A {\n+bar : int\n}\nA : +run() Result}\nclass A {\n+last : bool\n}'
   const original = classDiagram(source)
-  expect(original.body.classes).toEqual([{
-    id: 'A', namespace: 'N', label: 'Display', generic: 'T',
-    members: ['<<interface>>', '+foo : string', 'String map{key}', '+bar : int', '+run() Result}', '+last : bool'],
-  }])
+  expect(original.body.classes).toEqual([
+    {
+      id: 'A',
+      namespace: 'N',
+      label: 'Display',
+      generic: 'T',
+      members: ['<<interface>>', '+foo : string', 'String map{key}', '+bar : int', '+run() Result}', '+last : bool'],
+    },
+  ])
   const serialized = serializeMermaid(original)
   const upstream = startUpstreamMermaid()
   try {
     expect(await upstream.accepts(source)).toBe(true)
     expect(await upstream.accepts(serialized)).toBe(true)
-  } finally { upstream.close() }
+  } finally {
+    upstream.close()
+  }
   expect(classDiagram(serialized).body.classes).toEqual(original.body.classes)
   expect(classDiagram(serialized).body.namespaces).toEqual(original.body.namespaces)
   expect(renderParse(serialized).classes).toEqual(renderParse(source).classes)
@@ -222,12 +370,18 @@ Triangle --> Free : points at`
 
 describe('class labeled declaration conformance', () => {
   test.each([
-    ['<--', 'association', 'from'], ['-->', 'association', 'to'],
-    ['<..', 'dependency', 'from'], ['..>', 'dependency', 'to'],
-    ['<|--', 'inheritance', 'from'], ['--|>', 'inheritance', 'to'],
-    ['<|..', 'realization', 'from'], ['..|>', 'realization', 'to'],
-    ['*--', 'composition', 'from'], ['--*', 'composition', 'to'],
-    ['o--', 'aggregation', 'from'], ['--o', 'aggregation', 'to'],
+    ['<--', 'association', 'from'],
+    ['-->', 'association', 'to'],
+    ['<..', 'dependency', 'from'],
+    ['..>', 'dependency', 'to'],
+    ['<|--', 'inheritance', 'from'],
+    ['--|>', 'inheritance', 'to'],
+    ['<|..', 'realization', 'from'],
+    ['..|>', 'realization', 'to'],
+    ['*--', 'composition', 'from'],
+    ['--*', 'composition', 'to'],
+    ['o--', 'aggregation', 'from'],
+    ['--o', 'aggregation', 'to'],
   ] as const)('keeps the marked endpoint when serializing %s', (arrow, kind, markerAt) => {
     const source = `classDiagram\nA "one" ${arrow} "many" B : relates`
     const diagram = classDiagram(source)
@@ -235,10 +389,17 @@ describe('class labeled declaration conformance', () => {
     expect(diagram.body.relations).toEqual([expected])
     const serialized = serializeMermaid(diagram)
     expect(classDiagram(serialized).body.relations).toEqual([expected])
-    expect(renderParse(serialized).relationships).toEqual([expect.objectContaining({
-      from: 'A', to: 'B', type: kind, markerAt,
-      fromCardinality: 'one', toCardinality: 'many', label: 'relates',
-    })])
+    expect(renderParse(serialized).relationships).toEqual([
+      expect.objectContaining({
+        from: 'A',
+        to: 'B',
+        type: kind,
+        markerAt,
+        fromCardinality: 'one',
+        toCardinality: 'many',
+        label: 'relates',
+      }),
+    ])
   })
 
   test('serializer labels resolve to one logical renderer class and relations attach to it', () => {
@@ -386,7 +547,11 @@ class Other
     expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
     const native = renderParse(source)
     expect(native.classes.map(node => node.id)).toEqual(['Shared', 'Other'])
-    expect([...membershipByPath(native.namespaces)]).toEqual([['First', ['Shared']], ['Second', []], ['Third', ['Other']]])
+    expect([...membershipByPath(native.namespaces)]).toEqual([
+      ['First', ['Shared']],
+      ['Second', []],
+      ['Third', ['Other']],
+    ])
     expect(native.classes[0]!.attributes.map(member => member.name)).toEqual(['name'])
     const upstream = startUpstreamMermaid()
     try {
@@ -411,7 +576,10 @@ class Other
     expect(parsed.value.body.kind).toBe('opaque')
     expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
     const native = renderParse(source)
-    expect([...membershipByPath(native.namespaces)]).toEqual([['First', ['Shared']], ['Second', []]])
+    expect([...membershipByPath(native.namespaces)]).toEqual([
+      ['First', ['Shared']],
+      ['Second', []],
+    ])
     expect(native.classes.map(node => ({ id: node.id, className: node.className }))).toEqual([{ id: 'Shared', className: 'hot' }])
     const upstream = startUpstreamMermaid()
     try {
@@ -430,7 +598,10 @@ class Other
   ] as const)('a statement after a closing brace on its line is read and diagnosed: %j', async (body, namespace, syntax, line) => {
     const source = `classDiagram\n${body}`
     const diagram = classDiagram(source)
-    const expected = [{ id: 'A', namespace }, { id: 'Free', namespace: undefined }]
+    const expected = [
+      { id: 'A', namespace },
+      { id: 'Free', namespace: undefined },
+    ]
     expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(expected)
     expect(renderMermaidSVG(source)).toMatch(/<text\b[^>]*>Free<\/text>/)
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([expect.objectContaining({ syntax, line })])
@@ -448,14 +619,15 @@ class Other
   test.each([' class Free', 'class Free', '; class Free', ';class Free', '\nclass Free'])('a statement after a compact namespace retains meaning and diagnoses nonportable separation: %j', async suffix => {
     const source = `classDiagram\nnamespace Outer { class First }${suffix}`
     const diagram = classDiagram(source)
-    const expected = [{ id: 'First', namespace: 'Outer' }, { id: 'Free', namespace: undefined }]
+    const expected = [
+      { id: 'First', namespace: 'Outer' },
+      { id: 'Free', namespace: undefined },
+    ]
     expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(expected)
     const svg = renderMermaidSVG(source)
     expect(svg).toMatch(/<text\b[^>]*>First<\/text>/)
     expect(svg).toMatch(/<text\b[^>]*>Free<\/text>/)
-    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual(
-      suffix.startsWith('\n') ? [] : [expect.objectContaining({ syntax: 'class_statement_after_namespace_close', line: 2 })],
-    )
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual(suffix.startsWith('\n') ? [] : [expect.objectContaining({ syntax: 'class_statement_after_namespace_close', line: 2 })])
     const serialized = serializeMermaid(diagram)
     expect(classDiagram(serialized).body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(expected)
     expect(verifyMermaid(serialized).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
@@ -479,9 +651,7 @@ class Other
     const source = `classDiagram\nnamespace Outer { ${body} }`
     const diagram = classDiagram(source)
     expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(ids.map(id => ({ id, namespace: 'Outer' })))
-    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual(
-      unsupported ? [expect.objectContaining({ syntax: 'class_compact_semicolon_statement_extension', line: 2 })] : [],
-    )
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual(unsupported ? [expect.objectContaining({ syntax: 'class_compact_semicolon_statement_extension', line: 2 })] : [])
     const serialized = serializeMermaid(diagram)
     expect(verifyMermaid(serialized).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
     const upstream = startUpstreamMermaid()
@@ -499,9 +669,13 @@ class Other
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.body.kind).toBe('opaque')
     expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_compact_semicolon_statement_extension', line: 2,
-    }))
+    expect(verifyMermaid(source).warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'class_compact_semicolon_statement_extension',
+        line: 2,
+      }),
+    )
     const upstream = startUpstreamMermaid()
     try {
       expect(await upstream.accepts(source)).toBe(false)
@@ -515,9 +689,13 @@ class Other
   test('a trailing comment after a compact namespace is diagnosed for portability', async () => {
     const source = 'classDiagram\nnamespace Outer { class First } %% tail'
     expect(classDiagram(source).body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([{ id: 'First', namespace: 'Outer' }])
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_trailing_comment', line: 2,
-    }))
+    expect(verifyMermaid(source).warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'class_trailing_comment',
+        line: 2,
+      }),
+    )
     const upstream = startUpstreamMermaid()
     try {
       expect(await upstream.accepts(source)).toBe(false)
@@ -539,27 +717,49 @@ class Other
     {
       name: 'a statement may follow its namespace opener on the same physical line',
       source: 'classDiagram\nnamespace Domain { class First\nclass Second\n}\nclass Free',
-      classes: [{ id: 'First', namespace: 'Domain' }, { id: 'Second', namespace: 'Domain' }, { id: 'Free', namespace: undefined }],
+      classes: [
+        { id: 'First', namespace: 'Domain' },
+        { id: 'Second', namespace: 'Domain' },
+        { id: 'Free', namespace: undefined },
+      ],
       membership: [['Domain', ['First', 'Second']]],
     },
     {
       // Mermaid's lexer reads `}` after a statement as the namespace's end.
       name: 'a statement may share a line with the brace that closes its namespace',
       source: 'classDiagram\nnamespace Domain { class First\nclass Second }\nnamespace Other {\nclass Third <<interface>> }\nclass Free',
-      classes: [{ id: 'First', namespace: 'Domain' }, { id: 'Second', namespace: 'Domain' }, { id: 'Third', namespace: 'Other' }, { id: 'Free', namespace: undefined }],
-      membership: [['Domain', ['First', 'Second']], ['Other', ['Third']]],
+      classes: [
+        { id: 'First', namespace: 'Domain' },
+        { id: 'Second', namespace: 'Domain' },
+        { id: 'Third', namespace: 'Other' },
+        { id: 'Free', namespace: undefined },
+      ],
+      membership: [
+        ['Domain', ['First', 'Second']],
+        ['Other', ['Third']],
+      ],
     },
     {
       name: 'one line may close a class body and the namespaces around it',
       source: 'classDiagram\nnamespace Outer {\nnamespace Inner {\nclass First\nclass Last:::hot {+id} }}\nclass Free\nclassDef hot fill:red',
-      classes: [{ id: 'First', namespace: 'Outer.Inner' }, { id: 'Last', namespace: 'Outer.Inner' }, { id: 'Free', namespace: undefined }],
-      membership: [['Outer', []], ['Outer.Inner', ['First', 'Last']]],
+      classes: [
+        { id: 'First', namespace: 'Outer.Inner' },
+        { id: 'Last', namespace: 'Outer.Inner' },
+        { id: 'Free', namespace: undefined },
+      ],
+      membership: [
+        ['Outer', []],
+        ['Outer.Inner', ['First', 'Last']],
+      ],
     },
     {
       name: 'a nested quoted atom remains a child namespace after serialization',
       source: 'classDiagram\nnamespace Outer {\nnamespace `A::B` { class `IPC::Sender`\n}\n}',
       classes: [{ id: 'IPC::Sender', namespace: 'Outer.A::B' }],
-      membership: [['Outer', []], ['Outer.A::B', ['IPC::Sender']]],
+      membership: [
+        ['Outer', []],
+        ['Outer.A::B', ['IPC::Sender']],
+      ],
     },
   ])('$name', async ({ source, classes, membership }) => {
     const diagram = classDiagram(source)
@@ -588,10 +788,7 @@ class Other
     expect(renderParse(source).namespaces).toEqual([{ name: 'A.B', classIds: ['First'], children: [] }])
   })
 
-  test.each([
-    'namespace `A.B` { class First }\nnamespace A.B { class Second }',
-    'namespace A.B { class Second }\nnamespace `A.B` { class First }',
-  ])('rejects a quoted-name/hierarchy collision rather than placing a class in the wrong namespace: %s', body => {
+  test.each(['namespace `A.B` { class First }\nnamespace A.B { class Second }', 'namespace A.B { class Second }\nnamespace `A.B` { class First }'])('rejects a quoted-name/hierarchy collision rather than placing a class in the wrong namespace: %s', body => {
     const source = `classDiagram\n${body}`
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
@@ -700,12 +897,11 @@ test.each<[string, Array<[string, string | null]>, string[]]>([
   expect(renderParse(source).classes.map(({ id, className }) => [id, className ?? null])).toEqual(expected)
   const diagram = classDiagram(source)
   expect(diagram.body.classes.map(({ id, className }) => [id, className ?? null])).toEqual(expected)
-  expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [warning.syntax] : [])).toEqual(syntax)
+  expect(verifyMermaid(source).warnings.flatMap(warning => (warning.code === 'UNSUPPORTED_SYNTAX' ? [warning.syntax] : []))).toEqual(syntax)
   const written = serializeMermaid(diagram)
   const upstream = startUpstreamMermaid()
   try {
-    const classes = await upstream.project(written, mermaid => [...(mermaid.db as unknown as { getClasses(): Map<string, { id: string; cssClasses: string }> }).getClasses().values()]
-      .map(({ id, cssClasses }) => [id, cssClasses.split(' ').find(name => name && name !== 'default') ?? null]))
+    const classes = await upstream.project(written, mermaid => [...(mermaid.db as unknown as { getClasses(): Map<string, { id: string; cssClasses: string }> }).getClasses().values()].map(({ id, cssClasses }) => [id, cssClasses.split(' ').find(name => name && name !== 'default') ?? null]))
     expect({ written, classes }).toEqual({ written, classes: { ok: true, value: expected } })
   } finally {
     await upstream.close()

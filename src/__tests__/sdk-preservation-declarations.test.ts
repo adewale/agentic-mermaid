@@ -1,14 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import ts from 'typescript'
-
-import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
-import {
-  CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS,
-  CODE_MODE_RENDER_OPTION_DECLARATIONS,
-  CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION,
-  SDK_DECLARATION,
-} from '../mcp/sdk-decl.ts'
+import { CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS, CODE_MODE_RENDER_OPTION_DECLARATIONS, CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION, SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { SDK_CORE_DECLARATION } from '../mcp/sdk-discovery.ts'
+import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 
 const printer = ts.createPrinter({ removeComments: true })
 
@@ -54,22 +48,30 @@ function expectDeclared(members: Map<string, string[]>, expected: Record<string,
 }
 
 describe('Code Mode preservation declarations', () => {
-  test.each([['full', SDK_DECLARATION], ['core', SDK_CORE_DECLARATION]])('a typed %s Code Mode client can author mixed Class marker and shaft metadata', (label, declaration) => {
+  test.each([
+    ['full', SDK_DECLARATION],
+    ['core', SDK_CORE_DECLARATION],
+  ])('a typed %s Code Mode client can author mixed Class marker and shaft metadata', (label, declaration) => {
     const path = '/class-sdk-consumer.ts'
     const source = `${declaration}\n
 const op = {
   kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop',
   markerAt: 'both', fromKind: 'lollipop', toKind: 'aggregation', lineStyle: 'dashed',
 } as const
+const interfaceOp = { kind: 'add_interface', class: 'Service', label: 'Port', side: 'to' } as const
 const parsed = mermaid.parseRegisteredMermaid('classDiagram\\nclass Port\\nclass Service')
 if (parsed.ok) {
   const diagram = mermaid.asClass(parsed.value)
   if (diagram) {
+    const interfaceEdit = mermaid.mutate(diagram, interfaceOp)
+    if (interfaceEdit.ok) mermaid.serializeMermaid(interfaceEdit.value)
     const edited = mermaid.mutate(diagram, op)
     if (edited.ok) mermaid.serializeMermaid(edited.value)
   }
 }
-${label === 'full' ? `
+${
+  label === 'full'
+    ? `
 const typed: ClassMutationOp = op
 declare const relationship: ClassRelation
 const shaft: 'solid' | 'dashed' | undefined = relationship.lineStyle
@@ -91,47 +93,62 @@ const displayed = [
 const authored: string | undefined = relationship.labelContent?.authored
 const sourceStart: number | undefined = relationship.labelContent?.prepared.lines[0]?.[0]?.sourceStart
 const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlocks[0]?.width
-` : ''}
+`
+    : ''
+}
 `
     const options: ts.CompilerOptions = {
-      strict: true, noEmit: true, skipLibCheck: true, types: [],
-      target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
+      strict: true,
+      noEmit: true,
+      skipLibCheck: true,
+      types: [],
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
     }
     const host = ts.createCompilerHost(options)
     const original = host.getSourceFile.bind(host)
-    host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => fileName === path
-      ? ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true)
-      : original(fileName, languageVersion, onError, shouldCreateNewSourceFile)
+    host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => (fileName === path ? ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true) : original(fileName, languageVersion, onError, shouldCreateNewSourceFile))
     const program = ts.createProgram([path], options, host)
     expect(ts.getPreEmitDiagnostics(program).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))).toEqual([])
   })
 
   test('exposes lossless preservation spans and descriptor identity in both declarations', () => {
-    for (const [label, declaration] of [['full', SDK_DECLARATION], ['core', SDK_CORE_DECLARATION]] as const) {
+    for (const [label, declaration] of [
+      ['full', SDK_DECLARATION],
+      ['core', SDK_CORE_DECLARATION],
+    ] as const) {
       const members = declaredMembers(declaration)
       for (const name of ['SourceSpanPoint', 'PreservedSourceSpans', 'SourceMapSpans']) {
         expect({ label, declared: members.has(`interface ${name}`) }, name).toEqual({ label, declared: true })
       }
-      expectDeclared(members, {
-        'SourceSpanPoint.offset': 'readonly offset: number;',
-        'SourceMapSpans.preserved': 'readonly preserved: PreservedSourceSpans;',
-        'ValidDiagram.source': 'readonly source: SourceMap;',
-        'PreservedSourceSpans.wrapper': 'readonly wrapper?: SourceSpan;',
-        'PreservedValidDiagram.body.preservation': 'readonly preservation: SourcePreservationReceipt;',
-        'PreservedValidDiagram.body.spans': 'readonly spans: PreservedSourceSpans;',
-        'SourcePreservationReceipt.source': 'readonly source: string;',
-        'ExtensionValidDiagram.descriptorIdentity': "readonly descriptorIdentity: ExtensionIdentity<'family'>;",
-        'ExtensionIdentity.compatibility': 'readonly compatibility: ExtensionCompatibility;',
-        'ExtensionIdentity.provenance': 'readonly provenance: ExtensionProvenance;',
-        'mermaid.parseRegisteredMermaid()': 'parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>;',
-      }, label)
+      expectDeclared(
+        members,
+        {
+          'SourceSpanPoint.offset': 'readonly offset: number;',
+          'SourceMapSpans.preserved': 'readonly preserved: PreservedSourceSpans;',
+          'ValidDiagram.source': 'readonly source: SourceMap;',
+          'PreservedSourceSpans.wrapper': 'readonly wrapper?: SourceSpan;',
+          'PreservedValidDiagram.body.preservation': 'readonly preservation: SourcePreservationReceipt;',
+          'PreservedValidDiagram.body.spans': 'readonly spans: PreservedSourceSpans;',
+          'SourcePreservationReceipt.source': 'readonly source: string;',
+          'ExtensionValidDiagram.descriptorIdentity': "readonly descriptorIdentity: ExtensionIdentity<'family'>;",
+          'ExtensionIdentity.compatibility': 'readonly compatibility: ExtensionCompatibility;',
+          'ExtensionIdentity.provenance': 'readonly provenance: ExtensionProvenance;',
+          'mermaid.parseRegisteredMermaid()': 'parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]>;',
+        },
+        label,
+      )
     }
-    expectDeclared(declaredMembers(SDK_DECLARATION), {
-      'ValidDiagram.meta.wrapperSource': 'wrapperSource?: string;',
-      'ValidDiagram.meta.droppedComments': 'droppedComments?: { text: string; line: number; }[];',
-      'ClassRelation.markerAt': "markerAt?: 'from' | 'to' | 'both' | 'none';",
-    }, 'full')
+    expectDeclared(
+      declaredMembers(SDK_DECLARATION),
+      {
+        'ValidDiagram.meta.wrapperSource': 'wrapperSource?: string;',
+        'ValidDiagram.meta.droppedComments': 'droppedComments?: { text: string; line: number; }[];',
+        'ClassRelation.markerAt': "markerAt?: 'from' | 'to' | 'both' | 'none';",
+      },
+      'full',
+    )
   })
 
   test('keeps parser-populated mindmap and gitgraph read-back fields recursively visible', () => {
@@ -144,21 +161,27 @@ const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlo
       const node = file.statements.find(statement => ts.isInterfaceDeclaration(statement) && statement.name.text === name)
       expect(node && ts.isInterfaceDeclaration(node)).toBe(true)
       if (!node || !ts.isInterfaceDeclaration(node)) return []
-      return node.members.flatMap(member => member.name ? [member.name.getText(file)] : []).sort()
+      return node.members.flatMap(member => (member.name ? [member.name.getText(file)] : [])).sort()
     }
     expect(fields(declaration, 'MindmapNode')).toEqual(fields(mindmap, 'MindmapNode'))
     expect(fields(declaration, 'GitGraphCommit')).toEqual(fields(gitgraph, 'GitGraphCommit'))
     expect(fields(declaration, 'GitGraphBranch')).toEqual(fields(gitgraph, 'GitGraphBranch'))
-    expect(fields(declaration, 'GitGraphBody').filter(field => field !== 'kind'))
-      .toEqual(fields(gitgraph, 'GitGraphDiagram'))
+    expect(fields(declaration, 'GitGraphBody').filter(field => field !== 'kind')).toEqual(fields(gitgraph, 'GitGraphDiagram'))
 
     const unionFields = (file: ts.SourceFile, name: string) => {
       const alias = file.statements.find(statement => ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
       expect(alias && ts.isTypeAliasDeclaration(alias)).toBe(true)
       if (!alias || !ts.isTypeAliasDeclaration(alias) || !ts.isUnionTypeNode(alias.type)) return []
-      return alias.type.types.map(member => ts.isTypeLiteralNode(member)
-        ? member.members.flatMap(field => field.name ? [field.name.getText(file)] : []).sort().join(',')
-        : '').sort()
+      return alias.type.types
+        .map(member =>
+          ts.isTypeLiteralNode(member)
+            ? member.members
+                .flatMap(field => (field.name ? [field.name.getText(file)] : []))
+                .sort()
+                .join(',')
+            : '',
+        )
+        .sort()
     }
     expect(unionFields(declaration, 'GitGraphStatement')).toEqual(unionFields(gitgraph, 'GitGraphStatement'))
   })
@@ -167,39 +190,43 @@ const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlo
     expect(SDK_DECLARATION).toContain(CODE_MODE_RENDER_OPTION_DECLARATIONS)
     expect(SDK_CORE_DECLARATION).toContain(CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS)
     expect(SDK_DECLARATION).toContain(CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION)
-    for (const [label, declaration] of [['full', SDK_DECLARATION], ['core', SDK_CORE_DECLARATION]] as const) {
+    for (const [label, declaration] of [
+      ['full', SDK_DECLARATION],
+      ['core', SDK_CORE_DECLARATION],
+    ] as const) {
       const members = declaredMembers(declaration)
       for (const name of ['RenderedRegion', 'DiagramActionRecord', 'RenderedLayout']) {
         expect({ label, declared: members.has(`interface ${name}`) }, name).toEqual({ label, declared: true })
       }
-      expectDeclared(members, {
-        'interface SvgRenderOptions': 'extends SharedRenderOptions',
-        'interface AsciiRenderOptions': 'extends SharedRenderOptions',
-        'interface LayoutRenderOptions': 'extends SharedRenderOptions',
-        'type RenderedRegionKind': "'node' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'",
-        'type DiagramActionSecurity': "'safe' | 'unsafe' | 'source-only' | 'unsupported'",
-        'RenderedRegion.kind': 'kind: RenderedRegionKind;',
-        'RenderedRegion.bounds': 'bounds: { x: number; y: number; w: number; h: number; };',
-        'DiagramActionRecord.security': 'security: DiagramActionSecurity;',
-        'RenderedLayout.bounds': 'bounds: { w: number; h: number; };',
-        'RenderedLayout.groups': 'groups: unknown[];',
-        'RenderedLayout.regions': 'regions?: RenderedRegion[];',
-        'RenderedLayout.actions': 'actions?: DiagramActionRecord[];',
-        'RenderRequestReceipt.capabilityDecision': 'capabilityDecision: CapabilityDecision;',
-        'RenderRequestReceipt.graphicalProjectionDigest': 'graphicalProjectionDigest?: string;',
-        'RenderRequestReceipt.executionDecision': 'executionDecision?: RenderExecutionDecision;',
-        'CapabilityResolution.status': "readonly status: 'selected' | 'unsupported' | 'incompatible';",
-        'mermaid.verifyMermaid.renderOptions': 'renderOptions?: SharedRenderOptions;',
-        'mermaid.renderMermaidSVGWithReceipt()': 'renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts?: SvgRenderOptions): RenderedSvg;',
-        'mermaid.renderMermaidASCIIWithReceipt()': 'renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts?: AsciiRenderOptions): RenderedAscii;',
-        'mermaid.layoutMermaidWithReceipt()': 'layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact;',
-      }, label)
-      expect({ label, modes: members.get('RenderExecutionDecision.backend.mode') ?? [] })
-        .toEqual({ label, modes: expect.arrayContaining(["readonly mode: 'scene';", "readonly mode: 'family-svg';"]) })
-      expect({ label, verify: (members.get('mermaid.verifyMermaid()') ?? []).map(text => text.startsWith('verifyMermaid(input: ParsedDiagram | string, opts?: {') && text.endsWith('): VerifyResult;')) })
-        .toEqual({ label, verify: [true] })
-      expect({ label, missingSharedFields: SHARED_RENDER_OPTION_FIELDS.filter(field => !(members.get(`SharedRenderOptions.${field}`) ?? []).some(text => text.startsWith(`${field}?:`))) })
-        .toEqual({ label, missingSharedFields: [] })
+      expectDeclared(
+        members,
+        {
+          'interface SvgRenderOptions': 'extends SharedRenderOptions',
+          'interface AsciiRenderOptions': 'extends SharedRenderOptions',
+          'interface LayoutRenderOptions': 'extends SharedRenderOptions',
+          'type RenderedRegionKind': "'node' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'",
+          'type DiagramActionSecurity': "'safe' | 'unsafe' | 'source-only' | 'unsupported'",
+          'RenderedRegion.kind': 'kind: RenderedRegionKind;',
+          'RenderedRegion.bounds': 'bounds: { x: number; y: number; w: number; h: number; };',
+          'DiagramActionRecord.security': 'security: DiagramActionSecurity;',
+          'RenderedLayout.bounds': 'bounds: { w: number; h: number; };',
+          'RenderedLayout.groups': 'groups: unknown[];',
+          'RenderedLayout.regions': 'regions?: RenderedRegion[];',
+          'RenderedLayout.actions': 'actions?: DiagramActionRecord[];',
+          'RenderRequestReceipt.capabilityDecision': 'capabilityDecision: CapabilityDecision;',
+          'RenderRequestReceipt.graphicalProjectionDigest': 'graphicalProjectionDigest?: string;',
+          'RenderRequestReceipt.executionDecision': 'executionDecision?: RenderExecutionDecision;',
+          'CapabilityResolution.status': "readonly status: 'selected' | 'unsupported' | 'incompatible';",
+          'mermaid.verifyMermaid.renderOptions': 'renderOptions?: SharedRenderOptions;',
+          'mermaid.renderMermaidSVGWithReceipt()': 'renderMermaidSVGWithReceipt(input: ParsedDiagram | string, opts?: SvgRenderOptions): RenderedSvg;',
+          'mermaid.renderMermaidASCIIWithReceipt()': 'renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts?: AsciiRenderOptions): RenderedAscii;',
+          'mermaid.layoutMermaidWithReceipt()': 'layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact;',
+        },
+        label,
+      )
+      expect({ label, modes: members.get('RenderExecutionDecision.backend.mode') ?? [] }).toEqual({ label, modes: expect.arrayContaining(["readonly mode: 'scene';", "readonly mode: 'family-svg';"]) })
+      expect({ label, verify: (members.get('mermaid.verifyMermaid()') ?? []).map(text => text.startsWith('verifyMermaid(input: ParsedDiagram | string, opts?: {') && text.endsWith('): VerifyResult;')) }).toEqual({ label, verify: [true] })
+      expect({ label, missingSharedFields: SHARED_RENDER_OPTION_FIELDS.filter(field => !(members.get(`SharedRenderOptions.${field}`) ?? []).some(text => text.startsWith(`${field}?:`))) }).toEqual({ label, missingSharedFields: [] })
       const parsed = ts.createSourceFile('code-mode-sdk.d.ts', declaration, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
       expect((parsed as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics).toEqual([])
     }
@@ -208,18 +235,17 @@ const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlo
   test('declares structured fields populated by advertised mutation operations', () => {
     const parsed = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
     const fields = (interfaceName: string): Set<string> => {
-      const declaration = parsed.statements.find(statement =>
-        ts.isInterfaceDeclaration(statement) && statement.name.text === interfaceName)
+      const declaration = parsed.statements.find(statement => ts.isInterfaceDeclaration(statement) && statement.name.text === interfaceName)
       expect(declaration && ts.isInterfaceDeclaration(declaration)).toBe(true)
       if (!declaration || !ts.isInterfaceDeclaration(declaration)) return new Set()
-      return new Set(declaration.members.flatMap(member => member.name ? [member.name.getText(parsed)] : []))
+      return new Set(declaration.members.flatMap(member => (member.name ? [member.name.getText(parsed)] : [])))
     }
     const expected: Record<string, string[]> = {
       FlowchartGraph: ['classDefs', 'classAssignments', 'nodeStyles', 'linkStyles'],
       StateNode: ['declaredBare', 'regions', 'className', 'style'],
       StateTransition: ['style'],
-      StateBody: ['classDefs', 'defaultTransitionStyle'],
-      ClassNode: ['className', 'style'],
+      StateBody: ['classDefs', 'defaultTransitionStyle', 'unresolvedClasses', 'unresolvedStyles'],
+      ClassNode: ['className', 'style', 'isInterface'],
       ClassBody: ['classDefs'],
       ErEntity: ['className', 'style'],
       ErBody: ['direction', 'classDefs', 'statements'],

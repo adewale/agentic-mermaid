@@ -297,6 +297,10 @@ function factsClass(out: string[], body: ClassBody): void {
     add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
   }
   for (const c of body.classes) {
+    if (c.isInterface) {
+      add(out, `interface ${clean(c.id)} : ${clean(c.label ?? c.id)}`)
+      continue
+    }
     add(out, `class ${clean(c.id)}`)
     if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)

@@ -485,12 +485,14 @@ function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
 }
 
 function describeClass(d: ClassValidDiagram): string {
-  const classes = d.body.classes
+  const classes = d.body.classes.filter(node => !node.isInterface)
+  const interfaces = d.body.classes.filter(node => node.isInterface)
   const relations = d.body.relations
   const names = classes.map(c => (c.generic ? `${c.id}<${c.generic}>` : c.id))
   const relStr = relations.map(r => `${r.from} ${r.kind} ${r.to}`)
   let s = `A class diagram with ${classes.length} classes.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`
+  if (interfaces.length > 0) s += ` Interfaces: ${interfaces.map(node => node.label ?? node.id).join(', ')}.`
   // Namespace membership (repo #118): name each namespace with its members.
   const namespaces = d.body.namespaces ?? []
   if (namespaces.length > 0) {

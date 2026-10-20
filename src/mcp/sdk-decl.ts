@@ -771,7 +771,7 @@ interface MindmapNode { id: string; label: string; shape: MindmapShape; markdown
 interface MindmapBody { kind: 'mindmap'; root: MindmapNode; accessibilityTitle?: string; accessibilityDescription?: string }
 
 type GitGraphCommitType = 'NORMAL' | 'REVERSE' | 'HIGHLIGHT' | 'MERGE' | 'CHERRY_PICK'
-interface GitGraphCommit { id: string; message?: string; type: GitGraphCommitType; customType?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags: string[]; parents: string[]; branch: string; sequence: number; source: 'commit' | 'merge' | 'cherry-pick'; mergeBranch?: string; cherrySource?: string; cherryParent?: string; syntheticCherryTag?: string; customId: boolean }
+interface GitGraphCommit { id: string; sourceId?: string; message?: string; type: GitGraphCommitType; customType?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags: string[]; parents: string[]; branch: string; sequence: number; source: 'commit' | 'merge' | 'cherry-pick'; mergeBranch?: string; cherrySource?: string; cherryParent?: string; syntheticCherryTag?: string; customId: boolean }
 interface GitGraphBranch { name: string; order: number; sequence: number; head?: string }
 type GitGraphStatement = { kind: 'commit'; ref: string } | { kind: 'branch'; name: string; order?: number } | { kind: 'checkout'; branch: string; keyword: 'checkout' | 'switch' } | { kind: 'merge'; ref: string; branch: string } | { kind: 'cherry-pick'; ref: string; source: string; parent?: string }
 interface GitGraphBody { kind: 'gitgraph'; direction: 'LR' | 'TB' | 'BT'; mainBranchName: string; title?: string; commits: GitGraphCommit[]; branches: GitGraphBranch[]; statements: GitGraphStatement[]; accessibilityTitle?: string; accessibilityDescription?: string }
@@ -857,6 +857,7 @@ type ClassMutationOp =
   | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
+  | { kind: 'add_interface'; class: string; label: string; side?: 'from' | 'to'; relationLabel?: string; lineStyle?: 'solid' | 'dashed' }
   | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string; markerAt?: ClassRelation['markerAt']; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: ClassRelation['lineStyle'] }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }

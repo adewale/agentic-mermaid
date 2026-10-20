@@ -1,9 +1,9 @@
-import { PACKET_OP_SCHEMAS } from '../packet/ops.ts'
 import { KANBAN_OP_SCHEMAS } from '../kanban/ops.ts'
+import { PACKET_OP_SCHEMAS } from '../packet/ops.ts'
+import { BLOCK_OP_SCHEMAS } from './block-body.ts'
+import { ISHIKAWA_OP_SCHEMAS } from './ishikawa-body.ts'
 import { REQUIREMENT_OP_SCHEMAS } from './requirement-body.ts'
 import { TREEMAP_OP_SCHEMAS } from './treemap-body.ts'
-import { ISHIKAWA_OP_SCHEMAS } from './ishikawa-body.ts'
-import { BLOCK_OP_SCHEMAS } from './block-body.ts'
 // ============================================================================
 // op-schema: shape validation for every family's structured mutation ops.
 //
@@ -197,11 +197,20 @@ const CLASS_SCHEMA: Record<string, OpSpec> = {
   set_class_generic: { fields: { class: str(), generic: withNote(strOrNull(), 'parameter text without ~ delimiters; null removes it') } },
   add_member: { fields: { class: str(), text: str() } },
   remove_member: { fields: { class: str(), index: num() } },
+  add_interface: {
+    fields: {
+      class: withNote(str(), 'existing ordinary class; the interface is a new distinct occurrence'),
+      label: withNote(str(), 'non-empty portable interface endpoint name; repeated labels remain independent'),
+      side: withNote(oneOf(['from', 'to'], false), 'default: to — Class --() Interface; from writes Interface ()-- Class'),
+      relationLabel: withNote(str(false), 'optional connector label, separate from the interface name'),
+      lineStyle: withNote(oneOf(['solid', 'dashed'], false), 'default: solid'),
+    },
+  },
   add_relation: {
     fields: {
       from: str(),
       to: str(),
-      relKind: oneOf(CLASS_REL_KINDS),
+      relKind: withNote(oneOf(CLASS_REL_KINDS), 'class endpoint relationship; use add_interface for a lone lollipop, which creates a distinct interface occurrence'),
       label: str(false),
       markerAt: withNote(oneOf(['from', 'to', 'both', 'none'], false), 'marker endpoints; omit for the relation kind default'),
       fromKind: oneOf(CLASS_REL_KINDS, false),

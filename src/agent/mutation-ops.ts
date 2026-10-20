@@ -1,12 +1,12 @@
-import { formatUnknownOpMessage } from './unknown-op.ts'
-import { PACKET_OP_KINDS } from '../packet/ops.ts'
 import { KANBAN_OP_KINDS } from '../kanban/ops.ts'
-import { REQUIREMENT_OP_KINDS } from './requirement-body.ts'
-import { TREEMAP_OP_KINDS } from './treemap-body.ts'
-import { ISHIKAWA_OP_KINDS } from './ishikawa-body.ts'
+import { PACKET_OP_KINDS } from '../packet/ops.ts'
 import { BLOCK_OP_KINDS } from './block-body.ts'
 import type { BuiltinFamilyId } from './families.ts'
+import { ISHIKAWA_OP_KINDS } from './ishikawa-body.ts'
+import { REQUIREMENT_OP_KINDS } from './requirement-body.ts'
+import { TREEMAP_OP_KINDS } from './treemap-body.ts'
 import type { DiagramKind } from './types.ts'
+import { formatUnknownOpMessage } from './unknown-op.ts'
 
 // Single source of truth for each family's structured mutation op `kind`s. It
 // lives in the agent layer, next to the mutators, so two consumers read the
@@ -59,7 +59,7 @@ export const MUTATION_OPS_BY_FAMILY = {
     'set_fragment_message_text',
   ],
   timeline: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_period', 'remove_period', 'set_period_label', 'add_event', 'remove_event', 'set_event_text', 'move_period', 'move_event', 'move_section', 'set_accessibility_title', 'set_accessibility_description'],
-  class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'set_class_generic', 'add_member', 'remove_member', 'add_relation', 'remove_relation', 'add_note', 'remove_note', 'set_class_namespace', 'define_class', 'set_css_class', 'set_class_style'],
+  class: ['set_title', 'add_class', 'remove_class', 'rename_class', 'set_class_generic', 'add_member', 'remove_member', 'add_interface', 'add_relation', 'remove_relation', 'add_note', 'remove_note', 'set_class_namespace', 'define_class', 'set_css_class', 'set_class_style'],
   er: ['add_entity', 'remove_entity', 'rename_entity', 'set_entity_label', 'add_attribute', 'remove_attribute', 'add_relation', 'remove_relation', 'set_direction', 'define_class', 'set_entity_class', 'set_entity_style'],
   journey: ['set_title', 'add_section', 'remove_section', 'set_section_label', 'add_task', 'remove_task', 'set_task_text', 'set_task_score', 'set_task_actors', 'rename_actor', 'move_task', 'move_section', 'set_accessibility_title', 'set_accessibility_description'],
   architecture: [

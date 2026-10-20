@@ -1,25 +1,24 @@
+import { inkOnNodeFill } from '../color-resolver.ts'
+import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { DefaultBackend } from '../scene/backend.ts'
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
+import type { MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from '../scene/ir.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import * as marks from '../scene/marks.ts'
+import { hashId } from '../scene/seed.ts'
+import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
-import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
-import { classTextBlock, classMemberBlock, classAnnotationBlock } from './layout.ts'
-import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
+import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
+import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { diagramTitleMark, FONT_SIZES, FONT_WEIGHTS, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import { buildShadowDefs, buildStyleBlock, type DiagramColors, svgOpenTag } from '../theme.ts'
+import type { RenderContext } from '../types.ts'
+import { CLASS_STYLE_DEFAULTS, CLS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts'
 import { classRelationshipLineStyle } from './parser.ts'
 import { decodeClassText, memberToString } from './text.ts'
-import type { RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
-import { inkOnNodeFill } from '../color-resolver.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
-import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
-import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
-import { sanitizeDisplayLines } from '../shared/text-controls.ts'
-import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from '../scene/ir.ts'
-import { hashId } from '../scene/seed.ts'
-import * as marks from '../scene/marks.ts'
-import { DefaultBackend } from '../scene/backend.ts'
-import { serializeMarkerResources } from '../scene/marker-resources.ts'
-import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
+import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship, RelationshipType } from './types.ts'
 
 // ============================================================================
 // Class diagram SVG renderer
@@ -37,7 +36,6 @@ import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 //   4. Labels and cardinality
 // ============================================================================
 
-
 /** Font sizes specific to class diagrams (weights belong to the prepared
  * member and annotation blocks). */
 const CLS_FONT = {
@@ -53,10 +51,7 @@ type HighlightRun = NonNullable<TextMark['spans']>[number]
  * member's single ink. */
 function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): Pick<TextMark, 'spans'> {
   const line = block.lineBlocks.length === 1 ? block.lineBlocks[0]! : undefined
-  const plain = !!line && !line.fragments && block.letterSpacing === 0
-    && /^[\x20-\x7e]*$/.test(block.text)
-    && line.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough)
-    && spans.map(span => span.text).join('') === block.text
+  const plain = !!line && !line.fragments && block.letterSpacing === 0 && /^[\x20-\x7e]*$/.test(block.text) && line.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough) && spans.map(span => span.text).join('') === block.text
   return plain ? { spans } : {}
 }
 
@@ -66,18 +61,14 @@ function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): P
  * @param colors - DiagramColors with bg/fg and optional enrichment variables.
  * @param transparent - If true, renders with transparent background.
  */
-export function renderClassSvg(
-  ctx: RenderContext<PositionedClassDiagram>,
-): string {
+export function renderClassSvg(ctx: RenderContext<PositionedClassDiagram>): string {
   return DefaultBackend.render(lowerClassScene(ctx), { seed: 0 })
 }
 
 /**
  * Lower a positioned class diagram to the SceneGraph IR in canonical mark order.
  */
-export function lowerClassScene(
-  ctx: RenderContext<PositionedClassDiagram>,
-): SceneDoc {
+export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): SceneDoc {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
@@ -90,19 +81,20 @@ export function lowerClassScene(
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
 
   // SVG root with CSS variables + style block (with mono font) + defs
-  parts.push(marks.documentOpen(
-    {
-      id: 'prelude',
-      width: diagram.width,
-      height: diagram.height,
-      colors,
-      transparent,
-      font,
-      hasMonoFont: true,
-    },
-    svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs) + '\n' +
-    buildStyleBlock(font, true, colors.shadow, colors.embedFontImport),
-  ))
+  parts.push(
+    marks.documentOpen(
+      {
+        id: 'prelude',
+        width: diagram.width,
+        height: diagram.height,
+        colors,
+        transparent,
+        font,
+        hasMonoFont: true,
+      },
+      svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs) + '\n' + buildStyleBlock(font, true, colors.shadow, colors.embedFontImport),
+    ),
+  )
   const defsParts: string[] = []
   defsParts.push('<defs>')
   const markerResources = classMarkerResources(style)
@@ -191,13 +183,48 @@ export function lowerClassScene(
  */
 function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
   const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
-  const triangle = [{ x: 0, y: 0 }, { x: 12, y: 5 }, { x: 0, y: 10 }]
-  const diamond = [{ x: 7, y: 1 }, { x: 13, y: 6 }, { x: 7, y: 11 }, { x: 1, y: 6 }]
+  const triangle = [
+    { x: 0, y: 0 },
+    { x: 12, y: 5 },
+    { x: 0, y: 10 },
+  ]
+  const diamond = [
+    { x: 7, y: 1 },
+    { x: 13, y: 6 },
+    { x: 7, y: 11 },
+    { x: 1, y: 6 },
+  ]
   return [
     { id: 'cls-inherit', shape: 'triangle', size: { width: 12, height: 10 }, ref: { x: 12, y: 5 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polygon', points: triangle }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
     { id: 'cls-composition', shape: 'diamond', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'polygon', points: diamond }, paint: { fill: edgeColor, stroke: edgeColor, strokeWidth: '1' } },
-    { id: 'cls-aggregation', shape: 'diamond-open', size: { width: 14, height: 12 }, viewBox: { x: 0, y: 0, width: 14, height: 12 }, ref: { x: 13, y: 6 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'polygon', points: diamond }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
-    { id: 'cls-arrow', shape: 'open-arrow', size: { width: 8, height: 6 }, ref: { x: 8, y: 3 }, orient: 'auto-start-reverse', overflow: 'visible', geometry: { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 8, y: 3 }, { x: 0, y: 6 }] }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    {
+      id: 'cls-aggregation',
+      shape: 'diamond-open',
+      size: { width: 14, height: 12 },
+      viewBox: { x: 0, y: 0, width: 14, height: 12 },
+      ref: { x: 13, y: 6 },
+      orient: 'auto-start-reverse',
+      overflow: 'hidden',
+      geometry: { kind: 'polygon', points: diamond },
+      paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' },
+    },
+    {
+      id: 'cls-arrow',
+      shape: 'open-arrow',
+      size: { width: 8, height: 6 },
+      ref: { x: 8, y: 3 },
+      orient: 'auto-start-reverse',
+      overflow: 'visible',
+      geometry: {
+        kind: 'polyline',
+        points: [
+          { x: 0, y: 0 },
+          { x: 8, y: 3 },
+          { x: 0, y: 6 },
+        ],
+      },
+      paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' },
+    },
     { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, viewBox: { x: 0, y: 0, width: 14, height: 14 }, ref: { x: 12, y: 7 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
   ]
 }
@@ -214,8 +241,7 @@ function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescri
  */
 function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderStyle): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const open =
-    `<g class="namespace" data-id="${escapeAttr(ns.id)}" data-label="${escapeDisplayAttr(ns.label)}"${ns.parentId ? ` data-parent-id="${escapeAttr(ns.parentId)}"` : ''}>`
+  const open = `<g class="namespace" data-id="${escapeAttr(ns.id)}" data-label="${escapeDisplayAttr(ns.label)}"${ns.parentId ? ` data-parent-id="${escapeAttr(ns.parentId)}"` : ''}>`
 
   // Outer rectangle
   const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
@@ -253,7 +279,8 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
     node: marks.text({
       id: `namespace-label:${ns.id}`,
       role: 'group-header',
-      text: headerText, block: headerBlock,
+      text: headerText,
+      block: headerBlock,
       x: ns.x + style.groupLabelPaddingX,
       y: ns.y + ns.headerHeight / 2,
       fontSize: style.groupHeaderFontSize,
@@ -282,6 +309,16 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
 function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors): SceneNode {
   const { x, y, width, height, headerHeight, attrHeight } = cls
   const children: Array<{ node: SceneNode; indent: number }> = []
+  if (cls.isInterface) {
+    const block = cls.labelBlock ?? classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
+    return marks.group({
+      id: `class:${cls.id}`,
+      role: 'class-box',
+      open: `<g class="class-interface" data-id="${escapeAttr(cls.id)}" data-label="${escapeDisplayAttr(cls.label)}" data-interface="true">`,
+      close: '</g>',
+      children: [{ indent: 2, node: marks.text({ id: `class:${cls.id}:name`, role: 'label', text: block.text, block, x: x + width / 2, y: y + headerHeight / 2, fontSize: block.fontSize, anchor: 'middle', paint: { fill: style.nodeTextColor ?? 'var(--_text)' } }) }],
+    })
+  }
 
   // Semantic wrapper with class metadata
   // data-id: class identifier
@@ -291,14 +328,12 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   const classAttr = cls.className ? ` ${escapeAttr(cls.className)}` : ''
   const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
   const interaction = includeInteraction && cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
-  const open =
-    `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeDisplayAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
+  const open = `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeDisplayAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
 
   if (includeInteraction && cls.href && cls.tooltip !== undefined) {
     children.push({
       indent: 2,
-      node: marks.documentContent({ id: `class:${cls.id}:tooltip`, role: 'chrome', nonPaint: 'interaction-metadata' },
-        `<title>${escapeXmlUtil(cls.tooltip)}</title>`),
+      node: marks.documentContent({ id: `class:${cls.id}:tooltip`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXmlUtil(cls.tooltip)}</title>`),
     })
   }
 
@@ -308,8 +343,8 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   // band's (annotation, name) or the node fill (members). A Style that sets the
   // text color owns it on its own fills.
   const styleText = style.nodeTextColor !== undefined
-  const headerInk = inkOnNodeFill(cls.inlineStyle, colors, styleText ? undefined : style.groupHeaderFillColor ?? 'var(--_group-hdr)')
-  const ink = inkOnNodeFill(cls.inlineStyle, colors, styleText ? undefined : style.nodeFillColor ?? 'var(--_node-fill)')
+  const headerInk = inkOnNodeFill(cls.inlineStyle, colors, styleText ? undefined : (style.groupHeaderFillColor ?? 'var(--_group-hdr)'))
+  const ink = inkOnNodeFill(cls.inlineStyle, colors, styleText ? undefined : (style.nodeFillColor ?? 'var(--_node-fill)'))
   const boxFill = local.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
   const boxStroke = local.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const parsedStrokeWidth = Number.parseFloat(local['stroke-width'] ?? '')
@@ -348,7 +383,8 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
       node: marks.text({
         id: `class:${cls.id}:annotation`,
         role: 'label',
-        text: `<<${cls.annotation}>>`, block: annotationBlock,
+        text: `<<${cls.annotation}>>`,
+        block: annotationBlock,
         x: x + width / 2,
         y: annotY,
         fontSize: CLS_FONT.annotationSize,
@@ -369,7 +405,8 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
     node: marks.text({
       id: `class:${cls.id}:name`,
       role: 'label',
-      text: label, block: labelBlock,
+      text: label,
+      block: labelBlock,
       x: x + width / 2,
       y: nameY,
       fontSize: style.nodeLabelFontSize,
@@ -446,9 +483,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   } else {
     if (member.visibility) spans.push({ text: `${member.visibility} `, fill: ink('var(--_text-muted)') })
     // Add parentheses for methods to distinguish from attributes, including parameters if present
-    const displayName = member.isMethod
-      ? `${member.name}(${member.params || ''})`
-      : member.name
+    const displayName = member.isMethod ? `${member.name}(${member.params || ''})` : member.name
     spans.push({ text: decodeClassText(displayName), fill: nameInk })
     if (member.type) {
       spans.push({ text: ': ', fill: ink('var(--_text-faint)') }, { text: decodeClassText(member.type), fill: ink('var(--_text-muted)') })
@@ -458,7 +493,8 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   return marks.text({
     id: sceneId,
     role: 'member',
-    text: plain, block,
+    text: plain,
+    block,
     x,
     y,
     fontSize: CLS_FONT.memberSize,
@@ -478,27 +514,48 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
   const noteBlock = note.textBlock ?? preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
   const children: Array<{ node: SceneNode; indent: number }> = []
   if (note.targetX !== undefined && note.targetY !== undefined) {
-    children.push({ node: marks.connector({
-      id: `class-note:${index}:connector`, role: 'relationship',
-      geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
-      lineStyle: 'dashed', paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
-      ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}`, start: { owner: { id: note.for, role: 'class-box' } }, end: { owner: { id: `class-note:${index}`, role: 'note' } } } } : {}),
-      attributes: { className: 'class-note-connector' },
-    }), indent: 2 })
+    children.push({
+      node: marks.connector({
+        id: `class-note:${index}:connector`,
+        role: 'relationship',
+        geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
+        lineStyle: 'dashed',
+        paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
+        ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}`, start: { owner: { id: note.for, role: 'class-box' } }, end: { owner: { id: `class-note:${index}`, role: 'note' } } } } : {}),
+        attributes: { className: 'class-note-connector' },
+      }),
+      indent: 2,
+    })
   }
-  children.push({ node: marks.shape({
-    id: `class-note:${index}:box`, role: 'note',
-    geometry: { kind: 'rect', x: note.x, y: note.y, width: note.width, height: note.height, rx: 2, ry: 2 },
-    paint: { fill, stroke, strokeWidth: '1' },
-  }), indent: 2 })
-  children.push({ node: marks.text({
-    id: `class-note:${index}:label`, role: 'label', text: note.text, block: noteBlock,
-    x: note.x + note.width / 2, y: note.y + note.height / 2, fontSize: 12, anchor: 'middle', paint: { fill: text },
-  }), indent: 2 })
+  children.push({
+    node: marks.shape({
+      id: `class-note:${index}:box`,
+      role: 'note',
+      geometry: { kind: 'rect', x: note.x, y: note.y, width: note.width, height: note.height, rx: 2, ry: 2 },
+      paint: { fill, stroke, strokeWidth: '1' },
+    }),
+    indent: 2,
+  })
+  children.push({
+    node: marks.text({
+      id: `class-note:${index}:label`,
+      role: 'label',
+      text: note.text,
+      block: noteBlock,
+      x: note.x + note.width / 2,
+      y: note.y + note.height / 2,
+      fontSize: 12,
+      anchor: 'middle',
+      paint: { fill: text },
+    }),
+    indent: 2,
+  })
   return marks.group({
-    id: `class-note:${index}`, role: 'note',
+    id: `class-note:${index}`,
+    role: 'note',
     open: `<g class="class-note" data-note-index="${index}"${note.for ? ` data-for="${escapeAttr(note.for)}"` : ''}>`,
-    close: '</g>', children,
+    close: '</g>',
+    children,
   })
 }
 
@@ -515,11 +572,15 @@ function classRelationshipEndpoints(rel: PositionedClassRelationship) {
  * Includes data-* attributes for programmatic inspection.
  */
 function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode {
-  const labels = rel.label ? [{
-    text: rel.label,
-    textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
-    ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
-  }] : []
+  const labels = rel.label
+    ? [
+        {
+          text: rel.label,
+          textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
+          ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
+        },
+      ]
+    : []
   if (rel.points.length < 2) {
     // Degenerate relationship — draws nothing (an invisible connector writes '').
     return marks.connector({
@@ -537,8 +598,8 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   const isDashed = classRelationshipLineStyle(rel) === 'dashed'
   const lineStyle = isDashed ? 'dashed' : 'solid'
 
-  const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
-  const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
+  const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? (rel.fromType ?? rel.type) : undefined
+  const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? (rel.toType ?? rel.type) : undefined
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
   const markerResources = classMarkerResources(style)
@@ -615,15 +676,10 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
 /** Marker-only carrier painted after class boxes. The connector remains the
  * semantic authority; this carrier exists only to prevent node surfaces
  * from occluding endpoint symbols. */
-function renderRelationshipMarkerOverlay(
-  rel: PositionedClassRelationship,
-  style: ResolvedRenderStyle,
-  index: number,
-  relationshipId: string,
-): SceneNode | null {
+function renderRelationshipMarkerOverlay(rel: PositionedClassRelationship, style: ResolvedRenderStyle, index: number, relationshipId: string): SceneNode | null {
   if (rel.points.length < 2) return null
-  const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
-  const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
+  const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? (rel.fromType ?? rel.type) : undefined
+  const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? (rel.toType ?? rel.type) : undefined
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
   if (!startId && !endId) return null
@@ -631,7 +687,8 @@ function renderRelationshipMarkerOverlay(
   const markerStart = resources.find(marker => marker.id === startId)
   const markerEnd = resources.find(marker => marker.id === endId)
   const fields = {
-    id: `marker-overlay:${index}`, role: 'chrome' as const,
+    id: `marker-overlay:${index}`,
+    role: 'chrome' as const,
     owner: { id: relationshipId, role: 'relationship' as const },
     lineStyle: 'solid' as const,
     paint: { fill: 'none', stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
@@ -707,16 +764,19 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const pos = rel.labelPosition ?? midpoint(rel.points)
     const labelBlock = rel.labelBlock ?? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
     const label = labelBlock.text
-    out.push(marks.text({
-      id: `rel-label:${key}`,
-      role: 'label',
-      text: label, block: labelBlock,
-      x: pos.x,
-      y: pos.y - 8,
-      fontSize: style.edgeLabelFontSize,
-      anchor: 'middle',
-      paint,
-    }))
+    out.push(
+      marks.text({
+        id: `rel-label:${key}`,
+        role: 'label',
+        text: label,
+        block: labelBlock,
+        x: pos.x,
+        y: pos.y - 8,
+        fontSize: style.edgeLabelFontSize,
+        anchor: 'middle',
+        paint,
+      }),
+    )
   }
 
   // From cardinality (near start)
@@ -726,16 +786,19 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const offset = cardinalityOffset(p, next)
     const position = rel.fromCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     const block = rel.fromCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
-    out.push(marks.text({
-      id: `rel-card:${key}:from`,
-      role: 'cardinality',
-      text: rel.fromCardinality, block,
-      x: position.x,
-      y: position.y,
-      fontSize: style.edgeLabelFontSize,
-      anchor: 'middle',
-      paint,
-    }))
+    out.push(
+      marks.text({
+        id: `rel-card:${key}:from`,
+        role: 'cardinality',
+        text: rel.fromCardinality,
+        block,
+        x: position.x,
+        y: position.y,
+        fontSize: style.edgeLabelFontSize,
+        anchor: 'middle',
+        paint,
+      }),
+    )
   }
 
   // To cardinality (near end)
@@ -745,16 +808,19 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const offset = cardinalityOffset(p, prev)
     const position = rel.toCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     const block = rel.toCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
-    out.push(marks.text({
-      id: `rel-card:${key}:to`,
-      role: 'cardinality',
-      text: rel.toCardinality, block,
-      x: position.x,
-      y: position.y,
-      fontSize: style.edgeLabelFontSize,
-      anchor: 'middle',
-      paint,
-    }))
+    out.push(
+      marks.text({
+        id: `rel-card:${key}:to`,
+        role: 'cardinality',
+        text: rel.toCardinality,
+        block,
+        x: position.x,
+        y: position.y,
+        fontSize: style.edgeLabelFontSize,
+        anchor: 'middle',
+        paint,
+      }),
+    )
   }
 
   return out
@@ -771,10 +837,7 @@ function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: numb
 }
 
 /** Calculate offset for cardinality label perpendicular to edge direction */
-function cardinalityOffset(
-  from: { x: number; y: number },
-  to: { x: number; y: number }
-): { x: number; y: number } {
+function cardinalityOffset(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
   const dx = to.x - from.x
   const dy = to.y - from.y
   // Place label perpendicular to the edge, 14px away
@@ -792,7 +855,6 @@ function cardinalityOffset(
 
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil
-
 
 /**
  * Escape a string for use as an XML/HTML attribute value.

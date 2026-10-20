@@ -1,18 +1,22 @@
-import type { LabelContent } from '../shared/display-text.ts'
 import type { C4Body, C4MutationOp } from '../c4/types.ts'
+import type { LabelContent } from '../shared/display-text.ts'
+
 export type { C4Body, C4MutationOp } from '../c4/types.ts'
-import type { PacketBody, PacketMutationOp } from '../packet/types.ts'
-import type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
-import type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+
 import type { BlockBody, BlockMutationOp } from '../block/types.ts'
-import type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
 import type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
-export type { PacketBody, PacketMutationOp } from '../packet/types.ts'
-export type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
-export type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+import type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
+import type { PacketBody, PacketMutationOp } from '../packet/types.ts'
+import type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+import type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
+
 export type { BlockBody, BlockMutationOp } from '../block/types.ts'
-export type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
 export type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
+export type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
+export type { PacketBody, PacketMutationOp } from '../packet/types.ts'
+export type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+export type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
+
 // ============================================================================
 // Agentic Mermaid — IR and verb types (v4)
 //
@@ -1309,6 +1313,7 @@ export type ClassMutationOp =
   | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
+  | { kind: 'add_interface'; class: string; label: string; side?: 'from' | 'to'; relationLabel?: string; lineStyle?: 'solid' | 'dashed' }
   | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string; markerAt?: ClassRelation['markerAt']; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: ClassRelation['lineStyle'] }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }

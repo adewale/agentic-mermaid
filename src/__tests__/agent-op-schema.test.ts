@@ -103,7 +103,7 @@ describe('op-schema shape validation (§1–3, §5)', () => {
 
   test('typed, checked, and declarative edits accept the same lollipop relation', () => {
     const source = 'classDiagram\n  class Port\n  class Service'
-    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', label: 'provides' } as const
+    const op = { kind: 'add_interface', class: 'Service', label: 'Port', side: 'from', relationLabel: 'provides' } as const
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
@@ -123,7 +123,19 @@ describe('op-schema shape validation (§1–3, §5)', () => {
       const reparsed = parseMermaid(result)
       expect(reparsed.ok).toBe(true)
       if (!reparsed.ok || reparsed.value.body.kind !== 'class') throw new Error('Expected a structured class diagram')
-      expect(reparsed.value.body.relations).toEqual([{ from: 'Port', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' }])
+      expect(reparsed.value.body.relations).toEqual([{ from: 'interface0', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' }])
+    }
+  })
+
+  test('class endpoint relation APIs reject an implicit interface conversion with the same actionable error', () => {
+    const source = 'classDiagram\nclass Port\nclass Service'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('expected class')
+    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop' } as const
+    const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op), applyOps({ source, ops: [op] })]
+    for (const result of results) {
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error).toMatchObject({ code: 'INVALID_OP', message: expect.stringContaining('use add_interface') })
     }
   })
 
@@ -133,7 +145,7 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     { metadata: { markerAt: 'to', lineStyle: 'dashed' }, arrow: '..()' },
   ] as const)('direct, checked and declarative Class edits author $arrow with the same metadata', ({ metadata, arrow }) => {
     const source = 'classDiagram\nclass Port\nclass Service'
-    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const
+    const op = metadata.markerAt === 'to' ? ({ kind: 'add_interface', class: 'Port', label: 'Service', lineStyle: 'dashed' } as const) : ({ kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const)
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error('expected Class diagram')
     const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op)]
