@@ -116,14 +116,15 @@ describe('checked graph layout selection', () => {
     JSON.stringify(native.receipt)
   })
 
-  test('retains the unresolved nine-node crossing case and its full native content', () => {
-    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9.mmd', import.meta.url), 'utf8')
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('reduces the nine-node crossing case without adding bends or losing native content in %s', direction => {
+    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9.mmd', import.meta.url), 'utf8').replace(/^flowchart BT/, `flowchart ${direction}`)
     const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true }), quality = measureQuality(result.layout)
     expect(quality.nodeCount).toBe(9)
     expect(quality.edgeCount).toBe(21)
-    // The current frontier is seven crossings versus ELK's five. Retain this
-    // adverse case alongside the improved fixtures; this is not a parity gate.
-    expect(quality.edgeCrossings).toBeLessThanOrEqual(7)
+    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
+    const bends = (layout: typeof result.layout) => layout.edges.reduce((sum, edge) => sum + Math.max(0, edge.path.length - 2), 0)
+    expect(bends(result.layout)).toBeLessThanOrEqual(bends(reference.layout))
     expect(quality.labelConflicts?.total).toBe(0)
     expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
     expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')

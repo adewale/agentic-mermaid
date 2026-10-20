@@ -761,18 +761,47 @@ scopes, allows at most 128 augmentations per invocation, and skips more than
 feasible ranks; it does not decline a previously supported input. Tiny weighted
 DAG tests compare its objective against exhaustive feasible rank assignments.
 
-A small flat Flowchart with remaining crossings may also try one authored-order
-cycle orientation after the normal bounded search. Both complete drawings pass
-owned correspondence and geometry certification after shared cleanup. Final
-padded-label conflicts, opposing/parallel shared spans, proper crossings, raw
-bends and area are compared in that order; exact ties retain the first drawing.
-Only typed local decline or geometric rejection preserves the first candidate;
-unexpected defects, changed meaning, dependency suspension and global limits
-propagate. The extra candidate is limited to 20 nodes, 64 edges, total minimum
-span 128 and 2,048 final route points. It never compares with ELK during rendering.
-The frozen nine-node case remains adverse evidence: seven native crossings
-versus five with ELK at the preceding checkpoint. The improved 15-/19-node cases
-are retained beside it, rather than enrolling only successful comparisons.
+A small flat Flowchart with remaining crossings may try at most two completed
+alternatives after the normal bounded search: one authored-order cycle
+orientation, then a compact private-rank candidate. The default reserves two
+ranks per minimum link span; the compact candidate reserves an extra rank only
+for measured labels. Both retain authored link lengths and arrow direction.
+The residual-flow dual uses the same span constraints in relaxation, cycle gain
+and objective certification; exhaustive labelled-DAG tests check this policy.
+
+All completed drawings pass owned correspondence and geometry certification
+after shared cleanup. Final padded-label conflicts, opposing/parallel shared
+spans, proper crossings, raw bends and area are compared in that order; exact
+ties retain the earlier drawing. An optional local decline or geometric
+rejection retains the current best and allows the next bounded trial.
+Unexpected defects, changed meaning, dependency suspension and global limits
+propagate. Alternative trials are limited to 20 nodes, 64 edges, total minimum
+span 128 and 2,048 final route points. Each raw placement retains its existing
+search/routing work limits; the final selector certifies the primary once and
+stops after a zero-crossing selection. It never runs ELK for native scoring.
+State, compounds and Architecture's family-specific final routing do not use
+this generic final comparison.
+
+The compact-policy prototype retains 160 native renders versus 157 with ELK.
+Completed-layout selection reduces the crossing regressions from eight to two:
+seed 96 = 13 versus 8 and seed 131 = 5 versus 3. The previous nine-node result of 7 crossings / 52 bends becomes
+3 / 40 vertically and 3 / 42 horizontally, versus ELK 5 / 52, 5 / 53 or 6 / 55 depending on
+direction. This closes that fixture, not general quality parity. Applying the
+compact policy unconditionally adds regressions elsewhere (including seeds 16,
+91 and 137, plus an Architecture example); that wholesale replacement is not
+used. Both previous 15-/19-node improvements and all adverse inputs remain.
+Fresh combined-head quality and cost evidence are required before qualification.
+
+The [OCMu64 exact solver](https://doi.org/10.4230/LIPIcs.IPEC.2024.35) uses
+reductions and branch-and-bound for one-sided crossing minimization. Recent
+[parallel exact/FPT work](https://arxiv.org/abs/2509.23706) studies that ordering
+subproblem too. Neither alone solves our measured labels, ports, cycle reversal
+and final orthogonal routes. A bounded exact rank-ordering prototype did not
+improve the nine-node fixture. [libavoid's routing controls](https://www.adaptagrams.org/documentation/classAvoid_1_1Router.html)
+separate length, bends, crossings and shared-path penalties. An owned bounded
+visibility-grid experiment reaches 5 crossings there but 56 bends; it remains
+unshipped while the smaller rank candidate achieves 3 / 40. No upstream solver
+implementation was copied and no new solver dependency is added.
 
 Recent Mermaid community reports reinforce separate engine contracts:
 [connector-shape and color changes](https://github.com/mermaid-js/mermaid/issues/8496)

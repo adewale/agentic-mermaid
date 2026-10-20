@@ -95,7 +95,7 @@ function placeNativeGraphCandidate(
   return positioned
 }
 
-/** Compare one additional orientation after shared cleanup, so early routing
+/** Compare bounded alternatives after shared cleanup, so early routing
  * scores cannot conceal final label conflicts or lost terminal clearance. */
 export function layoutNativeGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
@@ -103,6 +103,9 @@ export function layoutNativeGraphCandidate(
 ): PositionedGraph {
   const first = placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
   if (options.compareRoutePreferences === false || options.stateVisual || graph.subgraphs.length || graph.nodes.size > 20 || graph.edges.length > 64) return first
-  return bindings.refineOwnedLayoutCandidate(graph, style, first,
-    () => placeNativeGraphCandidate(graph, options, style, input => layoutAgenticGraph({ ...input, authoredCycleOrder: true }), bindings))
+  const candidates = [{ strategy: 'agentic-authored-order',
+    produce: () => placeNativeGraphCandidate(graph, options, style, input => layoutAgenticGraph({ ...input, authoredCycleOrder: true }), bindings) }]
+  if (graph.edges.some(edge => !edge.label)) candidates.push({ strategy: 'agentic-compact-ranks',
+    produce: () => placeNativeGraphCandidate(graph, options, style, input => layoutAgenticGraph({ ...input, compactPrivateRanks: true }), bindings) })
+  return bindings.refineOwnedLayoutCandidate(graph, style, first, candidates)
 }
