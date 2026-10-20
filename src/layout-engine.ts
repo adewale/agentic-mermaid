@@ -42,7 +42,9 @@ import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { layoutAgenticCandidate } from './layout/agentic-layered.ts'
-import { AGENTIC_LAYERED_IMPLEMENTATION, DeferredDependencyError, emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
+import { customTextMeasurementActive } from './text-measurement-profile.ts'
+import { AGENTIC_LAYERED_IMPLEMENTATION, DeferredDependencyError, directionToElk, emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
+export { directionToElk } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
@@ -1959,6 +1961,7 @@ function layoutCandidate(
 
 export type AgenticGraphOptions = LayoutEngineOptions
 export type AgenticGraphBindings = {
+  customTextMeasurementActive: typeof customTextMeasurementActive
   refineOwnedLayoutCandidate: typeof refineOwnedLayoutCandidate
   DEFAULTS: typeof DEFAULTS
   LABEL_PILL_PADDING: typeof LABEL_PILL_PADDING
@@ -1975,6 +1978,7 @@ export type AgenticGraphBindings = {
   unsupported: (reason: string) => never
 }
 const agenticGraphBindings: AgenticGraphBindings = {
+  customTextMeasurementActive,
   refineOwnedLayoutCandidate,
   DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry,
   unsupported: reason => { throw new GraphLayoutUnsupportedError(reason) },
