@@ -331,12 +331,12 @@ test('agent workload completes a verified edit and renders the original and adde
   expect(() => renderAgentEdit(dropsEdits, agentEditCase.source)).toThrow('requested or preserved facts were lost')
 })
 
-test.each(['elk', 'agentic'] as const)('frozen Requirement workload retains exact renderer-owned labels with %s', backend => {
-  const input = releaseBenchCases().find(input => input.id === 'requirement:cyclic-labelled-relations')!
+test.each(releaseBenchCases().filter(input => input.id.includes('cyclic-labelled')).flatMap(input =>
+  (['elk', 'agentic'] as const).map(backend => ({ input, backend, id: input.id }))))('frozen labelled workload $id retains exact renderer-owned labels with $backend', ({ input, backend }) => {
   expect(input.expectedSvgLabels!.length).toBeGreaterThan(0)
   const svg = api.renderMermaidSVG(input.source, { graphLayout: { backend } })
   expect(missingSvgLabels(svg, input.expectedSvgLabels)).toEqual([])
-  expect(missingSvgLabels(svg.replace('bench suite', ''), input.expectedSvgLabels)).toContain('Doc Ref: bench suite')
+  if (input.id === 'requirement:cyclic-labelled-relations') expect(missingSvgLabels(svg.replace('bench suite', ''), input.expectedSvgLabels)).toContain('Doc Ref: bench suite')
 })
 
 test.each(['off', 'normal'] as const)('consumed %s-cache worker forwards selection, serializes the full receipt and retains typed declines', async layoutCache => {

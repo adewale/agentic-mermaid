@@ -52,7 +52,7 @@ import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyOwnedLayoutCandidate, certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyOwnedLayoutCandidate, refineOwnedLayoutCandidate, certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -1983,6 +1983,7 @@ function layoutCandidate(
 
 export type AgenticGraphOptions = LayoutEngineOptions
 export type AgenticGraphBindings = {
+  refineOwnedLayoutCandidate: typeof refineOwnedLayoutCandidate
   DEFAULTS: typeof DEFAULTS
   LABEL_PILL_PADDING: typeof LABEL_PILL_PADDING
   measureRenderStage: typeof measureRenderStage
@@ -1998,6 +1999,7 @@ export type AgenticGraphBindings = {
   unsupported: (reason: string) => never
 }
 const agenticGraphBindings: AgenticGraphBindings = {
+  refineOwnedLayoutCandidate,
   DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry,
   unsupported: reason => { throw new GraphLayoutUnsupportedError(reason) },
 }
