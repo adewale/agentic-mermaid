@@ -327,6 +327,8 @@ UpdateElementStyle(g,$borderColor="navy")`
       body = edit(body, { kind: 'add_element', element: { id: 'A\nB', label: 'Line identity' } })
       body = edit(body, { kind: 'add_element', element: { id: 'A\tB', label: 'Tab identity' } })
       body = edit(body, { kind: 'add_relationship', relationship: { from: '資料 é 👩‍💻', to: 'A\nB', label: 'Quoted "edge"' } })
+      // Mermaid trims each argument, so blanks at either end must survive as entity codes.
+      body = edit(body, { kind: 'add_element', element: { id: ' Padded ', label: '\u3000 Padded label ' } })
       const result = await upstream.project(renderC4(body), diagram => ({
         elements: diagram.db.getC4ShapeArray('global').map((record: any) => ({ id: record.alias, label: record.label.text })),
         relationships: diagram.db.getRels().map((record: any) => ({ from: record.from, to: record.to, label: record.label.text })),
@@ -335,6 +337,7 @@ UpdateElementStyle(g,$borderColor="navy")`
       if (!result.ok) throw new Error(result.error)
       expect(result.value.elements.map((record: { id: string }) => projectEntityMarkers(record.id))).toEqual(body.elements.map(record => record.id))
       expect(projectEntityMarkers(breakLineTags(result.value.elements[0].label))).toBe(label)
+      expect(projectEntityMarkers(result.value.elements[3].label)).toBe('\u3000 Padded label ')
       expect(result.value.relationships.map((record: { from: string; to: string; label: string }) => ({ from: projectEntityMarkers(record.from), to: projectEntityMarkers(record.to), label: projectEntityMarkers(record.label) }))).toEqual([{ from: '資料 é 👩‍💻', to: 'A\nB', label: 'Quoted "edge"' }])
     } finally { upstream.close() }
   })
@@ -363,6 +366,9 @@ UpdateElementStyle(g,$borderColor="navy")`
     expect(map.edges.get(body.relationships[0]!.id)).toEqual({ line: 8, col: 1 })
     expect(map.edges.get(body.relationships[1]!.id)).toEqual({ line: 9, col: 1 })
     expect(map.labels.get('node:a')).toEqual({ line: 4, col: 13 })
+    // A label starts after the blanks the reader trims inside its quotes.
+    const padded = 'C4Context\nPerson(a, "  Ann")'
+    expect(buildC4SourceMap(parseC4Diagram(padded), padded).labels.get('node:a')).toEqual({ line: 2, col: 14 })
     expect(map.groups.get('g')).toEqual({ line: 3, col: 1 })
   })
 })

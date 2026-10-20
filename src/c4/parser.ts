@@ -130,10 +130,14 @@ function statements(source: string): C4Statement[] {
   return result
 }
 
+/** Mermaid's C4 grammar trims every argument, quoted or not, before its
+ * entity codes are displayed, so whitespace inside the quotes at either end
+ * is dropped and an encoded one (`#32;`) is kept. */
 function argumentValue(raw: string, decode = true): string {
   const text = raw.trim()
   if (text.length >= 2 && (text[0] === '"' || text[0] === "'") && text.at(-1) === text[0]) {
-    return decode ? decodeMermaidEntities(text.slice(1, -1)) : text.slice(1, -1)
+    const inner = text.slice(1, -1).trim()
+    return decode ? decodeMermaidEntities(inner) : inner
   }
   return decode ? decodeMermaidEntities(text) : text
 }

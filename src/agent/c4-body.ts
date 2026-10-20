@@ -1,4 +1,4 @@
-import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { encodeMermaidEntities, TERMINAL_CONTROL_RE } from '../shared/mermaid-entities.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import {
   C4_VARIANTS, c4ArgumentFields, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveCategory, c4ElementFields,
@@ -27,13 +27,20 @@ export function parseC4Body(lines: string[] | string, accessibility: Accessibili
 function quote(value: string): string {
   // C4's official lexer has no backslash escape. Entity encoding also protects
   // literal entity spellings and does not reinterpret punctuation as syntax.
-  return `"${encodeMermaidEntities(value, '"\\')}"`
+  return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\'))}"`
+}
+
+/** Mermaid's C4 grammar, and ours, trim each argument, so whitespace at
+ * either end is written as an entity code, which neither trims. A control
+ * character has no entity spelling: the serialized-model check refuses it. */
+function edgeWhitespace(text: string): string {
+  return text.replace(/^\s+|\s+$/g, run => [...run].map(character => TERMINAL_CONTROL_RE.test(character) ? character : `#${character.codePointAt(0)};`).join(''))
 }
 
 function alias(value: string): string {
   return /^[A-Za-z_][A-Za-z_0-9]*$/.test(value) ? value : quote(value)
 }
-function displayQuote(value: string): string { return `"${encodeMermaidEntities(value, '"\\<>').replace(/\r\n?|\n/g, '<br/>')}"` }
+function displayQuote(value: string): string { return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\<>').replace(/\r\n?|\n/g, '<br/>'))}"` }
 
 function call(name: string, fields: Record<string, string | undefined>, slots: readonly string[], required: number): string {
   const args: string[] = []
@@ -573,7 +580,9 @@ export function buildC4SourceMap(body: C4Body, canonicalSource: string): SourceM
           const namedPrefix = argument.name ? argument.raw.indexOf('=') + 1 : 0
           const leading = argument.raw.slice(namedPrefix).match(/^\s*/)?.[0].length ?? 0
           const quoted = argument.raw[namedPrefix + leading] === '"' || argument.raw[namedPrefix + leading] === "'"
-          const position = prefixText + argument.raw.slice(0, namedPrefix + leading + (quoted ? 1 : 0))
+          // The label starts after the quote and the blanks the reader trims.
+          const inner = quoted ? argument.raw.slice(namedPrefix + leading + 1).match(/^\s*/)?.[0].length ?? 0 : 0
+          const position = prefixText + argument.raw.slice(0, namedPrefix + leading + (quoted ? 1 + inner : 0))
           const lines = position.split(/\r\n?|\n/)
           result.labels.set(`${prefix}:${record.id}`, { line: statement.span.line + lines.length - 1, col: lines.length === 1 ? statement.span.column + position.length : lines.at(-1)!.length + 1 })
           break
