@@ -73,11 +73,18 @@ export function matchMermaidFrontmatter(text: string): { source: string; yaml: s
 // Outer whitespace is horizontal-only. Using `\s*` at either line boundary
 // consumes preceding blank lines or the next family's indentation because
 // `\s` includes CR/LF. The directive payload itself remains multiline.
-// Mermaid's preprocessing removes an init directive wherever it stands and
-// applies its configuration: one on a line of its own takes that line with
-// it (payload in group 1); one inside a statement leaves the rest of the
-// statement in place (payload in group 2).
-export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*init(?:ialize)?\s*:\s*([\s\S]*?)\}\s*%%[^\S\r\n]*(?:\r?\n)?|%%\{\s*init(?:ialize)?\s*:\s*([\s\S]*?)\}\s*%%/gm
+// Mermaid's preprocessing removes an init or wrap directive wherever it
+// stands and applies its configuration (`wrap` sets `wrap: true`): one on a
+// line of its own takes that line with it (an init's payload in group 1);
+// one inside a statement leaves the rest of the statement in place (an
+// init's payload in group 2). A wrap directive has no payload.
+export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init(?:ialize)?\s*:\s*([\s\S]*?)|wrap\s*)\}\s*%%[^\S\r\n]*(?:\r?\n)?|%%\{\s*(?:init(?:ialize)?\s*:\s*([\s\S]*?)|wrap\s*)\}\s*%%/gm
+
+/** Any other directive (`%%{config: …}%%`, `%%{name}%%`), which Mermaid's
+ *  preprocessing also removes wherever it stands, applying nothing. Mermaid
+ *  reads one that never closes to the source's end; ours reads only a
+ *  closed one as a directive. */
+export const MERMAID_DIRECTIVE_REGEX = /%%\{\s*\w+(?:(?!\}%%)[\s\S])*\}%%/g
 
 export function toMermaidLines(text: string): string[] {
   return text

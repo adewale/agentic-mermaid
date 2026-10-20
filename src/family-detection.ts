@@ -148,7 +148,7 @@ function universalDirectiveSpans(
     // admitted directives so meta.initDirectives and preserved spans cannot
     // disagree for an in-body directive.
     source.slice(frontmatterEnd),
-    /^[ \t]*%%\{\s*(?:init|initialize)\s*:[\s\S]*?\}\s*%%[ \t]*(?:\r\n?|\n|$)|%%\{\s*(?:init|initialize)\s*:[\s\S]*?\}\s*%%/gmi,
+    /^[ \t]*%%\{\s*(?:(?:init|initialize)\s*:[\s\S]*?|wrap\s*)\}\s*%%[ \t]*(?:\r\n?|\n|$)|%%\{\s*(?:(?:init|initialize)\s*:[\s\S]*?|wrap\s*)\}\s*%%/gmi,
     frontmatterEnd,
     lineStarts,
   )
