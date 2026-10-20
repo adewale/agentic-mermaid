@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { canonical, harvestModernCorpus, type Sample } from './corpus.ts'
 import { type AgenticGrammarResult, inspectAgenticGrammar } from './grammar-agentic.ts'
+import { curatedFragments } from './grammar-fragments.ts'
 import { projectNativeOperations, projectReferenceOperations } from './grammar-native-operations.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
@@ -359,7 +360,9 @@ async function worker(): Promise<void> {
       }
       const corpusCounts = counters(),
         mutationCounts = counters()
-      const vocabulary = new Set([' ', '\n', '\r\n', '\t', ';', ':', ',', '"', "'", '{', '}', '[', ']', '(', ')', '%%', 'é', '-->', 'end'])
+      // Token images Mermaid's lexer produced on this family's corpus; the
+      // fixed fragments of grammar-fragments.ts join them before mutation.
+      const vocabulary = new Set<string>()
       const examples: unknown[] = []
       const stream = openSync(join(output, `${family}.jsonl`), 'w')
       let details = 0
@@ -434,7 +437,8 @@ async function worker(): Promise<void> {
         const seeds = samples.filter(sample => sample.source.length <= 4000)
         if (!seeds.length) throw new Error(`No bounded mutation seeds for ${family}`)
         const rnd = random(seed)
-        const fragments = [...vocabulary]
+        const curated = curatedFragments(family)
+        const fragments = [...new Set([...curated, ...vocabulary])]
         let attempts = 0,
           tooLong = 0
         for (let at = 0; at < fuzz; ) {
@@ -459,7 +463,7 @@ async function worker(): Promise<void> {
           observationControl,
           corpus: corpusCounts,
           mutations: mutationCounts,
-          mutationGeneration: { requested: fuzz, executed: mutationCounts.inputs, attempts, skippedOver4000: tooLong, seed, fragmentCount: fragments.length },
+          mutationGeneration: { requested: fuzz, executed: mutationCounts.inputs, attempts, skippedOver4000: tooLong, seed, fragmentCount: fragments.length, curatedFragmentCount: curated.length },
           examples,
         }
         results.push(row)
