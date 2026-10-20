@@ -544,8 +544,9 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * an edge id (`A[a@b]`); and where ours rejects a statement, a node id
  * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
  * does not, or a link label whose markers make no link type there
- * (mismatchedLinkMarkers). */
-export type FlowchartStatementNote = 'amp-spacing' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers'
+ * (mismatchedLinkMarkers). An empty quoted label (`A[""]`), which
+ * upstream's string token cannot read, is noted too. */
+export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -560,6 +561,7 @@ export function flowchartStatementNotes(statement: string): ReadonlySet<Flowchar
     const title = subgraph[1]!.trim()
     const titled = subgraphBracketTitle(title)
     if (titled ? labelTextHoldsDelimiter(titled.title, 'text') : subgraphTitleUnreadable(title)) notes.add(titled ? 'label-delimiter' : 'subgraph-title')
+    if (EMPTY_STRING_LABEL_RE.test(titled ? titled.title : title)) notes.add('empty-string')
     // A run of the id part reaching an `@` (`S[a@b]`) is an edge id upstream.
     const bracket = titled ? title.length - titled.title.length - 2 : -1
     if ([...title.matchAll(/(?:^|\s)[^\s"]+@(?![{"])/g)].some(run => run.index < bracket)) notes.add('node-edge-id')
@@ -1470,6 +1472,7 @@ function parseEdgeLine(
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
         if (labelTextHoldsDelimiter(pipeLabel.rawLabel, 'text')) notes?.add('label-delimiter')
+        if (EMPTY_STRING_LABEL_RE.test(pipeLabel.rawLabel)) notes?.add('empty-string')
         const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
         edgeLabel = parsedLabel.text || undefined
         labelContent = parsedLabel.labelContent
@@ -1488,6 +1491,7 @@ function parseEdgeLine(
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
       if (labelTextHoldsDelimiter(textArrow.rawLabel, 'edge-text')) notes?.add('label-delimiter')
+      if (EMPTY_STRING_LABEL_RE.test(textArrow.rawLabel)) notes?.add('empty-string')
       const parsedLabel = parseFlowchartLabel(textArrow.rawLabel)
       edgeLabel = parsedLabel.text || undefined
       labelContent = parsedLabel.labelContent
@@ -1688,10 +1692,15 @@ const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeS
 
 /** Quote-aware shape consumption: delimiters inside an authored quoted label
  * are text, not the end of the node. One scanner covers every legacy shape. */
+/** A label that is an empty string (`A[""]`, `|""|`): upstream's string
+ * token needs a character, and it rejects the label. */
+const EMPTY_STRING_LABEL_RE = /^\s*""\s*$/
+
 function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
-  subgraphStack: MermaidSubgraph[]): ConsumedNode | null {
+  subgraphStack: MermaidSubgraph[],
+  notes?: Set<FlowchartStatementNote>): ConsumedNode | null {
   const identifier = consumeBareNodeId(text)
   if (!identifier) return null
   const suffix = text.slice(identifier.length)
@@ -1700,6 +1709,7 @@ function consumeQuotedShapeNode(
     const quoteStart = spec.open.length
     const quoteEnd = suffix.indexOf('"', quoteStart + 1)
     if (quoteEnd < 0 || !suffix.startsWith(spec.close, quoteEnd + 1)) continue
+    if (quoteEnd === quoteStart + 1) notes?.add('empty-string')
     const parsed = parseFlowchartLabel(suffix.slice(quoteStart + 1, quoteEnd), true)
     defineNode(graph, subgraphStack, {
       id: identifier.id,
@@ -1739,7 +1749,7 @@ function consumeNode(
     return { id: metadataNode.id, remaining }
   }
 
-  const quotedShapeNode = consumeQuotedShapeNode(text, graph, subgraphStack)
+  const quotedShapeNode = consumeQuotedShapeNode(text, graph, subgraphStack, notes)
   if (quotedShapeNode) {
     let remaining = consumeNodeMetadataSuffix(quotedShapeNode.id, quotedShapeNode.remaining, graph, subgraphStack)
       ?? quotedShapeNode.remaining
@@ -1764,6 +1774,7 @@ function consumeNode(
     if (match) {
       id = identifier!.id
       if (labelTextHoldsDelimiter(match[1]!, TRAPEZOID_SHAPES.has(shape) ? 'trapezoid' : 'text')) notes?.add('label-delimiter')
+      if (EMPTY_STRING_LABEL_RE.test(match[1]!)) notes?.add('empty-string')
       const { text: label, markdown, labelContent } = parseFlowchartLabel(match[1]!)
       defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
       remaining = shapeText.slice(match[0].length)

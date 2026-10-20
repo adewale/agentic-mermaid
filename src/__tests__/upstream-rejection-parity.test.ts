@@ -303,6 +303,13 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a `[` in a pipe label', 'flowchart LR\n  A -->|a [b| B', '>a [b<', 'flowchart_label_delimiter', 2],
   ['a `"` inside a text-arrow label', 'flowchart LR\n  A -- a "b" --> B', '>a &quot;b&quot;<', 'flowchart_label_delimiter', 2],
   ['parentheses in a subgraph bracket title', 'flowchart LR\n  subgraph S[x (y) z]\n    A\n  end', '>x (y) z<', 'flowchart_label_delimiter', 2],
+  // Mermaid's string token needs a character.
+  ['an empty quoted shape label', 'flowchart LR\n  A[""] --> B', '>B<', 'flowchart_empty_string', 2],
+  ['an empty quoted trapezoid label', 'flowchart LR\n  A[/""/] --> B', '>B<', 'flowchart_empty_string', 2],
+  ['an empty quoted pipe label', 'flowchart LR\n  A -->|""| B', '>B<', 'flowchart_empty_string', 2],
+  ['an empty quoted text-arrow label', 'flowchart LR\n  A -- "" --> B', '>B<', 'flowchart_empty_string', 2],
+  ['an empty quoted subgraph bracket title', 'flowchart LR\n  subgraph S[""]\n    B\n  end', '>B<', 'flowchart_empty_string', 2],
+  ['an empty quoted subgraph title', 'flowchart LR\n  subgraph ""\n    B\n  end', '>B<', 'flowchart_empty_string', 2],
   // Mermaid reads a run without blanks or `"` from a node's start to an `@`
   // as an edge id.
   ['an `@` the node text runs on to', 'flowchart LR\n  A[a@b.com]', '>a@b.com<', 'flowchart_node_edge_id', 2],

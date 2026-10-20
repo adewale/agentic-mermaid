@@ -70,7 +70,7 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
  * index past the links defined above it, an `end` with no subgraph open
  * (alone or before a statement: `end B`), a subgraph no `end` closes, a `&`
  * list without a blank on each side of the `&`, or with an HTML-escaped `&`
- * (`A &amp; B`), label text holding a
+ * (`A &amp; B`), an empty quoted label (`A[""]`), label text holding a
  * character upstream's lexer reads as a delimiter there, a subgraph title it
  * cannot read without quotes, a `;` ours ends a statement at where pinned
  * Mermaid's entity prepass reads it otherwise, a `;` between style
@@ -92,6 +92,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     }
     if (notes?.has('amp-spacing')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_amp_spacing', message: 'A `&` with no blank on one side (A &B) is read as listing the nodes on either side of it. Pinned Mermaid lists nodes only with a blank on each side of `&`, and rejects this; write A & B.' })
+    }
+    if (notes?.has('empty-string')) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_empty_string', message: 'An empty quoted label (A[""], A -->|""| B, subgraph S[""]) is read as an empty label. Pinned Mermaid reads no empty string, and rejects this; put a blank between the quotes (A[" "]), which reads back as an empty label.' })
     }
     if (notes?.has('escaped-amp')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_escaped_amp', message: 'An HTML-escaped `&` after a node (A &amp; B, or &#38;) is read as the `&` listing the nodes on either side of it. Pinned Mermaid reads `&` only unescaped there, and rejects this; write A & B.' })
