@@ -3,11 +3,15 @@ import fc from 'fast-check'
 import { collectActionRecords } from '../agent/analyze.ts'
 import { asKanban, layoutMermaidWithReceipt, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { mutateKanban, parseKanbanBody, renderKanban } from '../agent/kanban-body.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { kanbanTicketUrl } from '../kanban/config.ts'
 import { layoutKanbanDiagram } from '../kanban/layout.ts'
-import { parseKanbanDiagram } from '../kanban/parser.ts'
+import { withParserObservation } from '../shared/parser-observation.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { kanbanStatementEnds, parseKanbanDiagram } from '../kanban/parser.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 test('Kanban group padding reserves real space around cards independently of node padding', () => {
@@ -145,7 +149,7 @@ test('Kanban ticket links use safe encoded actions and respect strict rendering'
 })
 
 test('Kanban canonical round trips retain order, quoting, identity and metadata', () => {
-  const labels = fc.array(fc.constantFrom('plain', '界', 'emoji 🛠', 'é', 'commas, colons: and braces }', 'a "quoted" label'), { minLength: 0, maxLength: 14 })
+  const labels = fc.array(fc.constantFrom('plain', '界', 'emoji 🛠', 'é', 'commas, colons: and braces }', 'a "quoted" label', 'line\nbreak', 'retained\rreturn', 'retained\r\r\nnewline'), { minLength: 0, maxLength: 14 })
   fc.assert(
     fc.property(labels, values => {
       const source = 'kanban\nTodo\n' + values.map((label, index) => `  task${index}["${label.replaceAll('"', '#quot;')}"]@{assigned: Alice, ticket: ID-${index}}`).join('\n')
@@ -156,4 +160,88 @@ test('Kanban canonical round trips retain order, quoting, identity and metadata'
     }),
     fcParameters({ numRuns: 50, seed: 1202002 }),
   )
+})
+
+
+test('Kanban implicit identities retain payload CR across structural endings and public surfaces', () => {
+  const ids = ['A\rB', 'A\nB', 'A\r\nB', 'A\nB#2']
+  for (const ending of ['\n', '\r', '\r\n']) {
+    const wrapper = ['---', 'title: Identity board', '---', '%%{init: {}}%%', ''].join(ending)
+    const source = wrapper + [
+      'kanban', 'accTitle: Distinct columns',
+      '["A\rB"]', '  ["Task\rOne"]@{ assigned: Iris }',
+      '["A\nB"]', '  ["Task\nOne"]',
+      '["A\r\r\nB"]', '["A\r\nB"]',
+    ].join(ending)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+    const narrowed = asKanban(parsed.value)
+    if (!narrowed) throw Error('Expected native Kanban')
+    expect(narrowed.body.columns.map(column => column.id)).toEqual(ids)
+    expect(narrowed.body.columns.map(column => column.sourceId)).toEqual(['A\rB', 'A\nB', 'A\r\nB', 'A\nB'])
+    expect(narrowed.meta.wrapperSource).toBe(wrapper)
+    for (const [index, authored] of ['A\rB', 'A\nB', 'A\r\r\nB', 'A\r\nB'].entries()) {
+      const span = narrowed.source.spans?.labels.get(`group:${ids[index]}`)
+      expect(span).toBeDefined()
+      expect(source.slice(span!.start.offset, span!.end.offset)).toBe(authored)
+    }
+    const again = parseRegisteredMermaid(serializeMermaid(narrowed))
+    if (!again.ok) throw Error(JSON.stringify(again.error))
+    expect(again.value.body).toEqual(narrowed.body)
+    const layout = layoutMermaidWithReceipt(narrowed).layout
+    expect(layout.groups.map(group => group.id)).toEqual(ids)
+    expect(layout.nodes.map(node => [node.id, node.parentId])).toEqual([['Task\rOne', ids[0]], ['Task\nOne', ids[1]]])
+    const tags = scanSvgStartTags(renderMermaidSVG(source, { embedFontImport: false }))
+    expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-id') !== undefined && decodedSvgAttributeValue(tag, 'data-id') !== 'diagram-title').map(tag => decodedSvgAttributeValue(tag, 'data-id'))).toEqual([ids[0], 'Task\rOne', ids[1], 'Task\nOne', ids[2], ids[3]])
+    for (const input of [source, narrowed]) {
+      const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+      expect(terminal.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+      expect(terminal.regions.filter(region => region.kind === 'band').map(region => region.id)).toEqual(ids)
+      expect(terminal.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(['Task\rOne', 'Task\nOne'])
+    }
+    const changed = mutateKanban(narrowed.body, { kind: 'set_column_label', id: ids[0]!, label: 'Renamed\r\ncolumn' })
+    if (!changed.ok) throw Error(changed.error.message)
+    const roundTrip = parseKanbanDiagram(renderKanban(changed.value))
+    expect(roundTrip.columns[0]?.id).toBe(ids[0])
+    expect(roundTrip.columns[0]?.label).toBe('Renamed\r\ncolumn')
+  }
+})
+
+test('Kanban payload parsing decodes transport XML once and preserves authored label spans', () => {
+  const source = 'kanban\n["A&amp;amp;@{literal\rB"]\n  ["Task&amp;amp;\rOne"]'
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+  const body = asKanban(parsed.value)!.body
+  expect(body.columns[0]?.sourceId).toBe('A&amp;amp;@{literal\rB')
+  const span = parsed.value.source.spans?.labels.get('group:A&amp;amp;@{literal\rB')
+  expect(span).toBeDefined()
+  expect(source.slice(span!.start.offset, span!.end.offset)).toBe('A&amp;amp;@{literal\rB')
+  const expected = ['A&amp;@{literal\rB', 'Task&amp;\rOne']
+  for (const renderedSource of [source, source.replace('kanban', 'kanb&#97;n')]) {
+    const tags = scanSvgStartTags(renderMermaidSVG(renderedSource, { embedFontImport: false }))
+    expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-id') !== undefined && decodedSvgAttributeValue(tag, 'data-id') !== 'diagram-title').map(tag => decodedSvgAttributeValue(tag, 'data-id'))).toEqual(expected)
+    expect(renderMermaidASCIIWithMeta(renderedSource, { colorMode: 'none' }).regions.filter(region => region.kind === 'band' || region.kind === 'node').map(region => region.id)).toEqual(expected)
+  }
+})
+
+
+test('Kanban universal accessibility respects native consumed payload records without observer leaks', () => {
+  const source = 'kanban\n["A\raccTitle: hidden\rB"]\naccDescr: Real description'
+  const events: string[] = []
+  withParserObservation('kanban', event => {
+    events.push(event.kind)
+  }, () => {
+    expect(kanbanStatementEnds(source.replaceAll('\r', '\n').split('\n'))).toEqual([0, 3, 2, 3, 4])
+    expect(events).toEqual([])
+    expect(normalizeMermaidSource(source).accessibility).toEqual({ descr: 'Real description' })
+    expect(events).toEqual([])
+    parseKanbanDiagram('kanban\nVisible')
+    expect(events).toContain('add-column')
+  })
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+  const body = asKanban(parsed.value)!.body
+  expect(body.columns[0]?.sourceId).toBe('A\raccTitle: hidden\rB')
+  expect(body.accessibilityTitle).toBeUndefined()
+  expect(body.accessibilityDescription).toBe('Real description')
 })

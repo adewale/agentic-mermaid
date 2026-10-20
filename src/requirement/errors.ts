@@ -4,8 +4,8 @@ export class PeleError extends Error {
   }
 }
 export function syntaxError(family: string, source: string, offset = 0, message = '', lexical = false): Error {
-  const before = source.slice(0, offset),
-    line = before.split('\n').length,
-    column = offset - before.lastIndexOf('\n')
+  const rows = source.slice(0, offset).split(/\r\n?|\n/),
+    line = rows.length,
+    column = rows.at(-1)!.length + 1
   return new Error(`${family} ${lexical ? 'lexical' : 'parse'} error at line ${line}, column ${column}: ${message || 'unrecognized input'}`)
 }

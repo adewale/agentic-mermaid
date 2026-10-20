@@ -39,6 +39,7 @@ import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './famili
 import { detectsFlowchartFamily } from './family-router.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
+import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
@@ -47,7 +48,7 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
-import { authoredLineForCanonical } from './source-map-spans.ts'
+import { authoredLineForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
 import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
@@ -141,7 +142,10 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     // Suppressing the finding cannot make a source that does not parse verify.
     const code = parsed.error[0]?.code
     const flowchart = typeof input === 'string' && code !== 'INVALID_FRONTMATTER' && code !== 'CONFIG_REJECTED' && detectsFlowchartFamily(normalizeMermaidSource(input).firstLine)
-    const sourceWarnings = flowchart ? flowchartUnsupportedSyntaxWarnings(input) : []
+    const sourceWarnings = [
+      ...(flowchart ? flowchartUnsupportedSyntaxWarnings(input) : []),
+      ...(typeof input === 'string' && code !== 'INVALID_FRONTMATTER' && code !== 'CONFIG_REJECTED' ? mermaidCleanupWarnings(input) : []),
+    ]
     return { ...finalize([parseFailureWarning(parsed.error), ...sourceWarnings], emptyRenderedLayout('flowchart'), opts), ok: false }
   }
   if (parsed.value.body.kind === 'preserved') {
@@ -429,12 +433,19 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
 
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
-  if (!rule) return []
-  const lines = authored?.split(/\r?\n/)
+  const lines = authored?.split(/\r\n?|\n/)
   const authoredLine = lines && ((line: number) => lines[authoredLineForCanonical(d.source, line) - 1])
-  return rule(d.canonicalSource, authoredLine).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+  return (rule?.(d.canonicalSource, authoredLine) ?? []).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
     ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
     : warning)
+}
+
+function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
+  const cleanup = sourceCleanup(d.source)
+  if (cleanup) return mermaidCleanupWarnings(cleanup)
+  if (authored !== undefined) return mermaidCleanupWarnings(authored)
+  return mermaidCleanupWarnings(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) } : warning)
 }
 
 /** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
@@ -605,7 +616,10 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // 2C comment policy: in-body comments that structured serialization drops
   // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
   // so the loss is announced rather than silent.
-  const metaWarnings: LayoutWarning[] = parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []
+  const metaWarnings: LayoutWarning[] = [
+    ...(parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED' as const, count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []),
+    ...cleanupWarningsForDiagram(parsed, authored),
+  ]
   const dispatchedWarnings = dispatchFamilyVerify(parsed, opts, positioned)
   const configWarnings = configWarningsForDiagram(parsed)
   if (parsed.body.kind === 'extension') {

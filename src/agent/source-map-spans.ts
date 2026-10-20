@@ -1,6 +1,7 @@
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
+import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
 
 interface PhysicalLine {
   text: string
@@ -8,6 +9,15 @@ interface PhysicalLine {
 }
 
 const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, number>>()
+const cleanupBySourceMap = new WeakMap<SourceMap, MermaidCleanup>()
+
+export function recordSourceCleanup(sourceMap: SourceMap, cleanup: MermaidCleanup): void {
+  cleanupBySourceMap.set(sourceMap, cleanup)
+}
+
+export function sourceCleanup(sourceMap: SourceMap): MermaidCleanup | undefined {
+  return cleanupBySourceMap.get(sourceMap)
+}
 
 /** Where statements end, for a family that knows: keyed like the location
  * maps, in canonical coordinates, just after the last character. Such an
@@ -41,9 +51,9 @@ function physicalLines(source: string): PhysicalLine[] {
   const lines: PhysicalLine[] = []
   let start = 0
   for (let index = 0; index <= source.length; index++) {
-    if (index !== source.length && source.charCodeAt(index) !== 10) continue
-    const physicalEnd = index > start && source.charCodeAt(index - 1) === 13 ? index - 1 : index
-    lines.push({ text: source.slice(start, physicalEnd), start })
+    if (index !== source.length && source.charCodeAt(index) !== 10 && source.charCodeAt(index) !== 13) continue
+    lines.push({ text: source.slice(start, index), start })
+    if (source.charCodeAt(index) === 13 && source.charCodeAt(index + 1) === 10) index++
     start = index + 1
   }
   return lines
@@ -52,7 +62,10 @@ function physicalLines(source: string): PhysicalLine[] {
 function sourceLineStarts(source: string): readonly number[] {
   const starts = [0]
   for (let index = 0; index < source.length; index++) {
-    if (source.charCodeAt(index) === 10) starts.push(index + 1)
+    if (source.charCodeAt(index) === 13) {
+      if (source.charCodeAt(index + 1) === 10) index++
+      starts.push(index + 1)
+    } else if (source.charCodeAt(index) === 10) starts.push(index + 1)
   }
   return starts
 }

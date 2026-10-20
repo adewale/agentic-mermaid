@@ -30,7 +30,7 @@ import type {
 import { ok, err } from './types.ts'
 import { assertJsonConfigAdmission, JsonConfigAdmissionError } from '../shared/json-config-admission.ts'
 import { isBuiltinFamilyId } from './families.ts'
-import { attachSourceMapSpans, type SourceSpanGrammar } from './source-map-spans.ts'
+import { attachSourceMapSpans, recordSourceCleanup, type SourceSpanGrammar } from './source-map-spans.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
 export { parseSequenceBody } from './sequence-body.ts'
@@ -112,8 +112,9 @@ function semanticFamilyLineSource(
   familyLineBoundary: number,
 ): { readonly source: string; readonly authoredHeader: string } {
   const lineStart = Math.max(0, Math.min(source.length, familyLineBoundary))
-  const newline = source.indexOf('\n', lineStart)
-  const physicalEnd = newline < 0 ? source.length : newline
+  const lineBreak = /[\r\n]/g
+  lineBreak.lastIndex = lineStart
+  const physicalEnd = lineBreak.exec(source)?.index ?? source.length
   const lineEnd = source.charCodeAt(physicalEnd - 1) === 13 ? physicalEnd - 1 : physicalEnd
   const rawLine = source.slice(lineStart, lineEnd)
   const stateHeader = /^\s*stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(rawLine)
@@ -209,8 +210,10 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     familyLine.authoredHeader || semanticHeader,
     familyLineBoundary,
   )
-  const tracedSourceMap = (map: SourceMap, grammar?: SourceSpanGrammar): SourceMap =>
-    attachSourceMapSpans(map, canonicalSource, source, documentSpans, grammar)
+  const tracedSourceMap = (map: SourceMap, grammar?: SourceSpanGrammar): SourceMap => {
+    if (authoredEnvelope.cleanup) recordSourceCleanup(map, authoredEnvelope.cleanup)
+    return attachSourceMapSpans(map, canonicalSource, source, documentSpans, grammar)
+  }
   // Opaque and extension bodies own the exact authored bytes AFTER the leading
   // wrapper. The wrapper is retained separately in meta.wrapperSource, so
   // deriving this value from the preprocessed body would leave leading
@@ -332,7 +335,12 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     }
     attachUniversalAccessibility(parsed.value, meta)
     const sourceMap = tracedSourceMap(
-      plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource) ?? emptySourceMap(),
+      plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource, Object.freeze({
+        originalText: authoredEnvelope.originalText,
+        wrapperSource: authoredEnvelope.wrapperSource,
+        authoredWrapperLength: authoredEnvelope.authoredWrapperLength,
+        cleanup: authoredEnvelope.cleanup,
+      })) ?? emptySourceMap(),
       kind === 'flowchart' ? 'flowchart' : 'generic',
     )
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }

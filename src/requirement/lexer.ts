@@ -2,6 +2,7 @@
 // MIT license; see pele-license.txt in this directory.
 import { KEYWORDS, T } from './tokens.ts'
 import { isLineEnd, isSpace, isWord } from './chars.ts'
+import { mermaidLineEnd } from '../shared/mermaid-cleanup.ts'
 export interface Tokens {
   types: number[]
   texts: string[]
@@ -65,7 +66,7 @@ export function tokenize(src: string): Tokens {
     return re.test(src) ? re.lastIndex : -1
   }
   const lineBreak = (q: number): number => {
-    const e = src.indexOf('\n', q)
+    const e = mermaidLineEnd(src, q)
     return e === -1 ? n : e
   }
   // `.*direction\s+XX[^\n]*`: the last such statement that starts on this line decides the token.
@@ -95,7 +96,7 @@ export function tokenize(src: string): Tokens {
       let q = p + 6
       while (q < n) {
         const d = src.charCodeAt(q)
-        if (d === 35 || d === 10 || d === 59) break
+        if (d === 35 || d === 10 || d === 13 || d === 59) break
         q++
       }
       if (q > p + 6) {
@@ -122,12 +123,12 @@ export function tokenize(src: string): Tokens {
       }
     }
     if (anyDir && !isLineEnd(c) && direction()) return true
-    if (c === 10 || (c === 13 && src.charCodeAt(p + 1) === 10)) {
+    if (c === 10 || c === 13) {
       let q = p
       while (q < n) {
         const d = src.charCodeAt(q)
         if (d === 10) q++
-        else if (d === 13 && src.charCodeAt(q + 1) === 10) q += 2
+        else if (d === 13) q += src.charCodeAt(q + 1) === 10 ? 2 : 1
         else break
       }
       emit(T.NEWLINE, p, q)
@@ -227,6 +228,10 @@ export function tokenize(src: string): Tokens {
         pop()
         p++
         return true
+      case 13:
+        pop()
+        p += src.charCodeAt(p + 1) === 10 ? 2 : 1
+        return true
       case 44:
         emit(T.COMMA, p, p + 1)
         return true
@@ -282,4 +287,29 @@ export function tokenize(src: string): Tokens {
   if (last !== -1) emit(last, n, n)
   emit(T.END, n, n)
   return { types, texts, starts }
+}
+
+/** Universal directives inside a native quoted token belong to that token. */
+export function requirementStatementEnds(lines: readonly string[]): readonly number[] {
+  const ends = lines.map((_, index) => index)
+  if (!lines.length) return ends
+  const source = ['requirementDiagram', ...lines.slice(1)].join('\n')
+  const positions = [0]
+  for (let i = 0; i < source.length; i++) if (source[i] === '\n') positions.push(i + 1)
+  try {
+    const tokens = tokenize(source)
+    let row = 0
+    for (let i = 0; i < tokens.types.length; i++) {
+      if (tokens.types[i] !== T.qString) continue
+      const start = tokens.starts[i]!, end = start + tokens.texts[i]!.length
+      while (row + 1 < positions.length && positions[row + 1]! <= start) row++
+      let last = row
+      while (last + 1 < positions.length && positions[last + 1]! <= end) last++
+      ends[row] = Math.max(ends[row]!, last)
+      row = last
+    }
+  } catch {
+    // Invalid source still uses the ordinary physical-row envelope fallback.
+  }
+  return ends
 }

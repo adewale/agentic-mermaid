@@ -28,10 +28,14 @@ import { BUILTIN_AGENT_HOOKS } from './families-builtin.ts'
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { C4_CONFIG_KEYS, C4_NOOP_CONFIG_KEYS } from '../c4/config.ts'
 import { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose, installRegisteredFamilyByIdResolver, installRegisteredFamilyResolver, normalizeFamilyDetectionLine } from './family-router.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
+
+/** Frozen source provenance for map builders; no runtime config authority. */
+export type FamilySourceMapContext = Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>
 
 export interface ExtractedLabel {
   /** The label text, with quotes stripped. */
@@ -317,10 +321,10 @@ export interface FamilyOperations {
    */
   parse?: (ctx: FamilyParseContext) => Result<FamilyParsedBody, ParseError[]>
   /**
-   * Optional source-map builder, run after a successful parse. Today only
-   * flowchart/state index node positions; other families return no map.
+   * Optional source-map builder, run after a successful parse. The frozen
+   * provenance context preserves authored payloads and original source spans.
    */
-  buildSourceMap?: (body: DiagramBody, canonicalSource: string) => SourceMap
+  buildSourceMap?: (body: DiagramBody, canonicalSource: string, source?: FamilySourceMapContext) => SourceMap
   /** Optional: family-specific serializer for a structured body. */
   serialize?: (body: FamilyParsedBody) => string
   /** Optional: family-specific structured mutation. */

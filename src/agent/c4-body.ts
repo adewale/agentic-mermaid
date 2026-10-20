@@ -537,7 +537,7 @@ export function buildC4SourceMap(body: C4Body, canonicalSource: string): SourceM
           const leading = argument.raw.slice(namedPrefix).match(/^\s*/)?.[0].length ?? 0
           const quoted = argument.raw[namedPrefix + leading] === '"' || argument.raw[namedPrefix + leading] === "'"
           const position = prefixText + argument.raw.slice(0, namedPrefix + leading + (quoted ? 1 : 0))
-          const lines = position.split('\n')
+          const lines = position.split(/\r\n?|\n/)
           result.labels.set(`${prefix}:${record.id}`, { line: statement.span.line + lines.length - 1, col: lines.length === 1 ? statement.span.column + position.length : lines.at(-1)!.length + 1 })
           break
         }

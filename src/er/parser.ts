@@ -621,6 +621,20 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
   return found.sort((a, b) => a.line - b.line || a.start - b.start)
 }
 
+/** Whole physical rows owned by style declarations, before model projection
+ * or parser observation. Attribute comments and compact rows are excluded. */
+export function erStyleStatementLines(lines: readonly string[]): ReadonlySet<number> {
+  const result = new Set<number>()
+  for (const statement of findErStatements(lines)) {
+    if ((statement.syntax.kind === 'style' || statement.syntax.kind === 'class-def')
+      && statement.line === statement.endLine
+      && lines[statement.line]!.slice(statement.start, statement.end).trim() === lines[statement.line]!.trim()) {
+      result.add(statement.line + 1)
+    }
+  }
+  return result
+}
+
 /** The lossless ER grammar view. Scope and creation are decided here, before
  * either consumer projects statements into its own model. */
 export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): {

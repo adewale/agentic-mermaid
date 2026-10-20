@@ -13,10 +13,9 @@ export const PIE_QUOTED_TEXT: QuotedTextRule = { wholeLine: line => /^(?:pie(?:\
  * put authored label and title text back before Pie's own display projection.
  */
 export function pieFamilyLines(source: NormalizedMermaidSource): string[] {
-  const authored = source.originalText
-  if (decodeXML(authored) === authored) return source.familyLines
+  if (!source.authoredFamilyLines) return source.familyLines
   const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
-  const hybrid = joinQuotedTextLines(normalizeMermaidSource(authored).familyLines, PIE_QUOTED_TEXT).map((line, index) => {
+  const hybrid = joinQuotedTextLines(source.authoredFamilyLines, PIE_QUOTED_TEXT).map((line, index) => {
     // Pie titles are display text, not grammar separators. Keep their entity
     // spelling for the family-owned projection just as with quoted labels.
     const title = splitAuthoredPieTitleLine(line, index === 0 ? 'header' : 'body')

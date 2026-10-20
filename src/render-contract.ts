@@ -8,11 +8,10 @@
 // ============================================================================
 
 import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
-import { decodeXML } from 'entities'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
-import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
+import { normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
 import {
@@ -1243,14 +1242,13 @@ function serializableOptionCandidate(options: RenderOptions): Record<string, unk
 
 function capturedRequestFamily(
   source: NormalizedMermaidSource,
-  authoredEnvelope: NormalizedMermaidSource = source,
 ): FamilyDescriptor {
   return requireRegisteredMermaidFamilyDescriptor(
     source.lines[0] ?? source.firstLine,
     source.originalText,
     'strict',
-    authoredEnvelope.wrapperSource?.length ?? 0,
-    authoredEnvelope.lines[0] ?? authoredEnvelope.firstLine,
+    source.authoredWrapperLength ?? source.wrapperSource?.length ?? 0,
+    source.authoredHeader ?? source.lines[0] ?? source.firstLine,
   )
 }
 
@@ -1556,12 +1554,14 @@ export function canonicalTextDigest(text: string): string {
  */
 const IMMUTABLE_SNAPSHOTS = new WeakSet<object>()
 
-function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>()): T {
+function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(), copies = new WeakMap<object, object>()): T {
   if (value === null || typeof value !== 'object') return value
   // Object.isFrozen is insufficient: an externally frozen object may retain
   // getters or mutable descendants. Reuse only snapshots created here.
   if (IMMUTABLE_SNAPSHOTS.has(value)) return value
   if (ancestors.has(value)) throw new TypeError(`render request contains a cycle at ${path}`)
+  const existing = copies.get(value)
+  if (existing) return existing as T
   const proto = Object.getPrototypeOf(value)
   if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) {
     throw new TypeError(`render request contains a non-JSON object at ${path}`)
@@ -1572,7 +1572,7 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
     const length = value.length
     const items: unknown[] = new Array(length)
     for (let index = 0; index < length; index++) {
-      if (index in value) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors)
+      if (index in value) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors, copies)
     }
     clone = items
   } else {
@@ -1580,13 +1580,14 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
     // Capture entries before descending, retaining the existing accessor-read
     // order without allocating a second array of key/value pairs per object.
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      const captured = immutableSnapshot(child, `${path}.${key}`, ancestors)
+      const captured = immutableSnapshot(child, `${path}.${key}`, ancestors, copies)
       if (key === '__proto__') Object.defineProperty(record, key, { value: captured, enumerable: true })
       else record[key] = captured
     }
     clone = record
   }
   ancestors.delete(value)
+  copies.set(value, clone as object)
   IMMUTABLE_SNAPSHOTS.add(clone as object)
   return Object.freeze(clone) as T
 }
@@ -2045,17 +2046,15 @@ export function resolveRenderRequestForExecution(
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
-  const decodedText = decodeXML(text)
-  const normalizedSource = normalizeMermaidSourceWithOverrides(decodedText, admittedOptions.mermaidConfig ?? {})
-  const authoredEnvelope = decodedText === text ? normalizedSource : normalizeMermaidSource(text)
+  const normalizedSource = normalizeMermaidSourceWithOverrides(text, admittedOptions.mermaidConfig ?? {}, 'render')
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
-  const detectedSource: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
+  const detectedSource: NormalizedMermaidSource = immutableSnapshot(normalizedSource)
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
-  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, authoredEnvelope)
+  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource)
   // Pie keeps its authored label spelling in its own chunk (pieFamilyLines).
   const source = detectedSource
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {

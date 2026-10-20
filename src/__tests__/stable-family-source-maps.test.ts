@@ -20,6 +20,11 @@ function keys(map: SourceMap['nodes']): string[] {
 }
 
 describe('stable-family authored declaration source maps', () => {
+  test('Kanban native label offsets retain metadata-looking text and leading payload newlines', () => {
+    const source = 'kanban\ncol["A@{B\nC"]\n  task["\nA"]@{ assigned: "A" }', diagram = parsed(source)
+    expect(span(source, diagram, 'labels', 'group:col')).toBe('A@{B\nC')
+    expect(span(source, diagram, 'labels', 'node:task')).toBe('\nA')
+  })
   test('Packet repeated labels map to their own bit fields after wrappers and title', () => {
     const source = '---\ntitle: Same\n---\n%% Same before the family\npacket\ntitle Same\n0-7: "Same"\n8-15: "Same"\n',
       diagram = parsed(source)

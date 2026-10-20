@@ -11,12 +11,12 @@
  * frontmatter at any horizontal indentation. Block scalar marker lines remain
  * content until the scalar dedents; all captured whitespace stays intact. */
 export function matchMermaidFrontmatter(text: string): { source: string; yaml: string } | undefined {
-  const start = /^(?:[^\S\r\n]*\r?\n)*[^\S\r\n]*---[^\S\r\n]*\r?\n/.exec(text)?.[0].length
+  const start = /^(?:[^\S\r\n]*(?:\r\n?|\n))*[^\S\r\n]*---[^\S\r\n]*(?:\r\n?|\n)/.exec(text)?.[0].length
   if (!start) return undefined
   // Physical indentation is nonnegative; -1 means no block scalar is open.
   let blockIndent = -1
   let quote = ''
-  const lines = /([^\S\r\n]*)([^\r\n]*)(?:\r?\n|$)/g
+  const lines = /([^\S\r\n]*)([^\r\n]*)(?:\r\n?|\n|$)/g
   lines.lastIndex = start
   for (let line = lines.exec(text); line?.[0]; line = lines.exec(text)) {
     const indent = line[1]!.length
@@ -77,7 +77,7 @@ export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*init(?:ialize)?\s*:\s*([\
 
 export function toMermaidLines(text: string): string[] {
   return text
-    .split(/\r?\n/)
+    .split(/\r\n?|\n/)
     .map(line => line.trim())
     .filter(line => line && !line.startsWith('%%'))
 }
@@ -95,7 +95,7 @@ const HEADER_WITH_STATEMENT_RE = /^[^\S\r\n]*(?:sequenceDiagram|stateDiagram(?:-
 /** Move a statement written on the header line onto a line of its own, as
  * Mermaid reads it, so every family reader sees the header alone. */
 export function splitHeaderStatement(body: string): string {
-  const lines = body.split('\n')
+  const lines = body.split(/\r\n?|\n/)
   const at = lines.findIndex(line => line.trim() !== '' && !line.trim().startsWith('%%'))
   const header = at < 0 ? null : HEADER_WITH_STATEMENT_RE.exec(lines[at]!)
   const statement = header ? lines[at]!.slice(header[0].length) : ''

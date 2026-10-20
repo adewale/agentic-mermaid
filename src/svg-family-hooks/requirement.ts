@@ -3,11 +3,13 @@ import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from 
 import { parseRequirementDiagram } from '../requirement/parser.ts'
 import { layoutRequirementDiagram } from '../requirement/layout.ts'
 import { lowerRequirementScene, projectRequirementPositioned } from '../requirement/renderer.ts'
-import { frontmatterTitle } from '../mermaid-source.ts'
+import { frontmatterTitle, preservedMermaidFamilyText } from '../mermaid-source.ts'
+import { requirementStatementEnds } from '../requirement/lexer.ts'
 export const REQUIREMENT_SVG_HOOKS = {
   configDiagnostics: diagnoseRequirementConfig,
+  statementEnds: requirementStatementEnds,
   layout: ctx => {
-    const body = parseRequirementDiagram(ctx.source.familyLines)
+    const body = parseRequirementDiagram(preservedMermaidFamilyText(ctx.source))
     body.title ??= frontmatterTitle(ctx.source.frontmatter)
     body.accessibilityTitle = ctx.source.accessibility.title ?? body.accessibilityTitle
     body.accessibilityDescription = ctx.source.accessibility.descr ?? body.accessibilityDescription

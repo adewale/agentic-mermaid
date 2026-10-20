@@ -1,4 +1,5 @@
 import { PACKET_SVG_HOOKS } from './svg-family-hooks/packet.ts'
+import { preservedMermaidFamilyText } from './mermaid-source.ts'
 import { renderPacketTerminal } from './ascii/packet.ts'
 import { KANBAN_SVG_HOOKS } from './svg-family-hooks/kanban.ts'
 import { renderKanbanTerminal } from './ascii/kanban.ts'
@@ -36,7 +37,6 @@ import { renderSequenceTerminal } from './ascii/sequence.ts'
 import { renderStateTerminal } from './ascii/state.ts'
 import { renderTimelineTerminal } from './ascii/timeline.ts'
 import { renderXYChartTerminal } from './ascii/xychart.ts'
-import { normalizeMermaidSource } from './mermaid-source.ts'
 import { resolveGanttFrontmatterConfig } from './gantt/parser.ts'
 import { parseGitGraph } from './gitgraph/parser.ts'
 import { resolveGitGraphPositionConfig } from './gitgraph/position.ts'
@@ -45,6 +45,7 @@ import { parseMermaid } from './parser.ts'
 import { resolvePieVisualConfig } from './pie/config.ts'
 import { pieFamilyLines } from './pie/source-title.ts'
 import { resolveSankeyVisualConfig } from './sankey/config.ts'
+import { sankeyFamilyLines } from './sankey/source.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
 import { withAccessibilityFields } from './shared/accessibility-directives.ts'
 import { checkAllGraphAuthoredStyles } from './shared/style-props.ts'
@@ -134,7 +135,10 @@ const SEQUENCE_RENDER_HOOKS = {
 
 const CLASS_RENDER_HOOKS = {
   ...CLASS_SVG_HOOKS,
-  renderAscii: nativeTerminalRenderer(ctx => renderClassTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, normalizeMermaidSource(ctx.source.originalText).familyText)),
+  renderAscii: nativeTerminalRenderer(ctx => renderClassTerminal(
+    ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth,
+    (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'),
+  )),
 } satisfies BuiltinRenderHooks
 
 const ER_RENDER_HOOKS = {
@@ -178,7 +182,7 @@ const RADAR_RENDER_HOOKS = {
 
 const SANKEY_RENDER_HOOKS = {
   ...SANKEY_SVG_HOOKS,
-  renderAscii: nativeTerminalRenderer(ctx => renderSankeyTerminal(ctx.source.body.split(/\r?\n/), ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual)),
+  renderAscii: nativeTerminalRenderer(ctx => renderSankeyTerminal(sankeyFamilyLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual)),
 } satisfies BuiltinRenderHooks
 
 const GANTT_RENDER_HOOKS = {
@@ -253,7 +257,7 @@ export const BUILTIN_RENDER_HOOKS = Object.freeze({
   c4: C4_RENDER_HOOKS,
   packet: { ...PACKET_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderPacketTerminal(ctx)) },
   kanban: { ...KANBAN_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderKanbanTerminal(ctx)) },
-  requirement: { ...REQUIREMENT_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderRequirementTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) },
+  requirement: { ...REQUIREMENT_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderRequirementTerminal(preservedMermaidFamilyText(ctx.source), ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) },
   treemap: { ...TREEMAP_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderTreemapTerminal(ctx)) },
   ishikawa: { ...ISHIKAWA_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderIshikawaTerminal(ctx)) },
   block: { ...BLOCK_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) },

@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import type { BrowserSample, Engine } from './release-browser-bench.ts'
+import { configureBrowserPage, type BrowserElkCache } from './browser-config.ts'
 
 export interface MemoryInput { id: string; source: string; occurrenceIds: string[] }
 
@@ -36,7 +37,7 @@ interface MemoryRun {
 }
 
 export async function browserMemoryDiagnostics(options: {
-  engines: Engine[]; origin: string; inputs: MemoryInput[]; rounds: number; passes: number; out: string; executablePath?: string
+  engines: Engine[]; origin: string; inputs: MemoryInput[]; rounds: number; passes: number; out: string; executablePath?: string; elkCache?: BrowserElkCache
 }) {
   const runs: MemoryRun[] = []
   for (let round = 1; options.inputs.length > 0 && round <= options.rounds; round++) {
@@ -57,10 +58,7 @@ export async function browserMemoryDiagnostics(options: {
           row.checkpoints[stage] = await cdp.send('Runtime.getHeapUsage')
         }
         await checkpoint('blank')
-        await page.evaluate(features => {
-          ;(globalThis as Record<string, unknown>).AGENTIC_MERMAID_ELK_CACHE = '0'
-          ;(globalThis as Record<string, unknown>).AGENTIC_MERMAID_EXPERIMENTS = features
-        }, engine.experiments ?? '')
+        await configureBrowserPage(page, engine.experiments, options.elkCache ?? 'off')
         await page.addScriptTag({ url: `${options.origin}/${engine.label}/${engine.bundle}` })
         await page.evaluate(({ kind, global }) => {
           type Api = { render(source: string, id?: string): unknown; renderMermaidSVG(source: string): string; initialize(options: { startOnLoad: boolean }): void }
@@ -129,12 +127,12 @@ export async function browserMemoryDiagnostics(options: {
   return {
     status: runs.every(row => row.status === 'completed') && options.inputs.length > 0 ? 'completed' : 'incomplete',
     ...(options.inputs.length ? {} : { error: 'No distinct source succeeded in every timed round in every engine; memory comparison was not run' }),
-    policy: { rounds: options.rounds, passes: options.passes, ordering: 'fresh Chromium process per engine/round; reversed order on alternate rounds',
+    policy: { rounds: options.rounds, passes: options.passes, elkCache: options.elkCache ?? 'off', ordering: 'fresh Chromium process per engine/round; reversed order on alternate rounds',
       expectedSampledRenderCallsPerRun: 2 * options.passes * options.inputs.length,
       population: 'distinct sources successful in every timed round in every engine; occurrence IDs preserved',
       checkpoints: 'CDP forced-GC JS heap usage after blank, loaded, warmed, discarded, retaining and released',
       allocation: '4096-byte CDP sampling from warmed through released, including objects collected by major and minor GC; observer/UTF-8 consumption allocations included',
-      limitations: 'sampled V8 JS allocations and post-GC heap checkpoints, not exact allocation, peak memory, native memory, process RSS, or painted DOM; remote assets blocked; ELK cache disabled' },
+      limitations: 'sampled V8 JS allocations and post-GC heap checkpoints, not exact allocation, peak memory, native memory, process RSS, or painted DOM; remote assets blocked; cache policy recorded separately' },
     inputs: options.inputs.map(({ source: _source, ...input }) => input), runs,
   }
 }
