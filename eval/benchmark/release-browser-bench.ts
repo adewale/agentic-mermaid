@@ -12,7 +12,7 @@ import { chromium, type Page } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 import type { BaselineLock } from './release-baseline.ts'
 import { workingRevision } from './revision-tree.ts'
-import { PERFORMANCE_EXPERIMENTS } from '../../src/experimental-performance.ts'
+import { browserPerformanceOptions, configureAgenticEngines, configureBrowserPage, type BrowserElkCache } from './browser-config.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from './browser-memory.ts'
 
 export interface Engine {
@@ -100,7 +100,7 @@ function size(paths: string[]) {
   }) }
 }
 
-async function lazyPayload(page: Page, engine: Engine, origin: string) {
+async function lazyPayload(page: Page, engine: Engine, origin: string, elkCache: BrowserElkCache) {
   const fetched = new Set<string>()
   const listener = (request: { url(): string }) => {
     const url = new URL(request.url())
@@ -109,7 +109,7 @@ async function lazyPayload(page: Page, engine: Engine, origin: string) {
   page.on('request', listener)
   try {
     await page.goto(`${origin}/blank`)
-    await page.evaluate(features => { (globalThis as Record<string, unknown>).AGENTIC_MERMAID_EXPERIMENTS = features }, engine.experiments ?? '')
+    await configureBrowserPage(page, engine.experiments, elkCache)
     const initial = await page.evaluate(async url => {
       const started = performance.now()
       const api = await import(url)
@@ -132,13 +132,9 @@ async function lazyPayload(page: Page, engine: Engine, origin: string) {
   }
 }
 
-export async function renderPass(page: Page, engine: Engine, origin: string, inputs: Array<{ id: string; source: string }>, round: number, warmupCount: number): Promise<BrowserSample[]> {
+export async function renderPass(page: Page, engine: Engine, origin: string, inputs: Array<{ id: string; source: string }>, round: number, warmupCount: number, elkCache: BrowserElkCache = 'off'): Promise<BrowserSample[]> {
   await page.goto(`${origin}/blank`)
-  // Repeated renders of one input must time ELK, not a cached result.
-  await page.evaluate(features => {
-    (globalThis as Record<string, unknown>).AGENTIC_MERMAID_ELK_CACHE = '0'
-    ;(globalThis as Record<string, unknown>).AGENTIC_MERMAID_EXPERIMENTS = features
-  }, engine.experiments ?? '')
+  await configureBrowserPage(page, engine.experiments, elkCache)
   await page.addScriptTag({ url: `${origin}/${engine.label}/${engine.bundle}` })
   return page.evaluate(async ({ engine, inputs, round, warmupCount }) => {
     type Api = { render(source: string, id?: string): { svg: string } | Promise<{ svg: string }>; renderMermaidSVG(source: string): string; initialize(options: { startOnLoad: boolean }): void }
@@ -171,16 +167,15 @@ export async function renderPass(page: Page, engine: Engine, origin: string, inp
 
 async function main() {
   const options = new Map<string, string>()
-  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes'])
+  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes', 'elk-cache'])
   for (let i = 2; i < process.argv.length; i += 2) {
     const flag = process.argv[i]!.replace(/^--/, ''), value = process.argv[i + 1]
-    if (!allowed.has(flag) || !value || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
+    if (!allowed.has(flag) || value === undefined || (value === '' && flag !== 'features') || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
     options.set(flag, value)
   }
   if (options.has('baseline-tarball') && options.has('baseline-lock')) throw new Error('Use baseline-tarball or baseline-lock, not both')
   const diagnostics = browserDiagnosticsOptions(options)
-  const features = options.get('features')?.split(',') ?? []
-  if (features.some(feature => !PERFORMANCE_EXPERIMENTS.some(name => name === feature)) || new Set(features).size !== features.length) throw new Error('Invalid experimental feature selection')
+  const { features, elkCache } = browserPerformanceOptions(options)
   if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both baseline-tarball and baseline-sha256')
   const out = resolve(options.get('out') ?? 'bench-report')
   mkdirSync(out, { recursive: true })
@@ -210,7 +205,6 @@ async function main() {
     // installed and pinned; they are not new library/runtime dependencies.
     const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`)
     candidate.identity.tarballSha256 = expectedSha
-    candidate.experiments = features.join(',')
     const engines = [candidate]
     if (options.has('baseline-tarball')) {
       const baselineBytes = readFileSync(resolve(options.get('baseline-tarball')!))
@@ -234,6 +228,7 @@ async function main() {
       engines.push({ label: 'dart', name: 'mermaid-dart', version: diagnostics.dart.revision, root, kind: 'dart', bundle: 'dart.js', global: 'mermaidDartRender',
         identity: { integrity: `sha256-${Buffer.from(diagnostics.dart.sha256, 'hex').toString('base64')}`, bundleSha256: diagnostics.dart.sha256, revision: diagnostics.dart.revision } })
     }
+    configureAgenticEngines(engines, features)
     server.on('request', (req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost')
       if (url.pathname === '/blank') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><meta charset="utf-8"><body>'); return }
@@ -272,7 +267,7 @@ async function main() {
       }
       payload[engine.label] = { monolithic, ...(engine.kind === 'agentic' ? {
         ...(focusedConsumer ? { focusedConsumer } : {}),
-        lazy: await lazyPayload(page, engine, origin),
+        lazy: await lazyPayload(page, engine, origin, elkCache),
       } : {}) }
       await page.close()
     }
@@ -282,7 +277,7 @@ async function main() {
       const order = round % 2 ? engines : [...engines].reverse()
       for (const engine of order) {
         console.log(`browser round ${round}/${rounds}: ${engine.label} ${engine.version} (${inputs.length} inputs)`)
-        const rows = await renderPass(page, engine, origin, inputs, round, warmupCount)
+        const rows = await renderPass(page, engine, origin, inputs, round, warmupCount, elkCache)
         samples.push(...rows)
         for (const row of rows) appendFileSync(join(out, 'browser-samples.jsonl'), `${JSON.stringify(row)}\n`)
       }
@@ -293,12 +288,12 @@ async function main() {
     if (diagnostics.memoryPasses > 0) { await browser.close(); browser = undefined }
     const memory = diagnostics.memoryPasses > 0 ? await browserMemoryDiagnostics({ engines, origin,
       inputs: sharedMemoryInputs(inputs, samples, engines.map(engine => engine.label), rounds), rounds, passes: diagnostics.memoryPasses, out,
-      executablePath: options.get('executable') }) : undefined
+      executablePath: options.get('executable'), elkCache }) : undefined
     const report = { status: memory && memory.status !== 'completed' ? 'incomplete' : 'completed', advisory: true, startedAt, finishedAt: new Date().toISOString(), sourceRevision: process.env.GITHUB_SHA ?? workingRevision(), browser: browserVersion, node: process.versions.node,
       environment: { os: release(), arch: process.arch, cpu: cpus()[0]?.model, logicalCpus: cpus().length,
         cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
         memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined },
-      policy: { features, rounds, warmup: `${Math.min(warmupCount, inputs.length)} selected-corpus attempts before each engine/round`, warmupRequested: warmup ?? 'all', elkCache: 'disabled before library load; duplicate inputs still measure layout', ordering: 'reverse engine order on alternate rounds; one tab, fresh document per engine pass', viewport: { width: 1440, height: 1000 }, remoteAssets: 'blocked; image/asset errors are environment outcomes, not syntax failures', timing: 'public render call through SVG return; excludes inspection/cleanup/paint', compression: 'gzip level 9 of each shipped/fetched JS file', fullInventory: inventory.occurrenceCount, measured: inputs.length },
+      policy: { features: features ?? null, featureConfiguration: features === undefined ? 'artifact defaults' : 'same explicit list on agentic candidate and baseline', rounds, warmup: `${Math.min(warmupCount, inputs.length)} selected-corpus attempts before each engine/round`, warmupRequested: warmup ?? 'all', elkCache: elkCache === 'off' ? 'disabled before library load; duplicate inputs still measure layout' : 'enabled before library load; artifact cache bounds and eligibility apply', ordering: 'reverse engine order on alternate rounds; one tab, fresh document per engine pass', viewport: { width: 1440, height: 1000 }, remoteAssets: 'blocked; image/asset errors are environment outcomes, not syntax failures', timing: 'public render call through SVG return; excludes inspection/cleanup/paint', compression: 'gzip level 9 of each shipped/fetched JS file', fullInventory: inventory.occurrenceCount, measured: inputs.length },
       payload, ...(memory ? { memory } : {}), ...summary }
     // Keep artifact identity separate from per-engine acceptance summaries.
     const identities = engines.map(({ root, ...engine }) => engine)

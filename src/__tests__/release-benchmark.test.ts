@@ -8,6 +8,8 @@ import { report, type EngineRun, type Group, type Input } from '../../eval/bench
 import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from '../../eval/benchmark/browser-memory.ts'
 import type { Page } from 'playwright'
+import { browserPerformanceOptions, configureAgenticEngines } from '../../eval/benchmark/browser-config.ts'
+import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -152,6 +154,50 @@ test('browser pass warms only the requested prefix and still attempts every meas
       else host[key] = value
     }
   }
+})
+
+test.each([
+  { label: 'artifact defaults', options: new Map<string, string>(), expected: undefined, elkCache: 'off' },
+  { label: 'same explicit features', options: new Map([['features', 'text-spans,indexed-layout'], ['elk-cache', 'on']]), expected: 'text-spans,indexed-layout', elkCache: 'on' },
+  { label: 'explicit legacy paths', options: new Map([['features', '']]), expected: '', elkCache: 'off' },
+] as const)('browser startup preserves $label on both agentic engines without configuring peers', async ({ options, expected, elkCache }) => {
+  const performance = browserPerformanceOptions(options)
+  const engines = (['candidate', 'baseline', 'pele', 'mermaid'] as const).map(label => ({
+    label, name: label, version: 'test', root: '/unused', kind: label === 'candidate' || label === 'baseline' ? 'agentic' : label,
+    bundle: 'test.js', global: 'browserConfigurationApi', identity: { integrity: 'test' },
+    ...(label === 'candidate' || label === 'baseline' ? { experiments: 'stale' } : {}),
+  }) satisfies Engine)
+  configureAgenticEngines(engines, performance.features)
+  const host = globalThis as unknown as Record<string, unknown>
+  const prior = new Map(['document', 'browserConfigurationApi', 'AGENTIC_MERMAID_EXPERIMENTS', 'AGENTIC_MERMAID_ELK_CACHE'].map(key => [key, host[key]]))
+  host.document = { querySelectorAll: () => [] }
+  host.browserConfigurationApi = { renderMermaidSVG: () => '<svg/>', render: () => '<svg/>', initialize: () => {} }
+  const startup: Array<{ engine: string; hasOverride: boolean; features: unknown; cache: unknown }> = []
+  try {
+    for (const engine of engines) {
+      const page = {
+        // Real navigation creates a fresh global. Seed a stale override here
+        // to catch accidental preservation or conversion to an empty list.
+        goto: async () => { host.AGENTIC_MERMAID_EXPERIMENTS = 'stale' },
+        evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+        addScriptTag: async () => { startup.push({ engine: engine.label, hasOverride: Object.hasOwn(host, 'AGENTIC_MERMAID_EXPERIMENTS'), features: host.AGENTIC_MERMAID_EXPERIMENTS, cache: host.AGENTIC_MERMAID_ELK_CACHE }) },
+      } as unknown as Page
+      expect((await renderPass(page, engine, 'http://localhost', [{ id: 'one', source: 'flowchart LR\n A-->B' }], 1, 0, performance.elkCache))[0]?.ok).toBe(true)
+    }
+    expect(startup).toEqual(engines.map(engine => ({ engine: engine.label,
+      hasOverride: engine.kind === 'agentic' && expected !== undefined,
+      features: engine.kind === 'agentic' ? expected : undefined, cache: elkCache === 'on' ? '1' : '0' })))
+  } finally {
+    for (const [key, value] of prior) {
+      if (value === undefined) delete host[key]
+      else host[key] = value
+    }
+  }
+})
+
+test('browser performance options reject invalid cache policies and feature lists before startup', () => {
+  for (const value of ['warm', '0', '']) expect(() => browserPerformanceOptions(new Map([['elk-cache', value]]))).toThrow('--elk-cache')
+  for (const value of ['unknown', 'text-spans,text-spans', 'text-spans,']) expect(() => browserPerformanceOptions(new Map([['features', value]]))).toThrow('feature selection')
 })
 
 test('optional Dart comparator validates complete byte identity and memory arguments before any installation', () => {
