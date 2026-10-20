@@ -379,32 +379,38 @@ export function certifyOwnedLayoutCandidate(graph: MermaidGraph, style: Resolved
 /** A bounded owned refinement preserves the feasible primary result. Producer
  * defects, meaning changes, deferred dependencies and global limits propagate. */
 export function refineOwnedLayoutCandidate(
-  graph: MermaidGraph, style: ResolvedRenderStyle, first: PositionedGraph, produce: () => PositionedGraph,
+  graph: MermaidGraph, style: ResolvedRenderStyle, first: PositionedGraph,
+  alternatives: (() => PositionedGraph) | readonly Pick<LayoutCertificationCandidate, 'strategy' | 'produce'>[],
 ): PositionedGraph {
   const points = (placed: PositionedGraph) => placed.edges.reduce((sum, edge) => sum + edge.points.length, 0)
   if (graph.subgraphs.length || graph.nodes.size > 20 || graph.edges.length > 64
     || graph.edges.reduce((sum, edge) => sum + (edge.length ?? 1), 0) > 128 || points(first) > 2048
     || countEdgeCrossings(first.edges) === 0) return first
   certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => first })
-  let other: PositionedGraph
-  try {
-    other = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-authored-order', produce })
-  } catch (error) {
-    if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
-    return first
-  }
-  if (points(other) > 2048) return first
   const score = (placed: PositionedGraph) => [
     measureLabelConflicts(placed, style).total, countOpposingRouteOverlaps(placed.edges), countParallelRouteOverlaps(placed.edges),
     countEdgeCrossings(placed.edges), placed.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : Math.max(0, edge.points.length - 2)), 0),
     placed.width * placed.height,
   ]
-  const before = score(first), after = score(other)
-  for (let index = 0; index < before.length; index++) {
-    if (after[index]! < before[index]!) return other
-    if (after[index]! > before[index]!) break
+  let best = first, before = score(first)
+  const candidates = typeof alternatives === 'function' ? [{ strategy: 'agentic-authored-order', produce: alternatives }] : alternatives
+  for (const candidate of candidates.slice(0, 2)) {
+    let other: PositionedGraph
+    try {
+      other = certifyOwnedLayoutCandidate(graph, style, candidate)
+    } catch (error) {
+      if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
+      continue
+    }
+    if (points(other) > 2048) continue
+    const after = score(other)
+    for (let index = 0; index < before.length; index++) {
+      if (after[index]! < before[index]!) { best = other; before = after; break }
+      if (after[index]! > before[index]!) break
+    }
+    if (before[3] === 0) break
   }
-  return first
+  return best
 }
 
 /** Select placement, then optionally certify one new route proposal. The baseline

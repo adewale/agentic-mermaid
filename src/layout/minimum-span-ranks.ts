@@ -4,7 +4,14 @@
  * rank potentials by primal/dual equality. This is bounded cycle cancellation,
  * not a network-simplex implementation. Exhaustion keeps the caller's ranks. */
 import type { MeasuredGraph } from './agentic-layered-core.ts'
-export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges'>, work: { rankPairs: number }): Float64Array | undefined {
+/** Private ranks are geometry constraints, not authored link lengths. Both
+ * policies preserve minSpan; the compact candidate reserves a label rank only
+ * on links with measured labels. The default remains the two-rank policy. */
+export function privateRankSpan(edge: MeasuredGraph['edges'][number], compact = false): number {
+  return (compact && !edge.label ? 1 : 2) * edge.minSpan
+}
+
+export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges' | 'compactPrivateRanks'>, work: { rankPairs: number }): Float64Array | undefined {
   const n = input.nodes.length,
     edges = input.edges
   if (n === 0) return new Float64Array(0)
@@ -20,7 +27,7 @@ export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges'>, 
       for (const [i, edge] of edges.entries()) {
         work.rankPairs -= 2
         if (work.rankPairs < 0) return
-        const span = 2 * edge.minSpan
+        const span = privateRankSpan(edge, input.compactPrivateRanks)
         if (distance[edge.target]! < distance[edge.source]! + span) {
           distance[edge.target] = distance[edge.source]! + span
           parent[edge.target] = edge.source
@@ -36,7 +43,7 @@ export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges'>, 
       }
       if (changed < 0) {
         const primal = edges.reduce((s, e) => s + distance[e.target]! - distance[e.source]!, 0),
-          dual = edges.reduce((s, e, i) => s + flow[i]! * 2 * e.minSpan, 0)
+          dual = edges.reduce((s, e, i) => s + flow[i]! * privateRankSpan(e, input.compactPrivateRanks), 0)
         if (primal !== dual) throw new Error(`dual rank mismatch ${primal} ${dual}`)
         return distance
       }
@@ -52,7 +59,7 @@ export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges'>, 
         index = Math.abs(a) - 1
       if (index < 0) throw new Error('missing residual predecessor')
       cycle.push(a)
-      gain += Math.sign(a) * 2 * edges[index]!.minSpan
+      gain += Math.sign(a) * privateRankSpan(edges[index]!, input.compactPrivateRanks)
       if (a < 0) capacity = Math.min(capacity, flow[index]!)
       cursor = parent[cursor]!
     } while (cursor !== start && cycle.length <= n)

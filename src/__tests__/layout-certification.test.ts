@@ -48,6 +48,25 @@ describe('bounded final layout certification', () => {
     expect(refineOwnedLayoutCandidate(graph, style, first, () => other)).toBe(first)
   })
 
+  test('certifies a compact candidate after an orientation decline', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, [
+      { strategy: 'orientation', produce: () => { throw new GraphLayoutUnsupportedError('optional orientation limit') } },
+      { strategy: 'compact-ranks', produce: () => other },
+    ])).toBe(other)
+    expect(other.certification).toMatchObject({ status: 'passed', strategy: 'compact-ranks' })
+  })
+
+  test('bounds optional owned trials while retaining the feasible primary', () => {
+    const { graph, first, other, style } = crossingWitness()
+    other.edges[0]!.points = []
+    expect(refineOwnedLayoutCandidate(graph, style, first, [
+      { strategy: 'orientation', produce: () => { throw new GraphLayoutUnsupportedError('optional orientation limit') } },
+      { strategy: 'invalid-compact', produce: () => other },
+      { strategy: 'outside-budget', produce: () => { throw new Error('must not execute beyond two alternatives') } },
+    ])).toBe(first)
+  })
+
   test.each([new TypeError('unexpected refinement defect'), new DiagramWorkLimitError('nodes', 5_001), new DeferredDependencyError('native', async () => {})])('propagates owned refinement failure %s', failure => {
     const { graph, first, style } = crossingWitness()
     expect(() => refineOwnedLayoutCandidate(graph, style, first, () => { throw failure })).toThrow(failure)
