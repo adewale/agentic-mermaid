@@ -174,6 +174,8 @@ describe('cleanup at public source boundaries', () => {
       ['classDiagram\nclass A {\nclassDef c fill:#f00;\n}', 3],
       ['classDiagram\nclass A {\nstyle A fill:#f00; } classDef c fill:#fff;', 3],
       ['classDiagram\nnamespace N {\nclass A {\nclassDef c fill:#f00; } style A fill:#fff;\n}', 4],
+      ['classDiagram\nclass A\nstyle A fill:#fff;stroke:#000', 3],
+      ['erDiagram\nA\nstyle A fill:#fff;stroke:#000', 3],
       ['erDiagram\nA {\nstring id "before\nstyle A fill:#f00;\nafter"\n}', 4],
       ['erDiagram\nA {\nstring id "before\nclassDef c fill:#f00;\nafter"\n}', 4],
       ['sankey-beta\n"hello\nstyle A fill:#f00;\nworld",B,1', 3],
