@@ -1,7 +1,7 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
-import { coalesceFlowchartLines, commaInNodeId, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
@@ -255,9 +255,6 @@ const FLOWCHART_KEYWORD_STATEMENT = /^(?:subgraph\s|end$|direction\s|classDef\s|
 /** A statement that ends in a link (with an optional pipe label) after a
  * node: the link has no target. A `.` right after id characters is the id's
  * (`B.-` is a node), so a link the node runs straight into begins otherwise. */
-/** The rest of an edge id at a `,`: up to its `@` and the link after it. */
-const EDGE_ID_TAIL_RE = new RegExp(String.raw`^[^\s"@]*@\s*(?:${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s)`)
-
 const DANGLING_LINK_RE = new RegExp(String.raw`[\p{L}\p{N}_\])}](?:\s+|(?!\.))${FLOWCHART_LINK_SOURCE}(?:\s*\|[^|]*\|)?\s*$`, 'u')
 
 /**
@@ -275,18 +272,15 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   const scan = scanFlowchart(statement)
   if (scan.regions.some(region => region.kind === 'metadata' || region.kind === 'markdown')) return null
 
-  // Upstream's id grammar takes a `,` after id characters into the id (`A,B`
-  // is one node there); ours reads none, and rejects the statement. An edge
-  // id (`e,1@-->`) may hold one.
-  for (let index = 1; index < statement.length; index++) {
-    if (scan.topLevel[index] && commaInNodeId(statement, index) && !EDGE_ID_TAIL_RE.test(statement.slice(index))) {
-      return { syntax: 'flowchart_comma_id', message: 'A "," right after a node id\'s characters is part of the id in Mermaid (`A,B` is one node there). Ours reads no "," in a node id and rejects the statement; rename the node, or write `A & B` to list two nodes.' }
-    }
+  // Where the parse stops at a node id or an edge id upstream reads and ours
+  // does not: upstream's id grammar takes a `,` into a node id (`A,B` and
+  // `,A` are one node there), and its edge ids hold region delimiters and
+  // `@` (`e[1@-->`), whose `[` is no unclosed bracket.
+  const rejected = /[,@]/.test(statement) ? flowchartStatementNotes(statement) : undefined
+  if (rejected?.has('comma-id')) {
+    return { syntax: 'flowchart_comma_id', message: 'A "," in a node id (right after its characters, or where a node begins) is part of the id in Mermaid (`A,B` and `,A` are one node there). Ours reads no "," in a node id and rejects the statement; rename the node, or write `A & B` to list two nodes.' }
   }
-
-  // Upstream reads an edge id holding a region delimiter or `@` (`e[1@-->`),
-  // which ours rejects; the `[` is no unclosed bracket.
-  if (statement.includes('@') && flowchartStatementNotes(statement).has('edge-id')) {
+  if (rejected?.has('edge-id')) {
     return { syntax: 'flowchart_edge_id', message: 'An edge id holding `[`, `]`, `(`, `)`, `{`, `}`, `|`, `<`, `>` or `@` (e[1@-->) is one edge id in Mermaid, which reads any run without blanks or `"` before `@` as one. Ours reads none of those characters in an edge id and rejects the statement; rename the edge id (e1@-->).' }
   }
 

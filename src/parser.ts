@@ -500,9 +500,9 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * of the `&` (`A &B`), label text holding a character upstream's lexer reads
  * as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter), and a
  * subgraph title it cannot read without quotes (subgraphTitleUnreadable);
- * and where ours rejects a statement, an edge id upstream reads that ours
- * does not (unreadableEdgeId). */
-export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'edge-id'
+ * and where ours rejects a statement, a node id (commaIdStop) or edge id
+ * (unreadableEdgeId) upstream reads there that ours does not. */
+export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'comma-id' | 'edge-id'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -524,7 +524,7 @@ export function flowchartStatementNotes(statement: string): ReadonlySet<Flowchar
   try {
     const parsed = parseEdgeLine(statement, graph, [], new Set(), notes)
     if (parsed.ok) return notes
-    return new Set(unreadableEdgeId(statement, parsed) !== undefined ? ['edge-id'] : [])
+    return new Set(commaIdStop(statement, parsed) ? ['comma-id'] : unreadableEdgeId(statement, parsed) !== undefined ? ['edge-id'] : [])
   } catch {
     return new Set() // Metadata ours rejects fails the parse; verify reports that.
   }
@@ -558,8 +558,7 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
       example: 'A e1@--> B',
     })
   }
-  const statement = line.trim().replace(/;\s*$/, '').trim()
-  if (statement.endsWith(parsed.remaining) && commaInNodeId(statement, statement.length - parsed.remaining.length)) {
+  if (commaIdStop(line, parsed)) {
     return syntaxError({
       what: `${where}: upstream reads the "," before "${parsed.remaining.slice(1)}" as part of one node id (\`A,B\` is one node there), and ours reads no "," in a node id`,
       expectedForm: 'a node id without ",", or `&` between nodes',
@@ -567,6 +566,15 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
     })
   }
   return new Error(`${where}: could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
+}
+
+/** Whether a statement's parse stopped at a `,` upstream's id grammar reads
+ * into a node id: one right after id characters (`A,B`), or one where a node
+ * begins (`,A`, `A --> ,B`). Ours reads no `,` in a node id. */
+function commaIdStop(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): boolean {
+  const statement = line.trim().replace(/;\s*$/, '').trim()
+  return parsed.remaining.startsWith(',') && statement.endsWith(parsed.remaining)
+    && (parsed.reason !== 'expected edge operator' || commaInNodeId(statement, statement.length - parsed.remaining.length))
 }
 
 /** Each `subgraph` statement's declaration, in source order. Derived names are

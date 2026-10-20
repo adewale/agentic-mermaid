@@ -950,6 +950,7 @@ describe('parseMermaid – edge cases', () => {
     // Upstream's id grammar takes a `,` into the id (`A,B` is one node);
     // ours reads none, since `style` and `class` read it as a separator.
     ['an id holding `,`', 'graph TD\n  A --> B,C', /upstream reads the "," before "C" as part of one node id/],
+    ['an id starting with `,`', 'graph TD\n  ,A --> B', /upstream reads the "," before "A --> B" as part of one node id/],
     // Upstream's LINK_ID takes any run without blanks or `"` before `@`.
     ['an edge id holding `[`', 'graph TD\n  A e[1@--> B', /upstream reads "e\[1@" as an edge id/],
     ['an edge id holding `@`, after a shape', 'graph TD\n  A[a] e1@x@-- b --> B', /upstream reads "e1@x@" as an edge id/],
