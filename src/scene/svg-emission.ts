@@ -617,7 +617,9 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
     }
     const keys = Reflect.ownKeys(value)
     if (keys.length > limits.maxProperties - counts.properties + (array ? 1 : 0)) throw new RangeError('SVG emission metadata exceeds property budget')
-    const result = owned ? value : array ? [] : {}
+    // Captured presentation fields are own data; host prototype properties
+    // must not become emission defaults after admission.
+    const result = owned ? value : array ? [] : Object.create(null) as Record<string, unknown>
     let arrayLength = 0
     if (array) {
       const length = Reflect.getOwnPropertyDescriptor(value, 'length')
