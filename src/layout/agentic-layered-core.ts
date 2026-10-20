@@ -11,7 +11,8 @@ export interface MeasuredGraph {
     padding: { top: number; right: number; bottom: number; left: number }
   }[]
   /** Label dimensions include the occupied painted body. Its own shaft is
-   * masked by that body; foreign routes must stay outside it. */
+   * masked by that body; foreign routes must stay outside it. Loop expansion
+   * reserves additional space beside the arc instead of masking its shaft. */
   edges: readonly { source: number; target: number; minSpan: number; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
