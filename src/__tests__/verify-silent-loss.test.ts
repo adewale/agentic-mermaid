@@ -135,6 +135,16 @@ describe('render-parity gate (RENDER_FAILED)', () => {
     }
   })
 
+  test.each([
+    ['refused config', '%%{init: {"themeCSS": ".node rect { fill: red }"}}%%\nflowchart LR\n'],
+    ['a layout past the canvas cap', '%%{init: {"flowchart": {"nodeSpacing": 1e9}}}%%\nflowchart LR\n  A --> C\n'],
+  ])('a render that fails over %s still reports the body\'s own findings', (_case, head) => {
+    const label = 'x'.repeat(80)
+    const codes = verifyMermaid(`${head}  A[${label}] --> B`).warnings.map(w => w.code)
+    expect(codes).toContain('RENDER_FAILED')
+    expect(codes).toContain('LABEL_OVERFLOW')
+  })
+
   test('malformed or refused frontmatter is a parse failure, not a throw or flowchart statements', () => {
     for (const [source, code, origin] of [
       ['---\ntitle: [unclosed\nconfig: {\n---\nflowchart LR\n  A --> B', 'INVALID_FRONTMATTER', 'source'],

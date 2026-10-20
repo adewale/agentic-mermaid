@@ -836,23 +836,48 @@ function familyLayoutForVerify(d: ParsedDiagram, positioned: VerificationArtifac
  * layout; the caller finalizes (suppress + ok flag).
  */
 function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram, cap: number, positionedArtifact: VerificationArtifact): { warnings: LayoutWarning[]; layout: RenderedLayout } {
+  // Tier 1 structural checks and the Tier 3 lint read the graph alone, so a
+  // render that fails (refused config, a layout fault) still reports them.
+  const structural = graphStructureWarnings(graph, cap)
+  const lint = lintFlowchartGraph(graph)
   let artifact: ProjectedFamilyArtifact | null
   try {
     artifact = positionedArtifact()
   } catch (error) {
-    return { warnings: [positionedArtifact.failure(error)], layout: emptyRenderedLayout(d.kind) }
+    return { warnings: [positionedArtifact.failure(error), ...structural, ...lint], layout: emptyRenderedLayout(d.kind) }
   }
   if (!artifact || !isPositionedGraph(artifact.positioned)) {
     return {
-      warnings: [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'positioned_artifact', message: `The ${d.kind} family did not produce its declared positioned-graph artifact.` }],
+      warnings: [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'positioned_artifact', message: `The ${d.kind} family did not produce its declared positioned-graph artifact.` }, ...structural, ...lint],
       layout: emptyRenderedLayout(d.kind),
     }
   }
   const positioned = artifact.positioned
   const layout = artifact.rendered
-  const warnings: LayoutWarning[] = []
+  const warnings: LayoutWarning[] = [...structural]
 
-  // Tier 1 — structural
+  // Tier 1 + Tier 2 — box and polyline geometry.
+  warnings.push(...graphGeometryWarnings(positioned, graph))
+
+  // Route-contract tripwires over FINAL geometry: the layout pipeline already
+  // upholds these invariants itself (straight clear lanes, border-anchored
+  // containers, on-shape endpoints, labels on their own lines), so any hit
+  // here means some pass mutated geometry after route certification.
+  // See docs/design/system/route-contracts.md.
+  for (const hitch of findRouteHitches(positioned, graph)) {
+    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
+  }
+  warnings.push(...auditRouteContracts(positioned, graph))
+
+  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
+  warnings.push(...lint)
+
+  return { warnings, layout }
+}
+
+/** Tier 1 — structural: misanchored edges, unknown shapes, overlong labels. */
+function graphStructureWarnings(graph: import('../types.ts').MermaidGraph, cap: number): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
   for (const edge of graph.edges) {
     const hasSource = graph.nodes.has(edge.source) || Boolean(findSubgraphById(graph.subgraphs, edge.source))
     const hasTarget = graph.nodes.has(edge.target) || Boolean(findSubgraphById(graph.subgraphs, edge.target))
@@ -875,23 +900,7 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
     const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, resolveLabelContent(edge.label, edge.labelContent), cap, 'plain') : null
     if (w) warnings.push(w)
   }
-  // Tier 1 + Tier 2 — box and polyline geometry.
-  warnings.push(...graphGeometryWarnings(positioned, graph))
-
-  // Route-contract tripwires over FINAL geometry: the layout pipeline already
-  // upholds these invariants itself (straight clear lanes, border-anchored
-  // containers, on-shape endpoints, labels on their own lines), so any hit
-  // here means some pass mutated geometry after route certification.
-  // See docs/design/system/route-contracts.md.
-  for (const hitch of findRouteHitches(positioned, graph)) {
-    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
-  }
-  warnings.push(...auditRouteContracts(positioned, graph))
-
-  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
-  warnings.push(...lintFlowchartGraph(graph))
-
-  return { warnings, layout }
+  return warnings
 }
 
 /**

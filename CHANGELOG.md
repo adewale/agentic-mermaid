@@ -37,6 +37,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
   longer makes such a source verify `ok`. A work limit only the render path
   enforces (state nesting) no longer escapes `verify` as an exception.
+- `verify` on a Flowchart or State diagram whose render fails (refused config
+  such as raw `themeCSS`, or a layout past the canvas cap) still reports the
+  findings it reads from the diagram itself (`LABEL_OVERFLOW`,
+  `EDGE_MISANCHORED`, `UNKNOWN_SHAPE` and the advisory lints) beside
+  `RENDER_FAILED`, so fixing the config does not surface them one at a time.
+  A refused color is still the whole finding.
 - A registered family whose parse hook throws no longer makes `parseMermaid`
   and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
   which `verify` reports as `RENDER_FAILED` with origin `config`.
