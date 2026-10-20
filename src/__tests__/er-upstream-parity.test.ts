@@ -280,6 +280,37 @@ describe('typed ER text is written as Mermaid reads it', () => {
   })
 })
 
+// Mermaid's ER style lexer reads letters, digits and -*#:,; alone. The writer
+// spells any other character, and a comma inside a value, as a two-digit
+// entity code, ending the line with `;` so Mermaid's prepass keeps the code;
+// the SVG Mermaid writes resolves it.
+describe('typed ER style text is written as Mermaid reads it', () => {
+  test.each([
+    ['erDiagram\n  A\n  style A stroke-width:0.5px', ['stroke-width:0.5px']],
+    ['erDiagram\n  A:::c\n  classDef c fill:rgb(1,2,3),stroke:#333', ['fill:rgb(1,2,3)', 'stroke:#333']],
+    ['erDiagram\n  A\n  style A font-family:"Arial",opacity:50%', ['font-family:"Arial"', 'opacity:50%']],
+  ])('%j', async (source, styles) => {
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const written = serializeMermaid(parsed.value)
+    const mermaid = await upstream.project(written, diagram => [...diagram.db.getEntities().values(), ...(diagram.db.getClasses?.().values() ?? [])]
+      .flatMap((holder: { cssStyles?: string[]; styles?: string[] }) => holder.cssStyles ?? holder.styles ?? []))
+    // Mermaid's SVG turns its entity markers into character references.
+    const resolved = mermaid.ok ? mermaid.value.map((style: string) => style.replace(/ﬂ°°(\d+)¶ß/g, (_, code: string) => String.fromCharCode(Number(code)))) : mermaid
+    const reparsed = parseRegisteredMermaid(written)
+    expect({ written, resolved, body: reparsed.ok && reparsed.value.body, reported: verifyMermaid(written).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX') })
+      .toEqual({ written, resolved: styles, body: parsed.value.body, reported: [] })
+  })
+
+  test('an edit holding a character no entity code spells there is refused', () => {
+    const parsed = parseRegisteredMermaid('erDiagram\n  A')
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const styled = mutate(parsed.value, { kind: 'set_entity_style', entity: 'A', style: 'content:{x}' })
+    expect(styled.ok ? 'accepted' : styled.error.code).toBe('INVALID_OP')
+    expect(mutate(parsed.value, { kind: 'set_entity_style', entity: 'A', style: 'opacity:0.5' }).ok).toBe(true)
+  })
+})
+
 describe('typed ER attributes are written as Mermaid reads them', () => {
   // Keys parted by spaces or after the comment, which Mermaid rejects, are
   // written as its comma-parted key list before the comment. A comment that
