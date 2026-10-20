@@ -17,14 +17,16 @@ export function minimumSpanRanks(input: Pick<MeasuredGraph, 'nodes' | 'edges' | 
   if (n === 0) return new Float64Array(0)
   if (work.rankPairs <= 0 || n > 64 || edges.length > 128 || edges.reduce((s, e) => s + e.minSpan, 0) > 128) return
   const flow = new Int32Array(edges.length).fill(1)
+  const distance = new Float64Array(n), parent = new Int32Array(n), arc = new Int32Array(n)
   for (let augmentation = 0; augmentation < 128; augmentation++) {
-    const distance = new Float64Array(n),
-      parent = new Int32Array(n).fill(-1),
-      arc = new Int32Array(n)
+    distance.fill(0); parent.fill(-1); arc.fill(0)
     let changed = -1
     for (let round = 0; round < n; round++) {
       changed = -1
-      for (const [i, edge] of edges.entries()) {
+      // Residual relaxation is the hot inner loop. Index directly rather than
+      // allocating iterator results and [index, edge] pairs for every arc.
+      for (let i = 0; i < edges.length; i++) {
+        const edge = edges[i]!
         work.rankPairs -= 2
         if (work.rankPairs < 0) return
         const span = privateRankSpan(edge, input.compactPrivateRanks)

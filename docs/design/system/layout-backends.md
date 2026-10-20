@@ -1107,3 +1107,31 @@ exceeded Class gzip and Architecture Brotli limits; the intermediate failed
 probes remain in the local evidence. Complete declarations/IIFE/lazy builds and
 browser dependency contracts must bind the final committed head before these
 numbers support a shipped-cost claim. Synchronous IIFE still carries both engines.
+
+### Reduce allocation while keeping the same layout
+
+Node allocation sampling of the dense15/19-node cases identifies rank
+relaxation iterators, tiny median sorts and repeated crossing buffers as hot
+allocation sites. The refactor indexes residual arcs directly, reuses rank
+scratch arrays between augmentations, reuses the crossing-score Fenwick trees,
+and restores trial rank arrays in place. Directional medians with one or two
+neighbors use the same lower/upper value without sorting; larger neighborhoods
+retain their sort. Indexed score/adjacent-switch loops remove temporary tuple
+and iterator objects while retaining comparison order and all work charges.
+The shared proper-crossing sweep uses stable in-place active-set compaction;
+intersection arithmetic, endpoint tolerances and deduplication stay unchanged.
+
+An exploratory cache-off phase-only variant reduces measured allocation from
+146.8→88.7MiB and182.5→109.9MiB for the two fixtures. Those concurrent local
+GC-profiler traces do not measure whole-render cost or qualify performance, and
+precede the final indexed scoring loops. All such variants and failed diagnostic
+launches remain retained. The full shipped canary remains the qualification gate.
+
+The final Node-source comparison against the clean08b8ab71 shipped Node artifact
+retains exact SVG bytes and complete serialized receipts on256/256 generated
+cases. This preserves the existing seed228 failure too. The canonical default
+geometry test passes at its30-second limit (316 records, no baseline update);
+all303 records from main remain unchanged. Final affected contracts pass159 tests
+/5,261 assertions, both typechecks and changed-file lint pass. A separate78-test
+metadata/startup run overlaps that population and is not added to it. The new
+browser-only readiness wrapper still requires fresh built-browser validation.
