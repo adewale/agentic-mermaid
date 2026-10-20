@@ -1975,11 +1975,10 @@ function layoutCandidate(
   return bundled.positioned
 }
 
-function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions, style: ResolvedRenderStyle): PositionedGraph {
   if (options.stateVisual || options.preserveSubgraphChildOrder) throw new GraphLayoutUnsupportedError('family-specific graph geometry')
   if (graph.subgraphs.length || graph.stateNotes?.length) throw new GraphLayoutUnsupportedError('compound graphs or State annotations')
-  if ([...graph.nodes.values()].some(node => node.shape !== 'rectangle')) throw new GraphLayoutUnsupportedError('nonrectangular shapes')
-  const style = resolveRenderStyle(options, undefined, options.styleFace)
+  for (const node of graph.nodes.values()) if (node.shape !== 'rectangle') throw new GraphLayoutUnsupportedError('nonrectangular shapes')
   const opts = { ...DEFAULTS, ...options }
   const measured = measureRenderStage('graph-preparation', () => {
     const nodes = [...graph.nodes].map(([id, node]) => ({ id, ...estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock) }))
@@ -2026,8 +2025,8 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
     try {
       // Produce outside the legacy certifier's exception-catching boundary:
       // unexpected solver/pass errors must remain engine failures.
-      const candidate = agenticCandidate(graph, options)
       const style = resolveRenderStyle(options, undefined, options.styleFace)
+      const candidate = agenticCandidate(graph, options, style)
       positioned = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate })
       attempts.push({ backend: 'agentic', outcome: 'selected' })
     } catch (error) {
