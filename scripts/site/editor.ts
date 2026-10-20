@@ -211,11 +211,22 @@ async function readHtmlPartials(themeItems: string): Promise<{
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
   const runtimeDirectory = process.env.AM_EDITOR_RUNTIME_DIR
+  const workerBuild = await Bun.build({
+    entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
+    target: 'browser', format: 'esm', minify: true,
+    ...(runtimeDirectory ? { outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js' } } : {}),
+  })
+  if (!workerBuild.success || workerBuild.outputs.length !== 1) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
+  const workerEntry = workerBuild.outputs[0]!
+  const workerUrl = runtimeDirectory
+    ? JSON.stringify(`/editor/runtime/${basename(workerEntry.path)}`)
+    : `URL.createObjectURL(new Blob([${JSON.stringify(await workerEntry.text())}], { type: 'text/javascript' }))`
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser.ts', import.meta.url))],
     target: 'browser',
     format: 'esm',
     minify: true,
+    define: { AM_PREVIEW_WORKER_URL: workerUrl, AM_EDITOR_WORKER_ENABLED: 'true' },
     ...(runtimeDirectory ? {
       splitting: true,
       outdir: runtimeDirectory,

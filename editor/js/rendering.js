@@ -48,6 +48,7 @@ function invalidateRenderedArtifacts() {
 
 function scheduleRender(delay) {
   var version = ++renderRequestVersion;
+  if (typeof window.__mermaid.cancelPendingRender === 'function') window.__mermaid.cancelPendingRender();
   if (renderTimer) clearTimeout(renderTimer);
   // Keep the old picture visible until its replacement is ready, but revoke
   // its authority immediately. Source, Style, theme, or config changes must
@@ -313,13 +314,13 @@ if (verifyDetailsBtn) {
   });
 }
 
-function updateVerifyPanel(source, renderOptions) {
-  if (!verifyMermaid) {
+function updateVerifyPanel(source, renderOptions, providedResult) {
+  if (!verifyMermaid && !providedResult) {
     resetVerifyPanel("Verify unavailable in this build");
     return null;
   }
   try {
-    var result = verifyMermaid(source, { renderOptions: renderOptions });
+    var result = providedResult || verifyMermaid(source, { renderOptions: renderOptions });
     var warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
     var counts = { structural: 0, geometric: 0, lint: 0 };
     var errors = { structural: 0, geometric: 0, lint: 0 };
@@ -482,15 +483,14 @@ async function doRender(version) {
     if (!isCurrentRender(version, source)) return;
     var svgSafety = verifyNoExternalRefs(svg);
     if (!svgSafety.ok) throw new Error("Unsafe SVG output blocked: " + svgSafety.refs.join(", "));
-    var renderMs = performance.now() - t0;
-    var ms = renderMs.toFixed(0);
-    lastSuccessfulRenderMs = renderMs;
     insertStrictRenderedSvg(svg);
     applyZoom(state.zoom);
     if (autoFitPending && typeof fitToView === 'function') { fitToView(); autoFitPending = false; }
     setEditorErrorLine(0);
-    renderTime.textContent = "Rendered in " + ms + "ms";
-    var verification = updateVerifyPanel(source, renderOptions);
+    var verification = updateVerifyPanel(source, renderOptions, rendered.verification);
+    var renderMs = performance.now() - t0;
+    lastSuccessfulRenderMs = renderMs;
+    renderTime.textContent = "Rendered and verified in " + renderMs.toFixed(0) + "ms";
     markTextOutputsDirty();
     if (verification && verification.ok) {
       lastRenderedSvgArtifact = rendered;

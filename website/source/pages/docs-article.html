@@ -38,6 +38,8 @@
 
   <hr>
 
+  {{EDIT_DEMO}}
+
   <h2>Guide: editing a diagram without regenerating it</h2>
   <p>A render-only tool makes an agent rebuild the whole diagram to move one node. Agentic Mermaid keeps the diagram structured, so an edit is five small steps, and <code>verify</code> gates the last one.</p>
   <p>Most diagram tools render and stop. You hand them source, they hand back a picture, and to change one node you send the whole source again. That is fine for a person editing by hand and wasteful for an agent editing in a loop, where every regeneration risks moving nodes that were already correct.</p>

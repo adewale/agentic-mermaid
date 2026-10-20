@@ -1,6 +1,5 @@
 // Hosted editor: keep the empty editor independent of rendering engines.
 // Feature modules are fetched when the corresponding operation is requested.
-import { renderMermaidSVGWithReceiptAsync, renderMermaidSVGAsync } from './browser-lazy.ts'
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-contract.ts'
 import { verifyNoExternalRefs } from './output-security.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
@@ -8,24 +7,11 @@ import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyles, knownStyleDescriptors, getS
 import { resolveEditorRenderOptions } from './editor-render-options.ts'
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './xychart/colors.ts'
 import type { AsciiRenderOptions } from './ascii/index.ts'
-import type { RenderOptions } from './types.ts'
-
-let verifier: typeof import('./agent/verify.ts').verifyMermaid | undefined
+import { renderEditorPreview, cancelPendingEditorPreview } from './browser-preview-client.ts'
 
 const adapter = {
-  renderMermaidSVGAsync,
-  async renderMermaidSVGWithReceipt(source: string, options: RenderOptions = {}) {
-    const [artifact, verification] = await Promise.all([
-      renderMermaidSVGWithReceiptAsync(source, options),
-      import('./agent/verify.ts'),
-    ])
-    verifier = verification.verifyMermaid
-    return artifact
-  },
-  verifyMermaid(...args: Parameters<NonNullable<typeof verifier>>) {
-    if (!verifier) throw new Error('Render the diagram before verification')
-    return verifier(...args)
-  },
+  renderMermaidSVGWithReceipt: renderEditorPreview,
+  cancelPendingRender: cancelPendingEditorPreview,
   async renderMermaidASCIIWithReceipt(source: string, options: AsciiRenderOptions = {}) {
     return (await import('./ascii/index.ts')).renderMermaidASCIIWithReceipt(source, options)
   },

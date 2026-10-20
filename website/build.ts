@@ -31,6 +31,7 @@ import { createExampleRenderState, createStyledExampleRenderState, WEBSITE_EXAMP
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
 import { LEGACY_RICH_EXAMPLE_ALIASES } from '../scripts/site/website-example-legacy-aliases.ts'
 import interSubsetManifestJson from './source/assets/fonts/inter/manifest.json'
+import { buildDocsEditDemo } from './docs-edit-demo.ts'
 import { WEBSITE_INTER_SUBSET_DIRECTORY, WEBSITE_INTER_UNICODE_RANGES, validateWebsiteInterSubsetManifest, type WebsiteInterSubsetManifest } from '../scripts/site/website-font-subsets.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -1936,7 +1937,13 @@ for (const [source, target] of pageOutputs) {
     html = injectHomeStyleShowcase(html)
     html = injectWorkflowUnicode(html)
   }
-  if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
+  if (source === 'docs-article.html') {
+    html = injectDocsIndex(injectLoopHeadings(html)).replace('{{EDIT_DEMO}}', buildDocsEditDemo().html)
+    const script = await Bun.file(join(SOURCE_ASSETS, 'docs-edit-demo.js')).text()
+    const scriptRel = `docs-edit-demo-${sha256(script).slice(0, 12)}.js`
+    await emit(scriptRel, script)
+    html = html.replace('</body>', `<script src="/${scriptRel}" defer></script>\n</body>`)
+  }
   await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())
