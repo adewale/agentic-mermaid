@@ -12,6 +12,12 @@ selection and comparative measurements. ELK remains a supported default;
 Agentic selection is opt-in, with explicit optional ELK fallback. This supersedes
 implicit fallback and eventual ELK retirement as requirements of this proposal.
 
+The initial implementation uses an owned indexed DAG producer rather than
+vendoring Pele. It shares node measurement and the direct positioned-graph
+boundary, then retains the existing route passes and strict certification.
+Pele remains an algorithm and compound-layout comparison reference. Cyclic and
+compound cohorts remain on ELK until separately implemented and qualified.
+
 This is the design and acceptance boundary requested on 20 October 2026.
 Implementation work belongs in the owner's existing issue and backlog process;
 this document does not create a second queue. Sequence Scene optimization and

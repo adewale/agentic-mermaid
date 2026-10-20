@@ -30,6 +30,7 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { oneRowDisplayText } from './multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { terminalIds } from './identity.ts'
+import type { RenderOptions } from '../types.ts'
 
 interface CellBox {
   id: string
@@ -44,7 +45,7 @@ interface CellBox {
   depth: number
 }
 
-interface ArchitectureAsciiOptions {
+interface ArchitectureAsciiOptions extends Pick<RenderOptions, 'graphLayout'> {
   maxWidth?: number
   targetWidth?: number
 }
@@ -66,7 +67,7 @@ export function renderArchitectureTerminal(
   const diagram = parseArchitectureDiagram(lines)
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
   const generated = terminalIds([...diagram.services.map(service => service.id), ...diagram.groups.map(group => group.id), ...diagram.junctions.map(junction => junction.id)])
-  const positioned = layoutArchitectureDiagram(diagram)
+  const positioned = layoutArchitectureDiagram(diagram, options)
   const terminalBudget = options.targetWidth ?? options.maxWidth ?? config.targetWidth ?? config.maxWidth
   const endpointId = (endpoint: ArchitectureEndpoint): string => endpoint.boundary === 'group' ? diagram.services.find(service => service.id === endpoint.id)?.parentId ?? endpoint.id : endpoint.id
   const faceDemand = countFaceDemand(diagram.edges.flatMap(edge => [edge.source, edge.target].map(endpoint => ({ id: endpointId(endpoint), side: endpoint.side }))))

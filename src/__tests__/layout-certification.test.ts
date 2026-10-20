@@ -1,6 +1,6 @@
 import '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyOwnedLayoutCandidate, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
@@ -24,6 +24,22 @@ function routeWitness(graph: MermaidGraph, positions: Record<string, [number, nu
 }
 
 describe('bounded final layout certification', () => {
+  test('owned candidate correspondence failures are engine defects, not recoverable geometry', () => {
+    const graph = parseMermaid('flowchart TD\nA --> B')
+    const changed = layoutGraphSync(graph)
+    changed.nodes[0]!.label = 'changed meaning'
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => changed })).toThrow(TypeError)
+  })
+
+  test('owned candidate exceptions propagate while geometric rejection stays classified', () => {
+    const graph = parseMermaid('flowchart TD\nA --> B')
+    const failure = new TypeError('unexpected solver failure')
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => { throw failure } })).toThrow(failure)
+    const rejected = layoutGraphSync(graph)
+    rejected.edges[0]!.points = []
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => rejected })).toThrow(LayoutCertificationError)
+  })
+
   test.each([false, true])('a rejected conditional solver preserves all four fallbacks with route selection %s', routeSelection => {
     const graph = parseMermaid('flowchart LR\nA --> B')
     const clean = layoutGraphSync(graph)

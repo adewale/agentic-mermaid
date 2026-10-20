@@ -4,14 +4,14 @@ import { describe, expect, test } from 'bun:test'
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
+import { layoutComparisons, layoutCoverage, releaseBenchArgs, report, strictLayoutHealthy, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
 import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from '../../eval/benchmark/browser-memory.ts'
 import { bezelEngine } from '../../eval/benchmark/bezel.ts'
 import type { Page } from 'playwright'
 import { browserPerformanceOptions, configureAgenticEngines } from '../../eval/benchmark/browser-config.ts'
 import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
-import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
+import { layoutRenderOptions, missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -42,6 +42,43 @@ function reject(engine: EngineRun, id: string) {
 }
 
 describe('release publication decisions', () => {
+  test('layout arms pair independently and preserve the external ELK comparison', () => {
+    const inputs = [input('flow')]
+    const plans = layoutComparisons([run('baseline', inputs), run('candidate', inputs)], ['elk', 'agentic', 'agentic-with-elk'], 'normal')
+    expect(plans.map(plan => plan.name)).toEqual(['elk-aa', 'agentic', 'agentic-with-elk', 'external-baseline'])
+    for (const plan of plans) {
+      expect(plan.engines).toHaveLength(2)
+      expect(plan.engines.every(engine => engine.consumeReceipt && engine.layoutCache === 'normal')).toBe(true)
+      expect(plan.engines[1]!.entry).toBe('/unused/index.js')
+    }
+    expect(plans[1]!.engines[0]!.layoutMode).toBe('elk')
+    expect(plans[1]!.engines[1]!.layoutMode).toBe('agentic')
+    expect(plans[2]!.advisory).toBe(false)
+    expect(plans[3]!.engines[0]!.layoutMode).toBeUndefined()
+  })
+
+  test('strict declines are retained and advisory; new internal errors still fail', () => {
+    const inputs = [input('flow'), input('compound')]
+    const before = run('elk', inputs), after = run('agentic', inputs)
+    after.results.get('compound')!.svg = { ok: false, error: 'unsupported groups', code: 'GRAPH_LAYOUT_UNSUPPORTED', category: 'unsupported' }
+    after.results.get('compound')!.validSvg = false
+    expect(strictLayoutHealthy(inputs, [before, after], 1)).toBe(true)
+    expect(layoutCoverage(inputs, after).statuses).toContainEqual({ id: 'compound', family: 'flowchart', status: 'unsupported' })
+    expect(decision(inputs, before, after).ok).toBe(false)
+    after.results.get('compound')!.svg = { ok: false, error: 'internal solver error', category: 'error' }
+    expect(strictLayoutHealthy(inputs, [before, after], 1)).toBe(false)
+  })
+
+  test('layout CLI rejects unknown, duplicate and unpaired cache controls', () => {
+    expect(releaseBenchArgs(['--layout-modes', 'elk,agentic,agentic-with-elk', '--layout-cache', 'off']).get('layout-cache')).toBe('off')
+    expect(() => releaseBenchArgs(['--layout-modes', 'auto'])).toThrow('--layout-modes')
+    expect(() => releaseBenchArgs(['--layout-modes', 'elk,elk'])).toThrow('--layout-modes')
+    expect(() => releaseBenchArgs(['--layout-cache', 'normal'])).toThrow('--layout-cache')
+    expect(() => releaseBenchArgs(['--layout-modes', 'elk', '--layout-cache', 'infinite'])).toThrow('--layout-cache')
+    expect(layoutRenderOptions('agentic-with-elk')?.graphLayout).toEqual({ backend: 'agentic', fallback: 'elk' })
+    expect(layoutRenderOptions()).toBeUndefined()
+  })
+
   test('complete equal observations pass; a partial baseline cannot pass on the remaining intersection', () => {
     const inputs = [input('flow'), input('sequence', 'scaling', 'sequence')]
     const before = run('baseline', inputs), after = run('candidate', inputs)
@@ -275,6 +312,98 @@ test('agent workload completes a verified edit and renders the original and adde
   const dropsEdits = Object.create(api) as typeof api
   Object.defineProperty(dropsEdits, 'mutate', { value: (diagram: unknown) => ({ ok: true, value: diagram }) })
   expect(() => renderAgentEdit(dropsEdits, agentEditCase.source)).toThrow('requested or preserved facts were lost')
+})
+
+test('consumed layout worker forwards selection, serializes the full receipt and retains typed declines', async () => {
+  const directory = temp.dir(), entry = join(directory, 'index.js'), job = join(directory, 'job.json'), result = join(directory, 'result.json')
+  writeFileSync(join(directory, 'package.json'), JSON.stringify({ type: 'module' }))
+  writeFileSync(entry, `
+    const originalFrom = Buffer.from
+    let expected, encoded = false, prior
+    Buffer.from = function(value, ...args) {
+      if (value === expected) encoded = true
+      return Reflect.apply(originalFrom, Buffer, [value, ...args])
+    }
+    function render(source, options, text) {
+      if (options?.graphLayout?.backend !== 'agentic' || options.graphLayout.fallback !== 'none'
+        || typeof options.onConfigDiagnostic !== 'function') throw new Error('selection or diagnostic policy was dropped')
+      if (prior && !prior.consumed) throw new Error('receipt was not completely consumed')
+      if (source === 'unsupported') {
+        const error = new Error('unsupported fixture')
+        error.code = 'GRAPH_LAYOUT_UNSUPPORTED'
+        throw error
+      }
+      expected = text ? 'terminal ✓' : '<svg xmlns="http://www.w3.org/2000/svg"><text>✓</text></svg>'
+      encoded = false
+      const state = prior = { consumed: false }
+      return { output: expected, receipt: {
+        layoutDecisions: [{ requested: 'agentic', fallback: 'none', selected: 'agentic',
+          attempts: [{ backend: 'agentic', outcome: 'selected' }], implementation: 'fixture' }],
+        get consumption() {
+          if (!encoded) throw new Error('output UTF-8 was not encoded before receipt consumption')
+          state.consumed = true
+          return 'complete'
+        },
+      } }
+    }
+    export function renderMermaidSVG() { throw new Error('plain rendering was used') }
+    export function renderMermaidASCII() { throw new Error('plain rendering was used') }
+    export let declinedPixelCalls = 0
+    export function renderMermaidSVGWithReceipt(source, options) {
+      if (source === 'unsupported') declinedPixelCalls++
+      const value = render(source, options, false)
+      return { svg: value.output, receipt: value.receipt }
+    }
+    export function renderMermaidASCIIWithReceipt(source, options) {
+      const value = render(source, options, true)
+      return { text: value.output, receipt: value.receipt }
+    }
+  `)
+  writeFileSync(join(directory, 'agent.js'), `
+    import { declinedPixelCalls } from './index.js'
+    export function layoutMermaidWithReceipt(source, options) {
+      if (declinedPixelCalls !== 3) throw new Error('quality ran before all timed samples')
+      if (source !== 'supported' || !options.debug || options.graphLayout.backend !== 'agentic') throw new Error('wrong quality request')
+      return { layout: {}, receipt: { layoutDecisions: [{ requested: 'agentic', selected: 'agentic' }] } }
+    }
+    export function measureQuality() { return { edgeCrossings: 0, minimumLabelClearance: Infinity } }
+  `)
+  writeFileSync(job, JSON.stringify({ entry, mode: 'time', layoutMode: 'agentic', consumeReceipt: true, collectQuality: true, reps: 1,
+    inputs: [{ id: 'ok', family: 'flowchart', source: 'supported' }, { id: 'declined', family: 'flowchart', source: 'unsupported' }] }))
+  const child = Bun.spawn(['node', '--no-warnings', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, result], {
+    stdout: 'ignore', stderr: 'pipe', timeout: 15_000, killSignal: 'SIGKILL',
+  })
+  const [status, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()])
+  expect(stderr).toBe('')
+  expect(status).toBe(0)
+  const output = JSON.parse(readFileSync(result, 'utf8'))
+  expect(output.results[0].svg.ok).toBe(true)
+  expect(output.results[0].deterministic).toBe(true)
+  expect(output.results[0].layout.decisions[0].selected).toBe('agentic')
+  expect(output.results[0].layout.receipt.bytes).toBeGreaterThan(0)
+  expect(output.results[0].asciiLayout.decisions[0].selected).toBe('agentic')
+  expect(output.results[0].quality).toMatchObject({ status: 'measured', scope: 'separate-public-layout-after-timing',
+    metrics: { edgeCrossings: 0, minimumLabelClearance: { unavailable: 'non-finite metric', value: 'Infinity' } } })
+  expect(output.results[1].svg).toMatchObject({ ok: false, code: 'GRAPH_LAYOUT_UNSUPPORTED', category: 'unsupported' })
+  expect(output.results[1].layout).toBeUndefined()
+  expect(output.results[1].quality.status).toBe('unavailable')
+}, 20000)
+
+test('the agent benchmark forwards its selected render policy through verification and final rendering', () => {
+  const options = layoutRenderOptions('agentic')!
+  let verifiedOptions: unknown, finalSource: string | undefined
+  const observed = Object.create(api) as typeof api
+  Object.defineProperty(observed, 'verifyMermaid', { value: (diagram: Parameters<typeof api.verifyMermaid>[0], verifyOptions: Parameters<typeof api.verifyMermaid>[1]) => {
+    verifiedOptions = verifyOptions?.renderOptions
+    return api.verifyMermaid(diagram, verifyOptions)
+  } })
+  const svg = renderAgentEdit(observed, agentEditCase.source, options, source => {
+    finalSource = source
+    return api.renderMermaidSVG(source, options)
+  })
+  expect(verifiedOptions).toBe(options)
+  expect(finalSource).toContain('Cache')
+  expect(missingSvgLabels(svg, agentEditCase.expectedSvgLabels)).toEqual([])
 })
 
 test('baseline resolution survives a changed latest tag across CLI retries', async () => {

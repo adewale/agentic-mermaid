@@ -110,6 +110,8 @@ const FLAG_SPEC_TABLE = {
   style: { arg: 'NAMES|file' },
   seed: { arg: 'N' },
   options: { arg: 'JSON|file' },
+  'graph-layout': { arg: 'elk|agentic' },
+  'graph-layout-fallback': { arg: 'none|elk' },
   ops: { arg: 'JSON|file' },
   output: { arg: 'FILE' },
   format: { arg: 'fmt' },
@@ -178,7 +180,7 @@ const PNG_RENDER_FLAGS = Object.freeze(Object.values(PNG_CLI_FLAG_BINDINGS).flat
 // Command ownership is the second half of the flag contract: recognizing a
 // name globally is not permission to ignore it on an unrelated command.
 export const COMMAND_FLAGS = {
-  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
+  render: ['help', 'json', 'certificates', 'watch', 'style', 'seed', 'options', 'graph-layout', 'graph-layout-fallback', 'output', 'format', 'security', 'gantt-today', 'target-width', ...PNG_RENDER_FLAGS, 'o'],
   verify: ['help', 'json', 'suppress', 'label-cap', 'style'],
   parse: ['help', 'json'],
   serialize: ['help'],
@@ -342,6 +344,8 @@ ${cliRenderFormatHelpLines()}
                     projection. See: am styles
   --options <JSON|file> Shared advanced RenderOptions object; convenience
                     flags override its fields
+  --graph-layout <elk|agentic> Graph geometry producer (default: elk)
+  --graph-layout-fallback <none|elk> Explicit Agentic fallback (default: none)
   --seed <N>        Re-roll ink wobble of styled looks; never moves layout
   --font-dirs <DIRS> PNG only: extra font directories (comma-separated) for
                     scripts the bundled Inter/DejaVu fonts don't cover (CJK,
@@ -578,6 +582,21 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       process.stderr.write(`am render --options: ${error instanceof Error ? error.message : String(error)}\n`)
       return EXIT_ARG_ERROR
     }
+  }
+  const graphLayout = flagValue(args, 'graph-layout')
+  const graphLayoutFallback = flagValue(args, 'graph-layout-fallback')
+  if (graphLayout !== undefined || graphLayoutFallback !== undefined) {
+    const candidate = {
+      backend: graphLayout ?? advancedOptions.graphLayout?.backend ?? 'elk',
+      ...(graphLayoutFallback !== undefined || advancedOptions.graphLayout?.fallback !== undefined
+        ? { fallback: graphLayoutFallback ?? advancedOptions.graphLayout?.fallback } : {}),
+    }
+    const problems = validateSerializableRenderOptions({ graphLayout: candidate })
+    if (problems.length) {
+      process.stderr.write(`am render: ${problems.join('; ')}\n`)
+      return EXIT_ARG_ERROR
+    }
+    advancedOptions = { ...advancedOptions, graphLayout: candidate as NonNullable<RenderOptions['graphLayout']> }
   }
   if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
     process.stderr.write('am render --target-width expects a positive integer number of terminal cells\n')

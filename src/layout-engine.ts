@@ -49,6 +49,9 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
+import { layoutAgenticGraph } from './layout/agentic-layered.ts'
+import { emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
+import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
@@ -57,7 +60,7 @@ import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyOwnedLayoutCandidate, certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -1242,7 +1245,7 @@ function rootChildOrder(
  */
 /** The mutable bag the post-ELK geometry passes thread through (see ./layout/pass.ts). */
 export interface LayoutPassContext extends PassContextBase {
-  readonly elkResult: ElkNode
+  readonly elkResult?: ElkNode
   readonly graph: MermaidGraph
   nodes: PositionedNode[]
   edges: PositionedEdge[]
@@ -1296,7 +1299,10 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
     after: [], mutates: ['extract'], determinism: 'pure-order',
-    run: c => { extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins); retainGraphText(c, c.style) },
+    run: c => {
+      if (c.elkResult) extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
+      retainGraphText(c, c.style)
+    },
   },
   {
     id: 'alignLayerNodes', doc: 'snap same-layer nodes onto a shared flow-axis line',
@@ -1636,6 +1642,22 @@ function elkToPositioned(
   // Extract nodes and groups recursively
   extractNodesAndGroups(elkResult, graph, subgraphIds, nodes, groups, 0, 0)
 
+  return finishGraphGeometry({ width: elkResult.width ?? 800, height: elkResult.height ?? 600, nodes, edges, groups }, graph, mergeEdges, layoutPadding, style, stateNoteMargin, elkResult)
+}
+
+/** Both producers enter the same route, text and geometry contracts. Direct
+ * producers already own edges; only the ELK adapter needs edge extraction. */
+function finishGraphGeometry(
+  initial: PositionedGraph,
+  graph: MermaidGraph,
+  mergeEdges: boolean,
+  layoutPadding: number,
+  style: ResolvedRenderStyle,
+  stateNoteMargin: number,
+  elkResult?: ElkNode,
+): LayoutRouteProposal {
+  const { nodes, edges, groups } = initial
+
   // Compute margin positions for cross-hierarchy edge routing.
   // Margins sit outside all group bounding boxes so edges don't cross through subgraphs.
   const allBounds = flattenGroupBounds(groups)
@@ -1670,8 +1692,8 @@ function elkToPositioned(
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
-  let width = elkResult.width ?? 800
-  let height = elkResult.height ?? 600
+  let width = initial.width
+  let height = initial.height
   const arrowMargin = ARROW_HEAD.width
   const padding = layoutPadding
 
@@ -1929,9 +1951,86 @@ function layoutCandidate(
   return bundled.positioned
 }
 
+function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+  if (options.stateVisual || options.preserveSubgraphChildOrder) throw new GraphLayoutUnsupportedError('family-specific graph geometry')
+  if (graph.subgraphs.length || graph.stateNotes?.length) throw new GraphLayoutUnsupportedError('compound graphs or State annotations')
+  if ([...graph.nodes.values()].some(node => node.shape !== 'rectangle')) throw new GraphLayoutUnsupportedError('nonrectangular shapes')
+  const style = resolveRenderStyle(options, undefined, options.styleFace)
+  const opts = { ...DEFAULTS, ...options }
+  const measured = measureRenderStage('graph-preparation', () => {
+    const nodes = [...graph.nodes].map(([id, node]) => ({ id, ...estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock) }))
+    const indices = new Map(nodes.map((node, index) => [node.id, index]))
+    const edges = graph.edges.map(edge => {
+      const source = indices.get(edge.source), target = indices.get(edge.target)
+      if (source === undefined || target === undefined) throw new GraphLayoutUnsupportedError('unknown endpoint')
+      const block = edge.label ? graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') : undefined
+      return { source, target, minSpan: edge.length ?? 1, ...(block ? { label: { width: block.width + 8, height: block.height + 6 } } : {}) }
+    })
+    return { nodes, edges, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing }
+  })
+  const geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured))
+  // Missing subjects or non-finite geometry are engine defects, not an
+  // eligibility refusal that can be concealed by running another producer.
+  if (geometry.nodes.length !== measured.nodes.length || geometry.edges.length !== graph.edges.length || containsNonFiniteNumber(geometry)
+    || geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
+    throw new TypeError('Agentic graph producer returned malformed geometry')
+  }
+  const nodes = measured.nodes.map((node, index): PositionedNode => {
+    const authored = graph.nodes.get(node.id)!
+    const assigned = graph.classAssignments.get(node.id)
+    return { ...authored, ...node, ...geometry.nodes[index]!, inlineStyle: resolveNodeInlineStyle(node.id, graph), classNames: assigned?.split(/\s+/).filter(Boolean) }
+  })
+  const edges = graph.edges.map((edge, index): PositionedEdge => ({
+    ...edge, ...geometry.edges[index]!, edgeIndex: index, inlineStyle: resolveEdgeInlineStyle(index, graph),
+    ...(edge.id && graph.classAssignments.has(edge.id) ? { classNames: graph.classAssignments.get(edge.id)!.split(/\s+/).filter(Boolean) } : {}),
+  }))
+  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups: [] }, graph, DEFAULTS.mergeEdges, opts.padding, style, 18).positioned
+  if (containsNonFiniteNumber(positioned)) throw new TypeError('Agentic graph pipeline returned non-finite geometry')
+  return positioned
+}
+
+function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+  const policy = options.graphLayout
+  // Preserve existing bytes, receipts and the explicitly enabled legacy forest
+  // experiment when no new selector was supplied.
+  if (!policy) return layoutElkGraph(graph, options)
+  const attempts: Array<GraphLayoutDecision['attempts'][number]> = []
+  let positioned: PositionedGraph
+  let selected: GraphLayoutDecision['selected'] = policy.backend
+  let reason: string | undefined
+  if (policy.backend === 'agentic') {
+    try {
+      // Produce outside the legacy certifier's exception-catching boundary:
+      // unexpected solver/pass errors must remain engine failures.
+      const candidate = agenticCandidate(graph, options)
+      const style = resolveRenderStyle(options, undefined, options.styleFace)
+      positioned = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate })
+      attempts.push({ backend: 'agentic', outcome: 'selected' })
+    } catch (error) {
+      if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
+      if (policy.fallback !== 'elk') throw error
+      reason = error instanceof GraphLayoutUnsupportedError ? error.reason : 'candidate failed mandatory geometry certification'
+      attempts.push({ backend: 'agentic', outcome: error instanceof GraphLayoutUnsupportedError ? 'unsupported' : 'candidate-rejected', reason })
+      selected = 'elk'
+      positioned = layoutElkGraph(graph, options)
+      attempts.push({ backend: 'elk', outcome: 'selected' })
+    }
+  } else {
+    positioned = layoutElkGraph(graph, options)
+    attempts.push({ backend: 'elk', outcome: 'selected' })
+  }
+  const decision: GraphLayoutDecision = {
+    requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
+    implementation: selected === 'agentic' ? 'agentic-layered@1' : 'elk-layered@1', ...(reason ? { reason } : {}),
+  }
+  positioned.layoutDecision = decision
+  emitGraphLayoutDecision(decision)
+  return positioned
+}
+
 /** Four deterministic strategy combinations, each with the existing bounded
  * ELK option degradation ladder. No recursive retry or process-env mutation. */
-function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
   const compareRoutes = options.compareRoutePreferences !== false
@@ -1952,7 +2051,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   // Tight spacing can remove the forest producer's route channels and break
   // mandatory downstream pass contracts. Preserve ELK for those requests.
   const forestSpacing = (options.nodeSpacing ?? DEFAULTS.nodeSpacing) > 0 && (options.layerSpacing ?? DEFAULTS.layerSpacing) > 0
-  const preliminary = performanceExperimentEnabled('indexed-layout') && forestSpacing && !options.stateVisual && !options.preserveSubgraphChildOrder && isIndexedForestGraph(graph)
+  const preliminary = options.graphLayout === undefined && performanceExperimentEnabled('indexed-layout') && forestSpacing && !options.stateVisual && !options.preserveSubgraphChildOrder && isIndexedForestGraph(graph)
     ? { strategy: 'indexed-forest', produce: () => layoutCandidate(graph, options, rememberAlternative, true), preferNext: preferReadableTitles }
     : undefined
   if (!options.separateHierarchy) {

@@ -4,6 +4,7 @@ import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { emitGraphLayoutDecision, selectElkForGraphFamily, withGraphLayoutDecisionObserver } from '../layout/backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -62,6 +63,7 @@ export function layoutArchitectureDiagram(
   metrics?: ArchitectureLayoutMetrics,
 ): PositionedArchitectureDiagram {
   assertArchitectureDiagramWork(diagram)
+  const layoutDecision = selectElkForGraphFamily(options, 'architecture')
   const typography = metrics ?? architectureLayoutMetrics(DEFAULT_ARCHITECTURE_VISUAL)
   const roleBlock = (source: string, role: 'service' | 'group' | 'edge') => preparePixelText(source, {
     display: 'formatted', transform: typography[`${role}TextTransform`], fontSize: typography[`${role}FontSize`],
@@ -89,7 +91,8 @@ export function layoutArchitectureDiagram(
   }
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
-  const positioned = layoutGraphSync(graph, {
+  const positioned = withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
+    ...(options.graphLayout ? { graphLayout: { backend: 'elk' as const } } : {}),
     // Keep placement clearance separate from the drawn surface. Larger rings
     // reserve their own footprint instead of borrowing State's fixed size.
     nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
@@ -134,7 +137,8 @@ export function layoutArchitectureDiagram(
         lineWidth: metrics.groupLineWidth,
       },
     } : undefined,
-  })
+  }))
+  if (options.graphLayout) emitGraphLayoutDecision(layoutDecision)
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))

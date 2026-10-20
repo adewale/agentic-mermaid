@@ -15,12 +15,29 @@ on:
         description: npm version or tag to compare against
         type: string
         default: latest
+      layout-modes:
+        description: Optional comma-separated elk,agentic,agentic-with-elk comparison arms
+        type: string
+        default: ''
+      layout-cache:
+        description: Geometry cache policy for layout comparisons
+        type: string
+        default: 'off'
   workflow_dispatch:
     inputs:
       baseline:
         description: npm version or tag to compare against
         type: string
         default: latest
+      layout-modes:
+        description: Optional comma-separated elk,agentic,agentic-with-elk comparison arms
+        type: string
+        default: ''
+      layout-cache:
+        description: Geometry cache policy for layout comparisons
+        type: choice
+        options: ['off', normal]
+        default: 'off'
 
       baseline-ref:
         description: Optional immutable Git commit instead of an npm baseline (on-demand only)
@@ -173,9 +190,15 @@ jobs:
         if: inputs.baseline-ref == ''
         env:
           BASELINE: ${{ inputs.baseline }}
+          LAYOUT_MODES: ${{ inputs.layout-modes }}
+          LAYOUT_CACHE: ${{ inputs.layout-cache }}
         run: |
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --out bench-report
+          layout_args=()
+          if [ -n "$LAYOUT_MODES" ]; then
+            layout_args+=(--layout-modes "$LAYOUT_MODES" --layout-cache "${LAYOUT_CACHE:-off}")
+          fi
+          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --out bench-report "${layout_args[@]}"
 
       - name: Install Chromium for the advisory browser scorecard
         if: ${{ !cancelled() }}

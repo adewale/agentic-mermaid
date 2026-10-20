@@ -11,7 +11,7 @@ import { extractOfficialCorpus, officialCorpusInventory } from '../shared/offici
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { agentEditCase } from './release-bench-fidelity.ts'
 import { resolveBaseline } from './release-baseline.ts'
-import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
+import type { BenchInput, LayoutCache, LayoutMode, LayoutObservation, MemoryResult, Outcome, OutputFingerprint, QualityObservation, TimeResult } from './release-bench-types.ts'
 
 export interface Input extends BenchInput {
   kind: 'corpus' | 'scaling' | 'workflow'
@@ -32,6 +32,9 @@ interface Engine {
   entry: string
   version: string
   identity: Identity
+  layoutMode?: LayoutMode
+  layoutCache?: LayoutCache
+  consumeReceipt?: boolean
 }
 interface Rendered {
   svg: Outcome
@@ -41,12 +44,16 @@ interface Rendered {
   mediansMs: number[]
   samplesMs: number[][]
   missingSvgLabels: string[]
+  layout?: LayoutObservation
+  asciiLayout?: LayoutObservation
+  quality?: QualityObservation
 }
 export interface EngineRun extends Engine {
   node?: string
   importMs: number[]
   firstRenderMs: number[]
   firstRender?: OutputFingerprint
+  firstLayout?: LayoutObservation
   coldDeterministic: boolean
   results: Map<string, Rendered>
   memory: Map<string, MemoryResult & { inputIds: string[] }>
@@ -64,10 +71,9 @@ const CORPUS_BUDGET_MS = 30 * 60 * 1000
 const CASE_BUDGET_MS = 10 * 60 * 1000
 const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
-function args(): Map<string, string> {
-  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case'])
+export function releaseBenchArgs(argv = process.argv.slice(2)): Map<string, string> {
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'layout-modes', 'layout-cache'])
   const options = new Map<string, string>()
-  const argv = process.argv.slice(2)
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.slice(2)
     const value = argv[++i]
@@ -85,7 +91,75 @@ function args(): Map<string, string> {
     throw new Error('--candidate-sha256 requires --candidate-tarball and a lowercase SHA-256 digest')
   }
   if (options.has('baseline-lock') && !options.has('baseline-npm')) throw new Error('--baseline-lock requires --baseline-npm')
+  if (options.has('layout-modes')) {
+    const modes = options.get('layout-modes')!.split(',').map(value => value.trim())
+    if (modes.some(mode => !['elk', 'agentic', 'agentic-with-elk'].includes(mode)) || new Set(modes).size !== modes.length) {
+      throw new Error('--layout-modes requires distinct comma-separated elk,agentic,agentic-with-elk modes')
+    }
+    options.set('layout-modes', modes.join(','))
+  }
+  if (options.has('layout-cache') && (!options.has('layout-modes') || !['off', 'normal'].includes(options.get('layout-cache')!))) {
+    throw new Error('--layout-cache requires --layout-modes and one of off|normal')
+  }
   return options
+}
+
+/** Each arm has its own matched population; a partial owned backend cannot
+ * shrink the ELK/fallback arm's memory or release-gate population. */
+export function layoutComparisons(engines: Engine[], modes: LayoutMode[], cache: LayoutCache) {
+  const candidate = engines.at(-1)!
+  const reference: Engine = { ...candidate, label: 'elk-reference', layoutMode: 'elk', layoutCache: cache, consumeReceipt: true }
+  const plans = [{
+    name: 'elk-aa', advisory: false,
+    engines: [reference, { ...reference, label: 'elk-aa' }],
+  }]
+  for (const mode of modes) {
+    if (mode === 'elk') continue // The same-artifact A/A pair is the ELK arm.
+    plans.push({ name: mode, advisory: mode === 'agentic', engines: [reference, { ...reference, label: mode, layoutMode: mode }] })
+  }
+  if (engines.length > 1) plans.push({
+    name: 'external-baseline', advisory: false,
+    // Earlier releases cannot admit the new selector; their established
+    // default is compared with this package's explicit ELK path.
+    engines: [{ ...engines[0]!, consumeReceipt: true, layoutCache: cache }, { ...reference, label: 'candidate-elk' }],
+  })
+  return plans
+}
+
+export function layoutCoverage(inputs: Input[], run: EngineRun) {
+  const statuses = inputs.map(input => {
+    const result = run.results.get(input.id)
+    const decisions = result?.layout?.decisions ?? []
+    const status = !result ? 'unmeasured' : !result.svg.ok ? result.svg.category ?? 'error'
+      : decisions.some(decision => decision.requested === 'agentic' && decision.selected === 'elk') ? 'elk-fallback'
+        : decisions.some(decision => decision.selected === 'agentic') ? 'agentic'
+          : decisions.length ? 'elk' : 'not-applicable'
+    return { id: input.id, family: input.family, status }
+  })
+  return { enrolled: inputs.length, statuses, byFamily: [...new Set(inputs.map(input => input.family))].sort().map(family => ({
+    family, enrolled: statuses.filter(row => row.family === family).length,
+    counts: Object.fromEntries([...new Set(statuses.map(row => row.status))].map(status => [status, statuses.filter(row => row.family === family && row.status === status).length])),
+  })), quality: {
+    measured: inputs.filter(input => run.results.get(input.id)?.quality?.status === 'measured').length,
+    unavailable: inputs.filter(input => run.results.get(input.id)?.quality?.status === 'unavailable').length,
+    scope: 'separate public layout after timing; unavailable dimensions are explicit',
+  }, eligibility: 'reported by typed declines and actual decisions, not inferred as production share' }
+}
+
+/** The strict arm's full-coverage/speed gates are advisory while support is
+ * partial. New defects, content loss and incomplete measurement still fail. */
+export function strictLayoutHealthy(inputs: Input[], runs: EngineRun[], rounds: number): boolean {
+  const baseline = runs[0]!, candidate = runs.at(-1)!
+  if (runs.some(run => run.failures.size > 0 || !run.coldDeterministic)) return false
+  return inputs.every(input => {
+    const result = candidate.results.get(input.id), before = baseline.results.get(input.id)
+    if (!result || !before || result.mediansMs.length !== rounds || before.mediansMs.length !== rounds
+      || !result.deterministic || !before.deterministic || result.missingSvgLabels.length) return false
+    if (result.svg.ok && !result.validSvg && !(before.svg.ok && !before.validSvg)) return false
+    const acceptable = (current: OutputFingerprint, prior: OutputFingerprint) => current.ok
+      || current.category === 'unsupported' || current.category === 'candidate-rejected' || (!prior.ok && same(current, prior))
+    return acceptable(fingerprint(result.svg), fingerprint(before.svg)) && acceptable(result.ascii, before.ascii)
+  })
 }
 function positive(options: Map<string, string>, key: string, fallback: number): number {
   const value = Number(options.get(key) ?? fallback)
@@ -101,7 +175,8 @@ function packageAt(dir: string, label: string, identity: Identity): Engine {
 }
 const fingerprint = (outcome: Outcome): OutputFingerprint => {
   const text = outcome.ok ? outcome.output : outcome.error
-  return { ok: outcome.ok, sha256: createHash('sha256').update(text).digest('hex'), bytes: Buffer.byteLength(text) }
+  return { ok: outcome.ok, sha256: createHash('sha256').update(text).digest('hex'), bytes: Buffer.byteLength(text),
+    ...(!outcome.ok ? { error: outcome.error, ...(outcome.code ? { code: outcome.code } : {}), ...(outcome.category ? { category: outcome.category } : {}) } : {}) }
 }
 const same = (a: OutputFingerprint, b: OutputFingerprint) => a.ok === b.ok && a.sha256 === b.sha256 && a.bytes === b.bytes
 const median = (values: number[]) => [...values].sort((a, b) => a - b)[values.length >> 1]
@@ -134,9 +209,13 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
       const job = join(out, 'job.json')
       const result = join(out, 'result.json')
       rmSync(result, { force: true })
-      writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps }))
+      writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps, layoutMode: run.layoutMode, consumeReceipt: run.consumeReceipt,
+        collectQuality: run.consumeReceipt && mode === 'time' && round === 1 }))
       // Time ELK rather than a cached result, and renders as users get them.
-      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: {
+        ...process.env, AGENTIC_MERMAID_ELK_CACHE: run.layoutCache === 'normal' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0',
+        ...(run.consumeReceipt ? { AGENTIC_MERMAID_EXPERIMENTS: '' } : {}),
+      } })
       if (child.status === 0) {
         const value = JSON.parse(readFileSync(result, 'utf8')) as TimeResult | MemoryResult
         const evidence =
@@ -168,14 +247,19 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
         run.firstRenderMs.push(value.firstRenderMs)
         run.coldDeterministic &&= !run.firstRender || same(run.firstRender, value.firstRender)
         run.firstRender ??= value.firstRender
-        for (const { id, svg, ascii, deterministic, ms: elapsed, samplesMs, missingSvgLabels } of value.results) {
+        if (run.firstLayout && value.firstLayout) run.coldDeterministic &&= same(run.firstLayout.receipt, value.firstLayout.receipt)
+        run.firstLayout ??= value.firstLayout
+        for (const { id, svg, ascii, deterministic, ms: elapsed, samplesMs, missingSvgLabels, layout, asciiLayout, quality } of value.results) {
           const previous = run.results.get(id)
           if (previous) {
             previous.deterministic &&= deterministic && same(fingerprint(previous.svg), fingerprint(svg)) && same(previous.ascii, ascii)
+            if (layout && previous.layout) previous.deterministic &&= same(layout.receipt, previous.layout.receipt)
+            if (asciiLayout && previous.asciiLayout) previous.deterministic &&= same(asciiLayout.receipt, previous.asciiLayout.receipt)
             previous.mediansMs.push(elapsed)
             previous.samplesMs.push(samplesMs)
             previous.missingSvgLabels = [...new Set([...previous.missingSvgLabels, ...missingSvgLabels])]
-          } else run.results.set(id, { svg, ascii, deterministic, validSvg: svg.ok && parsesAsSvg(svg.output), mediansMs: [elapsed], samplesMs: [samplesMs], missingSvgLabels })
+            if (quality) previous.quality = quality
+          } else run.results.set(id, { svg, ascii, deterministic, validSvg: svg.ok && parsesAsSvg(svg.output), mediansMs: [elapsed], samplesMs: [samplesMs], missingSvgLabels, ...(layout ? { layout } : {}), ...(asciiLayout ? { asciiLayout } : {}), ...(quality ? { quality } : {}) })
         }
       }
     }
@@ -267,6 +351,31 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   const md = [`# Release benchmark: ${ok ? 'pass' : 'FAIL'}`, '', `Engines: ${runs.map(run => `${run.label} ${run.version}`).join(' vs ')}. Inputs: ${corpus.length} distinct official examples and ${scaling.length} scaling/agent workloads. Full upstream fence accounting is in corpus.json; browser/competitor results are advisory in browser-report.md.`, '', '| Gate | Result | Detail |', '|---|---|---|']
   for (const check of checks) md.push(`| ${check.name} | ${check.ok === null ? 'not compared' : check.ok ? 'pass' : '**FAIL**'} | ${check.detail.replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`)
   if (baseline?.failures.size) md.push('', `Baseline measurements unavailable: ${[...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ')}.`, '')
+  if (candidate.consumeReceipt) {
+    const coverage = layoutCoverage(inputs, candidate)
+    md.push('', `Layout arm: ${candidate.layoutMode ?? 'legacy default'}; geometry cache: ${candidate.layoutCache ?? 'off'}. Timed operations include the public SVG receipt, complete UTF-8 SVG encoding and JSON receipt serialization. Quality observations rerun the public layout projection after all timing in round one; they are not the retained timed SVG. ${coverage.quality.measured}/${inputs.length} quality projections measured; ${coverage.quality.unavailable} explicitly unavailable. Full preference scores are not exposed by this public projection.`, '',
+      '| Family | Enrolled | Actual outcomes |', '|---|---:|---|')
+    for (const row of coverage.byFamily) md.push(`| ${row.family} | ${row.enrolled} | ${Object.entries(row.counts).map(([status, count]) => `${status}: ${count}`).join('; ')} |`)
+    if (baseline) {
+      const valueOf = (run: EngineRun, input: Input, field: string): number | undefined => {
+        const quality = run.results.get(input.id)?.quality
+        if (quality?.status !== 'measured' || !quality.metrics || typeof quality.metrics !== 'object') return undefined
+        const metrics = quality.metrics as Record<string, unknown>
+        const value = field === 'labelConflicts' && metrics.labelConflicts && typeof metrics.labelConflicts === 'object'
+          ? (metrics.labelConflicts as Record<string, unknown>).total : metrics[field]
+        return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+      }
+      const pairedQuality = shared(inputs).filter(input => baseline.results.get(input.id)?.quality?.status === 'measured' && candidate.results.get(input.id)?.quality?.status === 'measured')
+      const changed = pairedQuality.filter(input => ['edgeCrossings', 'labelConflicts', 'labelLegibility', 'minimumNodeSpacing', 'aspectRatio'].some(field => valueOf(baseline, input, field) !== valueOf(candidate, input, field)))
+      const shown = [...pairedQuality.filter(input => input.kind !== 'corpus'), ...changed.filter(input => input.kind === 'corpus')].slice(0, 25)
+      md.push('', '## Separate public-layout quality observations', '', `${pairedQuality.length}/${inputs.length} matched successful inputs have quality vectors in both arms; ${changed.length} differ on the fields below. Showing up to 25 scaling/changed inputs; complete per-input vectors and unavailable reasons remain in report.json. These projections rerun layout after timing and do not establish human preference.`, '',
+        '| Input | Proper crossings | Padded label conflicts | Label fit fraction | Minimum node gap | Aspect ratio |', '|---|---:|---:|---:|---:|---:|')
+      for (const input of shown) {
+        const pair = (field: string) => [valueOf(baseline, input, field), valueOf(candidate, input, field)].map(value => value === undefined ? 'unavailable' : Number.isInteger(value) ? String(value) : value.toFixed(3)).join(' → ')
+        md.push(`| ${input.id} | ${pair('edgeCrossings')} | ${pair('labelConflicts')} | ${pair('labelLegibility')} | ${pair('minimumNodeSpacing')} | ${pair('aspectRatio')} |`)
+      }
+    }
+  }
   md.push(
     '',
     '## Matched successful SVG renders',
@@ -362,10 +471,12 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
         label: run.label,
         version: run.version,
         identity: run.identity,
+        ...(run.consumeReceipt ? { layoutMode: run.layoutMode ?? 'legacy-default', layoutCache: run.layoutCache ?? 'off', outputConsumption: 'svg-utf8-and-full-receipt-json', layoutCoverage: layoutCoverage(inputs, run) } : {}),
         node: run.node,
         importMs: run.importMs,
         firstRenderMs: run.firstRenderMs,
         firstRender: run.firstRender,
+        ...(run.firstLayout ? { firstLayout: run.firstLayout } : {}),
         coldDeterministic: run.coldDeterministic,
         results: Object.fromEntries([...run.results].map(([id, { svg, ...result }]) => [id, { ...result, svg: { ...fingerprint(svg), ...(!svg.ok ? { error: svg.error } : {}) } }])),
         memory: Object.fromEntries(run.memory),
@@ -376,7 +487,7 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
 }
 
 function main() {
-  const options = args()
+  const options = releaseBenchArgs()
   const rounds = positive(options, 'rounds', 3)
   const reps = positive(options, 'reps', 5)
   const budgetMs = positive(options, 'budget-ms', DEFAULT_BUDGET_MS)
@@ -392,7 +503,9 @@ function main() {
   const startedAt = new Date().toISOString()
   // Leave time to finalize reports before the workflow's outer timeout.
   const deadline = Date.now() + budgetMs
-  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
+  const modes = options.get('layout-modes')?.split(',') as LayoutMode[] | undefined
+  const layoutCache = (options.get('layout-cache') ?? 'off') as LayoutCache
+  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, ...(modes ? { layoutModes: modes, layoutCache } : {}) }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
     cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
     memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined } }
   writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
@@ -435,6 +548,32 @@ function main() {
       engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir }))
     }
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
+    if (modes) {
+      const comparisons = layoutComparisons(engines, modes, layoutCache).map(plan => {
+        const directory = join(out, plan.name)
+        mkdirSync(directory, { recursive: true })
+        writeFileSync(join(directory, 'samples.jsonl'), `${JSON.stringify({ ...metadata, comparison: plan.name, engines: plan.engines })}\n`)
+        const runs = measure(directory, plan.engines, groups, rounds, reps, deadline)
+        const result = report(inputs, groups, runs, rounds)
+        const healthy = plan.advisory ? strictLayoutHealthy(inputs, runs, rounds) : result.ok
+        const markdown = plan.advisory ? `Strict Agentic support is partial: full-coverage and performance gates below are advisory. Measurement, content, determinism and unexpected-error checks ${healthy ? 'pass' : 'FAIL'}.\n\n${result.markdown}` : result.markdown
+        const summary = { ...metadata, ...result.summary, comparison: plan.name, gatePolicy: plan.advisory ? 'partial-support-advisory' : 'existing-release-gates', requiredChecksPass: healthy }
+        writeFileSync(join(directory, 'report.json'), JSON.stringify(summary, null, 2))
+        writeFileSync(join(directory, 'report.md'), markdown)
+        return { name: plan.name, advisory: plan.advisory, ok: healthy, summary, markdown }
+      })
+      const ok = comparisons.every(result => result.ok)
+      const markdown = [`# Layout backend comparison: ${ok ? 'pass' : 'FAIL'}`, '',
+        'Each arm runs in its own adjacent, counterbalanced pair against explicit ELK from the same package. ELK A/A is a control, not a divisor. Memory populations are paired within each arm; strict declines cannot shrink the fallback cohort. Every enrolled input and typed outcome is retained. Public quality vectors come from separately labelled layout reruns after timing; unavailable dimensions and workflows are explicit. No human visual preference study is implied.', '',
+        ...comparisons.map(result => `## ${result.name}${result.advisory ? ' (partial-support advisory)' : ''}\n\n${result.markdown}`),
+      ].join('\n')
+      writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), ok, status: 'completed', comparisons: comparisons.map(({ markdown: _markdown, ...value }) => value) }, null, 2))
+      writeFileSync(join(out, 'report.md'), markdown)
+      if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
+      console.log(markdown)
+      if (!ok) process.exitCode = 1
+      return
+    }
     const runs = measure(out, engines, groups, rounds, reps, deadline)
     const result = report(inputs, groups, runs, rounds)
     writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), ...result.summary }, null, 2))
