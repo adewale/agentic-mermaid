@@ -586,6 +586,7 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
   }
   const counts = { objects: 0, properties: 0, arrayEntries: 0, textBytes: 0, propertyKeyBytes: 0 }
   const snapshots = new WeakMap<object, object>()
+  const heights = new WeakMap<object, number>()
   const active = new WeakSet<object>()
   const captured: object[] = []
   const text = (value: string, key = false): void => {
@@ -607,7 +608,12 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
     if (typeof value !== 'object') throw new TypeError('SVG emission metadata must be plain data')
     if (active.has(value)) throw new TypeError('SVG emission metadata must not contain cycles')
     const prior = snapshots.get(value)
-    if (prior) return prior
+    if (prior) {
+      // An alias consumes no additional storage, but its deepest descendant
+      // must still fit beneath this occurrence's enclosing path.
+      if (depth + heights.get(value)! > limits.maxDepth) throw new RangeError('SVG emission metadata exceeds depth budget')
+      return prior
+    }
     if (++counts.objects > limits.maxObjects) throw new RangeError('SVG emission metadata exceeds object budget')
     const array = Array.isArray(value)
     const owned = OWNED_METADATA_NODES.has(value)
@@ -631,6 +637,7 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
     }
     snapshots.set(value, result)
     active.add(value)
+    let height = 0
     for (const key of keys) {
       if (array && key === 'length') continue
       if (typeof key !== 'string' || array && (!/^(?:0|[1-9]\d*)$/.test(key) || Number(key) >= arrayLength)) throw new TypeError('SVG emission metadata must not contain symbol or custom array keys')
@@ -638,9 +645,12 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
       if (!owned && (!descriptor || !('value' in descriptor) || !descriptor.enumerable)) throw new TypeError('SVG emission metadata requires enumerable data properties')
       if (++counts.properties > limits.maxProperties) throw new RangeError('SVG emission metadata exceeds property budget')
       text(key, true)
-      const child = visit(owned ? (value as Record<string, unknown>)[key] : descriptor!.value, depth + 1)
+      const inputChild: unknown = owned ? (value as Record<string, unknown>)[key] : descriptor!.value
+      const child = visit(inputChild, depth + 1)
+      height = Math.max(height, 1 + (inputChild !== null && typeof inputChild === 'object' ? heights.get(inputChild)! : 0))
       if (!owned) Object.defineProperty(result, key, { value: child, enumerable: true, writable: true, configurable: true })
     }
+    heights.set(value, height)
     active.delete(value)
     if (owned) return result
     captured.push(result)
@@ -909,17 +919,22 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   // Aliases are legal data, but a tiny repeated sequence DAG must not expand
   // into unbounded work even when every leaf emits zero bytes. Memoize the
   // expansion count so admission itself remains linear in the captured data.
-  const steps = new WeakMap<object, number>()
-  const count = (item: SvgEmissionRecipe): number => {
+  const steps = new WeakMap<object, { steps: number; height: number }>()
+  const count = (item: SvgEmissionRecipe): { steps: number; height: number } => {
     const prior = steps.get(item)
     if (prior !== undefined) return prior
     let result = 1
+    let height = 0
     if (item.kind === 'sequence') for (const child of item.children) {
-      result += count(child)
+      const subtree = count(child)
+      result += subtree.steps
+      height = Math.max(height, subtree.height + 1)
       if (result > SVG_EMISSION_METADATA_LIMITS.maxObjects) throw new RangeError('SVG recipe exceeds expanded emission budget')
+      if (height > 64) throw new RangeError('SVG recipe exceeds depth budget')
     }
-    steps.set(item, result)
-    return result
+    const bounds = { steps: result, height }
+    steps.set(item, bounds)
+    return bounds
   }
   count(recipe)
 }

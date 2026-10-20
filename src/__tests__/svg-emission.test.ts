@@ -446,6 +446,60 @@ describe('private typed SVG recipes', () => {
   })
 
   test.each([
+    ['shallow first', false, false], ['deep first', true, false],
+    ['owned shallow first', false, true], ['owned deep first', true, true],
+  ] as const)('aliased descendants obey the exact enclosing data depth: %s', (_name, deepFirst, owned) => {
+    const leaf: SvgEmissionRecipe = { kind: 'close' }
+    const raw: SvgEmissionRecipe = { kind: 'sequence', children: [leaf] }
+    const shared = owned ? snapshotSvgEmissionRecipe(raw) : raw
+    const wrapper: SvgEmissionRecipe = { kind: 'sequence', children: [shared] }
+    const source: SvgEmissionRecipe = { kind: 'sequence', children: deepFirst ? [wrapper, shared] : [shared, wrapper] }
+    // The longer path ends at close.kind at depth7, including both arrays.
+    // Reaching the same subtree at depth2 first cannot authorize that path.
+    expect(() => snapshotSvgEmissionRecipe(source, { ...SVG_EMISSION_METADATA_LIMITS, maxDepth: 6 })).toThrow('depth budget')
+    const captured = snapshotSvgEmissionRecipe(source, { ...SVG_EMISSION_METADATA_LIMITS, maxDepth: 7 })
+    expect(svgEmissionMetadataCounts(captured)).toEqual({ objects: 7, properties: 11, arrayEntries: 4, textBytes: 29, propertyKeyBytes: 44 })
+    if (captured.kind !== 'sequence') throw new Error('Expected sequence')
+    const capturedShared = captured.children[deepFirst ? 1 : 0]
+    const capturedWrapper = captured.children[deepFirst ? 0 : 1]
+    if (capturedWrapper?.kind !== 'sequence') throw new Error('Expected wrapper')
+    expect(capturedWrapper.children[0]).toBe(capturedShared)
+    expect(Object.isFrozen(source)).toBe(false)
+    expect(Object.isFrozen(source.children)).toBe(false)
+    expect(Object.isFrozen(raw)).toBe(false)
+    expect(Object.isFrozen(leaf)).toBe(false)
+  })
+
+  test.each([['shallow first', false], ['deep first', true]] as const)('default capture rejects an aliased ladder beyond its depth limit: %s', (_name, deepFirst) => {
+    let previous: SvgEmissionRecipe = { kind: 'close' }
+    const children: SvgEmissionRecipe[] = [previous]
+    for (let level = 0; level < 65; level++) {
+      previous = { kind: 'sequence', children: [previous] }
+      children.push(previous)
+    }
+    const source: SvgEmissionRecipe = { kind: 'sequence', children: deepFirst ? [...children].reverse() : children }
+    expect(() => snapshotSvgEmissionRecipe(source)).toThrow('depth budget')
+    expect(children.some(Object.isFrozen)).toBe(false)
+    expect(Object.isFrozen(children)).toBe(false)
+  })
+
+  test.each([['shallow first', false], ['deep first', true]] as const)('direct grammar bounds aliased sequence depth independently of data depth: %s', (_name, deepFirst) => {
+    let previous: SvgEmissionRecipe = { kind: 'close' }
+    const children: SvgEmissionRecipe[] = [previous]
+    for (let level = 0; level < 63; level++) {
+      previous = { kind: 'sequence', children: [previous] }
+      children.push(previous)
+    }
+    // Root plus63 nested sequences reaches exactly64 recipe edges. Direct
+    // grammar intentionally has a different unit from plain-data capture.
+    const ordered = () => deepFirst ? [...children].reverse() : [...children]
+    expect(() => validateSvgEmissionRecipe({ kind: 'sequence', children: ordered() })).not.toThrow()
+    previous = { kind: 'sequence', children: [previous] }
+    children.push(previous)
+    expect(() => validateSvgEmissionRecipe({ kind: 'sequence', children: ordered() })).toThrow('depth budget')
+  })
+
+  test.each([
     ['incompatible text layout', () => {
       const owned = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', positionFormat: 'round2', attributes: [] })
       return { ...owned, layout: 'direct' } as SvgEmissionRecipe
