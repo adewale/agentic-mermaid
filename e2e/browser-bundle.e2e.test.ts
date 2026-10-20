@@ -415,6 +415,7 @@ describe('async family-loaded browser renderer', () => {
           api.renderMermaidSVGAsync('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R --> L:b', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('classDiagram\nclass Account {\n+String name\n}\nAccount --> Audit : records', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('erDiagram\nCUSTOMER ||--o{ ORDER : places', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('erDiagram\nsubgraph Accounts\n CUSTOMER ||--o{ ORDER : places\nend\nsubgraph Audit\n AUDIT\nend\nAccounts ||--|| Audit : reports\nORDER ||..o{ AUDIT : logs', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('requirementDiagram\nrequirement fast {\ntext: Respond quickly\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> fast', { graphLayout: { backend } }),
         ])

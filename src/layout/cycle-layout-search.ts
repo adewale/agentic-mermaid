@@ -37,7 +37,7 @@ export function layoutCyclicGraph(
     const edgeOrder = edges.map((_, index) => reverseEdges ? edges.length - 1 - index : index)
     const edgeIndices = new Uint32Array(edges.length)
     edgeOrder.forEach((original, index) => { edgeIndices[original] = index })
-    const moved = layout({ ...input, shareCompleteFans: false,
+    const moved = layout({ ...input, shareCompleteFans: false, cycleOriented: true,
       nodes: permutation.map(index => nodes[index]!),
       edges: edgeOrder.map(original => {
         const edge = edges[original]!, source = reversed[original] ? edge.target : edge.source, target = reversed[original] ? edge.source : edge.target
@@ -82,26 +82,30 @@ export function layoutCyclicGraph(
     const dfs = depthFirstOrder(movedOut, movedEdges), otherGreedy = feedbackOrder(movedIn, movedOut, movedEdges)
     return [Uint32Array.from(nodes, (_, index) => dfs[remap(index)]!), Uint32Array.from(nodes, (_, index) => otherGreedy[remap(index)]!)]
   })
-  for (const order of [greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]) {
-    for (const reverseNodes of [true, false]) for (const reverseEdges of [true, false]) {
-      const candidateKey = key(order, reverseNodes, reverseEdges)
-      if (seen.has(candidateKey)) continue
-      seen.add(candidateKey)
-      if (localAttempts-- <= 0 || search.attempts-- <= 0 || search.routing.pairs < 0 || search.routing.arcs < 0 || search.routing.swaps < 0) return best
-      try {
-        const alternative = place(order, reason => { throw new OptionalOrderDecline(reason) }, search.routing, reverseNodes, reverseEdges)
-        const value = score(alternative)
-        if (value === undefined) return best
-        const bends = bendCount(alternative), area = alternative.width * alternative.height
-        // Crossings dominate, followed by bends and area. Exact ties preserve
-        // the earlier candidate; no weighted score trades feasibility away.
-        if (value < bestScore || (value === bestScore && (bends < bestBends || (bends === bestBends && area < bestArea)))) {
-          best = alternative; bestScore = value; bestBends = bends; bestArea = area
-        }
-        if (bestScore === 0) return best
-      } catch (error) {
-        if (!(error instanceof OptionalOrderDecline)) throw error
+  // Spend the two larger compact trials on distinct cuts before input variants.
+  const diversify = input.compactPrivateRanks && nodes.length > 16
+  const orders = [greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]
+  const permutations = [[true, true], [true, false], [false, true], [false, false]] as const
+  for (let trial = 0; trial < orders.length * permutations.length; trial++) {
+    const order = orders[diversify ? trial % orders.length : Math.floor(trial / permutations.length)]!
+    const [reverseNodes, reverseEdges] = permutations[diversify ? Math.floor(trial / orders.length) : trial % permutations.length]!
+    const candidateKey = key(order, reverseNodes, reverseEdges)
+    if (seen.has(candidateKey)) continue
+    seen.add(candidateKey)
+    if (localAttempts-- <= 0 || search.attempts-- <= 0 || search.routing.pairs < 0 || search.routing.arcs < 0 || search.routing.swaps < 0) return best
+    try {
+      const alternative = place(order, reason => { throw new OptionalOrderDecline(reason) }, search.routing, reverseNodes, reverseEdges)
+      const value = score(alternative)
+      if (value === undefined) return best
+      const bends = bendCount(alternative), area = alternative.width * alternative.height
+      // Crossings dominate, followed by bends and area. Exact ties preserve
+      // the earlier candidate; no weighted score trades feasibility away.
+      if (value < bestScore || (value === bestScore && (bends < bestBends || (bends === bestBends && area < bestArea)))) {
+        best = alternative; bestScore = value; bestBends = bends; bestArea = area
       }
+      if (bestScore === 0) return best
+    } catch (error) {
+      if (!(error instanceof OptionalOrderDecline)) throw error
     }
   }
   return best
