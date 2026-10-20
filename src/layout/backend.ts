@@ -1,5 +1,14 @@
 import type { RenderOptions } from '../types.ts'
 
+/** A synchronous producer can suspend for a dependency in the async entry.
+ * Loading is neither geometric infeasibility nor a solver failure. */
+export class DeferredDependencyError extends Error {
+  constructor(name: string, readonly load: () => Promise<void>) {
+    super(`${name} must load before this operation can complete`)
+    this.name = 'DeferredDependencyError'
+  }
+}
+
 export interface GraphLayoutDecision {
   readonly requested: 'elk' | 'agentic'
   readonly fallback: 'none' | 'elk'

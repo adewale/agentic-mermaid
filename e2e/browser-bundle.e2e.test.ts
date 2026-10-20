@@ -371,10 +371,10 @@ describe('async family-loaded browser renderer', () => {
       await page.goto(`${base}/blank.html`)
       const svgs = await page.evaluate(async entryUrl => {
         const api = await import(entryUrl)
-        return [
-          await api.renderMermaidSVGAsync('flowchart LR\n  A --> B'),
-          await api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready'),
-        ]
+        return Promise.all([
+          api.renderMermaidSVGAsync('flowchart LR\n  A --> B'),
+          api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready'),
+        ])
       }, `${base}/dist/browser-lazy/index.js`)
       expect(svgs).toEqual([
         renderMermaidSVG('flowchart LR\n  A --> B'),
@@ -465,6 +465,33 @@ describe('async family-loaded browser renderer', () => {
       } finally { await page.close() }
     })
   }
+  test.each([false, true])('native graph placement fetches ELK only for an actual fallback (%s)', async fallback => {
+    const page = await browser.newPage()
+    const requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    const source = `flowchart TD\nA["x#hearts;y"] --> B${fallback ? '\nB --> A' : ''}`
+    const options = {
+      graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
+      security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },
+    }
+    try {
+      await page.goto(`${base}/blank.html`)
+      const result = await page.evaluate(async ({ entry, source, options }) => {
+        const api = await import(entry)
+        const diagnostics: unknown[] = []
+        const rendered = await api.renderMermaidSVGWithReceiptAsync(source, {
+          ...options, onConfigDiagnostic: (value: unknown) => diagnostics.push(value),
+        })
+        return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+      const diagnostics: unknown[] = []
+      const expected = renderMermaidSVGWithReceipt(source, { ...options, onConfigDiagnostic: value => diagnostics.push(value) })
+      expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
+      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(fallback ? 1 : 0)
+      expect(result.receipt.layoutDecisions[0].selected).toBe(fallback ? 'elk' : 'agentic')
+    } finally { await page.close() }
+  })
+
 
   test('the emitted lazy artifact rejects hostile strict-mode theme CSS', async () => {
     const page = await browser.newPage()

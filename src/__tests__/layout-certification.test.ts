@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test'
 import { certifyOwnedLayoutCandidate, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
+import { DeferredDependencyError } from '../layout/backend.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { withPerformanceExperiments, type PerformanceExperiment } from '../experimental-performance.ts'
@@ -585,6 +586,7 @@ describe('bounded final layout certification', () => {
   test.each([
     new LayoutMetricBudgetError('straighten', 'bends', 0, 4, 2),
     new DiagramWorkLimitError('nodes', 5_001),
+    new DeferredDependencyError('ELK', async () => {}),
   ])('a non-recoverable %s cannot be hidden by an otherwise clean fallback', error => {
     const graph = parseMermaid(source)
     const clean = layoutGraphSync(graph)

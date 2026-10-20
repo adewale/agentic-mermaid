@@ -130,10 +130,21 @@ if (forbiddenInputs.length > 0) {
 const elkOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/elkjs/')))
 const elkOutput = requireOne(elkOutputs, 'ELK implementation chunk')
+const elkLoaders = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/elk-constructor.lazy.ts')))
+if (!MEASURE_ONLY && elkLoaders.length !== 1) throw new Error('ELK must have one on-demand constructor')
 const initialFiles = staticClosure([entry])
-const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
+const staticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
+])) as Record<BrowserBuiltinFamilyId, string[]>
+const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[id].includes(elkOutput)
+  || elkLoaders.some(loader => staticFamilyFiles[id].includes(loader)))
+// Preserve the existing default-render payload contract: ELK consumers still
+// pay for ELK when it is selected. Also report the static/native closure so
+// demand loading cannot masquerade as a smaller default ELK render.
+const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
+  staticClosure([entry, renderCore, familyOutputs[id], ...(observedElkFamilies.includes(id) ? [elkOutput] : [])]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 const yamlOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/yaml/')))
@@ -154,19 +165,20 @@ const elkConstructorOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => /^src\/elk-constructor(?:\.lazy)?\.ts$/.test(input)))
 if (elkConstructorOutputs.length === 0) throw new Error('ELK implementation has no emitted constructor seam')
 const elkFamilies = MEASURED_FAMILY_IDS.filter(id =>
-  elkConstructorOutputs.some(path => familyFiles[id].includes(path)))
+  elkConstructorOutputs.some(path => staticFamilyFiles[id].includes(path)))
 const elkFiles = staticClosure([elkOutput])
 const budgetedFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
-  staticClosure([...familyFiles[id], ...yamlFiles, ...(elkFamilies.includes(id) ? elkFiles : [])]),
+  staticClosure([...staticFamilyFiles[id], ...yamlFiles, ...(elkFamilies.includes(id) ? elkFiles : [])]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
-
-const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (!MEASURE_ONLY) {
   if (yamlRuntimeOutputs.length !== 1) throw new Error('YAML must have one demand-loaded provider')
   if ([...yamlRuntimeOutputs, ...yamlOutputs].some(path => initialFiles.includes(path)
     || BROWSER_BUILTIN_FAMILY_IDS.some(id => familyFiles[id].includes(path)))) {
     throw new Error('YAML must load only on demand, never with the initial download or a family')
+  }
+  if (initialFiles.includes(elkOutput) || BROWSER_BUILTIN_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(elkOutput))) {
+    throw new Error('ELK must load only when selected, never in the initial or family static closure')
   }
   // The complete HTML5 named-reference table (~23 KB gzip) is fetched on
   // demand (shared/html-entity-table.lazy.ts), only for a diagram that uses a
@@ -216,6 +228,8 @@ const report = {
   budgetedFamilyClosure: 'static imports plus complete YAML transfer for frontmatter/directives and ELK transfer for families that can demand its constructor',
   yamlChunks: yamlProviderOutputs,
   yamlTransfer: transferSize(yamlFiles),
+  familyCost: 'default rendering, including ELK where selected; static excludes on-demand dependencies',
+  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, { requests: budgetedFamilyFiles[id].length, ...transferSize(budgetedFamilyFiles[id]) }])),
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
@@ -223,12 +237,8 @@ const report = {
     requests: familyFiles[id].length,
     elk: familyFiles[id].includes(elkOutput),
     ...transferSize(familyFiles[id]),
-  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
-  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
-    requests: budgetedFamilyFiles[id].length,
-    elk: elkFamilies.includes(id),
-    ...transferSize(budgetedFamilyFiles[id]),
-  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
+    static: { requests: staticFamilyFiles[id].length, ...transferSize(staticFamilyFiles[id]) },
+  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean; static: TransferSize & { requests: number } }>,
 }
 
 const problems: string[] = []

@@ -51,7 +51,7 @@ import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { layoutAgenticGraph } from './layout/agentic-layered.ts'
-import { emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
+import { DeferredDependencyError, emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
@@ -1938,7 +1938,7 @@ function layoutCandidate(
       result = candidate
       break
     } catch (err) {
-      if (err instanceof DiagramWorkLimitError) throw err
+      if (err instanceof DiagramWorkLimitError || err instanceof DeferredDependencyError) throw err
       lastError = err
       degradationReason = 'exception'
     }
