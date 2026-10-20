@@ -732,7 +732,11 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
       if (!source || source.startsWith('%%')) value = { kind: 'trivia' }
       else if (inClass && text !== '}') {
         const annotation = parseClassBodyAnnotationToken(text)
-        value = annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
+        // A `{` in a class body opens nothing Mermaid reads (OPEN_IN_STRUCT),
+        // on the line that opens the block or a later one, and where the
+        // author meant the block to close cannot be told.
+        value = text.includes('{') ? { kind: 'unknown', reason: `Unrecognized class member "${text}": a class body cannot hold "{"` }
+          : annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
       } else value = classifyClassStatement(text, fragment.authored)
       const parts = value.kind === 'unknown' ? splitClassBlockStatement(text, owner?.value.kind === 'namespace') : null
       if (parts) {

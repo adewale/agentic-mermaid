@@ -78,6 +78,7 @@ describe('parseClassDiagram – class definitions', () => {
     // A member runs to a brace: Mermaid rejects a `{` inside a class block.
     ['open brace among the members on a block\'s line', 'namespace N {\nclass A {   lass B{\nint x\n}\n}', 'Unrecognized class statement "class A {   lass B{"'],
     ['open brace before the block closes on its line', 'class A { +x{ }', 'Unrecognized class statement "class A { +x{ }"'],
+    ['open brace in a member below the block\'s line', 'namespace N {\nclass A {\nint x\nstrontend {\ncing : foo\n}\nclass B\n}', 'Unrecognized class member "strontend {"'],
   ])('refuses a partial drawing for %s', (_name, source, reason) => {
     expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
   })
