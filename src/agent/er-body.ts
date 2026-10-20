@@ -25,6 +25,7 @@ import { labelOverflowCollector } from './body-utils.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import {
   erNameNeedsQuotes,
+  erWordReadsAsName,
   isErKeywordName,
   parseErAttribute,
   portableErAttributeText,
@@ -64,10 +65,10 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
     }
     statementLines.push(index)
   }
-  const quotedText: Array<[index: number, what: string, portable: string]> = []
+  const quotedText: Array<[index: number, what: string, portable: string, syntax: string]> = []
   let source: ReturnType<typeof readErStatements> | undefined
   try {
-    source = readErStatements(grammar, (what, portable, index) => quotedText.push([index, what, portable]))
+    source = readErStatements(grammar, (what, portable, index, syntax = 'er_quoted_text') => quotedText.push([index, what, portable, syntax]))
   } catch {
     // A statement ours cannot read fails the render; verify reports that.
   }
@@ -77,7 +78,7 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
     // Text a comment left open on an earlier line holds is no statement.
     if (hasErTrailingComment(lines[index]!.slice(source?.continuedComments.get(index - header - 1) ?? 0))) warn(index, 'er_trailing_comment', 'A trailing %% comment after an ER statement is read as a comment', 'put the comment on a line of its own')
   }
-  for (const [index, what, portable] of quotedText) warn(header + index + 1, 'er_quoted_text', what, portable)
+  for (const [index, what, portable, syntax] of quotedText) warn(header + index + 1, syntax, what, portable)
   if (source) {
     const directionLines = new Set<number>()
     for (const entry of source.statements) {
@@ -90,6 +91,10 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
         : syntax.kind === 'relation' ? [syntax.relation.entity1, syntax.relation.entity2] : []
       for (const reference of references) {
         if (!reference.quoted && isErKeywordName(reference.id)) warn(header + entry.line + 1, 'er_keyword_name', `ER name ${reference.id} is read as a name, where Mermaid reads a keyword`, `quote it ("${reference.id}")`)
+        else if (!reference.quoted && erNameNeedsQuotes(reference.id)) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'er_number_name', line: header + entry.line + 2,
+          message: `ER name ${reference.id} is read as one name. Pinned Mermaid's lexer reads the number it starts with as a name of its own, so it declares two entities or rejects the line; quote the name ("${reference.id}")`,
+        })
       }
       if (syntax.kind === 'attribute' && syntax.generous) warn(header + entry.line + 1, 'er_attribute_form', 'An attribute with keys apart or after its comment is read as its type, name, keys and comment', 'write its keys comma-separated before the comment (`int id PK, FK "c"`)')
       if (syntax.kind === 'relation' && syntax.relation.unreadLabel) {
@@ -484,7 +489,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
         declareBefore(firstCreatedWithin(index))
         const group = groupById.get(statement.id)
         if (group) {
-          const id = /\s/.test(group.id) ? `"${group.id}"` : group.id
+          const id = erWordReadsAsName(group.id) ? group.id : `"${group.id}"`
           lines.push(`  subgraph ${id}${group.label !== decodeErText(group.id) ? ` [${writeErTitle(group.label, group.labelContent)}]` : ''}`)
           fold.open(statement.id)
         }

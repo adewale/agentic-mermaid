@@ -57,6 +57,7 @@ export function parseErEntityReference(value: string, report?: ErQuotedTextRepor
   if (!match) return null
   const id = match[1]!.startsWith('"') ? readErQuotedName(match[1]!, 'ER entity name', report) : match[1]!
   const alias = match[2] !== undefined ? readErQuotedName(match[2], 'ER entity alias', report) : match[3]?.trim()
+  if (match[3] !== undefined && alias && !erWordReadsAsName(alias)) report?.(`ER entity alias [${alias}] is read as written`, `quote it (["${alias}"])`, 'er_alias_text')
   return {
     id,
     ...(alias !== undefined ? { alias } : {}),
@@ -148,10 +149,24 @@ const ER_GROUP_HEADER_RE = new RegExp(String.raw`^subgraph\s+(${ER_QUOTED_NAME_S
 export function parseErGroupHeader(line: string, report?: ErQuotedTextReport): { id: string; title?: string } | null {
   const explicit = line.match(ER_GROUP_HEADER_RE)
   if (!explicit) return null
-  const id = explicit[1]!.startsWith('"') ? readErQuotedName(explicit[1]!, 'ER subgraph id', report) : explicit[1]!
+  const quoted = explicit[1]!.startsWith('"')
+  const id = quoted ? readErQuotedName(explicit[1]!, 'ER subgraph id', report) : explicit[1]!
+  if (!quoted && !erWordReadsAsName(id)) report?.(`ER subgraph id ${id} is read as written`, `quote it ("${id}")`, 'er_subgraph_name')
   const title = explicit[2]?.trim()
   if (!title) return { id }
-  return { id, title: ER_QUOTED_NAME_RE.test(title) ? readErQuotedName(title, 'ER subgraph title', report) : title }
+  if (ER_QUOTED_NAME_RE.test(title)) return { id, title: readErQuotedName(title, 'ER subgraph title', report) }
+  const names = readErTitleNames(title, report)
+  if (names === undefined) report?.(`ER subgraph title [${title}] is read as written`, `quote it (["${title}"])`, 'er_subgraph_name')
+  return { id, title: names ?? title }
+}
+
+// What Mermaid's ER style lexer cannot read: it takes only letters of any
+// script, digits, `_`, `-`, `*`, `#`, `:`, `,`, `;` and blanks.
+const ER_STYLE_UNREAD_RE = /[^\x80-\uFFFF\w\s*#:,;-]/
+
+function reportErStyleText(text: string, report?: ErQuotedTextReport): void {
+  const unread = ER_STYLE_UNREAD_RE.exec(text)?.[0]
+  if (unread) report?.(`ER style ${text.trim()} holds ${unread} and is read as written`, 'write it with letters, digits, -, *, #, : and , alone (a #rrggbb color, a whole px width)', 'er_style_text')
 }
 
 /** A `direction` statement. Upstream's lexer reads it to the end of its
@@ -203,6 +218,7 @@ export function readErStatement(line: string, inGroup: boolean, report?: ErQuote
   // --- Entity paint directives (upstream ER grammar) ---
   const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/i)
   if (classDef) {
+    reportErStyleText(classDef[2]!, report)
     return { kind: 'class-def', names: classDef[1]!.split(',').map(value => value.trim()).filter(Boolean), props: parseStyleProps(classDef[2]!) }
   }
   const classAssignment = parseErClassAssignment(line, report)
@@ -210,6 +226,7 @@ export function readErStatement(line: string, inGroup: boolean, report?: ErQuote
   if (/^class(?:[ \t]|$)/i.test(line)) throw new Error(`Invalid ER class assignment: ${line}`)
   const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/i)
   if (inlineStyle) {
+    reportErStyleText(inlineStyle[2]!, report)
     const references = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim(), report))
     if (references.some(reference => reference === null)) throw new Error(`Invalid ER style assignment: ${line}`)
     const ids = references.map(reference => reference!.id)
@@ -254,6 +271,34 @@ export function isErKeywordName(id: string): boolean {
  * lexer takes first (`2px` reads as `2` and `px`). */
 export function erNameNeedsQuotes(id: string): boolean {
   return isErKeywordName(id) || (/^\d/.test(id) && !/^\d+(?:\.\d+)?$/.test(id))
+}
+
+// The characters of a bare name in Mermaid's ER lexer (UNICODE_TEXT).
+const ER_NAME_CHARS_RE = /^(?:[^\x00-\x7F]|[\w*.-])+$/
+
+/** Whether Mermaid's lexer reads the bare `word` as names: one name, or,
+ * with `split`, a number and the name after it (`1tle` is `1` and `tle`).
+ * `next` is the text after it, for the rules that look past a word (`1 x`
+ * is a cardinality). */
+export function erWordReadsAsName(word: string, next = '', split = false): boolean {
+  return ER_NAME_CHARS_RE.test(word) && !(split ? isErKeywordName(word) : erNameNeedsQuotes(word)) && !ER_LINK_TOKEN_RE.test(word + next)
+}
+
+// A subgraph title's words: quoted names and bare words.
+const ER_TITLE_WORD_RE = /"[^"]*"|[^\s"]+/g
+
+/** A bracketed subgraph title as Mermaid reads it: its names one space apart,
+ * quotes removed. Undefined where a word is no name Mermaid reads. A word
+ * Mermaid splits after a leading number (`1tle`) is kept whole. */
+function readErTitleNames(title: string, report?: ErQuotedTextReport): string | undefined {
+  if (title.replace(ER_TITLE_WORD_RE, '').trim() !== '') return undefined
+  const names: string[] = []
+  for (const word of title.matchAll(ER_TITLE_WORD_RE)) {
+    if (word[0].startsWith('"')) names.push(readErQuotedName(word[0], 'ER subgraph title', report))
+    else if (erWordReadsAsName(word[0], title.slice(word.index + word[0].length), true)) names.push(word[0])
+    else return undefined
+  }
+  return names.join(' ')
 }
 
 /** Offset of the `}` that ends an attribute block in `text`, or -1: the
@@ -424,7 +469,7 @@ function readErOuterStatements(text: string, inGroup: boolean, report?: ErQuoted
   if (whole) return [ending(whole, 0)]
   // Quoted text is reported only once the whole run reads.
   const run: Array<{ syntax: ErStatementLine; start: number; end: number }> = []
-  const heard: Array<[string, string]> = []
+  const heard: Array<Parameters<ErQuotedTextReport>> = []
   const unread = [{ syntax: { kind: 'unknown' as const }, start: 0, end: text.length }]
   for (let at = 0; at < text.length;) {
     const rest = text.slice(at)
@@ -432,14 +477,14 @@ function readErOuterStatements(text: string, inGroup: boolean, report?: ErQuoted
     // before `u--o{` could read as a block start.
     if (ER_LINK_TOKEN_RE.test(rest)) return unread
     if (at > 0) {
-      const attempt: Array<[string, string]> = []
-      const relation = readErRelationBeforeRun(rest, inGroup, (what, portable) => attempt.push([what, portable]))
+      const attempt: Array<Parameters<ErQuotedTextReport>> = []
+      const relation = readErRelationBeforeRun(rest, inGroup, (...heard) => attempt.push(heard))
       if (relation) {
         run.push(...relation.map(statement => ({ ...statement, start: statement.start + at, end: statement.end + at })))
         heard.push(...attempt)
         break
       }
-      const next = readErStatement(rest, inGroup, (what, portable) => attempt.push([what, portable]))
+      const next = readErStatement(rest, inGroup, (...heard) => attempt.push(heard))
       if (next) {
         run.push(ending(next, at))
         heard.push(...attempt)
@@ -448,13 +493,13 @@ function readErOuterStatements(text: string, inGroup: boolean, report?: ErQuoted
     }
     if (ER_RUN_KEYWORD_RE.test(rest)) return unread
     const lead = ER_ENTITY_REFERENCE_PREFIX_RE.exec(rest)
-    const reference = lead && parseErEntityReference(lead[0], (what, portable) => heard.push([what, portable]))
+    const reference = lead && parseErEntityReference(lead[0], (...report) => heard.push(report))
     if (!reference) return unread
     run.push({ syntax: { kind: 'entity', reference }, start: at, end: at + lead[0].length })
     at += lead[0].length
     at += text.slice(at).length - text.slice(at).trimStart().length
   }
-  if (report) for (const [what, portable] of heard) report(what, portable)
+  if (report) for (const args of heard) report(...args)
   return run
 }
 
@@ -470,8 +515,8 @@ const ER_QUOTED_LABEL_RELATION_RE = /^(?:[^":]|"[^"]*")*?:\s*"[^"]*"/
 function readErRelationBeforeRun(text: string, inGroup: boolean, report?: ErQuotedTextReport): Array<{ syntax: ErStatementLine; start: number; end: number }> | null {
   const labelEnd = ER_QUOTED_LABEL_RELATION_RE.exec(text)?.[0].length ?? -1
   if (labelEnd < 0 || !text.slice(labelEnd).trim()) return null
-  const heard: Array<[string, string]> = []
-  const hear = (what: string, portable: string): void => { heard.push([what, portable]) }
+  const heard: Array<Parameters<ErQuotedTextReport>> = []
+  const hear: ErQuotedTextReport = (...report) => { heard.push(report) }
   let relation: ReturnType<typeof readErStatement>
   let rest: ReturnType<typeof readErOuterStatements>
   const after = text.length - text.slice(labelEnd).trimStart().length
@@ -483,7 +528,7 @@ function readErRelationBeforeRun(text: string, inGroup: boolean, report?: ErQuot
     return null
   }
   if (rest.some(statement => statement.syntax.kind === 'unknown')) return null
-  if (report) for (const [what, portable] of heard) report(what, portable)
+  if (report) for (const args of heard) report(...args)
   return [
     { syntax: relation, start: 0, end: labelEnd },
     ...rest.map(statement => ({ ...statement, syntax: statement.syntax as ErStatementLine, start: statement.start + after, end: statement.end + after })),
@@ -529,7 +574,7 @@ interface ErFoundStatement {
  * line Mermaid's attribute grammar cannot read is read on its own as one
  * generous attribute (readGenerousErAttribute), or else is unknown.
  */
-function findErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void, continued?: Map<number, number>): ErFoundStatement[] {
+function findErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number, syntax?: string) => void, continued?: Map<number, number>): ErFoundStatement[] {
   const found: ErFoundStatement[] = []
   let groupDepth = 0
   // The open attribute block, the attribute it is reading, and a comment a
@@ -605,7 +650,7 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
         at = skipSpace(runEnd + 1)
       } else {
         const statements = readErOuterStatements(raw.slice(at, stop), groupDepth > 0,
-          report ? (what, portable) => report(what, portable, line) : undefined)
+          report ? (what, portable, syntax) => report(what, portable, line, syntax) : undefined)
         for (const { syntax, start, end } of statements) {
           found.push({ syntax, line, start: at + start, endLine: line, end: at + end })
           if (syntax.kind === 'group-open') groupDepth++
@@ -637,7 +682,7 @@ export function erStyleStatementLines(lines: readonly string[]): ReadonlySet<num
 
 /** The lossless ER grammar view. Scope and creation are decided here, before
  * either consumer projects statements into its own model. */
-export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): {
+export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number, syntax?: string) => void): {
   statements: ErSourceStatement[]
   placement: ErPlacement
   /** Each line a comment opened on an earlier line runs onto, and the column
@@ -984,6 +1029,13 @@ export function parseErRelationshipSyntax(line: string, report?: ErQuotedTextRep
   const entity1 = parseErEntityReference(match[1]!, report)
   const entity2 = parseErEntityReference(match[8]!, report)
   if (!entity1 || !entity2) return null
+  // Mermaid takes an alias only where an entity is declared alone.
+  for (const entity of [entity1, entity2]) {
+    if (entity.alias !== undefined) report?.(`ER entity alias [${entity.alias}] on a relationship is read as ${entity.id}'s alias`, `declare ${entity.id} with its alias on a line of its own`, 'er_relation_alias')
+  }
+  // Mermaid's lexer reads `|o` and `}o` only where a word ends there: `|oOM`
+  // is `|` and the name `oOM`.
+  if (match[7] && /o$/i.test(match[7]) && /^\w/.test(match[8]!)) report?.(`ER cardinality ${match[7]} is read before the name ${match[8]} it touches`, `put a space between them (${match[7]} ${match[8]})`, 'er_cardinality_space')
   const operator = (match[4] ?? match[5]!).trim().replace(/[ \t]+/g, ' ').toLowerCase()
   return {
     entity1,
