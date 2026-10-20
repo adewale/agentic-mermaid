@@ -61,10 +61,9 @@ export function mcpDescribePayload(
   const format = mcpDescribeFormat(args)
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) {
-    // Preserve the established prose parse-error projection for text callers;
-    // JSON/facts already expose the structured parser diagnostics.
-    if (format === 'text') return { ok: true as const, text: describeMermaidSource(source) }
-    return { ok: false as const, errors: parsed.error }
+    // A source that does not parse is never described successfully; text
+    // callers also keep the established prose parse-error line.
+    return { ok: false as const, errors: parsed.error, ...(format === 'text' ? { text: describeMermaidSource(source) } : {}) }
   }
   const diagram = parsed.value
   if (isPreservedDiagram(diagram)) {

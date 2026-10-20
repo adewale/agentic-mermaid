@@ -40,6 +40,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - A registered family whose parse hook throws no longer makes `parseMermaid`
   and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
   which `verify` reports as `RENDER_FAILED` with origin `config`.
+- The MCP `describe` tool no longer reports success for a source that does
+  not parse in its default text format. Every format returns `ok: false`
+  with the parser's errors (text also keeps its prose line), as JSON and
+  facts did and as `am describe` exits non-zero.
 - A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
   ER, Journey, Architecture, any source-preserved body, and extension families
   that render canonically) renders, lays out and verifies under its authored
