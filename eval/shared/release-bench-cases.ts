@@ -80,7 +80,9 @@ const WORKLOADS = {
     { id: 'subgraphs-12x8', source: flowchartSubgraphs(12, 8) },
   ],
   sequence: [{ id: '20-participants-300-messages', source: lines('sequenceDiagram', 300, i => `  P${i % 20}->>P${(i * 7 + 1) % 20}: message ${i}`), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `message ${i}`) }],
-  class: [{ id: '80-classes', source: lines('classDiagram', 80, i => [`  class C${i} {`, `    +int field${i}`, `    +method${i}()`, '  }', ...(i > 0 ? [`  C${Math.floor((i - 1) / 2)} <|-- C${i}`] : [])]) }],
+  class: [
+    { id: 'cyclic-labelled-members', source: readFileSync(new URL('../layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8'), expectedSvgLabels: ['<<entity>>', 'Account', '+String name', '+ String find(String key)', 'Audit', '+int id', 'Repository', '+ save(Account value)', 'Retain prepared note text', 'records', '1', 'many', 'reviews', 'belongs', 'delegates', 'stores'] },
+    { id: '80-classes', source: lines('classDiagram', 80, i => [`  class C${i} {`, `    +int field${i}`, `    +method${i}()`, '  }', ...(i > 0 ? [`  C${Math.floor((i - 1) / 2)} <|-- C${i}`] : [])]) }],
   state: [{ id: '80-states', source: lines('stateDiagram-v2', 80, i => [`  S${i} --> S${i + 1}: e${i}`, ...(i % 5 === 0 ? [`  S${i + 1} --> S${Math.max(0, i - 3)}`] : [])]) }],
   er: [
     { id: 'cyclic-labelled-entities', source: readFileSync(new URL('../layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8'), expectedSvgLabels: ['CUSTOMER', 'ORDER', 'AUDIT', 'Stable customer id', 'customer_id', 'places', 'reviews', 'belongs', 'records', 'delegates'] },

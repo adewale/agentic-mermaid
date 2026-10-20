@@ -412,6 +412,7 @@ describe('async family-loaded browser renderer', () => {
         const api = await import(entryUrl)
         return Promise.all([
           api.renderMermaidSVGAsync('flowchart LR\n  A --> B', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('classDiagram\nclass Account {\n+String name\n}\nAccount --> Audit : records', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('erDiagram\nCUSTOMER ||--o{ ORDER : places', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('requirementDiagram\nrequirement fast {\ntext: Respond quickly\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> fast', { graphLayout: { backend } }),
