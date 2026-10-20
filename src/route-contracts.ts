@@ -38,7 +38,7 @@ import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRout
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { countPolylineCrossings } from './shared/edge-crossings.ts'
 import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
-import { LABEL_PILL_PADDING, labelRect, pillRect } from './shared/edge-label-geometry.ts'
+import { LABEL_PILL_PADDING, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
 
 export { labelRect } from './shared/edge-label-geometry.ts'
 
@@ -205,10 +205,8 @@ export interface LabelMetricsStyle {
   edgeBendRadius?: number
 }
 
-// ============================================================================
-// Classification
-// ============================================================================
-
+// =====================================================================// Classification
+// =====================================================================
 /**
  * Classify every edge of the graph by author-order semantics. Mirrors the
  * cycle-tolerant reachability used by sourceAwareNodeOrder() so the route
@@ -256,10 +254,8 @@ export function classifyRoutes(graph: MermaidGraph): RouteClass[] {
   })
 }
 
-// ============================================================================
-// Geometry helpers
-// ============================================================================
-
+// =====================================================================// Geometry helpers
+// =====================================================================
 interface Axis {
   main: 'x' | 'y'
   cross: 'x' | 'y'
@@ -366,10 +362,8 @@ function isMonotoneStaircase(points: Point[], axis: Axis): boolean {
   return true
 }
 
-// ============================================================================
-// Attachment spans and anchors
-// ============================================================================
-
+// =====================================================================// Attachment spans and anchors
+// =====================================================================
 interface CrossSpan { lo: number; hi: number }
 
 /** Cross-axis range where a straightened lane may attach to this node. */
@@ -393,10 +387,8 @@ function anchorMain(node: PositionedNode, c: number, axis: Axis, facing: 1 | -1)
   return point?.[axis.main] ?? null
 }
 
-// ============================================================================
-// Direct-lane proof
-// ============================================================================
-
+// =====================================================================// Direct-lane proof
+// =====================================================================
 interface LaneContext {
   nodes: PositionedNode[]
   edges: PositionedEdge[]
@@ -1022,10 +1014,8 @@ function dedupeBlockers(blockers: RouteBlocker[]): RouteBlocker[] {
   })
 }
 
-// ============================================================================
-// Certifying straightener
-// ============================================================================
-
+// =====================================================================// Certifying straightener
+// =====================================================================
 interface StraightenAttempt {
   applied: boolean
   blockers: RouteBlocker[]
@@ -2442,10 +2432,8 @@ export function recertifyReroutedEdge(
   }
 }
 
-// ============================================================================
-// Validation (consumed by verifyMermaid as ROUTE_HITCH)
-// ============================================================================
-
+// =====================================================================// Validation (consumed by verifyMermaid as ROUTE_HITCH)
+// =====================================================================
 export interface RouteHitch {
   edge: string
   deviationPx: number
@@ -2607,13 +2595,11 @@ function tryRepairContainerEdge(
   return tryStraighten(edge, src, tgt, ctx, best.axis).applied
 }
 
-// ============================================================================
-// Route audit — the remaining issue #25 Phase 1 warning codes. Each check is
+// =====================================================================// Route audit — the remaining issue #25 Phase 1 warning codes. Each check is
 // a tripwire: the pipeline upholds these invariants itself, so any finding
 // means a later pass broke geometry after certification. All definitions are
 // chosen to be zero-noise on the corpus.
-// ============================================================================
-
+// =====================================================================
 export type RouteAuditFinding =
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: string }
   | { code: 'ROUTE_LABEL_ON_SHARED_TRUNK'; edge: string; sharedWith: string }
@@ -2877,7 +2863,9 @@ export function separateEdgeLabelPills(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
   graph: MermaidGraph,
   style: LabelMetricsStyle = resolveRenderStyle({}),
+  options?: { preserveRouteClearance?: boolean },
 ): void {
+  let routeWork = 1_000_000
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
   if (labeled.length === 0) return
   // Match renderEdgeLabel's halo beyond each measured pill, including thick
@@ -2917,6 +2905,7 @@ export function separateEdgeLabelPills(
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
     const halo = haloOf(edge)
     const clearAt = (x: number, y: number): boolean => {
+      if (options?.preserveRouteClearance && routeWork <= 0) return false
       const inner = pillRect(x, y, m)
       if (haloOverAnyNode(inner, halo)) return false
       const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
@@ -2928,6 +2917,12 @@ export function separateEdgeLabelPills(
       // Separating opaque label halos must not move a label onto a shared
       // route and undo the earlier ownership repair.
       if (sharedTrunkConflict(edge, positioned.edges, style, { x, y })) return false
+      if (options?.preserveRouteClearance) for (const other of positioned.edges) {
+        if (other === edge || other.style === 'invisible') continue
+        for (let index = 1; index < other.points.length; index++) {
+          if (--routeWork < 0 || segmentEntersLabelRect(other.points[index - 1]!, other.points[index]!, pill)) return false
+        }
+      }
       return true
     }
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
@@ -2957,6 +2952,7 @@ export function separateEdgeLabelPills(
         for (const t of ts) {
           const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
           const cy = seg.a.y + (seg.b.y - seg.a.y) * t + ny * d
+          if (options?.preserveRouteClearance && routeWork <= 0) return
           if (clearAt(cx, cy)) yield { x: cx, y: cy }
         }
       }
@@ -2996,6 +2992,7 @@ export function separateEdgeLabelPills(
   // slide target is always a fully-clear slot, so sweeps strictly reduce the
   // conflict set and the cap is a defensive bound, not an expected exit.
   for (let sweep = 0; sweep < 3; sweep++) {
+    if (options?.preserveRouteClearance && routeWork <= 0) return
     let conflicts = 0
     // Initial ELK labels can hide terminal symbols without touching another
     // pill. Repair those with the same route slots and painted clearances.
