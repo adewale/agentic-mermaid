@@ -9,6 +9,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import { renderMermaidASCII } from '../index.ts'
+import { parseMermaid } from '../parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -309,6 +310,19 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a style line\'s last `;` before a link', 'flowchart LR\n  style A color:#fff;A-->B', '>B<', 'flowchart_entity_semicolon', 2],
 ]
 
+// Flowchart source Mermaid accepts but reads otherwise than its author meant.
+// [construct, source, Mermaid's nodes, ours, text the render draws, syntax verify reports, its line]
+const FLOWCHART_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly string[], readonly string[], string, string, number]> = [
+  // Mermaid's entity prepass drops a style line's last `;`, reading `B` into
+  // A's style.
+  ['a style line\'s last `;` before a node', 'flowchart LR\n  style A fill:#f00;B', ['A'], ['A', 'B'], '>B<', 'flowchart_entity_semicolon', 2],
+  // Mermaid ends the statement at a `;` and reads the next property as a
+  // node, or, after a `#` color, joins the two into one declaration.
+  ['a `;` between style properties', 'flowchart LR\n  style A fill:red;stroke:blue', ['A', 'stroke:blue'], ['A'], 'fill="red" stroke="blue"', 'flowchart_style_semicolon', 2],
+  ['a `;` between classDef properties after a color', 'flowchart LR\n  A:::c\n  classDef c fill:#f9f; stroke:#0a0', ['A'], ['A'], 'fill="#f9f" stroke="#0a0"', 'flowchart_style_semicolon', 3],
+  ['a `;` between linkStyle properties', 'flowchart LR\n  A --> B\n  linkStyle 0 stroke:red;stroke-width:2px', ['A', 'B', 'stroke-width:2px'], ['A', 'B'], 'stroke="red"', 'flowchart_style_semicolon', 3],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -482,13 +496,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect(readGenerously(source, text)).toEqual({ typed: 'flowchart', draws: true, reported: [`${syntax}@${line}`] })
   })
 
-  // Mermaid accepts this, but its entity prepass drops the style line's
-  // last `;`, so it reads `B` into A's style and draws no node B.
-  test('flowchart: a style line\'s last `;` before a node is read, drawn and reported', async () => {
-    const source = 'flowchart LR\n  style A fill:#f00;B'
+  test.each(FLOWCHART_READ_OTHERWISE)('flowchart: %s is read as its author meant, drawn and reported', async (_construct, source, mermaidNodes, ourNodes, text, syntax, line) => {
     const mermaid = await upstream.parse(source)
-    expect(mermaid.ok && mermaid.flowchart?.vertices.map(vertex => vertex.id)).toEqual(['A'])
-    expect(readGenerously(source, '>B<')).toEqual({ typed: 'flowchart', draws: true, reported: ['flowchart_entity_semicolon@2'] })
+    expect(mermaid.ok && mermaid.flowchart?.vertices.map(vertex => vertex.id).sort()).toEqual([...mermaidNodes].sort())
+    expect({ nodes: [...parseMermaid(source).nodes.keys()].sort(), ...readGenerously(source, text) })
+      .toEqual({ nodes: [...ourNodes].sort(), typed: 'flowchart', draws: true, reported: [`${syntax}@${line}`] })
   })
 })
 

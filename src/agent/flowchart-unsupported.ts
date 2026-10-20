@@ -1,7 +1,7 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
-import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
@@ -72,8 +72,9 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
  * (alone or before a statement: `end B`), a subgraph no `end` closes, a `&`
  * list without a blank on each side of the `&`, label text holding a
  * character upstream's lexer reads as a delimiter there, a subgraph title it
- * cannot read without quotes, and a `;` ours ends a statement at where pinned
- * Mermaid's entity prepass reads it otherwise. */
+ * cannot read without quotes, a `;` ours ends a statement at where pinned
+ * Mermaid's entity prepass reads it otherwise, a `;` between style
+ * properties, and which Mermaid reads as ending the statement. */
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
@@ -86,6 +87,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
     }
     const notes = text.startsWith('subgraph') || /[&[\](){}|"]/.test(text) ? flowchartStatementNotes(text) : undefined
+    if (/^(?:style|classDef|linkStyle)\s/.test(text) && scanFlowchart(text).separators.length > 0) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_style_semicolon', message: 'A `;` between style properties (fill:#f9f;stroke:#0a0) is read as separating them, as in CSS. Pinned Mermaid ends the statement at the `;` and reads the next property as a node (stroke:blue), or, after a `#` color, joins the two into one declaration that paints nothing; separate style properties with `,`.' })
+    }
     if (notes?.has('amp-spacing')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_amp_spacing', message: 'A `&` with no blank on one side (A &B) is read as listing the nodes on either side of it. Pinned Mermaid lists nodes only with a blank on each side of `&`, and rejects this; write A & B.' })
     }
@@ -123,7 +127,10 @@ function entitySemicolonWarnings(source: string): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   for (const group of coalesceFlowchartLines(lines)) {
     if (group.directive || !group.text.includes(';') || group.text.trimStart().startsWith('%%')) continue
-    const separators = new Set(scanFlowchart(group.text).separators)
+    // The `;`s that end a statement: not one between style properties.
+    const scan = scanFlowchart(group.text)
+    const statements = flowchartStatementSpans(group.text, scan)
+    const separators = new Set(scan.separators.filter(at => !statements.some(statement => at > statement.start && at < statement.start + statement.text.length)))
     // Where each physical line's text begins in the group, and at which column.
     for (const piece of [{ at: 0, line: group.line, col: 0 }, ...(group.joined ?? [])]) {
       if (prepassSemicolons(lines[piece.line]!).some(at => at >= piece.col && separators.has(piece.at + at - piece.col))) {

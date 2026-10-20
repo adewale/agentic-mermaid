@@ -516,10 +516,20 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
   return { regions, topLevel, separators, links, openAtEnd: stack.map(region => regions[region]!.kind) }
 }
 
+/** A statement whose operand is style properties. */
+const STYLE_STATEMENT_RE = /^(?:style|classDef|linkStyle)\s/
+/** Text that is style properties alone (`stroke:#0a0, stroke-width:2px`):
+ * a property name and `:` first, and no link, class, `&` list, metadata,
+ * shape text or string. */
+const STYLE_PROPERTIES_RE = new RegExp(String.raw`^[a-zA-Z][\w-]*\s*:(?!:)(?:(?!${FLOWCHART_LINK_SOURCE}|:::)[^&@"[\]{}|])*$`)
+
 /** The statements of one line: the text between statement-level `;`, with
  * each statement's trimmed offset. Empty statements are dropped. Upstream's
  * `end` token takes the whitespace after it, so a statement may follow it on
- * its line (`end B`). */
+ * its line (`end B`). A `;` between style properties (`style A fill:#f9f;
+ * stroke:#0a0`) separates them, as in CSS, and ends no statement; upstream
+ * ends the statement there, and reads what follows as a node, or, after a
+ * `#` color, as more of that color. */
 export function flowchartStatementSpans(text: string, scan: FlowchartScan = scanFlowchart(text)): Array<{ text: string; start: number }> {
   const out: Array<{ text: string; start: number }> = []
   let start = 0
@@ -528,7 +538,9 @@ export function flowchartStatementSpans(text: string, scan: FlowchartScan = scan
     const trimmed = raw.trim()
     const at = start + raw.length - raw.trimStart().length
     const keyword = /^end\s+/.exec(trimmed)
+    const last = out.at(-1)
     if (keyword) out.push({ text: 'end', start: at }, { text: trimmed.slice(keyword[0].length), start: at + keyword[0].length })
+    else if (trimmed && last && STYLE_STATEMENT_RE.test(last.text) && STYLE_PROPERTIES_RE.test(trimmed)) last.text = text.slice(last.start, at + trimmed.length)
     else if (trimmed) out.push({ text: trimmed, start: at })
     start = end + 1
   }
