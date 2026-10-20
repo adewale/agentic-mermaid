@@ -1,4 +1,5 @@
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { isCharacterReference } from './family-source.ts'
 import { encodeMermaidAuthoredEntities, encodeMermaidEntities, ENTITY_MARKER_RE, mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { prepareDisplayText, replaceDisplayTextTokens, writeDisplayText, type LabelContent } from '../shared/display-text.ts'
@@ -48,6 +49,10 @@ export function writeSequenceText(value: string, content?: LabelContent, prefix 
   } else {
     source = writeLiteral(value)
   }
+  // An `&` the readers would take for a character reference's start
+  // (./family-source.ts) is written as its entity.
+  source = source.replace(/&(?=#\d+;|#[xX][0-9a-fA-F]+;|([a-zA-Z][a-zA-Z\d]{0,31});)/g, (amp, name: string | undefined) =>
+    name === undefined || isCharacterReference(name) ? '#38;' : amp)
   // The readers trim statement text before decoding entities. Preserve typed
   // boundary spaces without turning them into statement indentation.
   source = normalizeSequenceMessageText(source).replace(/^ +| +$/g, spaces => '#32;'.repeat(spaces.length))

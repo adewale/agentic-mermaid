@@ -4,6 +4,7 @@ import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from 
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { resolveSequenceConfig } from '../sequence/config.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import { sequenceFamilySource } from '../sequence/family-source.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { lowerSequenceScene } from '../sequence/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
@@ -25,7 +26,7 @@ export const SEQUENCE_SVG_HOOKS = {
       sequence?: ReturnType<typeof resolveSequenceConfig>
     } | undefined)?.sequence ?? {}
     const diagram = withFrontmatterTitle(withAccessibilityFields(
-      parseSequenceDiagram(ctx.source.familyLines, seqConfig),
+      parseSequenceDiagram(sequenceFamilySource(ctx.source, 'decoded').familyLines, seqConfig),
       ctx.source.accessibility,
     ), ctx.source.frontmatter)
     return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig, ctx.styleFace))

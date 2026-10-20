@@ -143,6 +143,22 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   graphical and terminal projections. Physical message line breaks serialize
   as Mermaid break markup. Class members and annotations share their display
   formatter with layout and label metrics (CONS-46).
+- Sequence text holding a character reference is text on every surface. The
+  renderer decodes references before reading statements, so `&#35;hash` hid
+  the rest of a message as a comment, `&#59;` split it and failed the render,
+  and `&nbsp;`, which that decode leaves as written, split it too. The typed
+  body read the undecoded source, so `A->>B: a &amp; b` became two statements
+  there and `verify` reported `RENDER_FAILED`. The SVG and terminal renderers,
+  the typed body and its lints now read one Sequence text: XML references
+  decode to their characters, except that `#` and `;` read as `#35;` and
+  `#59;`, and an HTML name such as `&nbsp;` reads as `#nbsp;`, so each draws its
+  character (`&amp;nbsp;` still draws `&nbsp;`, and `R&D;`, which names no
+  character, still ends its statement). Parsed diagrams and their
+  serialization draw what the source draws, and serialization writes text
+  Mermaid reads (`a & b`, `#35;`), escaping an `&` that would read back as a
+  reference. `verify` reports `UNSUPPORTED_SYNTAX` with
+  `sequence_named_reference_semicolon` where pinned Mermaid ends the statement
+  at a named reference's `;`.
 - Class namespace labels use the same break and formatting rules in native and
   typed rendering. ER attribute diagnostics measure rendered columns rather
   than entity spellings or grammar delimiters. C4 relationship receipts retain
