@@ -9,6 +9,7 @@ export interface LayoutSearchWork {
   attempts: number
   scorePairs: number
   loopPairs: number
+  rankPairs: number
   routing: ChannelWork
 }
 
@@ -48,6 +49,7 @@ export function layoutCyclicGraph(
         return reversed[index] ? { ...route, points: [...route.points].reverse() } : route
       }) }
   }
+  if (input.authoredCycleOrder) return place(Uint32Array.from(nodes, (_, index) => index), unsupported, routingWork, false, true)
   const primary = feedbackCount(model) <= feedbackCount(greedy) ? model : greedy
   let best = place(primary, unsupported, routingWork)
   if (nodes.length > 48 || edges.length > 128 || edges.reduce((sum, edge) => sum + edge.minSpan, 0) > 128

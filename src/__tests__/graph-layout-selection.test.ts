@@ -98,6 +98,8 @@ describe('checked graph layout selection', () => {
   test.each([
     { nodes: 11, edges: 24, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-11.mmd', import.meta.url), 'utf8') },
     { nodes: 10, edges: 20, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-10.mmd', import.meta.url), 'utf8') },
+    { nodes: 15, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8') },
+    { nodes: 19, edges: 44, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
   ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges }) => {
     const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
     const svg = renderMermaidSVGWithReceipt(titledSource, AGENTIC)
@@ -112,6 +114,19 @@ describe('checked graph layout selection', () => {
     expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
     JSON.stringify(svg.receipt)
     JSON.stringify(native.receipt)
+  })
+
+  test('retains the unresolved nine-node crossing case and its full native content', () => {
+    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9.mmd', import.meta.url), 'utf8')
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true }), quality = measureQuality(result.layout)
+    expect(quality.nodeCount).toBe(9)
+    expect(quality.edgeCount).toBe(21)
+    // The current frontier is seven crossings versus ELK's five. Retain this
+    // adverse case alongside the improved fixtures; this is not a parity gate.
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(7)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
   })
 
   test.each(['elk', 'agentic'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
