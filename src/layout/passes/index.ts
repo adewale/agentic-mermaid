@@ -455,9 +455,9 @@ export function corankFanInSpokes(
   groups: PositionedGroup[],
   graph: MermaidGraph,
 ): Map<string, PositionedEdge[]> {
-  const reaches = graphReachability(graph.edges)
   const result = new Map<string, PositionedEdge[]>()
   if (layoutEnvFlag('APL_NO_CORANK_FANIN')) return result
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   // The HUB may be any PORT_EXACT shape (a diamond/round/stadium mixed-label
   // fan-in co-ranks and centres just like a rectangle one, so its converging

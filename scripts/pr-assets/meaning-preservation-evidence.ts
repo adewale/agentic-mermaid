@@ -83,6 +83,22 @@ const stableRepresentativeCues = {
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
 const fixtures: Fixture[] = [
+  {
+    id: 'stable-class-interface-occurrences',
+    title: 'Class lollipops retain independent interface occurrences',
+    source: 'classDiagram\nnamespace Gateway {\nclass Client\nclass Server\nclass Port\n}\nClient --() Port : requests\nServer --() Port : serves\nClient --> Server : dispatches',
+    renderOptions: { style: 'publication-figure', seed: 17, embedFontImport: false },
+    captureLayout: true,
+    cue: 'Inspect two separate circular Port interface occurrences beside the ordinary Port class compartment, both relationship labels, namespace ownership and dispatches. The prior implementation conflates endpoint labels with ordinary class identities. Compare public node IDs, endpoints and parents in the layout sidecars; this finite witness does not establish arbitrary dense Class layout.',
+  },
+  {
+    id: 'stable-gantt-empty-plan',
+    title: 'An empty Gantt plan has an explicit honest empty state',
+    source: 'gantt\n  title Release readiness\n  dateFormat YYYY-MM-DD\n  section Verification',
+    renderOptions: { style: 'publication-figure', seed: 17, embedFontImport: false },
+    captureLayout: true,
+    cue: 'Before: retain the actual no-tasks render refusal. After: inspect the authored title and Verification section with No tasks scheduled. No task bar or calendar tick may be invented. Independent Gantt tests retain the existing EMPTY_DIAGRAM verification diagnostic.',
+  },
   ...stableReviewFamilies.flatMap(family =>
     ['default', 'hand-drawn', 'excalidraw', 'watercolor'].map(
       (style): Fixture => ({

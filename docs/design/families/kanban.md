@@ -16,6 +16,10 @@ Leading wrappers are preserved by the shared source envelope.
 
 Cards reserve prepared label and metadata rows before placement. The board measures fixed-width columns and full card heights. Typed Scene groups retain membership, while native terminal columns/cards use their own cell measurements. Unknown icon sources remain offline and have explicit text fallbacks; ticket links are inert metadata subject to shared URL policy.
 
+Graphical callers may opt into whole-column wrapping with `kanban: { maxWidth: 720 }` in render options. The width is best-effort: columns retain a readable 160px minimum, measured fonts, source order and card membership. Exceptionally small widths or a long title may exceed the request. Terminal output retains its own `targetWidth` layout. The Editor exposes an explicit **Wrap board to preview width** control and preserves that width for exports and shared links.
+
+Malformed labels and metadata report authored line/column positions through frontmatter and accessibility directives. `SourceMap.spans.metadata` optionally maps each item occurrence to property key/value spans in the original source; repeated authored IDs retain separate owners.
+
 The family uses Agentic Mermaid typography, theme tokens, readable padding and deterministic styling.
 Mermaid is the syntax and semantic oracle; its pixels and layout are not rendering targets.
 
