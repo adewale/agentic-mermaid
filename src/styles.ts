@@ -356,6 +356,14 @@ export function diagramTitleBand(
   return { text: block.text, width: block.width, height: block.height + DIAGRAM_TITLE_GAP, block }
 }
 
+/** The canvas of a diagram with nothing but a title: the title alone, padded
+ * on every side, as the families whose title is their own furniture draw it.
+ * Without a title, a diagram with no content stays an empty canvas. */
+export function titleOnlyCanvas(band: DiagramTitleBand, padX: number, padY = padX): { width: number; height: number; title: PositionedDiagramTitle } {
+  const width = band.width + 2 * padX
+  return { width, height: band.height - DIAGRAM_TITLE_GAP + 2 * padY, title: positionDiagramTitle(band, width, padY) }
+}
+
 /** Where a band's title sits on a canvas `width` wide with `top` padding. */
 export function positionDiagramTitle(band: DiagramTitleBand, width: number, top: number): PositionedDiagramTitle {
   return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2, ...(band.block ? { block: band.block } : {}) }

@@ -40,6 +40,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - A registered family whose parse hook throws no longer makes `parseMermaid`
   and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
   which `verify` reports as `RENDER_FAILED` with origin `config`.
+- A Flowchart, State, Sequence, Class or ER diagram with a frontmatter title
+  and nothing else draws its title, as every other family does and as its
+  terminal output already did. Flowchart and State used to fail the render
+  (`LayoutCertificationError`: the title fell outside a 0×0 canvas); Sequence,
+  Class and ER drew an empty canvas without it. `verify` still reports
+  `EMPTY_DIAGRAM`.
 - A `theme` config value that is not a string (`%%{init: {"theme": 5}}%%`)
   no longer crashes every render and makes `verify` report `INTERNAL_ERROR`.
   Like an unknown theme name, it names no theme and the default colors apply.

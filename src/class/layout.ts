@@ -32,7 +32,7 @@ import { getFrontmatterScalar } from '../mermaid-source.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { diagramTitleBand, FONT_SIZES, FONT_WEIGHTS, positionDiagramTitle, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import { diagramTitleBand, FONT_SIZES, FONT_WEIGHTS, positionDiagramTitle, resolveRenderStyle, STROKE_WIDTHS, titleOnlyCanvas } from '../styles.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import type { ClassDiagram, ClassMember, ClassNamespace, ClassNode, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassRelationship } from './types.ts'
@@ -535,11 +535,11 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
  */
 export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
+  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   if (diagram.classes.length === 0) {
-    return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }
+    return withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
   }
 
-  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
   // A namespace is as wide as its classes, and its header title is drawn from
   // its left edge; a title wider than that wraps, and the layout runs again
@@ -595,6 +595,7 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
 function withClassTitle(positioned: PositionedClassDiagram, title: string | undefined, style: ResolvedRenderStyle): PositionedClassDiagram {
   const band = diagramTitleBand(title, style)
   if (!band) return positioned
+  if (positioned.width === 0 && positioned.height === 0) return { ...positioned, ...titleOnlyCanvas(band, CLS.padding) }
   const dy = band.height
   for (const cls of positioned.classes) cls.y += dy
   for (const ns of positioned.namespaces) ns.y += dy
