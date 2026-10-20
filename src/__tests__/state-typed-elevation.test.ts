@@ -896,6 +896,13 @@ describe('State statements across and within lines', () => {
     expect(state(dropped).body.transitions).toEqual([{ from: 'state', to: 'A' }])
     expect(unsupportedSyntax(dropped)).toEqual(['state_endpoint_name@2'])
     expect(await upstream.project(dropped, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id))).toEqual({ ok: true, value: [] })
+    // Another keyword and a blank before `:::`: Mermaid rejects the line;
+    // ours reads the evident transition, and reports it.
+    const keywords = ['note :::hot --> A', 'class :::hot --> A', 'state X {\nnote :::hot --> A\n}'].map(body => `stateDiagram-v2\n${body}`)
+    expect(keywords.map(source => readingOf(parseRenderGraph(source)).filter(item => item.includes('->') || item.includes(':::'))))
+      .toEqual([['note->A', 'note:::hot'], ['class->A', 'class:::hot'], ['note->A', 'note:::hot']])
+    expect(keywords.map(unsupportedSyntax)).toEqual([['state_endpoint_name@2'], ['state_endpoint_name@2'], ['state_endpoint_name@3']])
+    expect(await Promise.all(keywords.map(source => upstream.accepts(source)))).toEqual([false, false, false])
   })
 
   test('a note position Mermaid reads only with one space is read, and reported', async () => {

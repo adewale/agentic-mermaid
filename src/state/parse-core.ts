@@ -607,7 +607,11 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       delimited = true
       continue
     }
-    if (matchAt(STATEMENT_KEYWORD_AT, text, column) !== null || matchAt(OWN_KEYWORD_AT, text, column) !== null) {
+    const statementKeyword = matchAt(STATEMENT_KEYWORD_AT, text, column) ?? matchAt(OWN_KEYWORD_AT, text, column)
+    // A keyword that a `:` or an arrow follows (`note :::c --> A`,
+    // `note : x`) names a state, as `state` there does.
+    const keywordNamed = statementKeyword !== null && /^[ \t]*(?::|-->)/.test(text.slice(column + statementKeyword.length))
+    if (statementKeyword !== null && !keywordNamed) {
       // A keyword statement runs to the end of its line.
       const keyword = text.slice(column)
       emit(keyword, line, false)
