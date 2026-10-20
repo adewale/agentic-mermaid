@@ -1486,7 +1486,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'separateEdgeLabelPills', doc: 'slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)',
     after: ['repairLabelsOffOwnRoute'], mutates: ['edges'], determinism: 'in-place',
-    run: c => { separateEdgeLabelPills({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => { separateEdgeLabelPills({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style, c.elkResult ? undefined : { preserveRouteClearance: true }) },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
@@ -2034,7 +2034,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   }
   const decision: GraphLayoutDecision = {
     requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? 'agentic-layered@7' : 'elk-layered@1', ...(reason ? { reason } : {}),
+    implementation: selected === 'agentic' ? 'agentic-layered@8' : 'elk-layered@1', ...(reason ? { reason } : {}),
   }
   positioned.layoutDecision = decision
   emitGraphLayoutDecision(decision)

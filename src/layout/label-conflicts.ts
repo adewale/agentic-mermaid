@@ -1,7 +1,7 @@
 import type { Point, PositionedGraph } from '../types.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import { LABEL_PILL_PADDING, labelRect } from '../shared/edge-label-geometry.ts'
+import { LABEL_PILL_PADDING, LABEL_INTERIOR_TOLERANCE as INTERIOR_TOLERANCE, segmentEntersLabelRect, labelRect } from '../shared/edge-label-geometry.ts'
 import { calculatePathMidpoint } from './geometry.ts'
 
 export interface LabelConflictCounts {
@@ -21,24 +21,12 @@ function emptyCounts(): LabelConflictCounts {
 
 // A physical tolerance, independent of segment length. Touching boundaries and
 // subpixel grazes do not make a label unreadable.
-const INTERIOR_TOLERANCE = 0.5
 
 function overlappingInteriors(a: Rect, b: Rect): boolean {
   return Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > INTERIOR_TOLERANCE &&
     Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > INTERIOR_TOLERANCE
 }
 
-/** Clip a segment against the open, slightly inset pill body. */
-function segmentEntersInterior(a: Point, b: Point, rect: Rect): boolean {
-  const left = rect.x + INTERIOR_TOLERANCE, right = rect.x + rect.w - INTERIOR_TOLERANCE
-  const top = rect.y + INTERIOR_TOLERANCE, bottom = rect.y + rect.h - INTERIOR_TOLERANCE
-  const dx = b.x - a.x, dy = b.y - a.y
-  if (dx === 0) return dy !== 0 && a.x > left && a.x < right && Math.max(a.y, b.y) > top && Math.min(a.y, b.y) < bottom
-  if (dy === 0) return a.y > top && a.y < bottom && Math.max(a.x, b.x) > left && Math.min(a.x, b.x) < right
-  const x0 = (left - a.x) / dx, x1 = (right - a.x) / dx
-  const y0 = (top - a.y) / dy, y1 = (bottom - a.y) / dy
-  return Math.max(0, Math.min(x0, x1), Math.min(y0, y1)) < Math.min(1, Math.max(x0, x1), Math.max(y0, y1))
-}
 
 /**
  * Count conflicting label/obstacle pairs, using the rendered eight-pixel pill
@@ -111,7 +99,7 @@ function countLabelConflicts(labels: readonly Label[], nodes: readonly Rect[], r
       const other = routes[j]!
       if (j === label.edgeIndex || other.hidden) continue
       for (let segment = 1; segment < other.points.length; segment++) {
-        if (segmentEntersInterior(other.points[segment - 1]!, other.points[segment]!, label.rect)) {
+        if (segmentEntersLabelRect(other.points[segment - 1]!, other.points[segment]!, label.rect)) {
           counts.labelEdge++
           break
         }
