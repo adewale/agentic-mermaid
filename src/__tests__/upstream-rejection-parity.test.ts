@@ -206,6 +206,16 @@ const TIMELINE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a repeated header with a direction', 'timeline\n  title History\n  timeline TD\n  2002 : LinkedIn', 'LinkedIn', 'timeline_header_in_body', 3],
 ]
 
+// Mermaid's Sankey CSV lexer reads a quote after unquoted text as the start
+// of a quoted field, which its grammar rejects there. Whether the quote was
+// literal or meant to open a field is unclear, so, like text after a closing
+// quote, ours refuses the row. [construct, source]
+const SANKEY_UNREAD: ReadonlyArray<readonly [string, string]> = [
+  ['a quote ending an unquoted field', 'sankey\nPumped hea","Heating, commercial",70.672'],
+  ['a quote inside an unquoted field', 'sankey\nElectricity gr"d,Losses,56.691'],
+  ['an unquoted field running into a quoted one', 'sankey\nPumped heat"Heating, homes",193.026'],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -321,6 +331,12 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     const reported = verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
     expect({ typed, refused: error?.startsWith('SEQUENCE_UNSUPPORTED_STATEMENT'), reported })
       .toEqual({ typed: 'sequence', refused: true, reported: expect.arrayContaining([`sequence_statement@${line}`]) })
+  })
+
+  test.each(SANKEY_UNREAD)('sankey: %s is refused', async (_construct, source) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    const { typed, error } = ours(source)
+    expect({ typed, refused: error?.includes('has a quote inside the unquoted field') }).toEqual({ typed: 'opaque', refused: true })
   })
 
   test.each(C4_UNREADABLE)('c4: %s is retained as source and not drawn', async (_construct, source, line) => {
