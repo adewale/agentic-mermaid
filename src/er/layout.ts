@@ -3,7 +3,7 @@ import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limi
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 /**
- * ER diagram layout engine (ELK.js).
+ * ER measured layout adapters.
  *
  * Each entity box has:
  *   1. Header (entity name)
@@ -20,7 +20,10 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout/direction.ts'
-import { emitGraphLayoutDecision, selectElkForGraphFamily } from '../layout/backend.ts'
+import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
+import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
+import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
+import { measureRenderStage } from '../render-stages.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../shared/config-spacing.ts'
 import { erCommentText } from './text.ts'
@@ -266,13 +269,14 @@ export function erCommentColumnWidth(attributes: readonly ErAttribute[]): number
   return widest > 0 ? widest + ER_COMMENT_GAP : 0
 }
 
-/** Build ELK graph and size map from an ER diagram. */
-function buildErElkGraph(
-  diagram: ErDiagram,
-  options: RenderOptions,
-  styleFace?: Readonly<InternalStyleFace>,
-): { elkGraph: ElkNode; entitySizes: EntitySizeMap } {
-  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
+interface ErPlacement {
+  width?: number
+  height?: number
+  entities: { id: string; x?: number; y?: number; width?: number; height?: number }[]
+  routes: Map<number, Point[]>
+}
+
+function measureErEntities(diagram: ErDiagram, style: ResolvedRenderStyle): EntitySizeMap {
   const entitySizes: EntitySizeMap = new Map()
 
   for (const entity of diagram.entities) {
@@ -291,6 +295,18 @@ function buildErElkGraph(
     const height = headerHeight + Math.max(entity.attributes.length, 1) * ER.rowHeight
     entitySizes.set(entity.id, { width, height, headerHeight })
   }
+
+  return entitySizes
+}
+
+/** Construct ELK input only when that backend is selected. */
+function buildErElkGraph(
+  diagram: ErDiagram,
+  options: RenderOptions,
+  entitySizes: EntitySizeMap,
+  styleFace?: Readonly<InternalStyleFace>,
+): { elkGraph: ElkNode; entitySizes: EntitySizeMap } {
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
 
   const elkGraph: ElkNode = {
     id: 'root',
@@ -330,9 +346,9 @@ function buildErElkGraph(
   return { elkGraph, entitySizes }
 }
 
-/** Extract positioned entities and relationships from ELK result. */
+/** Project either measured placement through the ER-owned geometry rules. */
 function extractErLayout(
-  result: ElkNode,
+  result: ErPlacement,
   diagram: ErDiagram,
   entitySizes: EntitySizeMap,
   style: ResolvedRenderStyle,
@@ -342,7 +358,7 @@ function extractErLayout(
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
 
   const positionedEntities: PositionedErEntity[] = []
-  for (const child of result.children ?? []) {
+  for (const child of result.entities) {
     const entity = entityLookup.get(child.id)
     if (entity) {
       const classStyle: Record<string, string> = {}
@@ -376,7 +392,7 @@ function extractErLayout(
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
   positionedGroups.forEach(group => boxes.set(group.id, group))
-  const edgeById = new Map((result.edges ?? []).map(edge => [edge.id, edge]))
+  const edgeById = result.routes
   const relationships: PositionedErRelationship[] = []
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
@@ -388,15 +404,12 @@ function extractErLayout(
     // ELK route. Whole-component translations preserve its complete shape.
     const elkEdge = dx !== undefined && dy !== undefined && to && originalTo &&
       Math.abs(to.x - originalTo.x - dx) < 0.001 && Math.abs(to.y - originalTo.y - dy) < 0.001
-      ? edgeById.get(`e${i}`) : undefined
+      ? edgeById.get(i) : undefined
     const points: Point[] = []
     if (from && to && interior.lanes.has(i)) {
       points.push(...erInteriorRoute(from, to, interior.lanes.get(i)!))
-    } else if (elkEdge?.sections?.length) {
-      const section = elkEdge.sections[0]!
-      points.push({ x: section.startPoint.x + dx!, y: section.startPoint.y + dy! })
-      for (const bp of section.bendPoints ?? []) points.push({ x: bp.x + dx!, y: bp.y + dy! })
-      points.push({ x: section.endPoint.x + dx!, y: section.endPoint.y + dy! })
+    } else if (elkEdge?.length) {
+      points.push(...elkEdge.map(point => ({ x: point.x + dx!, y: point.y + dy! })))
     } else {
       if (from && to) {
         const fromCenter = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
@@ -729,15 +742,42 @@ export function layoutErDiagram(
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
   assertErDiagramWork(diagram)
-  if (options.graphLayout) emitGraphLayoutDecision(selectElkForGraphFamily(options, 'er'))
-  if (diagram.entities.length === 0) {
-    if (diagram.groups.length > 0) return withErTitle(prepareErText(layoutErGroupsOnly(diagram, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
-    return withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
+  const nativeScope = () => {
+    if (diagram.groups.length) throw new GraphLayoutUnsupportedError('ER compound geometry and frame endpoints')
   }
-
-  const { elkGraph, entitySizes } = buildErElkGraph(diagram, options, styleFace)
-  const result = elkLayoutSync(elkGraph)
-  return withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+  if (diagram.entities.length === 0) {
+    const empty = (): PositionedErDiagram => withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, style)
+    return runMeasuredGraphBackend(options, () => { nativeScope(); return empty() },
+      () => diagram.groups.length ? withErTitle(prepareErText(layoutErGroupsOnly(diagram, style, styleFace), style, styleFace), diagram.title, style) : empty())
+  }
+  const entitySizes = measureErEntities(diagram, style)
+  const result = runMeasuredGraphBackend<ErPlacement>(options, () => {
+    nativeScope()
+    const indices = new Map(diagram.entities.map((entity, index) => [entity.id, index]))
+    const edges = diagram.relationships.map(rel => {
+      const source = indices.get(rel.entity1), target = indices.get(rel.entity2)
+      if (source === undefined || target === undefined) throw new Error('ER relationship references an undeclared entity')
+      const block = erRelationshipBlock(rel, style, styleFace)
+      return { source, target, minSpan: 1, ...(rel.label ? { label: { width: block.width + 8, height: block.height + 6 } } : {}) }
+    })
+    const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
+      nodes: diagram.entities.map(entity => ({ id: entity.id, ...entitySizes.get(entity.id)! })), edges,
+      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: options.nodeSpacing ?? ER.nodeSpacing,
+      layerSpacing: options.layerSpacing ?? ER.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+    }))
+    return { width: placed.width, height: placed.height,
+      entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...entitySizes.get(diagram.entities[index]!.id)! })),
+      routes: new Map(placed.edges.map((route, index) => [index, route.points])) }
+  }, () => {
+    const { elkGraph } = buildErElkGraph(diagram, options, entitySizes, styleFace)
+    const placed = elkLayoutSync(elkGraph)
+    return { width: placed.width, height: placed.height, entities: placed.children ?? [], routes: new Map((placed.edges ?? []).map(edge => {
+      const section = edge.sections?.[0]
+      return [Number(edge.id.slice(1)), section ? [section.startPoint, ...(section.bendPoints ?? []), section.endPoint] : []]
+    })) }
+  })
+  return withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, style, styleFace), style, styleFace), diagram.title, style)
 }
 
 /** The diagram's title takes a band above everything the layout placed. */
