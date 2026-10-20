@@ -134,7 +134,7 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
   const canonical = flagged(code => RESPELLED_C4_EXTENSIONS.has(code))
   const semicolons = flagged(code => code === 'c4_semicolon_separator')
   const breaks = flagged(code => code === 'c4_statements_on_one_line')
-  const parts: Array<{ trivia: boolean; text: string }> = []
+  const parts: RenderedPart[] = []
   const elements = new Map(body.elements.map(record => [record.id, record]))
   const boundaries = new Map(body.boundaries.map(record => [record.id, record]))
   const relationships = new Map(body.relationships.map(record => [record.id, record]))
@@ -167,26 +167,31 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
     let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) ? statement.raw : current
     if (semicolons.has(statement.id)) text = text.replace(/;/g, '')
     if (breaks.has(statement.id)) lineBreakBefore(parts)
-    parts.push({ trivia: statement.kind === 'trivia', text })
+    parts.push({ kind: statement.kind, text })
     if (semicolons.has(statement.id) && !text.includes('\n')) lineBreakBefore(parts)
   }
   return parts.map(part => part.text).join('')
 }
 
+interface RenderedPart { kind: C4Statement['kind']; text: string }
+
 /** End the line of the statement before the next one. Mermaid's comment
  * takes the line breaks after it, so a comment sharing that line moves to a
- * line of its own. The new line keeps that statement's indentation. */
-function lineBreakBefore(parts: Array<{ trivia: boolean; text: string }>): void {
+ * line of its own. The new line keeps that statement's indentation, one
+ * level deeper (as appended statements are) after a boundary's `{`. */
+function lineBreakBefore(parts: RenderedPart[]): void {
   let at = parts.length
-  for (let index = parts.length - 1; index >= 0 && parts[index]!.trivia; index--) {
+  for (let index = parts.length - 1; index >= 0 && parts[index]!.kind === 'trivia'; index--) {
     if (parts[index]!.text.includes('\n')) at = index
     else if (parts[index]!.text.startsWith('%%')) at = index
   }
   // Spaces ending the statement's line give way to the line break.
-  const spaces = at > 0 && parts[at - 1]!.trivia && /^[ \t]*$/.test(parts[at - 1]!.text) ? 1 : 0
-  const before = parts.slice(0, at - spaces).map(part => part.text).join('')
+  const spaces = at > 0 && parts[at - 1]!.kind === 'trivia' && /^[ \t]*$/.test(parts[at - 1]!.text) ? 1 : 0
+  const ended = parts.slice(0, at - spaces)
+  const before = ended.map(part => part.text).join('')
   const indent = /^[ \t]*/.exec(before.slice(before.lastIndexOf('\n') + 1))![0]
-  parts.splice(at - spaces, spaces, { trivia: true, text: `\n${indent}` })
+  const nested = ended.findLast(part => part.kind !== 'trivia')?.kind === 'boundary-open' ? '  ' : ''
+  parts.splice(at - spaces, spaces, { kind: 'trivia', text: `\n${indent}${nested}` })
 }
 
 export function renderC4(body: C4Body): string {

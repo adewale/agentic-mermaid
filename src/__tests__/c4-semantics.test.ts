@@ -346,9 +346,11 @@ UpdateElementStyle(g,$borderColor="navy")`
   // (a closing `}` may share the line before it), and its comments take the
   // line breaks after them. Ours reads these layouts, reports each, and writes
   // the line break Mermaid needs (a comment sharing the line moves to a line
-  // of its own); a comment ending the source or a block is Mermaid's.
+  // of its own, a statement after `{` one level deeper); a comment ending the
+  // source or a block is Mermaid's.
   test.each([
-    ['C4Context\nSystem_Boundary(b, "B") { Person(a, "A") }', true, 'C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") }'],
+    ['C4Context\nSystem_Boundary(b, "B") { Person(a, "A") }', true, 'C4Context\nSystem_Boundary(b, "B") {\n  Person(a, "A") }'],
+    ['C4Context\n  System_Boundary(b, "B") { Person(a, "A"); Person(c, "C") }', true, 'C4Context\n  System_Boundary(b, "B") {\n    Person(a, "A")\n    Person(c, "C") }'],
     ['C4Context\nPerson(a, "A") Person(b, "B")', true, 'C4Context\nPerson(a, "A")\nPerson(b, "B")'],
     ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n} Person(c, "C")', true, 'C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n}\nPerson(c, "C")'],
     ['C4Context\nPerson(a, "A") %% note\nPerson(b, "B")', true, 'C4Context\nPerson(a, "A")\n%% note\nPerson(b, "B")'],

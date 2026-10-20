@@ -733,6 +733,7 @@ const C4_WRITTEN: ReadonlyArray<readonly [string, string, boolean]> = [
   ['a semicolon, statements on one line and a comment taking the line break', 'C4Context\n  Person(a, "A"); Person(b, "B") Person(c, "C") %% note\n  Rel(a, b, "uses");Rel(b, c, "calls")', false],
   ['positional RelIndex metadata', 'C4Dynamic\n  Person(a, "A")\n  Person(b, "B")\n  RelIndex(1, a, b, "uses", "tag1", "https://example.com")', false],
   ['a single-quoted argument', 'C4Context\n  Person(a, \'Ann\', "A customer")', false],
+  ['a boundary and its statements on one line', 'C4Context\n  System_Boundary(b, "B") { Person(a, "A"); Person(c, "C") }\n  Rel(a, c, "uses")', false],
   // Mermaid's grammar trims every argument; an encoded blank stays.
   ['blanks inside the quotes of each kind of argument', 'C4Container\n  Container(c, " C ", " Java ", "\tdesc\t")\n  System_Boundary(b, " Bank ") {\n    Person(" a ", "\n  Ann\n", $descr=" A customer ")\n  }\n  Rel(" a ", c, " uses ", $techn="#32;HTTPS ")', false],
 ]
