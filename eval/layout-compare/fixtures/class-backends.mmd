@@ -1,0 +1,19 @@
+classDiagram
+direction LR
+class Account {
+  <<entity>>
+  +String name
+  +String find(String key)
+}
+class Audit {
+  +int id
+}
+class Repository {
+  +save(Account value)
+}
+Account "1" --> "many" Audit : records
+Account ..> Audit : reviews
+Audit --> Account : belongs
+Account --> Account : delegates
+Repository o-- Account : stores
+note for Repository "Retain prepared note text"
