@@ -1,5 +1,7 @@
 # Flagged performance experiments and the Mermaid community — 20 October 2026
 
+**Versioned historical study.** These numbers bind 5392/c517 only. The later [d467/694f integration confirmation](flagged-performance-integration-2026-10-20.md) preserves its own results; the completed [65e65/d709 full study](flagged-performance-final-2026-10-20.md) records the final selection separately. No previous package identity or measurement is a claim for that final source.
+
 Study source: **5392c3b414aebb85a45037ad5f61147944b4d908**.
 Production baseline: **c517a1611290c7aa463512dc8b8d5156a3424a98**, after [PR #432](https://github.com/adewale/agentic-mermaid/pull/432).
 All twelve experimental runtime paths remain **disabled by default**.

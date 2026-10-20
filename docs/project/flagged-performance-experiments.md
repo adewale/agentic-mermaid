@@ -1,5 +1,7 @@
 # Flagged performance experiments
 
+The [final full study and ranking](flagged-performance-final-2026-10-20.md) binds source65e65/base d709. The [comprehensive5392/c517 study](flagged-performance-results-2026-10-20.md) and [intermediate d467/694f confirmation](flagged-performance-integration-2026-10-20.md) retain their own populations and artifacts. Eleven new experiments integrate main's already-owned qualified forest, certification and deferred accounting. All twelve flags remain off by default.
+
 These experiments implement the data-structure candidates raised during the
 Mermaid Dart comparison. They are internal, opt-in paths. An ordinary import
 keeps every experiment disabled. Configure the environment before importing:
@@ -127,13 +129,34 @@ have behavioral red-to-green regressions.
 
 ## Measured selection
 
-The [current results and ranked opportunities](flagged-performance-results-2026-10-20.md)
-describe the rebased study. The conditional `text-spans,indexed-layout` profile
-has repeatable cold forest gains, including fully consumed SVG/receipt calls.
-Broader gains depend on runtime and consumption boundary. Adding
-`position-cache` is a separate exact-repeat profile with lower allocation,
-higher settled heap and adverse cases. Runtime flags retain optional code in
-the download. Shared dispatch and wrapper work also remains when flags are off;
-the current off control has repeated tree regressions. Disabled experiments do
-not imply zero runtime cost. All flags stay off by default. The
-[prior-baseline report](flagged-performance-results-2026-10-19.md) is historical.
+The [final full study](flagged-performance-final-2026-10-20.md) compares full
+micro/release/browser rosters, natural and checkpoint matrices, peers, samples,
+pipeline walls and actual delivery. Its best observed exact-repeat profile is:
+
+```sh
+AGENTIC_MERMAID_EXPERIMENTS=text-spans,indexed-layout,position-cache bun your-program.ts
+```
+
+In the separate27-case cache-on confirmation, its canonical SVG/all-output time
+scores are0.718879/0.712570 versus0.764038/0.795986 for all twelve. Profiles have
+separate adjacent references; these scores cannot isolate a marginal feature
+or establish an exhaustive optimum. Its20-SVG extra-call estimated allocation
+sum ratio is0.684995, with+4,355,968B median paired final mixed-worker settled
+heap. All twelve slightly lowers that allocation estimate but retains more heap
+and regresses Pie in every natural pair. Exact cache keys, private copies and
+final certification remain; Gantt and custom metric/identity paths bypass reuse.
+
+Cold TF (`text-spans,indexed-layout`) remains experimental. Text helpers and the
+small qualified-forest cohort improve, while the complete browser comparison
+against baseline is adverse in two of three pairs (median1.130545). Node/Bun,
+plain/consumed outputs and families differ. The all-twelve reverse-order helper
+regresses4.6–8.6×; enabling every flag is not recommended. Off-path results also
+retain adverse cases, so disabled experiments are not proved cost-free.
+
+Runtime profiles ship identical optional code. Full IIFE/focused/first-flow
+payloads are larger than baseline; the tiny unloaded loader is not a renderer.
+Sampled JS allocation, forced-GC retained heap, worker RSS and native/peak memory
+are separate scopes. The [prior-baseline report](flagged-performance-results-2026-10-19.md)
+is historical. Incoming-main integration and actual final CI/merge identities
+are recorded separately in PR436 and its generated evidence, without relabeling
+65/d709 measurements or claiming final-H/merged-tree package equality.
