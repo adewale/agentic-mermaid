@@ -138,6 +138,18 @@ const staticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
+const agenticOutputs = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/layout/agentic-layered-core.ts')))
+const agenticLoaders = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/layout/agentic-layered.lazy.ts')))
+if (!MEASURE_ONLY && (agenticOutputs.length !== 1 || agenticLoaders.length !== 1)) throw new Error('Agentic must have one on-demand implementation and loader')
+if (!MEASURE_ONLY && agenticOutputs.some(output => initialFiles.includes(output) || BROWSER_BUILTIN_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(output)))) {
+  throw new Error('Agentic implementation must load only when selected')
+}
+const agenticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
+  agenticLoaders.some(loader => staticFamilyFiles[id].includes(loader))
+    ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs]) : undefined,
+]))
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[id].includes(elkOutput)
   || elkLoaders.some(loader => staticFamilyFiles[id].includes(loader)))
 // Preserve the existing default-render payload contract: ELK consumers still
@@ -228,8 +240,8 @@ const report = {
   budgetedFamilyClosure: 'static imports plus complete YAML transfer for frontmatter/directives and ELK transfer for families that can demand its constructor',
   yamlChunks: yamlProviderOutputs,
   yamlTransfer: transferSize(yamlFiles),
-  familyCost: 'default rendering, including ELK where selected; static excludes on-demand dependencies',
   budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, { requests: budgetedFamilyFiles[id].length, ...transferSize(budgetedFamilyFiles[id]) }])),
+  familyCost: 'default includes selected ELK; nativeSolver is the structural closure with the native solver, not proof of input eligibility; static excludes on-demand dependencies; HTML5 tables and fallback dependencies are additional',
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
@@ -238,7 +250,8 @@ const report = {
     elk: familyFiles[id].includes(elkOutput),
     ...transferSize(familyFiles[id]),
     static: { requests: staticFamilyFiles[id].length, ...transferSize(staticFamilyFiles[id]) },
-  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean; static: TransferSize & { requests: number } }>,
+    ...(agenticFamilyFiles[id] ? { nativeSolver: { requests: agenticFamilyFiles[id]!.length, ...transferSize(agenticFamilyFiles[id]!) } } : {}),
+  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean; static: TransferSize & { requests: number }; nativeSolver?: TransferSize & { requests: number } }>,
 }
 
 const problems: string[] = []
