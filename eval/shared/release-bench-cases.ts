@@ -75,6 +75,8 @@ const WORKLOADS = {
     { id: 'cyclic-labelled-15', source: readFileSync(new URL('../layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8'), expectedSvgLabels: [...Array.from({ length: 15 }, (_, i) => `Node 85-${i}`), 'edge 0 xxx', 'edge 28 xxxxxxxxxxxxxx'] },
     { id: 'cyclic-labelled-19', source: readFileSync(new URL('../layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8'), expectedSvgLabels: [...Array.from({ length: 19 }, (_, i) => `Node 76-${i}`), 'edge 0 xxx', 'edge 40 xxxxxxxxx'] },
     { id: 'cyclic-labelled-9', source: readFileSync(new URL('../layout-compare/fixtures/cyclic-labelled-9.mmd', import.meta.url), 'utf8'), expectedSvgLabels: [...Array.from({ length: 9 }, (_, i) => `Node 66-${i}`), 'edge 0 xxx', 'edge 20 xxxxxx'] },
+    { id: 'cyclic-labelled-13', source: readFileSync(new URL('../layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8'), expectedSvgLabels: [...Array.from({ length: 13 }, (_, i) => `Node 96-${i}`), 'edge 0 xxx', 'edge 28 xxxxxxxxxxxxxx'] },
+    { id: 'cyclic-labelled-9-chains', source: readFileSync(new URL('../layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8'), expectedSvgLabels: [...Array.from({ length: 9 }, (_, i) => `Node 131-${i}`), 'edge 0 xxx', 'edge 20 xxxxxx'] },
     { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => `label ${i}`) },
     { id: 'multigraph-24-loops', source: flowchartMultigraph(24), expectedSvgLabels: Array.from({ length: 18 }, (_, i) => `transition ${i * 4}`) },
     { id: 'subgraphs-12x8', source: flowchartSubgraphs(12, 8) },
