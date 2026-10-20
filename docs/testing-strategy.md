@@ -558,9 +558,11 @@ table here, which would drift. In broad strokes:
   type check, the hero check, the parallel browser/CLI/binary/fuzz e2e matrix (whose
   browser lane checks route payload budgets and, on pull requests, the gzip
   delta against the base branch built on the same runner), and the
-  red → green changed-test check. Each unit shard runs its files with
-  `--parallel=2` (isolated worker processes), so a test file cannot depend on
-  another file's imports. A final `CI complete` job waits for the required
+  red → green changed-test check. Each unit shard runs files serially with
+  `--isolate`, so a test file cannot depend on another file's imports. This
+  avoids the parallel coordinator after two successive Bun 1.4.2 PR runs
+  stalled after file output on different shards. It does not establish the
+  root cause; the same three shards, tests and 20-minute limit remain. A final `CI complete` job waits for the required
   test aggregate, every E2E matrix job and red → green, providing one
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
