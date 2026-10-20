@@ -43,7 +43,7 @@ import type {
   DiamondFacet,
   RouteClass,
 } from './types.ts'
-import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleBand, positionDiagramTitle, titleOnlyCanvas } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
@@ -1805,6 +1805,7 @@ export function layoutGraphSync(
   // The title takes a band above everything the layout placed; the graph
   // moves down beneath it and the canvas widens to a title wider than it.
   const padding = options.padding ?? DEFAULTS.padding
+  if (positioned.width === 0 && positioned.height === 0) return Object.assign(positioned, titleOnlyCanvas(band, padding))
   translatePositionedGraph(positioned, band.height)
   positioned.height += band.height
   positioned.width = Math.max(positioned.width, band.width + 2 * padding)

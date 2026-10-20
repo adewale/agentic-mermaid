@@ -34,7 +34,8 @@ import { ok, err } from './types.ts'
 import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, type SequenceSourceStatement } from '../sequence/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
-import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
+import { isCharacterReference, sequenceGrammarText } from '../sequence/family-source.ts'
+import { isSequenceCommentLine, scanSequenceStatementLines, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 import { normalizeSequenceMessageText, readSequenceText, writeSequenceText } from '../sequence/text.ts'
 
@@ -274,10 +275,23 @@ function styleForArrow(a: string): SequenceMessageStyle {
  * canonical line: a participant a second `box` meets stays in its first box
  * (sequence/participants.ts). */
 export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
-  const lines = canonicalSource.split(/\r?\n/)
-  const header = lines.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
-  if (header < 0) return []
+  const authored = canonicalSource.split(/\r?\n/)
+  const authoredHeader = authored.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
+  if (authoredHeader < 0) return []
   const warnings: LayoutWarning[] = []
+  // Pinned Mermaid ends a statement at a named reference's `;`, which the
+  // renderer reads as text (sequence/family-source.ts).
+  const body = authored.slice(authoredHeader + 1)
+  for (const span of scanSequenceStatementLines(body)) {
+    const name = /&([a-zA-Z][a-zA-Z\d]{0,31})$/.exec(span.raw)?.[1]
+    if (name !== undefined && body[span.line]![span.endColumn] === ';' && isCharacterReference(name)) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_named_reference_semicolon', line: authoredHeader + span.line + 2,
+      message: 'The renderer reads a named reference such as &amp; or &nbsp; as text, but pinned Mermaid ends the statement at its ";". Write its Mermaid entity (#amp;, #nbsp;) instead.',
+    })
+  }
+  const lines = sequenceGrammarText(canonicalSource).split(/\r?\n/)
+  const header = lines.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
+  if (header < 0) return warnings
   let line = header + 1
   const fold = new SequenceParticipantFold({
     onBoxConflict: id => warnings.push({

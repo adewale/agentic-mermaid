@@ -4,7 +4,7 @@ import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifel
 import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
 import type { RenderOptions } from '../types.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle, titleOnlyCanvas } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import type { ResolvedSequenceConfig } from './config.ts'
@@ -112,7 +112,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   // preceding `alt` whenever a public Style selected roomy group geometry.
   const blockHeaderExtra = Math.max(SEQ.blockHeaderExtra, blockPadTop + style.groupPaddingY + 20 - messageRowHeight)
   if (diagram.actors.length === 0) {
-    return {
+    return withSequenceTitle({
       width: 0,
       height: 0,
       accessibilityTitle: diagram.accessibilityTitle,
@@ -125,7 +125,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       notes: [],
       boxes: [],
       destructions: [],
-    }
+    }, diagram.title === undefined ? undefined : resolveLabelContent(diagram.title, diagram.titleContent), style, padX, padY)
   }
 
   // 1. Measure actor header specs and message specs
@@ -711,6 +711,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
 function withSequenceTitle(positioned: PositionedSequenceDiagram, title: DisplayTextInput | undefined, style: ResolvedRenderStyle, padX: number, padY: number): PositionedSequenceDiagram {
   const band = diagramTitleBand(title, style)
   if (!band) return positioned
+  if (positioned.width === 0 && positioned.height === 0) return { ...positioned, ...titleOnlyCanvas(band, padX, padY) }
   const dy = band.height
   translatePositionedSequence(positioned, 0, dy)
   const width = Math.max(positioned.width, band.width + 2 * padX)

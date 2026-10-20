@@ -130,7 +130,7 @@ describe('xychart verify lints match the rendered chart', () => {
     )
   })
 
-  it('names a value past an authored range, where the chart draws it clipped or off the plot', () => {
+  it('names a value past an authored range, where the chart clamps it to the plot edge', () => {
     const bars = 'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [5, 20]'
     const drawn = layoutXYChart(parseXYChart(bars.split('\n').map(line => line.trim())))
     // 20 is drawn at the height of 10: the bars read 1:2 where the values are 1:4.
@@ -139,9 +139,8 @@ describe('xychart verify lints match the rendered chart', () => {
 
     const line = 'xychart-beta\n  x-axis [a, b, c]\n  y-axis 0 --> 10\n  line [5, 20, -5]'
     const { plotArea, lines } = layoutXYChart(parseXYChart(line.split('\n').map(text => text.trim())))
-    const offPlot = lines[0]!.points.filter(point => point.y < plotArea.y || point.y > plotArea.y + plotArea.height).map(point => point.value)
-    expect(offPlot).toEqual([20, -5])
-    // OFF_CANVAS already reports the points that leave the canvas; this names the cause.
+    // A line point clamps as a bar end does: 20 and -5 sit on the plot's edges.
+    expect(lines[0]!.points.map(point => [point.value, point.y])).toEqual([[5, plotArea.y + plotArea.height / 2], [20, plotArea.y], [-5, plotArea.y + plotArea.height]])
     expect(verifyMermaid(line).warnings.filter(warning => warning.code === 'VALUES_OUTSIDE_RANGE'))
       .toEqual([expect.objectContaining({ series: 'series-0', values: [20, -5] })])
   })

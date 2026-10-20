@@ -133,15 +133,20 @@ describe('reported contract regressions', () => {
   })
 
   test('local and hosted describe cannot report ok when verify reports RENDER_FAILED', async () => {
-    const source = 'quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75'
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
-    const responses = [
-      await handleLocalRequest(toolCall('describe', { source }) as any),
-      await handleHostedRequest(toolCall('describe', { source }), { execute: async () => ({ ok: true, value: null, logs: [] }) }),
-    ]
-    for (const response of responses) {
-      expect((response?.result as any).isError).toBe(true)
-      expect(payload(response)).toEqual(expect.objectContaining({ ok: false, warnings: expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]) }))
+    // Text is the default format; a source that does not parse is a failure too.
+    for (const [source, failure] of [
+      ['quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75', { warnings: expect.arrayContaining([expect.objectContaining({ code: 'RENDER_FAILED' })]) }],
+      ['---\ntitle: [unclosed\n---\nflowchart LR\n  A --> B', { errors: [expect.objectContaining({ code: 'INVALID_FRONTMATTER' })] }],
+    ] as const) {
+      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+      const responses = [
+        await handleLocalRequest(toolCall('describe', { source }) as any),
+        await handleHostedRequest(toolCall('describe', { source }), { execute: async () => ({ ok: true, value: null, logs: [] }) }),
+      ]
+      for (const response of responses) {
+        expect((response?.result as any).isError).toBe(true)
+        expect(payload(response)).toEqual(expect.objectContaining({ ok: false, ...failure }))
+      }
     }
   })
 

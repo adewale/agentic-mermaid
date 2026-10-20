@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "bb9067a6dcb0ba78b5fc8d8de22a68696f823a110f5ef7500384e9dedc14faf4",
+  "artifactSha256": "0995a0d590d401d4dfe06abb5daba9aaf68fa3726ab33c229c4401df32e90b47",
   "reviewedAt": "2026-10-20",
-  "reviewer": "Codex agent, stable-family performance and contract follow-up review",
-  "scope": "92 family-by-variant cells: inspected all 24 Packet, Kanban, Requirement, Treemap, Ishikawa and Block cells at native 520x380 size in four 1560x1140 crop sheets. Twenty-one new-family cells changed; all 68 established-family cells and three Block holdout cells are pixel-identical. Reviewed role typography, padding, corners, compartment and area preservation, marker direction, complete labels and automatic contrast across sentinel, editorial, technical and dark operations variants. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
+  "reviewer": "Claude Code agent, XYChart canvas refresh",
+  "scope": "92 family-by-variant cells. Candidate on branch claude/0.5-render-pipeline, where the final paint check measures a butt-capped axis or grid line to its ends, so an XYChart no longer widens its SVG viewBox past its laid-out canvas. Compared with the previously approved artifact bb9067a6dcb0ba78b5fc8d8de22a68696f823a110f5ef7500384e9dedc14faf4, the 1560x12504 sheet changes 28,395 pixels in four cells: XY chart in all four treatments. The other 88 cells and all headings are pixel-identical. Each XY chart used to draw about 0.14% smaller inside a 701x500.71 viewBox, leaving a sliver of background past the x-axis and last bar; it now draws at its laid-out size, with the axis line and bar flush to the canvas edge, which moves anti-aliased edges across the chart. The agent inspected all four changed crops beside the approved ones at native 520x380 and the bar-top region at 3x zoom: bars, ticks, labels, title, grid and palette are unchanged. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
   "audit": "eval/section-b-brand-evidence/stable-families-review.md"
 }

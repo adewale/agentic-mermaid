@@ -7,7 +7,7 @@
  * table only when a diagram displays another named code.
  */
 
-import { decodeHTML } from 'entities/decode'
+import { decodeHTML, decodeHTMLStrict } from 'entities/decode'
 
 /** Thrown by the lazy build when a named code is displayed before the table
  * has loaded. It carries the loader, so a caller can load and render again. */
@@ -23,4 +23,11 @@ export class HtmlEntityTableNotLoadedError extends Error {
 /** Resolve `&name;` against the full HTML5 table, legacy prefix matches included. */
 export function decodeHtmlEntityReference(reference: string): string {
   return decodeHTML(reference)
+}
+
+/** Whether `&name;` is an HTML5 named reference, by its exact name (`nbsp`),
+ * not a legacy prefix of a longer word. */
+export function isHtmlEntityName(name: string): boolean {
+  const reference = `&${name};`
+  return decodeHTMLStrict(reference) !== reference
 }

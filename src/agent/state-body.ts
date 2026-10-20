@@ -456,7 +456,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
   }
   unlabelBare(root.states)
-  canonicalizeStateOrder(root.states)
+  canonicalizeStateOrder(root.states, root.transitions)
   const body: StateBody = {
     kind: 'state',
     states: root.states,
@@ -500,11 +500,91 @@ function serializeStateLabel(label: string, content?: LabelContent, reserved = '
   return keepStateTextFromPrepass(writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>'))
 }
 
+/** Whether a state has a line of its own; an implicit transition endpoint
+ *  needs none. */
+function hasDeclaration(s: StateNode): boolean {
+  return isComposite(s) || s.stereotype !== undefined || s.label !== undefined || s.declaredBare === true
+}
+
+type ScopeStep = { state: StateNode } | { transition: StateTransition }
+
+/**
+ * The order a scope is written in, and the order a reader then creates its
+ * states, which is the order the renderer lays them out in. Each transition
+ * follows the declarations of the states listed before its new endpoints. A
+ * new endpoint with a declaration is declared just before the transition,
+ * unless an implicit endpoint is listed before it: then the transition
+ * creates both and the declaration follows it. A pseudostate stereotype is
+ * always declared first, as Mermaid fixes a state's type when it first
+ * creates it. Composites are blocks, which a transition mention does not
+ * create.
+ */
+function scopeWriteOrder(states: StateNode[], transitions: StateTransition[]): { steps: ScopeStep[]; created: StateNode[] } {
+  const byId = new Map(states.map(state => [state.id, state]))
+  const position = new Map(states.map((state, index) => [state, index]))
+  const created = new Set<StateNode>()
+  const steps: ScopeStep[] = []
+  let next = 0
+  const declareBefore = (state: StateNode, fresh: ReadonlySet<StateNode>): void => {
+    for (const end = position.get(state)!; next < end; next++) {
+      const pending = states[next]!
+      if (created.has(pending) || fresh.has(pending) || !hasDeclaration(pending)) continue
+      steps.push({ state: pending })
+      created.add(pending)
+    }
+  }
+  for (const transition of transitions) {
+    const fresh = new Set<StateNode>()
+    for (const id of [transition.from, transition.to]) {
+      const state = byId.get(id)
+      if (state && !created.has(state) && !isComposite(state)) fresh.add(state)
+    }
+    const declared: StateNode[] = []
+    const introduced: StateNode[] = []
+    let implicitBefore = false
+    for (const state of [...fresh].sort((a, b) => position.get(a)! - position.get(b)!)) {
+      if (state.stereotype !== undefined || (hasDeclaration(state) && !implicitBefore)) declared.push(state)
+      else {
+        introduced.push(state)
+        implicitBefore ||= !hasDeclaration(state)
+      }
+    }
+    for (const state of declared) {
+      declareBefore(state, fresh)
+      steps.push({ state })
+      created.add(state)
+    }
+    if (introduced.length > 0) declareBefore(introduced.at(-1)!, fresh)
+    steps.push({ transition })
+    for (const state of [...fresh].filter(state => introduced.includes(state))) {
+      created.add(state)
+      if (hasDeclaration(state)) steps.push({ state })
+    }
+  }
+  for (const state of states) {
+    if (created.has(state)) continue
+    if (hasDeclaration(state)) steps.push({ state })
+    created.add(state)
+  }
+  return { steps, created: [...created] }
+}
+
 function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
   if (direction !== undefined) out.push(`${indent}direction ${direction}`)
-  // Definitions first (labels + composites), then transitions.
-  for (const s of states) {
-    if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
+  // Each state where its scope first creates it, so a scope lays out in the
+  // order it was authored.
+  for (const step of scopeWriteOrder(states, transitions).steps) {
+    if ('transition' in step) {
+      const t = step.transition
+      // `state` followed by whitespace enters Mermaid's declaration lexer.
+      const separator = /^state$/i.test(t.to) ? ':' : ' :'
+      const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
+      const arrow = `${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}`
+      out.push(t.label !== undefined ? describe(`${arrow}${separator} `, t.label, t.labelContent) : arrow)
+      continue
+    }
+    const s = step.state
+    if (isComposite(s)) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
       const separateDescription = describedApart(s)
       if (separateDescription) out.push(describe(`${indent}${s.id}: `, s.label!, s.labelContent))
@@ -534,14 +614,6 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     } else if (s.declaredBare) {
       out.push(`${indent}${hasBareSpelling(s.id) ? s.id : `state "${s.id}" as ${s.id}`}`)
     }
-    // Implicit transition endpoints need no standalone declaration.
-  }
-  for (const t of transitions) {
-    // `state` followed by whitespace enters Mermaid's declaration lexer.
-    const separator = /^state$/i.test(t.to) ? ':' : ' :'
-    const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
-    const arrow = `${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}`
-    out.push(t.label !== undefined ? describe(`${arrow}${separator} `, t.label, t.labelContent) : arrow)
   }
 }
 
@@ -1097,7 +1169,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     if (next.unresolvedStyles.length === 0) delete next.unresolvedStyles
   }
   preserveOrphanedImplicitStates(next)
-  canonicalizeStateOrder(next.states)
+  canonicalizeStateOrder(next.states, next.transitions)
   return ok(next)
 }
 
@@ -1143,17 +1215,16 @@ function preserveOrphanedImplicitStates(body: StateBody): void {
   promote(body.states)
 }
 
-/** Match the serializer's definitions-before-transitions order so structured
- * bodies are canonical before they leave parse/mutate, not only after a
- * serialize/reparse cycle. */
-function canonicalizeStateOrder(states: StateNode[]): void {
+/** List each scope's states in the order its serialization creates them, so
+ * structured bodies are canonical before they leave parse/mutate, not only
+ * after a serialize/reparse cycle. A parsed body is already in that order,
+ * bar a stereotype first named by a transition. */
+function canonicalizeStateOrder(states: StateNode[], transitions: StateTransition[]): void {
   for (const state of states) {
-    if (state.regions) for (const region of state.regions) canonicalizeStateOrder(region.states)
-    else if (state.states) canonicalizeStateOrder(state.states)
+    if (state.regions) for (const region of state.regions) canonicalizeStateOrder(region.states, region.transitions)
+    else if (state.states) canonicalizeStateOrder(state.states, state.transitions ?? [])
   }
-  const declared = states.filter(state => state.label !== undefined || state.declaredBare || state.stereotype !== undefined || isComposite(state))
-  const implicit = states.filter(state => state.label === undefined && !state.declaredBare && state.stereotype === undefined && !isComposite(state))
-  states.splice(0, states.length, ...declared, ...implicit)
+  states.splice(0, states.length, ...scopeWriteOrder(states, transitions).created)
 }
 
 /** Return a composite's editable scopes in authored region order. */

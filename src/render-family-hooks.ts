@@ -47,6 +47,7 @@ import { pieFamilyLines } from './pie/source-title.ts'
 import { resolveSankeyVisualConfig } from './sankey/config.ts'
 import { sankeyFamilyLines } from './sankey/source.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
+import { sequenceFamilySource } from './sequence/family-source.ts'
 import { withAccessibilityFields } from './shared/accessibility-directives.ts'
 import { checkAllGraphAuthoredStyles } from './shared/style-props.ts'
 import { resolveXYChartConfig, resolveXYChartTheme } from './xychart/parser.ts'
@@ -130,7 +131,7 @@ const ARCHITECTURE_RENDER_HOOKS = {
 
 const SEQUENCE_RENDER_HOOKS = {
   ...SEQUENCE_SVG_HOOKS,
-  renderAscii: nativeTerminalRenderer(ctx => renderSequenceTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth)),
+  renderAscii: nativeTerminalRenderer(ctx => renderSequenceTerminal(sequenceFamilySource(ctx.source, 'decoded').familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 const CLASS_RENDER_HOOKS = {

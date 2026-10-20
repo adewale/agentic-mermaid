@@ -304,3 +304,24 @@ describe('pseudostate alias labels are announced, not silently invisible', () =>
     expect(v.warnings.filter(w => (w as { syntax?: string }).syntax === 'state_pseudostate_label')).toEqual([])
   })
 })
+
+describe('[*] start and end pseudostates', () => {
+  test('a [*] never takes the id of a state an author named like it', () => {
+    for (const [source, edges, groups] of [
+      ['stateDiagram-v2\n  state _start {\n    a\n  }\n  [*] --> b', ['[start]->b'], ['_start{a}']],
+      ['stateDiagram-v2\n  _start --> _end\n  [*] --> _start\n  _end --> [*]', ['_start->_end', '[start]->_start', '_end->[end]'], []],
+      ['stateDiagram-v2\n  [*] --> a\n  _start2 --> a\n  [*] --> b', ['[start]->a', '_start2->a', '[start]->b'], []],
+    ] as const) {
+      const graph = parseLegacy(source)
+      const name = (id: string): string => {
+        const shape = graph.nodes.get(id)?.shape
+        return shape === 'state-start' ? '[start]' : shape === 'state-end' ? '[end]' : id
+      }
+      expect({
+        source,
+        edges: graph.edges.map(edge => `${name(edge.source)}->${name(edge.target)}`),
+        groups: graph.subgraphs.map(group => `${group.id}{${group.nodeIds.join(' ')}}`),
+      }).toEqual({ source, edges: [...edges], groups: [...groups] })
+    }
+  })
+})

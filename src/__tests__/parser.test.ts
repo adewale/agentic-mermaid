@@ -1089,6 +1089,22 @@ describe('parseMermaid – state diagrams', () => {
     expect(g.subgraphs[0]!.nodeIds).toContain('execute')
   })
 
+  it('a state belongs to the first composite or region that mentions it, and a transition reaches across', () => {
+    type Group = { id: string; nodeIds: string[]; children: Group[] }
+    const tree = (group: Group): string => `${group.id}(${group.nodeIds.join(',')})${group.children.length ? `{${group.children.map(tree).join(' ')}}` : ''}`
+    for (const [source, groups] of [
+      ['stateDiagram-v2\n  state B {\n    y\n  }\n  state A {\n    x --> y\n  }', 'B(y) A(x)'],
+      ['stateDiagram-v2\n  state A {\n    x --> y\n  }\n  state B {\n    y\n  }', 'A(x,y) B()'],
+      ['stateDiagram-v2\n  state A {\n    x\n    --\n    y\n  }\n  state B {\n    x --> z\n  }', 'A(){A__r1(x) A__r2(y)} B(z)'],
+      ['stateDiagram-v2\n  state A {\n    x --> y\n    --\n    y --> z\n  }', 'A(){A__r1(x,y) A__r2(z)}'],
+      // A top-level mention first places nothing, as in Mermaid.
+      ['stateDiagram-v2\n  y\n  state A {\n    x --> y\n  }', 'A(x,y)'],
+    ] as const) {
+      expect({ source, groups: parseMermaid(source).subgraphs.map(tree).join(' ') }).toEqual({ source, groups })
+      expect(() => renderMermaidSVG(source)).not.toThrow()
+    }
+  })
+
   it('a reopened composite state continues the one state and renders', () => {
     const members = (source: string) => {
       type Group = { id: string; nodeIds: string[]; children: Group[] }

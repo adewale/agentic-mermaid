@@ -251,7 +251,7 @@ test('concurrent State labels retain visible own and neighboring endpoint marker
   const positioned = positionResolvedFamily(resolvedRenderExecutionPlanOf(request).family.id, request)
   const primitives = inspectScenePrimitives(lowerPositionedFamilyScene(request, positioned)).primitives
   const halos = primitives.filter(part => part.id.endsWith(':halo'))
-  for (const id of ['edge:_start2->NumLockOff#0', 'edge:NumLockOn->NumLockOff#0', 'edge:_start3->CapsLockOff#0', 'edge:CapsLockOn->CapsLockOff#0', 'edge:_start4->ScrollLockOff#0', 'edge:ScrollLockOn->ScrollLockOff#0']) {
+  for (const id of ['edge:Active_start->NumLockOff#0', 'edge:NumLockOn->NumLockOff#0', 'edge:Active_start2->CapsLockOff#0', 'edge:CapsLockOn->CapsLockOff#0', 'edge:Active_start3->ScrollLockOff#0', 'edge:ScrollLockOn->ScrollLockOff#0']) {
     const edge = scenePrimitiveSource(primitives.find(part => part.id === id)!)!
     expect(edge.kind).toBe('connector')
     if (edge.kind !== 'connector') throw new Error('Expected the retained native connector')

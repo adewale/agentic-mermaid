@@ -37,6 +37,48 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
   longer makes such a source verify `ok`. A work limit only the render path
   enforces (state nesting) no longer escapes `verify` as an exception.
+- `verify` on a Flowchart or State diagram whose render fails (refused config
+  such as raw `themeCSS`, or a layout past the canvas cap) still reports the
+  findings it reads from the diagram itself (`LABEL_OVERFLOW`,
+  `EDGE_MISANCHORED`, `UNKNOWN_SHAPE` and the advisory lints) beside
+  `RENDER_FAILED`, so fixing the config does not surface them one at a time.
+  A refused color is still the whole finding.
+- A registered family whose parse hook throws no longer makes `parseMermaid`
+  and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
+  which `verify` reports as `RENDER_FAILED` with origin `config`.
+- A State transition to a state that another composite or concurrency region
+  already holds (`state B { y }` then `state A { x --> y }`) draws the
+  transition across to it. Each mention used to add the state to every
+  composite, which the layout refused as a duplicate (`INTERNAL_ERROR`). The
+  first composite to mention a state owns it; Mermaid moves it into the last,
+  a difference recorded in `docs/project/divergences.md`.
+- A parsed State diagram, and the source `serializeMermaid` writes for it,
+  lay out as its source does. The writer put every declared state and
+  composite block ahead of the transitions, so a state described or declared
+  after the transitions that introduce its siblings (including one a
+  `C:::hot` shorthand declares) moved in the layout, and `[*]` nodes were
+  renumbered. The writer now keeps each scope's states in the order the source
+  creates them, the typed body lists them in that order (it used to list
+  declared states first), and a `[*]` inside composite `X` is `X_start`,
+  `X_start2`, … (`X_end`, …), numbered within `X` rather than across the
+  diagram. Top-level ids stay `_start`, `_start2`, ….
+- A State diagram that names a state `_start` or `_end` (or `_start2`, …)
+  keeps its `[*]` start and end nodes. The generated pseudostate took the
+  author's id, so the start node vanished into the authored state and
+  `verify` still reported `ok`; a generated id now skips any an author wrote.
+- A Flowchart, State, Sequence, Class or ER diagram with a frontmatter title
+  and nothing else draws its title, as every other family does and as its
+  terminal output already did. Flowchart and State used to fail the render
+  (`LayoutCertificationError`: the title fell outside a 0×0 canvas); Sequence,
+  Class and ER drew an empty canvas without it. `verify` still reports
+  `EMPTY_DIAGRAM`.
+- A `theme` config value that is not a string (`%%{init: {"theme": 5}}%%`)
+  no longer crashes every render and makes `verify` report `INTERNAL_ERROR`.
+  Like an unknown theme name, it names no theme and the default colors apply.
+- The MCP `describe` tool no longer reports success for a source that does
+  not parse in its default text format. Every format returns `ok: false`
+  with the parser's errors (text also keeps its prose line), as JSON and
+  facts did and as `am describe` exits non-zero.
 - A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
   ER, Journey, Architecture, any source-preserved body, and extension families
   that render canonically) renders, lays out and verifies under its authored
@@ -58,6 +100,32 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   as one composite's are (`state_composite_description` where Mermaid
   rejects them). The readings that differ from Mermaid's are recorded in
   `docs/project/divergences.md`.
+- Sankey and XYChart SVGs draw the canvas that `layoutMermaid`, `verify` and
+  `renderMermaidWithActions` regions describe. The final paint check
+  over-measured their ink (half a line width past the butt-capped ends of
+  XYChart axis and grid lines, which end on the canvas edge; far past the ends
+  of thick Sankey ribbons, and twice their width in every direction once a
+  ribbon's control point had been rounded), so the SVG widened its `viewBox`
+  beyond the layout's bounds (an XYChart's 700×500 became 701×500.71, a
+  Sankey's 648×448 became 672×464.59 or as much as 1728×1194.67) and drew the
+  whole diagram scaled down inside the same width and height. A Sankey ribbon
+  thicker than its bend, which folds past the node it meets, now widens the
+  canvas to hold that ink.
+- A diagram whose ink touches the canvas edge only by floating-point noise
+  keeps its canvas. A Journey actor legend title whose top came out at
+  -3.6e-15 made the SVG floor its `viewBox` to `0 -1 409.43 373` against the
+  layout's 408×372; the final paint check now treats ink within 1e-6 of the
+  edge as on the canvas.
+- An XYChart line series clamps a value past the axis range to the plot edge,
+  as a bar already does, and keeps its value (`verify` still reports
+  `VALUES_OUTSIDE_RANGE`). The line used to run off the plot, and the SVG
+  widened its `viewBox` to hold it (`0 -457 1622.6 1159` for one out-of-range
+  value), drawing the chart at under half size. Where the plot meets the
+  canvas edge, it now leaves room for the marks centered on that edge: a line
+  point's cap or dot at a linear x-axis end, the last tick there, and the end
+  grid lines and ticks of a chart with no title or value labels beside them.
+  Each of these widened the `viewBox` by a pixel or two. A line point's
+  measurement footprint is the part of it inside the plot.
 - Font families may be double-quoted, as Mermaid's own default
   `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
   `fontFamily` config, theme variables, Journey font config, style-role fonts
@@ -96,6 +164,22 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   graphical and terminal projections. Physical message line breaks serialize
   as Mermaid break markup. Class members and annotations share their display
   formatter with layout and label metrics (CONS-46).
+- Sequence text holding a character reference is text on every surface. The
+  renderer decodes references before reading statements, so `&#35;hash` hid
+  the rest of a message as a comment, `&#59;` split it and failed the render,
+  and `&nbsp;`, which that decode leaves as written, split it too. The typed
+  body read the undecoded source, so `A->>B: a &amp; b` became two statements
+  there and `verify` reported `RENDER_FAILED`. The SVG and terminal renderers,
+  the typed body and its lints now read one Sequence text: XML references
+  decode to their characters, except that `#` and `;` read as `#35;` and
+  `#59;`, and an HTML name such as `&nbsp;` reads as `#nbsp;`, so each draws its
+  character (`&amp;nbsp;` still draws `&nbsp;`, and `R&D;`, which names no
+  character, still ends its statement). Parsed diagrams and their
+  serialization draw what the source draws, and serialization writes text
+  Mermaid reads (`a & b`, `#35;`), escaping an `&` that would read back as a
+  reference. `verify` reports `UNSUPPORTED_SYNTAX` with
+  `sequence_named_reference_semicolon` where pinned Mermaid ends the statement
+  at a named reference's `;`.
 - Class namespace labels use the same break and formatting rules in native and
   typed rendering. ER attribute diagnostics measure rendered columns rather
   than entity spellings or grammar delimiters. C4 relationship receipts retain
