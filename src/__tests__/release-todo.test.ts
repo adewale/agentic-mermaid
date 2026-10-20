@@ -8,13 +8,14 @@
  * deploy-workflow-transaction.test.ts.
  */
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { changelogSection, compareVersions, MAX_RELEASE_URL_LENGTH, trackedVersion } from '../../scripts/ci/release-todo.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const temp = useTempDirs()
+const runChild = useTestChildren(30_000)
 
 const REPO_ROOT = join(import.meta.dir, '..', '..')
 const SCRIPT = join(REPO_ROOT, 'scripts', 'ci', 'release-todo.ts')
@@ -149,12 +150,11 @@ function fakeApi(initial: Partial<FakeState> = {}) {
       writeFileSync(statePath, JSON.stringify({ ...state(), ...patch }))
     },
     /** Run the CLI once at `version`; returns its exit status, output and the API calls it made. */
-    run(command: 'open' | 'close', version: string, options: { changelog?: string } = {}) {
+    async run(command: 'open' | 'close', version: string, options: { changelog?: string } = {}) {
       writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version }))
       writeFileSync(join(dir, 'CHANGELOG.md'), options.changelog ?? '# Changelog\n\n## Unreleased\n\n## 0.4.1 — 2026-07-30\n\nOlder notes.\n')
-      const result = spawnSync(process.execPath, [SCRIPT, command], {
+      const result = await runChild(process.execPath, [SCRIPT, command], {
         cwd: dir,
-        encoding: 'utf8',
         env: {
           PATH: `${bin}:${process.env.PATH}`,
           HOME: dir,
@@ -189,9 +189,9 @@ function releaseLink(body: string): URL {
 }
 
 describe('release to-do: first unpublished run', () => {
-  test('(a) opens one issue that mentions the owner and links the prefilled release form', () => {
+  test('(a) opens one issue that mentions the owner and links the prefilled release form', async () => {
     const api = fakeApi()
-    const run = api.run('open', '0.4.2')
+    const run = await api.run('open', '0.4.2')
     expect(run.status).toBe(0)
     expect(run.writes.map(route)).toEqual(['POST labels', 'POST issues'])
     expect(run.stdout).toContain('::notice title=Release to-do opened::#1')
@@ -212,15 +212,15 @@ describe('release to-do: first unpublished run', () => {
     expect(issue!.body).toContain('`CHANGELOG.md` has no `## 0.4.2` section yet')
   })
 
-  test('prefills short release notes from the CHANGELOG section, and leaves out notes too long for a URL', () => {
+  test('prefills short release notes from the CHANGELOG section, and leaves out notes too long for a URL', async () => {
     const short = '# Changelog\n\n## Unreleased\n\n## 0.4.2 — 2026-10-11\n\nShort notes & fixes.\n\n## 0.4.1 — 2026-07-30\n\nOlder.\n'
     const api = fakeApi()
-    expect(api.run('open', '0.4.2', { changelog: short }).status).toBe(0)
+    expect((await api.run('open', '0.4.2', { changelog: short })).status).toBe(0)
     const prefilled = releaseLink(api.state().issues[0]!.body)
     expect(prefilled.searchParams.get('body')).toBe('Short notes & fixes.')
 
     const long = `## 0.5.0 — 2026-10-12\n\n${'- A long changelog line about many changes.\n'.repeat(200)}`
-    expect(api.run('open', '0.5.0', { changelog: long }).status).toBe(0)
+    expect((await api.run('open', '0.5.0', { changelog: long })).status).toBe(0)
     const body = api.state().issues.find(issue => issue.title.startsWith('Publish v0.5.0:'))!.body
     const trimmed = releaseLink(body)
     expect(trimmed.searchParams.has('body')).toBe(false)
@@ -228,36 +228,36 @@ describe('release to-do: first unpublished run', () => {
     expect(body).toContain('too long to prefill')
   })
 
-  test('names the previous release generically when npm cannot report its latest version', () => {
+  test('names the previous release generically when npm cannot report its latest version', async () => {
     const api = fakeApi({ npmLatest: null })
-    expect(api.run('open', '0.4.2').status).toBe(0)
+    expect((await api.run('open', '0.4.2')).status).toBe(0)
     expect(api.state().issues[0]!.title).toBe('Publish v0.4.2: production still serves the previous release')
   })
 })
 
 describe('release to-do: later runs stay silent', () => {
-  test('(b) a second run for the same version makes no API write at all', () => {
+  test('(b) a second run for the same version makes no API write at all', async () => {
     const api = fakeApi()
-    expect(api.run('open', '0.4.2').writes).toHaveLength(2)
+    expect((await api.run('open', '0.4.2')).writes).toHaveLength(2)
     const before = api.state()
-    const again = api.run('open', '0.4.2')
+    const again = await api.run('open', '0.4.2')
     expect(again.status).toBe(0)
     expect(again.writes).toEqual([])
     expect(again.calls.map(route)).toEqual(['GET issues'])
     expect(api.state()).toEqual(before)
   })
 
-  test('an issue the owner closed by hand also silences that version', () => {
+  test('an issue the owner closed by hand also silences that version', async () => {
     const api = fakeApi()
-    api.run('open', '0.4.2')
+    await api.run('open', '0.4.2')
     api.update({ issues: api.state().issues.map(issue => ({ ...issue, state: 'closed' as const })) })
-    expect(api.run('open', '0.4.2').writes).toEqual([])
+    expect((await api.run('open', '0.4.2')).writes).toEqual([])
   })
 
-  test('a newer unpublished version gets its own issue, and the existing label is reused', () => {
+  test('a newer unpublished version gets its own issue, and the existing label is reused', async () => {
     const api = fakeApi()
-    api.run('open', '0.4.2')
-    const next = api.run('open', '0.4.3')
+    await api.run('open', '0.4.2')
+    const next = await api.run('open', '0.4.3')
     expect(next.writes.map(route)).toEqual(['POST issues'])
     expect(api.state().issues.map(issue => [issue.title, issue.state])).toEqual([
       ['Publish v0.4.2: production still serves v0.4.1', 'open'],
@@ -267,10 +267,10 @@ describe('release to-do: later runs stay silent', () => {
 })
 
 describe('release to-do: closing after a verified deploy', () => {
-  test('(c) a verified deploy of the version closes its issue with a one-line comment', () => {
+  test('(c) a verified deploy of the version closes its issue with a one-line comment', async () => {
     const api = fakeApi()
-    api.run('open', '0.4.2')
-    const close = api.run('close', '0.4.2')
+    await api.run('open', '0.4.2')
+    const close = await api.run('close', '0.4.2')
     expect(close.status).toBe(0)
     expect(close.writes.map(route)).toEqual(['POST issues/1/comments', 'PATCH issues/1'])
     const [issue] = api.state().issues
@@ -281,21 +281,21 @@ describe('release to-do: closing after a verified deploy', () => {
     expect(issue!.comments[0]).toContain('Production now serves v0.4.2')
     expect(issue!.comments[0]).toContain(`/actions/runs/${RUN_ID}`)
     // Closed means done: the next deploy of the same version writes nothing.
-    expect(api.run('close', '0.4.2').writes).toEqual([])
+    expect((await api.run('close', '0.4.2')).writes).toEqual([])
   })
 
-  test('closes to-dos the live version supersedes, and leaves newer ones open', () => {
+  test('closes to-dos the live version supersedes, and leaves newer ones open', async () => {
     const api = fakeApi()
-    for (const version of ['0.4.2', '0.4.3', '0.5.0']) api.run('open', version)
-    const close = api.run('close', '0.4.3')
+    for (const version of ['0.4.2', '0.4.3', '0.5.0']) await api.run('open', version)
+    const close = await api.run('close', '0.4.3')
     expect(close.writes.map(route)).toEqual(['POST issues/2/comments', 'PATCH issues/2', 'POST issues/1/comments', 'PATCH issues/1'])
     expect(api.state().issues.map(issue => issue.state)).toEqual(['closed', 'closed', 'open'])
     expect(api.state().issues[0]!.comments[0]).toContain('Production now serves v0.4.3, which supersedes v0.4.2')
   })
 
-  test('(e) a published version with no open to-do makes no API write', () => {
+  test('(e) a published version with no open to-do makes no API write', async () => {
     const api = fakeApi()
-    const close = api.run('close', '0.4.2')
+    const close = await api.run('close', '0.4.2')
     expect(close.status).toBe(0)
     expect(close.calls.map(route)).toEqual(['GET issues'])
     expect(close.writes).toEqual([])
@@ -304,7 +304,7 @@ describe('release to-do: closing after a verified deploy', () => {
 })
 
 describe('release to-do: never fails the deploy', () => {
-  test('(d) a GitHub API error becomes a warning and exit 0', () => {
+  test('(d) a GitHub API error becomes a warning and exit 0', async () => {
     for (const [command, fail] of [
       ['open', '^GET'],
       ['open', '^POST .*/issues$'],
@@ -312,26 +312,26 @@ describe('release to-do: never fails the deploy', () => {
       ['close', '^PATCH'],
     ] as const) {
       const api = fakeApi()
-      if (command === 'close') api.run('open', '0.4.2')
+      if (command === 'close') await api.run('open', '0.4.2')
       api.update({ fail })
-      const run = api.run(command, '0.4.2')
+      const run = await api.run(command, '0.4.2')
       expect({ command, fail, status: run.status }).toEqual({ command, fail, status: 0 })
       expect(run.stdout).toContain('::warning title=Release to-do')
       expect(run.stdout).toContain('HTTP 502')
     }
   })
 
-  test('a failed listing never creates an issue, so an outage cannot duplicate one', () => {
+  test('a failed listing never creates an issue, so an outage cannot duplicate one', async () => {
     const api = fakeApi()
     api.update({ fail: '^GET' })
-    expect(api.run('open', '0.4.2').writes).toEqual([])
+    expect((await api.run('open', '0.4.2')).writes).toEqual([])
     expect(api.state().issues).toEqual([])
   })
 
-  test('missing run context is a warning, not a failure', () => {
+  test('missing run context is a warning, not a failure', async () => {
     const dir = temp.dir('am-release-todo-bare-')
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.4.2' }))
-    const bare = spawnSync(process.execPath, [SCRIPT, 'open'], { cwd: dir, encoding: 'utf8', env: { PATH: process.env.PATH } })
+    const bare = await runChild(process.execPath, [SCRIPT, 'open'], { cwd: dir, env: { PATH: process.env.PATH } })
     expect(bare.status).toBe(0)
     expect(bare.stdout).toContain('::warning title=Release to-do skipped::GITHUB_REPOSITORY')
   })

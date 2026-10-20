@@ -152,6 +152,8 @@
     "bench:samples": "bun run eval/benchmark/sample-bench.ts",
     "bench:dave": "bun run eval/benchmark/dave-bench.ts",
     "bench:micro": "bun run eval/benchmark/micro-bench.ts",
+    "bench:experiments": "bun run eval/benchmark/experiment-matrix.ts",
+    "bench:pipeline": "bun run eval/benchmark/pipeline-audit.ts",
     "bench:peers": "bun run eval/benchmark/peer-bench.ts",
     "bench:release": "bun run eval/benchmark/release-bench.ts",
     "bench:release:browser": "bun run eval/benchmark/release-browser-bench.ts",

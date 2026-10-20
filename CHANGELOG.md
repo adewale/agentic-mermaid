@@ -66,6 +66,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   attribute escapes the quotes. A quote that does not close, a name holding
   the other quote character, and whitespace other than space and tab stay
   refused.
+- Paint inspection applies enclosing group opacity to inline connector labels,
+  including hidden labels, consistently with the SVG writer.
+
 - Journey `taskFontFamily` and `titleFontFamily` config values are written
   into CSS only when they are safe font-family lists; an unsafe value (one
   that closes the rule or fetches with `url()`) is ignored with an
@@ -292,6 +295,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   loading, cancellation, and visible error handling.
 
 ### Added
+
+- Prepared-text reuse, certified forest layout and bounded positioned-result
+  reuse are enabled by default, with startup opt-outs. Their limits and selection are
+  documented in `docs/project/flagged-performance-experiments.md`.
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
   explicit `scale` rasterizes the smallest configured text below the new
   portable `minLabelPx` floor (provisional product default 9px; `0` disables;

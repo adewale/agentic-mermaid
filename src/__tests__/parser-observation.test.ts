@@ -3,6 +3,7 @@ import { getFamily, knownBuiltinFamilies } from '../agent/core.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
+import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { observeParserMutation, type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 
@@ -23,11 +24,13 @@ describe('native parser observation', () => {
     test(`${family}: public SVG is identical with actual native consumption/build observation`, () => {
       const source = getFamily(family)!.example
       const events: ParserObservation[] = []
-      const control = renderMermaidSVG(source)
+      // Observe actual parser work rather than an exact positioned-cache hit.
+      const render = () => withPerformanceExperiments(['text-spans', 'indexed-layout'], () => renderMermaidSVG(source))
+      const control = render()
       const observed = withParserObservation(
         family,
         event => events.push(event),
-        () => renderMermaidSVG(source),
+        render,
       )
       expect(observed).toBe(control)
       expect(events.some(event => event.unit === 'statement')).toBe(true)

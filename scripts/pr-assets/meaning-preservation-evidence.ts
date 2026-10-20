@@ -83,6 +83,20 @@ const stableRepresentativeCues = {
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
 const fixtures: Fixture[] = [
+  ...['Z', 'AC', 'AL'].map((letter): Fixture => ({
+    id: `performance-${letter.toLowerCase()}`,
+    title: `Default forest: ${letter} geometry golden`,
+    source: contactSheetScenarios().find(scenario => scenario.letter === letter)!.source,
+    captureLayout: true,
+    cue: 'Review the intentionally updated fan-out golden: all labels and directed connections remain, while the forest uses a 12px deeper child band. AL also shifts horizontally and widens by about 5px. Inspect sibling order, complete labels and clear arrow contacts; the owning contact-sheet tests keep hard violations at zero.',
+  })),
+  {
+    id: 'performance-forest',
+    title: 'Selected forest layout preserves labels and connections',
+    source: 'flowchart TD\nRoot[Service entry] --> Cache[Cache]\nRoot --> Worker[Long-running worker]\nCache --> A[First result]\nCache --> B[Second result]\nWorker --> C[Stored output]\nWorker --> D[Final delivery]',
+    captureLayout: true,
+    cue: 'Compare all seven complete labels, six directed connections and authored sibling order under ordinary startup defaults. The selected forest and ELK can use different spacing. Layout sidecars and independent forest tests check final certification; this finite witness does not prove arbitrary graph readability or performance.',
+  },
   {
     id: 'stable-class-interface-occurrences',
     title: 'Class lollipops retain independent interface occurrences',

@@ -79,6 +79,9 @@ const src = {
   theme: () => import('../../src/theme.ts'),
   graphemes: () => import('../../src/shared/graphemes.ts'),
   displayText: () => import('../../src/shared/display-text.ts'),
+  preparedText: () => import('../../src/shared/prepared-text.ts'),
+  ganttParser: () => import('../../src/gantt/parser.ts'),
+  ganttSchedule: () => import('../../src/gantt/schedule.ts'),
   textMetrics: () => import('../../src/text-metrics.ts'),
   conformance: () => import('../../src/scene/backend-conformance.ts'),
   paintCertification: () => import('../../src/scene/paint-certification.ts'),
@@ -319,6 +322,17 @@ export function microCases(): readonly MicroCase[] {
         return () => measureTextWidth(ASCII_LABEL, 16, 500)
       },
     },
+    ...[false, true].map(churn => ({
+      id: `text:wrap-ascii-${churn ? 'churn' : 'repeat'}`,
+      description: `Prepared pixel wrapping with ${churn ? '1024 rotating keys, beyond cache capacity' : 'one repeated key'}`,
+      async setup() {
+        const { preparePixelText } = await src.preparedText()
+        let counter = 0
+        const label = 'Authenticate the incoming user request and preserve all source spans. '.repeat(20)
+        return () => preparePixelText(`${String(churn ? counter++ % 1024 : 0).padStart(4, '0')} ${label}`, { fontSize: 16, fontWeight: 500, maxWidth: 240 })
+      },
+      check: (result: unknown) => (result as { lines?: string[] }).lines!.length > 10,
+    })),
     {
       id: 'parse:flowchart-graph-tree50',
       description: 'parseMermaid → MermaidGraph (render-side parser), tree50',
@@ -330,6 +344,29 @@ export function microCases(): readonly MicroCase[] {
     parseCase('tree50', 'flowchart'),
     parseCase('seq20', 'sequence'),
     parseCase('class80', 'class'),
+    ...[128, 1024].flatMap(count => [false, true].map(reverse => ({
+      id: `layout:model-order-${reverse ? 'reverse' : 'forward'}-${count}`,
+      description: `Convert a ${count}-node sparse chain with ${reverse ? 'reverse-authored' : 'forward'} constraints, without ELK`,
+      async setup() {
+        const [{ parseMermaid }, { convertToElkFormat }] = await Promise.all([src.parser(), src.layoutEngine()])
+        const ids = Array.from({ length: count }, (_, i) => `n${i}`)
+        const edges = Array.from({ length: count - 1 }, (_, i) => reverse ? `n${count - 1 - i} --> n${count - 2 - i}` : `n${i} --> n${i + 1}`)
+        const graph = parseMermaid(['flowchart TD', ...ids, ...edges].join('\n'))
+        return () => convertToElkFormat(graph)
+      },
+      check: (result: unknown) => (result as { children?: unknown[] }).children?.length === count,
+    }))),
+    {
+      id: 'gantt:calendar-weekends-long',
+      description: 'Resolve 100 independent 5000-working-day tasks with weekend exclusions and the unchanged walk budget',
+      async setup() {
+        const [{ parseGanttModel }, { resolveGanttSchedule }] = await Promise.all([src.ganttParser(), src.ganttSchedule()])
+        const source = ['gantt', 'dateFormat YYYY-MM-DD', 'excludes weekends', ...Array.from({ length: 100 }, (_, i) => `Task ${i} :t${i}, 2010-01-01, 5000d`)].join('\n')
+        const model = parseGanttModel(source.split('\n'))
+        return { call: () => resolveGanttSchedule(model), input: inputText(model) }
+      },
+      check: (result: unknown) => (result as { tasks?: unknown[] }).tasks?.length === 100,
+    },
     {
       id: 'request:resolve-flow5',
       description: 'resolveRenderRequest: source, option admission, appearance and digests, flow5',

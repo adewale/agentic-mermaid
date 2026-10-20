@@ -7,6 +7,7 @@ import * as passContract from '../layout/pass.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
+import { withPerformanceExperiments } from '../experimental-performance.ts'
 import * as rubric from '../layout-rubric.ts'
 const { assessLayout, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } = rubric
 import { resolveRenderStyle } from '../styles.ts'
@@ -64,7 +65,8 @@ describe('declared pass budgets on actual native geometry', () => {
       calls++; run(context)
       context.edges[0]!.points = context.edges[0]!.points.map(point => ({ x: point.x, y: point.y + 3 }))
     }
-    try { layoutGraphSync(parseMermaid('flowchart LR\nA-->B')) } catch (error) { failure = error } finally { pass.run = run }
+    // Pin ELK's canonical straight contact rather than the forest's dogleg.
+    try { withPerformanceExperiments([], () => layoutGraphSync(parseMermaid('flowchart LR\nA-->B'))) } catch (error) { failure = error } finally { pass.run = run }
     expect(failure).toBeInstanceOf(LayoutMetricBudgetError)
     expect(failure).toMatchObject({ pass: 'applyRouteContracts', metric: 'portRate', before: 1, after: 0, allowance: 0 })
     expect(calls).toBe(1)
@@ -106,7 +108,7 @@ describe('declared pass budgets on actual native geometry', () => {
     }
     let failure: unknown
     try {
-      layoutGraphSync(parseMermaid('flowchart LR\nA --> B'))
+      withPerformanceExperiments([], () => layoutGraphSync(parseMermaid('flowchart LR\nA --> B')))
     } catch (error) {
       failure = error
     } finally {

@@ -366,16 +366,16 @@
     "shell": {"version":1,"kind":"flowchart","bounds":{"w":732,"h":202}},
     "nodes": [
       {"id":"Dispatcher","x":312,"y":40,"w":107,"h":37,"shape":"rectangle","label":"Dispatcher"},
-      {"id":"Email","x":40,"y":113,"w":145,"h":37,"shape":"rectangle","label":"Email Worker"},
-      {"id":"SMS","x":209,"y":113,"w":145,"h":37,"shape":"rectangle","label":"SMS Worker"},
-      {"id":"Push","x":378,"y":113,"w":145,"h":37,"shape":"rectangle","label":"Push Worker"},
-      {"id":"Webhook","x":547,"y":113,"w":145,"h":37,"shape":"rectangle","label":"Webhook Worker"}
+      {"id":"Email","x":40,"y":125,"w":145,"h":37,"shape":"rectangle","label":"Email Worker"},
+      {"id":"SMS","x":209,"y":125,"w":145,"h":37,"shape":"rectangle","label":"SMS Worker"},
+      {"id":"Push","x":378,"y":125,"w":145,"h":37,"shape":"rectangle","label":"Push Worker"},
+      {"id":"Webhook","x":547,"y":125,"w":145,"h":37,"shape":"rectangle","label":"Webhook Worker"}
     ],
     "edges": [
-      {"id":"Dispatcher->Email","from":"Dispatcher","to":"Email","path":[[366,77],[366,95],[112,95],[112,113]]},
-      {"id":"Dispatcher->SMS","from":"Dispatcher","to":"SMS","path":[[366,77],[366,95],[281,95],[281,113]]},
-      {"id":"Dispatcher->Push","from":"Dispatcher","to":"Push","path":[[366,77],[366,95],[450,95],[450,113]]},
-      {"id":"Dispatcher->Webhook","from":"Dispatcher","to":"Webhook","path":[[366,77],[366,95],[619,95],[619,113]]}
+      {"id":"Dispatcher->Email","from":"Dispatcher","to":"Email","path":[[366,77],[366,101],[112,101],[112,125]]},
+      {"id":"Dispatcher->SMS","from":"Dispatcher","to":"SMS","path":[[366,77],[366,101],[281,101],[281,125]]},
+      {"id":"Dispatcher->Push","from":"Dispatcher","to":"Push","path":[[366,77],[366,101],[450,101],[450,125]]},
+      {"id":"Dispatcher->Webhook","from":"Dispatcher","to":"Webhook","path":[[366,77],[366,101],[619,101],[619,125]]}
     ],
     "groups": []
   },
@@ -422,14 +422,14 @@
     "shell": {"version":1,"kind":"flowchart","bounds":{"w":316,"h":202}},
     "nodes": [
       {"id":"A","x":128,"y":40,"w":60,"h":37,"shape":"rectangle","label":"A"},
-      {"id":"B","x":40,"y":113,"w":60,"h":37,"shape":"rectangle","label":"B"},
-      {"id":"C","x":128,"y":113,"w":60,"h":37,"shape":"rectangle","label":"C"},
-      {"id":"D","x":216,"y":113,"w":60,"h":37,"shape":"rectangle","label":"D"}
+      {"id":"B","x":40,"y":125,"w":60,"h":37,"shape":"rectangle","label":"B"},
+      {"id":"C","x":128,"y":125,"w":60,"h":37,"shape":"rectangle","label":"C"},
+      {"id":"D","x":216,"y":125,"w":60,"h":37,"shape":"rectangle","label":"D"}
     ],
     "edges": [
-      {"id":"A->B","from":"A","to":"B","path":[[143,77],[143,95],[70,95],[70,113]]},
-      {"id":"A->C","from":"A","to":"C","path":[[158,77],[158,113]]},
-      {"id":"A->D","from":"A","to":"D","path":[[173,77],[173,95],[246,95],[246,113]]}
+      {"id":"A->B","from":"A","to":"B","path":[[143,77],[143,101],[70,101],[70,125]]},
+      {"id":"A->C","from":"A","to":"C","path":[[158,77],[158,125]]},
+      {"id":"A->D","from":"A","to":"D","path":[[173,77],[173,101],[246,101],[246,125]]}
     ],
     "groups": []
   },
@@ -609,17 +609,17 @@
   },
   "AL": {
     "title": "equivalent terminal peer fan-out",
-    "shell": {"version":1,"kind":"flowchart","bounds":{"w":371,"h":202}},
+    "shell": {"version":1,"kind":"flowchart","bounds":{"w":376,"h":202}},
     "nodes": [
-      {"id":"Source","x":138,"y":40,"w":86,"h":37,"shape":"rectangle","label":"Source"},
-      {"id":"Left","x":32,"y":113,"w":81,"h":37,"shape":"rectangle","label":"Left"},
-      {"id":"Mid","x":141,"y":113,"w":81,"h":37,"shape":"rectangle","label":"Middle"},
-      {"id":"Right","x":250,"y":113,"w":81,"h":37,"shape":"rectangle","label":"Right"}
+      {"id":"Source","x":143,"y":40,"w":86,"h":37,"shape":"rectangle","label":"Source"},
+      {"id":"Left","x":36,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Left"},
+      {"id":"Mid","x":145,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Middle"},
+      {"id":"Right","x":254,"y":125,"w":81,"h":37,"shape":"rectangle","label":"Right"}
     ],
     "edges": [
-      {"id":"Source->Left","from":"Source","to":"Left","path":[[160,77],[160,95],[72,95],[72,113]]},
-      {"id":"Source->Mid","from":"Source","to":"Mid","path":[[181,77],[181,113]]},
-      {"id":"Source->Right","from":"Source","to":"Right","path":[[203,77],[203,95],[291,95],[291,113]]}
+      {"id":"Source->Left","from":"Source","to":"Left","path":[[164,77],[164,101],[77,101],[77,125]]},
+      {"id":"Source->Mid","from":"Source","to":"Mid","path":[[186,77],[186,125]]},
+      {"id":"Source->Right","from":"Source","to":"Right","path":[[207,77],[207,101],[295,101],[295,125]]}
     ],
     "groups": []
   },

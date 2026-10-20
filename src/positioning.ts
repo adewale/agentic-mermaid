@@ -1,3 +1,5 @@
+import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
+import { cachedPositioned, retainPositioned } from './experimental/position-cache.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
 // Public adapters resolve source, config, appearance and shared options once.
@@ -41,8 +43,15 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
     throw new LayoutCertificationError([{ strategy, violations: ['missing final geometry projection'] }])
   }
   const resolved = resolvedFamilyRenderContextOf(request)
+  const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
+  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && !executionPlan.textMeasurement
+    && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
+  const cacheKey = cacheEnabled ? JSON.stringify([source, request.renderOptions, request.appearance, request.familyConfig, projectionOptions,
+    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
+  const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
-    const result = normalizeFamilyLayoutResult(
+    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey)
+    const result = hit ?? normalizeFamilyLayoutResult(
       descriptor.layout!({
         source,
         renderOptions: resolved.renderOptions,
@@ -65,6 +74,7 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
         throw new LayoutCertificationError([{ strategy, violations: [error instanceof Error ? error.message : String(error)] }])
       }
     }
+    if (!hit && boundedKey !== undefined) retainPositioned(descriptor, boundedKey, result)
     return result
   })
 }

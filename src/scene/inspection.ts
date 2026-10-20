@@ -126,7 +126,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         if (label.visual?.kind !== 'inline') return
         const displayed = label.block ? label.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : label.text
         const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
-        const hidden = !textPaints(displayed, paint)
+        const hidden = groupOpacity === 0 || !textPaints(displayed, paint)
         const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
         const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
         const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
@@ -136,6 +136,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
           owner: primitive.owner, ancestors: primitive.ancestors, order: primitives.length,
           coverage: hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured',
           ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
+          ...(groupOpacity < 1 ? { groupOpacity } : {}),
           ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
           text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed, measurement: label.block ? 'prepared' : 'fallback' }),
         })

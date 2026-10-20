@@ -1,3 +1,6 @@
+import { asciiAdvanceSpans } from '../experimental/ascii-advances.ts'
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
+import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
@@ -61,6 +64,7 @@ export interface PixelTextBlock {
 
 // This evidence belongs to actual preparation, not to a caller-supplied copy
 // of the metrics. Scene admission carries it across its own immutable snapshot.
+const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024)
 const preparedBlocks = new WeakSet<object>()
 export function isRetainedPixelText(value: object): boolean { return preparedBlocks.has(value) }
 export function transferRetainedPixelText(source: object, snapshot: object): void {
@@ -198,7 +202,14 @@ function hyphenRun(glyph: WrapGlyph): DisplayRun {
 /** Prepared text is the layout authority. Soft breaks retain every authored
  * space, and inserted hyphens have an explicit provenance record. */
 export function preparePixelText(source: DisplayTextInput, options: PixelTextOptions): PixelTextBlock {
+  if (performanceExperimentEnabled('text-spans')) options = {
+    display: options.display, transform: options.transform, fontSize: options.fontSize, fontWeight: options.fontWeight,
+    letterSpacing: options.letterSpacing, maxWidth: options.maxWidth, safeFont: options.safeFont, monospace: options.monospace, fontFamily: options.fontFamily,
+  }
   if (!Number.isFinite(options.fontSize) || options.fontSize <= 0 || !Number.isFinite(options.fontWeight) || !Number.isFinite(options.letterSpacing ?? 0)) throw new RangeError('Prepared text requires finite typography and a positive font size')
+  const cacheKey = performanceExperimentEnabled('text-spans') && !customTextMeasurementActive() && typeof source === 'string' && source.length <= 16384
+    ? JSON.stringify([source, options]) : undefined
+  if (cacheKey !== undefined) { const cached = pixelBlocks.get(cacheKey); if (cached) return cached }
   const prepared = prepareDisplayText(source, options.display, options.transform)
   const maxWidth = options.maxWidth
   const broken: DisplayRun[][] = []
@@ -210,13 +221,29 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
       broken.push([...original]); continue
     }
     const clusters = glyphs(original)
+    const textSpans = performanceExperimentEnabled('text-spans')
+    const spans = textSpans && !customTextMeasurementActive() ? asciiAdvanceSpans(original, options) : undefined
+    const fits = textSpans ? (from: number, to: number): boolean => {
+      const estimate = spans?.width(from, to)
+      // Prefix subtraction can differ by an ulp from a fresh left-fold. Keep
+      // the exact predicate near a wrapping boundary, including authored ties.
+      if (estimate !== undefined && Math.abs(estimate - maxWidth) > 1e-8 * Math.max(1, Math.abs(estimate), Math.abs(maxWidth))) return estimate < maxWidth
+      return advance(clusters.slice(from, to), options) <= maxWidth
+    } : undefined
     let start = 0
     while (start < clusters.length) {
       let end = start
       let whitespace = -1
-      while (end < clusters.length && advance(clusters.slice(start, end + 1), options) <= maxWidth) {
-        if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
-        end++
+      if (fits) {
+        while (end < clusters.length && fits(start, end + 1)) {
+          if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          end++
+        }
+      } else {
+        while (end < clusters.length && advance(clusters.slice(start, end + 1), options) <= maxWidth) {
+          if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          end++
+        }
       }
       if (end === clusters.length) { broken.push(coalesce(clusters.slice(start))); break }
       if (end > start && !/\s/u.test(clusters[end - 1]!.text) && /\s/u.test(clusters[end]?.text ?? '')) {
@@ -243,7 +270,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
         }
       }
       const line = coalesce(clusters.slice(start, paintEnd ?? end))
-      const sourceOffset = clusters[end]?.sourceStart ?? prepared.source.length
+      const sourceOffset = spans?.offsets[end] ?? clusters[end]?.sourceStart ?? prepared.source.length
       if (hyphen) line.push({ ...hyphenRun(clusters[end - 1]!), sourceStart: sourceOffset, sourceEnd: sourceOffset })
       broken.push(line)
       if (end < clusters.length) breaks.push({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset, ...(replacedText ? { replacedText } : {}) })
@@ -271,6 +298,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
   const block: PixelTextBlock = Object.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: Object.freeze(lineBlocks), breaks: Object.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
   preparedBlocks.add(block)
+  if (cacheKey !== undefined) pixelBlocks.set(cacheKey, block, cacheKey.length * 2 + block.prepared.source.length * 128 + block.lines.length * 256 + 512)
   return block
 }
 
