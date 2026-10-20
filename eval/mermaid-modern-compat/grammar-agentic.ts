@@ -10,7 +10,8 @@ import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
 import { parseIshikawaDiagram } from '../../src/ishikawa/parser.ts'
 import { parseJourneyDiagram } from '../../src/journey/parser.ts'
 import { parseKanbanDiagram } from '../../src/kanban/parser.ts'
-import { frontmatterTitle, normalizeMermaidSource } from '../../src/mermaid-source.ts'
+import { frontmatterTitle, normalizeMermaidSource, withFrontmatterTitle } from '../../src/mermaid-source.ts'
+import { withAccessibilityFields } from '../../src/shared/accessibility-directives.ts'
 import { parseMindmap } from '../../src/mindmap/parser.ts'
 import { parsePacketDiagram } from '../../src/packet/parser.ts'
 import { parseMermaid } from '../../src/parser.ts'
@@ -72,12 +73,14 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
           const authored = normalizeMermaidSource(normalized.originalText)
           return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
         }
+        // As the render hooks do, the envelope's accessibility and the
+        // frontmatter title join the family's own reading.
         case 'architecture':
-          return parseArchitectureDiagram(lines)
+          return withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(lines), normalized.accessibility), normalized.frontmatter)
         case 'class':
           return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
         case 'er':
-          return parseErDiagram(lines)
+          return withFrontmatterTitle(withAccessibilityFields(parseErDiagram(lines), normalized.accessibility), normalized.frontmatter)
         case 'gantt':
           return parseGanttModel(lines)
         case 'gitgraph': {
