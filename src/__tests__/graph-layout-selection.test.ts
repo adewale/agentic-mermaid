@@ -284,7 +284,7 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ['class', 'classDiagram\n class A\n class B\n A --> B'],
+    ['class', 'classDiagram\nnamespace Zone {\nclass A\n}'],
     ['er', 'erDiagram\nsubgraph Zone\n A\nend'],
     ['architecture', 'architecture-beta\n service a(server)[A]\n service b(server)[B]\n a:R --> L:b'],
   ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
@@ -304,9 +304,11 @@ describe('checked graph layout selection', () => {
       return value
     })
     expect(stages).not.toContain('elk')
-    expect(rendered.receipt.layoutDecisions).toBeUndefined()
+    expect(stages).toContain('agentic')
+    expect(rendered.text).toBe(renderMermaidASCIIWithReceipt(source).text)
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'companion' })])
     const fallback = renderMermaidASCIIWithReceipt(source, FALLBACK)
-    expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'elk', role: 'companion' })])
+    expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'companion' })])
     const architecture = 'architecture-beta\n service a(server)[A]'
     expect(() => renderMermaidASCIIWithReceipt(architecture, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
   })

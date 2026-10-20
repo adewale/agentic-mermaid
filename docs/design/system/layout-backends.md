@@ -3,9 +3,9 @@
 Status: implementation and qualification contract for an opt-in owned backend.
 Native measured Flowchart/State placement includes cycles, loops and independent
 nested scopes. Requirement cards and relationship labels also use measured
-native placement. Flat ER cards and relations also use this kernel; ER groups,
-cross-hierarchy leaf routes and specialized Class/Architecture geometry still
-require ELK. Quality and cost qualification remains
+native placement. Flat ER and Class cards and relations also use this kernel;
+ER groups, Class namespaces, cross-hierarchy leaf routes and Architecture
+geometry still require ELK. Quality and cost qualification remains
 in progress; admission is not proof of parity. Implementation scheduling remains
 in root TODO.md.
 
@@ -720,7 +720,7 @@ allocation and peak RSS, and requires identical artifacts, outputs and complete
 receipt fingerprints. A control that is suspiciously faster also fails. Normal
 cache measurements enable the position cache before import; disabled-cache
 measurements disable both layout caches while preserving shared text spans.
-The CI canary enrolls four official corpus inputs and nine frozen/scaling
+The CI canary enrolls five official corpus inputs and eleven frozen/scaling
 workloads in both regimes. Its corpus aggregate covers only the official inputs,
 with the workloads reported separately; it is not full-domain qualification.
 
@@ -791,3 +791,20 @@ with a typed reason and can use the explicitly requested ELK fallback. The initi
 cases; all 20 native paints pass, with no additional proper crossings. This does
 not establish bend, area or full family parity. Terminal ER cell placement remains
 owned by its existing adapter.
+
+Flat Class placement retains measured member compartments, annotations, notes,
+lollipop interfaces, relationship markers and endpoint cardinality allocation.
+Only the retained ELK callback constructs ELK schema and repeats namespace-header
+sizing; the common projector consumes neutral absolute bounds and owned routes.
+Native labels reserve their actual painted location, accounting for the Class
+renderer's eight-pixel route-anchor offset. Explicit namespace identity in the
+neutral geometry distinguishes authored class names from generated frame names.
+The initial official/scaling diagnostic renders 34/39 cases natively and declines
+five namespace cases; all 34 paints pass without extra proper crossings. Class
+padded-label and shared-shaft counters remain unavailable in the public quality
+projection; neither admission nor unavailable counters proves full family parity.
+
+Terminal routing has its own capacity limits. A declined route can retain an
+owned endpoint/marker summary with explicit projection diagnostics, while its
+geometry-collision diagnostic continues to fail terminal geometry certification.
+A rendered summary is neither a physical route nor evidence of backend parity.
