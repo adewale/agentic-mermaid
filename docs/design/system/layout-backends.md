@@ -311,6 +311,15 @@ optional layouts (at most twelve per cyclic scope), eight million point-pair sco
 work; optional declines retain the best feasible candidate. It cannot consume
 the mandatory routing budget of later scopes. No ELK result participates in
 candidate selection, and zero-crossing primary layouts skip the search.
+Completed native routes may take shorter orthogonal paths without moving
+nodes or changing endpoint rays. The shortcut proof rejects foreign node/header
+and padded-label intersections, new shared shafts and unowned route contacts;
+it uses the existing proper-crossing counter. A moved label needs a measured
+slot clear of nodes, other labels and foreign routes. Authored loops and owned
+fan/forest routes retain their specialized geometry. Work is bounded once over
+the complete graph: at most 128 edges, 2,048 route points, 512 scored proposals,
+24 per edge, four accepted edits per edge and eight million work units. Budget
+exhaustion preserves the feasible result and never triggers ELK fallback.
 Class/ER compartments, Architecture ports and State semantics remain adapter
 responsibilities even when they share a producer.
 

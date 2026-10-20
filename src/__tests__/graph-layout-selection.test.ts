@@ -73,13 +73,17 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
-  test.each(['TD', 'LR', 'BT', 'RL'])('routes a complete rectangular fan net without extra crossings in %s', direction => {
-    const source = `---\ntitle: Complete fan\n---\nflowchart ${direction}\nA & B --> C & D`
+  test.each(['TD', 'LR', 'BT', 'RL'].flatMap(direction => [
+    { direction, links: 'A & B --> C & D', ids: ['A', 'B', 'C', 'D'], facts: ['A->C', 'A->D', 'B->C', 'B->D'] },
+    { direction, links: 'A & B --> C', ids: ['A', 'B', 'C'], facts: ['A->C', 'B->C'] },
+    { direction, links: 'A --> B & C', ids: ['A', 'B', 'C'], facts: ['A->B', 'A->C'] },
+  ]))('routes a complete rectangular fan net $links without extra crossings in $direction', ({ direction, links, ids, facts }) => {
+    const source = `---\ntitle: Complete fan\n---\nflowchart ${direction}\n${links}`
     const svg = renderMermaidSVGWithReceipt(source, AGENTIC)
     const layout = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
     const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
-    expect(layout.layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D'])
-    expect(layout.layout.edges.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual(['A->C', 'A->D', 'B->C', 'B->D'])
+    expect(layout.layout.nodes.map(node => node.id).sort()).toEqual(ids)
+    expect(layout.layout.edges.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual(facts)
     const quality = measureQuality(layout.layout)
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
@@ -159,9 +163,10 @@ n2 --> n1
 n2 --> n3
 n2 --> n8` },
   ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges }) => {
-    const svg = renderMermaidSVGWithReceipt(source, AGENTIC)
-    const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
-    const elk = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
+    const svg = renderMermaidSVGWithReceipt(titledSource, AGENTIC)
+    const native = layoutMermaidWithReceipt(titledSource, { ...AGENTIC, debug: true })
+    const elk = layoutMermaidWithReceipt(titledSource, { graphLayout: { backend: 'elk' }, debug: true })
     const quality = measureQuality(native.layout)
     expect(quality.nodeCount).toBe(nodes)
     expect(quality.edgeCount).toBe(edges)
