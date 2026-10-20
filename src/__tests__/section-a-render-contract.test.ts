@@ -50,7 +50,7 @@ const recursiveConfigJson = fc.jsonValue({ stringUnit: 'binary' }).map(configJso
 
 const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
   layoutHints: ['flowchart', 'state'],
-  graphLayout: ['flowchart', 'state', 'architecture', 'class', 'er'],
+  graphLayout: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'],
   padding: ['flowchart', 'state', 'architecture', 'c4'],
   nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
   layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
