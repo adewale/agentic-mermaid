@@ -122,11 +122,16 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
     }
   })
   segments.sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex)
-  let active: Segment[] = []
+  const active: Segment[] = []
   const locations = new Map<string, CrossingLocation[]>()
   for (const segment of segments) {
-    active = active.filter(other => other.maxX >= segment.minX)
-    for (const other of active) {
+    // Stable compaction retains the same candidate order without allocating a
+    // new active array at every segment in repeated layout/search scoring.
+    let retained = 0
+    for (let index = 0; index < active.length; index++) {
+      const other = active[index]!
+      if (!(other.maxX >= segment.minX)) continue
+      active[retained++] = other
       if (other.edgeIndex === segment.edgeIndex || (involved && !involved.has(other.edgeIndex) && !involved.has(segment.edgeIndex)) || other.maxY < segment.minY || other.minY > segment.maxY) continue
       const point = crossingPoint(segment, other, routes)
       if (!point) continue
@@ -141,6 +146,7 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
       }
       else locations.set(key, [point])
     }
+    active.length = retained
     active.push(segment)
   }
   let crossings = 0
