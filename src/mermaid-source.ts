@@ -27,7 +27,7 @@ import {
 import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
-import { authoredMermaidSlice, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
+import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
 import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
@@ -476,6 +476,21 @@ const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
  */
 export function stripMermaidInitDirectives(text: string): string {
   return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+}
+
+/** Read the shared post-wrapper source without normalizing payload line endings.
+ * Rendering uses the once-decoded view; authored parsing keeps entity spelling.
+ * The family grammar still owns quoted payloads and accessibility directives. */
+export function preservedMermaidFamilyText(source: NormalizedMermaidSource, view: 'authored' | 'render' = 'render'): string {
+  const cleanup = source.cleanup
+  const wrapperLength = source.wrapperSource?.length ?? 0
+  const authoredStart = cleanup && source.authoredWrapperLength !== undefined
+    ? originalMermaidOffset(cleanup, wrapperLength, 'end', 'text') : wrapperLength
+  if (!cleanup) return stripMermaidInitDirectives(source.originalText.slice(authoredStart).replace(/\r\n/g, '\n'))
+  const selectedView = view === 'render' ? 'payloadText' : 'authoredPayloadText'
+  const start = cleanedMermaidOffset(cleanup, authoredStart, 'end', selectedView)
+  const text = cleanup[selectedView]
+  return stripMermaidInitDirectives(text.slice(start))
 }
 
 /**

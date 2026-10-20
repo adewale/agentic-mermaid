@@ -1,24 +1,17 @@
-import { stripMermaidInitDirectives, type NormalizedMermaidSource } from '../mermaid-source.ts'
+import { preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
-import { cleanedMermaidOffset, originalMermaidOffset } from '../shared/mermaid-cleanup.ts'
 
 /** CSV identities retain lone CR inside quoted fields. Coalesce quoted
  * records here, normalizing their CRLF to LF, so the physical-row parser
  * cannot mistake a retained payload CR for another line terminator.
  * Read the shared XML-decoded view so transport decoding still happens once. */
 export function sankeyFamilyLines(source: NormalizedMermaidSource): string[] {
-  const cleanup = source.cleanup
-  const wrapperLength = source.wrapperSource?.length ?? 0
-  // XML may itself spell the wrapper. In that case its captured prefix is in
-  // the render view, while an unchanged grammar keeps the exact authored prefix.
-  const authoredStart = cleanup && source.authoredWrapperLength !== undefined
-    ? originalMermaidOffset(cleanup, wrapperLength, 'end', 'text')
-    : wrapperLength
-  const start = cleanup ? cleanedMermaidOffset(cleanup, authoredStart, 'end', 'decodedText') : authoredStart
-  const body = stripMermaidInitDirectives((cleanup?.decodedText ?? source.originalText).slice(start))
+  const body = preservedMermaidFamilyText(source)
   if (!body.includes('\r')) return body.split('\n')
-  const physicalLines = body.split(/\r\n?|\n/)
-  const endings = body.match(/\r\n?|\n/g) ?? []
+  // The shared payload view already normalized original CRLF pairs. A CR
+  // adjacent to LF here is retained payload, so do not collapse it again.
+  const physicalLines = body.split(/\r|\n/)
+  const endings = body.match(/\r|\n/g) ?? []
   const lines: string[] = []
   let line = ''
   let continuedRows = 0

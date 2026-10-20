@@ -1,7 +1,7 @@
 import { decodeXML } from 'entities'
 import { mermaidEntityPrepass } from './mermaid-entities.ts'
 
-export type MermaidCleanupView = 'text' | 'decodedText' | 'lineText' | 'upstreamText' | 'prepassedText'
+export type MermaidCleanupView = 'text' | 'decodedText' | 'payloadText' | 'authoredPayloadText' | 'lineText' | 'upstreamText' | 'prepassedText'
 export type MermaidCleanupReason = 'line-ending' | 'xml-entity' | 'html-attribute-quotes' | 'style-semicolon'
 export type MermaidCleanupBias = 'start' | 'end'
 
@@ -40,6 +40,10 @@ export interface MermaidCleanup {
   readonly text: string
   /** XML decoded once, with authored line endings retained inside payloads. */
   readonly decodedText: string
+  /** CRLF normalized, lone CR retained for grammar-owned payload identities. */
+  readonly payloadText: string
+  /** The same payload-aware line endings without transport XML decoding. */
+  readonly authoredPayloadText: string
   /** Authored grammar spelling with CRLF and lone CR normalized. */
   readonly lineText: string
   /** Mermaid's cleanupText result: normalized line endings and tag quotes.
@@ -64,7 +68,7 @@ const NO_CHANGES: readonly MermaidCleanupChange[] = Object.freeze([])
 const NO_PENDING_CHANGES: readonly PendingChange[] = Object.freeze([])
 
 function identityCleanup(originalText: string): MermaidCleanup {
-  return Object.freeze({ originalText, text: originalText, decodedText: originalText, lineText: originalText, upstreamText: originalText, prepassedText: originalText,
+  return Object.freeze({ originalText, text: originalText, decodedText: originalText, payloadText: originalText, authoredPayloadText: originalText, lineText: originalText, upstreamText: originalText, prepassedText: originalText,
     changes: NO_CHANGES, mappings: NO_MAPPINGS, decodedMappings: NO_MAPPINGS, lineMappings: NO_MAPPINGS,
     upstreamMappings: NO_MAPPINGS, prepassedMappings: NO_MAPPINGS })
 }
@@ -176,7 +180,9 @@ function backwards(mappings: readonly MermaidCleanupMapping[], offset: number, b
 }
 
 function mappingsFor(receipt: MermaidCleanup, view: MermaidCleanupView): readonly MermaidCleanupMapping[] {
-  return view === 'text' ? receipt.mappings : view === 'decodedText' ? receipt.decodedMappings : view === 'lineText' ? receipt.lineMappings
+  // Lone-CR replacement is length preserving, so payload views share the
+  // exact boundary mappings of their fully normalized counterparts.
+  return view === 'text' || view === 'payloadText' ? receipt.mappings : view === 'decodedText' ? receipt.decodedMappings : view === 'lineText' || view === 'authoredPayloadText' ? receipt.lineMappings
     : view === 'upstreamText' ? receipt.upstreamMappings : receipt.prepassedMappings
 }
 
@@ -259,7 +265,10 @@ export function cleanupMermaidSource(originalText: string): MermaidCleanup {
   const changes = [...changeRecords(semantic, 'text', lineStarts),
     ...changeRecords(prepassed, 'prepassedText', lineStarts, 'style-semicolon'),
     ...changeRecords(upstream, 'upstreamText', lineStarts, 'html-attribute-quotes')]
-  return Object.freeze({ originalText, text: semantic.text, decodedText: xmlDecoded.text, lineText: normalized.text, upstreamText: upstream.text, prepassedText: prepassed.text,
+  return Object.freeze({ originalText, text: semantic.text, decodedText: xmlDecoded.text,
+    payloadText: xmlDecoded.text.includes('\r') ? xmlDecoded.text.replace(/\r\n/g, '\n') : xmlDecoded.text,
+    authoredPayloadText: hasCarriageReturn ? originalText.replace(/\r\n/g, '\n') : originalText,
+    lineText: normalized.text, upstreamText: upstream.text, prepassedText: prepassed.text,
     changes: Object.freeze(changes), mappings: Object.freeze(semantic.mappings),
     decodedMappings: Object.freeze(xmlDecoded.mappings),
     lineMappings: Object.freeze(normalized.mappings),

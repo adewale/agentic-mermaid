@@ -42,6 +42,24 @@ describe('shared Mermaid cleanup receipt', () => {
     }
   })
 
+  test('payload views normalize original CRLF once and preserve lone CR with shared offset maps', () => {
+    const source = 'A\r\r\nB&#13;&#10;C\rD'
+    const receipt = cleanupMermaidSource(source)
+    expect(receipt.payloadText).toBe('A\r\nB\nC\rD')
+    expect(receipt.authoredPayloadText).toBe('A\r\nB&#13;&#10;C\rD')
+    expect(receipt.payloadText.length).toBe(receipt.text.length)
+    expect(receipt.authoredPayloadText.length).toBe(receipt.lineText.length)
+    expect(authoredMermaidSlice(receipt, 1, 3, 'payloadText')).toBe('\r\r\n')
+    const newline = receipt.payloadText.indexOf('\n', receipt.payloadText.indexOf('B'))
+    expect(authoredMermaidSlice(receipt, newline, newline + 1, 'payloadText')).toBe('&#13;&#10;')
+    const rawEntity = receipt.authoredPayloadText.indexOf('&#13;')
+    expect(authoredMermaidSlice(receipt, rawEntity, rawEntity + 10, 'authoredPayloadText')).toBe('&#13;&#10;')
+    for (const view of ['payloadText', 'authoredPayloadText'] as const) {
+      const start = cleanedMermaidOffset(receipt, source.indexOf('D'), 'start', view)
+      expect(authoredMermaidSlice(receipt, start, start + 1, view)).toBe('D')
+    }
+  })
+
   test('the decoded view retains CSV payload identities and maps authored wrapper boundaries', () => {
     const source = '---\r\ntitle: &amp;\r\n---\r\nsankey-beta\r\n"A\rB",C,1\n"A\nB",C,2'
     const receipt = cleanupMermaidSource(source)

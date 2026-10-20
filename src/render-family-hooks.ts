@@ -1,4 +1,5 @@
 import { PACKET_SVG_HOOKS } from './svg-family-hooks/packet.ts'
+import { preservedMermaidFamilyText } from './mermaid-source.ts'
 import { renderPacketTerminal } from './ascii/packet.ts'
 import { KANBAN_SVG_HOOKS } from './svg-family-hooks/kanban.ts'
 import { renderKanbanTerminal } from './ascii/kanban.ts'
@@ -256,7 +257,7 @@ export const BUILTIN_RENDER_HOOKS = Object.freeze({
   c4: C4_RENDER_HOOKS,
   packet: { ...PACKET_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderPacketTerminal(ctx)) },
   kanban: { ...KANBAN_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderKanbanTerminal(ctx)) },
-  requirement: { ...REQUIREMENT_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderRequirementTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) },
+  requirement: { ...REQUIREMENT_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderRequirementTerminal(preservedMermaidFamilyText(ctx.source), ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) },
   treemap: { ...TREEMAP_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderTreemapTerminal(ctx)) },
   ishikawa: { ...ISHIKAWA_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderIshikawaTerminal(ctx)) },
   block: { ...BLOCK_SVG_HOOKS, renderAscii: nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) },
