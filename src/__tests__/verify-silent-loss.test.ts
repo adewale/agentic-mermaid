@@ -174,6 +174,11 @@ describe('render-parity gate (RENDER_FAILED)', () => {
       'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
       '---\ntitle: Chart\n---\nxychart-beta horizontal\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
       '%%{init: {"xyChart": {"width": 400, "height": 300}}}%%\nxychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      // Thick curved ribbons: bent, off-centre control points (rounded
+      // midpoints), and a ribbon thicker than its bend that folds past its end.
+      'sankey-beta\nA,B,10\nB,C,5',
+      '---\ntitle: Flow\n---\n%%{init: {"sankey": {"width": 500, "height": 300}}}%%\nsankey-beta\nA,B,10\nB,C,10\nC,D,10\nA,E,3\nE,D,3',
+      'sankey-beta\nA,B,10\nB,C,10\nC,D,10\nD,E,6',
     ]) {
       const [x, y, width, height] = /viewBox="([^"]+)"/.exec(renderMermaidSVG(source))![1]!.split(' ').map(Number)
       const { bounds } = verifyMermaid(source).layout

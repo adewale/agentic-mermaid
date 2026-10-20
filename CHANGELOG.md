@@ -94,12 +94,17 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   as one composite's are (`state_composite_description` where Mermaid
   rejects them). The readings that differ from Mermaid's are recorded in
   `docs/project/divergences.md`.
-- An XYChart's SVG draws the canvas that `layoutMermaid`, `verify` and
-  `renderMermaidWithActions` regions describe. Its axis and grid lines end on
-  the canvas edge, and the final paint check counted half a line width past
-  their butt-capped ends, so the SVG widened its `viewBox` beyond the layout's
-  bounds (700×500 became 701×500.71) and drew the whole chart slightly scaled
-  down inside the same width and height.
+- Sankey and XYChart SVGs draw the canvas that `layoutMermaid`, `verify` and
+  `renderMermaidWithActions` regions describe. The final paint check
+  over-measured their ink (half a line width past the butt-capped ends of
+  XYChart axis and grid lines, which end on the canvas edge; far past the ends
+  of thick Sankey ribbons, and twice their width in every direction once a
+  ribbon's control point had been rounded), so the SVG widened its `viewBox`
+  beyond the layout's bounds (an XYChart's 700×500 became 701×500.71, a
+  Sankey's 648×448 became 672×464.59 or as much as 1728×1194.67) and drew the
+  whole diagram scaled down inside the same width and height. A Sankey ribbon
+  thicker than its bend, which folds past the node it meets, now widens the
+  canvas to hold that ink.
 - Font families may be double-quoted, as Mermaid's own default
   `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
   `fontFamily` config, theme variables, Journey font config, style-role fonts
