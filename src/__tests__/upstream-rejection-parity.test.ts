@@ -196,11 +196,14 @@ const SEQUENCE_UNREAD: ReadonlyArray<readonly [string, string, number]> = [
 ]
 
 // Mermaid's Timeline lexer ends a `section` name at a colon and adds the
-// events after it to the latest period, failing when there is none. Ours
-// reads the line as one period.
+// events after it to the latest period, failing when there is none; it reads
+// the word `timeline` starting a line as the header. Ours reads each line as
+// one period.
 const TIMELINE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['events on a section line before any period', 'timeline\n  section 2020s: Launch', 'Launch', 'timeline_section_events', 2],
   ['events on a section line after a title', 'timeline\n  title Roadmap\n  section Q1: Beta : Gamma\n  2024 : Launch', 'Gamma', 'timeline_section_events', 3],
+  ['a period starting with the word timeline', 'timeline\n  Timeline of A : Launch', 'Timeline of A', 'timeline_header_in_body', 2],
+  ['a repeated header with a direction', 'timeline\n  title History\n  timeline TD\n  2002 : LinkedIn', 'LinkedIn', 'timeline_header_in_body', 3],
 ]
 
 // [family, construct, source]
@@ -246,6 +249,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
   // Mermaid removes a `%%` line with the blank lines before it.
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
+  ['timeline', '"timelines" starting a period, and "timeline" in a title and an event', 'timeline\n  title timeline view\n  timelines : timeline'],
   ['timeline', 'a section on its own line, and "section" starting period labels', 'timeline\n  section 2020s\n  2021 : Launch\n  section : Beta\n  sections X : Gamma'],
   ['sequence', 'nested activations each deactivated once', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Alice->>+Bob: Again\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Bye'],
   ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
