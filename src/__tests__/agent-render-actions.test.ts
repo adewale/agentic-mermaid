@@ -117,6 +117,14 @@ describe('renderer-neutral action surface', () => {
     expect(meta.regions).toContainEqual(expect.objectContaining({ id: 'Outer.Inner', kind: 'cluster' }))
   })
 
+  test('a target region covers its drawn target under a frontmatter title', () => {
+    const rendered = renderMermaidWithActions(`---\ntitle: Docs flow\n---\n${SOURCE}`, { format: 'svg' })
+    if (rendered.format !== 'svg') throw new Error('expected SVG artifact')
+    const drawn = /<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*data-id="node-shape:A"/.exec(rendered.output)!.slice(1).map(Number)
+    const { x, y, w, h } = rendered.actionSurface.actions[0]!.region!.bounds
+    for (const [index, value] of [x, y, w, h].entries()) expect(Math.abs(value - drawn[index]!)).toBeLessThan(1)
+  })
+
   test('SVG disposition requires actual embedded metadata and a rendered target', () => {
     const missing = renderMermaidWithActions('flowchart LR\n  A\n  click Missing href "https://example.com"', { format: 'svg' })
     expect(missing.actionSurface.actions[0]).toEqual(expect.objectContaining({

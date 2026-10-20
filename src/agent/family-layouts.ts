@@ -181,10 +181,10 @@ export function projectPositionedView(familyId: FamilyId, positioned: Positioned
 
 /**
  * Produce the one canonical positioned artifact used by every agent
- * projection. Most descriptors receive `canonicalSource`, preserving the
- * established RenderedLayout contract (including authored declaration order
- * and its historical wrapper/config policy) while removing the independent
- * family parsers and layouters that previously interpreted that source.
+ * projection. Most descriptors receive `canonicalSource` under the diagram's
+ * config wrapper, preserving authored declaration order and drawing what the
+ * saved source draws, while removing the independent family parsers and
+ * layouters that previously interpreted that source.
  * Families whose former adapter was body/config based use their canonical
  * serializer as the source-context bridge; the descriptor still owns all
  * parsing and positioning.

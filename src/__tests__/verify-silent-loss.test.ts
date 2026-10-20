@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 
 /**
@@ -96,8 +97,9 @@ describe('render-parity gate (RENDER_FAILED)', () => {
   // The seam found by the onboarding probes: agents followed
   // verify-before-commit and still shipped sources the render parser
   // rejects. A clean verify must prove the diagram actually renders.
-  test('unrenderable-but-parseable sources flip ok with RENDER_FAILED naming what to fix', () => {
+  test('unrenderable sources flip ok with RENDER_FAILED naming what to fix', () => {
     const nesting = DIAGRAM_WORK_LIMITS.nesting + 1
+    const themeCss = '%%{init: {"themeCSS": ".node rect { fill: red }"}}%%\nflowchart LR\n  A --> B'
     const cases = [
       { source: 'quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75', origin: 'source' }, // missing [x, y] brackets
       { source: 'architecture-beta\n  service a(database)[A]\n  end', origin: 'source' }, // stray end
@@ -112,13 +114,66 @@ describe('render-parity gate (RENDER_FAILED)', () => {
       { source: 'flowchart LR\n  A --> B\n  linkStyle 0 stroke-width:1e9px', origin: 'source' },
       { source: 'stateDiagram-v2\n  state A {\n    state A {\n      x --> y\n    }\n  }', origin: 'source' },
       { source: '---\nconfig:\n  themeVariables:\n    fontFamily: "Inter, sans-serif;"\n---\nsequenceDiagram\n  A->>B: hi', origin: 'config' },
+      // The authored config envelope a flowchart-like canonical body drops
+      // still governs render, so verify must check it too.
+      { source: themeCss, origin: 'config' },
+      { source: themeCss, renderOptions: { security: 'strict' }, origin: 'config' },
+      { source: '%%{init: {"themeVariables": {"fontFamily": "x;}"}}}%%\nclassDiagram\n  class A', origin: 'config' },
+      { source: '%%{init: {"flowchart": {"nodeSpacing": 1e9}}}%%\nflowchart LR\n  A --> B\n  A --> C', origin: 'source' },
+      // Sources the render-path parsers refuse before any layout.
+      { source: '---\ntitle: [unclosed\n---\nflowchart LR\n  A --> B', origin: 'source' },
+      { source: `stateDiagram-v2\n${Array.from({ length: nesting }, (_, i) => `state S${i} {\n`).join('')}X\n${'}\n'.repeat(nesting)}`, origin: 'source' },
+      { source: `flowchart LR\n${Array.from({ length: DIAGRAM_WORK_LIMITS.nodes + 1 }, (_, i) => `  N${i}`).join('\n')}`, origin: 'source' },
     ] as const
     for (const { source, origin, ...opts } of cases) {
+      expect(() => renderMermaidSVG(source, 'renderOptions' in opts ? opts.renderOptions : {})).toThrow()
       const r = verifyMermaid(source, opts)
       const failures = r.warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')
       expect({ source, ok: r.ok, codes: [...new Set(failures.map(w => w.code))], origins: [...new Set(failures.map(w => 'origin' in w ? w.origin : undefined))] })
         .toEqual({ source, ok: false, codes: ['RENDER_FAILED'], origins: [origin] })
       expect(failures.every(w => w.reason.length > 0)).toBe(true)
+    }
+  })
+
+  test('malformed or refused frontmatter is a parse failure, not a throw or flowchart statements', () => {
+    for (const [source, code, origin] of [
+      ['---\ntitle: [unclosed\nconfig: {\n---\nflowchart LR\n  A --> B', 'INVALID_FRONTMATTER', 'source'],
+      ['---\n__proto__:\n  x: 1\n---\nflowchart LR\n  A --> B', 'CONFIG_REJECTED', 'config'],
+    ] as const) {
+      const parsed = parseMermaid(source)
+      expect({ source, codes: parsed.ok ? [] : parsed.error.map(error => error.code) }).toEqual({ source, codes: [code] })
+      expect({ source, warnings: verifyMermaid(source).warnings.map(w => [w.code, 'origin' in w ? w.origin : undefined]) }).toEqual({ source, warnings: [['RENDER_FAILED', origin]] })
+    }
+  })
+
+  test('suppressing the finding never makes a source that does not parse verify', () => {
+    const r = verifyMermaid('flowchart LR\n  A -->', { suppress: ['RENDER_FAILED', 'EMPTY_DIAGRAM'] })
+    expect(r.ok).toBe(false)
+  })
+
+  test('a source string and its parsed diagram verify alike', () => {
+    // A regression guard: the structural tiers read the parsed body, so the
+    // positioned layout must come from it too (here `[*]` ids inside a
+    // composite are numbered in serialization order).
+    for (const source of [
+      'stateDiagram-v2\n    [*] --> First\n    state First {\n        [*] --> second\n        second --> [*]\n    }',
+      '%%{init: {"flowchart": {"rankSpacing": 300}}}%%\nflowchart LR\n  A --> B',
+    ]) {
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error(`parse failed: ${source}`)
+      const fromSource = verifyMermaid(source)
+      expect({ source, ok: fromSource.ok, codes: fromSource.warnings.map(w => w.code) }).toEqual({ source, ok: true, codes: verifyMermaid(parsed.value).warnings.map(w => w.code) })
+    }
+  })
+
+  test('verify measures the layout render draws, under the authored layout config', () => {
+    for (const source of [
+      '%%{init: {"flowchart": {"rankSpacing": 300}}}%%\nflowchart LR\n  A --> B',
+      '---\nconfig:\n  class:\n    nodeSpacing: 200\n---\nclassDiagram\n  A <|-- B\n  A <|-- C',
+    ]) {
+      const [, , width, height] = /viewBox="([^"]+)"/.exec(renderMermaidSVG(source))![1]!.split(' ').map(Number)
+      const { bounds } = verifyMermaid(source).layout
+      expect({ source, w: Math.round(bounds.w), h: Math.round(bounds.h) }).toEqual({ source, w: Math.round(width!), h: Math.round(height!) })
     }
   })
 

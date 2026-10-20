@@ -76,6 +76,16 @@ describe('native parser observation', () => {
     ])
   })
 
+  test('records a reopened State composite under the parent it was first declared in', () => {
+    const source = 'stateDiagram-v2\nstate P {\nstate A {\nx\n--\ny\n}\n}\nstate A {\nz\n}\nstate Q {\nstate P {\nw\n}\n}'
+    const events: ParserObservation[] = []
+    const observed = withParserObservation('state', event => events.push(event), () => parseMermaid(source))
+    expect(observed).toEqual(parseMermaid(source))
+    const groups = (kind: string) => events.filter(event => event.kind === kind).map(event => [(event.value as { id: string }).id, (event.value as { parent?: string }).parent])
+    expect(groups('open-group')).toEqual([['P', undefined], ['A', 'P'], ['A', 'P'], ['Q', undefined], ['P', undefined]])
+    expect(groups('close-group')).toEqual([['A', 'P'], ['P', undefined], ['A', 'P'], ['P', undefined], ['Q', undefined]])
+  })
+
   test('records Sequence builder calls with both marker sides, labels and block parentage', () => {
     const source = ['sequenceDiagram', 'participant A as Alice', 'alt Outer', 'loop Inner', 'A<<->>B: hello', 'end', 'end']
     const events: ParserObservation[] = []

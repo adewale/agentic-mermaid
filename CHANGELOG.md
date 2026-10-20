@@ -22,6 +22,50 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- `verify` on a source string checks the request `render` makes from that
+  string, including its `%%{init}%%` and frontmatter config. It used to check
+  a canonical copy that drops that config, so it measured a different layout
+  (for example ignoring `flowchart.rankSpacing`) and passed sources `render`
+  refuses: raw `themeCSS`, an unsafe `themeVariables.fontFamily`, or spacing
+  so large the canvas exceeds its cap. These are now `RENDER_FAILED`.
+- Refused config no longer makes `parseMermaid` and `verify` throw: config
+  the admission refuses (a reserved key such as `__proto__`, nesting or size
+  past its bounds) is a new `CONFIG_REJECTED` parse error, which `verify`
+  reports as `RENDER_FAILED` with origin `config`. `verify` reports any
+  non-empty source that fails to parse (a syntax error, frontmatter that is
+  not valid YAML, a diagram over a work limit) as `RENDER_FAILED` with the
+  parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
+  longer makes such a source verify `ok`. A work limit only the render path
+  enforces (state nesting) no longer escapes `verify` as an exception.
+- A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
+  ER, Journey, Architecture, any source-preserved body, and extension families
+  that render canonically) renders, lays out and verifies under its authored
+  config wrapper (frontmatter title and config, `%%{init}%%` directives), as
+  its source and its serialized output do (an edited diagram already did).
+  `renderMermaidSVG(parsed)`, `layoutMermaid(parsed)` and
+  `verifyMermaid(parsed)` used to drop that wrapper for a freshly parsed
+  diagram, losing the title, theme and spacing the saved source would draw.
+  `renderMermaidWithActions` takes its target regions from that layout, so
+  under a frontmatter title they sat a title band above the targets the
+  output draws, for a source string too; they now cover them.
+- A state diagram that reopens a composite state (a second `state A { … }`
+  block, one-line or not) draws one state A holding both blocks' states, as
+  Mermaid does. Each block used to add its own container with the same id,
+  which the layout engine could not resolve, so the render failed. A stays
+  where its first block is, a block reopening a `--`-split composite
+  continues its last region, and the first block's `direction` holds. A
+  later block's label labels A, joined with any other label or description
+  as one composite's are (`state_composite_description` where Mermaid
+  rejects them). The readings that differ from Mermaid's are recorded in
+  `docs/project/divergences.md`.
+- Font families may be double-quoted, as Mermaid's own default
+  `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
+  `fontFamily` config, theme variables, Journey font config, style-role fonts
+  and Architecture group fonts accept them. A font written into a style
+  attribute or stylesheet is written single-quoted; a `font-family`
+  attribute escapes the quotes. A quote that does not close, a name holding
+  the other quote character, and whitespace other than space and tab stay
+  refused.
 - Journey `taskFontFamily` and `titleFontFamily` config values are written
   into CSS only when they are safe font-family lists; an unsafe value (one
   that closes the rule or fetches with `url()`) is ignored with an
@@ -33,10 +77,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   slice's role or semantic-slot border and its highlight emphasis, which
   stylesheet rules overrode; abstract, static and non-ASCII Class members,
   which painted in SVG's default black instead of the member ink; a Journey
-  title's letter spacing and an `em`/`ex` `titleFontSize`. Sketch styles now
-  draw Radar areas with the translucent fill and opaque outline the default
-  style draws, XYChart series lines with round caps and joins, and a done
-  Gantt bar's border. Under a sketch look stacked with a dark palette
+  `titleFontSize` in `em`/`ex`, which drew squashed. (A Journey title's letter
+  spacing is now on its `<text>` too, but its per-glyph spans already drew it.)
+  Sketch styles now draw Radar areas with the translucent fill and opaque
+  outline the default style draws, XYChart series lines with round caps and
+  joins, and a done Gantt bar's border. Under a sketch look stacked with a dark palette
   (for example `watercolor` with `dusk`), Architecture labels, Journey task
   text and Timeline event text take the sketch's legible ink instead of a
   family stylesheet's dark ink.
