@@ -1,7 +1,7 @@
 import { decodeXML } from 'entities'
 import { mermaidEntityPrepass } from './mermaid-entities.ts'
 
-export type MermaidCleanupView = 'text' | 'lineText' | 'upstreamText' | 'prepassedText'
+export type MermaidCleanupView = 'text' | 'decodedText' | 'lineText' | 'upstreamText' | 'prepassedText'
 export type MermaidCleanupReason = 'line-ending' | 'xml-entity' | 'html-attribute-quotes' | 'style-semicolon'
 export type MermaidCleanupBias = 'start' | 'end'
 
@@ -38,6 +38,8 @@ export interface MermaidCleanup {
   readonly originalText: string
   /** Generous rendering convention: XML decode once and normalize line endings. */
   readonly text: string
+  /** XML decoded once, with authored line endings retained inside payloads. */
+  readonly decodedText: string
   /** Authored grammar spelling with CRLF and lone CR normalized. */
   readonly lineText: string
   /** Mermaid's cleanupText result: normalized line endings and tag quotes.
@@ -47,6 +49,7 @@ export interface MermaidCleanup {
   readonly prepassedText: string
   readonly changes: readonly MermaidCleanupChange[]
   readonly mappings: readonly MermaidCleanupMapping[]
+  readonly decodedMappings: readonly MermaidCleanupMapping[]
   readonly lineMappings: readonly MermaidCleanupMapping[]
   readonly upstreamMappings: readonly MermaidCleanupMapping[]
   readonly prepassedMappings: readonly MermaidCleanupMapping[]
@@ -61,8 +64,8 @@ const NO_CHANGES: readonly MermaidCleanupChange[] = Object.freeze([])
 const NO_PENDING_CHANGES: readonly PendingChange[] = Object.freeze([])
 
 function identityCleanup(originalText: string): MermaidCleanup {
-  return Object.freeze({ originalText, text: originalText, lineText: originalText, upstreamText: originalText, prepassedText: originalText,
-    changes: NO_CHANGES, mappings: NO_MAPPINGS, lineMappings: NO_MAPPINGS,
+  return Object.freeze({ originalText, text: originalText, decodedText: originalText, lineText: originalText, upstreamText: originalText, prepassedText: originalText,
+    changes: NO_CHANGES, mappings: NO_MAPPINGS, decodedMappings: NO_MAPPINGS, lineMappings: NO_MAPPINGS,
     upstreamMappings: NO_MAPPINGS, prepassedMappings: NO_MAPPINGS })
 }
 
@@ -173,13 +176,20 @@ function backwards(mappings: readonly MermaidCleanupMapping[], offset: number, b
 }
 
 function mappingsFor(receipt: MermaidCleanup, view: MermaidCleanupView): readonly MermaidCleanupMapping[] {
-  return view === 'text' ? receipt.mappings : view === 'lineText' ? receipt.lineMappings
+  return view === 'text' ? receipt.mappings : view === 'decodedText' ? receipt.decodedMappings : view === 'lineText' ? receipt.lineMappings
     : view === 'upstreamText' ? receipt.upstreamMappings : receipt.prepassedMappings
 }
 
 export function originalMermaidOffset(receipt: MermaidCleanup, offset: number, bias: MermaidCleanupBias = 'start', view: MermaidCleanupView = 'text'): number {
   if (!Number.isInteger(offset) || offset < 0 || offset > receipt[view].length) throw new RangeError('Cleanup offset is outside the selected source view')
   return backwards(mappingsFor(receipt, view), offset, bias)
+}
+
+/** Translate an authored UTF-16 boundary into the selected cleanup view. */
+export function cleanedMermaidOffset(receipt: MermaidCleanup, offset: number, bias: MermaidCleanupBias = 'start', view: MermaidCleanupView = 'text'): number {
+  if (!Number.isInteger(offset) || offset < 0 || offset > receipt.originalText.length) throw new RangeError('Cleanup offset is outside the original source')
+  for (const mapping of mappingsFor(receipt, view)) offset = mapOffset(mapping, offset, bias, true)
+  return offset
 }
 
 /** Inclusive provenance: a range boundary at a removed semicolon includes that
@@ -231,9 +241,9 @@ export function cleanupMermaidSource(originalText: string): MermaidCleanup {
   const initial: MappedText = { text: originalText, mappings: NO_MAPPINGS, changes: NO_PENDING_CHANGES }
   const normalized = normalizeLineEndings(initial)
   const xmlDecoded = hasXmlEntity
-    ? transform(normalized, matchedReplacements(normalized.text, /&(?:#[xX][0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g, decodeXML), 'xml-entity')
-    : normalized
-  const semantic = normalizeLineEndings(xmlDecoded)
+    ? transform(initial, matchedReplacements(originalText, /&(?:#[xX][0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g, decodeXML), 'xml-entity')
+    : initial
+  const semantic = xmlDecoded === initial ? normalized : normalizeLineEndings(xmlDecoded)
   const prepassed = hasStyleSemicolon ? semicolonCleanup(normalized) : normalized
   const upstream = hasQuotedTag ? quoteCleanup(normalized) : normalized
   if (semantic === initial && prepassed === initial && upstream === initial) return identityCleanup(originalText)
@@ -249,8 +259,9 @@ export function cleanupMermaidSource(originalText: string): MermaidCleanup {
   const changes = [...changeRecords(semantic, 'text', lineStarts),
     ...changeRecords(prepassed, 'prepassedText', lineStarts, 'style-semicolon'),
     ...changeRecords(upstream, 'upstreamText', lineStarts, 'html-attribute-quotes')]
-  return Object.freeze({ originalText, text: semantic.text, lineText: normalized.text, upstreamText: upstream.text, prepassedText: prepassed.text,
+  return Object.freeze({ originalText, text: semantic.text, decodedText: xmlDecoded.text, lineText: normalized.text, upstreamText: upstream.text, prepassedText: prepassed.text,
     changes: Object.freeze(changes), mappings: Object.freeze(semantic.mappings),
+    decodedMappings: Object.freeze(xmlDecoded.mappings),
     lineMappings: Object.freeze(normalized.mappings),
     upstreamMappings: Object.freeze(upstream.mappings), prepassedMappings: Object.freeze(prepassed.mappings) })
 }

@@ -214,14 +214,16 @@ references once. The upstream quote rewrite is recorded rather than applied to
 our grammar: it can join unrelated labels or break YAML metadata. Verification
 reports `UNSUPPORTED_SYNTAX` / `mermaid_cleanup` once per affected authored line,
 including for parsed diagrams. Ordinary newline/entity protection and a style
-statement's harmless terminator removal do not need portability warnings.
+standalone statement's harmless terminator removal do not need portability warnings.
 
 `#name;` / `#123;` remain protected through grammar reading and expand through
 the shared entity codec only at text projection. They must never create new
 quotes, statement delimiters, markup or terminal controls. Pie's authored-key
 identity and Class's quote provenance still require grammar-specific views;
 those readers consume the shared authored view rather than normalizing the
-original document again.
+original document again. Sankey consumes the shared XML-decoded view before
+newline normalization: its CSV reader preserves lone CR inside quoted node
+identities while recognizing structural CR and CRLF outside those fields.
 
 `serializeMermaid` also returns source-preserved opaque bodies and segments.
 That operation is lossless preservation, not a promise to repair an upstream-

@@ -44,6 +44,7 @@ import { parseMermaid } from './parser.ts'
 import { resolvePieVisualConfig } from './pie/config.ts'
 import { pieFamilyLines } from './pie/source-title.ts'
 import { resolveSankeyVisualConfig } from './sankey/config.ts'
+import { sankeyFamilyLines } from './sankey/source.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
 import { withAccessibilityFields } from './shared/accessibility-directives.ts'
 import { checkAllGraphAuthoredStyles } from './shared/style-props.ts'
@@ -180,7 +181,7 @@ const RADAR_RENDER_HOOKS = {
 
 const SANKEY_RENDER_HOOKS = {
   ...SANKEY_SVG_HOOKS,
-  renderAscii: nativeTerminalRenderer(ctx => renderSankeyTerminal(ctx.source.body.split(/\r?\n/), ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual)),
+  renderAscii: nativeTerminalRenderer(ctx => renderSankeyTerminal(sankeyFamilyLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual)),
 } satisfies BuiltinRenderHooks
 
 const GANTT_RENDER_HOOKS = {

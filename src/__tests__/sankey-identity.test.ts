@@ -94,6 +94,42 @@ const cases: Array<{ name: string; source: string; links: ExpectedLink[]; title?
 ]
 
 describe('Sankey source identities correspond across graphical and terminal projections', () => {
+  test('structural CR and encoded wrappers keep quoted CSV identities across projections', () => {
+    const links = [
+      { id: 'link:A"&\rB->&amp;', from: 'A"&\rB', to: '&amp;' },
+      { id: 'link:A"&\nB->Other', from: 'A"&\nB', to: 'Other' },
+      { id: 'link:A"&\nB->Third', from: 'A"&\nB', to: 'Third' },
+    ]
+    for (const ending of ['\n', '\r', '\r\n']) {
+      const source = [
+        '---', 'title: Wrapped &amp; CSV', '---',
+        '%%{init: {}}%%', 'sankey-beta', '%% ignored "',
+        'accDescr {', 'ignored "', '}',
+        '"A""&amp;\rB",&amp;amp;,1',
+        '"A""&amp;\nB",Other,2',
+        '"A""&amp;\r\nB",Third,3',
+      ].join(ending)
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error('parse failed')
+      expect(layoutMermaid(parsed.value).edges.map(({ id, from, to }) => ({ id, from, to }))).toEqual(links)
+      for (const renderedSource of [source, source.replace(/^---(?:\r\n?|\n)/, '&#45;&#45;&#45;&#10;')]) {
+        const tags = scanSvgStartTags(renderMermaidSVG(renderedSource, { embedFontImport: false }))
+        expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge').map(tag => ({
+          id: decodedSvgAttributeValue(tag, 'data-id'),
+          from: decodedSvgAttributeValue(tag, 'data-from'),
+          to: decodedSvgAttributeValue(tag, 'data-to'),
+        }))).toEqual(links)
+        for (const input of [renderedSource, ...(renderedSource === source ? [parsed.value] : [])]) {
+          const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+          expect(terminal.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+          const edges = terminal.regions.filter(region => region.kind === 'edge')
+          expect(edges).toHaveLength(links.length)
+          for (const link of links) expect(edges.map(({ id, from, to }) => ({ id, from, to }))).toContainEqual(link)
+        }
+      }
+    }
+  })
+
   test.each(cases)('$name', ({ source, links, title }) => {
     const renderedSource = title ? `---\ntitle: ${title.text}\n---\n${source}` : source
     const parsed = parseRegisteredMermaid(renderedSource)

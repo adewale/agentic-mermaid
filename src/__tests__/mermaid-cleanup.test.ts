@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  authoredMermaidSlice, cleanupMermaidSource, originalMermaidOffset, originalMermaidRange,
+  authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, originalMermaidRange,
 } from '../shared/mermaid-cleanup.ts'
 
 describe('shared Mermaid cleanup receipt', () => {
@@ -8,10 +8,12 @@ describe('shared Mermaid cleanup receipt', () => {
     const source = 'flowchart LR\n  A[Hello] --> B'
     const receipt = cleanupMermaidSource(source)
     expect(receipt.text).toBe(source)
+    expect(receipt.decodedText).toBe(source)
     expect(receipt.upstreamText).toBe(source)
     expect(receipt.prepassedText).toBe(source)
     expect(receipt.changes).toEqual([])
     expect(receipt.mappings).toEqual([])
+    expect(receipt.decodedMappings).toBe(receipt.mappings)
     expect(originalMermaidRange(receipt, 15, 23)).toEqual({ start: 15, end: 23 })
     expect(Object.isFrozen(receipt)).toBe(true)
     expect(Object.isFrozen(receipt.changes)).toBe(true)
@@ -34,11 +36,28 @@ describe('shared Mermaid cleanup receipt', () => {
   test('entity-created CRLF is normalized once while retaining both source tokens', () => {
     for (const authored of ['&#13;\n', '&#13;&#10;', '\r&#10;']) {
       const receipt = cleanupMermaidSource(`A${authored}B`)
-      // A raw CR is normalized before XML decoding, matching cleanup order.
-      const expected = authored === '\r&#10;' ? 'A\n\nB' : 'A\nB'
-      expect(receipt.text).toBe(expected)
+      expect(receipt.decodedText).toBe('A\r\nB')
+      expect(receipt.text).toBe('A\nB')
       expect(authoredMermaidSlice(receipt, 1, receipt.text.length - 1)).toBe(authored)
     }
+  })
+
+  test('the decoded view retains CSV payload identities and maps authored wrapper boundaries', () => {
+    const source = '---\r\ntitle: &amp;\r\n---\r\nsankey-beta\r\n"A\rB",C,1\n"A\nB",C,2'
+    const receipt = cleanupMermaidSource(source)
+    expect(receipt.decodedText).toBe('---\r\ntitle: &\r\n---\r\nsankey-beta\r\n"A\rB",C,1\n"A\nB",C,2')
+    const originalBoundary = source.indexOf('sankey-beta')
+    const decodedBoundary = cleanedMermaidOffset(receipt, originalBoundary, 'start', 'decodedText')
+    expect(decodedBoundary).toBe(receipt.decodedText.indexOf('sankey-beta'))
+    expect(originalMermaidOffset(receipt, decodedBoundary, 'start', 'decodedText')).toBe(originalBoundary)
+    const payloadStart = receipt.decodedText.indexOf('"A\rB"')
+    expect(authoredMermaidSlice(receipt, payloadStart, payloadStart + 5, 'decodedText')).toBe('"A\rB"')
+    const insideReference = source.indexOf('&amp;') + 2
+    expect(cleanedMermaidOffset(receipt, insideReference, 'start', 'decodedText')).toBe(receipt.decodedText.indexOf('&'))
+    expect(cleanedMermaidOffset(receipt, insideReference, 'end', 'decodedText')).toBe(receipt.decodedText.indexOf('&') + 1)
+    const plainXml = cleanupMermaidSource('A[&lt; #quot; #59;]')
+    expect(plainXml.decodedText).toBe('A[< #quot; #59;]')
+    expect(plainXml.decodedMappings).toBe(plainXml.mappings)
   })
 
   test('upstream tag quote changes preserve exact interior label offsets', () => {
@@ -85,7 +104,10 @@ describe('shared Mermaid cleanup receipt', () => {
 
   test('mapping rejects invalid UTF-16 boundaries and reversed ranges', () => {
     const receipt = cleanupMermaidSource('ABC')
-    for (const offset of [-1, 4, 0.5, NaN]) expect(() => originalMermaidOffset(receipt, offset)).toThrow(RangeError)
+    for (const offset of [-1, 4, 0.5, NaN]) {
+      expect(() => originalMermaidOffset(receipt, offset)).toThrow(RangeError)
+      expect(() => cleanedMermaidOffset(receipt, offset)).toThrow(RangeError)
+    }
     expect(() => originalMermaidRange(receipt, 2, 1)).toThrow(RangeError)
   })
 })
