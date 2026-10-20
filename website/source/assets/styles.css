@@ -1028,5 +1028,5 @@ pre:focus-visible, .plate.dia-plate:focus-visible { outline: 2px solid var(--acc
 .edit-demo-controls button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); color: var(--fg); font: inherit; cursor: pointer; }
 .edit-demo-controls button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .edit-demo-controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.edit-demo-status { font-family: var(--sans); font-size: 14px; }
+.edit-demo-status { font-family: var(--sans); font-size: var(--t-sm); }
 @media (max-width: 600px) { .edit-demo { padding: 16px; } }

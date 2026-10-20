@@ -458,6 +458,9 @@ async function generateEditorHtml() {
   // semantics; do not ship them in the production editor document.
   transformed = transformed.replace(/<!--[\s\S]*?-->/g, '')
   transformed = transformed.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, block => block.replace(/\/\*[\s\S]*?\*\//g, ''))
+  // Drop authoring indentation while retaining whitespace between inline tags.
+  // Preserve whitespace-sensitive elements verbatim.
+  transformed = transformed.replace(/<(pre|textarea|style)\b[^>]*>[\s\S]*?<\/\1>|^[ \t]+(?=<)/gim, block => block.startsWith('<') ? block : '')
   // The bundle is the editor's whole app; let the preload scanner fetch it
   // before the parser reaches the end-of-body script tag.
   transformed = transformed.replace('</head>', `<link rel="modulepreload" href="/${scriptRel}">\n</head>`)

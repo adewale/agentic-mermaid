@@ -284,6 +284,17 @@ afterAll(async () => {
 // Tests
 // ---------------------------------------------------------------------------
 
+it('standalone editor renders and verifies with one persistent Blob worker', async () => {
+  expect(page.workers()).toHaveLength(1)
+  expect(page.workers()[0]!.url()).toStartWith('blob:')
+  const worker = page.workers()[0]
+  await page.locator('#code-editor').fill('flowchart LR\nStandalone --> Verified')
+  await waitForEditorRender()
+  expect(await page.locator('#preview-inner svg').textContent()).toContain('Standalone')
+  expect(page.workers()).toEqual([worker])
+  expect(await page.locator('#render-time').textContent()).toContain('Rendered and verified')
+})
+
 describe('browser: live editor integration', () => {
   it('matches pinned Mermaid 11.16 browser-visible Pie entity labels', async () => {
     const oraclePage = await browser.newPage()

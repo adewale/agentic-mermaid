@@ -5,7 +5,7 @@ import { serializeMermaid } from '../src/agent/serialize.ts'
 import { renderAndVerifyMermaid } from '../src/agent/verify.ts'
 import { editorStateHref } from '../scripts/site/editor-state-url.ts'
 
-const SOURCE = 'flowchart LR\n  Draft[Draft] --> Review[Review] --> Publish[Publish]'
+const SOURCE = 'flowchart LR\naccTitle: Review workflow\naccDescr: Draft flows through review to publication.\n  Draft[Draft] --> Review[Review] --> Publish[Publish]'
 const OPERATION = { kind: 'set_label', target: 'Review', label: 'Approved' } as const
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
 

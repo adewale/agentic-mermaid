@@ -220,13 +220,14 @@ async function generateEditorHtml(): Promise<string> {
   const workerEntry = workerBuild.outputs[0]!
   const workerUrl = runtimeDirectory
     ? JSON.stringify(`/editor/runtime/${basename(workerEntry.path)}`)
-    : `URL.createObjectURL(new Blob([${JSON.stringify(await workerEntry.text())}], { type: 'text/javascript' }))`
+    : JSON.stringify('')
+  const workerSource = JSON.stringify(runtimeDirectory ? '' : await workerEntry.text())
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser.ts', import.meta.url))],
     target: 'browser',
     format: 'esm',
     minify: true,
-    define: { AM_PREVIEW_WORKER_URL: workerUrl, AM_EDITOR_WORKER_ENABLED: 'true' },
+    define: { AM_PREVIEW_WORKER_URL: workerUrl, AM_PREVIEW_WORKER_SOURCE: workerSource, AM_EDITOR_WORKER_ENABLED: 'true' },
     ...(runtimeDirectory ? {
       splitting: true,
       outdir: runtimeDirectory,

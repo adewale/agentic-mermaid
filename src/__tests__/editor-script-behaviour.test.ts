@@ -340,13 +340,21 @@ describe('editor verify panel', () => {
       verifyDetails: element('verify-details'),
       verifyDetailsList: element('verify-details-list'),
     }
-    const api = evaluateBrowserScript<{ updateVerifyPanel(source: string, options: unknown): unknown }>(
+    const api = evaluateBrowserScript<{ updateVerifyPanel(source: string, options: unknown, result?: unknown): unknown }>(
       `${editorScript('helpers.js')}\n${editorScript('rendering.js')}`,
       { document, window: { __mermaid: BROWSER_EDITOR_ADAPTER }, verifyMermaid, ...nodes },
       '{ updateVerifyPanel }',
     )
     return { api, nodes }
   }
+
+  test('uses the preview verification without running a second verification on the UI thread', () => {
+    let calls = 0
+    const { api, nodes } = verifyPanel(() => { calls++; return { ok: false, warnings: [{ code: 'RENDER_FAILED' }] } })
+    api.updateVerifyPanel('flowchart TD\n  A --> B', {}, { ok: true, warnings: [] })
+    expect(calls).toBe(0)
+    expect(nodes.verifySummary.textContent).toBe('Verified: no warnings')
+  })
 
   test('every canonical warning code is counted in its canonical tier', () => {
     const observed: Record<string, string> = {}

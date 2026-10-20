@@ -87,13 +87,20 @@ export class PreviewWorkerClient {
 }
 
 declare const AM_PREVIEW_WORKER_URL: string
+declare const AM_PREVIEW_WORKER_SOURCE: string
 const client = new PreviewWorkerClient(() => {
-  const url = AM_PREVIEW_WORKER_URL
-  const worker = new Worker(url, { type: 'module', name: 'agentic-mermaid-preview' })
+  // Build defines are literal data: executable Blob construction must stay here.
+  const url = AM_PREVIEW_WORKER_URL || URL.createObjectURL(new Blob([AM_PREVIEW_WORKER_SOURCE], { type: 'text/javascript' }))
+  let released = false
+  const release = () => { if (!released && url.startsWith('blob:')) { released = true; URL.revokeObjectURL(url) } }
+  let worker: Worker
+  try { worker = new Worker(url, { type: 'module', name: 'agentic-mermaid-preview' }) }
+  catch (error) { release(); throw error }
   if (url.startsWith('blob:')) {
-    const release = () => URL.revokeObjectURL(url)
     worker.addEventListener('message', release, { once: true })
     worker.addEventListener('error', release, { once: true })
+    const terminate = worker.terminate.bind(worker)
+    worker.terminate = () => { release(); terminate() }
   }
   return worker
 })

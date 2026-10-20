@@ -3,11 +3,27 @@
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-contract.ts'
 import { verifyNoExternalRefs } from './output-security.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
-import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyles, knownStyleDescriptors, getStyle } from './scene/style-registry.ts'
+import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyleDescriptors } from './scene/style-registry.ts'
 import { resolveEditorRenderOptions } from './editor-render-options.ts'
-import { getSeriesColor, CHART_ACCENT_FALLBACK } from './xychart/colors.ts'
 import type { AsciiRenderOptions } from './ascii/index.ts'
-import { renderEditorPreview, cancelPendingEditorPreview } from './browser-preview-client.ts'
+import type { RenderOptions } from './types.ts'
+
+let previewClient: typeof import('./browser-preview-client.ts') | undefined
+let loadingPreview: Promise<typeof import('./browser-preview-client.ts')> | undefined
+let previewGeneration = 0
+
+async function renderEditorPreview(source: string, options: RenderOptions = {}) {
+  const generation = previewGeneration
+  const snapshot = structuredClone(options)
+  const client = await (loadingPreview ??= import('./browser-preview-client.ts').then(module => previewClient = module).catch(error => { loadingPreview = undefined; throw error }))
+  if (generation !== previewGeneration) throw new client.PreviewSupersededError()
+  return client.renderEditorPreview(source, snapshot)
+}
+
+function cancelPendingEditorPreview() {
+  previewGeneration++
+  previewClient?.cancelPendingEditorPreview()
+}
 
 const adapter = {
   renderMermaidSVGWithReceipt: renderEditorPreview,
@@ -28,11 +44,7 @@ const adapter = {
   verifyNoExternalRefs,
   WARNING_TIER,
   WARNING_SEVERITY,
-  knownStyles,
   knownStyleDescriptors,
-  getStyle,
-  getSeriesColor,
-  CHART_ACCENT_FALLBACK,
   resolveEditorRenderOptions,
 }
 

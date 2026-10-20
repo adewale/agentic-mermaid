@@ -4,8 +4,9 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
-import { dirname, extname, join, resolve, sep } from 'node:path'
-import { chromium } from 'playwright'
+import { extname, join, resolve, sep } from 'node:path'
+import { chromium, type Browser } from 'playwright'
+import { resolveBuildGitSha } from '../../website/build-provenance.ts'
 
 const options = new Map<string, string>()
 for (let i = 2; i < process.argv.length; i += 2) {
@@ -16,6 +17,14 @@ for (let i = 2; i < process.argv.length; i += 2) {
 if (!options.has('--site') || !options.has('--out')) throw new Error('Provide --site WEBSITE_PUBLIC --out DIRECTORY')
 const site = resolve(options.get('--site')!), out = resolve(options.get('--out')!)
 mkdirSync(out, { recursive: true })
+const reportPath = join(out, 'editor-preview.json')
+// Invalidate old evidence before launch or any other fallible work.
+writeFileSync(reportPath, JSON.stringify({ status: 'incomplete', site }) + '\n')
+const driverGit = (args: string[]) => {
+  try { return execFileSync('git', args, { cwd: resolve(import.meta.dir, '../..'), encoding: 'utf8' }).trim() }
+  catch { return undefined }
+}
+const driverRevision = resolveBuildGitSha({ head: driverGit(['rev-parse', 'HEAD']), status: driverGit(['status', '--porcelain=v1', '--untracked-files=normal']) })
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const fetched = new Set<string>()
 const server = createServer((req, res) => {
@@ -27,10 +36,11 @@ const server = createServer((req, res) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'")
   res.end(readFileSync(file))
 })
-await new Promise<void>(done => server.listen(0, '127.0.0.1', done))
-const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`
-const browser = await chromium.launch({ headless: true, executablePath: options.get('--executable') })
+let browser: Browser | undefined
 try {
+  await new Promise<void>((done, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', done) })
+  const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  browser = await chromium.launch({ headless: true, executablePath: options.get('--executable') })
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort())
   const page = await context.newPage()
@@ -74,14 +84,18 @@ try {
     }
   }
   const html = readFileSync(join(site, 'editor/index.html'))
+  if (errors.length) throw new Error(`Editor emitted browser errors: ${errors.join('; ')}`)
+  const builtProvenance = JSON.parse(readFileSync(join(site, 'capabilities.json'), 'utf8')).generatedFrom
   const report = { status: 'completed', advisory: true, browser: browser.version(),
-    sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dirname(dirname(site)), encoding: 'utf8' }).trim(),
+    sourceRevision: builtProvenance.gitSha, builtProvenance, driverRevision,
     policy: 'Three measured root-label edits after one JIT warmup per ternary tree size; source through verified DOM plus two animation frames, includes adaptive debounce; default artifact cache policy, distinct labels per call; 5ms main-thread timer heartbeat; remote assets blocked',
     htmlSha256: sha256(html), assets: [...fetched].sort().map(file => ({ path: file.slice(site.length), sha256: sha256(readFileSync(file)) })), errors, samples }
-  writeFileSync(join(out, 'editor-preview.json'), JSON.stringify(report, null, 2) + '\n')
+  writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))
-  if (errors.length) throw new Error('Editor emitted browser errors')
+} catch (error) {
+  writeFileSync(reportPath, JSON.stringify({ status: 'failed', site, driverRevision, error: String(error) }, null, 2) + '\n')
+  throw error
 } finally {
-  await browser.close()
-  await new Promise<void>(done => server.close(() => done()))
+  await browser?.close()
+  if (server.listening) await new Promise<void>(done => server.close(() => done()))
 }
