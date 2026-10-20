@@ -530,8 +530,12 @@ stateDiagram-v2
     // entity code, the text after `state "…" as`, and a block note.
     const whole = ['A : a:b', 'A --> B : ends: ', 'A --> B : a #59; b', 'state "x" as A : a; b', 'note right of A\n    a; b :: c:\n  end note'].map(body => `stateDiagram-v2\n  ${body}`)
     expect(whole.map(unsupportedSyntax)).toEqual(whole.map(() => []))
-    // Verify reads the authored line, whose blanks the canonical one drops.
-    expect(unsupportedSyntax('---\ntitle: t\n---\nstateDiagram-v2\n  A --> B : ends: \n  B --> C : ends:')).toEqual(['state_text_cut@6'])
+    // Verify reads the authored line, whose blanks the canonical one drops,
+    // given the source or the diagram parsed from it.
+    const blanks = ['---\ntitle: t\n---\nstateDiagram-v2\n  A --> B : ends: \n  B --> C : ends:', 'stateDiagram-v2\n  A --> B\n  note right of A\n    : \n  end note']
+    const fromSource = blanks.map(unsupportedSyntax)
+    expect(fromSource).toEqual([['state_text_cut@6'], ['state_note_block_colon@4']])
+    expect(blanks.map(source => verifyMermaid(state(source)).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))).toEqual(fromSource)
     const upstream = startUpstreamMermaid()
     try {
       const read = await upstream.projectAll(written, mermaid => {

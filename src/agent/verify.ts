@@ -50,7 +50,7 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
-import { authoredLineForCanonical, sourceCleanup } from './source-map-spans.ts'
+import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
 import { timelineUnsupportedSyntaxWarnings } from './timeline-body.ts'
@@ -458,9 +458,11 @@ function colonlessAccessibilityWarnings(d: ValidDiagram): LayoutWarning[] {
 
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
+  if (!rule) return []
   const lines = authored?.split(/\r\n?|\n/)
-  const authoredLine = lines && ((line: number) => lines[authoredLineForCanonical(d.source, line) - 1])
-  return (rule?.(d.canonicalSource, authoredLine) ?? []).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+  // A diagram parsed from source keeps its authored lines with its source map.
+  const authoredLine = lines ? (line: number) => lines[authoredLineForCanonical(d.source, line) - 1] : (line: number) => authoredTextForCanonical(d.source, line)
+  return rule(d.canonicalSource, authoredLine).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
     ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
     : warning)
 }

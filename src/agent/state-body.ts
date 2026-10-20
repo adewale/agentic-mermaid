@@ -1384,8 +1384,9 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
       message: 'This composite state is never closed by `}`, so where it ends cannot be told and the diagram is not drawn; pinned Mermaid rejects it too. Add a `}` where the composite ends.',
     })),
   ]
-  // A body line as authored where verify has the source, since canonical
-  // lines end trimmed.
+  // A body line as authored, which verify has from the source it was given
+  // or the parse of the diagram it was given, since canonical lines end
+  // trimmed; as canonical for a diagram not parsed from source.
   const physicalLine = (index: number): string => {
     const canonical = body[index] ?? ''
     const authored = authoredLine?.(header + index + 2)
@@ -1444,9 +1445,8 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   // Mermaid's State lexer reads entity codes first, then ends a description
   // or transition label (DESCR, `":"(?:[^:\n;]|":"[^:\n;])+`) at a `;`, at
   // `::` and before a colon its line ends with. Ours reads the text to the
-  // line's end, as both read the text after `state "…" as X`. Verify given
-  // only a parsed diagram reads its canonical lines, which end trimmed: there
-  // a colon only blanks follow, which Mermaid reads as text, is reported too.
+  // line's end, as both read the text after `state "…" as X`. A colon that
+  // only blanks follow on the authored line is text to Mermaid.
   const cutText = (statement: StateStatement, value: string): void => {
     const text = lexedText(statement, value)
     const line = textLine(statement)

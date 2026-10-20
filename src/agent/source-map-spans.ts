@@ -8,7 +8,7 @@ interface PhysicalLine {
   start: number
 }
 
-const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, number>>()
+const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, { line: number; text: string }>>()
 const cleanupBySourceMap = new WeakMap<SourceMap, MermaidCleanup>()
 
 export function recordSourceCleanup(sourceMap: SourceMap, cleanup: MermaidCleanup): void {
@@ -44,7 +44,14 @@ export function recordSourceMapMetadata(sourceMap: SourceMap, metadata: Metadata
 
 /** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
 export function authoredLineForCanonical(sourceMap: SourceMap, canonicalLine: number): number {
-  return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine) ?? canonicalLine
+  return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine)?.line ?? canonicalLine
+}
+
+/** The authored text of a canonical line, as the parse read it, which
+ *  canonical lines may not keep (trailing blanks); undefined where the
+ *  diagram was not parsed from source. */
+export function authoredTextForCanonical(sourceMap: SourceMap, canonicalLine: number): string | undefined {
+  return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine)?.text
 }
 
 function physicalLines(source: string): PhysicalLine[] {
@@ -562,6 +569,9 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     }
   }
   sourceMap.spans = spans
-  authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [canonicalLine, point(lineStarts, authoredLine.start).line])))
+  authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [
+    canonicalLine,
+    { line: point(lineStarts, authoredLine.start).line, text: authoredLine.text },
+  ])))
   return sourceMap
 }
