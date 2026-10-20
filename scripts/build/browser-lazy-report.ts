@@ -130,29 +130,26 @@ if (forbiddenInputs.length > 0) {
 const elkOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/elkjs/')))
 const elkOutput = requireOne(elkOutputs, 'ELK implementation chunk')
+const elkLoaders = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/elk-constructor.lazy.ts')))
+if (!MEASURE_ONLY && elkLoaders.length !== 1) throw new Error('ELK must have one on-demand constructor')
 const initialFiles = staticClosure([entry])
-const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
+const staticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
-
-// A family can still demand ELK after its initial static download. Preserve
-// that transfer in the existing ceilings, deriving consumers from the emitted
-// constructor seam rather than maintaining a second family roster. The older
-// non-lazy constructor also identifies consumers when measuring a baseline.
-const elkConstructorOutputs = outputNames.filter(path =>
-  Object.keys(metafile.outputs[path]!.inputs).some(input => /^src\/elk-constructor(?:\.lazy)?\.ts$/.test(input)))
-if (elkConstructorOutputs.length === 0) throw new Error('ELK implementation has no emitted constructor seam')
-const elkFamilies = MEASURED_FAMILY_IDS.filter(id =>
-  elkConstructorOutputs.some(path => familyFiles[id].includes(path)))
-const elkFiles = staticClosure([elkOutput])
-const budgetedFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
-  id,
-  staticClosure([...familyFiles[id], ...(elkFamilies.includes(id) ? elkFiles : [])]),
+const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[id].includes(elkOutput)
+  || elkLoaders.some(loader => staticFamilyFiles[id].includes(loader)))
+// Preserve the existing default-render payload contract: ELK consumers still
+// pay for ELK when it is selected. Also report the static/native closure so
+// demand loading cannot masquerade as a smaller default ELK render.
+const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
+  staticClosure([entry, renderCore, familyOutputs[id], ...(observedElkFamilies.includes(id) ? [elkOutput] : [])]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
-
-const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (!MEASURE_ONLY) {
+  if (initialFiles.includes(elkOutput) || BROWSER_BUILTIN_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(elkOutput))) {
+    throw new Error('ELK must load only when selected, never in the initial or family static closure')
+  }
   // The complete HTML5 named-reference table (~23 KB gzip) is fetched on
   // demand (shared/html-entity-table.lazy.ts), only for a diagram that uses a
   // named code beyond XML's five. Keep it out of the initial download and out
@@ -192,8 +189,7 @@ if (!MEASURE_ONLY) {
 const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
-  familyClosure: 'static imports only; on-demand ELK and HTML entity downloads are additional when a diagram requires them',
-  budgetedFamilyClosure: 'static imports plus the complete ELK transfer for families that can demand its constructor',
+  familyCost: 'default rendering, including ELK where selected; static excludes on-demand dependencies',
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
@@ -201,12 +197,8 @@ const report = {
     requests: familyFiles[id].length,
     elk: familyFiles[id].includes(elkOutput),
     ...transferSize(familyFiles[id]),
-  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
-  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
-    requests: budgetedFamilyFiles[id].length,
-    elk: elkFamilies.includes(id),
-    ...transferSize(budgetedFamilyFiles[id]),
-  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
+    static: { requests: staticFamilyFiles[id].length, ...transferSize(staticFamilyFiles[id]) },
+  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean; static: TransferSize & { requests: number } }>,
 }
 
 const problems: string[] = []
