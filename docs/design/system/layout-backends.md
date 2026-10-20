@@ -248,6 +248,9 @@ graph certification; shape-specific paint limitations remain explicit in the
 receipt. Directed cycles use private feedback-arc ordering and retain authored
 arrow and label ownership. Forest fans retain shared trunks; layered graphs
 retain their separately measured corridors instead of generic trunk bundling.
+Flat State graphs share this producer while retaining their own style defaults,
+pseudostate dimensions and note margins. Notes are placed by the existing
+certified geometry pipeline, without treating them as authored graph nodes.
 Self-loops, constrained family ports, compound graphs and mixed directions need
 further expansion. Each expansion needs complete
 behavioral evidence before the capability predicate accepts those inputs.
