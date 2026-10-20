@@ -95,6 +95,7 @@ const WORKLOADS = {
     { id: '80-classes', source: lines('classDiagram', 80, i => [`  class C${i} {`, `    +int field${i}`, `    +method${i}()`, '  }', ...(i > 0 ? [`  C${Math.floor((i - 1) / 2)} <|-- C${i}`] : [])]) }],
   state: [{ id: '80-states', source: lines('stateDiagram-v2', 80, i => [`  S${i} --> S${i + 1}: e${i}`, ...(i % 5 === 0 ? [`  S${i + 1} --> S${Math.max(0, i - 3)}`] : [])]) }],
   er: [
+    { id: 'compound-domains', source: readFileSync(new URL('../layout-compare/fixtures/er-compound-backends.mmd', import.meta.url), 'utf8'), expectedSvgLabels: ['Accounts and orders with retained measured headers', 'Customer records', 'Audit trail and records', 'CUSTOMER', 'ORDER', 'AUDIT', 'RECORD', 'Stable customer id', 'places', 'records', 'exchanges', 'logs'] },
     { id: 'cyclic-labelled-entities', source: readFileSync(new URL('../layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8'), expectedSvgLabels: ['CUSTOMER', 'ORDER', 'AUDIT', 'Stable customer id', 'customer_id', 'places', 'reviews', 'belongs', 'records', 'delegates'] },
     { id: '40-entities', source: lines('erDiagram', 40, i => [`  E${i} {`, '    int id PK', `    string name${i}`, '  }', ...(i > 0 ? [`  E${Math.floor((i - 1) / 2)} ||--o{ E${i} : has`] : [])]) }],
   gantt: [{ id: '150-tasks', source: lines('gantt\n  dateFormat YYYY-MM-DD', 150, i => [...(i % 15 === 0 ? [`  section Phase ${i / 15}`] : []), i === 0 ? '  Task 0 :t0, 2024-01-01, 3d' : `  Task ${i} :t${i}, after t${i - 1}, ${1 + (i % 4)}d`]) }],

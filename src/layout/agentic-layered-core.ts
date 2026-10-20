@@ -30,6 +30,8 @@ export interface MeasuredGraph {
   authoredCycleOrder?: boolean
   /** Optional compact candidate: only labelled links need an extra private rank. */
   compactPrivateRanks?: boolean
+  /** Private acyclic projection; its parent restores authored cycle directions. */
+  cycleOriented?: true
 }
 
 export interface AgenticLayout {
@@ -332,28 +334,32 @@ export function layoutLayeredGraph(
   bestBands.forEach((band, index) => { bands[index] = band; band.forEach((vertex, slot) => { orderSlots[vertex] = slot }) })
   // Adjacent switching reduces the exact two-layer inversion score. Charge
   // every neighbor comparison; budget exhaustion stops optional refinement.
-  for (let sweep = 0; sweep < 4; sweep++) {
-    let changed = false
-    for (let rank = 0; rank < bands.length; rank++) {
-      const band = bands[rank]!
-      for (let index = 0; index + 1 < band.length; index++) {
-        const a = vertices[band[index]!]!, b = vertices[band[index + 1]!]!
-        const cost = a.incoming.length * b.incoming.length + a.outgoing.length * b.outgoing.length
-        if (cost > routingWork.swaps) continue
-        routingWork.swaps -= cost
-        let reduction = 0
-        for (const [left, right] of [[a.incoming, b.incoming], [a.outgoing, b.outgoing]]) {
-          for (const x of left!) for (const y of right!) reduction += Math.sign(orderSlots[x]! - orderSlots[y]!)
-        }
-        if (reduction > 0) {
-          const first = band[index]!, second = band[index + 1]!
-          band[index] = second; band[index + 1] = first
-          orderSlots[first] = index + 1; orderSlots[second] = index; changed = true
+  const switchAdjacentRanks = (): void => {
+    for (const band of bands) band.forEach((id, slot) => { orderSlots[id] = slot })
+    for (let sweep = 0; sweep < 4; sweep++) {
+      let changed = false
+      for (let rank = 0; rank < bands.length; rank++) {
+        const band = bands[rank]!
+        for (let index = 0; index + 1 < band.length; index++) {
+          const a = vertices[band[index]!]!, b = vertices[band[index + 1]!]!
+          const cost = a.incoming.length * b.incoming.length + a.outgoing.length * b.outgoing.length
+          if (cost > routingWork.swaps) continue
+          routingWork.swaps -= cost
+          let reduction = 0
+          for (const [left, right] of [[a.incoming, b.incoming], [a.outgoing, b.outgoing]]) {
+            for (const x of left!) for (const y of right!) reduction += Math.sign(orderSlots[x]! - orderSlots[y]!)
+          }
+          if (reduction > 0) {
+            const first = band[index]!, second = band[index + 1]!
+            band[index] = second; band[index + 1] = first
+            orderSlots[first] = index + 1; orderSlots[second] = index; changed = true
+          }
         }
       }
+      if (!changed) break
     }
-    if (!changed) break
   }
+  switchAdjacentRanks()
   // Move a long edge's private vertices together. Single-rank switches can
   // stall when their temporary crossings conceal an improving joint move.
   if (input.compactPrivateRanks && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
@@ -387,6 +393,9 @@ export function layoutLayeredGraph(
       if (exhausted) break
     }
   }
+  // On a DAG, joint moves can make previously blocked local swaps improving
+  // again. Keep the separately validated cycle-placement policy intact.
+  if (input.compactPrivateRanks && !input.cycleOriented) switchAdjacentRanks()
   for (let index = 0; index < bands.length; index++) assignBand(index)
 
   // Median coordinate descent reduces adjacent-rank L1 span within the
