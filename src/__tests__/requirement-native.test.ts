@@ -6,6 +6,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutRequirementDiagram } from '../requirement/layout.ts'
 import { parseRequirementDiagram } from '../requirement/parser.ts'
 import type { RequirementBody } from '../requirement/types.ts'
+import type { RenderOptions } from '../types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 const cases = JSON.parse(readFileSync(new URL('../../eval/mermaid-requirement-bench/cases.json', import.meta.url), 'utf8')) as { id: string; source: string; expect: ReturnType<typeof semantic> }[]
@@ -70,6 +71,68 @@ describe('native requirement', () => {
     }
     expect(p.width).toBeGreaterThan(node.width)
     expect(p.height).toBeGreaterThan(node.height)
+  })
+  const spacingBody = (direction: 'TB' | 'LR') => `requirementDiagram\ndirection ${direction}\nrequirement a {\ntext: First input\n}\nrequirement b {\ntext: Second input\n}\nrequirement c {\ntext: Shared result\n}\na - traces -> c\nb - traces -> c`
+  const withSpacing = (body: string, nodeSpacing: unknown, rankSpacing: unknown) => `---\nconfig:\n  requirement:\n    nodeSpacing: ${JSON.stringify(nodeSpacing)}\n    rankSpacing: ${JSON.stringify(rankSpacing)}\n---\n${body}`
+  const gaps = (layout: ReturnType<typeof layoutMermaid>, direction: 'TB' | 'LR') => {
+    const a = layout.nodes.find(node => node.id === 'a')!,
+      b = layout.nodes.find(node => node.id === 'b')!,
+      c = layout.nodes.find(node => node.id === 'c')!
+    const [left, right] = [a, b].sort((l, r) => direction === 'TB' ? l.x - r.x : l.y - r.y)
+    return direction === 'TB'
+      ? { sibling: right!.x - left!.x - left!.w, rank: c.y - Math.max(a.y + a.h, b.y + b.h) }
+      : { sibling: right!.y - left!.y - left!.h, rank: c.x - Math.max(a.x + a.w, b.x + b.w) }
+  }
+  test('family spacing reaches public geometry through frontmatter, init and explicit config', () => {
+    for (const direction of ['TB', 'LR'] as const) {
+      const body = spacingBody(direction),
+        baseline = layoutMermaid(structured(body)),
+        config = { requirement: { nodeSpacing: 120, rankSpacing: 180 } }
+      const requests: { source: string; options: RenderOptions }[] = [
+        { source: withSpacing(body, 120, 180), options: {} },
+        { source: `%%{init: ${JSON.stringify(config)}}%%\n${body}`, options: {} },
+        { source: body, options: { mermaidConfig: config } },
+      ]
+      for (const { source, options } of requests) {
+        const diagnostics: string[] = [],
+          observed = { ...options, onConfigDiagnostic: (diagnostic: { field: string }) => diagnostics.push(diagnostic.field) },
+          parsed = structured(source),
+          layout = layoutMermaid(parsed, observed),
+          spaced = gaps(layout, direction)
+        expect(spaced.sibling, `${direction}: authored sibling clearance`).toBeGreaterThanOrEqual(119)
+        expect(spaced.rank, `${direction}: authored rank clearance`).toBeGreaterThan(gaps(baseline, direction).rank + 100)
+        expect(layout.nodes.map(node => node.id).sort()).toEqual(['a', 'b', 'c'])
+        expect(parsed.body.relations.map(edge => [edge.src, edge.dst, edge.type])).toEqual([['a', 'c', 'traces'], ['b', 'c', 'traces']])
+        expect(layoutMermaid(structured(serializeMermaid(parsed)), options).nodes).toEqual(layout.nodes)
+        const svg = renderMermaidSVG(source, observed),
+          size = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg)!
+        // Public pixel bounds round outward; SVG retains subpixel dimensions.
+        expect(Math.abs(Number(size[1]) - layout.bounds.w)).toBeLessThan(1)
+        expect(Math.abs(Number(size[2]) - layout.bounds.h)).toBeLessThan(1)
+        expect(diagnostics).toEqual([])
+        expect(verifyMermaid(source, { renderOptions: options }).warnings.filter(warning => warning.code === 'INEFFECTIVE_CONFIG')).toEqual([])
+      }
+    }
+  })
+  test('explicit spacing overrides family config and zero remains a real spacing value', () => {
+    const body = spacingBody('TB'),
+      options = { nodeSpacing: 0, layerSpacing: 0 },
+      expected = layoutMermaid(structured(body), options)
+    expect(layoutMermaid(structured(withSpacing(body, 120, 180)), options).nodes).toEqual(expected.nodes)
+    expect(layoutMermaid(structured(withSpacing(body, 0, 0))).nodes).toEqual(expected.nodes)
+    expect(gaps(expected, 'TB').sibling).toBeLessThan(120)
+    expect(layoutMermaid(structured(withSpacing(body, 120, 180)), { mermaidConfig: { requirement: { nodeSpacing: 0, rankSpacing: 0 } } }).nodes).toEqual(expected.nodes)
+  })
+  test('invalid family spacing warns and retains default geometry', () => {
+    const body = spacingBody('TB'),
+      expected = layoutMermaid(structured(body))
+    for (const invalid of [-1, '120', null]) {
+      const source = withSpacing(body, invalid, invalid),
+        warnings = verifyMermaid(source).warnings.filter(warning => warning.code === 'INEFFECTIVE_CONFIG')
+      expect(warnings.map(warning => warning.field)).toEqual(['requirement.nodeSpacing', 'requirement.rankSpacing'])
+      expect(warnings.every(warning => warning.message.includes('finite non-negative number'))).toBe(true)
+      expect(layoutMermaid(structured(source)).nodes).toEqual(expected.nodes)
+    }
   })
   test('authored class and inline dash styles reach the frame paint after typed edits', () => {
     const source = 'requirementDiagram\nrequirement A {\ntext: "Card"\n}\nclassDef dashed stroke-dasharray:5 5\nclass A dashed',

@@ -15,7 +15,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
     style = resolveRenderStyle(options, undefined, relationship ? { ...face, edge: { ...face?.edge, ...relationship } } : face),
     pad = options.padding ?? 32
   const maxWidth = typeof config.maxWidth === 'number' && config.maxWidth > 0 ? config.maxWidth : 320
-  const metric = (key: string, fallback: number, minimum = 0): number => (typeof config[key] === 'number' && Number.isFinite(config[key]) && config[key] >= minimum ? Math.min(config[key] as number, 2000) : fallback)
+  const metric = (key: string, fallback: number, minimum = 0, maximum = 2000): number => (typeof config[key] === 'number' && Number.isFinite(config[key]) && config[key] >= minimum ? Math.min(config[key] as number, maximum) : fallback)
   const inset = metric('rect_padding', 16),
     insetX = config.rect_padding === undefined ? (face?.node?.paddingX ?? inset) : inset,
     insetY = config.rect_padding === undefined ? (face?.node?.paddingY ?? inset) : inset,
@@ -78,8 +78,8 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
       'elk.algorithm': 'layered',
       'elk.direction': ({ TB: 'DOWN', BT: 'UP', LR: 'RIGHT', RL: 'LEFT' } as const)[model.direction],
       'elk.edgeRouting': 'ORTHOGONAL',
-      'elk.spacing.nodeNode': String(options.nodeSpacing ?? 40),
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(options.layerSpacing ?? 72),
+      'elk.spacing.nodeNode': String(options.nodeSpacing ?? metric('nodeSpacing', 40, 0, Infinity)),
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(options.layerSpacing ?? metric('rankSpacing', 72, 0, Infinity)),
       'elk.padding': `[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
     },
     children: nodes.map(n => ({ id: idMap.get(n.id)!, width: n.width, height: n.height })),

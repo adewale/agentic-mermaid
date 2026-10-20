@@ -133,6 +133,14 @@ const fixtures: Fixture[] = [
     cue: 'Inspect red requirement/element compartment text, a blue verifies connector and matching arrow outline, and the separate green relationship label. These are static roles.relationship overrides, not category bindings. Node names, attributes and the proof-to-r relationship remain unchanged; preserve any unsupported baseline error and compare endpoint identities in the sidecars.',
   },
   {
+    id: 'stable-requirement-source-spacing',
+    title: 'Requirement family spacing controls actual node and rank clearance',
+    source: '---\nconfig:\n  requirement:\n    nodeSpacing: 120\n    rankSpacing: 180\n---\nrequirementDiagram\nrequirement a {\ntext: Ingress validation\n}\nrequirement b {\ntext: Replay protection\n}\nrequirement c {\ntext: Deliver accepted events\n}\na - traces -> c\nb - traces -> c',
+    renderOptions: { style: 'publication-figure', seed: 17, embedFontImport: false },
+    captureLayout: true,
+    cue: 'The exact same source requests requirement.nodeSpacing 120 and rankSpacing 180. Compare with the previous native-family head to see the formerly ignored settings take effect: sibling and layer clearance grow while all three requirement cards and both traceability endpoints remain. The feature baseline remains honestly unsupported. Explicit host spacing still wins, including zero; independent public-geometry tests cover both layout directions.',
+  },
+  {
     id: 'er-nested-group-route',
     title: 'ER ancestor relationships avoid the contained entity',
     source: 'erDiagram\n  subgraph commerce [Commerce Domain]\n    CUSTOMER\n    subgraph orders [Order Domain]\n      ORDER\n    end\n  end\n  commerce ||--o{ orders : contains\n  "This **is** _Markdown_"',

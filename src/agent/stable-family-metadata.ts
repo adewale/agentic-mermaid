@@ -62,7 +62,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     editorDescription: 'Requirements, evidence elements and typed traceability relationships.',
     editorExampleId: 'requirement-basic',
     editorGlyph: 'RQ',
-    config: { section: 'requirement', keys: ['rect_fill', 'text_color', 'rect_border_size', 'rect_border_color', 'rect_min_width', 'rect_min_height', 'maxWidth', 'fontSize', 'rect_padding', 'line_height', 'useMaxWidth', 'look', 'theme'], noopKeys: ['useMaxWidth', 'look', 'theme'] },
+    config: { section: 'requirement', keys: ['rect_fill', 'text_color', 'rect_border_size', 'rect_border_color', 'rect_min_width', 'rect_min_height', 'maxWidth', 'fontSize', 'rect_padding', 'line_height', 'nodeSpacing', 'rankSpacing', 'useMaxWidth', 'look', 'theme'], noopKeys: ['useMaxWidth', 'look', 'theme'] },
     semanticChannels: [],
     sceneRoles: [
       ...documentRoles.filter(role => role.role !== 'chrome'),

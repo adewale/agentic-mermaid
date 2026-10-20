@@ -24,6 +24,8 @@ const descriptorData = Object.freeze({
       "fontSize",
       "rect_padding",
       "line_height",
+      "nodeSpacing",
+      "rankSpacing",
       "useMaxWidth",
       "look",
       "theme"

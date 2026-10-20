@@ -14,6 +14,8 @@ export const diagnoseRequirementConfig: NonNullable<FamilyOperations['configDiag
     line_height: nonNegative,
     fontSize: positive,
     maxWidth: positive,
+    nodeSpacing: nonNegative,
+    rankSpacing: nonNegative,
     useMaxWidth: boolean,
     look: stringValue,
     theme: stringValue,
