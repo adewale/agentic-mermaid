@@ -540,8 +540,9 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * of the `&` (`A &B`), or with an HTML-escaped `&` (`A &amp; B`), label text holding a character upstream's lexer reads
  * as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter), and a
  * subgraph title it cannot read without quotes (subgraphTitleUnreadable), a
- * node whose text runs on without a blank to an `@`, which upstream reads as
- * an edge id (`A[a@b]`); and where ours rejects a statement, a node id
+ * node whose text runs on without a blank to an `@`, or a pipe label whose
+ * text does from its pipe, which upstream reads as an edge id (`A[a@b]`,
+ * `A -->|a@b| B`); and where ours rejects a statement, a node id
  * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
  * does not, or a link label whose markers make no link type there
  * (mismatchedLinkMarkers). An empty quoted label (`A[""]`), which
@@ -1493,6 +1494,9 @@ function parseEdgeLine(
         if (EMPTY_STRING_LABEL_RE.test(pipeLabel.rawLabel)) notes?.add('empty-string')
         // Upstream's pipe label needs text, a blank at least (`| |`).
         if (pipeLabel.rawLabel === '') notes?.add('empty-pipe-label')
+        // Its edge-id token is tried before its pipe, so a run from the pipe
+        // to an `@` is an edge id there (`A -->|a@b| B` is the id `|a`).
+        if (PIPE_LABEL_EDGE_ID_RE.test(pipeLabel.rawLabel)) notes?.add('node-edge-id')
         const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
         edgeLabel = parsedLabel.text || undefined
         labelContent = parsedLabel.labelContent
@@ -1845,6 +1849,9 @@ function consumeNode(
 }
 
 const NODE_RUN_EDGE_ID_RE = /^[^\s"]+@(?![{"])/
+/** A pipe label's text from its opening pipe to an `@` without a blank or
+ * `"`, which upstream's lexer reads, with the pipe, as an edge id. */
+const PIPE_LABEL_EDGE_ID_RE = /^[^\s"]*@(?![{"])/
 
 /** Register a node from a shaped definition (`b[Label]`, `b(("Label"))`). A
  * node already referenced takes the definition's label and shape, as Mermaid

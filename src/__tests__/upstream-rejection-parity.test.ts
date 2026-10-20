@@ -335,6 +335,11 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a link after an `@` in shape text', 'flowchart LR\n  A[x@--> B]', '>x@--&gt; B<', 'flowchart_node_edge_id', 2],
   ['an edge id beginning with a link opener, glued to shape text', 'flowchart LR\n  A[x]x--e1@-->B', 'data-id="x--e1"', 'flowchart_node_edge_id', 2],
   ['a subgraph id running on to an `@` in its title', 'flowchart LR\n  subgraph This is the id[Some1@ Title]\n    A\n  end', '>Some1@ Title<', 'flowchart_node_edge_id', 2],
+  // Its edge-id token is tried before a pipe, so the run may start there.
+  ['a link after an `@` in a pipe label glued to a shape', 'flowchart LR\n  A["x"]-->|a@-->b|B', '>a@--&gt;b<', 'flowchart_node_edge_id', 2],
+  ['an `@` a pipe label runs on to', 'flowchart LR\n  A -->|me@example.com| B', '>me@example.com<', 'flowchart_node_edge_id', 2],
+  ['an `@` ending a pipe label', 'flowchart LR\n  A ==>|a@| B', '>a@<', 'flowchart_node_edge_id', 2],
+  ['an `@` before a blank in a pipe label after a blank', 'flowchart LR\n  A --> |x@--> y| B', '>x@--&gt; y<', 'flowchart_node_edge_id', 2],
   // Without quotes or brackets, Mermaid's subgraph title holds letters,
   // digits, blanks and !#$%&'*+-./:?\^_` alone, with no link or inner string.
   ['parentheses in a subgraph title', 'flowchart LR\n  subgraph a(b)\n    A\n  end', '>a(b)<', 'flowchart_subgraph_title', 2],
@@ -465,7 +470,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['flowchart', 'labels beginning with an entity quote that run across lines', 'flowchart LR\n  A[&quot;x\n  y] --> B\n  subgraph S[&quot;t\n  u]\n    C\n  end'],
   ...FLOWCHART_LABELS.map(([construct, source]) => ['flowchart', construct, source] as const),
   ...FLOWCHART_GROUPS.map(([construct, source]) => ['flowchart', construct, source] as const),
-  ['flowchart', 'an `@` after a blank, in quotes, in an edge id and in metadata', 'flowchart LR\n  A[ a@b.com] --> B["c@d"]\n  B e1@--> C@{ label: "e@f" }'],
+  ['flowchart', 'an `@` after a blank, in quotes, in an edge id and in metadata', 'flowchart LR\n  A[ a@b.com] --> B["c@d"]\n  B e1@--> C@{ label: "e@f" }\n  C -->| a@b| D -->|x a@--> y| E -->|"g@h"| F'],
   ['flowchart', '`;` after colors and entity codes Mermaid reads as we do', 'flowchart LR\n  A[#quot;x#quot;] --> B;C\n  style A fill:#f00;\n  classDef c fill:#f9f,stroke:#333;\n  style B fill:#fff ;style C fill:#000;'],
   ['flowchart', 'subgraph titles of letters, digits and the punctuation Mermaid reads unquoted, and a quoted one',"flowchart LR\n  subgraph a.-b!#$%&'*+/:?^_`x\n    A\n  end\n  subgraph \"a(b)\"\n    B\n  end\n  subgraph 東京 Ελλάδα\n    C\n  end"],
   ['flowchart', 'delimiters inside quoted labels and trapezoid text, and parentheses in a text-arrow label','flowchart LR\n  A["a (b) c"] -->|"x [y]"| B[/a | b "c"/]\n  A -- a (b) --> C["a" ]\n  subgraph S["x (y)"]\n    C\n  end'],
