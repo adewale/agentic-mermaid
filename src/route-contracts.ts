@@ -809,6 +809,20 @@ export function directLaneBlockers(
   ctx: LaneContext,
   axis: Axis = ctx.axis,
 ): RouteBlocker[] {
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, false)
+}
+
+/** Repair candidates only need an existence proof. Stop at the first blocker;
+ * certificate-producing callers still collect the complete ordered evidence. */
+function hasDirectLaneBlocker(
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis,
+): boolean {
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true).length > 0
+}
+
+function collectLaneBlockers(
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: boolean,
+): RouteBlocker[] {
   const blockers: RouteBlocker[] = []
   const overlaps = (lo: number, hi: number, lo2: number, hi2: number) =>
     Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
@@ -821,6 +835,7 @@ export function directLaneBlockers(
     const nCrossHi = node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
     if (c > nCrossLo && c < nCrossHi && overlaps(mainLo, mainHi, nMainLo, nMainHi)) {
       blockers.push({ kind: 'node', id: node.id })
+      if (firstOnly) return blockers
     }
   }
 
@@ -836,6 +851,7 @@ export function directLaneBlockers(
       const rCrossHi = rCrossLo + (axis.cross === 'y' ? rect.h : rect.w) + 2 * CLEARANCE
       if (c > rCrossLo && c < rCrossHi && overlaps(mainLo, mainHi, rMainLo, rMainHi)) {
         blockers.push({ kind: 'label', id: edgeId(other) })
+        if (firstOnly) return blockers
       }
     }
     // Collinear overlap with another edge's flow-axis segment would merge the
@@ -855,6 +871,7 @@ export function directLaneBlockers(
           continue
         }
         blockers.push({ kind: 'channel', id: edgeId(other) })
+        if (firstOnly) return blockers
         break
       }
     }
@@ -1538,6 +1555,10 @@ export function applyRouteContracts(
     // labelled reroute is always preferred over a grazing one. Deterministic:
     // it is the first such route in the fixed c2×c1×jog candidate order.
     let occlusionFallback: { route: Point[]; labelMid: Point } | null = null
+    // This search does not mutate the edge until a candidate wins. Reuse its
+    // label-free probe and lazily compute the unchanged route's crossing count.
+    const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
+    let priorCrossings: number | undefined
 
     for (const c2 of c2s) {
       if (c2 < s2.lo - EPS || c2 > s2.hi + EPS) continue
@@ -1558,21 +1579,18 @@ export function applyRouteContracts(
           // hop are proved with a label-stripped probe so the own-label
           // capacity check applies exactly once, where the pill will live.
           const longFirst = Math.abs(jog - srcMain) >= Math.abs(tgtMain - jog)
-          const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
-          const lane1 = directLaneBlockers(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)
-          if (lane1.length > 0) continue
+          if (hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)) continue
           const hopAxis: Axis = axis.main === 'x'
             ? { main: 'y', cross: 'x', sign: c1 < c2 ? 1 : -1 }
             : { main: 'x', cross: 'y', sign: c1 < c2 ? 1 : -1 }
-          if (directLaneBlockers(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis).length > 0) continue
-          const lane2 = directLaneBlockers(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)
-          if (lane2.length > 0) continue
+          if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
+          if (hasDirectLaneBlocker(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
           const pt = (main: number, cross: number): Point =>
             axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
           const route = [pt(srcMain, c1), pt(jog, c1), pt(jog, c2), pt(tgtMain, c2)]
           const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
           const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
-          const priorCrossings = countRouteCrossings(edge.points, edge, ctx)
+          priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
           const nextCrossings = countRouteCrossings(route, edge, ctx)
           // Crossings may not increase — unless the current route passes
           // THROUGH a node (a hard defect, e.g. a later pass moved a node
@@ -1715,15 +1733,15 @@ export function applyRouteContracts(
     for (const escCross of escCandidates) {
       if (Math.abs(escCross - spCross) < CLEARANCE) continue // that is just the shadowed lane
       // A: short riser off the source flow port, in the pre-obstacle gap.
-      if (directLaneBlockers(unlabeled, spCross, Math.min(srcMain, gapMain), Math.max(srcMain, gapMain), ctx, axis).length > 0) continue
+      if (hasDirectLaneBlocker(unlabeled, spCross, Math.min(srcMain, gapMain), Math.max(srcMain, gapMain), ctx, axis)) continue
       // B: sidestep along the gap to the escape lane.
-      if (directLaneBlockers(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpAxis(spCross, escCross)).length > 0) continue
+      if (hasDirectLaneBlocker(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpAxis(spCross, escCross))) continue
       // C: full riser along the escape lane, up to the hop.
-      if (directLaneBlockers(unlabeled, escCross, Math.min(gapMain, hopMain), Math.max(gapMain, hopMain), ctx, axis).length > 0) continue
+      if (hasDirectLaneBlocker(unlabeled, escCross, Math.min(gapMain, hopMain), Math.max(gapMain, hopMain), ctx, axis)) continue
       // D: hop across to the target's flow-port lane.
-      if (directLaneBlockers(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpAxis(escCross, tpCross)).length > 0) continue
+      if (hasDirectLaneBlocker(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpAxis(escCross, tpCross))) continue
       // E: drop into the target flow port.
-      if (directLaneBlockers(unlabeled, tpCross, Math.min(hopMain, tgtMain), Math.max(hopMain, tgtMain), ctx, axis).length > 0) continue
+      if (hasDirectLaneBlocker(unlabeled, tpCross, Math.min(hopMain, tgtMain), Math.max(hopMain, tgtMain), ctx, axis)) continue
       const route = simplifyPolyline([
         pt(srcMain, spCross), pt(gapMain, spCross), pt(gapMain, escCross),
         pt(hopMain, escCross), pt(hopMain, tpCross), pt(tgtMain, tpCross),
@@ -1802,11 +1820,11 @@ export function applyRouteContracts(
     // The label rides the lane; the entry stub is proved label-stripped
     // (own-label capacity applies exactly once, where the pill lives).
     const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
-    if (directLaneBlockers(edge, lane, Math.min(srcMain, portMain), Math.max(srcMain, portMain), ctx, axis).length > 0) return false
+    if (hasDirectLaneBlocker(edge, lane, Math.min(srcMain, portMain), Math.max(srcMain, portMain), ctx, axis)) return false
     const stubAxis: Axis = axis.main === 'x'
       ? { main: 'y', cross: 'x', sign: lane < entryCross ? 1 : -1 }
       : { main: 'x', cross: 'y', sign: lane < entryCross ? 1 : -1 }
-    if (directLaneBlockers(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis).length > 0) return false
+    if (hasDirectLaneBlocker(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis)) return false
     const pt = (main: number, cross: number): Point =>
       axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
     const route = [pt(srcMain, lane), pt(portMain, lane), pt(portMain, entryCross)]
