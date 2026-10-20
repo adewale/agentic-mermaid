@@ -570,6 +570,28 @@ table here, which would drift. In broad strokes:
   Timing is source through SVG return, not visual/semantic fidelity or
   paint. The post does not specify its warm-up selection; choosing the
   first 30 is an explicit adaptation. Generated reports are not committed.
+  To include Bezel's Rust renderer, install Rust's `wasm32-unknown-unknown`
+  target and `wasm-bindgen-cli` 0.2.104, then run:
+
+  ```sh
+  bun run eval/benchmark/bezel-wasm/build.ts --checkout ../bezel --out /tmp/bezel-bench
+  bun run bench:dave --bezel-dir /tmp/bezel-bench --executable /path/to/chromium
+  ```
+
+  The adapter compiles an unmodified, clean Bezel checkout at `opt-level=3`
+  with LTO. Its manifest records the revision, compiler, dependency lock and
+  wrapper/WASM byte identities. Instantiation is outside the render timer;
+  timed calls use `render(source, &Options::default(), &Metrics).svg`. Reported
+  bundle size includes the WASM embedded in its JS wrapper. This measures
+  standalone browser rendering, not Bezel's GPUI gallery or native execution.
+  WASM memory is outside the separate V8 JS-memory diagnostic.
+  `bun run eval/benchmark/editor-preview-bench.ts --site website/public --out
+  bench-report/editor-preview --executable /path/to/chromium` complements that
+  render-only score with actual editor input through verified DOM and two
+  animation frames. It changes the root label in 5/50/150-node trees, keeps
+  default cache behavior and adaptive debounce, and records a 5 ms main-thread
+  heartbeat. Run baseline and candidate builds sequentially on an otherwise
+  idle runner. These targeted UI samples are separate from the full corpus.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;

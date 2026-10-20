@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
 import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from '../../eval/benchmark/browser-memory.ts'
+import { bezelEngine } from '../../eval/benchmark/bezel.ts'
 import type { Page } from 'playwright'
 import { browserPerformanceOptions, configureAgenticEngines } from '../../eval/benchmark/browser-config.ts'
 import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
@@ -216,7 +217,7 @@ test('optional Dart comparator validates complete byte identity and memory argum
   expect(() => browserDiagnosticsOptions(new Map([...options, ['dart-revision', 'revision\nwrong']]))).toThrow('printable revision')
 })
 
-test('Dart browser comparator calls its function export and preserves renderer failures', async () => {
+test.each(['dart', 'bezel'] as const)('%s browser comparator calls its function export and preserves renderer failures', async kind => {
   const host = globalThis as unknown as Record<string, unknown>
   const priorDocument = host.document, priorDart = host.mermaidDartRender, priorCache = host.AGENTIC_MERMAID_ELK_CACHE, priorFeatures = host.AGENTIC_MERMAID_EXPERIMENTS
   const calls: string[] = []
@@ -224,7 +225,7 @@ test('Dart browser comparator calls its function export and preserves renderer f
   host.mermaidDartRender = (source: string) => { calls.push(source); if (source === 'unsupported') throw new Error('Dart unsupported'); return '<svg/>' }
   const page = { goto: async () => {}, addScriptTag: async () => {}, evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg) } as unknown as Page
   try {
-    const rows = await renderPass(page, { label: 'dart', name: 'mermaid-dart', version: 'test', root: '/unused', kind: 'dart', bundle: 'dart.js', global: 'mermaidDartRender', identity: { integrity: 'test' } }, 'http://localhost', [{ id: 'ok', source: 'supported' }, { id: 'bad', source: 'unsupported' }], 1, 0)
+    const rows = await renderPass(page, { label: kind, name: kind, version: 'test', root: '/unused', kind, bundle: 'test.js', global: 'mermaidDartRender', identity: { integrity: 'test' } }, 'http://localhost', [{ id: 'ok', source: 'supported' }, { id: 'bad', source: 'unsupported' }], 1, 0)
     expect(calls).toEqual(['supported', 'unsupported'])
     expect(rows[0]?.ok).toBe(true)
     expect(rows[1]?.ok).toBe(false)
@@ -235,6 +236,15 @@ test('Dart browser comparator calls its function export and preserves renderer f
       else host[key] = value
     }
   }
+})
+
+test('Bezel comparator refuses changed wrapper bytes before browser startup', () => {
+  const root = temp.dir(), bytes = Buffer.from('globalThis.bezelRender = () => "<svg/>"')
+  writeFileSync(join(root, 'bezel.js'), bytes)
+  writeFileSync(join(root, 'manifest.json'), JSON.stringify({ version: '0.2.18', revision: 'b'.repeat(40), bundleSha256: createHash('sha256').update(bytes).digest('hex') }))
+  expect(bezelEngine(root)).toMatchObject({ kind: 'bezel', global: 'bezelRender', identity: { revision: 'b'.repeat(40) } })
+  writeFileSync(join(root, 'bezel.js'), 'changed')
+  expect(() => bezelEngine(root)).toThrow('SHA-256 mismatch')
 })
 
 test('browser memory population pairs all rounds and engines before deduplicating sources', () => {

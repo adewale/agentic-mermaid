@@ -14,13 +14,14 @@ import type { BaselineLock } from './release-baseline.ts'
 import { workingRevision } from './revision-tree.ts'
 import { browserPerformanceOptions, configureAgenticEngines, configureBrowserPage, type BrowserElkCache } from './browser-config.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from './browser-memory.ts'
+import { bezelEngine } from './bezel.ts'
 
 export interface Engine {
   label: string
   name: string
   version: string
   root: string
-  kind: 'agentic' | 'pele' | 'mermaid' | 'dart'
+  kind: 'agentic' | 'pele' | 'mermaid' | 'dart' | 'bezel'
   bundle: string
   global: string
   experiments?: string
@@ -139,13 +140,14 @@ export async function renderPass(page: Page, engine: Engine, origin: string, inp
   return page.evaluate(async ({ engine, inputs, round, warmupCount }) => {
     type Api = { render(source: string, id?: string): { svg: string } | Promise<{ svg: string }>; renderMermaidSVG(source: string): string; initialize(options: { startOnLoad: boolean }): void }
     const api = (globalThis as unknown as Record<string, Api>)[engine.global]!
+    if (!api || ((engine.kind === 'dart' || engine.kind === 'bezel') && typeof api !== 'function')) throw new Error(`${engine.label}: renderer initialization failed`)
     if (engine.kind === 'mermaid') api.initialize({ startOnLoad: false })
     const render = async (source: string, id: string) => {
       const start = performance.now()
       let output: string | undefined, error: string | undefined
       try {
         const value = engine.kind === 'agentic' ? api.renderMermaidSVG(source)
-          : engine.kind === 'dart' ? (api as unknown as (source: string) => string)(source)
+          : engine.kind === 'dart' || engine.kind === 'bezel' ? (api as unknown as (source: string) => string)(source)
           : engine.kind === 'mermaid' ? api.render(id, source) : api.render(source)
         const result = value && typeof (value as Promise<unknown>).then === 'function' ? await value : value
         output = typeof result === 'string' ? result : (result as { svg: string }).svg
@@ -167,7 +169,7 @@ export async function renderPass(page: Page, engine: Engine, origin: string, inp
 
 async function main() {
   const options = new Map<string, string>()
-  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes', 'elk-cache'])
+  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes', 'elk-cache', 'bezel-dir'])
   for (let i = 2; i < process.argv.length; i += 2) {
     const flag = process.argv[i]!.replace(/^--/, ''), value = process.argv[i + 1]
     if (!allowed.has(flag) || value === undefined || (value === '' && flag !== 'features') || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
@@ -175,6 +177,8 @@ async function main() {
   }
   if (options.has('baseline-tarball') && options.has('baseline-lock')) throw new Error('Use baseline-tarball or baseline-lock, not both')
   const diagnostics = browserDiagnosticsOptions(options)
+  const bezel = options.has('bezel-dir') ? bezelEngine(options.get('bezel-dir')!) : undefined
+  if (bezel && diagnostics.memoryPasses) throw new Error('Bezel WASM is outside the JS-memory diagnostic; run timing and memory separately')
   const { features, elkCache } = browserPerformanceOptions(options)
   if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both baseline-tarball and baseline-sha256')
   const out = resolve(options.get('out') ?? 'bench-report')
@@ -221,6 +225,7 @@ async function main() {
       engines.push(install(`agentic-mermaid@${lock.version}`, 'agentic-mermaid', 'baseline', temporary, lock.integrity))
     }
     engines.push(install('pele@1.6.0', 'pele', 'pele', temporary), install('mermaid@12.2.0', 'mermaid', 'mermaid', temporary))
+    if (bezel) engines.push(bezel)
     if (diagnostics.dart) {
       const root = join(temporary, 'dart')
       mkdirSync(root)
