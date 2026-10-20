@@ -5,6 +5,7 @@ import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
+import { mermaidTagAttributeQuotes } from '../mermaid-source-wrapper.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
 
@@ -91,7 +92,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     else if (text === 'end') {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
     }
-    const notes = text.startsWith('subgraph') || /[@[\](){}|"]/.test(text) ? flowchartStatementNotes(text, graph) : undefined
+    // Mermaid's prepass gives a tag's attributes single quotes before its
+    // lexer reads a label; quotes it moves across labels are reported above.
+    const notes = text.startsWith('subgraph') || /[@[\](){}|"]/.test(text) ? flowchartStatementNotes(mermaidTagAttributeQuotes(text), graph) : undefined
     if (/^(?:style|classDef|linkStyle)\s/.test(text) && scanFlowchart(text).separators.length > 0) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_style_semicolon', message: 'A `;` between style properties (fill:#f9f;stroke:#0a0) is read as separating them, as in CSS. Pinned Mermaid ends the statement at the `;` and reads the next property as a node (stroke:blue), or, after a `#` color, joins the two into one declaration that paints nothing; separate style properties with `,`.' })
     }
