@@ -4,6 +4,33 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
+import { WeightedLru } from '../experimental/weighted-lru.ts'
+
+/** Reuse measured geometry across source edits without retaining authored text,
+ * prepared-text evidence or receipts. Every caller owns its returned arrays. */
+export function createMeasuredLayoutCache(compute: (input: MeasuredGraph) => AgenticLayout): (input: MeasuredGraph) => AgenticLayout {
+  const host = globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }
+  // The legacy switch controls both engines, including cache-off comparisons.
+  const enabled = (host.process?.env?.AGENTIC_MERMAID_ELK_CACHE ?? host.AGENTIC_MERMAID_ELK_CACHE) !== '0'
+  const results = new WeightedLru<string, AgenticLayout>(64, 8 * 1024 * 1024)
+  return input => {
+    if (!enabled) return compute(input)
+    const key = JSON.stringify(input, (_key, value: unknown) => {
+      if (value === undefined) return '\u0000undefined'
+      if (typeof value === 'number' && !Number.isFinite(value)) return `\u0000${value}`
+      if (typeof value === 'string' && value.startsWith('\u0000')) return `\u0000${value}`
+      return value
+    })
+    if (key.length > 1024 * 1024) return compute(input)
+    const found = results.get(key)
+    if (found) return structuredClone(found)
+    const result = compute(input)
+    const weight = key.length * 2 + JSON.stringify(result).length * 4 + 512
+    // Oversized results remain uncached; the shared LRU also bounds entry count.
+    if (weight <= 8 * 1024 * 1024) results.set(key, structuredClone(result), weight)
+    return result
+  }
+}
 
 export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: MeasuredGraph) => AgenticLayout | undefined, unsupported: (reason: string) => never): AgenticLayout {
   return shortenMeasuredRoutes(input, layoutRawGraph(input, forest, unsupported))
