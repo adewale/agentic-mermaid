@@ -135,7 +135,7 @@ export function lowerClassScene(
     const pairKey = `${rel.from}->${rel.to}`
     const k = relOccurrence.get(pairKey) ?? 0
     relOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationship(rel, style, `rel:${pairKey}#${k}`))
+    parts.push(renderRelationship(rel, style, `rel:${pairKey}#${k}`, markerResources))
   }
 
   // 2. Class boxes
@@ -152,7 +152,7 @@ export function lowerClassScene(
     const pairKey = `${rel.from}->${rel.to}`
     const occurrence = overlayOccurrence.get(pairKey) ?? 0
     overlayOccurrence.set(pairKey, occurrence + 1)
-    const overlay = renderRelationshipMarkerOverlay(rel, style, index, `rel:${pairKey}#${occurrence}`)
+    const overlay = renderRelationshipMarkerOverlay(rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources)
     if (overlay) parts.push(overlay)
   })
 
@@ -514,7 +514,12 @@ function classRelationshipEndpoints(rel: PositionedClassRelationship) {
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
  */
-function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderRelationship(
+  rel: PositionedClassRelationship,
+  style: ResolvedRenderStyle,
+  sceneId: string,
+  markerResources: readonly MarkerDescriptor[],
+): SceneNode {
   const labels = rel.label ? [{
     text: rel.label,
     textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
@@ -541,7 +546,6 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
-  const markerResources = classMarkerResources(style)
   const startMarker: MarkerDescriptor | undefined = startId ? markerResources.find(marker => marker.id === startId) : undefined
   const endMarker: MarkerDescriptor | undefined = endId ? markerResources.find(marker => marker.id === endId) : undefined
 
@@ -620,6 +624,7 @@ function renderRelationshipMarkerOverlay(
   style: ResolvedRenderStyle,
   index: number,
   relationshipId: string,
+  markerResources: readonly MarkerDescriptor[],
 ): SceneNode | null {
   if (rel.points.length < 2) return null
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
@@ -627,9 +632,8 @@ function renderRelationshipMarkerOverlay(
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
   if (!startId && !endId) return null
-  const resources = classMarkerResources(style)
-  const markerStart = resources.find(marker => marker.id === startId)
-  const markerEnd = resources.find(marker => marker.id === endId)
+  const markerStart = markerResources.find(marker => marker.id === startId)
+  const markerEnd = markerResources.find(marker => marker.id === endId)
   const fields = {
     id: `marker-overlay:${index}`, role: 'chrome' as const,
     owner: { id: relationshipId, role: 'relationship' as const },
