@@ -47,6 +47,31 @@ function crossesInterior(a: Point, b: Point, box: Box): boolean {
 }
 
 describe('owned measured layered layout', () => {
+  test.each([0, 310, 1_000_000])('retains feasible compact long-edge routes with joint-order budget %s', blockPairs => {
+    const input = measured({ compactPrivateRanks: true,
+      nodes: Array.from({ length: 5 }, (_, index) => ({ id: String(index), width: 40, height: 40 })),
+      edges: [0, 1].flatMap(source => [2, 3, 4].map(target => ({ source, target, minSpan: 3 }))),
+    })
+    const original = structuredClone(input)
+    const place = (budget: number) => layoutLayeredGraph(input, () => undefined,
+      reason => { throw new GraphLayoutUnsupportedError(reason) }, undefined,
+      { attempts: 0, scorePairs: 0, loopPairs: 0, rankPairs: 200_000, blockPairs: budget, routing: { pairs: 0, arcs: 0, swaps: 0 } })
+    const baseline = place(0), output = place(blockPairs)
+    expect(input).toEqual(original)
+    expect(output.nodes).toHaveLength(5)
+    expect(output.edges).toHaveLength(6)
+    expect(countPolylineCrossings(output.edges)).toBeLessThanOrEqual(countPolylineCrossings(baseline.edges))
+    const boxes = output.nodes.map((node, index) => ({ ...node, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+    for (const [index, route] of output.edges.entries()) {
+      const edge = input.edges[index]!
+      expect(onOutline(route.points[0]!, boxes[edge.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[edge.target]!)).toBe(true)
+      for (let segment = 1; segment < route.points.length; segment++) for (const box of boxes) {
+        expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
+      }
+    }
+  })
+
   test('retains feasible loop routes when optional request work is exhausted', () => {
     const input = measured({ nodes: [{ id: 'loop', width: 120, height: 60 }], edges: [{ source: 0, target: 0, minSpan: 1, label: { width: 80, height: 20 } }] })
     const work = { attempts: 0, scorePairs: 0, loopPairs: 1, rankPairs: 0, routing: { pairs: 0, arcs: 0, swaps: 0 } }
