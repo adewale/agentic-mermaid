@@ -17,6 +17,7 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
+import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
@@ -215,6 +216,7 @@ async function generateEditorHtml(): Promise<string> {
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
+      plugins: [runtimeRenderContractPlugin()],
       target: 'browser', format: 'esm', minify: true,
       outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js' },
     })
@@ -223,6 +225,7 @@ async function generateEditorHtml(): Promise<string> {
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
+    plugins: [runtimeRenderContractPlugin()],
     target: 'browser',
     format: 'esm',
     minify: true,

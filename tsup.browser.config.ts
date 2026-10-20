@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup'
+import { runtimeRenderContractPlugin } from './scripts/build/runtime-render-contract.ts'
 
 // Browser artifact: one self-contained IIFE for `<script src>` and CDN use,
 // so a browser consumer never has to invent a bundling step (BUILD-30). The
@@ -26,4 +27,5 @@ export default defineConfig({
   outDir: 'dist',
   noExternal: [/.*/],
   external: [],
+  esbuildPlugins: [runtimeRenderContractPlugin()],
 })
