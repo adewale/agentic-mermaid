@@ -12,6 +12,7 @@ import { onShapeOutline } from '../../src/layout-rubric.ts'
 import { graphemes } from '../../src/shared/graphemes.ts'
 import { visualWidth } from '../../src/ascii/width.ts'
 import type { NodeShape, PositionedNode } from '../../src/types.ts'
+import { countPolylineCrossings } from '../../src/shared/edge-crossings.ts'
 
 export interface Finding { kind: string; severity: 'hard' | 'soft'; detail: string }
 
@@ -39,8 +40,9 @@ export function sortByImpact(findings: Finding[]): Finding[] {
     .map(([f]) => f)
 }
 export interface RNode { id: string; shape: NodeShape; x: number; y: number; w: number; h: number }
-export interface REdge { from: string; to: string; pts: { x: number; y: number }[] }
-export interface Rendered { nodes: RNode[]; edges: REdge[] }
+export interface REdge { from: string; to: string; pts: { x: number; y: number }[]; label?: string }
+interface RLabel { x: number; y: number; w: number; h: number; edge?: number }
+export interface Rendered { nodes: RNode[]; edges: REdge[]; labels?: RLabel[] }
 
 const EPS = 1.0 // a segment shorter than this on the off-axis is "axis-aligned"
 
@@ -65,6 +67,46 @@ function segmentThroughNode(a: { x: number; y: number }, b: { x: number; y: numb
     else if (n.shape === 'circle' || n.shape === 'doublecircle' || n.shape === 'stadium' || n.shape === 'rounded')
       inside = (dx / hw) ** 2 + (dy / hh) ** 2 < 1
     if (inside) return true
+  }
+  return false
+}
+
+/** A short jog alone does not prove a defect. Test the two existing lanes
+ * and their midpoint against the rendered ink, without trusting certificates.
+ * Keep endpoint attachment, orthogonality and crossings; occupied parallel
+ * lanes and foreign label halos are obstacles too. */
+function clearHitchAlternative(d: Rendered, edge: REdge, start: number, horizontal: boolean): boolean {
+  const a = edge.pts[start]!, b = edge.pts[start + 3]!
+  const cross = horizontal ? 'y' : 'x', main = horizontal ? 'x' : 'y'
+  const edgeIndex = d.edges.indexOf(edge), involved = new Set([edgeIndex])
+  const routes = d.edges.map(e => ({ points: e.pts }))
+  const originalCrossings = countPolylineCrossings(routes, involved)
+  for (const lane of [a[cross], b[cross], (a[cross] + b[cross]) / 2]) {
+    const first = { ...a, [cross]: lane }, last = { ...b, [cross]: lane }
+    // Moving an internal join would also change an adjacent segment. This
+    // local proof only replaces the three inspected runs.
+    if ((start > 0 && first[cross] !== a[cross])
+      || (start + 4 < edge.pts.length && last[cross] !== b[cross])) continue
+    const points = [...edge.pts.slice(0, start), first, last, ...edge.pts.slice(start + 4)]
+    if (points.slice(1).some((p, i) => Math.abs(p.x - points[i]!.x) > EPS && Math.abs(p.y - points[i]!.y) > EPS)) continue
+    const source = d.nodes.find(n => n.id === edge.from), target = d.nodes.find(n => n.id === edge.to)
+    if (!source || !target || !onShapeOutline(asPositioned(source), points[0]!, 1.5)
+      || !onShapeOutline(asPositioned(target), points.at(-1)!, 1.5)) continue
+    const lo = Math.min(first[main], last[main]), hi = Math.max(first[main], last[main])
+    const intersects = (box: { x: number; y: number; w: number; h: number }, padding: number): boolean => {
+      const low = box[main] - padding, high = low + (horizontal ? box.w : box.h) + 2 * padding
+      const side = box[cross] - padding, far = side + (horizontal ? box.h : box.w) + 2 * padding
+      return lane > side && lane < far && Math.min(hi, high) - Math.max(lo, low) > EPS
+    }
+    if (d.nodes.some(n => n.id !== edge.from && n.id !== edge.to && intersects(n, 4))) continue
+    if (d.labels?.some(label => label.edge === edgeIndex ? !intersects(label, 0) : intersects(label, 0))) continue
+    if (d.edges.some(other => other !== edge && other.pts.slice(1).some((q, i) => {
+      const p = other.pts[i]!
+      return Math.abs(p[cross] - q[cross]) <= EPS && Math.abs(p[cross] - lane) < 4
+        && Math.min(hi, Math.max(p[main], q[main])) - Math.max(lo, Math.min(p[main], q[main])) > EPS
+    }))) continue
+    const candidate = routes.map((route, index) => index === edgeIndex ? { points } : route)
+    if (countPolylineCrossings(candidate, involved) <= originalCrossings) return true
   }
   return false
 }
@@ -102,7 +144,11 @@ export function detect(d: Rendered): Finding[] {
       const run1Horiz = Math.abs(a.y - b.y) < EPS, run2Horiz = Math.abs(c.y - dd.y) < EPS
       const jog = Math.hypot(c.x - b.x, c.y - b.y)
       const run1 = Math.hypot(b.x - a.x, b.y - a.y), run2 = Math.hypot(dd.x - c.x, dd.y - c.y)
-      if (run1Horiz && run2Horiz && Math.abs(a.y - dd.y) < 6 && jog > CLIP_FLOOR && jog < 8 && run1 > 16 && run2 > 16)
+      const run1Vert = Math.abs(a.x - b.x) < EPS, run2Vert = Math.abs(c.x - dd.x) < EPS
+      const horizontal = run1Horiz && run2Horiz && Math.abs(a.y - dd.y) < 6
+      const vertical = run1Vert && run2Vert && Math.abs(a.x - dd.x) < 6
+      if ((horizontal || vertical) && jog > CLIP_FLOOR && jog < 8 && run1 > 16 && run2 > 16
+        && clearHitchAlternative(d, e, i - 2, horizontal))
         out.push({ kind: 'hitch', severity: 'hard', detail: `${e.from}->${e.to} ${jog.toFixed(1)}px jog on a clear lane` })
     }
   }
@@ -157,14 +203,22 @@ export function parseSvg(svg: string): Rendered {
       const points = attrs.get('points')
       if (!points) continue
       const pts = points.trim().split(/\s+/).map(p => { const [x, y] = p.split(',').map(Number); return { x: x!, y: y! } })
-      edges.push({ from, to, pts })
+      edges.push({ from, to, pts, label: attrs.get('data-label') })
     } else {
       // path-form edges (bendRadius>0): take M/L corner points (arcs approximated by endpoints)
       const coords = [...(attrs.get('d') ?? '').matchAll(/[ML]\s*([\d.-]+)[ ,]([\d.-]+)/g)].map(c => ({ x: num(c[1]), y: num(c[2]) }))
-      if (coords.length >= 2) edges.push({ from, to, pts: coords })
+      if (coords.length >= 2) edges.push({ from, to, pts: coords, label: attrs.get('data-label') })
     }
   }
-  return { nodes, edges }
+  const labels: RLabel[] = [], assigned = new Set<number>()
+  for (const group of svg.matchAll(/<g class="edge-label"([^>]*)>([\s\S]*?)<\/g>/g)) {
+    const attrs = new Map([...group[1]!.matchAll(/([\w-]+)="([^"]*)"/g)].map(a => [a[1]!, a[2]!]))
+    const edge = edges.findIndex((e, i) => !assigned.has(i) && e.from === attrs.get('data-from') && e.to === attrs.get('data-to') && e.label === attrs.get('data-label'))
+    if (edge >= 0) assigned.add(edge)
+    const halo = group[2]!.match(/<rect class="edge-label-halo"[^>]*x="([\d.-]+)"[^>]*y="([\d.-]+)"[^>]*width="([\d.-]+)"[^>]*height="([\d.-]+)"/)
+    if (halo) labels.push({ x: num(halo[1]), y: num(halo[2]), w: num(halo[3]), h: num(halo[4]), ...(edge >= 0 ? { edge } : {}) })
+  }
+  return { nodes, edges, labels }
 }
 
 export function detectSvg(svg: string): Finding[] { return detect(parseSvg(svg)) }
