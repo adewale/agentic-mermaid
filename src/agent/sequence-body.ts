@@ -126,7 +126,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     if (syntax?.kind === 'block' || syntax?.kind === 'box') {
       // The shared reader, not a second depth scanner, owns this boundary.
       const block = raw.slice(i, entry.endIndex! + 1)
-      const blockLines = block.map(entry => entry.raw)
+      const blockLines = block.map(portableRaw)
       i = entry.endIndex! + 1
       const fragment = parseTypedFragment(block)
       for (const inner of block) fold.applyAll(participantEventsOf(inner.syntax))
@@ -183,6 +183,17 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
   }
 }
 
+/** A statement's source as kept verbatim, but with a local arrow spelling
+ * replaced by Mermaid's arrow that draws the same, so the kept source is
+ * source Mermaid reads. */
+function portableRaw(entry: SequenceSourceStatement): string {
+  const message = entry.syntax?.kind === 'message' ? entry.syntax.message : undefined
+  if (!message?.localArrow) return entry.raw
+  // Only `()` and spaces stand between the sender and its arrow.
+  const at = entry.raw.indexOf(message.localArrow, entry.raw.length - entry.raw.trimStart().length + message.from.length)
+  return entry.raw.slice(0, at) + message.arrow + entry.raw.slice(at + message.localArrow.length)
+}
+
 function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
   const syntax = entries[0]?.syntax
   const opener = syntax?.kind === 'block' ? syntax.opener : undefined
@@ -211,7 +222,7 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
     ...(text.value ? { label: text.value } : {}),
     ...(text.content ? { labelContent: text.content } : {}),
     branches,
-    rawLines: entries.map(entry => entry.raw),
+    rawLines: entries.map(portableRaw),
   }
 }
 

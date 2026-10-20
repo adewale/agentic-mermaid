@@ -41,6 +41,15 @@ const SEQUENCE_ARROW_HEADS = new Map<string, readonly [SequenceMessageHead, Sequ
 ])
 
 const LOCAL_ARROW_ALIASES = new Set(['--|', '-|', '--/', '-/', '--\\', '-\\', '|--', '|-', '/--', '/-', '\\--', '\\-'])
+// The Mermaid arrow drawing what each local spelling draws: the same heads
+// and line style.
+const MERMAID_ARROW_FOR_LOCAL = new Map([...LOCAL_ARROW_ALIASES].map(local => {
+  const [start, end] = SEQUENCE_ARROW_HEADS.get(local)!
+  const mermaid = [...SEQUENCE_ARROW_HEADS].find(([token, heads]) => !LOCAL_ARROW_ALIASES.has(token)
+    && heads[0] === start && heads[1] === end && token.includes('--') === local.includes('--'))![0]
+  return [local, mermaid]
+}))
+
 // Mermaid's own arrow tokens, longest first, after optional whitespace.
 const MERMAID_MESSAGE_ARROW_RE = new RegExp(String.raw`\s*(${[...SEQUENCE_ARROW_HEADS.keys()]
   .filter(token => !LOCAL_ARROW_ALIASES.has(token))
@@ -82,7 +91,10 @@ function mermaidSequenceActorAt(line: string, index: number): string {
 export interface ParsedSequenceMessageLine {
   from: string
   to: string
+  /** Mermaid's spelling of the arrow (see `localArrow`). */
   arrow: string
+  /** A local arrow spelling Mermaid rejects, as authored; `arrow` draws the same. */
+  localArrow?: string
   activationMark?: string
   label: string
   centralStart: boolean
@@ -147,9 +159,11 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
     || tail.to.includes('()')
     || SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS.has(tail.to.toLowerCase())
   )) return null
+  const arrow = match[3]!
   const ours: ParsedSequenceMessageLine = {
-    from: match[1]!, arrow: match[3]!, activationMark: tail.activationMark,
+    from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark: tail.activationMark,
     to: tail.to, label: tail.label, centralStart: Boolean(match[2]), centralEnd: tail.centralEnd,
+    ...(LOCAL_ARROW_ALIASES.has(arrow) ? { localArrow: arrow } : {}),
   }
   // Mermaid reads each participant ID as one lexer token. Where that token
   // ends inside our sender or receiver (`A->>B->>C`, `-xA->B`, `A--->>B`),
@@ -643,6 +657,9 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
       }
     } else if (syntax.kind === 'declaration' && syntax.declaration.unmodeledMetadata?.length) {
       issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
+    } else if (syntax.kind === 'message' && syntax.message.localArrow) {
+      const { localArrow, arrow } = syntax.message
+      issue(entry, 'sequence_local_arrow', `The arrow ${localArrow} is a local spelling pinned Mermaid does not read, so it rejects this line. Ours draws it as Mermaid's ${arrow} and writes ${arrow}`)
     } else if (syntax.kind === 'declaration' && syntax.declaration.unspacedAlias) {
       issue(entry, 'sequence_unspaced_alias', 'Participant text immediately following as is read as its alias. Pinned Mermaid can reject this or read it as part of the ID; write as <label> with a separating space')
     }

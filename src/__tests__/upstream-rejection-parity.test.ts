@@ -214,6 +214,19 @@ const SEQUENCE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['deactivating a participant never activated', 'sequenceDiagram\n  Alice->>Bob: Hi\n  deactivate Bob', 'Hi', 'sequence_inactive_deactivation', 3],
 ]
 
+// Ours keeps local arrow spellings Mermaid's lexer does not have; each draws
+// what one of Mermaid's arrows draws, which ours writes instead.
+// [construct, source, the source with Mermaid's arrow, line]
+const SEQUENCE_LOCAL_ARROWS: ReadonlyArray<readonly [string, string, string, number]> = [
+  ['a solid stick end written with a bar', 'sequenceDiagram\n  Alice-|Bob: Hi', 'sequenceDiagram\n  Alice-\\\\Bob: Hi', 2],
+  ['a dashed stick end written with one slash', 'sequenceDiagram\n  Alice--/Bob: Hi', 'sequenceDiagram\n  Alice--//Bob: Hi', 2],
+  ['a stick start written with a bar', 'sequenceDiagram\n  Alice|-Bob: Hi', 'sequenceDiagram\n  Alice\\\\-Bob: Hi', 2],
+  ['a dashed stick start written with one backslash', 'sequenceDiagram\n  Alice\\--Bob: Hi', 'sequenceDiagram\n  Alice\\\\--Bob: Hi', 2],
+  // A fragment keeps its authored lines, but with Mermaid's arrow.
+  ['a stick start inside a loop', 'sequenceDiagram\n  loop Every minute\n    Alice|-Bob: Hi\n  end', 'sequenceDiagram\n  loop Every minute\n    Alice\\\\-Bob: Hi\n  end', 3],
+  ['a stick end inside a critical block', 'sequenceDiagram\n  critical Connect\n    Alice-/Bob: Hi\n  end', 'sequenceDiagram\n  critical Connect\n    Alice-//Bob: Hi\n  end', 3],
+]
+
 // Mermaid's lexer reads a message's sender and receiver as one ID each. Where
 // that ID ends inside ours, arrow tokens follow where Mermaid wants message
 // text; what was meant is unclear, so, like any statement ours cannot read,
@@ -424,6 +437,15 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(SEQUENCE_READ_GENEROUSLY)('sequence: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'sequence', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+  })
+
+  test.each(SEQUENCE_LOCAL_ARROWS)('sequence: %s is read, reported and written as Mermaid\'s arrow', async (_construct, source, portable, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    const parsed = parseRegisteredMermaid(source)
+    const serialized = parsed.ok ? serializeMermaid(parsed.value) : ''
+    const written = await upstream.parse(serialized)
+    expect({ ...readGenerously(source, 'Hi'), drawsAsMermaid: renderMermaidSVG(source) === renderMermaidSVG(portable), serialized, written: written.ok && written.sequence?.messages.flatMap(message => message.from && message.to ? [[message.from, message.to, message.message]] : []) })
+      .toEqual({ typed: 'sequence', draws: true, reported: expect.arrayContaining([`sequence_local_arrow@${line}`]), drawsAsMermaid: true, serialized: `${portable}\n`, written: [['Alice', 'Bob', 'Hi']] })
   })
 
   test.each(SEQUENCE_UNREAD)('sequence: %s is kept as source and not drawn', async (_construct, source, line) => {
