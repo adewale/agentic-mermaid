@@ -499,10 +499,12 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * otherwise, which verify reports: a `&` list without a blank on each side
  * of the `&` (`A &B`), label text holding a character upstream's lexer reads
  * as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter), and a
- * subgraph title it cannot read without quotes (subgraphTitleUnreadable);
- * and where ours rejects a statement, a node id (commaIdStop) or edge id
- * (unreadableEdgeId) upstream reads there that ours does not. */
-export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'comma-id' | 'edge-id'
+ * subgraph title it cannot read without quotes (subgraphTitleUnreadable), a
+ * node whose text runs on without a blank to an `@`, which upstream reads as
+ * an edge id (`A[a@b]`); and where ours rejects a statement, a node id
+ * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
+ * does not. */
+export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -1705,9 +1707,14 @@ function consumeNode(
   // fails.
   if (continuesNodeId(text, text.length - remaining.length)) return null
 
+  // Upstream's lexer reads a run without blanks or `"` from a node's start to
+  // an `@` (not `@{`) as an edge id (`A[a@b]` is the edge id `A[a` there).
+  if (NODE_RUN_EDGE_ID_RE.test(text)) notes?.add('node-edge-id')
   if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'node', text.slice(0, text.length - remaining.length))
   return { id, remaining }
 }
+
+const NODE_RUN_EDGE_ID_RE = /^[^\s"]+@(?![{"])/
 
 /** Register a node from a shaped definition (`b[Label]`, `b(("Label"))`). A
  * node already referenced takes the definition's label and shape, as Mermaid

@@ -86,7 +86,7 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     else if (text === 'end') {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
     }
-    const notes = text.startsWith('subgraph') || /[&[\](){}|"]/.test(text) ? flowchartStatementNotes(text) : undefined
+    const notes = text.startsWith('subgraph') || /[&@[\](){}|"]/.test(text) ? flowchartStatementNotes(text) : undefined
     if (/^(?:style|classDef|linkStyle)\s/.test(text) && scanFlowchart(text).separators.length > 0) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_style_semicolon', message: 'A `;` between style properties (fill:#f9f;stroke:#0a0) is read as separating them, as in CSS. Pinned Mermaid ends the statement at the `;` and reads the next property as a node (stroke:blue), or, after a `#` color, joins the two into one declaration that paints nothing; separate style properties with `,`.' })
     }
@@ -95,6 +95,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     }
     if (notes?.has('subgraph-title')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_subgraph_title', message: 'This subgraph title is read as its text. Without quotes, pinned Mermaid reads only letters, digits, blanks, the backtick and !#$%&\'*+-./:?\\^_ in a title, with no link, `:::` or `"` starting a word, and rejects this one; quote the title (subgraph "a (b)"), or give an id and a quoted bracket title (subgraph id["a (b)"]).' })
+    }
+    if (notes?.has('node-edge-id')) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_edge_id', message: 'A node whose id and label run on without a blank to an `@` (A[a@b]) is read as the node and its label. Pinned Mermaid reads that run as an edge id (any run without blanks or `"` before `@`), and rejects the statement; quote the label (A["a@b"]), or put a blank after its opening bracket.' })
     }
     if (notes?.has('label-delimiter')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_label_delimiter', message: 'Label text holding `(`, `)`, `[`, `]`, `{`, `}`, `|`, or a `"` after the text begins, is read as written. Pinned Mermaid reads these as delimiters in unquoted text, and rejects this; put the whole label in double quotes (A["a (b) c"]), writing a `"` inside it as #quot;.' })
