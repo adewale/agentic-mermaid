@@ -50,6 +50,7 @@ async function readCssFiles(fontPrefix: string): Promise<string> {
     'css/font-picker.css',
     'css/export.css',
     'css/affordances.css',
+    'css/diagram-tools.css',
     'css/misc.css',
   ]
   const parts = await Promise.all(order.map(f => readFile(f)))
@@ -86,6 +87,7 @@ async function readJsFiles(): Promise<string> {
     'js/motion.js',
     'js/zoom.js',
     'js/c4-navigation.js',
+    'js/diagram-tools.js',
     'js/pan.js',
     'js/editor-helpers.js',
     'js/examples.js',

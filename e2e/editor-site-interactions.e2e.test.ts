@@ -9,7 +9,7 @@
  * adapter, the same technique editor-style-switch.test.ts uses.
  */
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
@@ -17,6 +17,7 @@ import { PNG_DEFAULT_SCALE } from '../src/png-contract.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const SITE = join(import.meta.dir, '..', 'website', 'public')
+const SCREENSHOTS = join(import.meta.dir, 'screenshots')
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -374,6 +375,90 @@ Rel_Back(user,api,"Replies")`
     await page.locator('#code-editor').fill('flowchart LR\nA --> B')
     await waitForVerifiedRender(page)
     expect(await page.locator('#c4-navigation').isVisible()).toBe(false)
+    await page.close()
+  }, 60_000)
+
+  test('Packet inspection is keyboard accessible across row fragments and leaves canonical exports intact', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
+    await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
+      return async function(source, options) {
+        var artifact = await original(source, options);
+        window.__inspectedPacket = artifact;
+        return artifact;
+      };
+    }`)
+    const source = '---\nconfig:\n  packet:\n    bitsPerRow: 8\n    bitOrder: descending\n    showBits: false\n---\npacket\n+3: "Mode"\n+12: "Authentication tag"'
+    await page.goto(`${base}/editor/#${shareHash({ source, palette: 'paper', style: 'crisp' })}`, { waitUntil: 'networkidle' })
+    await waitForVerifiedRender(page)
+    const snapshot = () => page.evaluate(() => ({
+      artifact: (window as any).__inspectedPacket,
+      source: (document.getElementById('code-editor') as HTMLTextAreaElement).value,
+    }))
+    const before = await snapshot()
+    const select = page.getByLabel('Packet field', { exact: true })
+    expect(await select.locator('option').allTextContents()).toEqual(['Choose a field', 'Mode (0–2)', 'Authentication tag (3–14)'])
+    expect(await page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]').count()).toBe(1)
+    await page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]').focus()
+    await page.keyboard.press('Enter')
+    expect(await page.locator('#packet-field-details').textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
+    expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(2)
+    mkdirSync(SCREENSHOTS, { recursive: true })
+    await page.screenshot({ path: join(SCREENSHOTS, 'current-packet-inspection.png'), animations: 'disabled' })
+    await select.focus()
+    await page.keyboard.press('ArrowUp')
+    expect(await page.locator('#packet-field-details').textContent()).toContain('Mode: bits 0–2 (3 bits)')
+    expect(await snapshot()).toEqual(before)
+    await page.locator('#export-chevron-btn').click()
+    const download = page.waitForEvent('download', { timeout: 30_000 })
+    await page.locator('#export-svg-btn').click()
+    const exported = readFileSync((await (await download).path())!, 'utf8')
+    expect(exported).toContain('data-field-label="Authentication tag"')
+    expect(exported).not.toContain('data-packet-inspected')
+    expect(exported).not.toContain('tabindex=')
+    await page.locator('#format-unicode').click()
+    expect(await select.isVisible()).toBe(false)
+    await page.locator('#format-diagram').click()
+    expect(await select.inputValue()).toBe('field-0')
+    await page.close()
+  }, 60_000)
+
+  test('Kanban preview wrapping is explicit, follows scheduled viewport changes and preserves receipt parity', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
+    await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
+      return async function(source, options) {
+        var artifact = await original(source, options);
+        window.__wrappedBoard = { artifact: artifact, options: options };
+        return artifact;
+      };
+    }`)
+    const source = 'kanban\nBacklog\n  a[Authored task]\nActive\n  b[Review API]\nReview\n  c[Verify]\nDone\n  d[Shipped]'
+    await page.goto(`${base}/editor/#${shareHash({ source, palette: 'paper', style: 'crisp' })}`, { waitUntil: 'networkidle' })
+    await waitForVerifiedRender(page)
+    const wrap = page.getByLabel('Wrap board to preview width', { exact: true })
+    expect(await wrap.isChecked()).toBe(false)
+    const original = await page.evaluate(() => (window as any).__wrappedBoard.artifact.receipt.sharedRequestDigest)
+    await wrap.check()
+    await page.waitForFunction(() => (window as any).__wrappedBoard.options.kanban?.maxWidth > 0 && document.getElementById('status-text')?.textContent === 'OK')
+    const width = await page.evaluate(() => (window as any).__wrappedBoard.options.kanban.maxWidth)
+    expect(await page.locator('#zoom-label').textContent()).toBe('100%')
+    expect(await page.locator('#kanban-wrap-note').isVisible()).toBe(true)
+    expect(await page.locator('#preview-inner svg').evaluate(svg => Number(svg.getAttribute('viewBox')!.split(/\s+/)[2]))).toBeLessThanOrEqual(width)
+    expect(await page.locator('#preview-inner [data-id="a"]').getAttribute('data-parent')).toBe('Backlog')
+    mkdirSync(SCREENSHOTS, { recursive: true })
+    await page.screenshot({ path: join(SCREENSHOTS, 'current-kanban-wrapped.png'), animations: 'disabled' })
+    await page.setViewportSize({ width: 1000, height: 900 })
+    await page.waitForFunction(previous => (window as any).__wrappedBoard.options.kanban.maxWidth < previous && document.getElementById('status-text')?.textContent === 'OK', width)
+    await page.locator('#format-unicode').click()
+    await page.waitForFunction(() => !!document.getElementById('preview-inner')?.dataset.unicodeSharedRequestDigest)
+    expect(await page.evaluate(() => {
+      const data = document.getElementById('preview-inner')!.dataset
+      return data.unicodeSharedRequestDigest === data.sharedRequestDigest
+    })).toBe(true)
+    expect(await page.locator('#unicode-output').textContent()).toContain('Authored task')
+    await page.locator('#format-diagram').click()
+    await wrap.uncheck()
+    await page.waitForFunction(digest => (window as any).__wrappedBoard.artifact.receipt.sharedRequestDigest === digest && document.getElementById('status-text')?.textContent === 'OK', original)
+    expect(await page.locator('#code-editor').inputValue()).toBe(source)
     await page.close()
   }, 60_000)
 

@@ -67,6 +67,17 @@ test('Packet word bit numbering follows the configured direction and single-bit 
   expect(layoutPacketDiagram(body, {}, { ...resolvePacketConfig(), bitOrder: 'ascending' })).toEqual(defaultLayout)
 })
 
+test('Packet field inspection metadata retains unwrapped labels and exact inclusive ranges across row fragments', () => {
+  const source = '---\nconfig:\n  packet:\n    bitsPerRow: 8\n---\npacket\n+3: "Mode"\n+12: "Long authentication & \\"tag\\""',
+    svg = renderMermaidSVG(source),
+    fragments = [...svg.matchAll(/<g[^>]*data-field-id="field-1"[^>]*>/g)].map(match => match[0])
+  expect(fragments).toHaveLength(2)
+  expect(fragments.every(group => group.includes('data-field-label="Long authentication &amp; &quot;tag&quot;"'))).toBe(true)
+  expect(fragments[0]).toContain('data-start="3" data-end="7"')
+  expect(fragments[1]).toContain('data-start="8" data-end="14"')
+  expect(svg).not.toContain('tabindex=')
+})
+
 test.each(['ascending', 'descending'] as const)('Packet showBits:false hides numbering while retaining %s word geometry', bitOrder => {
   const body = parsePacketDiagram('packet\n+8: "First"\n+8: "Second"')
   const layout = layoutPacketDiagram(body, {}, { ...resolvePacketConfig(), bitsPerRow: 8, bitOrder, showBits: false })

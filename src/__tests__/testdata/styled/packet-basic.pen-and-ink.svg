@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1072" height="106.4" viewBox="0 0 1072 106.4" style="--bg:#faf6ec;--fg:#241f1a;--line:#2b241d;--accent:#2b241d;--border:#2b241d;--font:EB Garamond;background:#faf6ec" class="am-1vwuv9617u5whg">
+<svg xmlns="http://www.w3.org/2000/svg" width="1072" height="106.4" viewBox="0 0 1072 106.4" style="--bg:#faf6ec;--fg:#241f1a;--line:#2b241d;--accent:#2b241d;--border:#2b241d;--font:EB Garamond;background:#faf6ec" class="am-1hyftg70jm1rmy">
 <style>
-  svg.am-1vwuv9617u5whg { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-1vwuv9617u5whg {
+  svg.am-1hyftg70jm1rmy { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-1hyftg70jm1rmy {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #241f1a;
     --_text-sec:      #534e48;
@@ -18,13 +18,13 @@
   }
 </style>
 <rect width="1072" height="106.4" fill="#faf6ec" data-backdrop="page" />
-<g data-id="field-0:row-0" data-field-id="field-0" data-start="0" data-end="15" data-role="node">
+<g data-id="field-0:row-0" data-field-id="field-0" data-start="0" data-end="15" data-field-label="Source port" data-role="node">
   <rect x="26.5" y="44.5" width="507" height="32.900000000000006" fill="#f4f0e6" stroke="#2b241d" stroke-width="0.75" />
   <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="280" y="60.95" text-anchor="middle" font-family="EB Garamond" font-size="13" font-weight="500" fill="#241f1a" data-prepared-text="true" dy="4.55" textLength="72.34500000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Source port</text>
   <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="28.5" y="34.25" text-anchor="start" font-size="11" font-weight="400" fill="#68635d" data-prepared-text="true" dy="3.8499999999999996" textLength="7.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">0</text>
   <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="531.5" y="34.25" text-anchor="end" font-size="11" font-weight="400" fill="#68635d" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">15</text>
 </g>
-<g data-id="field-1:row-0" data-field-id="field-1" data-start="16" data-end="31" data-role="node">
+<g data-id="field-1:row-0" data-field-id="field-1" data-start="16" data-end="31" data-field-label="Destination port" data-role="node">
   <rect x="538.5" y="44.5" width="507" height="32.900000000000006" fill="#f4f0e6" stroke="#2b241d" stroke-width="0.75" />
   <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="792" y="60.95" text-anchor="middle" font-family="EB Garamond" font-size="13" font-weight="500" fill="#241f1a" data-prepared-text="true" dy="4.55" textLength="93.09300000000002" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Destination port</text>
   <text paint-order="stroke" stroke="#faf6ec" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="540.5" y="34.25" text-anchor="start" font-size="11" font-weight="400" fill="#68635d" data-prepared-text="true" dy="3.8499999999999996" textLength="9.966" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">16</text>
