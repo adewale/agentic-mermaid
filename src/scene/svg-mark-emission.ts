@@ -1,7 +1,9 @@
 /** Shared semantic decoration of private typed recipes. No SVG is inspected. */
-import type { SceneNode, SceneRole } from './ir.ts'
+import type { MarkAttributes, SceneNode, SceneRole } from './ir.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
+import { WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { hasMarkerCss } from '../output-security.ts'
 import { snapshotSvgEmissionRecipe, svgEmissionValue, svgValue as v, type SvgAttribute, type SvgEmissionRecipe } from './svg-emission.ts'
 
@@ -127,4 +129,19 @@ export function decorateEmission(recipe: SvgEmissionRecipe, node: SceneNode, con
   if (!cache) DECORATED.set(recipe, cache = new Map())
   cache.set(key, decorated)
   return decorated
+}
+
+/** Publish inert hooks from already observed lexical values. Do not return to
+ * positioned caller data for a second, potentially different observation. */
+export function capturedMarkAttributes(className: string, attributes: readonly SvgAttribute[]): MarkAttributes {
+  const data: Record<string, string> = Object.create(null)
+  for (const attribute of attributes) {
+    if (!attribute.name.startsWith('data-') || attribute.value.source !== 'metadata') continue
+    const key = attribute.name.slice(5)
+    if (WRITER_OWNED_DATA_KEYS.has(key)) continue
+    const value = attribute.value.value
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') continue
+    data[key] = attribute.display ? sanitizeDisplayLines(String(value)) : String(value)
+  }
+  return { className, data }
 }

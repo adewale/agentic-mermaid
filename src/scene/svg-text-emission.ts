@@ -129,7 +129,7 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
       for (const span of recipe.spans) {
         writer.write('<tspan')
         writeSvgAttributes(node, span.attributes, writer)
-        writer.write('>'); writer.text(node.text.slice(span.start, span.end)); writer.write('</tspan>')
+        writer.write('>'); writer.text(span.text ?? node.text.slice(span.start, span.end)); writer.write('</tspan>')
       }
     } else if (block) writePreparedLine(block, index, x, node.anchor, writer, baseline)
     else writeRuns(prepared.lineBlocks[index]!.runs, 400, writer)

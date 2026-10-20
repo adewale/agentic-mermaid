@@ -4,8 +4,9 @@ import type { DiagramColors } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { resolveRenderStyle } from '../styles.ts';
-import type { ResolvedRenderStyle } from '../styles.ts';
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import type { MarkAttributes, SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -271,6 +272,8 @@ function lowerSectionFrame(
   paints: TimelinePaints,
 ): SceneNode {
   const sectionName = section.label ?? section.id
+  const sectionLabel = section.label ? sanitizeDisplayLines(section.label) : undefined
+  const family = familyAttributes(familyIndex, familyPalettes)
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   children.push({
@@ -336,8 +339,8 @@ function lowerSectionFrame(
     role: 'section',
     emission: { kind: 'group', attributes: [
       { name: 'class', value: v.meta('timeline-section') }, { name: 'data-id', value: v.meta(section.id) },
-      ...(section.label ? [{ name: 'data-label' as const, value: v.meta(section.label), display: true }] : []),
-      ...familyAttributes(familyIndex, familyPalettes),
+      ...(sectionLabel !== undefined ? [{ name: 'data-label' as const, value: v.meta(sectionLabel) }] : []),
+      ...family,
     ] },
     children,
     channels: { category: sectionName },
@@ -352,6 +355,8 @@ function lowerPeriod(
   style: ResolvedRenderStyle,
   paints: TimelinePaints,
 ): SceneNode {
+  const sectionAttributes: SvgAttribute[] = sectionLabel ? [{ name: 'data-section', value: v.meta(sectionLabel) }] : []
+  const family = familyAttributes(familyIndex, familyPalettes)
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   children.push({
@@ -440,8 +445,8 @@ function lowerPeriod(
     emission: { kind: 'group', attributes: [
       { name: 'class', value: v.meta('timeline-period') }, { name: 'data-id', value: v.meta(period.id) },
       { name: 'data-label', value: v.meta(period.label), display: true },
-      ...(sectionLabel ? [{ name: 'data-section' as const, value: v.meta(sectionLabel) }] : []),
-      ...familyAttributes(familyIndex, familyPalettes),
+      ...sectionAttributes,
+      ...family,
     ] },
     children,
   })
@@ -455,6 +460,8 @@ function lowerEvent(
   style: ResolvedRenderStyle,
   paints: TimelinePaints,
 ): SceneNode {
+  const sectionAttributes: SvgAttribute[] = sectionLabel ? [{ name: 'data-section', value: v.meta(sectionLabel) }] : []
+  const family = `${familyIndex % familyPalettes.length}`
   const idBase = `event:${event.id}`
 
   const card = marks.shape(
@@ -490,8 +497,8 @@ function lowerEvent(
     emission: { kind: 'group', attributes: [
       { name: 'class', value: v.meta('timeline-event') }, { name: 'data-id', value: v.meta(event.id) },
       { name: 'data-period', value: v.meta(event.periodLabel) },
-      ...(sectionLabel ? [{ name: 'data-section' as const, value: v.meta(sectionLabel) }] : []),
-      { name: 'data-family', value: v.meta(familyIndex % familyPalettes.length) },
+      ...sectionAttributes,
+      { name: 'data-family', value: v.meta(family) },
     ] },
     children: [
       { indent: 2, node: card },
@@ -503,20 +510,25 @@ function lowerEvent(
 function familyAttributes(familyIndex: number, familyPalettes: readonly TimelineFamilyPalette[]): SvgAttribute[] {
   const family = familyIndex % familyPalettes.length
   const palette = familyPalettes[family]!
-  const accent = v.meta(palette.accent), fill = v.meta(palette.fill), label = v.meta(palette.label), line = v.meta(palette.line)
-  const colorMix = (primary: SvgValue, secondary: SvgValue, amount: number): SvgValue => ({ source: 'colorMix', primary, secondary, amount })
-  const background = v.meta('var(--bg)')
+  // Arguments are read before entering this helper, as in the original mix().
+  // In particular, pill-stroke gets fill and line before coercing either one.
+  const colorMix = (primary: unknown, secondary: unknown, amount: number): SvgValue => ({
+    source: 'colorMix', primary: v.meta(`${primary}`), secondary: v.meta(`${secondary}`), amount,
+  })
+  const declarations = [
+    { property: '--tl-accent' as const, value: v.meta(`${palette.accent}`) },
+    { property: '--tl-fill' as const, value: v.meta(`${palette.fill}`) },
+    { property: '--tl-label' as const, value: v.meta(`${palette.label}`) },
+    { property: '--tl-line' as const, value: v.meta(`${palette.line}`) },
+    { property: '--tl-section-bg' as const, value: colorMix(palette.fill, 'var(--bg)', 6) },
+    { property: '--tl-section-band' as const, value: colorMix(palette.fill, 'var(--bg)', 12) },
+    { property: '--tl-pill-fill' as const, value: colorMix(palette.fill, 'var(--bg)', 11) },
+    { property: '--tl-pill-stroke' as const, value: colorMix(palette.fill, palette.line, 36) },
+    { property: '--tl-event-fill' as const, value: colorMix(palette.fill, 'var(--_node-fill)', 16) },
+  ]
   return [
-    { name: 'data-family', value: v.meta(family) },
-    { name: 'style', value: { source: 'style', declarations: [
-      { property: '--tl-accent', value: accent }, { property: '--tl-fill', value: fill },
-      { property: '--tl-label', value: label }, { property: '--tl-line', value: line },
-      { property: '--tl-section-bg', value: colorMix(fill, background, 6) },
-      { property: '--tl-section-band', value: colorMix(fill, background, 12) },
-      { property: '--tl-pill-fill', value: colorMix(fill, background, 11) },
-      { property: '--tl-pill-stroke', value: colorMix(fill, line, 36) },
-      { property: '--tl-event-fill', value: colorMix(fill, v.meta('var(--_node-fill)'), 16) },
-    ] } },
+    { name: 'data-family', value: v.meta(`${family}`) },
+    { name: 'style', value: { source: 'style', declarations } },
   ]
 }
 

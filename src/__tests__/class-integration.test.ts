@@ -5,6 +5,81 @@ import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
+import { DefaultBackend, getFamily } from '../agent/index.ts'
+
+function lowerPublicClass(positioned: ReturnType<typeof layoutClassDiagram>) {
+  return getFamily('class')!.lowerScene!({ positioned, colors: { bg: '#ffffff', fg: '#111111', embedFontImport: false },
+    resolved: { renderOptions: {} } })
+}
+
+describe('public Class lowering observations', () => {
+  it('captures annotation before independent class-name metadata and retains their authored values', () => {
+    const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'class A']))
+    const cls = positioned.classes[0]!
+    const reads: string[] = []
+    let names = 0
+    Object.defineProperties(cls, {
+      annotation: { enumerable: true, configurable: true, get() { reads.push('annotation'); return 'interface' } },
+      className: { enumerable: true, configurable: true, get() {
+        reads.push('className')
+        return ++names <= 2 ? 'first' : 'second'
+      } },
+    })
+    const svg = DefaultBackend.render(lowerPublicClass(positioned), { seed: 0 })
+    expect(reads.slice(0, 6)).toEqual(['annotation', 'annotation', 'className', 'className', 'className', 'className'])
+    expect(svg).toContain('class="class-node first"')
+    expect(svg).toContain('data-class="second"')
+    expect(svg).toContain('data-annotation="interface"')
+    expect(Object.isFrozen(cls)).toBe(false)
+  })
+
+  it('reports the annotation getter failure before a competing class-name getter failure', () => {
+    const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'class A']))
+    Object.defineProperties(positioned.classes[0]!, {
+      annotation: { enumerable: true, get() { throw new Error('authored annotation failure') } },
+      className: { enumerable: true, get() { throw new Error('later class-name failure') } },
+    })
+    expect(() => lowerPublicClass(positioned)).toThrow('authored annotation failure')
+  })
+
+  it('reads member appearance before a competing authored-text getter failure', () => {
+    const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'class A {', '+id: int', '}']))
+    const member = positioned.classes[0]!.attributes[0]!
+    Object.defineProperties(member, {
+      isAbstract: { enumerable: true, get() { throw new Error('authored abstract appearance failure') } },
+      sourceText: { enumerable: true, get() { throw new Error('later member text failure') } },
+    })
+    expect(() => lowerPublicClass(positioned)).toThrow('authored abstract appearance failure')
+  })
+
+  it('retains the later visibility glyph for independent prepared-text fidelity rejection', () => {
+    const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'class A {', '+id: int', '}']))
+    const member = positioned.classes[0]!.attributes[0]!
+    const reads: string[] = []
+    Object.defineProperty(member, 'visibility', { enumerable: true, configurable: true, get() {
+      const glyph = reads.length === 5 ? '-' : '+'
+      reads.push(glyph)
+      return glyph
+    } })
+    const scene = lowerPublicClass(positioned)
+    expect(reads).toEqual(['+', '+', '+', '+', '+', '-'])
+    expect(() => DefaultBackend.render(scene, { seed: 0 })).toThrow('retained prepared text differs from actual SVG')
+    expect(Object.isFrozen(member)).toBe(false)
+  })
+
+  it('captures a relationship lexical label before later cardinality observation', () => {
+    const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'A --> B : semantic']))
+    const rel = positioned.relationships[0]!
+    let labels = 0
+    Object.defineProperty(rel, 'label', { enumerable: true, configurable: true, get() {
+      return ++labels === 6 ? 'Lexical & <label>' : 'semantic'
+    } })
+    const svg = DefaultBackend.render(lowerPublicClass(positioned), { seed: 0 })
+    expect(svg).toContain('data-label="Lexical &amp; &lt;label&gt;"')
+    expect(svg).toContain('aria-label="A to B: semantic"')
+    expect(Object.isFrozen(rel)).toBe(false)
+  })
+})
 
 // Every class SVG defines all marker ids in <defs>, so marker assertions must
 // read the drawn relationship element's own marker reference.

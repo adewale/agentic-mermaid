@@ -3,6 +3,42 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import { DefaultBackend, getFamily } from '../agent/index.ts'
+import { parseErDiagram } from '../er/parser.ts'
+import { layoutErDiagram } from '../er/layout.ts'
+
+function lowerPublicEr(positioned: ReturnType<typeof layoutErDiagram>) {
+  return getFamily('er')!.lowerScene!({ positioned, colors: { bg: '#ffffff', fg: '#111111', embedFontImport: false },
+    resolved: { renderOptions: {} } })
+}
+
+describe('public ER lowering observations', () => {
+  it('captures cardinality after observing the lexical label', () => {
+    const positioned = layoutErDiagram(parseErDiagram(['erDiagram', 'A ||--|| B : owns']))
+    const rel = positioned.relationships[0]!
+    const reads: string[] = []
+    let labels = 0
+    let cardinality: 'one' | 'many' = 'one'
+    Object.defineProperties(rel, {
+      label: { enumerable: true, configurable: true, get() { reads.push('label'); if (++labels === 2) cardinality = 'many'; return '' } },
+      cardinality1: { enumerable: true, configurable: true, get() { reads.push('cardinality'); return cardinality } },
+    })
+    const svg = DefaultBackend.render(lowerPublicEr(positioned), { seed: 0 })
+    expect(reads.slice(0, 3)).toEqual(['label', 'label', 'cardinality'])
+    expect(svg).toContain('data-cardinality1="many"')
+    expect(Object.isFrozen(rel)).toBe(false)
+  })
+
+  it('reports a second label-read failure before a competing cardinality failure', () => {
+    const positioned = layoutErDiagram(parseErDiagram(['erDiagram', 'A ||--|| B : owns']))
+    let labels = 0
+    Object.defineProperties(positioned.relationships[0]!, {
+      label: { enumerable: true, get() { if (++labels === 2) throw new Error('authored lexical label failure'); return '' } },
+      cardinality1: { enumerable: true, get() { throw new Error('later cardinality failure') } },
+    })
+    expect(() => lowerPublicEr(positioned)).toThrow('authored lexical label failure')
+  })
+})
 
 describe('renderMermaidSVG – ER diagrams', () => {
   it('renders a basic ER diagram to valid SVG', () => {

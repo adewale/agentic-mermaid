@@ -59,10 +59,10 @@ const DASHED_EMISSION = primitive(LINE_FIELDS, [
   ...PAINT_ATTRIBUTES.slice(1), { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
   { name: 'stroke-dashoffset', value: v.paint('strokeDashoffset') },
 ])
-const MESSAGE_EMISSIONS = [false, true].map(self => primitive(self ? ['points'] : LINE_FIELDS, [
+const MESSAGE_EMISSIONS = [false, true].map(self => [false, true].map(dashed => primitive(self ? ['points'] : LINE_FIELDS, [
   ...(self ? [PAINT_ATTRIBUTES[0]!] : []), ...PAINT_ATTRIBUTES.slice(1),
-  { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
-]))
+  ...(dashed ? [{ name: 'stroke-dasharray' as const, value: v.meta('6 4') }] : []),
+])))
 const GLYPH_EMISSIONS = {
   path: primitive(['d'], [], '/>'), circle: primitive(CIRCLE_FIELDS, [], '/>'),
   line: primitive(LINE_FIELDS, [], '/>'), rect: primitive([...RECT_FIELDS, 'rx'], [], '/>'),
@@ -676,6 +676,7 @@ function renderMessage(
   markerResources: readonly MarkerDescriptor[],
 ): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
+  const dashed = msg.lineStyle === 'dashed'
   const startMarker = sequenceMarkerFor(markerResources, msg.startHead)
   const endMarker = sequenceMarkerFor(markerResources, msg.endHead)
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
@@ -723,7 +724,7 @@ function renderMessage(
         markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
         ...connectorSemantics,
       },
-        MESSAGE_EMISSIONS[1]!),
+        MESSAGE_EMISSIONS[1]![Number(dashed)]!),
     })
     // Label to the right of the loop (supports multi-line)
     const loopPaint = inkAt(areaFromBounds(labelBounds), rawTextColor)
@@ -756,7 +757,7 @@ function renderMessage(
         markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
         ...connectorSemantics,
       },
-        MESSAGE_EMISSIONS[0]!),
+        MESSAGE_EMISSIONS[0]![Number(dashed)]!),
     })
     // Label above the arrow, centered (supports multi-line)
     const labelPaint = inkAt(areaFromBounds(labelBounds), rawTextColor)
@@ -813,12 +814,14 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with block metadata
+  const label = part === 'dividers' || part === 'frame' ? []
+    : block.label ? [{ name: 'data-label' as const, value: v.meta(block.label), display: true }] : []
   const emission = { kind: 'group' as const, attributes: part === 'dividers' || part === 'frame' ? [
     { name: 'class' as const, value: v.meta(part === 'dividers' ? 'sequence-block-divider-overlay' : 'sequence-block-frame-overlay') },
     { name: 'data-owner' as const, value: v.meta(sceneId) },
   ] : [
     { name: 'class' as const, value: v.meta('block') }, { name: 'data-type' as const, value: v.meta(block.type) },
-    ...(block.label ? [{ name: 'data-label' as const, value: v.meta(block.label), display: true }] : []),
+    ...label,
   ] }
 
   // Outer rectangle
@@ -1049,6 +1052,10 @@ function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): S
  */
 function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: DiagramColors, sceneId: string): SceneNode {
   const { x, y, width: w, height: h } = note
+  // Capture through native map before joining, preserving sparse-array/Proxy
+  // traversal. The writer alone escapes the resulting attribute text.
+  const actors = note.actors && note.actors.length > 0 ? note.actors.map(actor => actor).join(',') : undefined
+  const position = note.position ? note.position : undefined
 
   const rawFill = style.nodeFillColor ?? 'var(--bg)'
   const rawStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
@@ -1061,8 +1068,8 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: Di
     role: 'note',
     emission: { kind: 'group', attributes: [
       { name: 'class', value: v.meta('note') },
-      ...(note.position ? [{ name: 'data-position' as const, value: v.meta(note.position) }] : []),
-      ...(note.actors?.length ? [{ name: 'data-actors' as const, value: v.meta(note.actors.join(',')) }] : []),
+      ...(position !== undefined ? [{ name: 'data-position' as const, value: v.meta(position) }] : []),
+      ...(actors !== undefined ? [{ name: 'data-actors' as const, value: v.meta(actors) }] : []),
     ] },
     children: [
       {

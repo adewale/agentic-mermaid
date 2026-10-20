@@ -5,6 +5,91 @@ import { describe, it, expect } from 'bun:test'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
 import { renderMermaidSVG } from '../index.ts'
+import { DefaultBackend, getFamily } from '../agent/index.ts'
+import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { layoutSequenceDiagram } from '../sequence/layout.ts'
+
+function lowerPublicSequence(positioned: ReturnType<typeof layoutSequenceDiagram>) {
+  return getFamily('sequence')!.lowerScene!({ positioned, colors: { bg: '#ffffff', fg: '#111111', embedFontImport: false },
+    resolved: { renderOptions: {} } })
+}
+
+describe('public Sequence lowering observations', () => {
+  it('reads line presentation before marker selection and preserves the independently captured head', () => {
+    const positioned = layoutSequenceDiagram(parseSequenceDiagram(['sequenceDiagram', 'A->>B: Hello']))
+    const message = positioned.messages[0]!
+    const reads: string[] = []
+    let heads = 0
+    Object.defineProperties(message, {
+      lineStyle: { enumerable: true, configurable: true, get() { reads.push('line'); return 'solid' } },
+      startHead: { enumerable: true, configurable: true, get() { reads.push('head'); return ++heads === 1 ? 'filled' : 'none' } },
+    })
+    const svg = DefaultBackend.render(lowerPublicSequence(positioned), { seed: 0 })
+    expect(reads.slice(0, 2)).toEqual(['line', 'head'])
+    expect(reads.filter(value => value === 'line')).toHaveLength(4)
+    expect(svg).toContain('data-start-head="none"')
+    expect(svg).toContain('marker-start="url(#seq-arrow)"')
+    expect(Object.isFrozen(message)).toBe(false)
+  })
+
+  it('reports line-style failure before a competing start-head failure', () => {
+    const positioned = layoutSequenceDiagram(parseSequenceDiagram(['sequenceDiagram', 'A->>B: Hello']))
+    Object.defineProperties(positioned.messages[0]!, {
+      lineStyle: { enumerable: true, get() { throw new Error('authored line-style failure') } },
+      startHead: { enumerable: true, get() { throw new Error('later marker failure') } },
+    })
+    expect(() => lowerPublicSequence(positioned)).toThrow('authored line-style failure')
+  })
+
+  it('captures note actor metadata before position and preserves the later actor list value', () => {
+    const positioned = layoutSequenceDiagram(parseSequenceDiagram(['sequenceDiagram', 'participant A', 'participant B', 'Note over A,B: note']))
+    const note = positioned.notes[0]!
+    const reads: string[] = []
+    let actors = 0, positions = 0
+    Object.defineProperties(note, {
+      actors: { enumerable: true, configurable: true, get() { reads.push('actors'); return ++actors === 4 ? ['B'] : ['A'] } },
+      position: { enumerable: true, configurable: true, get() { reads.push('position'); return ++positions === 3 ? 'right' : 'over' } },
+    })
+    const svg = DefaultBackend.render(lowerPublicSequence(positioned), { seed: 0 })
+    expect(reads).toEqual(['actors', 'position', 'actors', 'actors', 'actors', 'position', 'position'])
+    expect(svg).toContain('data-position="right" data-actors="B"')
+    expect(Object.isFrozen(note)).toBe(false)
+  })
+
+  it('reads a block label before capturing the current block type', () => {
+    const positioned = layoutSequenceDiagram(parseSequenceDiagram(['sequenceDiagram', 'loop Repeat', 'A->>B: Hello', 'end']))
+    const block = positioned.blocks[0]!
+    Object.defineProperty(block, 'label', { enumerable: true, configurable: true, get() { block.type = 'opt'; return 'Authored & <caption>' } })
+    const svg = DefaultBackend.render(lowerPublicSequence(positioned), { seed: 0 })
+    expect(svg).toContain('class="block" data-type="opt" data-label="Authored &amp; &lt;caption&gt;"')
+    expect(Object.isFrozen(block)).toBe(false)
+  })
+
+  it('preserves native sparse actor traversal and escaped authored metadata', () => {
+    const positioned = layoutSequenceDiagram(parseSequenceDiagram(['sequenceDiagram', 'participant A', 'participant B', 'Note over A,B: note']))
+    const note = positioned.notes[0]!
+    const authored: string[] = ['A&"', 'unused', 'B,comma']
+    delete authored[1]
+    const reads: string[] = []
+    const actors = new Proxy(authored, {
+      get(target, key, receiver) { reads.push(`get:${String(key)}`); return Reflect.get(target, key, receiver) },
+      has(target, key) { reads.push(`has:${String(key)}`); return Reflect.has(target, key) },
+    })
+    Object.defineProperties(note, {
+      actors: { enumerable: true, configurable: true, get() { reads.push('actors'); return actors } },
+      position: { enumerable: true, configurable: true, get() { reads.push('position'); return 'over' } },
+    })
+    const svg = DefaultBackend.render(lowerPublicSequence(positioned), { seed: 0 })
+    // Literal a9 observations: the initial identity join reads a hole, while
+    // the later native map checks that slot without getting its absent value.
+    expect(reads).toEqual(['actors', 'get:join', 'get:length', 'get:0', 'get:1', 'get:2', 'position',
+      'actors', 'actors', 'get:length', 'actors', 'get:map', 'get:length', 'get:constructor',
+      'has:0', 'get:0', 'has:1', 'has:2', 'get:2', 'position', 'position'])
+    expect(svg).toContain('class="note" data-position="over" data-actors="A&amp;&quot;,,B,comma"')
+    expect(Object.isFrozen(note)).toBe(false)
+    expect(Object.isFrozen(authored)).toBe(false)
+  })
+})
 
 describe('renderMermaidSVG – sequence diagrams', () => {
   it('renders a basic sequence diagram to valid SVG', () => {

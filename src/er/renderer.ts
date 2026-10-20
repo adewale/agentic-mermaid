@@ -12,6 +12,7 @@ import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { breakLineTags } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
+import { capturedMarkAttributes } from '../scene/svg-mark-emission.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe } from '../scene/svg-emission.ts'
 import type { Geometry, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
@@ -496,24 +497,18 @@ function renderRelationshipLine(
     }, EMPTY_EMISSION)
   }
 
+  const dashed = !rel.identifying
+  const label = rel.label ? [{ ...svgAttr('data-label', v.meta(rel.label)), display: true }] : []
 
-  // Semantic data attributes for relationship inspection
-  const attributes: MarkAttributes = {
-    className: 'er-relationship',
-    data: {
-      cardinality1: rel.cardinality1,
-      cardinality2: rel.cardinality2,
-      identifying: String(rel.identifying),
-      ...(rel.label ? { label: sanitizeDisplayLines(rel.label) } : {}),
-    },
-  }
+  // Retain the independently captured lexical label before cardinality reads.
   const dataAttrs: SvgAttribute[] = [svgAttr('class', v.meta('er-relationship')), svgAttr('data-from', v.identity('from')), svgAttr('data-to', v.identity('to')),
     svgAttr('data-cardinality1', v.meta(rel.cardinality1)), svgAttr('data-cardinality2', v.meta(rel.cardinality2)),
-    svgAttr('data-identifying', v.meta(rel.identifying)), ...(rel.label ? [{ ...svgAttr('data-label', { source: 'connectorLabel', index: 0 }), display: true }] : []),
+    svgAttr('data-identifying', v.meta(rel.identifying)), ...label,
   ]
+  const attributes = capturedMarkAttributes('er-relationship', dataAttrs)
   const emission = (field: 'd' | 'points'): SvgEmissionRecipe => ({ kind: 'primitive', attributes: [...dataAttrs,
     svgAttr(field, v.geometry(field)), svgAttr('fill', v.paint('fill')), svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth')),
-    ...(!rel.identifying ? [svgAttr('stroke-dasharray', v.paint('strokeDasharray'))] : [])] })
+    ...(dashed ? [svgAttr('stroke-dasharray', v.meta('6 4'))] : [])] })
 
   const strokeColor = roleStyle?.strokeColor ?? style.edgeStrokeColor ?? 'var(--_line)'
   const lineWidth = roleStyle?.lineWidth ?? style.lineWidth
@@ -531,6 +526,7 @@ function renderRelationshipLine(
     return marks.connector({
       id: sceneId,
       role: 'relationship',
+      attributes,
       geometry: projection.geometry,
       lineStyle,
       paint,
@@ -543,6 +539,7 @@ function renderRelationshipLine(
   return marks.connector({
     id: sceneId,
     role: 'relationship',
+    attributes,
     geometry: { kind: 'polyline', points: rel.points },
     lineStyle,
     paint,

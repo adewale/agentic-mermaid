@@ -27,6 +27,7 @@ import { decodeClassText, memberToString } from './text.ts'
 
 
 
+import { capturedMarkAttributes } from '../scene/svg-mark-emission.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgTextEmission } from '../scene/svg-emission.ts'
 
 
@@ -366,12 +367,14 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   // data-id: class identifier
   // data-label: class name
   // data-annotation: stereotype (interface, abstract, etc.)
+  const annotation = cls.annotation !== undefined ? [attr('data-annotation', v.meta(cls.annotation))] : []
+  const className = cls.className ? ` ${cls.className}` : ''
+  const dataClass = cls.className ? [attr('data-class', v.meta(cls.className))] : []
+  const interaction = includeInteraction && cls.href
+    ? [attr('data-href', v.meta(cls.href)), attr('role', v.meta('link')), attr('tabindex', v.meta('0'))] : []
   const emission = { kind: 'group' as const, attributes: [
-    attr('class', v.meta(`class-node${cls.className ? ` ${cls.className}` : ''}`)), attr('data-id', v.meta(cls.id)),
-    { ...attr('data-label', v.meta(cls.label)), display: true },
-    ...(cls.annotation !== undefined ? [attr('data-annotation', v.meta(cls.annotation))] : []),
-    ...(cls.className ? [attr('data-class', v.meta(cls.className))] : []),
-    ...(includeInteraction && cls.href ? [attr('data-href', v.meta(cls.href)), attr('role', v.meta('link')), attr('tabindex', v.meta('0'))] : []),
+    attr('class', v.meta(`class-node${className}`)), attr('data-id', v.meta(cls.id)),
+    { ...attr('data-label', v.meta(cls.label)), display: true }, ...annotation, ...dataClass, ...interaction,
   ] }
 
   if (includeInteraction && cls.href && cls.tooltip !== undefined) {
@@ -515,26 +518,42 @@ function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lin
  */
 function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, memberEmissions: Map<string, SvgTextEmission>, prepared?: PixelTextBlock): SceneNode {
   const block = prepared ?? classMemberBlock(member)
-  const plain = memberToString(member)
-  const textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
   const profile = Number(!!member.isAbstract) | (Number(!!member.isStatic) << 1)
-  const spans: NonNullable<SvgTextEmission['spans']>[number][] = []
+  const spans: { start: number; end: number; text?: string; attributes: SvgAttribute[] }[] = []
   const nativeSpans: HighlightRun[] = []
   let offset = 0
-  const span = (length: number, fill: string) => {
-    nativeSpans.push({ text: plain.slice(offset, offset + length), fill })
-    spans.push({ start: offset, end: offset + length, attributes: [attr('fill', v.meta(fill))] })
-    offset += length
+  const span = (text: string, fill: string) => {
+    nativeSpans.push({ text, fill })
+    spans.push({ start: offset, end: offset + text.length, text, attributes: [attr('fill', v.meta(fill))] })
+    offset += text.length
   }
+  let plain: string, textInk: string
   if (!member.isMethod && member.sourceText) {
-    if (member.visibility && plain.startsWith(member.visibility)) span(1, ink('var(--_text-faint)'))
-    span(plain.length - offset, textInk)
+    plain = memberToString(member)
+    textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
+    if (member.visibility && plain.startsWith(member.visibility)) {
+      const visibilityInk = ink('var(--_text-faint)')
+      span(member.visibility, visibilityInk)
+      span(plain.slice(1), textInk)
+    } else span(plain, textInk)
   } else {
-    if (member.visibility) span(member.visibility.length + 1, ink('var(--_text-muted)'))
+    if (member.visibility) {
+      const visibilityInk = ink('var(--_text-muted)')
+      span(`${member.visibility} `, visibilityInk)
+    }
     const displayName = member.isMethod ? `${member.name}(${member.params || ''})` : member.name
-    span(decodeClassText(displayName).length, textInk)
-    if (member.type) { span(2, ink('var(--_text-faint)')); span(decodeClassText(member.type).length, ink('var(--_text-muted)')) }
+    textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
+    span(decodeClassText(displayName), textInk)
+    if (member.type) {
+      span(': ', ink('var(--_text-faint)'))
+      const typeInk = ink('var(--_text-muted)')
+      span(decodeClassText(member.type), typeInk)
+    }
+    plain = memberToString(member)
   }
+  // Ordinary runs project the current semantic slice. Retain lexical text
+  // only when a later caller observation actually changed that slice.
+  for (const part of spans) if (part.text === plain.slice(part.start, part.end)) delete part.text
   const highlighted = highlightRuns(block, nativeSpans)
   const emissionSpans = highlighted.spans ? spans : undefined
   const key = JSON.stringify([profile, emissionSpans])
@@ -611,8 +630,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       geometry: { kind: 'polyline', points: rel.points },
       lineStyle: 'invisible',
       paint: {},
-      attributes,
-    endpoints: classRelationshipEndpoints(rel),
+      endpoints: classRelationshipEndpoints(rel),
       relationship: { kind: rel.type },
       labels,
     }, EMPTY_EMISSION)
@@ -633,44 +651,25 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   // - data-type: relationship type (inheritance, composition, etc.)
   // - data-marker-at: which end has the marker (from/to)
   // - data-label: relationship label if present
-  const attributes: MarkAttributes = {
-    className: 'class-relationship',
-    data: {
-      type: rel.type,
-      'relation-type': rel.type,
-      'marker-at': rel.markerAt,
-      ...(rel.label ? { label: sanitizeDisplayLines(rel.label) } : {}),
-      ...(rel.fromCardinality ? { 'from-cardinality': rel.fromCardinality } : {}),
-      ...(rel.toCardinality ? { 'to-cardinality': rel.toCardinality } : {}),
-    },
-  }
-  // Preserve the original caller-visible condition/value reads before paint
-  // and rounded geometry. Only descriptor capture remains at the constructor.
-  const markerAt = rel.markerAt
-  const hasLabel = !!rel.label
-  const hasFromCardinality = !!rel.fromCardinality
-  const fromCardinality = hasFromCardinality ? rel.fromCardinality : undefined
-  const hasToCardinality = !!rel.toCardinality
-  const toCardinality = hasToCardinality ? rel.toCardinality : undefined
+  const dataAttrs: SvgAttribute[] = [
+    attr('class', v.meta('class-relationship')), attr('data-from', v.meta(rel.from)), attr('data-to', v.meta(rel.to)),
+    attr('data-type', v.meta(`${rel.type}`)), attr('data-relation-type', v.meta(`${rel.type}`)),
+    attr('data-marker-at', v.meta(`${rel.markerAt}`)),
+  ]
+  if (rel.label) dataAttrs.push({ ...attr('data-label', v.meta(rel.label)), display: true })
+  if (rel.fromCardinality) dataAttrs.push(attr('data-from-cardinality', v.meta(rel.fromCardinality)))
+  if (rel.toCardinality) dataAttrs.push(attr('data-to-cardinality', v.meta(rel.toCardinality)))
+  const attributes = capturedMarkAttributes('class-relationship', dataAttrs)
   const emission = (field: 'd' | 'points'): SvgEmissionRecipe => {
-    // Bound retained key text; larger or arbitrary runtime values still take
-    // the unchanged full capture path, without invoking a user toJSON.
-    const key = (markerAt === 'none' || markerAt === 'from' || markerAt === 'to' || markerAt === 'both')
-      && (fromCardinality === undefined || typeof fromCardinality === 'string' && fromCardinality.length <= 256)
-      && (toCardinality === undefined || typeof toCardinality === 'string' && toCardinality.length <= 256)
-      ? JSON.stringify([field, isDashed, !!startMarker, !!endMarker, markerAt, hasLabel,
-        hasFromCardinality, fromCardinality, hasToCardinality, toCardinality])
+    // The lexical values were read before the later semantic endpoint/kind
+    // snapshot. Decoration still projects typed identities over these inputs.
+    const lexical = dataAttrs.map(attribute => [attribute.name,
+      attribute.value.source === 'metadata' ? attribute.value.value : undefined] as const)
+    const key = lexical.every(([, value]) => typeof value === 'string' && value.length <= 256)
+      ? JSON.stringify([field, isDashed, !!startMarker, !!endMarker, lexical])
       : undefined
     const prior = key === undefined ? undefined : emissions.get(key)
     if (prior) return prior
-    const dataAttrs: SvgAttribute[] = [
-      attr('class', v.meta('class-relationship')), attr('data-from', v.identity('from')), attr('data-to', v.identity('to')),
-      attr('data-type', v.connector('relationshipKind')), attr('data-relation-type', v.connector('relationshipKind')),
-      attr('data-marker-at', v.meta(markerAt)),
-      ...(hasLabel ? [{ ...attr('data-label', { source: 'connectorLabel', index: 0 }), display: true }] : []),
-      ...(hasFromCardinality ? [attr('data-from-cardinality', v.meta(fromCardinality!))] : []),
-      ...(hasToCardinality ? [attr('data-to-cardinality', v.meta(toCardinality!))] : []),
-    ]
     const captured = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
       ...dataAttrs, attr(field, v.geometry(field)), attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke')),
       attr('stroke-width', v.paint('strokeWidth')), ...(isDashed ? [attr('stroke-dasharray', v.paint('strokeDasharray'))] : []),
@@ -688,6 +687,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     ...(isDashed ? { strokeDasharray: '6 4' } : {}),
   }
   const connectorSemantics = {
+    attributes,
     endpoints: classRelationshipEndpoints(rel),
     relationship: { kind: rel.type },
     route: {

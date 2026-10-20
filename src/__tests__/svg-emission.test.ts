@@ -371,6 +371,68 @@ describe('private typed SVG recipes', () => {
     expect(() => snapshotSvgEmissionRecipe(source, { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 5 })).toThrow('object budget')
   })
 
+  test('custom capture limits count a literal text leaf and its enclosing aliases without a family AST census', () => {
+    const leaf: SvgEmissionRecipe = { kind: 'documentText', element: 'title', text: '界' }
+    // One object, three properties; values have 12+5+3 UTF-8 bytes and
+    // property names have 4+7+4 bytes. Every scalar is at depth 1.
+    const limits = { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 1, maxProperties: 3,
+      maxArrayEntries: 0, maxTextBytes: 20, maxPropertyKeyBytes: 15, maxDepth: 1 }
+    const owned = snapshotSvgEmissionRecipe(leaf, limits)
+    expect(svgEmissionMetadataCounts(owned)).toEqual({ objects: 1, properties: 3, arrayEntries: 0, textBytes: 20, propertyKeyBytes: 15 })
+    for (const [override, diagnostic] of [
+      [{ maxObjects: 0 }, 'object budget'], [{ maxProperties: 2 }, 'property budget'],
+      [{ maxTextBytes: 19 }, 'textBytes budget'], [{ maxPropertyKeyBytes: 14 }, 'propertyKeyBytes budget'],
+      [{ maxDepth: 0 }, 'depth budget'],
+    ] as const) expect(() => snapshotSvgEmissionRecipe(owned, { ...limits, ...override })).toThrow(diagnostic)
+    const outer: SvgEmissionRecipe = { kind: 'sequence', children: [owned, owned] }
+    // New root+array+one shared leaf; 2 root+2 array+3 leaf properties.
+    const enclosing = { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 3, maxProperties: 7, maxArrayEntries: 2, maxDepth: 3 }
+    expect(() => snapshotSvgEmissionRecipe(outer, enclosing)).not.toThrow()
+    for (const [override, diagnostic] of [
+      [{ maxObjects: 2 }, 'object budget'], [{ maxProperties: 6 }, 'property budget'],
+      [{ maxArrayEntries: 1 }, 'array budget'], [{ maxDepth: 2 }, 'depth budget'],
+    ] as const) expect(() => snapshotSvgEmissionRecipe(outer, { ...enclosing, ...override })).toThrow(diagnostic)
+    expect(Object.isFrozen(leaf)).toBe(false)
+  })
+
+  test('Timeline lexical operands do not authorize generic color mixes, recursive operands or new properties', () => {
+    const mix = { source: 'colorMix' as const, primary: v.meta('url(https://example.test/paint)'), secondary: v.meta('var(--bg)'), amount: 11 }
+    const scoped = { name: 'style' as const, value: { source: 'style' as const, declarations: [{ property: '--tl-pill-fill' as const, value: mix }] } }
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'group', attributes: [scoped] })).not.toThrow()
+    // Reusing the identical object under an ordinary attribute must recheck
+    // that occurrence's generic context after its scoped occurrence passed.
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'group', attributes: [scoped, { name: 'fill', value: mix }] })).toThrow('SVG color-mix operand')
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ ...scoped, value: {
+      source: 'style', declarations: [{ property: '--tl-pill-fill', value: { ...mix, primary: mix } }],
+    } }] })).toThrow('non-recursive typed paints')
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ ...scoped, value: {
+      source: 'style', declarations: [{ property: '--not-timeline', value: v.meta('red') }],
+    } }] } as unknown as SvgEmissionRecipe)).toThrow('Unsupported SVG recipe value')
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ ...scoped, value: {
+      source: 'style', declarations: [{ property: '--tl-fill', value: v.meta(42) }],
+    } }] })).toThrow('Scoped palette paints require CSS text')
+  })
+
+  test('captured lexical span text remains bounded plain data without caller getter reads', () => {
+    const span = { start: 0, end: 1, text: '<&界>', attributes: [] }
+    const source: SvgEmissionRecipe = { kind: 'text', layout: 'multiline', attributes: [], spans: [span] }
+    const captured = snapshotSvgEmissionRecipe(source)
+    if (captured.kind !== 'text') throw new Error('Expected text recipe')
+    span.text = 'changed'
+    expect(captured.spans?.[0]?.text).toBe('<&界>')
+    expect(Object.isFrozen(span)).toBe(false)
+    expect(() => snapshotSvgEmissionRecipe({ ...source, spans: [{ ...span, text: 42 }] } as unknown as SvgEmissionRecipe)).toThrow('SVG recipe text must be strings')
+    let reads = 0
+    const accessor = Object.defineProperty({ start: 0, end: 1, attributes: [] }, 'text', {
+      enumerable: true, get() { reads++; return 'caller text' },
+    })
+    expect(() => snapshotSvgEmissionRecipe({ ...source, spans: [accessor] })).toThrow('enumerable data properties')
+    expect(reads).toBe(0)
+    expect(() => snapshotSvgEmissionRecipe({ ...source, spans: [{ ...span, text: '界'.repeat(100) }] }, {
+      ...SVG_EMISSION_METADATA_LIMITS, maxTextBytes: 200,
+    })).toThrow('textBytes budget')
+  })
+
   test('owned descendants still consume depth beneath a new parent', () => {
     let inner: SvgEmissionRecipe = { kind: 'sequence', children: [] }
     for (let level = 0; level < 16; level++) inner = { kind: 'sequence', children: [inner] }
@@ -533,6 +595,18 @@ describe('private typed SVG recipes', () => {
 })
 
 describe('actual typed text emission witness', () => {
+  test('escapes lexical span text without changing semantic prepared text', () => {
+    const recipe: SvgEmissionRecipe = { kind: 'text', layout: 'multiline', attributes: [],
+      spans: [{ start: 0, end: 2, text: '<&', attributes: [] }] }
+    const block = preparePixelText('AB', { display: 'literal', fontSize: 12, fontWeight: 400 })
+    const node = marks.text({ id: 'lexical', role: 'label', text: 'AB', block, x: 0, y: 0, fontSize: 12, anchor: 'start', paint: {} }, recipe)
+    const writer = new SvgWriter()
+    sceneDocumentEmission(writer).writeNode(node)
+    expect(writer.finish()).toContain('<tspan>&lt;&amp;</tspan>')
+    expect(node.text).toBe('AB')
+    expect(node.block!.text).toBe('AB')
+  })
+
   const fitted = '<text x="1" y="2" font-size="20" data-prepared-text="true" dy="7" textLength="42" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>'
   test.each([
     { layout: 'multiline' as const, retained: true, forged: false, alreadyFitted: true, xml: fitted },

@@ -120,9 +120,9 @@ export interface SvgTextEmission {
   readonly layout: 'multiline' | 'direct'
   readonly baselineShift?: number
   readonly dy?: string | number
-  /** Literal syntax highlighting slices refer to the semantic text, never a
-   * second text/markup authority. Prepared shaping keeps priority. */
-  readonly spans?: readonly { readonly start: number; readonly end: number; readonly attributes: readonly SvgAttribute[] }[]
+  /** Literal syntax highlighting slices may retain captured lexical text.
+   * The emitter escapes it; Scene fidelity still checks semantic agreement. */
+  readonly spans?: readonly { readonly start: number; readonly end: number; readonly text?: string; readonly attributes: readonly SvgAttribute[] }[]
   readonly content?: 'text' | 'source'
   readonly whitespace?: readonly SvgTextWhitespaceEdit[]
   readonly positionFormat?: 'round2' | 'round3'
@@ -689,7 +689,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     const item = object(value, ['kind', 'wrap', 'colors'])
     oneOf(item.kind, ['shadow'], false); optionalBoolean(item.wrap); colors(item.colors)
   }
-  const projection = (value: unknown): void => {
+  const projection = (value: unknown, context: 'generic' | 'timeline-palette' = 'generic'): void => {
     const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index', 'primary', 'secondary', 'amount', 'separator', 'form'])
     const source = item.source
     if (source === 'colorMix') {
@@ -699,9 +699,10 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         const value = color as SvgValue
         if (value?.source !== 'metadata' && value?.source !== 'paint') throw new TypeError('SVG color mix requires non-recursive typed paints')
         if (value.source === 'metadata' && typeof value.value !== 'string') throw new TypeError('SVG color mix requires CSS text')
-        if (value.source === 'metadata') requireSafeCssPaint(value.value as string, 'SVG color-mix operand')
-        else if (value.field !== 'fill' && value.field !== 'stroke') throw new TypeError('SVG color mix requires a color paint field')
-        projection(color)
+        if (value.source === 'metadata') {
+          if (context === 'generic') requireSafeCssPaint(value.value as string, 'SVG color-mix operand')
+        } else if (value.field !== 'fill' && value.field !== 'stroke') throw new TypeError('SVG color mix requires a color paint field')
+        projection(color, context)
       }
       return
     }
@@ -722,8 +723,10 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
           const value = item.value as SvgValue
           if (item.shadowed !== undefined || value?.source !== 'metadata' && value?.source !== 'colorMix') throw new TypeError('Scoped palette properties require typed palette paints')
           if (value.source === 'metadata' && typeof value.value !== 'string') throw new TypeError('Scoped palette paints require CSS text')
-          if (value.source === 'metadata') requireSafeCssPaint(value.value as string, 'SVG scoped palette paint')
-          projection(value)
+          // These closed custom properties retain legacy lexical scalar values.
+          // XML escaping and the final document's active/default/strict policy
+          // still apply; no generic color or caller-supplied context is relaxed.
+          projection(value, 'timeline-palette')
           continue
         }
         oneOf(item.property, Object.keys(properties), false)
@@ -847,9 +850,10 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         }
         if (item.tailAttributes !== undefined) attributes(item.tailAttributes)
         if (item.spans !== undefined) for (const value of array(item.spans)) {
-          const span = object(value, ['start', 'end', 'attributes'])
+          const span = object(value, ['start', 'end', 'text', 'attributes'])
           index(span.start); index(span.end)
           if (typeof span.start !== 'number' || typeof span.end !== 'number' || span.end < span.start) throw new TypeError('SVG text spans require ordered semantic-text indices')
+          optionalString(span.text)
           attributes(span.attributes)
         }
         oneOf(item.layout, ['multiline', 'direct'], false); optionalNumber(item.baselineShift)
