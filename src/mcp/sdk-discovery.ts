@@ -120,7 +120,7 @@ ${NARROWERS}
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
-}`.replace(/^[ \t]+/gm, '').replace(/; +/g, ';').replace(/: +/g, ':')
+}`.replace(/^[ 	]+/gm, ''))
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 
