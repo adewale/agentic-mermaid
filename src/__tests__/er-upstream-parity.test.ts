@@ -231,7 +231,8 @@ test.each([
   const written = serializeMermaid(parsed.value)
   const groups = (asEr(parsed.value)?.body.groups ?? []).map(group => [group.id, group.label])
   const mermaid = await upstream.project(written, diagram => (diagram.db.getSubGraphs() as Array<{ id: string; title: string }>).map(group => [group.id, group.title]))
-  expect({ written, groups: mermaid, reads: await mermaidReads(written) }).toEqual({ written, groups: { ok: true, value: groups }, reads: oursReads(source) })
+  const reads: ErReading | string = await mermaidReads(written)
+  expect({ written, groups: mermaid, reads }).toEqual({ written, groups: { ok: true, value: groups }, reads: oursReads(source) })
 })
 
 describe('ER comments against pinned Mermaid', () => {
