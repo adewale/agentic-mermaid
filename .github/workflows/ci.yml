@@ -112,15 +112,6 @@ jobs:
           git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
           bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" "$RUNNER_TEMP/meaning-review"
 
-      - name: Render flagged forest review evidence
-        if: ${{ matrix.shard == '1/3' && github.event_name == 'pull_request' }}
-        continue-on-error: true
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          AGENTIC_MERMAID_EXPERIMENTS: text-spans,indexed-layout
-        run: bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" "$RUNNER_TEMP/meaning-review/flagged-forest" performance-forest
-
       - name: Upload PR review evidence
         if: ${{ always() && matrix.shard == '1/3' && github.event_name == 'pull_request' }}
         continue-on-error: true
