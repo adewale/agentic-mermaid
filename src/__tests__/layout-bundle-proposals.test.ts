@@ -1,0 +1,123 @@
+import '../index.ts'
+import { describe, expect, test } from 'bun:test'
+import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
+import { parseMermaid } from '../parser.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
+
+// The skip edge crosses a generic fan-in trunk. Keeping its independent route
+// removes that crossing, at the cost of two scored bends and canonical ports.
+const source = 'flowchart TD\nA --> B\nA --> C\nA --> D\nA --> E\nB --> F\nB --> G\nA --> H\nA -->|yes| F'
+
+describe('bounded generic bundle proposals', () => {
+  test('only the selected placement compares an unbundled proposal and it reuses that ELK result', () => {
+    const baseline = layoutGraphSync(parseMermaid(source), { compareRoutePreferences: false })
+    const first = LAYOUT_PIPELINE[0]!, run = first.run
+    const pipelines: Array<{ elkResult: unknown; bundled: boolean }> = []
+    first.run = context => { pipelines.push({ elkResult: context.elkResult, bundled: context.mergeEdges }); run(context) }
+    let elkCalls = 0
+    let selected: ReturnType<typeof layoutGraphSync>
+    try {
+      selected = withRenderStageObserver(sample => { if (sample.stage === 'elk') elkCalls++ },
+        () => layoutGraphSync(parseMermaid(source)))
+    } finally {
+      first.run = run
+    }
+    const placements = pipelines.filter(pipeline => pipeline.bundled)
+    const routeProposals = pipelines.filter(pipeline => !pipeline.bundled)
+    expect(placements).toHaveLength(2)
+    expect(routeProposals).toHaveLength(1)
+    expect(elkCalls).toBe(placements.length)
+    expect(pipelines.at(-1)).toBe(routeProposals[0])
+    expect(placements.some(placement => placement.elkResult === routeProposals[0]!.elkResult)).toBe(true)
+    expect(baseline.certification?.preference.selectedScore.edgeCrossings).toBe(1)
+    expect(selected.certification).toMatchObject({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
+    expect(selected.certification?.preference.selectedScore.edgeCrossings).toBe(0)
+    expect(selected.certification?.preference.routing).toMatchObject({
+      strategy: 'without-generic-bundling',
+      preference: { reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0 } },
+    })
+    const alternatives = selected.certification!.preference.routing!.preference.compared
+    expect(alternatives).toHaveLength(2)
+    expect(alternatives[1]!.score.totalBends).toBeGreaterThan(alternatives[0]!.score.totalBends)
+    expect(alternatives[1]!.score.nonCanonicalEndpointRate).toBeGreaterThan(alternatives[0]!.score.nonCanonicalEndpointRate)
+  })
+
+  test('an ordinary alternative failure retains the certified bundled proposal', () => {
+    const first = LAYOUT_PIPELINE[0]!, run = first.run
+    first.run = context => {
+      if (!context.mergeEdges) throw new Error('unbundled geometry producer failed')
+      run(context)
+    }
+    try {
+      const selected = layoutGraphSync(parseMermaid(source))
+      expect(selected.certification).toMatchObject({ status: 'passed', strategy: 'default', hardViolations: 0 })
+      expect(selected.certification?.preference.routing).toMatchObject({
+        strategy: 'bundled',
+        preference: { reason: 'alternative-invalid', selectedScore: { edgeCrossings: 1 } },
+      })
+      expect(selected.edges.every(edge => edge.points.length >= 2)).toBe(true)
+    } finally {
+      first.run = run
+    }
+  })
+
+  test('parallel edges keep their specialized lanes instead of buying fewer proper crossings with ambiguous contacts', () => {
+    const parallelSource = String.raw`flowchart BT
+  N0[\n0\]
+  N1[/n1\]
+  N2([n2])
+  N3[\n3/]
+  N4(n4)
+  N5[[n5]]
+  N3 --> N1
+  N4 --> N0
+  N1 --> N2
+  N4 --> N0
+  N4 --> N0
+  N5 --> N0`
+    const baseline = layoutGraphSync(parseMermaid(parallelSource), { compareRoutePreferences: false })
+    const first = LAYOUT_PIPELINE[0]!, run = first.run
+    let calls = 0
+    first.run = context => { calls++; run(context) }
+    try {
+      const graph = parseMermaid(parallelSource), selected = layoutGraphSync(graph)
+      expect(calls).toBe(1)
+      expect(selected.certification?.preference.routing).toBeUndefined()
+      expect(selected.edges.map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(
+        graph.edges.map((edge, index) => [index, edge.source, edge.target]))
+      expect(selected.edges.map(edge => edge.points)).toEqual(baseline.edges.map(edge => edge.points))
+      const duplicates = selected.edges.filter(edge => edge.source === 'N4' && edge.target === 'N0')
+      expect(duplicates).toHaveLength(3)
+      const gap = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y)
+      for (let i = 0; i < duplicates.length; i++) for (let j = i + 1; j < duplicates.length; j++) {
+        expect(gap(duplicates[i]!.points[0]!, duplicates[j]!.points[0]!)).toBeGreaterThanOrEqual(11)
+        expect(gap(duplicates[i]!.points.at(-1)!, duplicates[j]!.points.at(-1)!)).toBeGreaterThanOrEqual(11)
+      }
+    } finally {
+      first.run = run
+    }
+  })
+
+  test('clean symmetric fans, placement-only calls and graphs over the work bound skip the second pipeline', () => {
+    const first = LAYOUT_PIPELINE[0]!, run = first.run
+    let calls = 0
+    first.run = context => { calls++; run(context) }
+    try {
+      const symmetric = layoutGraphSync(parseMermaid('flowchart TD\nA --> B\nA --> C\nA --> D'))
+      expect(calls).toBe(1)
+      expect(symmetric.certification?.preference.routing).toBeUndefined()
+      calls = 0
+      const placement = layoutGraphSync(parseMermaid(source), { compareRoutePreferences: false })
+      expect(calls).toBe(1)
+      expect(placement.certification?.preference.routing).toBeUndefined()
+      calls = 0
+      const large = parseMermaid(source)
+      for (let i = large.nodes.size; i < 65; i++) large.nodes.set(`N${i}`, { id: `N${i}`, label: `N${i}`, shape: 'rectangle' })
+      const bounded = layoutGraphSync(large)
+      expect(calls).toBe(1)
+      expect(bounded.certification?.preference.routing).toBeUndefined()
+    } finally {
+      first.run = run
+    }
+  })
+})

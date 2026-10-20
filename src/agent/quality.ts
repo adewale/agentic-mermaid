@@ -7,8 +7,8 @@ import { renderedPaintCertification } from '../scene/paint-certification.ts'
 // (which is itself deterministic, see AGENT_NATIVE.md § determinism).
 //
 // What's measured:
-//   - edgeCrossings: number of pairwise edge-segment intersections (excluding
-//     shared endpoints). Lower is better.
+//   - edgeCrossings: visible proper crossing incidences per edge pair/location
+//     (excluding endpoint contacts and shared collinear ink). Lower is better.
 //   - labelLegibility: fraction of measured visible node labels that fit their
 //     retained available region. Missing evidence is reported separately.
 //   - whitespaceBalance: ratio of node-occupied area to total canvas area
@@ -25,6 +25,8 @@ import { renderedPaintCertification } from '../scene/paint-certification.ts'
 import type { RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge } from './types.ts'
 import { luminanceContrastRatio, srgbRelativeLuminance, tryParseCssColor } from '../shared/color-math.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { measureRenderedLabelConflicts, type LabelConflictCounts } from '../layout/label-conflicts.ts'
 
 export interface QualityMetrics {
   /** Evidence from the actual native paint projection, when this layout retains it. */
@@ -45,6 +47,8 @@ export interface QualityMetrics {
   }
   whitespaceBalance: number  // 0..1 — fill ratio
   labelEdgeProximity: number  // pixels; Infinity if no edge labels
+  /** Padded label-pill conflicts for graph families with retained pill geometry. */
+  labelConflicts?: LabelConflictCounts
   minimumNodeSpacing: number  // pixels; Infinity when fewer than two nodes
   elementDensity: number  // nodes + edges per 10,000 canvas pixels
   minimumTextContrast: number | null  // WCAG ratio; null when requested paints cannot be resolved
@@ -54,7 +58,7 @@ export interface QualityMetrics {
 }
 
 export interface QualityBounds {
-  /** Max edge crossings per (edge × edge) pair. Default 0.05 = 5%. */
+  /** Max proper crossing incidences per visible edge pair. Default 0.05 = 5%. */
   maxCrossingsRatio?: number
   /** Min label legibility. Default 0.85 = 85% of labels fit. */
   minLabelLegibility?: number
@@ -191,6 +195,7 @@ export function measureQuality(
   layout: RenderedLayout,
   options: QualityMeasurementOptions = {},
 ): QualityMetrics {
+  const labelConflicts = measureRenderedLabelConflicts(layout)
   return {
     ...(renderedPaintCertification(layout) ? { paintCertification: renderedPaintCertification(layout) } : {}),
     edgeCrossings: countEdgeCrossings(layout.edges),
@@ -209,6 +214,7 @@ export function measureQuality(
     },
     whitespaceBalance: measureWhitespaceBalance(layout),
     labelEdgeProximity: measureLabelEdgeProximity(layout),
+    ...(labelConflicts ? { labelConflicts } : {}),
     minimumNodeSpacing: measureMinimumNodeSpacing(layout),
     elementDensity: measureElementDensity(layout),
     minimumTextContrast: measureMinimumTextContrast(options),
@@ -246,7 +252,8 @@ export function checkQuality(
   const flag = (metric: keyof typeof BOUND_PROVENANCE, message: string) =>
     ranked.push({ metric, severity: BOUND_PROVENANCE[metric].severity, message })
   if (m.paintCertification && m.paintCertification.status !== 'passed') flag('paintCertification', `paint layout ${m.paintCertification.status}: ${m.paintCertification.issues.map(issue => issue.message).join('; ')}`)
-  const pairs = Math.max(1, m.edgeCount * (m.edgeCount - 1) / 2)
+  const visibleEdges = layout.edges.reduce((count, edge) => count + (edge.visibility === 'hidden' ? 0 : 1), 0)
+  const pairs = Math.max(1, visibleEdges * (visibleEdges - 1) / 2)
   if (m.edgeCrossings / pairs > b.maxCrossingsRatio) {
     flag('edgeCrossings', `edge crossings ${m.edgeCrossings}/${pairs} (${(m.edgeCrossings / pairs * 100).toFixed(1)}%) > cap ${(b.maxCrossingsRatio * 100).toFixed(1)}%`)
   }
@@ -470,30 +477,9 @@ function measureMinimumTextContrast(options: QualityMeasurementOptions): number 
 // ---- crossings -----------------------------------------------------------
 
 function countEdgeCrossings(edges: RenderedLayoutEdge[]): number {
-  let count = 0
-  for (let i = 0; i < edges.length; i++) {
-    for (let j = i + 1; j < edges.length; j++) {
-      const a = edges[i]!, b = edges[j]!
-      // Shared endpoints — not a "crossing" in the visual sense.
-      const shared = a.from === b.from || a.from === b.to || a.to === b.from || a.to === b.to
-      const ap = a.path, bp = b.path
-      for (let ai = 0; ai < ap.length - 1; ai++) {
-        for (let bi = 0; bi < bp.length - 1; bi++) {
-          if (shared && (ai === 0 || ai === ap.length - 2) && (bi === 0 || bi === bp.length - 2)) continue
-          if (segmentsCross(ap[ai]!, ap[ai + 1]!, bp[bi]!, bp[bi + 1]!)) count++
-        }
-      }
-    }
-  }
-  return count
-}
-
-function segmentsCross(p1: [number, number], p2: [number, number], p3: [number, number], p4: [number, number]): boolean {
-  const d = (a: [number, number], b: [number, number], c: [number, number]): number =>
-    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
-  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2)
-  const d3 = d(p1, p2, p3), d4 = d(p1, p2, p4)
-  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+  return countPolylineCrossings(edges.map(edge => ({
+    points: edge.path.map(([x, y]) => ({ x, y })), visible: edge.visibility !== 'hidden',
+  })))
 }
 
 // ---- label legibility -----------------------------------------------------
@@ -631,7 +617,7 @@ function measureLabelEdgeProximity(layout: RenderedLayout): number {
   }
   for (const { edge, box } of labels) {
     for (const other of layout.edges) {
-      if (other === edge) continue
+      if (other === edge || other.visibility === 'hidden') continue
       for (let i = 0; i < other.path.length - 1; i++) {
         const d = rectToSegmentDistance(box, other.path[i]!, other.path[i + 1]!)
         if (d < min) min = d

@@ -54,7 +54,7 @@ import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyLayoutCandidates, positionedGeometryViolations, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyLayoutCandidates, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -110,8 +110,6 @@ interface LayoutEngineOptions extends RenderOptions {
   /** @internal The diagram's title (frontmatter `title:`), drawn in a band
    * above the graph. */
   diagramTitle?: string
-  /** @internal Compatibility audit flag; production pass contracts always apply. */
-  checkLayoutPasses?: boolean
   /** @internal Bounded certification alternative; never changes global process state. */
   disableCorankFanIn?: boolean
   /** @internal Disable cosmetic route comparisons when a family uses this
@@ -1254,6 +1252,8 @@ export interface LayoutPassContext extends PassContextBase {
   notes: PositionedStateNote[]
   readonly margins: MarginInfo | undefined
   bundled: Set<PositionedEdge>
+  /** Whether the generic trunk builder owned any edges, before symmetry passes. */
+  genericBundled: boolean
   readonly mergeEdges: boolean
   readonly style: ResolvedRenderStyle
   readonly layoutPadding: number
@@ -1263,7 +1263,7 @@ export interface LayoutPassContext extends PassContextBase {
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
  * budgets when the diagram has no directed parallel pair to separate. */
-function hasParallelPair(edges: readonly PositionedEdge[], labeledOnly = false): boolean {
+function hasParallelPair(edges: readonly Pick<PositionedEdge, 'source' | 'target' | 'label'>[], labeledOnly = false): boolean {
   const seen = new Set<string>()
   for (const edge of edges) {
     if (edge.source === edge.target || (labeledOnly && !edge.label)) continue
@@ -1274,7 +1274,7 @@ function hasParallelPair(edges: readonly PositionedEdge[], labeledOnly = false):
   return false
 }
 
-// The post-ELK geometry pipeline, reified (docs/design/system/layout-pass-pipeline.md).
+// The post-ELK geometry pipeline, reified (docs/design/system/route-contracts.md).
 // The array IS the execution path; each `run` delegates to the existing pass function
 // with byte-identical arguments. The three symmetric passes carry no `after` among each
 // other — their order is empirically free (spec §8 R1, verified by a permutation experiment).
@@ -1333,7 +1333,10 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'bundleEdgePaths', doc: 'bundle fan-out/fan-in edges into shared trunks (when mergeEdges)',
     after: ['alignLabeledSourcePort'], mutates: ['edges'], determinism: 'pure-order',
     enabled: c => c.mergeEdges,
-    run: c => { c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction) },
+    run: c => {
+      c.bundled = bundleEdgePaths(c.edges, c.nodes, c.groups, c.graph.direction)
+      c.genericBundled = c.bundled.size > 0
+    },
   },
   {
     // Re-route the co-ranked mixed-label fan-in spokes as symmetric converging
@@ -1586,6 +1589,13 @@ function placeStateNotes(
   return placed
 }
 
+interface LayoutRouteProposal {
+  positioned: PositionedGraph
+  genericBundled: boolean
+}
+
+type RememberRouteAlternative = (positioned: PositionedGraph, produce: () => PositionedGraph) => void
+
 function elkToPositioned(
   elkResult: ElkNode,
   graph: MermaidGraph,
@@ -1593,8 +1603,7 @@ function elkToPositioned(
   layoutPadding: number = DEFAULTS.padding,
   style: ResolvedRenderStyle = resolveRenderStyle({}),
   stateNoteMargin: number = 18,
-  checkLayoutPasses = false,
-): PositionedGraph {
+): LayoutRouteProposal {
   const nodes: PositionedNode[] = []
   const edges: PositionedEdge[] = []
   const groups: PositionedGroup[] = []
@@ -1618,7 +1627,7 @@ function elkToPositioned(
       }
     : undefined
 
-  // Post-ELK geometry pipeline (docs/design/system/layout-pass-pipeline.md): the
+  // Post-ELK geometry pipeline (docs/design/system/route-contracts.md §8): the
   // LAYOUT_PIPELINE manifest is the execution path. extractNodesAndGroups + margins
   // (above) are the producer setup; the bounds computation (below) is the epilogue.
   const ctx: LayoutPassContext = {
@@ -1630,6 +1639,7 @@ function elkToPositioned(
     notes: [],
     margins,
     bundled: new Set<PositionedEdge>(),
+    genericBundled: false,
     mergeEdges,
     style,
     layoutPadding,
@@ -1637,7 +1647,7 @@ function elkToPositioned(
     frozen: false,
   }
   retainGraphText(ctx, style)
-  runPipeline(ctx, LAYOUT_PIPELINE, { checkInvariants: checkLayoutPasses, measureMetrics: measureLayoutPass })
+  runPipeline(ctx, LAYOUT_PIPELINE, { measureMetrics: measureLayoutPass })
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
@@ -1673,12 +1683,15 @@ function elkToPositioned(
   }
 
   return {
-    width,
-    height,
-    nodes,
-    edges,
-    groups,
-    ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
+    genericBundled: ctx.genericBundled,
+    positioned: {
+      width,
+      height,
+      nodes,
+      edges,
+      groups,
+      ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
+    },
   }
 }
 
@@ -1816,6 +1829,7 @@ function translatePositionedGraph(positioned: PositionedGraph, dy: number): void
 function layoutCandidate(
   graph: MermaidGraph,
   options: LayoutEngineOptions,
+  rememberAlternative?: RememberRouteAlternative,
 ): PositionedGraph {
   const stateVisual = (options as StateRenderOptions).stateVisual
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
@@ -1833,7 +1847,7 @@ function layoutCandidate(
       height: child.height! + 2 * opts.padding,
       children: [{ ...child, x: opts.padding, y: opts.padding }],
     }
-    return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18, options.checkLayoutPasses ?? layoutEnvFlag('APL_CHECK_LAYOUT_PASSES'))
+    return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18).positioned
   }
   // ELK's bundled (GWT-compiled) code can throw internal exceptions on rare
   // dense multigraphs — observed with feedbackEdges routing, and pre-existing
@@ -1876,7 +1890,13 @@ function layoutCandidate(
     }
   }
   if (!result) throw lastError
-  return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, stateVisual?.noteMargin ?? 18, options.checkLayoutPasses ?? layoutEnvFlag('APL_CHECK_LAYOUT_PASSES'))
+  const elkResult = result
+  const noteMargin = stateVisual?.noteMargin ?? 18
+  const bundled = elkToPositioned(elkResult, graph, DEFAULTS.mergeEdges, opts.padding, style, noteMargin)
+  if (bundled.genericBundled) {
+    rememberAlternative?.(bundled.positioned, () => elkToPositioned(elkResult, graph, false, opts.padding, style, noteMargin).positioned)
+  }
+  return bundled.positioned
 }
 
 /** Four deterministic strategy combinations, each with the existing bounded
@@ -1885,19 +1905,50 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
   const compareRoutes = options.compareRoutePreferences !== false
+  const routeAlternatives = new WeakMap<PositionedGraph, () => PositionedGraph>()
+  // Keep parallel pairs with their specialized route owners: fewer proper
+  // crossings can still collapse duplicate endpoint lanes into ambiguous ink.
+  const rememberAlternative: RememberRouteAlternative | undefined = compareRoutes && withinLayoutPreferenceBudget(graph) && !hasParallelPair(graph.edges)
+    ? (positioned, produce) => { routeAlternatives.set(positioned, produce) }
+    : undefined
   const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
   const candidates: LayoutCertificationCandidate[] = [{
-    strategy: 'default', produce: () => layoutCandidate(graph, options),
+    strategy: 'default', produce: () => layoutCandidate(graph, options, rememberAlternative),
     preferNext: preferReadableTitles,
   }]
   if (!options.separateHierarchy) {
-    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
+    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
-    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
-    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
+    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
-  return certifyLayoutCandidates(graph, style, candidates)
+  const placed = certifyLayoutCandidates(graph, style, candidates)
+  const placementReceipt = placed.certification!
+  const makeRoute = routeAlternatives.get(placed)
+  const placementScore = placementReceipt.preference.selectedScore
+  if (!makeRoute || (placementScore.edgeCrossings === 0 && placementScore.labelConflicts === 0)) return placed
+  // Search placement strategies first, then test one completed route proposal
+  // only for the selected placement. It shares that placement's ELK result and
+  // retains the symmetry passes. At most four placement pipelines plus one
+  // route pipeline run; the existing 16-ELK exceptional upper bound is unchanged.
+  const routed = certifyLayoutCandidates(graph, style, [
+    { strategy: 'bundled', produce: () => placed, preferNext: preferReadableTitles },
+    { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles },
+  ])
+  const routeReceipt = routed.certification!
+  // Keep the placement decision and its pre-routing comparison scores; only
+  // selectedScore follows the final returned geometry. Routing explains that
+  // final decision separately without teaching generic certification its names.
+  routed.certification = {
+    ...placementReceipt,
+    preference: {
+      ...placementReceipt.preference,
+      selectedScore: routeReceipt.preference.selectedScore,
+      routing: { strategy: routed === placed ? 'bundled' : 'without-generic-bundling', preference: routeReceipt.preference },
+    },
+  }
+  return routed
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {

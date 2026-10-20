@@ -21,6 +21,8 @@ import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
+import { countPolylineCrossings } from './shared/edge-crossings.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -83,6 +85,8 @@ export interface RubricMetrics {
   labelOffRoute: number
   /** HARD (0): edge segments through a non-incident node's interior. */
   edgeThroughNode: number
+  /** Padded label/label, label/node and label/visible-route conflict pairs. */
+  labelConflicts: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
   /** Purchase-validated — minimize. Excludes justified symmetric-convergence
@@ -250,24 +254,9 @@ function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
   return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
 }
 
-/** Exact rubric predicate after an x/y bounding-box broad phase. Only passes
- * that declare a crossing budget request this potentially pairwise metric. */
+/** Shared visible-route predicate, also used by public quality measurement. */
 export function countEdgeCrossings(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
-  const segments = edges.flatMap((edge, edgeIndex) => edge.points.slice(1).map((b, index) => {
-    const a = edge.points[index]!
-    return { a, b, edgeIndex, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y) }
-  })).sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex)
-  let active: typeof segments = []
-  let crossings = 0
-  for (const segment of segments) {
-    active = active.filter(other => other.maxX >= segment.minX)
-    for (const other of active) {
-      if (other.edgeIndex === segment.edgeIndex || (involved && !involved.has(other.edgeIndex) && !involved.has(segment.edgeIndex)) || other.maxY < segment.minY || other.minY > segment.maxY) continue
-      if (segmentsIntersect(segment.a, segment.b, other.a, other.b)) crossings++
-    }
-    active.push(segment)
-  }
-  return crossings
+  return countPolylineCrossings(edges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible' })), involved)
 }
 
 /** Same-endpoint parallel routes sharing visible collinear ink cannot be
@@ -556,7 +545,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
     // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
     // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
     const justifiedConvergenceBend = e.routeCertificate?.invariant === 'bundle'
-    if (!justifiedConvergenceBend) {
+    if (e.style !== 'invisible' && !justifiedConvergenceBend) {
       totalBends += bends
       maxBends = Math.max(maxBends, bends)
     }
@@ -657,6 +646,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       nodeOverlaps,
       labelOffRoute,
       edgeThroughNode,
+      labelConflicts: withSoftMetrics ? measureLabelConflicts(positioned, style).total : 0,
       edgeCrossings: crossings,
       totalBends,
       maxBendsPerEdge: maxBends,

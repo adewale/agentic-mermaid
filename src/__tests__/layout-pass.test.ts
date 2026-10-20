@@ -1,4 +1,4 @@
-// Tests for the LayoutPass abstraction (docs/design/system/layout-pass-pipeline.md):
+// Tests for the LayoutPass abstraction (docs/design/system/route-contracts.md §8):
 // production runPipeline enforcement and the geometry its passes produce.
 import { describe, expect, test } from 'bun:test'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
@@ -25,19 +25,35 @@ describe('declared pass budgets on actual native geometry', () => {
   ])('route certification may repair an infeasible early route: %s', (_name, source) => {
     const graph = parseMermaid(source)
     const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'applyRouteContracts')!, run = pass.run
-    const improvements: boolean[] = []
+    const repairs: Array<{ bundled: boolean; placement: unknown; improved: boolean }> = []
     pass.run = context => {
       const measure = () => measureRubricMetrics(graph, { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }, ['hard', 'endpointApproaches'], context.style)
       const before = measure()
       run(context)
       const after = measure()
-      improvements.push(after.hard! < before.hard! || after.endpointApproaches! < before.endpointApproaches!)
+      repairs.push({
+        bundled: context.mergeEdges,
+        placement: context.elkResult,
+        improved: after.hard! < before.hard! || after.endpointApproaches! < before.endpointApproaches!,
+      })
     }
     try {
       const positioned = layoutGraphSync(graph)
       expect(positioned.edges).toHaveLength(graph.edges.length)
       expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
-      expect(improvements).toEqual([true])
+      // These feasible fixtures need at most two placement strategies, followed
+      // by one unbundled proposal on the selected placement. Every producer must
+      // independently repair its route before its completed geometry is scored.
+      const bundled = repairs.filter(repair => repair.bundled)
+      const unbundled = repairs.filter(repair => !repair.bundled)
+      expect(bundled.length).toBeGreaterThanOrEqual(1)
+      expect(bundled.length).toBeLessThanOrEqual(2)
+      expect(unbundled.length).toBeLessThanOrEqual(1)
+      expect(repairs.every(repair => repair.improved)).toBe(true)
+      for (const repair of unbundled) {
+        expect(bundled.some(previous => previous.placement === repair.placement)).toBe(true)
+        expect(repairs.at(-1)).toBe(repair)
+      }
     } finally { pass.run = run }
   })
 
@@ -70,11 +86,7 @@ describe('declared pass budgets on actual native geometry', () => {
     expect(paired([{ x: 20, y: 0 }, { x: 10, y: 0 }])).toBe(0)
     expect(paired([{ x: 5, y: -5 }, { x: 5, y: 5 }])).toBe(0)
   })
-  test.each([
-    ['default production options', {}],
-    ['audit explicitly disabled', { checkLayoutPasses: false }],
-    ['audit enabled', { checkLayoutPasses: true }],
-  ] as const)('the public engine rejects actual detour bends before fallback: %s', (_name, options) => {
+  test('the engine rejects actual detour bends before fallback without audit options', () => {
     const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'alignLayerNodes')!
     const run = pass.run
     let producerCalls = 0
@@ -94,7 +106,7 @@ describe('declared pass budgets on actual native geometry', () => {
     }
     let failure: unknown
     try {
-      layoutGraphSync(parseMermaid('flowchart LR\nA --> B'), options)
+      layoutGraphSync(parseMermaid('flowchart LR\nA --> B'))
     } catch (error) {
       failure = error
     } finally {
@@ -189,7 +201,10 @@ describe('declared pass budgets on actual native geometry', () => {
 
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {
     const graph = parseMermaid('flowchart LR\nN0-->N1\nN0-->N1\nN0-->N2')
-    const positioned = layoutGraphSync(graph)
+    // Exercise the bundled producer's conditional crossing allowance directly.
+    // The default route comparison can instead select an unbundled, crossing-free
+    // proposal after this producer has satisfied its pass budgets.
+    const positioned = layoutGraphSync(graph, { compareRoutePreferences: false })
     expect(positioned.edges).toHaveLength(3)
     const pair = positioned.edges.filter(edge => edge.source === 'N0' && edge.target === 'N1')
     expect(pair[0]!.points).not.toEqual(pair[1]!.points)
@@ -249,7 +264,7 @@ describe('declared pass budgets on actual native geometry', () => {
   })
 
   test.each([...simpleFixtures(), ...complicatedFixtures()])('$id', fixture => {
-    const positioned = layoutGraphSync(parseMermaid(fixture.source), { checkLayoutPasses: true })
+    const positioned = layoutGraphSync(parseMermaid(fixture.source))
     expect(positioned.certification?.status).toBe('passed')
   })
 })
@@ -285,17 +300,17 @@ describe('runPipeline invariant enforcement', () => {
     expect(() => runPipeline(ctx, [mkPass({ id: 'b', after: ['a'] }), mkPass({ id: 'a' })])).toThrow(/must run after/)
   })
 
-  test('checkInvariants throws when a positions pass runs after the freeze', () => {
+  test('a positions pass moving a frozen node always fails', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
-    expect(() => runPipeline(ctx, [mkPass({ id: 'freeze', freezesNodes: true }), mkPass({ id: 'move', mutates: ['positions'], run: moveFirstNode })], { checkInvariants: true })).toThrow(/freeze/)
+    expect(() => runPipeline(ctx, [mkPass({ id: 'freeze', freezesNodes: true }), mkPass({ id: 'move', mutates: ['positions'], run: moveFirstNode })])).toThrow(/freeze/)
   })
 
   test('a whole-graph translate after the freeze is allowed', () => {
     const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
-    expect(() => runPipeline(ctx, [mkPass({ id: 'freeze', freezesNodes: true }), mkPass({ id: 'translate', mutates: ['translate'], run: moveFirstNode })], { checkInvariants: true })).not.toThrow()
+    expect(() => runPipeline(ctx, [mkPass({ id: 'freeze', freezesNodes: true }), mkPass({ id: 'translate', mutates: ['translate'], run: moveFirstNode })])).not.toThrow()
   })
 
-  test('checkInvariants throws when a post-freeze edge rewrite drops its certificate', () => {
+  test('a post-freeze edge rewrite dropping its certificate always fails', () => {
     const ctx: TestCtx = {
       frozen: false,
       nodes: [],
@@ -328,12 +343,11 @@ describe('runPipeline invariant enforcement', () => {
             },
           }),
         ],
-        { checkInvariants: true },
       ),
     ).toThrow(/routeCertificate/)
   })
 
-  test('checkInvariants allows a post-freeze edge rewrite that reissues a certificate', () => {
+  test('a post-freeze edge rewrite reissuing its certificate is allowed', () => {
     const ctx: TestCtx = {
       frozen: false,
       nodes: [],
@@ -366,7 +380,6 @@ describe('runPipeline invariant enforcement', () => {
             },
           }),
         ],
-        { checkInvariants: true },
       ),
     ).not.toThrow()
   })
@@ -425,7 +438,7 @@ describe('runPipeline invariant enforcement', () => {
             run: moveFirstNode,
           }),
         ],
-        { checkInvariants: true, measureMetrics: c => ({ bends: c.nodes[0]!.x }) },
+        { measureMetrics: c => ({ bends: c.nodes[0]!.x }) },
       ),
     ).toThrow(/reroute.*bends.*allowance 2/)
   })
@@ -439,8 +452,8 @@ describe('runPipeline invariant enforcement', () => {
         c.nodes[0]!.x = 1
       },
     })
-    expect(() => runPipeline(ctx, [pass], { checkInvariants: true, measureMetrics: c => ({ portRate: c.nodes[0]!.x }) })).not.toThrow()
-    expect(() => runPipeline(ctx, [pass], { checkInvariants: true })).toThrow(/no geometry measurement/)
+    expect(() => runPipeline(ctx, [pass], { measureMetrics: c => ({ portRate: c.nodes[0]!.x }) })).not.toThrow()
+    expect(() => runPipeline(ctx, [pass])).toThrow(/no geometry measurement/)
   })
 
   test('ports may yield to fewer bends only when the higher-priority metric improves', () => {
@@ -455,8 +468,8 @@ describe('runPipeline invariant enforcement', () => {
           if (removeBends) c.nodes[0]!.y = 0
         },
       })
-    expect(() => runPipeline(make(), [pass(true)], { checkInvariants: true, measureMetrics })).not.toThrow()
-    expect(() => runPipeline(make(), [pass(false)], { checkInvariants: true, measureMetrics })).toThrow(/straighten.*portRate/)
+    expect(() => runPipeline(make(), [pass(true)], { measureMetrics })).not.toThrow()
+    expect(() => runPipeline(make(), [pass(false)], { measureMetrics })).toThrow(/straighten.*portRate/)
   })
 
   test('each extra crossing needs a separately repaired parallel overlap, rather than bend reduction', () => {

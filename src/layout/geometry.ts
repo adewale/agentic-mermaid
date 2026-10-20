@@ -169,7 +169,6 @@ type LayoutDebugEnv = {
   // matches the other APL_NO_* pass switches. See the layout-engine
   // label-injection sites and centerPeerBarycenters.
   APL_NO_CORANK_FANIN?: string
-  APL_CHECK_LAYOUT_PASSES?: string
 }
 
 export function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {

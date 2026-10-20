@@ -50,7 +50,7 @@ const CLEARANCE = 4
 /** Required free space around a label hosted on a straightened lane. */
 const LABEL_CLEARANCE = 8
 /** The renderer draws labels as pills with this padding around the measured text. */
-const LABEL_PILL_PADDING = 8
+export const LABEL_PILL_PADDING = 8
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment.
  *  Fork/join bars are plain (rounded) rectangles geometrically, which is what

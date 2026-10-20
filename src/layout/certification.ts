@@ -19,6 +19,7 @@ export const MAX_PREFERENCE_EDGES = 128
 export interface LayoutPreferenceScore {
   unreadableTitles: 0 | 1
   edgeCrossings: number
+  labelConflicts: number
   totalBends: number
   nonCanonicalEndpointRate: number
   peerBarycenterDelta: number
@@ -28,14 +29,23 @@ export interface LayoutPreferenceScore {
 
 type PreferenceCriterion = keyof LayoutPreferenceScore
 const PREFERENCE_ORDER: readonly PreferenceCriterion[] = [
-  'unreadableTitles', 'edgeCrossings', 'totalBends',
+  'unreadableTitles', 'edgeCrossings', 'labelConflicts', 'totalBends',
   'nonCanonicalEndpointRate', 'peerBarycenterDelta', 'area',
 ]
 
 export interface LayoutPreferenceEvidence {
+  /** Score of the returned geometry, including the optional final route choice. */
   selectedScore: LayoutPreferenceScore
+  /** Placement-strategy decision, before the optional final route comparison. */
   reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid'
+  /** Certified placement scores before the optional final route comparison. */
   compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
+  /** Final bundled/unbundled decision using the selected placement's ELK result.
+   * Its selected score describes the same final geometry as selectedScore above. */
+  routing?: {
+    strategy: 'bundled' | 'without-generic-bundling'
+    preference: Omit<LayoutPreferenceEvidence, 'routing'>
+  }
 }
 
 export interface LayoutCertificationReceipt {
@@ -218,6 +228,7 @@ export function positionedGeometryViolations(positioned: PositionedGraph, style:
 function preferenceScore(positioned: PositionedGraph, metrics: RubricMetrics, preferNext: boolean): LayoutPreferenceScore {
   return {
     unreadableTitles: preferNext ? 1 : 0,
+    labelConflicts: metrics.labelConflicts,
     edgeCrossings: metrics.edgeCrossings,
     totalBends: metrics.totalBends,
     nonCanonicalEndpointRate: 1 - metrics.portEndpointRate,
@@ -226,7 +237,7 @@ function preferenceScore(positioned: PositionedGraph, metrics: RubricMetrics, pr
   }
 }
 
-function withinPreferenceBudget(graph: MermaidGraph): boolean {
+export function withinLayoutPreferenceBudget(graph: MermaidGraph): boolean {
   let nodes = graph.nodes.size
   const count = (groups: readonly MermaidSubgraph[]): void => {
     for (const group of groups) {
@@ -239,14 +250,14 @@ function withinPreferenceBudget(graph: MermaidGraph): boolean {
 }
 
 /** Hard feasibility gates every candidate. One additional certified alternative
- * may improve a title or a small crossing graph, with stable candidate-order
+ * may improve a title or a small graph with label conflicts or crossings, with stable candidate-order
  * ties. Cosmetic scores never initiate another expensive layout production. */
 export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[]): PositionedGraph {
   const attempts: LayoutCertificationAttempt[] = []
   const bounded = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
   type Certified = { positioned: PositionedGraph; strategy: string; score: LayoutPreferenceScore }
   let deferred: Certified | undefined
-  let probe: 'readability' | 'crossings' | undefined
+  let probe: 'readability' | 'routing' | undefined
   const compared: Array<{ strategy: string; score: LayoutPreferenceScore }> = []
   const accept = (selected: Certified, reason: LayoutPreferenceEvidence['reason']): PositionedGraph => {
     retainAuthoredMembership(graph, selected.positioned)
@@ -257,7 +268,7 @@ export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRend
     return selected.positioned
   }
   for (const [index, candidate] of bounded.entries()) {
-    if (deferred && probe === 'crossings' && candidate.qualityAlternative === false) continue
+    if (deferred && probe === 'routing' && candidate.qualityAlternative === false) continue
     try {
       const positioned = candidate.produce()
       const violations = [...correspondenceViolations(graph, positioned, style), ...positionedGeometryViolations(positioned, style)]
@@ -281,11 +292,11 @@ export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRend
           probe = 'readability'
           continue
         }
-        if (rubric.metrics.edgeCrossings === 0) return accept(certified, 'first-certified')
-        if (!withinPreferenceBudget(graph)) return accept(certified, 'work-budget')
+        if (rubric.metrics.edgeCrossings === 0 && rubric.metrics.labelConflicts === 0) return accept(certified, 'first-certified')
+        if (!withinLayoutPreferenceBudget(graph)) return accept(certified, 'work-budget')
         if (!alternatives.some(alternative => alternative.qualityAlternative !== false)) return accept(certified, 'no-alternative')
         deferred = certified
-        probe = 'crossings'
+        probe = 'routing'
         continue
       }
     } catch (error) {

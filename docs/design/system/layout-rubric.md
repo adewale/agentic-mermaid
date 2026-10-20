@@ -71,14 +71,33 @@ and ≤ 2 bends/edge for the whole simple battery):
 
 | Metric | Definition | Grounding |
 |---|---|---|
-| `edgeCrossings` | proper polyline∩polyline intersections (collinear port-merges excluded) | Purchase 1997 (strongest factor) |
-| `totalBends`, `maxBendsPerEdge` | interior vertices | Purchase 1997 |
+| `edgeCrossings` | visible proper incidences per logical edge pair/location; subdivision, shared nodes and hidden shafts use the shared production predicate | Purchase 1997 (strongest factor) |
+| `labelConflicts` | padded label/label, label/node and label/visible-route conflict pairs | Kakoulis–Tollis readability; breaks crossing ties before bend and port preferences |
+| `totalBends`, `maxBendsPerEdge` | visible interior vertices excluding declared bundle-owned convergence | Purchase 1997 |
 | `portEndpointRate` | fraction of edge ends exactly on a canonical port | yFiles port candidates |
 | `portAnchoredEdgeRate` | fraction of edges with ≥ 1 port end | static-glue policy |
 
-Additionally enforced upstream of the rubric (route contracts): repairs may
-never increase crossings; feedback never shares the forward lane; flow
-consistency is the classifier's definition of `feedback` itself.
+Crossing measurement is shared by final ranking, intermediate pass budgets and
+public quality; the independent outline oracle remains separate from clipping.
+Label-conflict counts likewise share their geometry predicates and rendered pill
+padding with public Flowchart/State quality reports. Missing retained label
+measurements remain explicit in public measurement metadata.
+
+Upstream route contracts enforce declared crossing budgets, including bounded
+allowances for hard occlusion and duplicate-lane repairs. Feedback must not share
+the forward lane; flow consistency is the classifier's definition of `feedback`
+itself. Soft label-conflict counts do not replace hard own-route association or
+node-avoidance checks and cannot buy additional crossings during final selection.
+Generic bundling is a bounded proposal: the engine first chooses a certified
+bundled placement, then may compare one completed unbundled route proposal from
+that selected placement's same ELK result. Its existing certification score is
+reused. The total bound is four placement pipelines plus one unbundled route
+pipeline, with at most 16 ELK attempts; routing alternatives are not multiplied
+across placement strategies. The receipt retains bundled placement scores in
+`preference.compared`, the actual final route score in `preference.selectedScore`,
+and the selected placement's route comparison in `preference.routing`.
+Parallel-edge graphs retain their specialized route owners and skip this generic
+proposal: endpoint contacts and lane ambiguity are not proper crossings.
 
 ## 3. Harness
 
