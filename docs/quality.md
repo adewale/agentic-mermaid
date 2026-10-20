@@ -27,6 +27,7 @@ A diagram is considered **good looking** when it satisfies, in order:
    | `whitespaceBalance` | node area ÷ canvas area | 5%–55% (too sparse AND too dense lose) |
    | `labelEdgeProximity` | min pixel distance between any edge-label box and a non-attached node, another edge-label box, or another edge path (graph families; cross-family label/box occlusion is gated by `eval/overlap-audit` + `label-overlap-gate.test.ts`) | ≥ 4 px |
    | `labelConflicts` | counts of padded graph label pills intersecting another label, a node, or another visible route; reported for Flowchart and State | minimize after crossings in candidate selection; no default quality bound |
+   | `routeOverlaps` | Flowchart/State edge pairs sharing opposing-direction ink or same-endpoint parallel ink (parallel excludes self-loops) | reported separately from crossings; no default quality bound |
    | `minimumNodeSpacing` | nearest gap between semantically distinct node/mark boxes; authored coincident Quadrant points and XY/Radar data overlays are excluded | ≥ 8 px |
    | `elementDensity` | nodes + edges per 10,000 canvas pixels | 0.02–6 |
    | `minimumTextContrast` | WCAG contrast ratio between foreground and supplied background/surface colors; `null` when a requested paint cannot be resolved | ≥ 4.5:1 |
@@ -34,7 +35,9 @@ A diagram is considered **good looking** when it satisfies, in order:
 
    These are computed by `measureQuality(layout)`; `checkQuality(layout)` applies
    the configured bounds. `labelConflicts` is reported without a quality-bound
-   threshold. These measurements are **deterministic** and run on every PR.
+   threshold, as is `routeOverlaps`. A low crossing count cannot establish
+   readability when routes instead share ambiguous collinear ink. These
+   measurements are **deterministic** and run on every PR.
 
 4. **LLM-as-judge median ≥ 4.0** on the configured stratified sample of the
    Mermaid-docs corpus across three axes. Since QUAL-1, perceptual metrics and

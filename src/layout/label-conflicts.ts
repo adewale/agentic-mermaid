@@ -92,20 +92,24 @@ export function measureRenderedLabelConflicts(layout: RenderedLayout): LabelConf
 
 function countLabelConflicts(labels: readonly Label[], nodes: readonly Rect[], routes: readonly Route[], involved?: ReadonlySet<number>): LabelConflictCounts {
   const counts = emptyCounts()
+  const changedLabels = involved ? labels.filter(label => involved.has(label.edgeIndex)) : labels
+  const changedRoutes = involved ? [...involved].filter(index => routes[index] !== undefined) : []
   for (let i = 0; i < labels.length; i++) {
     const label = labels[i]!
     const changedLabel = !involved || involved.has(label.edgeIndex)
-    for (let j = i + 1; j < labels.length; j++) {
-      if (!changedLabel && !involved!.has(labels[j]!.edgeIndex)) continue
-      if (overlappingInteriors(label.rect, labels[j]!.rect)) counts.labelLabel++
+    const peers = changedLabel ? labels : changedLabels
+    for (let j = changedLabel ? i + 1 : 0; j < peers.length; j++) {
+      const other = peers[j]!
+      if (!changedLabel && other.edgeIndex <= label.edgeIndex) continue
+      if (overlappingInteriors(label.rect, other.rect)) counts.labelLabel++
     }
     if (changedLabel) for (const node of nodes) {
       if (overlappingInteriors(label.rect, node)) counts.labelNode++
     }
-    for (let j = 0; j < routes.length; j++) {
+    for (let cursor = 0; cursor < (changedLabel ? routes.length : changedRoutes.length); cursor++) {
+      const j = changedLabel ? cursor : changedRoutes[cursor]!
       const other = routes[j]!
       if (j === label.edgeIndex || other.hidden) continue
-      if (!changedLabel && !involved!.has(j)) continue
       for (let segment = 1; segment < other.points.length; segment++) {
         if (segmentEntersInterior(other.points[segment - 1]!, other.points[segment]!, label.rect)) {
           counts.labelEdge++
