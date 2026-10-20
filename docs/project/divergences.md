@@ -213,8 +213,8 @@ wrapper bytes and public source spans authored; rendering also decodes XML
 references once. The upstream quote rewrite is recorded rather than applied to
 our grammar: it can join unrelated labels or break YAML metadata. Verification
 reports `UNSUPPORTED_SYNTAX` / `mermaid_cleanup` once per affected authored line,
-including for parsed diagrams. Ordinary newline/entity protection and a style
-standalone statement's harmless terminator removal do not need portability warnings.
+including for parsed diagrams. Ordinary newline/entity protection and a standalone
+style statement's harmless terminator removal do not need portability warnings.
 
 `#name;` / `#123;` remain protected through grammar reading and expand through
 the shared entity codec only at text projection. They must never create new
