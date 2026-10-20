@@ -878,6 +878,19 @@ describe('State statements across and within lines', () => {
     expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight'], ['A', 'B', 'in-flight'], ['default'], ['state', 'A'], ['X', 'default', 'stateDiagram', 'scale', 'href']])
   })
 
+  test('a name before `:::` or a colon is read as Mermaid\'s lexer reads it there', async () => {
+    // Mermaid reads `state`, `note` and the like as keywords only before a
+    // blank; `default`, `href` and `click` wherever they stand at the top
+    // level; and no hyphen in a name. Its `A:::c` drops the class.
+    const rejected = ['in-flight:::hot', 'default:::hot', 'state X {\ndefault:::hot\nin-flight:::hot\n}'].map(body => `stateDiagram-v2\n${body}`)
+    expect(rejected.map(unsupportedSyntax)).toEqual([['state_declaration_name@2'], ['state_declaration_name@2'], ['state_declaration_name@4']])
+    expect(await Promise.all(rejected.map(source => upstream.accepts(source)))).toEqual([false, false, false])
+    const accepted = ['state:::hot --> A', 'note:::hot', 'note: x'].map(body => `stateDiagram-v2\n${body}`)
+    expect(accepted.map(unsupportedSyntax)).toEqual([[], [], []])
+    expect(await upstream.projectAll(accepted, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)))
+      .toEqual([['state', 'A'], ['note'], ['note']])
+  })
+
   test('a note position Mermaid reads only with one space is read, and reported', async () => {
     const sources = ['A --> B\nnote right  of A : x', 'A --> B\nnote LEFT\tOF B\ntext\nend note'].map(body => `stateDiagram-v2\n${body}`)
     expect(sources.map(source => readingOf(parseRenderGraph(source)).filter(item => item.startsWith('note'))))

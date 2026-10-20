@@ -223,6 +223,10 @@ export interface StateStatement {
   textSpan?: { start: StatePosition; end: StatePosition }
   /** The input line a transition's target starts on. */
   toLine?: number
+  /** For each state the statement names first (a transition's source and
+   *  target), whether a blank or a line break follows the name: Mermaid's
+   *  lexer reads a keyword such as `state` only before one. */
+  nameBlanks?: boolean[]
   /** A block note's body line, read verbatim. */
   noteBody?: boolean
   /** A `state … {` that opens a composite. */
@@ -318,6 +322,7 @@ interface StatementRead {
   opens?: boolean
   textSpan?: StateStatement['textSpan']
   toLine?: number
+  nameBlanks?: boolean[]
   also?: string
   alsoSpan?: StateStatement['textSpan']
 }
@@ -408,11 +413,12 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
    *  an optional `:::class`. Mermaid's lexer skips the blanks around `:::`
    *  (inside a composite, line breaks too), so `A ::: c` is `A:::c`, as it is
    *  written here. Advances the cursor past it; null leaves the cursor. */
-  const readEndpoint = (cursor: { row: number; column: number }): string | null => {
+  const readEndpoint = (cursor: { row: number; column: number }, blanks: boolean[]): string | null => {
     const name = matchAt(STATEMENT_ENDPOINT_AT, logical[cursor.row]!.text, cursor.column)
     if (name === null) return null
     let endpoint = name
     const end = { row: cursor.row, column: cursor.column + name.length }
+    blanks.push(/^[ \t\n]|^$/.test(logical[cursor.row]!.text.slice(end.column, end.column + 1)))
     const shorthand = { ...end }
     skipSpace(shorthand)
     if (logical[shorthand.row]!.text.startsWith(':::', shorthand.column)) {
@@ -433,7 +439,8 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
   /** `A` or `A --> B`, either with a description; null leaves the cursor. */
   const readIdStatement = (): StatementRead | null => {
     const cursor = { row, column }
-    const left = readEndpoint(cursor)
+    const nameBlanks: boolean[] = []
+    const left = readEndpoint(cursor, nameBlanks)
     if (left === null) return null
     let statement = left
     const arrow = { ...cursor }
@@ -444,7 +451,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       arrow.column += 3
       skipSpace(arrow)
       toLine = at(arrow.row, arrow.column).line
-      const right = readEndpoint(arrow)
+      const right = readEndpoint(arrow, nameBlanks)
       if (right === null) return null
       statement += ` --> ${right}`
       cursor.row = arrow.row
@@ -452,7 +459,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     }
     const text = logical[cursor.row]!.text
     const colon = skipBlank(text, cursor.column)
-    const read: StatementRead = { text: statement, ...(toLine !== undefined ? { toLine } : {}) }
+    const read: StatementRead = { text: statement, nameBlanks, ...(toLine !== undefined ? { toLine } : {}) }
     if (text[colon] === ':') {
       const end = textEnd(text, colon, cursor.row)
       // Mermaid reads the `}` into the text, unless a `;` or `::` ends the
@@ -638,12 +645,13 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       const emitted = statements.at(-1)!
       if (read.textSpan) emitted.textSpan = read.textSpan
       if (read.toLine !== undefined) emitted.toLine = read.toLine
+      if (read.nameBlanks) emitted.nameBlanks = read.nameBlanks
       if (read.opens) {
         emitted.opens = true
         depth++
       }
       // `state "L" as X : text` is read as `state "L" as X` and `X : text`.
-      if (read.also !== undefined) statements.push({ text: read.also, line, ...(read.alsoSpan ? { textSpan: read.alsoSpan } : {}), ...(declaration !== null ? { afterAlias: true } : {}) })
+      if (read.also !== undefined) statements.push({ text: read.also, line, ...(read.alsoSpan ? { textSpan: read.alsoSpan } : {}), ...(read.nameBlanks ? { nameBlanks: read.nameBlanks } : {}), ...(declaration !== null ? { afterAlias: true } : {}) })
       if (row !== startRow) mark = { statements: statements.length, depth, column }
       continue
     }
