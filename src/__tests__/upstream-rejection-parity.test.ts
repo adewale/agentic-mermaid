@@ -59,6 +59,8 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a colon in member text after the class name', 'classDiagram\n  class BankAccount\n  BankAccount : t : +String owner', 't : +String owner', 'class_member_text', 3],
   ['a colon right after the member colon', 'classDiagram\n  A::B', ':B', 'class_member_text', 2],
   ['a semicolon in member text', 'classDiagram\n  A : x; y', 'x; y', 'class_member_text', 2],
+  ['a second header', 'classDiagram\n  classDiagram\n  class Animal', 'Animal', 'class_repeated_header', 2],
+  ['a second header inside a namespace', 'classDiagram\n  namespace Zoo {\n    classDiagram\n    class Animal\n  }', 'Animal', 'class_repeated_header', 3],
   // Before the first colon of a classDef or style, Mermaid's class grammar takes only words, `#`, `%` and commas.
   ['a hyphen before the first colon of a classDef', 'classDiagram\n  class A:::thick\n  classDef thick stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3],
   ['a hyphen before the first colon of a style', 'classDiagram\n  class A\n  style A stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3],

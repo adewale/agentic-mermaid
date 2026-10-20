@@ -890,6 +890,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text', line: header + 1 + node.source.line,
         message: `\`${value.kind}\` is read with its names and CSS as written. Pinned Mermaid's class grammar reads only letters, digits, \`_\`, \`#\`, \`%\` and commas before the line's first colon, and rejects any other character there, such as the \`-\` of \`stroke-width\` or a \`-\` in a name. After a colon it reads any text up to the next colon, so such a property is portable after another: \`fill:#fff,stroke-width:2px\`.`,
       })
+      if (value.kind === 'header') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_repeated_header', line: header + 1 + node.source.line,
+        message: 'A second `classDiagram` header is read as nothing, and the writer leaves it out. Pinned Mermaid rejects it. Remove it.',
+      })
       if ((value.kind === 'classDef' || value.kind === 'style') && withoutStyleComment(node.text) !== node.text) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_comment', line: header + 1 + node.source.line,
         message: `A \`%%\` comment after \`${value.kind}\` paint is read as a comment, and the paint before it is drawn. Pinned Mermaid reads the comment into the last property's value, which CSS then drops, so it draws that property's default. Put the comment on a line of its own.`,
