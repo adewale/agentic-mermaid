@@ -16,7 +16,8 @@ editing surface. Source lives in `src/`; the layout pipeline is in
   cloud sessions the SessionStart hook (`scripts/ci/session-start.sh`) upgrades an
   older Bun and runs `bun install` for you, in the background: if `bun --version`
   is still below 1.4.0 right after a session starts, wait a few seconds.
-- `bun run test` — run the full covered unit suite with the canonical timeout (the CI gate). fast-check
+- `bun run test` — run the full unit suite with the canonical timeout (the CI gate).
+  `bun run test:coverage` adds the weekly/on-demand coverage diagnostic. fast-check
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
 - `bun run typecheck` — canonical typecheck across core and repository surfaces.

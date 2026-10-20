@@ -24,6 +24,17 @@ repository-wide typechecking, and hero freshness (the
 list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
 this same entry point, so the local list and CI list cannot diverge.
 
+The E2E lanes build their own inputs and start alongside unit tests; only the
+final `CI complete` gate waits for every lane. Package manifest and export/type
+checks run after the Node 24 tarball consumer has built the package, rather
+than rebuilding all browser artifacts in a unit shard. Unit shards build only
+the Node bundle. Browser contracts run in two disjoint file shards, retaining
+one test process per file. Payload measurement has its own lane: each site
+build supplies the lazy bundle for comparison, so neither head nor base needs
+a second full package build. Generic PR render evidence is generated on demand
+with `scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`;
+automatic rendering of the same fixtures is no longer appended to every PR.
+
 Committed galleries and before/after sheets are dated review snapshots, not
 gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
@@ -99,12 +110,12 @@ independent spec:
   `src/__tests__/testdata/` and why it changed, for reviewer judgment.
 
 **Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
-per PR — it is the five-lane `e2e` matrix in `ci.yml` (`needs: test`), including
+per PR — the `e2e` matrix in `ci.yml` runs alongside unit and quality checks, including
 an installed-tarball consumer run at the advertised Node 22 floor. Its
-browser lane installs Chromium and runs `browser.test.ts` (screenshot diff)
-plus the security contracts and the explicitly enabled theme/style/accessibility
-browser suites. The browser lane builds the gitignored `website/public` tree once
-before those contracts serve it (`browser.test.ts` builds only the separate root
+browser shards retain Chromium/Firefox/WebKit bundle checks, `browser.test.ts`
+(screenshot diff), security contracts, and the explicitly enabled
+theme/style/accessibility suites. The site-only shard needs Chromium. Each
+shard builds the gitignored `website/public` tree once before its contracts serve it (`browser.test.ts` builds only the separate root
 `editor.html`). Each browser contract file then runs in its own Bun process so its
 Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. The
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
@@ -413,9 +424,11 @@ defence: write the test, watch it fail for the right reason, then fix.
   test-body assertions. Review their meaning: this gate is fault evidence, not
   a substitute for auditing whether each assertion exercises production behavior.
 
-**Why this matters:** line coverage is reported per-PR as one merged LCOV
-artifact assembled from the three unit shards, but it is a weak
-adequacy signal — coverage is not strongly correlated with fault detection
+**Why this matters:** line coverage is collected weekly and on manual dispatch
+by `coverage.yml`, as one merged LCOV artifact assembled from three unit shards.
+Locally, `bun run test:coverage` collects the same diagnostic. The required
+`bun run test` suite runs every assertion without coverage instrumentation.
+Coverage is a weak adequacy signal — coverage is not strongly correlated with fault detection
 once suite size is controlled (Inozemtseva & Holmes, ICSE 2014), whereas
 mutant detection *is* correlated with real-fault detection (Just et al.,
 FSE 2014). That supports focused mutation as one useful instrument, not mutation

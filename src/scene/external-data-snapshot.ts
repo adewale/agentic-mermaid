@@ -229,7 +229,7 @@ export function snapshotBoundedExternalData(
  * lowering bug could produce are not diagnosed here: symbol and non-enumerable
  * keys and extra array properties are skipped, and accessors are read.
  * Registered terminal-projection getters may instead reserve their full
- * payload envelope; near a limit the walk materializes and counts it exactly.
+ * payload envelope; near a limit the walk materializes and visits its graph.
  * Validation still runs on the result. Everything the document references is
  * frozen with it, including first-party objects a lowering shares, such as a
  * layout's edge points and label positions or a family's module-level marker
@@ -274,41 +274,46 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
   let properties = 0
   let propertyKeyBytes = 0
   let reservedProjection = false
-  type Reservation = { node: object; depth: number; keys: Array<string | number>; objects: number; text: number; entries: number; properties: number; keyBytes: number }
-  const reservations: Array<Reservation | undefined> = []
+  const reservations: Array<{
+    node: object
+    depth: number
+    objects: number
+    text: number
+    entries: number
+    properties: number
+    keys: number
+  } | undefined> = []
   let nextReservation = 0
-  let reclaiming = false
+  let reconciling = false
+  let materializedOutOfOrder = false
   const COUNT_PROJECTION = Symbol('count this projection')
 
-  const materializeProjection = (node: object, depth: number, keys: readonly (string | number)[] = keyPath): void => {
-    const previous = keyPath.splice(0, keyPath.length, ...keys, 'terminalProjection')
-    try { visit((node as Record<string, unknown>).terminalProjection, depth + 1) }
-    finally { keyPath.splice(0, keyPath.length, ...previous) }
-  }
-
-  /** Replace only enough conservative reservations with their actual cached
-   * projections to fit the next field. Reuse this walk's sharing/cycle state;
-   * restarting the whole Scene would materialize every unrelated projection. */
-  const reclaim = (overLimit: () => boolean): boolean => {
-    // One oversized field can exceed every reservation combined. A nested
-    // count must fall back to the bounded exact walk instead of recursively
-    // reclaiming the entire queue on the JavaScript stack.
-    if (reclaiming) return !overLimit()
-    reclaiming = true
-    try {
-      while (overLimit() && nextReservation < reservations.length) {
-        const reservation = reservations[nextReservation]!
-        reservations[nextReservation++] = undefined
-        objects -= reservation.objects
-        textBytes -= reservation.text
-        arrayEntries -= reservation.entries
-        properties -= reservation.properties
-        propertyKeyBytes -= reservation.keyBytes
-        materializeProjection(reservation.node, reservation.depth, reservation.keys)
+  /** Replace older upper bounds with their actual graphs only as needed.
+   * The pending increment stays uncommitted while we visit a projection, so
+   * its proven envelope makes room for every intermediate visit. Any doubt
+   * replays the original exact walk to preserve rejection order and paths. */
+  const makeRoom = (neededObjects = 0, neededText = 0, neededEntries = 0, neededProperties = 0, neededKeys = 0): void => {
+    while (objects + neededObjects > limits.maxObjects || textBytes + neededText > limits.maxTextBytes
+      || arrayEntries + neededEntries > limits.maxAggregateArrayEntries
+      || properties + neededProperties > limits.maxAggregateProperties
+      || propertyKeyBytes + neededKeys > limits.maxAggregatePropertyKeyBytes) {
+      if (exact || reconciling || nextReservation === reservations.length) throw RECOUNT_EXACTLY
+      const reservation = reservations[nextReservation]!
+      reservations[nextReservation++] = undefined
+      objects -= reservation.objects
+      textBytes -= reservation.text
+      arrayEntries -= reservation.entries
+      properties -= reservation.properties
+      propertyKeyBytes -= reservation.keys
+      reconciling = true
+      materializedOutOfOrder = true
+      try {
+        visit((reservation.node as Record<string, unknown>).terminalProjection, reservation.depth + 1)
+      } catch {
+        throw RECOUNT_EXACTLY
+      } finally {
+        reconciling = false
       }
-      return !overLimit()
-    } finally {
-      reclaiming = false
     }
   }
 
@@ -323,20 +328,23 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
    * the extra endpoint of a degenerate/closed polyline and projection-only
    * keys/arrays.
    * Text retains factor 32 for copied strings, loss strings and diagnostics.
-   * Near a bound, count this projection instead. Earlier reservations can be
-   * reclaimed individually if necessary. No cap or admission is weakened. */
+   * An envelope that cannot fit counts its own projection instead. Ordinary
+   * field pressure can reconcile older reservations. No cap is weakened. */
   const reserveProjection = (node: object, input: ConnectorTerminalProjectionInput, depth: number): void => {
     let extraObjects = 64, extraText = 4096, extraEntries = 128, extraProperties = 256, extraKeys = 8192
+    const inputDepthLimit = limits.maxDepth - depth - 8
     const check = (): void => {
       if (objects + extraObjects > limits.maxObjects || textBytes + extraText > limits.maxTextBytes
         || arrayEntries + extraEntries > limits.maxAggregateArrayEntries
         || properties + extraProperties > limits.maxAggregateProperties
-        || propertyKeyBytes + extraKeys > limits.maxAggregatePropertyKeyBytes) throw COUNT_PROJECTION
+        || propertyKeyBytes + extraKeys > limits.maxAggregatePropertyKeyBytes) {
+        throw COUNT_PROJECTION
+      }
     }
     const measure = (item: unknown, level: number): void => {
       if (typeof item === 'string') extraText += item.length * 3 * 32
       else if (item !== null && typeof item === 'object') {
-        if (depth + level + 8 > limits.maxDepth) throw COUNT_PROJECTION
+        if (level > inputDepthLimit) throw RECOUNT_EXACTLY
         extraObjects += 8
         if (Array.isArray(item)) {
           if (Math.max(18, item.length + 1) > limits.maxArrayEntries) throw COUNT_PROJECTION
@@ -369,11 +377,12 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
         check()
       }
       // One repeated mid marker contributes its identifier at every interior
-      // vertex, not merely a constant multiple of its input string bytes.
+      // vertex. Unlike object/key counts, this string fan-out is not bounded by
+      // a constant multiple of the input's string bytes.
       if (input.geometry.kind === 'polyline' && input.markers.mid.length > 0) {
         let longestId = 0
         for (const marker of input.markers.mid) {
-          if (typeof marker.id !== 'string') throw COUNT_PROJECTION
+          if (typeof marker.id !== 'string') throw RECOUNT_EXACTLY
           longestId = Math.max(longestId, marker.id.length)
         }
         extraText += input.geometry.points.length * longestId * 3
@@ -381,7 +390,36 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
       }
     } catch (error) {
       if (error !== COUNT_PROJECTION) throw error
-      materializeProjection(node, depth)
+      // Public input fields were visited first. Prove the complete depth
+      // envelope before counting out of order: an early budget check may have
+      // stopped measurement before a deeper shared transform was reached.
+      // Memoized heights also bound work on heavily shared input graphs.
+      const heights = new WeakMap<object, number>()
+      const height = (item: unknown, level: number): number => {
+        if (item === null || typeof item !== 'object') return -1
+        if (level > inputDepthLimit) throw RECOUNT_EXACTLY
+        const prior = heights.get(item)
+        if (prior !== undefined) {
+          if (level + prior > inputDepthLimit) throw RECOUNT_EXACTLY
+          return prior
+        }
+        let result = 0
+        if (Array.isArray(item)) {
+          if (item.length > limits.maxArrayEntries) throw RECOUNT_EXACTLY
+          for (const entry of item) result = Math.max(result, 1 + height(entry, level + 1))
+        } else {
+          const keys = Object.keys(item)
+          if (keys.length > limits.maxPropertiesPerObject) throw RECOUNT_EXACTLY
+          for (const key of keys) result = Math.max(result, 1 + height((item as Record<string, unknown>)[key], level + 1))
+        }
+        heights.set(item, result)
+        return result
+      }
+      height(input, 0)
+      materializedOutOfOrder = true
+      keyPath.push('terminalProjection')
+      try { visit((node as Record<string, unknown>).terminalProjection, depth + 1) }
+      finally { keyPath.pop() }
       return
     }
     objects += extraObjects
@@ -390,15 +428,16 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     properties += extraProperties
     propertyKeyBytes += extraKeys
     reservedProjection = true
-    reservations.push({ node, depth, keys: [...keyPath], objects: extraObjects, text: extraText, entries: extraEntries, properties: extraProperties, keyBytes: extraKeys })
+    reservations.push({ node, depth, objects: extraObjects, text: extraText, entries: extraEntries, properties: extraProperties, keys: extraKeys })
     reserveDeferredTerminalProjection(node)
   }
 
   const visit = (candidate: unknown, depth: number): void => {
     if (typeof candidate === 'string') {
       if (!exact) {
-        textBytes += candidate.length * 3
-        if (textBytes > limits.maxTextBytes && !reclaim(() => textBytes > limits.maxTextBytes)) throw RECOUNT_EXACTLY
+        const bytes = candidate.length * 3
+        if (textBytes + bytes > limits.maxTextBytes) makeRoom(0, bytes)
+        textBytes += bytes
         return
       }
       const remaining = Math.max(0, limits.maxTextBytes - textBytes)
@@ -418,11 +457,11 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     if (depth > limits.maxDepth) {
       throw new Error('External Scene input object graph is too deeply nested')
     }
-    objects++
-    if (objects > limits.maxObjects && !reclaim(() => objects > limits.maxObjects)) {
-      if (!exact && reservedProjection) throw RECOUNT_EXACTLY
-      throw new Error('External Scene input object graph is too large')
+    if (objects + 1 > limits.maxObjects) {
+      if (!exact && reservedProjection) makeRoom(1)
+      else throw new Error('External Scene input object graph is too large')
     }
+    objects++
     if (active.has(candidate)) throw new Error('External Scene input must be acyclic')
     if (frozen.has(candidate)) return
     active.add(candidate)
@@ -434,11 +473,11 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
       if (length > limits.maxArrayEntries) {
         throw new Error(`External Scene ${path()} contains too many entries`)
       }
-      arrayEntries += length
-      if (arrayEntries > limits.maxAggregateArrayEntries && !reclaim(() => arrayEntries > limits.maxAggregateArrayEntries)) {
-        if (!exact && reservedProjection) throw RECOUNT_EXACTLY
-        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
+      if (arrayEntries + length > limits.maxAggregateArrayEntries) {
+        if (!exact && reservedProjection) makeRoom(0, 0, length)
+        else throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
       }
+      arrayEntries += length
       for (let index = 0; index < length; index++) {
         // A hole would otherwise read through Array.prototype.
         if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path()} must not be sparse`)
@@ -455,18 +494,19 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
       if (keys.length > limits.maxPropertiesPerObject) {
         throw new Error(`External Scene ${path()} contains too many properties`)
       }
-      properties += keys.length
-      if (properties > limits.maxAggregateProperties && !reclaim(() => properties > limits.maxAggregateProperties)) {
-        if (!exact && reservedProjection) throw RECOUNT_EXACTLY
-        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
+      if (properties + keys.length > limits.maxAggregateProperties) {
+        if (!exact && reservedProjection) makeRoom(0, 0, 0, keys.length)
+        else throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
       }
+      properties += keys.length
       for (const key of keys) {
         if (!exact) {
           // Which limit an over-long key trips depends on the exact aggregate,
           // so the exact pass reports it.
           if (key.length * 3 > limits.maxPropertyKeyBytes && boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes) > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
-          propertyKeyBytes += key.length * 3
-          if (propertyKeyBytes > limits.maxAggregatePropertyKeyBytes && !reclaim(() => propertyKeyBytes > limits.maxAggregatePropertyKeyBytes)) throw RECOUNT_EXACTLY
+          const bytes = key.length * 3
+          if (propertyKeyBytes + bytes > limits.maxAggregatePropertyKeyBytes) makeRoom(0, 0, 0, 0, bytes)
+          propertyKeyBytes += bytes
           continue
         }
         const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
@@ -483,7 +523,10 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
         propertyKeyBytes += bytes
       }
       const record = candidate as Record<string, unknown>
-      const deferredInput = !exact ? deferredTerminalProjectionInput(candidate) : undefined
+      // Once pressure requires real projections, count subsequent ones in
+      // their original key order instead of measuring and then retiring more
+      // envelopes. Earlier reservations remain available to make room.
+      const deferredInput = !exact && nextReservation === 0 ? deferredTerminalProjectionInput(candidate) : undefined
       for (const key of keys) {
         if (key === 'terminalProjection' && deferredInput) continue
         keyPath.push(key)
@@ -499,7 +542,14 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     active.delete(candidate)
   }
 
-  visit(value, 0)
+  try {
+    visit(value, 0)
+  } catch (error) {
+    // Deferred projections may be visited outside their original key position.
+    // Replay any later failure in canonical order before reporting it.
+    if (!exact && materializedOutOfOrder) throw RECOUNT_EXACTLY
+    throw error
+  }
 }
 
 /**
