@@ -5,7 +5,7 @@ import { createMeasuredLayoutCache, layoutLayeredGraph } from '../layout/agentic
 import { layoutMeasuredForest } from '../layout/measured-forest.ts'
 import type { AgenticLayout, MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
-import { withPerformanceExperiments } from '../experimental-performance.ts'
+import { withPerformanceExperiments, type PerformanceExperiment } from '../experimental-performance.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 
 const measured = (): MeasuredGraph => ({
@@ -20,9 +20,9 @@ describe('native measured geometry reuse', () => {
   test('replays the selected order after a comment edit and rechecks changed style maps and host metrics', () => {
     const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8')
     const options = { graphLayout: { backend: 'agentic' as const }, nodeSpacing: 73 }
-    const observe = (value: string, render = renderMermaidSVGWithReceipt) => {
+    const observe = (value: string, render = renderMermaidSVGWithReceipt, flags: readonly PerformanceExperiment[] = ['text-spans']) => {
       let placements = 0
-      const rendered = withPerformanceExperiments(['text-spans'], () => withRenderStageObserver(sample => {
+      const rendered = withPerformanceExperiments(flags, () => withRenderStageObserver(sample => {
         if (sample.stage === 'agentic') placements++
       }, () => render(value, options)))
       return { placements, rendered }
@@ -34,6 +34,11 @@ describe('native measured geometry reuse', () => {
     expect(edited.rendered.receipt.layoutDecisions).toEqual(first.rendered.receipt.layoutDecisions)
     expect(edited.rendered.receipt.layoutCertification).toEqual(first.rendered.receipt.layoutCertification)
     expect(edited.rendered.receipt.requestDigest).not.toBe(first.rendered.receipt.requestDigest)
+    for (const flags of [[], ['text-spans', 'indexed-layout'], ['text-spans', 'position-cache']] as const) {
+      const transparent = observe(source + '\n%% transparent ' + flags.join(','), renderMermaidSVGWithReceipt, flags)
+      expect(transparent.placements).toBe(1)
+      expect(transparent.rendered.svg).toBe(first.rendered.svg)
+    }
     for (const style of ['style n0 stroke-width:4px', 'linkStyle default stroke-width:4px']) {
       const changed = source + '\n' + style
       expect(observe(changed).placements).toBeGreaterThan(1)
@@ -103,6 +108,21 @@ describe('native measured geometry reuse', () => {
     expect(calls).toBe(1 + variants.length + 8)
     expect(cached(graph)).toEqual(compute(graph))
     expect(calls).toBe(1 + variants.length + 8)
+  })
+
+  test('evicts old measured graphs while preserving recent caller-owned geometry', () => {
+    let calls = 0
+    const cached = createMeasuredLayoutCache(input => { calls++; return compute(input) })
+    const graphs = Array.from({ length: 65 }, (_, index) => {
+      const graph = measured()
+      return { ...graph, nodes: graph.nodes.map((node, position) => position ? node : { ...node, id: `item${index}` }) }
+    })
+    for (const graph of graphs) cached(graph)
+    const recent = cached(graphs.at(-1)!)
+    expect(calls).toBe(65)
+    expect(recent).toEqual(compute(graphs.at(-1)!))
+    expect(cached(graphs[0]!)).toEqual(compute(graphs[0]!))
+    expect(calls).toBe(66)
   })
 
   test.each(['0', '1'])('honors the common startup cache switch %s', setting => {

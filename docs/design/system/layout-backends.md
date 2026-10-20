@@ -1041,7 +1041,7 @@ Raw geometry reuse alone leaves repeated final-candidate cleanup/certification.
 For eligible flat small graphs, a second bounded cache retains only which
 strategy won: primary, authored order or compact private ranks. Its key includes
 the complete semantic graph (including Maps/Sets and style maps), resolved
-options/style, active performance flags andAPL environment controls. It is
+options/style andAPL environment controls. It is
 scoped to the actual pipeline bindings and limited to64 entries /1MiB of
 estimated residency, with a65,536-code-unit key ceiling. The cache shares the
 startup cache-off switch and is bypassed for trusted custom text-measurement
@@ -1075,3 +1075,35 @@ cyclic15 allocates195.2MiB natively versus51.2MiB with ELK, and cyclic19 allocat
 These workload failures of the broader memory goal cannot be replaced by the
 six-official-input allocation aggregate0.81×. The25-repetition/reuse protocol
 still needs fresh exact-head execution and does not retroactively qualify them.
+
+
+### Keep reuse inside the optional implementation
+
+The08b8ab71 quality gate correctly rejects38 Class requests against its37-request
+ceiling. Shared cache/measurement imports had split an additional chunk into
+families selecting ELK. Native cache storage now stays inside its optional
+implementation; the graph adapter supplies the existing custom-metrics callback.
+Direction conversion lives in the neutral backend facade, so Class and ER no
+longer import the whole Flowchart/State pipeline for that enum mapping. Backend
+selection, shared error identity and stage-observer state use the same facade;
+existing internal import paths remain compatibility reexports. Lazy native
+readiness is checked at one shared boundary, with atomic initialization and the
+same deferred loading/retry semantics. No dependency or budget ceiling changes.
+
+Current performance toggles are deliberately absent from the strategy key:
+text-span and positioned reuse preserve geometry, and the indexed automatic
+forest policy does not apply to explicit native selection. The owner contract
+checks replay across those flag combinations as byte-identical SVG; custom host
+metrics still bypass replay and style-map changes force a fresh choice. A
+65-graph contract also proves eviction without retaining caller mutations.
+Nine cache/edit contracts /63 assertions pass.
+
+A canonical lazy JavaScript probe now passes all existing ceilings: initial4
+requests /5,458 gzip bytes; Class ELK34 requests /652,938 gzip bytes and native35
+/223,172; Architecture ELK34 /707,020 gzip and571,888 Brotli, native34 /275,966
+and243,269. These are prospective JavaScript closures, not a complete published
+artifact or input-eligibility proof. The first callback-isolation attempt still
+exceeded Class gzip and Architecture Brotli limits; the intermediate failed
+probes remain in the local evidence. Complete declarations/IIFE/lazy builds and
+browser dependency contracts must bind the final committed head before these
+numbers support a shipped-cost claim. Synchronous IIFE still carries both engines.
