@@ -111,6 +111,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   whole diagram scaled down inside the same width and height. A Sankey ribbon
   thicker than its bend, which folds past the node it meets, now widens the
   canvas to hold that ink.
+- An XYChart line series clamps a value past the axis range to the plot edge,
+  as a bar already does, and keeps its value (`verify` still reports
+  `VALUES_OUTSIDE_RANGE`). The line used to run off the plot, and the SVG
+  widened its `viewBox` to hold it (`0 -457 1622.6 1159` for one out-of-range
+  value), drawing the chart at under half size. Where the plot meets the
+  canvas edge, it now leaves room for the marks centered on that edge: a line
+  point's cap or dot at a linear x-axis end, the last tick there, and the end
+  grid lines and ticks of a chart with no title or value labels beside them.
+  Each of these widened the `viewBox` by a pixel or two. A line point's
+  measurement footprint is the part of it inside the plot.
 - Font families may be double-quoted, as Mermaid's own default
   `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
   `fontFamily` config, theme variables, Journey font config, style-role fonts

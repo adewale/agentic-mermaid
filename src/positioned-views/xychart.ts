@@ -32,10 +32,11 @@ export function projectXyChartPositioned({ positioned, options }: FamilyPosition
   positioned.lines.forEach(ln => {
     ln.points.forEach((p, pi) => {
       // These are measurement footprints, not renderer-owned point circles.
-      // The viewport clips ink at a boundary; the footprint must describe that
-      // visible intersection without inventing off-canvas data geometry.
-      const x = Math.max(0, Math.min(positioned.width, p.x - 3)), y = Math.max(0, Math.min(positioned.height, p.y - 3))
-      const right = Math.max(x, Math.min(positioned.width, p.x + 3)), bottom = Math.max(y, Math.min(positioned.height, p.y + 3))
+      // A point clamps into the plot, so its footprint is the part of the
+      // marker box inside the plot, without inventing geometry past it.
+      const plot = positioned.plotArea
+      const x = Math.max(plot.x, Math.min(plot.x + plot.width, p.x - 3)), y = Math.max(plot.y, Math.min(plot.y + plot.height, p.y - 3))
+      const right = Math.max(x, Math.min(plot.x + plot.width, p.x + 3)), bottom = Math.max(y, Math.min(plot.y + plot.height, p.y + 3))
       nodes.push({ id: `line#${ln.seriesIndex}:pt#${pi}`, x: f(x), y: f(y), w: fSpan(x, right - x), h: fSpan(y, bottom - y), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark', labelVisibility: 'semantic' })
       if (p.textLabel !== undefined) {
         const at = p.textPosition

@@ -184,6 +184,13 @@ describe('render-parity gate (RENDER_FAILED)', () => {
       'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
       '---\ntitle: Chart\n---\nxychart-beta horizontal\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
       '%%{init: {"xyChart": {"width": 400, "height": 300}}}%%\nxychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      // Marks centered on a plot edge that meets the canvas edge: a line point
+      // and tick at a linear axis end, values clamped past the range, and the
+      // end grid lines and ticks where no labels or title stand between.
+      'xychart-beta\n  x-axis 0 --> 100\n  line [0, 10]',
+      'xychart-beta\n  x-axis [a, b, c]\n  y-axis 0 --> 10\n  line [20, -5, 10]',
+      '%%{init: {"xyChart": {"showTitle": false, "yAxis": {"showLabel": false}}}}%%\nxychart-beta\n  x-axis [a, b]\n  line [3.5, 8]',
+      '%%{init: {"xyChart": {"yAxis": {"showLabel": false}}}}%%\nxychart-beta horizontal\n  x-axis [a, b]\n  y-axis 0 --> 10\n  line [12, 4]',
       // Thick curved ribbons: bent, off-centre control points (rounded
       // midpoints), and a ribbon thicker than its bend that folds past its end.
       'sankey-beta\nA,B,10\nB,C,5',

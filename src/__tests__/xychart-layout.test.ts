@@ -27,17 +27,17 @@ describe('xychart layout – dimensions and bounds', () => {
     expect(svg).toContain('viewBox="0 0 700 500"')
   })
 
-  it('an invisible out-of-domain single line sample retains its value without an off-canvas measurement footprint', () => {
+  it('an invisible out-of-domain single line sample retains its value with its footprint inside the plot', () => {
     const source = '---\nconfig:\n  xyChart:\n    width: 300\n    height: 241\n    showDataLabel: false\n---\nxychart-beta\nx-axis [a]\ny-axis 0 --> 100\nline S0 [-17]'
     const positioned = layout(source)
     const point = positioned.lines[0]!.points[0]!
+    const plotBottom = positioned.plotArea.y + positioned.plotArea.height
     expect(point.value).toBe(-17)
-    expect(point.y).toBeGreaterThan(positioned.height)
+    expect(point.y).toBe(plotBottom)
     const original = { ...point }
     const projected = projectXyChartPositioned({ positioned, options: {} })
     const sample = projected.nodes.find(node => node.id === 'line#0:pt#0')!
-    expect(Number(sample.y)).toBe(241)
-    expect(Number(sample.h)).toBe(0)
+    expect(Number(sample.y) + Number(sample.h)).toBeCloseTo(plotBottom, 1)
     expect(point).toEqual(original)
     const svg = renderMermaidSVG(source)
     // A lone sample has neither a connector nor an unrequested marker. Its

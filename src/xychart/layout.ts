@@ -14,7 +14,7 @@ import type {
   XYChart,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
@@ -118,7 +118,16 @@ export function layoutXYChart(
     config.yAxis.tickWidth = style.lineWidth
   }
   const measure = xyTextMeasure(style)
-  const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure) : layoutVertical(chart, config, measure)
+  // How far a line series' ink reaches past its points: half its stroke, or a
+  // drawn dot (its radius and half its 2px ring), as the renderer paints them.
+  let lineIndex = 0
+  const lineReach = Math.max(0, ...chart.series.flatMap(series => {
+    if (series.type !== 'line') return []
+    const width = resolveRoleStyle(styleFace, 'series', { category: `line-${lineIndex++}` }, { includeFallback: false })?.lineWidth ?? style.lineWidth
+    const dots = options.interactive || series.pointLabels?.some(label => label !== undefined)
+    return [Math.max(width / 2, dots ? XY_DOT_RADIUS + 1 : 0)]
+  }))
+  const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure, lineReach) : layoutVertical(chart, config, measure, lineReach)
   for (const axis of [positioned.xAxis, positioned.yAxis]) {
     if (axis.title) {
       const block = axis.title.block = measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
@@ -168,7 +177,37 @@ export function layoutXYChart(
   return positioned
 }
 
-function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure): PositionedXYChart {
+/** Width of the grid lines the renderer draws at each value tick. */
+const GRID_LINE_WIDTH = 1
+
+/**
+ * How far marks centered on a plot edge can reach beyond it, along each axis,
+ * so a plot that meets the canvas edge leaves that ink on the canvas. A value
+ * tick's grid line and tick, and a line series' points (each clamped into the
+ * range), sit anywhere up to the plot's value ends; a linear position axis
+ * places ticks and points up to its ends. A grid or tick line draws half its
+ * width past them; a line series its reach.
+ */
+function plotEdgeInk(
+  chart: XYChart,
+  lineReach: number,
+  valueAxis: ResolvedXYAxisRenderConfig,
+  linearPositionAxis?: ResolvedXYAxisRenderConfig,
+): { value: number; position: number } {
+  const lines = chart.series.some(series => series.type === 'line') ? lineReach : 0
+  const tick = (axis: ResolvedXYAxisRenderConfig): number => axis.showLabel && axis.showTick ? axis.tickWidth / 2 : 0
+  return {
+    value: Math.max(GRID_LINE_WIDTH / 2, tick(valueAxis), lines),
+    position: linearPositionAxis ? Math.max(tick(linearPositionAxis), lines) : 0,
+  }
+}
+
+/** Half an axis line, which runs along the plot edge it is drawn on. */
+function axisLineInk(axis: ResolvedXYAxisRenderConfig): number {
+  return axis.showAxisLine ? axis.axisLineWidth / 2 : 0
+}
+
+function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure, lineReach: number): PositionedXYChart {
   const totalW = config.width
   const totalH = config.height
   const dataCount = getDataCount(chart)
@@ -197,14 +236,17 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   // reach half a line beyond the plot. Reserve that where no title or x-axis
   // band already does, so an untitled chart keeps its top label on canvas.
   const valueLabelOverhang = yAxisConfig.config.showLabel && yTickLabels.length > 0 ? config.yAxis.labelFontSize / 2 : 0
-  const plotTop = Math.max(titleHeight, valueLabelOverhang)
-  const plotHeight = Math.max(0, totalH - plotTop - Math.max(xAxisConfig.size, valueLabelOverhang))
+  // Marks centered on a plot edge draw past it; keep that ink on the canvas.
+  const ink = plotEdgeInk(chart, lineReach, yAxisConfig.config, chart.xAxis.range ? xAxisConfig.config : undefined)
+  const plotTop = Math.max(titleHeight, valueLabelOverhang, ink.value)
+  const plotHeight = Math.max(0, totalH - plotTop - Math.max(xAxisConfig.size, valueLabelOverhang, ink.value, axisLineInk(xAxisConfig.config)))
   const legend = fitLegend(chart, config, remainingLeftBudget, totalW, plotTop, plotHeight, measure)
 
+  const plotX = Math.max(yAxisConfig.size, ink.position, axisLineInk(yAxisConfig.config))
   const plotArea: PlotArea = {
-    x: yAxisConfig.size,
+    x: plotX,
     y: plotTop,
-    width: Math.max(0, totalW - yAxisConfig.size - legend.size),
+    width: Math.max(0, totalW - plotX - Math.max(legend.size, ink.position)),
     height: plotHeight,
   }
 
@@ -249,7 +291,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
 
   const colorMap = chart.series.map((_, index) => index)
   const bars = layoutBars(chart, xPoint, xPointSpacing, yScale, yRange, categoryLabels, colorMap, false)
-  const lines = layoutLines(chart, xPoint, yScale, categoryLabels, colorMap, false)
+  const lines = layoutLines(chart, xPoint, yScale, yRange, categoryLabels, colorMap, false)
 
   return {
     width: totalW,
@@ -282,7 +324,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   }
 }
 
-function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure): PositionedXYChart {
+function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure, lineReach: number): PositionedXYChart {
   const totalW = config.width
   const totalH = config.height
   const dataCount = getDataCount(chart)
@@ -305,7 +347,9 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
   const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget, measure)
   remainingLeftBudget = Math.max(0, remainingLeftBudget - leftAxisConfig.size)
 
-  const plotTop = titleHeight + topAxisConfig.size
+  // Marks centered on a plot edge draw past it; keep that ink on the canvas.
+  const ink = plotEdgeInk(chart, lineReach, topAxisConfig.config)
+  const plotTop = Math.max(titleHeight + topAxisConfig.size, axisLineInk(topAxisConfig.config))
   // Category labels are centered on their rows, so when rows are shorter than
   // a label the last label's descenders reach below the plot, which ends at
   // the canvas edge. Reserve just that difference; roomy rows reserve nothing.
@@ -323,8 +367,8 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     ? Math.max(...[valueTickLabels[0]!, valueTickLabels[valueTickLabels.length - 1]!]
       .map(label => measure.tick(label, config.yAxis.labelFontSize) / 2))
     : 0
-  const leftReserve = Math.max(0, valueLabelOverhang - leftAxisConfig.size)
-  const rightReserve = Math.max(0, valueLabelOverhang - legend.size)
+  const leftReserve = Math.max(0, Math.max(valueLabelOverhang, ink.value, axisLineInk(leftAxisConfig.config)) - leftAxisConfig.size)
+  const rightReserve = Math.max(0, valueLabelOverhang - legend.size, ink.value - legend.size)
   const plotArea: PlotArea = {
     x: leftAxisConfig.size + leftReserve,
     y: plotTop,
@@ -358,7 +402,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
 
   const colorMap = chart.series.map((_, index) => index)
   const bars = layoutBars(chart, categoryPoint, categorySpacing, valueScale, yRange, categoryLabels, colorMap, true)
-  const lines = layoutLines(chart, categoryPoint, valueScale, categoryLabels, colorMap, true)
+  const lines = layoutLines(chart, categoryPoint, valueScale, yRange, categoryLabels, colorMap, true)
 
   return {
     width: totalW,
@@ -844,6 +888,7 @@ function layoutLines(
   chart: XYChart,
   categoryPoint: (index: number) => number,
   valueScale: (value: number) => number,
+  valueRange: { min: number; max: number },
   labels: string[],
   colorMap: number[],
   horizontal: boolean,
@@ -858,9 +903,11 @@ function layoutLines(
       continue
     }
     lines.push({
+      // A point clamps into the axis range, as a bar does, so a line never
+      // leaves the plot; the point keeps its value.
       points: series.data.map((value, index) => {
         const category = categoryPoint(index)
-        const position = valueScale(value)
+        const position = valueScale(clampToAxisRange(valueRange, value))
         return {
           x: horizontal ? position : category,
           y: horizontal ? category : position,
