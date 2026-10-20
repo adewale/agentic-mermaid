@@ -3,8 +3,8 @@
   "elkFamilies": ["flowchart", "state", "class", "er", "architecture"],
   "initial": {"requests": 6, "raw": 138000, "gzip": 45000, "brotli": 40000},
   "families": {
-    "flowchart": {"requests": 30, "raw": 2304000, "gzip": 706000, "brotli": 569000},
-    "state": {"requests": 30, "raw": 2302000, "gzip": 706000, "brotli": 569000},
+    "flowchart": {"requests": 30, "raw": 2304000, "gzip": 707000, "brotli": 570000},
+    "state": {"requests": 30, "raw": 2302000, "gzip": 707000, "brotli": 570000},
     "sequence": {"requests": 27, "raw": 667000, "gzip": 214000, "brotli": 188000},
     "timeline": {"requests": 25, "raw": 617000, "gzip": 198000, "brotli": 173000},
     "class": {"requests": 28, "raw": 2316000, "gzip": 711000, "brotli": 574000},
