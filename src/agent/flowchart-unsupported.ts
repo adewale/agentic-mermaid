@@ -297,6 +297,9 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
 
   // What the lexer leaves open at the end of the statement (quoted labels
   // have no escapes, as upstream: `\` is literal and the next `"` closes).
+  // One the parser reads as label text (`A[a ( b]`, `A[a"]`) is reported as
+  // such (flowchart_label_delimiter), not as unclosed.
+  if (scan.openAtEnd.length > 0 && flowchartStatementNotes(statement).has('label-delimiter')) return null
   if (scan.openAtEnd.includes('string')) {
     return { syntax: 'flowchart_unclosed_quote', message: 'Unclosed double quote — the parser drops or mangles everything after it (labels, arrows, edges). Close the quote.' }
   }

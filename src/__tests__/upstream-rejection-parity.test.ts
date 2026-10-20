@@ -289,6 +289,9 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   // trapezoid text at a bracket; its edge text at a `"`.
   ['parentheses in shape text', 'flowchart LR\n  A[a (b) c]', '>a (b) c<', 'flowchart_label_delimiter', 2],
   ['an unpaired `)` in shape text', 'flowchart LR\n  node[hello ) world] --> works', '>hello ) world<', 'flowchart_label_delimiter', 2],
+  // The lexer leaves these open; they are label text, reported once.
+  ['an unpaired `(` in shape text', 'flowchart LR\n  A[a ( b]', '>a ( b<', 'flowchart_label_delimiter', 2],
+  ['a `"` ending shape text', 'flowchart LR\n  A[a"]', '>a&quot;<', 'flowchart_label_delimiter', 2],
   ['a `"` inside rounded text', 'flowchart LR\n  A(a "b" c)', '>a &quot;b&quot; c<', 'flowchart_label_delimiter', 2],
   ['a `"` after a leading string', 'flowchart LR\n  A["a""b"]', '>a&quot;&quot;b<', 'flowchart_label_delimiter', 2],
   ['parentheses in trapezoid text', 'flowchart LR\n  A[/a (b) c/]', '>a (b) c<', 'flowchart_label_delimiter', 2],
