@@ -138,6 +138,44 @@ jobs:
           path: ${{ runner.temp }}/layout-backends/
           retention-days: 14
 
+  layout-quality-evidence:
+    name: Generated layout diagnostic (advisory)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - name: Record every generated input and backend outcome
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          for backend in elk agentic; do
+            bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+              --generated-start 0 --generated-count 160 --label "$backend" \
+              --out "$EVIDENCE_DIR/$backend.json"
+          done
+      - name: Compare final quality without declaring a performance winner
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
+        run: |
+          bun run eval/layout-compare/run.ts report --before "$EVIDENCE_DIR/elk.json" \
+            --after "$EVIDENCE_DIR/agentic.json" --out "$EVIDENCE_DIR/report.html"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: generated-layouts-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/generated-layouts/
+          retention-days: 14
+
   quality:
     name: Quality gates
     runs-on: ubuntu-latest

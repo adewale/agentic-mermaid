@@ -28,6 +28,7 @@ import { validateSerializableRenderOptions, type RenderRequestReceipt } from '..
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import { namespaceSvgIds } from '../../src/renderer.ts'
 import { FamilyLayoutError } from '../../src/agent/family-layouts.ts'
+import { generatedFlowchartSamples, type GeneratedFlowchartRange } from './generated.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -52,6 +53,7 @@ export interface Snapshot {
   rev: string
   dirty?: boolean
   renderOptions?: RenderOptions
+  population?: GeneratedFlowchartRange & { kind: 'generated-flowchart'; terminal: 'not-requested' }
   createdAt: string
   samples: SampleResult[]
 }
@@ -71,7 +73,7 @@ export function collectSamples(): SampleInput[] {
   return samples
 }
 
-export function snapshotSample(input: SampleInput, idPrefix: string, options: RenderOptions = {}): SampleResult {
+export function snapshotSample(input: SampleInput, idPrefix: string, options: RenderOptions = {}, projection: { includeAscii?: boolean } = {}): SampleResult {
   try {
     const parsed = parseMermaid(input.source)
     if (!parsed.ok) {
@@ -82,7 +84,9 @@ export function snapshotSample(input: SampleInput, idPrefix: string, options: Re
     const rendered = renderMermaidSVGWithReceipt(input.source, { ...options, idPrefix })
     let ascii: string | undefined
     try {
-      ascii = renderMermaidASCII(input.source, options)
+      if (projection.includeAscii !== false) {
+        ascii = renderMermaidASCII(input.source, options)
+      }
     } catch {
       ascii = undefined // some families render SVG-only; that is not a failure
     }
@@ -95,18 +99,21 @@ export function snapshotSample(input: SampleInput, idPrefix: string, options: Re
   }
 }
 
-export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[] } = {}): Snapshot {
+export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange } = {}): Snapshot {
   let rev = 'unknown'
   let dirty = true
   try {
     rev = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim()
     dirty = execSync('git status --porcelain', { cwd: ROOT, encoding: 'utf8' }).length > 0
   } catch { /* not a repo */ }
-  const all = collectSamples()
+  if (options.generated && !options.renderOptions?.graphLayout) throw new RangeError('Generated comparisons require an explicit graphLayout.backend')
+  const all = options.generated ? generatedFlowchartSamples(options.generated) : collectSamples()
   if (options.families?.some(family => !all.some(sample => sample.family === family))) throw new RangeError('Unknown snapshot family')
   const samples = all.filter(sample => !options.families || options.families.includes(sample.family))
-    .map((s, i) => snapshotSample(s, `lc${i}-`, options.renderOptions))
-  return { label, rev, dirty, ...(options.renderOptions ? { renderOptions: options.renderOptions } : {}), createdAt: new Date().toISOString(), samples }
+    .map((s, i) => snapshotSample(s, `lc${i}-`, options.renderOptions, { includeAscii: !options.generated }))
+  return { label, rev, dirty, ...(options.renderOptions ? { renderOptions: options.renderOptions } : {}),
+    ...(options.generated ? { population: { ...options.generated, kind: 'generated-flowchart' as const, terminal: 'not-requested' as const } } : {}),
+    createdAt: new Date().toISOString(), samples }
 }
 
 // ---- Report ----------------------------------------------------------------
@@ -308,6 +315,7 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
    <strong>${esc(after.label)}</strong> (${esc(after.rev)}, ${esc(after.createdAt)})</p>
 <p>Before options: <code>${esc(JSON.stringify(before.renderOptions ?? {}))}</code>${before.dirty ? ' (working tree modified)' : ''};
 after options: <code>${esc(JSON.stringify(after.renderOptions ?? {}))}</code>${after.dirty ? ' (working tree modified)' : ''}.</p>
+<p>Generated population: before <code>${esc(JSON.stringify(before.population ?? null))}</code>; after <code>${esc(JSON.stringify(after.population ?? null))}</code>. These snapshots measure quality, not execution cost.</p>
 <ul>${summary}</ul>
 <p><strong>Family-balanced adverse rate:</strong> ${(balanced.macroAdverseRate * 100).toFixed(1)}%
    (sample-weighted: ${(balanced.microAdverseRate * 100).toFixed(1)}%).</p>
@@ -343,7 +351,10 @@ if (import.meta.main) {
     const renderOptions = backend ? { graphLayout: { backend, ...(fallback ? { fallback } : {}) } } as RenderOptions : undefined
     const problems = renderOptions ? validateSerializableRenderOptions(renderOptions) : []
     if (problems.length) throw new RangeError(JSON.stringify(problems))
-    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(',') })
+    const count = arg('--generated-count'), start = arg('--generated-start')
+    if (start !== undefined && count === undefined) throw new RangeError('--generated-start requires --generated-count')
+    const generated = count === undefined ? undefined : { start: start === undefined ? 0 : Number(start), count: Number(count) }
+    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated })
     writeFileSync(out, JSON.stringify(snap))
     const failed = snap.samples.filter(s => !s.ok).length
     console.log(`wrote ${out}: ${snap.samples.length} samples (${failed} errored) at ${snap.rev}`)
@@ -360,7 +371,7 @@ if (import.meta.main) {
     console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] | report --before a.json --after b.json --out report.html')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--generated-start 0 --generated-count 160] | report --before a.json --after b.json --out report.html')
     process.exit(2)
   }
 }
