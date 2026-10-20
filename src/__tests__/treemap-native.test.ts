@@ -124,16 +124,78 @@ describe('native Treemap', () => {
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw Error('fixture did not parse')
     for (const input of [source, parsed.value]) {
-      expect(renderMermaidSVG(input)).not.toContain('Compliance')
-      expect(verifyMermaid(input).warnings).toContainEqual(expect.objectContaining({
-        code: 'LABELS_HIDDEN', target: 'data-labels', labels: ['Compliance evidence'],
-      }))
+      const paintedText = [...renderMermaidSVG(input).matchAll(/<text\b[^>]*>[\s\S]*?<\/text>/g)].map(match => match[0]).join('')
+      expect(paintedText).not.toContain('Compliance')
+      expect(verifyMermaid(input).warnings).toContainEqual(
+        expect.objectContaining({
+          code: 'LABELS_HIDDEN',
+          target: 'data-labels',
+          labels: ['Compliance evidence'],
+        }),
+      )
       const renderOptions = { mermaidConfig: { treemap: { nodeWidth: 2000, nodeHeight: 600 } } }
       expect(renderMermaidSVG(input, renderOptions)).toContain('Compliance')
       expect(renderMermaidSVG(input, renderOptions)).toContain('evidence')
       expect(verifyMermaid(input, { renderOptions }).warnings.filter(warning => warning.code === 'LABELS_HIDDEN')).toEqual([])
     }
     expect(renderMermaidASCII(source)).toContain('Compliance evidence: 1')
+  })
+
+  test('hidden and zero-area leaves keep exact accessible data without fabricating painted text or area', () => {
+    const source = '---\nconfig:\n  treemap:\n    valueFormat: ".0f"\n---\ntreemap\n"Primary": 9999\n"Rare <risk> & evidence": 0.00000001\n"No incidents": 0'
+    const request = resolveRenderRequest(source, { embedFontImport: false }, 'svg'),
+      positioned = positionResolvedFamily('treemap', request),
+      chart = positioned.positioned as PositionedTreemap,
+      svg = renderMermaidSVG(source, { embedFontImport: false }),
+      paintedText = [...svg.matchAll(/<text\b[^>]*>[\s\S]*?<\/text>/g)].map(match => match[0]).join('')
+    for (const [id, name] of [
+      ['treemap-1', 'Rare &lt;risk&gt; &amp; evidence: 1e-8'],
+      ['treemap-2', 'No incidents: 0'],
+    ]) {
+      const group = svg.match(new RegExp(`<g\\b(?=[^>]*\\bdata-id="${id}")[^>]*>[\\s\\S]*?<\\/g>`))?.[0] ?? ''
+      expect(group).toContain('role="graphics-symbol"')
+      expect(group).toContain(`aria-label="${name}"`)
+      expect(group).toContain(`<title>${name}</title>`)
+    }
+    expect(paintedText).not.toContain('Rare')
+    expect(paintedText).not.toContain('No incidents')
+    const zero = chart.cells.find(cell => cell.node.id === 'treemap-2')!
+    expect([zero.width, zero.height]).toEqual([0, 0])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'LABELS_HIDDEN', labels: ['Rare <risk> & evidence', 'No incidents'] }))
+    expect(renderMermaidASCII(source)).toContain('Rare <risk> & evidence: 0')
+  })
+
+  test('exhausted content space retains nested quantities and accessible ancestry across canonical reload', () => {
+    const source = '---\nconfig:\n  treemap:\n    nodeHeight: 4.2\n---\ntreemap\n"Branch"\n  "Inner"\n    "Budget": 1\n  "Empty": 0',
+      options = { style: { roles: { group: { fontSize: 10 } } } }
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error('fixture did not parse')
+    for (const input of [source, serializeMermaid(parsed.value)]) {
+      const request = resolveRenderRequest(input, options, 'svg'),
+        chart = positionResolvedFamily('treemap', request).positioned as PositionedTreemap,
+        svg = renderMermaidSVG(input, options)
+      expect(chart.cells.map(cell => [cell.node.id, cell.node.parentId, cell.total])).toEqual([
+        ['treemap-0', undefined, 1],
+        ['treemap-1', 'treemap-0', 1],
+        ['treemap-2', 'treemap-1', 1],
+        ['treemap-3', 'treemap-0', 0],
+      ])
+      for (const cell of chart.cells.slice(1)) expect([cell.width, cell.height, cell.label, cell.valueLabel]).toEqual([0, 0, undefined, undefined])
+      expect(new Set(chart.hiddenLabels)).toEqual(new Set(['Inner', 'Budget', 'Empty']))
+      for (const [id, role, name, parent] of [
+        ['treemap-1', 'group', 'Inner: 1', 'treemap-0'],
+        ['treemap-2', 'graphics-symbol', 'Budget: 1', 'treemap-1'],
+        ['treemap-3', 'graphics-symbol', 'Empty: 0', 'treemap-0'],
+      ]) {
+        const open = svg.match(new RegExp(`<g\\b(?=[^>]*\\bdata-id="${id}")[^>]*>`))?.[0] ?? ''
+        expect(open).toContain(` role="${role}"`)
+        expect(open).toContain(`aria-label="${name}"`)
+        expect(open).toContain(`data-parent="${parent}"`)
+        expect(svg).toContain(`${open}<title>${name}</title>`)
+      }
+      expect(verifyMermaid(input, { renderOptions: options }).warnings).toContainEqual(expect.objectContaining({ code: 'LABELS_HIDDEN', labels: expect.arrayContaining(['Inner', 'Budget', 'Empty']) }))
+      expect(renderMermaidASCII(input)).toContain('Budget: 1')
+    }
   })
 
   test('section typography and header paint coexist with bound quantitative bars and authored classes', () => {

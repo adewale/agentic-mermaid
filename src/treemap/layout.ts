@@ -98,6 +98,12 @@ export function squarifyTreemap(values: readonly { id: string; value: number }[]
     }
     cursor = end
   }
+  // A header can consume its container's content area. Its descendants still
+  // have authored quantities and identities, even when no area remains.
+  for (; cursor < pending.length; cursor++) {
+    const item = pending[cursor]!
+    result.push({ id: item.id, value: item.value, x: box.x, y: box.y, width: 0, height: 0 })
+  }
   for (const item of values) if (item.value <= 0) result.push({ ...item, x: box.x, y: box.y, width: 0, height: 0 })
   return result
 }
@@ -129,26 +135,29 @@ export function layoutTreemapDiagram(body: TreemapBody, options: RenderOptions =
       const node = nodesById.get(tile.id)!
       const category = plan.category ?? categories.get(node.id) ?? 0
       const cell: TreemapCell = { node, total: tile.value, x: tile.x, y: tile.y, width: tile.width, height: tile.height, depth: plan.depth, category }
-      const section = node.value === undefined,
-        face = section ? styleFace?.group : styleFace?.node,
-        paddingX = face?.paddingX ?? 6,
-        paddingY = face?.paddingY ?? 6,
-        maxWidth = Math.max(1, tile.width - paddingX * 2),
-        fontFamily = section ? (style.groupFont ?? options.font) : options.font,
-        letterSpacing = section ? style.groupLetterSpacing : style.nodeLetterSpacing,
-        transform = section ? style.groupTextTransform : style.nodeTextTransform
-      const label = preparePixelText(node.label, { fontSize: section ? style.groupHeaderFontSize : style.nodeLabelFontSize, fontWeight: section ? style.groupHeaderFontWeight : style.nodeLabelFontWeight, letterSpacing, transform, fontFamily, maxWidth })
-      const valueLabel = config.showValues
-        ? preparePixelText((formatValue ??= compileTreemapValueFormat(config.valueFormat))(tile.value), { fontSize: face?.fontSize ?? styleFace?.text?.fontSize ?? config.valueFontSize, fontWeight: face?.fontWeight ?? styleFace?.text?.fontWeight ?? 400, letterSpacing, transform, fontFamily, maxWidth })
-        : undefined
       const inner = children.get(node.id)
-      const labelHeight = label.height + (valueLabel ? valueLabel.height + 4 : 0) + paddingY * 2
-      if (label.width <= tile.width - paddingX * 2 && labelHeight <= tile.height) {
-        cell.label = label
-        cell.valueLabel = valueLabel
-        cell.labelY = tile.y + paddingY + label.height / 2
-        if (valueLabel) cell.valueY = tile.y + paddingY + 4 + label.height + valueLabel.height / 2
-        if (section && style.groupHeaderFillColor !== undefined) cell.headerHeight = labelHeight
+      let labelHeight = 0
+      if (tile.width > 0 && tile.height > 0) {
+        const section = node.value === undefined,
+          face = section ? styleFace?.group : styleFace?.node,
+          paddingX = face?.paddingX ?? 6,
+          paddingY = face?.paddingY ?? 6,
+          maxWidth = Math.max(1, tile.width - paddingX * 2),
+          fontFamily = section ? (style.groupFont ?? options.font) : options.font,
+          letterSpacing = section ? style.groupLetterSpacing : style.nodeLetterSpacing,
+          transform = section ? style.groupTextTransform : style.nodeTextTransform
+        const label = preparePixelText(node.label, { fontSize: section ? style.groupHeaderFontSize : style.nodeLabelFontSize, fontWeight: section ? style.groupHeaderFontWeight : style.nodeLabelFontWeight, letterSpacing, transform, fontFamily, maxWidth })
+        const valueLabel = config.showValues
+          ? preparePixelText((formatValue ??= compileTreemapValueFormat(config.valueFormat))(tile.value), { fontSize: face?.fontSize ?? styleFace?.text?.fontSize ?? config.valueFontSize, fontWeight: face?.fontWeight ?? styleFace?.text?.fontWeight ?? 400, letterSpacing, transform, fontFamily, maxWidth })
+          : undefined
+        labelHeight = label.height + (valueLabel ? valueLabel.height + 4 : 0) + paddingY * 2
+        if (label.width <= tile.width - paddingX * 2 && labelHeight <= tile.height) {
+          cell.label = label
+          cell.valueLabel = valueLabel
+          cell.labelY = tile.y + paddingY + label.height / 2
+          if (valueLabel) cell.valueY = tile.y + paddingY + 4 + label.height + valueLabel.height / 2
+          if (section && style.groupHeaderFillColor !== undefined) cell.headerHeight = labelHeight
+        } else hiddenLabels.push(node.label)
       } else hiddenLabels.push(node.label)
       cells.push(cell)
       if (inner?.length) {

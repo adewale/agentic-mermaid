@@ -221,3 +221,56 @@ on-route label allocator. Independent parent/contact expectations and strict
 paint certification protect the repaired behavior. Narrow Packet fields and
 deep Treemap labels use explicit authored canvas/bit-width settings in the
 gallery; the renderer preserves their quantitative ratios and full labels.
+
+## Comparative follow-up (2026-10-20)
+
+The follow-up inspected Mermaid `develop` at
+[`6d8921f94f9a12b76586eddcf45a566080d4767e`](https://github.com/mermaid-js/mermaid/tree/6d8921f94f9a12b76586eddcf45a566080d4767e)
+and PR438 at `6e54b9dad8396d865cce8bbe1344f92ee244e281`; the two bounded
+repairs below follow that inspection. The language/reference pin remains 12.2.0.
+Open branches are design evidence, not additions to the accepted language.
+
+Pele already accepts the same 55 six-family documentation inputs in the table
+above. Agentic's additional proposition is the connected typed-edit, fact,
+source-map, verification, Scene/Style and terminal workflow, rather than unique
+coverage of these six names. The separate complete-fence browser comparison
+uses Pele 1.6.0: Agentic returns SVG for 819/1,095 inputs, Pele for 1,063 and
+Mermaid 12.2.0 for 1,061. Agentic takes 18.146 times Pele's public render-call
+time on their 819 shared successes in that advisory run at `6e54b9da`.
+That broader comparison and the 55-input Pele 1.7.0 table have different
+versions and denominators; neither measures semantic or visual parity.
+The existing performance results should not be read as an overall lead over
+community renderers.
+
+| Priority | New evidence and user problem | Response within Agentic's contracts |
+|---|---|---|
+| Implemented: Requirement spacing | [#7932](https://github.com/mermaid-js/mermaid/issues/7932) and merged [#7937](https://github.com/mermaid-js/mermaid/pull/7937), commit `158e26cc9a7bd0965d1afb39fa50ba0f44562ba6`, show family spacing being shadowed by another family's defaults. The pinned Requirement renderer reads `nodeSpacing` and `rankSpacing`. | Source-config spacing now reaches the existing ELK options; explicit host render options retain precedence. [Owning regressions](../../../src/__tests__/requirement-native.test.ts) check actual geometry, precedence and ineffective-config diagnostics without copying Dagre's pixels or defaults. |
+| Implemented: hidden Treemap names | [#7165 was reopened](https://github.com/mermaid-js/mermaid/issues/7165#issuecomment-4649349083) after merged #7247: the fix's global `leafNodes.length > 20` threshold misses deep trees with few leaves. The maintainer supplies a complete 12-leaf reproduction. | Per-cell fitting and value-proportional areas remain. Omitted labels retain programmatic SVG names and explicit `LABELS_HIDDEN` warnings. Descendants whose containers exhaust their space remain zero-area semantic cells, without impossible text measurement. [Owning regressions](../../../src/__tests__/treemap-native.test.ts) check names, hierarchy, quantities, diagnostics and preserved rendering. Metadata does not make omitted text visually readable. |
+| Follow up: precise Kanban errors | Open [#8121](https://github.com/mermaid-js/mermaid/pull/8121), branch `chore/8116_kanban-chevrotain`, head `05c8f7aaf73601ec953d3c7634d7ca4cdeab600f`, retains 107 token/DB comparison inputs, delimiter-specific errors and metadata key/value spans. Its [follow-up](https://github.com/mermaid-js/mermaid/pull/8121#issuecomment-5405782931) records real identity and flow-sequence span defects. | Reuse the diagnostic cases against our pinned reference; improve positions for unclosed labels and `@{` blocks. Our declaration source maps and metadata model already exist. A parser replacement or importing an unmerged branch as the oracle is unnecessary. |
+| Follow up: responsive Kanban | [Pele's column folding](https://github.com/obsidianmd/pele/blob/52b5c9cc8020fd157599eb601bcc930134332331/src/diagrams/kanban/render.ts#L131-L145), inspected at its current head, provides an alternative to shrinking wide boards. [VS Code users](https://github.com/mjbvz/vscode-markdown-mermaid/issues/243) request wrapping or scrolling while retaining readable text; [Pele #32](https://github.com/obsidianmd/pele/issues/32) warns about synchronous resize/redraw loops. | The current representative board is 1,056px wide. Reflow is a deferred enhancement, not an existing general host-width contract. Any host adaptation should preserve column/card order, membership and readable font size, and schedule resize work outside synchronous observer callbacks. |
+| Follow up: Packet inspector | Open [#7606](https://github.com/mermaid-js/mermaid/issues/7606) requests accessible field inspection with bit ranges, byte offsets and descriptions. | Existing `data-field-id`, `data-start` and `data-end` attributes enable a host-side inspector without changing proportional geometry or fetching assets. The proposed extra description syntax and automatic field-type colors are outside the pin and remain deferred. |
+| Defer pending Block syntax | [#7198](https://github.com/mermaid-js/mermaid/issues/7198) requests varied row heights. Open [#7329](https://github.com/mermaid-js/mermaid/pull/7329), branch `feature/7198_different-rows-heights`, head `3f2a2c628e16bc75aae8c19c98adfb054a845540`, proposes `scale rows:varied` while also changing nested widths. | Preserve authored cells/spans and the current equal plain-row sizing rule. Separate existing-syntax sizing regressions from the unpinned grammar proposal; the branch's unresolved visual changes and manual testing do not justify importing it wholesale. |
+
+Small public-API probes used the unmodified deep Treemap reproduction linked
+above and the operational Six-M Ishikawa example from open
+[#7689](https://github.com/mermaid-js/mermaid/pull/7689), inspected at
+[`ef9844ac910e4f4a909b8b93041be0d9048de3e8`](https://github.com/mermaid-js/mermaid/blob/ef9844ac910e4f4a909b8b93041be0d9048de3e8/packages/mermaid/src/docs/syntax/ishikawa.md).
+Both parse and produce SVG/ASCII in default and `publication-figure` styles.
+The Treemap retains all 19 positioned cells and owned SVG groups: default
+paints all 19 labels and verifies cleanly; `publication-figure` paints eight
+and reports 11 omitted labels at the authored default canvas size. All 11 have
+SVG title names after the repair. ASCII retains every authored label. The
+Ishikawa retains 30 nodes and 29 causal edges and verifies
+cleanly in both styles, including its nested KPI and transport causes. These
+are bounded output/verification probes, not a new conformance denominator or
+a claim about arbitrary density, visual readability or assistive technology.
+
+A separate Chromium 154.0.8037.57 CDP `Accessibility.getFullAXTree` probe checks
+two small production-SVG cases: tiny and zero-valued leaves appear as unignored
+`graphics-symbol` nodes with their names/values, and an omitted `Inner` section
+appears as an unignored `group` directly parenting its `Budget` leaf even after
+its visual space is exhausted. This tests actual accessibility-tree presence,
+roles and ancestry, consistent with Mermaid's
+[accessibility guidance](https://github.com/mermaid-js/mermaid/blob/1fb7869866dd619168d840291c9c54b4f129758b/packages/mermaid/src/docs/config/accessibility.md#L5-L32).
+It does not establish screen-reader usability or equivalent behavior in other
+browser engines.

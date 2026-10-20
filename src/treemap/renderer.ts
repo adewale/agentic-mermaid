@@ -82,7 +82,20 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
       const group = groups.get(child.id)
       if (group) children.push(group)
     }
-    groups.set(cell.node.id, marks.group({ id: cell.node.id, role: cell.node.value === undefined ? 'group' : 'node', open: `<g${cell.node.parentId ? ` data-parent="${escapeAttr(cell.node.parentId)}"` : ''}>`, close: '</g>', children: children.map(node => ({ node, indent: 2 })) }))
+    // A label too small to paint still names its quantitative cell. Keep the
+    // exact value independent of the author's cosmetic number formatting.
+    const section = cell.node.value === undefined,
+      accessible = !cell.label ? escapeAttr(`${cell.node.label}: ${cell.total}`) : undefined
+    groups.set(
+      cell.node.id,
+      marks.group({
+        id: cell.node.id,
+        role: section ? 'group' : 'node',
+        open: `<g${cell.node.parentId ? ` data-parent="${escapeAttr(cell.node.parentId)}"` : ''}${accessible === undefined ? '' : ` role="${section ? 'group' : 'graphics-symbol'}" aria-roledescription="treemap ${section ? 'section' : 'cell'}" aria-label="${accessible}"`}>${accessible === undefined ? '' : `<title>${accessible}</title>`}`,
+        close: '</g>',
+        children: children.map(node => ({ node, indent: 2 })),
+      }),
+    )
   }
   for (const cell of chart.cells) if (!cell.node.parentId) parts.push(groups.get(cell.node.id)!)
   return sceneDocument('treemap', chart, colors, resolved.renderOptions.transparent ?? false, parts)
