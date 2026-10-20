@@ -1,6 +1,9 @@
+import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
+import { connector } from '../scene/marks.ts'
 import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
+import { classInterfaceMarker } from './interface-occurrences.ts'
 import { memberToString } from './text.ts'
 
 export { memberToString } from './text.ts'
@@ -566,7 +569,26 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
       if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(resolveLabelContent(text, rel[`${side}CardinalityContent`]), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     }
   }
-  return withClassTitle(positioned!, diagram.title, style)
+  const result = withClassTitle(positioned!, diagram.title, style)
+  if (result.classes.some(node => node.isInterface)) {
+    const interfaces = new Map(result.classes.filter(node => node.isInterface).map(node => [node.id, node]))
+    // Public nodes report the visible glyph, not its invisible label anchor.
+    // Use the same descriptor and connector geometry authority as the Scene;
+    // like class frames, node boxes exclude their border stroke.
+    const marker = { ...classInterfaceMarker('none'), paint: { fill: 'none', stroke: 'none', strokeWidth: '0' } }
+    for (const relation of result.relationships) {
+      const source = interfaces.get(relation.from),
+        target = interfaces.get(relation.to)
+      if (!source && !target) continue
+      const mark = connector({ id: 'interface-projection', role: 'relationship', geometry: { kind: 'polyline', points: relation.points }, lineStyle: 'solid', paint: { strokeWidth: String(style.lineWidth) }, markers: { ...(source ? { start: marker } : {}), ...(target ? { end: marker } : {}) } })
+      for (const region of connectorMarkerPaintRegions(mark)) {
+        const node = region.position === 'start' ? source : target,
+          box = region.bounds
+        if (node && box) node.interfaceBox = { x: box.x0, y: box.y0, width: box.x1 - box.x0, height: box.y1 - box.y0 }
+      }
+    }
+  }
+  return result
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

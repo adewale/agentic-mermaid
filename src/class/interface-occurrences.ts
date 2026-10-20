@@ -1,3 +1,4 @@
+import type { MarkerDescriptor } from '../scene/ir.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import type { ClassStatementNode } from './parser.ts'
 import type { ClassRelationship } from './types.ts'
@@ -50,4 +51,9 @@ export function createClassInterfaceAllocator(statements: readonly ClassStatemen
     const occurrence = index++
     return allocate(`interface${occurrence}`, ['interface', occurrence])
   }
+}
+
+/** One descriptor authority for the rendered circle and public glyph geometry. */
+export function classInterfaceMarker(stroke: string): MarkerDescriptor {
+  return { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, viewBox: { x: 0, y: 0, width: 14, height: 14 }, ref: { x: 12, y: 7 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke, strokeWidth: '1.5' } }
 }

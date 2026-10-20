@@ -12,7 +12,7 @@
  */
 import { describe, expect, test } from 'bun:test'
 import { decodeXML } from 'entities'
-import { asClass, describeMermaidFacts, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asClass, describeMermaidFacts, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { ClassMutationOp, ClassValidDiagram } from '../agent/types.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
@@ -95,6 +95,36 @@ test('lollipop endpoints are separate named interface occurrences, not invented 
     }
   } finally {
     upstream.close()
+  }
+})
+
+test('public layout reports each interface circle at its actual marker geometry, separate from its name', () => {
+  for (const direction of ['TB', 'LR', 'BT', 'RL'] as const) {
+    for (const side of ['from', 'to'] as const) {
+      const source = `classDiagram\ndirection ${direction}\n${side === 'from' ? 'NamedInterface ()-- Service' : 'Service --() NamedInterface'}`
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error('Expected parseable class source')
+      const layout = layoutMermaid(parsed.value)
+      const node = layout.nodes.find(node => node.id === 'interface0')!
+      expect(node.shape).toBe('circle')
+      expect(node.w).toBe(10)
+      expect(node.h).toBe(10)
+      const route = layout.edges[0]!.path!
+      const endpoint = side === 'from' ? route[0]! : route.at(-1)!
+      const neighbour = side === 'from' ? route[1]! : route.at(-2)!
+      const length = Math.hypot(neighbour[0] - endpoint[0], neighbour[1] - endpoint[1])
+      const towardConnector = [(neighbour[0] - endpoint[0]) / length, (neighbour[1] - endpoint[1]) / length]
+      // The pinned marker is a radius5 circle, tangent at refX12 (cx7),
+      // scaled by the default1 connector stroke, on the connector's side.
+      const cx = endpoint[0] + towardConnector[0]! * 5
+      const cy = endpoint[1] + towardConnector[1]! * 5
+      expect(Math.abs(node.x + node.w / 2 - cx)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(node.y + node.h / 2 - cy)).toBeLessThanOrEqual(0.5)
+      expect(node.label).toBe('NamedInterface')
+      expect(node.labelBounds).toBeDefined()
+      expect(node.labelBounds!.w).toBeGreaterThan(node.w)
+      expect(layout.nodes.find(node => node.id === 'Service')?.shape).toBe('rectangle')
+    }
   }
 })
 

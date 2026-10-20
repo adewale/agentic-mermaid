@@ -15,6 +15,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { diagramTitleMark, FONT_SIZES, FONT_WEIGHTS, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import { buildShadowDefs, buildStyleBlock, type DiagramColors, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
+import { classInterfaceMarker } from './interface-occurrences.ts'
 import { CLASS_STYLE_DEFAULTS, CLS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts'
 import { classRelationshipLineStyle } from './parser.ts'
 import { decodeClassText, memberToString } from './text.ts'
@@ -225,7 +226,7 @@ function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescri
       },
       paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' },
     },
-    { id: 'cls-lollipop', shape: 'circle', size: { width: 14, height: 14 }, viewBox: { x: 0, y: 0, width: 14, height: 14 }, ref: { x: 12, y: 7 }, orient: 'auto-start-reverse', overflow: 'hidden', geometry: { kind: 'circle', cx: 7, cy: 7, r: 5 }, paint: { fill: 'var(--bg)', stroke: edgeColor, strokeWidth: '1.5' } },
+    classInterfaceMarker(edgeColor),
   ]
 }
 

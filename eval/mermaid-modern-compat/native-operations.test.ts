@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getFamily, knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
+import { applyOps, getFamily, knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
 import blockCases from '../mermaid-block-bench/cases.json'
 import ishikawaCases from '../mermaid-ishikawa-bench/cases.json'
 import kanbanCases from '../mermaid-kanban-bench/cases.json'
@@ -135,6 +135,26 @@ describe('actual native builder operations agree with the pinned modern referenc
     // Logical endpoints are compared above in the actual builder operands.
     expect(projectReferenceSemantic('class', parsed.referenceReply)?.value).toMatchObject(shafts)
     expect(parsed.nativeSemantic?.value).toMatchObject(shafts)
+    const authored = applyOps({ source: 'classDiagram\nclass E\nclass F', ops: [{ kind: 'add_interface', class: 'F', label: 'E', side: 'from', lineStyle: 'dashed' }] })
+    expect(authored.ok).toBe(true)
+    if (!authored.ok) throw new Error('Expected explicit interface creation')
+    const written = await assertOperations('class', authored.source)
+    expect(written.native?.operations).toEqual([['relationship', 'E', 'F', '', '', '', 'dashed', 'lollipop', 'none']])
+  })
+  test('Class interface write projection retains repeated labels separately from authored generated-looking classes', async () => {
+    const source = 'classDiagram\nclass interface0\nclass Port\nclass Service\nService --() Port\ninterface0 --() Port'
+    const parsed = await assertOperations('class', source)
+    expect(parsed.native?.operations).toEqual([
+      ['relationship', 'Service', 'Port', '', '', '', 'solid', 'none', 'lollipop'],
+      ['relationship', 'interface0', 'Port', '', '', '', 'solid', 'none', 'lollipop'],
+    ])
+    const local = inspectAgenticGrammar('class', source)
+    const declarations = local.native.observation.mutations
+    if (declarations.status !== 'available') throw new Error('Expected actual native declaration observations')
+    expect(declarations.value.filter(event => event.kind === 'add-class' && (event.value as { isInterface?: boolean })?.isInterface).map(event => event.value)).toMatchObject([
+      { id: 'interface0#1', label: 'Port', isInterface: true },
+      { id: 'interface1', label: 'Port', isInterface: true },
+    ])
   })
   test('State expands recorded document operands without losing nested parent scope', () => assertOperations('state', 'stateDiagram-v2\nstate Outer {\n[*] --> A\nA --> [*]\n}\n[*] --> Outer'))
   test('Sequence preserves explicit and inline activation order', () => assertOperations('sequence', 'sequenceDiagram\nA->>+B: start\nactivate A\nB-->>-A: finish\ndeactivate A'))

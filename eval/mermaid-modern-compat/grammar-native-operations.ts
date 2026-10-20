@@ -100,11 +100,16 @@ export function projectNativeOperations(family: string, events: readonly ParserO
         else selected = false
         break
       case 'class':
-        if (kind === 'add-relationship')
+        // Resolve generated interface occurrences only from actual preceding
+        // declaration observations, never from a returned/reparsed model.
+        if (kind === 'add-class' && item.isInterface === true) {
+          nodes.set(text(item.id), item)
+          selected = false
+        } else if (kind === 'add-relationship')
           add(
             'relationship',
-            text(item.from),
-            text(item.to),
+            nodes.has(text(item.from)) ? text(nodes.get(text(item.from))!.label) : text(item.from),
+            nodes.has(text(item.to)) ? text(nodes.get(text(item.to))!.label) : text(item.to),
             label(item.label),
             text(item.fromCardinality),
             text(item.toCardinality),

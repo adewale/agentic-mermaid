@@ -183,6 +183,8 @@ export interface PositionedClassNamespace {
 
 export interface PositionedClassNode {
   isInterface?: boolean
+  /** Circle geometry from the actual endpoint marker, excluding its stroke. */
+  interfaceBox?: { x: number; y: number; width: number; height: number }
   labelBlock?: PixelTextBlock
   annotationBlock?: PixelTextBlock
   attributeBlocks?: PixelTextBlock[]
