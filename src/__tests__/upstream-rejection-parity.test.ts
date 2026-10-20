@@ -210,6 +210,7 @@ const SEQUENCE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
 // it is kept as source and the render refuses it. Both renderers name the
 // line verify reports. [construct, source, line]
 const SEQUENCE_UNREAD: ReadonlyArray<readonly [string, string, number]> = [
+  ['an arrow inside the receiver after a local arrow spelling', 'sequenceDiagram\n  Alice|-Bob->>Carol->>Dan: Hi', 2],
   ['an arrow inside the receiver', 'sequenceDiagram\n  Alice->>Bob->>Carol: Hi', 2],
   ['an arrow inside the receiver after frontmatter and a blank line', '---\ntitle: T\n---\nsequenceDiagram\n\n  Alice->>Bob->>Carol: Hi', 6],
   ['an arrow inside the receiver after a semicolon', 'sequenceDiagram\n  Alice->>Bob: x; Bob->>Al->>Carol: Hi', 2],
@@ -337,6 +338,11 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['timeline', 'a continuation after a section header', 'timeline\n  2001 : Alpha\n  section Later\n  : Beta\n  2002 : Gamma'],
   ['timeline', 'a section on its own line, and "section" starting period labels', 'timeline\n  section 2020s\n  2021 : Launch\n  section : Beta\n  sections X : Gamma'],
   ['sequence', 'nested activations each deactivated once', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Alice->>+Bob: Again\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Bye'],
+  // Mermaid's lexer reads a local arrow spelling (`|-`, `/-`, `\-`) before one
+  // of its own arrows as text of the sender's ID.
+  ['sequence', 'a local stick spelling inside the sender', 'sequenceDiagram\n  Alice|-Bob->>Carol: Hi'],
+  ['sequence', 'a slash and a dash inside the sender', 'sequenceDiagram\n  x/-y-->>z: m'],
+  ['sequence', 'a backslash and a dash inside the sender, before an activation', 'sequenceDiagram\n  A\\-B->>+C: Hi\n  C-->>-A\\-B: Back'],
   ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
   ['c4', 'an unquoted argument before a comma', 'C4Context\n  Person(a, Ann Lee, "A customer")'],
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
@@ -487,6 +493,17 @@ describe('accept what pinned Mermaid accepts', () => {
     const parsed = parseRegisteredMermaid(source)
     expect({ mermaid, ours: parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => element.id) : [], ...readGenerously(source, 'Bob') })
       .toEqual({ mermaid: { ok: true, value: ['a'] }, ours: ['a', 'b'], typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  // Participants and messages as Mermaid's database holds them.
+  test.each(ACCEPTED.filter(([family]) => family === 'sequence'))('%s: %s is read as Mermaid reads it', async (_family, _construct, source) => {
+    const mermaid = await upstream.parse(source)
+    const parsed = parseRegisteredMermaid(source)
+    const body = parsed.ok && parsed.value.body.kind === 'sequence' ? parsed.value.body : undefined
+    expect({ participants: body?.participants.map(participant => participant.id), messages: body?.messages.map(message => [message.from, message.to, message.text]) }).toEqual({
+      participants: mermaid.ok ? mermaid.sequence?.actors.map(actor => actor.name) : [],
+      messages: mermaid.ok ? mermaid.sequence?.messages.filter(message => message.to !== undefined).map(message => [message.from, message.to, message.message]) : [],
+    })
   })
 
   test.each(C4_ARGUMENTS_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads other arguments', async (_construct, source, fields) => {
