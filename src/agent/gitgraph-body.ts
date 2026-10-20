@@ -1,6 +1,8 @@
-import { GitGraphParseError, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
+import { GitGraphParseError, gitGraphStatementEnds, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
 import type { GitGraphCommit } from '../gitgraph/types.ts'
 import { gitGraphCommitLabel } from '../gitgraph/types.ts'
+import { parseAccessibilityDirective, statementEndAt } from '../shared/accessibility-directives.ts'
+import { statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { GitGraphBody, GitGraphMutationOp, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
@@ -158,6 +160,40 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
     default:
       return err({ code: 'INVALID_OP', message: unknownOpMessage('gitgraph', op) })
   }
+}
+
+// Mermaid's GitGraph grammar takes a quoted string ("…" or '…') for id:,
+// msg:, tag: and parent:, and a branch name either quoted or matching its
+// REFERENCE terminal, \w([-./\w]*[-\w])?. Ours reads an unquoted value or a
+// name holding other characters as written; the writer quotes it.
+const GITGRAPH_REFERENCE_RE = /^\w(?:[-./\w]*[-\w])?$/
+const GITGRAPH_BRANCH_RE = /^(branch|checkout|switch|merge)\s+(\S+)/i
+const GITGRAPH_UNQUOTED_VALUE_RE = /(?:^|\s)(id|msg|tag|parent)\s*:\s*(?!["'])(\S+)/gi
+
+/** GitGraph source Mermaid's lexer rejects, each on its canonical line: an
+ * unquoted attribute value, and a branch name it cannot read bare. */
+export function gitgraphUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const ends = gitGraphStatementEnds(lines)
+  const warnings: LayoutWarning[] = []
+  const report = (index: number, syntax: string, message: string): void => { warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: index + 1, message }) }
+  for (let index = 0; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive) { index = directive.endIndex; continue }
+    const start = index
+    index = statementEndAt(ends, start, lines.length)
+    const text = stripTrailingComment(statementText(lines, start, index).trim())
+    const branch = GITGRAPH_BRANCH_RE.exec(text)
+    if (branch && !/^["']/.test(branch[2]!) && !GITGRAPH_REFERENCE_RE.test(branch[2]!)) {
+      report(start, 'gitgraph_branch_name', `The ${branch[1]!.toLowerCase()} name ${JSON.stringify(branch[2])} is read as written. Pinned Mermaid reads an unquoted branch name only from letters, digits, _ and inner -./, and rejects this; put the name in double quotes.`)
+    }
+    if (!/^(commit|merge|cherry-pick)\b/i.test(text)) continue
+    for (const value of text.matchAll(GITGRAPH_UNQUOTED_VALUE_RE)) {
+      report(start, 'gitgraph_unquoted_value', `The ${value[1]!.toLowerCase()} ${JSON.stringify(value[2])} is read as written. Pinned Mermaid reads ${value[1]!.toLowerCase()}: only with a quoted string, and rejects this; write ${value[1]!.toLowerCase()}: "…".`)
+    }
+  }
+  return warnings
 }
 
 export function verifyGitGraph(body: GitGraphBody, opts: VerifyOptions): LayoutWarning[] {
