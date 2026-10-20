@@ -3,10 +3,11 @@ import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { graphTextBlock } from './graph-text.ts'
-import { performanceExperimentEnabled } from './experimental-performance.ts'
-import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
+import { performanceExperimentEnabled } from './experimental-performance.ts'
+import { incrementalSourceOrder } from './experimental/graph-order.ts'
+import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
 /**
  * Layout engine for Agentic Mermaid (ELK.js based).
  *
@@ -151,6 +152,7 @@ export function directionToElk(dir: MermaidGraph['direction']): string {
  * topologically sort with original order as the tie-breaker.
  */
 function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 'source' | 'target'>>): string[] {
+  if (performanceExperimentEnabled('incremental-order')) return incrementalSourceOrder(nodeIds, edges)
   const ids = new Set(nodeIds)
   const original = new Map(nodeIds.map((id, i) => [id, i]))
   const outgoing = new Map(nodeIds.map(id => [id, new Set<string>()]))

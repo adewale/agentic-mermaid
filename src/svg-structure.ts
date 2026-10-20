@@ -1,5 +1,6 @@
 import { decodeXML } from 'entities'
-import { inspectSvgOnce } from './svg-inspection-cache.ts'
+import { canRetainSvgInspection, inspectSvgOnce, retainedSvgInspection } from './svg-inspection-cache.ts'
+import { performanceExperimentEnabled } from './experimental-performance.ts'
 
 export interface SvgAttributeToken {
   readonly name: string
@@ -113,6 +114,13 @@ function scanStartTags(source: string): readonly SvgStartTagToken[] {
 export function svgRootStartTag(source: string): SvgStartTagToken | undefined {
   const firstNonWhitespace = source.search(/\S/)
   if (firstNonWhitespace < 0) return undefined
+  if (performanceExperimentEnabled('svg-passes')) {
+    const retained = retainedSvgInspection<readonly SvgStartTagToken[]>('start-tags', source)
+    if (retained) {
+      const root = retained[0]
+      return root?.start === firstNonWhitespace && root.name === 'svg' ? root : undefined
+    }
+  }
   // A root lookup needs only its opening tag, not every mark in the drawing.
   const end = scanTagEnd(source, firstNonWhitespace)
   if (end < 0) return undefined
@@ -155,15 +163,61 @@ function applyReplacementsRightToLeft(source: string, replacements: readonly Rep
 // original right-to-left semantics.
 function applyReplacements(source: string, replacements: readonly Replacement[]): string {
   if (replacements.length === 0) return source
+  const ordered = [...replacements].sort((left, right) => left.start - right.start)
   const parts: string[] = []
   let cursor = 0
-  for (const replacement of [...replacements].sort((left, right) => left.start - right.start)) {
+  for (const replacement of ordered) {
     if (replacement.start < cursor) return applyReplacementsRightToLeft(source, replacements)
     parts.push(source.slice(cursor, replacement.start), replacement.value)
     cursor = replacement.end
   }
   parts.push(source.slice(cursor))
-  return parts.join('')
+  const output = parts.join('')
+  if (performanceExperimentEnabled('svg-passes') && canRetainSvgInspection(output)) {
+    retainRewrittenTags(source, output, ordered)
+  }
+  return output
+}
+
+/** Rebase lexical ranges only when edits provably preserve the scanned tag
+ * structure. Attribute delimiters must survive; markup-bearing CSS falls back
+ * to a fresh scan. This is lexical reuse, never final XML/security admission. */
+function retainRewrittenTags(source: string, output: string, edits: readonly Replacement[]): void {
+  const tags = retainedSvgInspection<readonly SvgStartTagToken[]>('start-tags', source)
+  if (!tags) return
+  let tagIndex = 0
+  for (const edit of edits) {
+    while (tagIndex < tags.length && tags[tagIndex]!.end <= edit.start) tagIndex++
+    const tag = tags[tagIndex]
+    if (tag && tag.start < edit.end && edit.start < tag.end) {
+      const attribute = tag.attributes.find(value => value.valueStart === edit.start && value.valueEnd === edit.end)
+      if (!attribute || edit.value.includes(attribute.quote)) return
+    } else if (source.slice(edit.start, edit.end).includes('<') || edit.value.includes('<')) return
+  }
+  // Binary-search cumulative edit deltas instead of scanning every edit for
+  // every attribute. Empty-value insertion has distinct start/end affinity.
+  const deltas: number[] = []
+  let delta = 0
+  for (const edit of edits) { delta += edit.value.length - (edit.end - edit.start); deltas.push(delta) }
+  const offset = (position: number, end = false): number => {
+    let low = 0, high = edits.length
+    while (low < high) {
+      const middle = (low + high) >>> 1
+      const edit = edits[middle]!
+      if (edit.end < position || edit.end === position && (edit.start < edit.end || end)) low = middle + 1
+      else high = middle
+    }
+    return position + (low ? deltas[low - 1]! : 0)
+  }
+  const rewritten = Object.freeze(tags.map(tag => Object.freeze({
+    name: tag.name, start: offset(tag.start, true), end: offset(tag.end), selfClosing: tag.selfClosing,
+    attributes: Object.freeze(tag.attributes.map(attribute => {
+      const valueStart = offset(attribute.valueStart)
+      const valueEnd = offset(attribute.valueEnd, true)
+      return Object.freeze({ ...attribute, nameStart: offset(attribute.nameStart), valueStart, valueEnd, value: output.slice(valueStart, valueEnd) })
+    })),
+  })))
+  inspectSvgOnce('start-tags', output, () => rewritten)
 }
 
 export function transformSvgAttributes(
@@ -209,10 +263,15 @@ export function svgCssText(source: string): string {
 }
 
 export function transformSvgCssValues(source: string, transform: (css: string) => string): string {
-  return applyReplacements(source, svgCssRanges(source).map(range => ({
+  const replacements = svgCssRanges(source).map(range => ({
     ...range,
     value: transform(source.slice(range.start, range.end)),
-  })))
+  }))
+  // Tag-like CDATA/style text can yield overlapping lexical ranges. Even an
+  // unchanged enclosing replacement participates in the established fallback.
+  const disjoint = performanceExperimentEnabled('svg-passes') && replacements.every((edit, index) => index === 0 || edit.start >= replacements[index - 1]!.end)
+  return applyReplacements(source, disjoint
+    ? replacements.filter(edit => edit.value !== source.slice(edit.start, edit.end)) : replacements)
 }
 
 export function replaceSvgRootStartTag(

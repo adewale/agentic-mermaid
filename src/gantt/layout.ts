@@ -1,3 +1,5 @@
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
+import { OpenIntervalUnion } from '../experimental/interval-union.ts'
 // ============================================================================
 // Gantt layout — schedule → deterministic geometry (docs/design/families/gantt.md §4).
 //
@@ -355,10 +357,13 @@ function clearCrossingX(band: DepBand, obstacles: DepRect[], plot: DepPlot, targ
     cands.add(Math.max(lo, Math.min(hi, r.x - S)))
     cands.add(Math.max(lo, Math.min(hi, r.x + r.w + S)))
   }
+  const blocked = performanceExperimentEnabled('gantt-intervals') ? new OpenIntervalUnion(inBand
+    .filter(r => band.y + band.h + 1 > r.y + DEP_EPS && band.y - 1 < r.y + r.h - DEP_EPS)
+    .map(r => [r.x + DEP_EPS, r.x + r.w - DEP_EPS] as const)) : undefined
   let best = lo
   let bestScore = Infinity
   for (const x of cands) {
-    if (inBand.some(r => vBlocked(x, band.y - 1, band.y + band.h + 1, r))) continue
+    if (blocked ? blocked.contains(x) : inBand.some(r => vBlocked(x, band.y - 1, band.y + band.h + 1, r))) continue
     const score = Math.abs(x - targetX)
     if (score < bestScore - DEP_EPS || (Math.abs(score - bestScore) <= DEP_EPS && x < best)) {
       best = x

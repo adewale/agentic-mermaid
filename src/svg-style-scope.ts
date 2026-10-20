@@ -15,6 +15,7 @@
 // ============================================================================
 
 import { replaceSvgRootStartTag, scanSvgStartTags, svgAttribute, svgRootStartTag } from './svg-structure.ts'
+import { performanceExperimentEnabled } from './experimental-performance.ts'
 
 export const SVG_STYLE_SCOPE_PREFIX = 'am-'
 
@@ -185,8 +186,19 @@ export function scopeSvgStyles(svg: string): string {
 
   const scope = `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`
   let scoped = svg
-  for (const range of [...styleRanges].sort((left, right) => right.start - left.start)) {
-    scoped = `${scoped.slice(0, range.start)}${scopeCss(scoped.slice(range.start, range.end), scope)}${scoped.slice(range.end)}`
+  if (performanceExperimentEnabled('svg-passes') && styleRanges.every((range, index) => index === 0 || range.start >= styleRanges[index - 1]!.end)) {
+    const parts: string[] = []
+    let cursor = 0
+    for (const range of styleRanges) {
+      parts.push(svg.slice(cursor, range.start), scopeCss(svg.slice(range.start, range.end), scope))
+      cursor = range.end
+    }
+    parts.push(svg.slice(cursor))
+    scoped = parts.join('')
+  } else {
+    for (const range of [...styleRanges].sort((left, right) => right.start - left.start)) {
+      scoped = `${scoped.slice(0, range.start)}${scopeCss(scoped.slice(range.start, range.end), scope)}${scoped.slice(range.end)}`
+    }
   }
 
   // The root precedes every <style>, so its offsets are unchanged above.

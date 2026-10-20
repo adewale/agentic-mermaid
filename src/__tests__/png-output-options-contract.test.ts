@@ -32,8 +32,10 @@ import { decodePng } from './helpers/png-pixels.ts'
 import { createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import { PNG_CLI_FLAG_BINDINGS } from '../cli/index.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
+const runChild = useTestChildren(30_000)
 
 describe('canonical PNG output-option authority', () => {
   test('initializes the hosted styled PNG adapter in a fresh process', () => {
@@ -224,7 +226,7 @@ describe('canonical PNG output-option authority', () => {
     expect(validateMcpToolArguments(createRenderPngTool('hosted'), args)).toEqual([])
   })
 
-  test('the hosted PNG parity helper bootstraps built-in families in a fresh process', () => {
+  test('the hosted PNG parity helper bootstraps built-in families in a fresh process', async () => {
     const source = 'flowchart LR\n  A[Start 漢] --> B[Finish]'
     const rendered = renderMermaidPNGWithReceipt(source, {
       style: ['watercolor', 'paper'],
@@ -262,12 +264,11 @@ describe('canonical PNG output-option authority', () => {
         }],
       },
     }
-    const result = spawnSync('bun', [
+    const result = await runChild('bun', [
       'run',
       join(import.meta.dir, '..', '..', 'scripts', 'verify-hosted-png-e2e.ts'),
     ], {
       cwd: join(import.meta.dir, '..', '..'),
-      encoding: 'utf8',
       input: JSON.stringify(response),
     })
 

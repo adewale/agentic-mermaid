@@ -108,7 +108,7 @@ const median = (values: number[]) => [...values].sort((a, b) => a - b)[values.le
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 const ratio = (a: number | undefined, b: number | undefined) => (a !== undefined && b !== undefined && b > 0 ? a / b : undefined)
 const ms = (n: number | undefined) => (n === undefined ? '—' : `${n.toFixed(n < 10 ? 2 : 0)} ms`)
-const mb = (n: number | undefined) => (n === undefined ? '—' : `${(n / 1024 / 1024).toFixed(1)} MB`)
+const mb = (n: number | undefined) => (n === undefined ? '—' : `${(n / 1024 / 1024).toFixed(1)} MiB`)
 const times = (n: number | undefined) => (n === undefined ? '—' : `${n.toFixed(2)}×`)
 function parsesAsSvg(svg: string): boolean {
   try {

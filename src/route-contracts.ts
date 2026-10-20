@@ -1,4 +1,7 @@
 import { resolveLabelContent } from './shared/display-text.ts'
+import { performanceExperimentEnabled } from './experimental-performance.ts'
+import { IncrementalGraphOrder } from './experimental/graph-order.ts'
+import { StaticBoundsIndex, type IndexedBounds } from './experimental/graph-bounds.ts'
 /**
  * Route contracts — principled routing without hitches (docs/design/system/route-contracts.md).
  *
@@ -225,6 +228,18 @@ export function classifyRoutes(graph: MermaidGraph): RouteClass[] {
   }
   visitScope(graph.subgraphs, '')
 
+  if (performanceExperimentEnabled('incremental-order')) {
+    const ids = new Set(graph.nodes.keys())
+    for (const edge of graph.edges) { ids.add(edge.source); ids.add(edge.target) }
+    const dag = new IncrementalGraphOrder([...ids])
+    return graph.edges.map(edge => {
+      if (edge.source === edge.target) return 'self-loop'
+      if (subgraphIds.has(edge.source) || subgraphIds.has(edge.target)) return 'container'
+      if (!dag.add(edge.source, edge.target)) return 'feedback'
+      return (scopeOf.get(edge.source) ?? '') !== (scopeOf.get(edge.target) ?? '') ? 'cross-hierarchy' : 'primary-forward'
+    })
+  }
+
   const outgoing = new Map<string, Set<string>>()
   const reaches = (from: string, to: string): boolean => {
     const seen = new Set<string>()
@@ -407,6 +422,54 @@ interface LaneContext {
   sideUse?: Map<string, number>
   /** Final closure proves label slots against rendered 8px halos. */
   finalLabelClearance?: boolean
+  /** Owned by this proof pass; never reused after node geometry changes. */
+  index?: LaneGraphIndex
+}
+
+interface LaneGraphIndex {
+  nodeById: Map<string, PositionedNode>
+  outgoing: Map<string, PositionedEdge[]>
+  incoming: Map<string, PositionedEdge[]>
+  nodeBounds?: StaticBoundsIndex<PositionedNode>
+  /** Present only in a read-only proof: producer/closure routes stay live. */
+  edgeBounds?: StaticBoundsIndex<PositionedEdge>
+}
+
+function laneGraphIndex(ctx: LaneContext, stableNodes = false, stableEdges = false): LaneGraphIndex | undefined {
+  if (!performanceExperimentEnabled('graph-index')) return undefined
+  if (ctx.index) return ctx.index
+  const outgoing = new Map<string, PositionedEdge[]>(), incoming = new Map<string, PositionedEdge[]>()
+  for (const edge of ctx.edges) {
+    const siblings = outgoing.get(edge.source)
+    if (siblings) siblings.push(edge)
+    else outgoing.set(edge.source, [edge])
+    const peers = incoming.get(edge.target)
+    if (peers) peers.push(edge)
+    else incoming.set(edge.target, [edge])
+  }
+  const index: LaneGraphIndex = { nodeById: new Map(ctx.nodes.map(node => [node.id, node])), outgoing, incoming }
+  // Tiny graphs avoid the construction/query/sorting overhead. This index is
+  // only created where the owner guarantees node geometry remains unchanged.
+  if (stableNodes && ctx.nodes.length >= 32) {
+    index.nodeBounds = new StaticBoundsIndex(ctx.nodes.map(node => ({
+      x0: node.x - CLEARANCE, y0: node.y - CLEARANCE,
+      x1: node.x + node.width + CLEARANCE, y1: node.y + node.height + CLEARANCE, value: node,
+    })))
+  }
+  if (stableEdges && ctx.edges.length >= 32) {
+    const bounds: IndexedBounds<PositionedEdge>[] = []
+    for (const edge of ctx.edges) {
+      const rect = labelRect(edge, ctx.style)
+      if (rect) bounds.push({ x0: rect.x - CLEARANCE, y0: rect.y - CLEARANCE, x1: rect.x + rect.w + CLEARANCE, y1: rect.y + rect.h + CLEARANCE, value: edge })
+      for (let i = 1; i < edge.points.length; i++) {
+        const a = edge.points[i - 1]!, b = edge.points[i]!
+        bounds.push({ x0: Math.min(a.x, b.x) - CLEARANCE, y0: Math.min(a.y, b.y) - CLEARANCE, x1: Math.max(a.x, b.x) + CLEARANCE, y1: Math.max(a.y, b.y) + CLEARANCE, value: edge })
+      }
+    }
+    index.edgeBounds = new StaticBoundsIndex(bounds)
+  }
+  ctx.index = index
+  return index
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -584,6 +647,7 @@ function buildRouteLaneContext(
   classes: RouteClass[],
   isBundleOwned: (edge: PositionedEdge) => boolean,
   finalLabelClearance = false,
+  stableEdges = false,
 ): { ctx: LaneContext; axis: Axis } {
   const axis = axisFor(graph.direction)
   const sideUse = allocateRoutePorts(positioned, graph, classes).sideUse
@@ -603,10 +667,9 @@ function buildRouteLaneContext(
     }
   }
 
-  return {
-    axis,
-    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance },
-  }
+  const ctx: LaneContext = { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance }
+  laneGraphIndex(ctx, true, stableEdges)
+  return { axis, ctx }
 }
 
 /** Port-ranking sharpness: a diamond's vertex is the strongest anchor. */
@@ -689,8 +752,9 @@ function diamondSpreadAssignment(
   if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
     return null
   }
-  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
-  const siblings = ctx.edges
+  const graphIndex = laneGraphIndex(ctx)
+  const nodeMap = graphIndex?.nodeById ?? new Map(ctx.nodes.map(node => [node.id, node]))
+  const siblings = (graphIndex?.outgoing.get(edge.source) ?? ctx.edges)
     .filter(candidate => candidate.source === edge.source &&
       candidate.edgeIndex !== undefined &&
       ctx.classes?.[candidate.edgeIndex] === 'primary-forward' &&
@@ -728,8 +792,9 @@ function diamondSpreadTargetsShareRank(
   if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
     return false
   }
-  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
-  const siblings = ctx.edges.filter(candidate => candidate.source === edge.source &&
+  const index = laneGraphIndex(ctx)
+  const nodeMap = index?.nodeById ?? new Map(ctx.nodes.map(node => [node.id, node]))
+  const siblings = (index?.outgoing.get(edge.source) ?? ctx.edges).filter(candidate => candidate.source === edge.source &&
     candidate.edgeIndex !== undefined &&
     ctx.classes?.[candidate.edgeIndex] === 'primary-forward' &&
     nodeMap.has(candidate.target))
@@ -812,8 +877,11 @@ export function directLaneBlockers(
   const blockers: RouteBlocker[] = []
   const overlaps = (lo: number, hi: number, lo2: number, hi2: number) =>
     Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
+  const index = laneGraphIndex(ctx)
+  const query = index ? <T>(bounds: StaticBoundsIndex<T>): T[] => axis.main === 'x'
+    ? bounds.query(mainLo, c, mainHi, c) : bounds.query(c, mainLo, c, mainHi) : undefined
 
-  for (const node of ctx.nodes) {
+  for (const node of index?.nodeBounds ? query!(index.nodeBounds) : ctx.nodes) {
     if (node.id === edge.source || node.id === edge.target) continue
     const nMainLo = node[axis.main] - CLEARANCE
     const nMainHi = node[axis.main] + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
@@ -824,7 +892,7 @@ export function directLaneBlockers(
     }
   }
 
-  for (const other of ctx.edges) {
+  for (const other of index?.edgeBounds ? new Set(query!(index.edgeBounds)) : ctx.edges) {
     // Compare by edgeIndex as well as identity: validation proves lanes on a
     // copy of the edge, and the original must not block its own lane.
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
@@ -890,6 +958,7 @@ export function findLabelSlot(
   ctx: LaneContext,
 ): Point | null {
   if (!edge.label) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
+  const index = laneGraphIndex(ctx)
   const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
   const PAD = 2
   const rectsOverlap = (
@@ -900,7 +969,8 @@ export function findLabelSlot(
 
   const slotClear = (cx: number, cy: number): boolean => {
     const pill = pillRect(cx, cy, m)
-    for (const node of ctx.nodes) {
+    const nodes = index?.nodeBounds ? index.nodeBounds.query(pill.x - 8, pill.y - 8, pill.x + pill.w + 8, pill.y + pill.h + 8) : ctx.nodes
+    for (const node of nodes) {
       const endpoint = node.id === edge.source || node.id === edge.target
       if (endpoint && !ctx.finalLabelClearance) continue
       // The final closure runs after the last label pass, so its candidate
@@ -909,7 +979,8 @@ export function findLabelSlot(
       if (pill.x < node.x + node.width + clearance && pill.x + pill.w + clearance > node.x &&
         pill.y < node.y + node.height + clearance && pill.y + pill.h + clearance > node.y) return false
     }
-    for (const other of ctx.edges) {
+    const edges = index?.edgeBounds ? new Set(index.edgeBounds.query(pill.x - 16, pill.y - 16, pill.x + pill.w + 16, pill.y + pill.h + 16)) : ctx.edges
+    for (const other of edges) {
       if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
       // Production may ignore a reciprocal feedback label because a later
       // label pass can move it. Final closure has no such future pass: both
@@ -1307,7 +1378,7 @@ export function applyRouteContracts(
     edge => bundled.has(edge),
     false,
   )
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const nodeMap = ctx.index?.nodeById ?? new Map(positioned.nodes.map(n => [n.id, n]))
   const groupMap = flattenGroups(positioned.groups)
   const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
 
@@ -1789,7 +1860,7 @@ export function applyRouteContracts(
     // point makes this order-independent: a hook taken before the sibling
     // settles is re-proved and downgraded on the next round.
     const entryPort = shapePorts(target)[facingSide(axis, -1)]
-    const mergeAvailable = ctx.edges.some(other => other !== edge &&
+    const mergeAvailable = (laneGraphIndex(ctx)?.incoming.get(edge.target) ?? ctx.edges).some(other => other !== edge &&
       other.target === edge.target && other.source !== edge.source &&
       other.points.length > 0 &&
       Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE &&
@@ -1854,7 +1925,7 @@ export function applyRouteContracts(
     const run = [points[runStart]!, points[runStart + 1]!]
     const runDir = Math.sign(mainOf(run[1]!) - mainOf(run[0]!))
     const p0 = points[0]!
-    const source = ctx.nodes.find(n => n.id === edge.source)
+    const source = ctx.index ? ctx.index.nodeById.get(edge.source) : ctx.nodes.find(n => n.id === edge.source)
     const inRunRange = (m: number) => runDir > 0
       ? m >= mainOf(run[0]!) - EPS && m < mainOf(run[1]!) - EPS
       : m <= mainOf(run[0]!) + EPS && m > mainOf(run[1]!) + EPS
@@ -1928,7 +1999,7 @@ export function applyRouteContracts(
           break
         }
       }
-      const target = ctx.nodes.find(n => n.id === edge.target)
+      const target = ctx.index ? ctx.index.nodeById.get(edge.target) : ctx.nodes.find(n => n.id === edge.target)
       if (rs >= 0 && rs + 1 < base.length - 1 && target && isStraightenable(target)) {
         const tCrossLo = target[graphAxis.cross]
         // Exact channel-facing port via shapePorts (see the head variant).
@@ -2439,8 +2510,9 @@ function scanRouteHitches(
     classes,
     edge => edge.routeCertificate?.invariant === 'bundle',
     true,
+    !close,
   )
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const nodeMap = ctx.index?.nodeById ?? new Map(positioned.nodes.map(n => [n.id, n]))
   const sideUse = ctx.sideUse!
   const hitches: RouteHitch[] = []
   const closedEdges = new Set<PositionedEdge>()
