@@ -375,6 +375,14 @@ export function classCommentStart(line: string): number {
   return -1
 }
 
+/** The paint of a `classDef` or `style` line without a trailing `%%`
+ * comment. Mermaid's LABEL token reads the comment into the last property's
+ * value, which CSS then drops; ours reads it as the comment it is. */
+export function withoutStyleComment(style: string): string {
+  const comment = style.indexOf('%%')
+  return comment < 0 ? style : style.slice(0, comment).trimEnd()
+}
+
 /** A class statement line without its trailing `%%` comment. Member lines
  * inside a class body are text, not statements. */
 export function classStatement(line: string): string {
@@ -474,7 +482,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   const classDef = text.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
   if (classDef) {
-    const props = parseStyleProps(classDef[2]!)
+    const props = parseStyleProps(withoutStyleComment(classDef[2]!))
     if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props }
   }
   const assignment = text.match(/^(class|cssClass)\s+(.+?)\s+([\w-]+)$/)
@@ -495,7 +503,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const style = text.match(/^style\s+(.+?)\s+(.+)$/)
   if (style) {
     const refs = references(style[1]!)
-    const props = parseStyleProps(style[2]!)
+    const props = parseStyleProps(withoutStyleComment(style[2]!))
     if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props }
   }
   const annotation = parseClassAnnotationStatement(text)
