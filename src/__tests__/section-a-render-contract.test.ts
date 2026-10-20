@@ -319,6 +319,7 @@ describe('Section A canonical render contracts', () => {
     expect(context).toEqual({
       renderOptions: request.renderOptions,
       styleFace: request.appearance.face,
+      paintBackendId: 'backend:default',
     })
     expect(Object.isFrozen(context)).toBe(true)
     expect(Object.getOwnPropertySymbols(request.renderOptions)).toEqual([])

@@ -1,15 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import fc from 'fast-check'
-import { asTreemap, describeMermaidFacts, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { asTreemap, describeMermaidFacts, layoutMermaidWithReceipt, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { mutateTreemap, renderTreemap } from '../agent/treemap-body.ts'
 import { lowerPositionedFamilyScene } from '../graphical-render.ts'
 import { positionResolvedFamily } from '../positioning.ts'
-import { resolveRenderRequest } from '../render-contract.ts'
+import { resolveRenderRequest, resolveRenderRequestForExecution } from '../render-contract.ts'
+import { createMermaidRenderer } from '../index.ts'
 import type { SceneNode, ShapeMark } from '../scene/ir.ts'
 import { getStyle } from '../scene/style-registry.ts'
 import { visitSceneNodes } from '../scene/walk.ts'
 import { contrastRatio } from '../shared/color-math.ts'
+import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
 import { layoutTreemapDiagram, resolveTreemapConfig, squarifyTreemap } from '../treemap/layout.ts'
 import { parseTreemapDiagram } from '../treemap/parser.ts'
 import type { PositionedTreemap } from '../treemap/types.ts'
@@ -287,6 +289,82 @@ describe('native Treemap', () => {
       expect(nodes.find(node => node.id === 'label:treemap-0')).toMatchObject({ paint: { fill: ink } })
       expect(nodes.find((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar')!.paint).toEqual(defaultNodes.find((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar')!.paint)
     }
+  })
+
+  test('fixed Style ink searches beyond the accent hue without changing quantitative geometry', () => {
+    // Exact registered portfolio source/style core-1254 with a host selecting
+    // the unhaloed backend: local seeds may miss a valid joint-contrast band.
+    const source = 'treemap-beta\n"Category A"\n    "Item A1": 10\n    "Item A2": 20\n"Category B"\n    "Item B1": 15\n    "Item B2": 25\n',
+      options = { style: ['architectural-plan', 'catppuccin-mocha'], transparent: true, seed: 19, embedFontImport: false },
+      backendPolicy = { selectBackend: () => 'default' },
+      request = resolveRenderRequestForExecution(source, options, 'svg', undefined, { backendPolicy }),
+      positioned = positionResolvedFamily('treemap', request),
+      chart = positioned.positioned as PositionedTreemap,
+      nodes: SceneNode[] = [],
+      colors = getStyle('catppuccin-mocha')!.colors!
+    visitSceneNodes(lowerPositionedFamilyScene(request, positioned).parts, node => nodes.push(node))
+    const bars = nodes.filter((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar')
+    expect(bars).toHaveLength(6)
+    for (const bar of bars) {
+      expect(contrastRatio(colors.fg!, bar.paint.fill!)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(colors.bg!, bar.paint.fill!)).toBeGreaterThanOrEqual(1.25)
+      expect(apcaContrast(bar.paint.fill!, colors.bg!)!).toBeGreaterThanOrEqual(15)
+      const cell = chart.cells.find(cell => cell.node.id === bar.owner!.id)!
+      expect(bar.geometry).toMatchObject({ kind: 'rect', x: cell.x, y: cell.y, width: cell.width, height: cell.height })
+      expect(nodes.find(node => node.id === `label:${cell.node.id}`)).toMatchObject({ paint: { fill: 'var(--fg)' } })
+    }
+    const roots = chart.cells.filter(cell => !cell.node.parentId),
+      rootFills = roots.map(cell => bars.find(bar => bar.owner!.id === cell.node.id)!.paint.fill!)
+    expect(roots.map(cell => cell.total)).toEqual([30, 40])
+    expect((roots[0]!.width * roots[0]!.height) / (roots[1]!.width * roots[1]!.height)).toBeCloseTo(3 / 4, 8)
+    expect(minPairwiseDeltaEOK(rootFills)!).toBeGreaterThanOrEqual(0.1)
+    const rendered = createMermaidRenderer({ backendPolicy }).renderMermaidSVGWithReceipt(source, options)
+    expect(rendered.svg).toContain('<svg')
+    expect(rendered.receipt.executionDecision?.backend).toMatchObject({ selectedId: 'backend:default', hostPolicy: true })
+  })
+
+  test('page-halo labels preserve fixed ink without constraining their quantitative fills', () => {
+    // Exact registered portfolio row core-1257; its actual label surface is
+    // the selected backend's page halo, not the categorical rectangle.
+    const source = readFileSync(new URL('../../eval/stable-families/fixtures/treemap.mmd', import.meta.url), 'utf8'),
+      options = { style: ['chalkboard', 'one-dark'], bg: '#111827', transparent: false, seed: 19, embedFontImport: false },
+      request = resolveRenderRequest(source, options, 'svg'),
+      positioned = positionResolvedFamily('treemap', request),
+      chart = positioned.positioned as PositionedTreemap,
+      nodes: SceneNode[] = [],
+      colors = getStyle('one-dark')!.colors!
+    visitSceneNodes(lowerPositionedFamilyScene(request, positioned).parts, node => nodes.push(node))
+    const bars = nodes.filter((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar'),
+      roots = chart.cells.filter(cell => !cell.node.parentId),
+      rootFills = roots.map(cell => bars.find(bar => bar.owner!.id === cell.node.id)!.paint.fill!)
+    expect(roots.map(cell => cell.total)).toEqual([100, 100, 100])
+    expect(minPairwiseDeltaEOK(rootFills)!).toBeGreaterThanOrEqual(0.1)
+    for (const bar of bars) {
+      expect(contrastRatio(options.bg, bar.paint.fill!)).toBeGreaterThanOrEqual(1.25)
+      expect(apcaContrast(bar.paint.fill!, options.bg)!).toBeGreaterThanOrEqual(15)
+      const cell = chart.cells.find(cell => cell.node.id === bar.owner!.id)!
+      expect(bar.geometry).toMatchObject({ kind: 'rect', x: cell.x, y: cell.y, width: cell.width, height: cell.height })
+      if (cell.label) expect(nodes.find(node => node.id === `label:${cell.node.id}`)).toMatchObject({ paint: { fill: 'var(--fg)' } })
+    }
+    expect(contrastRatio(colors.fg!, options.bg)).toBeGreaterThanOrEqual(4.5)
+    const svg = renderMermaidSVG(source, options),
+      texts = [...svg.matchAll(/<text\b[^>]*>/g)].map(match => match[0])
+    expect(texts.length).toBeGreaterThan(14)
+    for (const text of texts) {
+      expect(text).toContain(`stroke="${options.bg}"`)
+      expect(text).toContain('stroke-width="3"')
+      expect(text).toContain(`fill="${colors.fg}"`)
+    }
+    expect(verifyMermaid(source, { renderOptions: options }).warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')).toEqual([])
+    const layout = layoutMermaidWithReceipt(source, options).layout
+    expect(layout.kind).toBe('treemap')
+    expect(layout.nodes).toHaveLength(10)
+    expect(layout.groups).toHaveLength(4)
+    // Public layout viewports retain integer precision; native cell geometry
+    // above remains exact and is never changed to repair a paint constraint.
+    expect(Number(layout.bounds.w)).toBeCloseTo(chart.width, 0)
+    expect(Number(layout.bounds.h)).toBeCloseTo(chart.height, 0)
+    expect(() => createMermaidRenderer({ backendPolicy: { selectBackend: () => 'default' } }).renderMermaidSVG(source, options)).toThrow(/within bounded search/)
   })
 
   test('readable numeric separators retain quantity and disclose pinned portability', () => {

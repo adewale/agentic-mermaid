@@ -98,10 +98,15 @@ not-applicable evidence; they never repaint or relayout. Transparent output has
 no known host backdrop, so contrast reports unmeasurable rather than inventing
 a ratio.
 
-Treemap preserves explicit text ink when deriving automatic category fills. Its
+Treemap retains explicit Scene text ink when deriving automatic category fills. Its
 shared palette chooses readable, page-visible and distinguishable colors
-together, before brand constraints inspect the Scene. Authored fills stay exact.
-If concrete ink/page choices leave no suitable palette, choose another text
+together, before brand constraints inspect the Scene. Sketch labels that already
+read on the selected backend's page-colored halo do not constrain the cell fill.
+The actual graphical backend includes host overrides; layout models its nominal
+Style backend. Authored fills stay exact.
+The shared sketch backend still applies its existing page-halo readability
+policy to ink that does not read on that page.
+If bounded search cannot satisfy concrete ink/page choices, choose another text
 color or an explicit readable fill; the renderer reports that configuration
 limit. Unresolved and translucent inks retain their authored values without a
 contrast guarantee.

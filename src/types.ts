@@ -170,6 +170,9 @@ export interface PositionedDiagram {
 export interface ResolvedFamilyRenderContext {
   readonly renderOptions: Readonly<RenderOptions>
   readonly styleFace?: Readonly<InternalStyleFace>
+  /** Actual frozen graphical backend, or the nominal Style backend modeled
+   * by an unpainted layout projection. Graphical host policy wins. */
+  readonly paintBackendId?: string
   readonly familyConfig?: Readonly<Record<string, unknown>>
   readonly familyAppearance?: Readonly<Record<string, unknown>>
 }

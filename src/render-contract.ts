@@ -1187,9 +1187,12 @@ export function resolvedFamilyRenderContextOf(
 ): ResolvedFamilyRenderContext {
   const prior = FAMILY_CONTEXT_BY_REQUEST.get(request)
   if (prior) return prior
+  const paintBackendId = EXECUTION_PLAN_BY_REQUEST.get(request)?.backend?.identity.id
+    ?? (request.output === 'layout' ? `backend:${request.appearance.inferredBackend}` : undefined)
   const context = Object.freeze({
     renderOptions: request.renderOptions,
     ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+    ...(paintBackendId ? { paintBackendId } : {}),
     ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
     ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
   })

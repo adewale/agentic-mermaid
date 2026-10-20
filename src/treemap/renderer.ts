@@ -2,9 +2,9 @@ import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import type { SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
-import { resolveRoleStyle } from '../scene/roles.ts'
+import { resolveRoleStyle, sceneRoleTraits } from '../scene/roles.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
-import { toHex, tryParseCssColor } from '../shared/color-math.ts'
+import { contrastRatio, toHex, tryParseCssColor, WCAG_AA_TEXT_CONTRAST } from '../shared/color-math.ts'
 import { hierarchyChildren } from '../shared/hierarchy-model.ts'
 import { sceneDocument } from '../shared/scene-document.ts'
 import { diagramTitleMark, FLOWCHART_STYLE_DEFAULTS, resolveRenderStyle } from '../styles.ts'
@@ -22,13 +22,19 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
   const inkForFill = createFillInkResolver(colors)
   // At most the two Style role inks add a palette. Source-class inks never
   // multiply palette work and retain their authored-paint limitations.
-  const inkPalettes = new Map<string, string[]>()
+  const inkPalettes = new Map<string, string[]>(),
+    pageHalo = (resolved.paintBackendId === 'backend:rough' || resolved.paintBackendId === 'backend:hybrid') && sceneRoleTraits('label').textHalo,
+    page = pageHalo ? tryParseCssColor(resolvedColorValue('var(--bg)', colors) ?? colors.bg) : undefined
   const paletteForInk = (ink: string | undefined): string[] => {
     if (ink === undefined) return palette
     const retained = inkPalettes.get(ink)
     if (retained) return retained
     const parsed = tryParseCssColor(resolvedColorValue(ink, colors) ?? ink)
-    const derived = parsed?.[3] === 1 ? categoricalPalette(categoryCount, { ...paletteInputs, labelInk: toHex(parsed[0], parsed[1], parsed[2]) }) : palette
+    // The selected sketch backend puts label glyphs on its page-colored halo.
+    // A page-readable ink therefore does not constrain the rectangle beneath.
+    const concreteInk = parsed?.[3] === 1 ? toHex(parsed[0], parsed[1], parsed[2]) : undefined,
+      readsOnHalo = concreteInk !== undefined && page?.[3] === 1 && contrastRatio(concreteInk, toHex(page[0], page[1], page[2]))! >= WCAG_AA_TEXT_CONTRAST,
+      derived = concreteInk !== undefined && !readsOnHalo ? categoricalPalette(categoryCount, { ...paletteInputs, labelInk: concreteInk }) : palette
     inkPalettes.set(ink, derived)
     return derived
   }

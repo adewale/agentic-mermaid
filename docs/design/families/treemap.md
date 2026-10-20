@@ -17,10 +17,15 @@ Leading wrappers are preserved by the shared source envelope.
 A dedicated hierarchical tiler computes area partitions. Shared prepared text, owned Scene rectangles/groups, palettes and numeric formatters compose the output. Terminal output keeps the hierarchy and values in a family-owned cell projection. Small values and dense labels remain visible or explicitly reported; the model never loses them.
 
 The family uses Agentic Mermaid typography, theme tokens, readable padding and deterministic styling.
-Explicit class and Style text colors remain authoritative. When a Style chooses
+The Scene retains explicit class and Style text colors; shared sketch backends
+still apply their existing page-halo readability policy. When a Style chooses
 opaque text ink but leaves categorical fills automatic, the shared palette
 chooses fills for readable text, page visibility and distinct peers together;
-it does not repair each rectangle independently. The search is deterministic
+it does not repair each rectangle independently. When the selected sketch
+backend puts readable labels on its page-colored halo, that page is their
+reading surface and the cell palette retains its visibility/separation policy.
+Graphical host backend overrides remain authoritative; unpainted layout models
+the nominal Style backend. The search is deterministic
 and bounded. Peer separation is enforced through 24 categories; larger palettes
 retain the existing best-effort linear behavior. If bounded search cannot
 satisfy concrete choices, it reports a prescriptive error: choose a different

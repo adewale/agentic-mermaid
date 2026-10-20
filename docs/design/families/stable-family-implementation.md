@@ -310,7 +310,7 @@ owned shape artwork does not create a second primary DOM identity. The Scene
 boundary rejects identity-free artwork outside its matching semantic container.
 Treemap already uses `bar` for its quantitative rectangles. Separators, label
 knockouts and decorative header fills keep their deliberately quiet roles.
-Treemap's explicit node/group/label text colors bypass automatic contrast
+Treemap's explicit node/group/label text colors bypass the family's automatic contrast
 re-inking, with authored class ink taking precedence. Block's authored group
 fill also takes precedence over a Style's header fill, and automatic header ink
 is selected against that final fill. These repairs preserve caller choices
@@ -318,7 +318,14 @@ rather than repainting them to improve an aesthetic score.
 Where a Style fixes opaque text ink but leaves Treemap fills automatic, the
 shared categorical palette evaluates ink contrast, page visibility and peer
 separation jointly. Independent per-cell lightness clamping was rejected
-because it collapsed distinct peers. Palette work remains request-local and
+because it collapsed distinct peers. A failed fixed-hue seed search consults
+the same finite global corpus before rejecting a configuration. Sketch labels
+already readable on the selected backend's page-colored halo do not constrain
+the quantitative fill below them. This follows the actual graphical backend,
+including host overrides; unpainted layout models the nominal Style backend.
+The shared sketch backend's existing page-halo readability re-inking remains
+in effect for ink that cannot read on its page.
+Palette work remains request-local and
 bounded to the default plus two role-ink variants; source-class colors do not
 multiply palette generation. Unresolved/translucent ink has no invented
 contrast guarantee. The hard peer-separation floor applies through 24 categories;
