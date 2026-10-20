@@ -286,6 +286,12 @@ empty frames and overlapping node/frame identities. Constrained family ports
 and the remaining graph-family adapters need further expansion. Admission of a
 feature is not a claim of quality or cost parity over every admitted graph.
 
+Complete, unlabelled rectangular fan nets may share a private junction when
+every source already connects to every target. The adapter checks compatible
+plain edge styling; incomplete nets, duplicate edges and measured labels keep
+individual routing. Only authored subjects are returned, and producer-owned
+shared routes enter the existing bundle certificate and full paint audit.
+
 Inter-rank channels reserve physical tracks instead of hiding crossings in
 coincident shafts. A routing dependency graph orders intersecting runs; cyclic
 terminal conflicts receive visible doglegs. Stable barycenter sweeps retain the
