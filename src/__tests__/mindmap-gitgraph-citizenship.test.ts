@@ -8,6 +8,12 @@ import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { GitGraphParseError, MindmapDuplicateIdError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
+import { DefaultBackend, getFamily } from '../agent/core.ts'
+import type { GitGraphCommitType, PositionedGitGraphCommit, PositionedGitGraphDiagram } from '../gitgraph/types.ts'
+import { layoutGitGraph } from '../gitgraph/layout.ts'
+import { visualWidth } from '../ascii/width.ts'
+import { contrastRatio } from '../shared/color-math.ts'
+import { DEFAULTS } from '../theme.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
 import { contrastRatio } from '../shared/color-math.ts'
@@ -273,7 +279,66 @@ describe('Mindmap full-family citizenship', () => {
   })
 })
 
+function publicGitGraphCommit(id: string, sequence: number): PositionedGitGraphCommit {
+  return { id, sequence, type: 'NORMAL', customType: 'NORMAL', tags: [], branch: 'main',
+    parents: [], source: 'commit', customId: true, x: 60 + sequence * 60, y: 80, lane: 0 }
+}
+
+function publicGitGraphScene(commits: PositionedGitGraphCommit[]) {
+  const lower = getFamily('gitgraph')?.lowerScene
+  if (!lower) throw new Error('public GitGraph family lowering is unavailable')
+  const positioned: PositionedGitGraphDiagram = {
+    width: 260, height: 160, direction: 'LR', commits, edges: [],
+    branches: [{ name: 'main', order: 0, sequence: 0, lane: 0, x1: 40, y1: 80, x2: 220, y2: 80 }],
+    showBranches: false, showCommitLabel: false, rotateCommitLabel: false,
+  }
+  return lower({ positioned, colors: { bg: '#ffffff', fg: '#111111' },
+    resolved: { renderOptions: {}, familyAppearance: { themeVariables: {} } } })
+}
+
 describe('GitGraph full-family citizenship', () => {
+  test('the public GitGraph lowerer preserves both commit type observations and visual attribute presence', () => {
+    const reads: string[] = []
+    let reverseReads = 0, normalReads = 0
+    const reverse = { ...publicGitGraphCommit('reverse-observation', 1), get type(): GitGraphCommitType {
+      reads.push('reverse:type')
+      return ++reverseReads === 1 ? 'REVERSE' : 'NORMAL'
+    } }
+    const normal = { ...publicGitGraphCommit('normal-observation', 2), get type(): GitGraphCommitType {
+      reads.push('normal:type')
+      return ++normalReads === 1 ? 'NORMAL' : 'REVERSE'
+    } }
+    const svg = DefaultBackend.render(publicGitGraphScene([publicGitGraphCommit('stable', 0), reverse, normal]), { seed: 0 })
+    const groups = svg.match(/<g\b[^>]*class="git-commit type-normal"[^>]*>/g) ?? []
+    expect(groups).toHaveLength(3)
+    expect(groups[0]).toContain('data-id="stable" data-branch="main" data-commit-type="NORMAL"')
+    expect(groups[0]).not.toContain('data-visual-type=')
+    expect(groups[1]).toContain('data-id="reverse-observation" data-branch="main" data-commit-type="REVERSE"')
+    expect(groups[1]).not.toContain('data-visual-type=')
+    expect(groups[2]).toContain('data-id="normal-observation" data-branch="main" data-commit-type="NORMAL" data-visual-type="NORMAL"')
+    expect(reads).toEqual(['reverse:type', 'reverse:type', 'normal:type', 'normal:type'])
+    expect(Object.isFrozen(reverse)).toBe(false)
+    expect(Object.isFrozen(normal)).toBe(false)
+  })
+
+  test.each([true, false])('the public GitGraph lowerer evaluates class lowercase before authored type failures (lowercase throws: %s)', lowercaseThrows => {
+    const reads: string[] = []
+    let lowerCalls = 0
+    const customType = { toLowerCase() {
+      reads.push('lower:' + ++lowerCalls)
+      if (lowercaseThrows && lowerCalls === 3) throw new Error('authored class-lowercase stop')
+      return 'normal'
+    } }
+    const commit = { ...publicGitGraphCommit('failure', 0),
+      customType: customType as unknown as 'NORMAL',
+      get type(): GitGraphCommitType { reads.push('type'); throw new Error('authored type-read stop') },
+    }
+    expect(() => publicGitGraphScene([commit])).toThrow(lowercaseThrows ? 'authored class-lowercase stop' : 'authored type-read stop')
+    expect(reads).toEqual(lowercaseThrows ? ['lower:1', 'lower:2', 'lower:3'] : ['lower:1', 'lower:2', 'lower:3', 'type'])
+    expect(Object.isFrozen(customType)).toBe(false)
+    expect(Object.isFrozen(commit)).toBe(false)
+  })
+
   test('replays branch, merge, and cherry-pick semantics with deterministic generated IDs', () => {
     const parsed = parseGitGraph(GITGRAPH)
     expect(parsed.commits.map(commit => commit.id)).toEqual(['base', 'work', 'release', 'patch', 'merge', 'c5'])
@@ -411,6 +476,59 @@ describe('GitGraph full-family citizenship', () => {
     const parsed = parseMermaid(GITGRAPH)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(layoutMermaid(parsed.value, { regions: true }).regions!.filter(region => region.kind === 'node')).toHaveLength(6)
+  })
+
+  test('keeps semantic and visual commit types separate across repeated profiles and fresh request paints', () => {
+    const source = `${GITGRAPH}
+  branch integrated order:4
+  commit id:"continued"
+  checkout main
+  merge integrated id:"normal-merge" type:NORMAL
+  branch undo order:5
+  commit id:"undo-work"
+  checkout main
+  merge undo id:"reverse-merge" type:REVERSE
+  branch finished order:6
+  commit id:"finished-work"
+  checkout main
+  merge finished id:"default-merge"
+  commit id:"late" msg:"Late Ω & repeats"`
+    // Repeated NORMAL and MERGE profiles deliberately have different identities,
+    // branches and visual overrides. Expected attributes come from authored intent.
+    const commits = [
+      ['base', 'main', 'NORMAL', 'NORMAL', 'circle', '8'],
+      ['work', 'feature', 'HIGHLIGHT', 'HIGHLIGHT', 'rect', undefined],
+      ['release', 'main', 'REVERSE', 'REVERSE', 'circle', '8'],
+      ['patch', 'patchline', 'NORMAL', 'NORMAL', 'circle', '8'],
+      ['merge', 'main', 'MERGE', 'HIGHLIGHT', 'rect', undefined],
+      ['c5', 'main', 'CHERRY_PICK', 'CHERRY_PICK', 'polygon', undefined],
+      ['normal-merge', 'main', 'MERGE', 'NORMAL', 'circle', '8'],
+      ['reverse-merge', 'main', 'MERGE', 'REVERSE', 'circle', '8'],
+      ['default-merge', 'main', 'MERGE', 'MERGE', 'circle', '10'],
+      ['late', 'main', 'NORMAL', 'NORMAL', 'circle', '8'],
+    ] as const
+    for (const [main, feature] of [['#224466', '#6688aa'], ['#884422', '#aa8866']] as const) {
+      const svg = renderMermaidSVG(source, {
+        security: 'strict', embedFontImport: false,
+        mermaidConfig: { themeVariables: { git0: main, git1: feature } },
+      })
+      for (const [id, branch, semantic, visual, element, radius] of commits) {
+        const attrs = `class="git-commit type-${visual.toLowerCase()}" data-id="${id}" data-branch="${branch}" data-commit-type="${semantic}"${semantic !== visual ? ` data-visual-type="${visual}"` : ''} data-role="node"`
+        expect(svg).toContain(`<g ${attrs}>`)
+        const body = svg.match(new RegExp(`<g ${attrs}>([\\s\\S]*?)<\\/g>`))?.[1]
+        expect(body, id).toBeDefined()
+        expect(body, id).toContain(`<${element} `)
+        if (radius) expect(body, id).toContain(` r="${radius}"`)
+        if (element === 'rect') expect(body, id).toContain('width="18" height="18"')
+        if (branch === 'main') expect(body, id).toContain(`stroke="${main}"`)
+        if (branch === 'feature') expect(body, id).toContain(`stroke="${feature}"`)
+      }
+      expect(svg).toContain('class="git-edge git-edge-parent" data-from="base" data-to="work"')
+      expect(svg).toContain('class="git-edge git-edge-merge" data-from="work" data-to="merge"')
+      expect(svg).toContain('class="git-edge git-edge-cherry-pick" data-from="patch" data-to="c5"')
+      expect(svg).toContain('Late Ω &amp; repeats')
+      expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+    }
   })
 
   test('branch and tag text remains WCAG AA against its badge in every built-in palette', () => {
