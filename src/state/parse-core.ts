@@ -206,10 +206,22 @@ export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/
 // a `}` ending the source's last description closes a composite nothing else
 // closes, which is what `state X { A : text }` means.
 
+/** A place in the input lines as the comment scan reads them: a line's
+ *  index and a column in its text. */
+export interface StatePosition {
+  line: number
+  column: number
+}
+
 export interface StateStatement {
   text: string
   /** Index of the input line the statement starts on. */
   line: number
+  /** Where its text runs, when it is not a note's: a description's or a
+   *  transition label's from its colon, a quoted name's from its quote. */
+  textSpan?: { start: StatePosition; end: StatePosition }
+  /** The input line a transition's target starts on. */
+  toLine?: number
   /** A block note's body line, read verbatim. */
   noteBody?: boolean
   /** A `state … {` that opens a composite. */
@@ -298,6 +310,17 @@ export function stateStatementEnds(source: readonly string[]): number[] {
   })
 }
 
+/** A statement read from a row, with the one read after it on its line:
+ *  `state "L" as X : text` is `state "L" as X` and `X : text`. */
+interface StatementRead {
+  text: string
+  opens?: boolean
+  textSpan?: StateStatement['textSpan']
+  toLine?: number
+  also?: string
+  alsoSpan?: StateStatement['textSpan']
+}
+
 export function readStateStatements(lines: readonly StateSourceLine[]): StateStatementScan {
   // A string left open joins the lines up to its closing quote.
   const logical: Array<{ text: string; line: number; noteBody: boolean; noteOpen: boolean }> = []
@@ -306,6 +329,18 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     index = quotedRunEnd(lines, start)
     const text = lines.slice(start, index + 1).map(line => line.text).join('\n')
     if (text || lines[start]!.noteBody) logical.push({ text, line: start, noteBody: lines[start]!.noteBody, noteOpen: lines[start]!.noteOpen })
+  }
+  /** The input line and column of a column in a row, which joins the
+   *  lines a string runs across. */
+  const at = (row: number, column: number): StatePosition => {
+    const text = logical[row]!.text
+    let line = logical[row]!.line
+    let start = 0
+    for (let index = text.indexOf('\n'); index >= 0 && index < column; index = text.indexOf('\n', index + 1)) {
+      line++
+      start = index + 1
+    }
+    return { line, column: column - start }
   }
   const statements: StateStatement[] = []
   const semicolonLines = new Set<number>()
@@ -395,7 +430,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     return endpoint
   }
   /** `A` or `A --> B`, either with a description; null leaves the cursor. */
-  const readIdStatement = (): { text: string; also?: string } | null => {
+  const readIdStatement = (): StatementRead | null => {
     const cursor = { row, column }
     const left = readEndpoint(cursor)
     if (left === null) return null
@@ -403,9 +438,11 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const arrow = { ...cursor }
     skipSpace(arrow)
     const transition = logical[arrow.row]!.text.startsWith('-->', arrow.column)
+    let toLine: number | undefined
     if (transition) {
       arrow.column += 3
       skipSpace(arrow)
+      toLine = at(arrow.row, arrow.column).line
       const right = readEndpoint(arrow)
       if (right === null) return null
       statement += ` --> ${right}`
@@ -414,23 +451,24 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     }
     const text = logical[cursor.row]!.text
     const colon = skipBlank(text, cursor.column)
-    let also: string | undefined
+    const read: StatementRead = { text: statement, ...(toLine !== undefined ? { toLine } : {}) }
     if (text[colon] === ':') {
       const end = textEnd(text, colon, cursor.row)
       // Mermaid reads the `}` into the text, unless a `;` or `::` ends the
       // text before it (stateUnsupportedSyntaxWarnings reports those).
       if (end < text.length && !/;|::/.test(lexedStateText(text.slice(colon + 1, end)))) braceTextLines.add(logical[cursor.row]!.line)
       const description = text.slice(colon, end).trimEnd()
+      const textSpan = { start: at(cursor.row, colon), end: at(cursor.row, end) }
       // `A:::c : text` is A's class and its description, read as the two
       // statements `A:::c` and `A : text`.
       const shorthand = transition ? -1 : left.indexOf(':::')
-      if (shorthand < 0) statement += ` ${description}`
-      else also = `${left.slice(0, shorthand)} ${description}`
+      if (shorthand < 0) Object.assign(read, { text: `${statement} ${description}`, textSpan })
+      else Object.assign(read, { also: `${left.slice(0, shorthand)} ${description}`, alsoSpan: textSpan })
       cursor.column = end
     }
     row = cursor.row
     column = cursor.column
-    return { text: statement, ...(also !== undefined ? { also } : {}) }
+    return read
   }
   /** `: text` or `:::c` after `state "label" as id`. Mermaid's name after
    *  `as` runs to a `{` or the line's end, and it splits that name at `:`
@@ -438,10 +476,10 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
    *  as `id : text` does. Ours reads the whole text so, and `id:::c` as the
    *  state's class, which Mermaid drops for an empty description; both are
    *  reported (aliasSuffixLines). Null leaves the cursor. */
-  const readAliasSuffix = (text: string, label: string, id: string, at: number): { text: string; opens: boolean; also?: string } | null => {
+  const readAliasSuffix = (text: string, label: string, id: string, from: number): StatementRead | null => {
     const line = logical[row]!.line
     const declaration = `state ${label}${id}`
-    const colon = skipBlank(text, at)
+    const colon = skipBlank(text, from)
     CLASS_SHORTHAND_AT.lastIndex = colon
     const shorthand = CLASS_SHORTHAND_AT.exec(text)
     if (shorthand !== null) {
@@ -458,41 +496,47 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     if (end < text.length) braceTextLines.add(line)
     const description = text.slice(colon + 1, end).trim()
     if (description.includes(':')) aliasSuffixLines.add(line)
+    const alsoSpan = { start: at(row, colon), end: at(row, end) }
     column = end
-    return { text: declaration, opens: false, ...(description ? { also: `${id} : ${description}` } : {}) }
+    return { text: declaration, opens: false, ...(description ? { also: `${id} : ${description}`, alsoSpan } : {}) }
   }
   /** `state ["label" as] id [<<stereotype>>] [{]`; null leaves the cursor. */
-  const readStateDeclaration = (from: number): { text: string; opens: boolean; also?: string } | null => {
+  const readStateDeclaration = (from: number): StatementRead | null => {
     const text = logical[row]!.text
-    let at = from
+    let index = from
     let label = ''
-    if (text[at] === '"') {
-      const close = text.indexOf('"', at + 1)
+    let textSpan: StatementRead['textSpan']
+    if (text[index] === '"') {
+      const close = text.indexOf('"', index + 1)
       const as = close < 0 ? null : matchAt(STATE_AS_AT, text, close + 1)
       if (as === null) return null
-      label = `${text.slice(at, close + 1)} as `
-      at = close + 1 + as.length
+      label = `${text.slice(index, close + 1)} as `
+      textSpan = { start: at(row, index), end: at(row, close + 1) }
+      index = close + 1 + as.length
     }
-    const id = matchAt(STATE_ID_AT, text, at)
+    const id = matchAt(STATE_ID_AT, text, index)
     if (id === null) return null
-    at += id.length
+    index += id.length
     // Mermaid's `as` follows only a quoted label: it rejects `state X as Y`.
-    if (!label && matchAt(STATE_AS_WORD_AT, text, at) !== null) return null
-    if (label && text[skipBlank(text, at)] === ':') return readAliasSuffix(text, label, id, at)
+    if (!label && matchAt(STATE_AS_WORD_AT, text, index) !== null) return null
+    if (label && text[skipBlank(text, index)] === ':') {
+      const suffix = readAliasSuffix(text, label, id, index)
+      return suffix && { ...suffix, textSpan }
+    }
     // Mermaid also spells a fork, join or choice `[[fork]]`, read as `<<fork>>`.
-    STEREOTYPE_AT.lastIndex = at
+    STEREOTYPE_AT.lastIndex = index
     const marker = STEREOTYPE_AT.exec(text)
-    if (marker !== null) at += marker[0].length
+    if (marker !== null) index += marker[0].length
     const stereotype = marker === null ? null : marker[1] !== undefined ? `<<${marker[1]}>>` : marker[0]
-    const brace = matchAt(OPEN_BRACE_AT, text, at)
+    const brace = matchAt(OPEN_BRACE_AT, text, index)
     let opens = brace !== null
-    const next = skipBlank(text, at)
-    if (brace !== null) at += brace.length
-    else if (at < text.length && !' \t;}'.includes(text[at]!)) return null
+    const next = skipBlank(text, index)
+    if (brace !== null) index += brace.length
+    else if (index < text.length && !' \t;}'.includes(text[index]!)) return null
     else if (stereotype === null && next === text.length && statementRowAfter(row) && logical[row + 1]!.text.startsWith('{')) {
       // `state X` with its `{` on the next line, as Mermaid's STATE lexer reads it.
       row++
-      at = 1
+      index = 1
       opens = true
     } else if (label && stereotype === null && next < text.length) {
       // Mermaid's name after `as` runs to a `{` or the line's end, so another
@@ -501,8 +545,8 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       if (text[next] !== ';' && text[next] !== '}') return null
       noteBraceAfter(row, next)
     }
-    column = at
-    return { text: `state ${label}${id}${stereotype === null ? '' : ` ${stereotype.trim()}`}${opens ? ' {' : ''}`, opens }
+    column = index
+    return { text: `state ${label}${id}${stereotype === null ? '' : ` ${stereotype.trim()}`}${opens ? ' {' : ''}`, opens, ...(textSpan ? { textSpan } : {}) }
   }
 
   // Where the statements read from the current row begin, so a row ours
@@ -588,13 +632,16 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     }
     const read = declaration ?? (keyword === null || named ? readIdStatement() : null)
     if (read !== null) {
-      emit(read.text, line, declaration?.opens ?? false)
-      if (declaration?.opens) {
-        statements.at(-1)!.opens = true
+      emit(read.text, line, read.opens ?? false)
+      const emitted = statements.at(-1)!
+      if (read.textSpan) emitted.textSpan = read.textSpan
+      if (read.toLine !== undefined) emitted.toLine = read.toLine
+      if (read.opens) {
+        emitted.opens = true
         depth++
       }
       // `state "L" as X : text` is read as `state "L" as X` and `X : text`.
-      if (read.also !== undefined) statements.push({ text: read.also, line, ...(declaration !== null ? { afterAlias: true } : {}) })
+      if (read.also !== undefined) statements.push({ text: read.also, line, ...(read.alsoSpan ? { textSpan: read.alsoSpan } : {}), ...(declaration !== null ? { afterAlias: true } : {}) })
       if (row !== startRow) mark = { statements: statements.length, depth, column }
       continue
     }

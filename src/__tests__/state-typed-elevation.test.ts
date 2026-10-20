@@ -748,6 +748,9 @@ describe('State statements across and within lines', () => {
     ['state X\n{\nA\n} B', ['A:rounded:A', 'B:rounded:B', 'X:X{A}'], []],
     ['state X {\nA\n--> B\n}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], []],
     ['state X {\nA -->\nB : go\n}', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], []],
+    // A warning names the line holding the construct, not the row's first.
+    ['state X {\nA\n--> B : a; b\n}', ['A:rounded:A', 'B:rounded:B', 'A->B:a; b', 'X:X{A B}'], ['state_text_cut@4']],
+    ['state X {\nA -->\nB : ends:\n}', ['A:rounded:A', 'B:rounded:B', 'A->B:ends:', 'X:X{A B}'], ['state_text_cut@4']],
     ['state X { A -- B }', ['A:rounded:A', 'B:rounded:B', 'X:X{}', 'X/X__r1:{A}', 'X/X__r2:{B}'], []],
     ['state X {\nA --> B\n--\nC }', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'X:X{}', 'X/X__r1:{A B}', 'X/X__r2:{C}'], []],
     ['A B', ['A:rounded:A', 'B:rounded:B'], ['state_statements_share_line@2']],
@@ -842,11 +845,13 @@ describe('State statements across and within lines', () => {
   })
 
   test('a transition naming a state Mermaid cannot name there is read, and reported', async () => {
-    const source = 'stateDiagram-v2\nA --> in-flight\nnote --> A\nA --> B'
-    expect(readingOf(parseRenderGraph(source))).toEqual(['A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight', 'note:rounded:note', 'A->in-flight', 'note->A', 'A->B'].sort())
+    const source = 'stateDiagram-v2\nA --> in-flight\nnote --> A\nA --> B\nstate X {\nC\n--> to-do\n}'
+    expect(readingOf(parseRenderGraph(source))).toEqual(['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'in-flight:rounded:in-flight', 'note:rounded:note', 'to-do:rounded:to-do', 'A->in-flight', 'note->A', 'A->B', 'C->to-do', 'X:X{C to-do}'].sort())
     expect(state(source).body.transitions).toHaveLength(3)
     expect(await upstream.accepts(source)).toBe(false)
-    expect(verifyMermaid(source).warnings.flatMap(warning => (warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))).toEqual(['state_endpoint_name@2', 'state_endpoint_name@3'])
+    // Each where the name is: inside a composite a transition runs across lines.
+    expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))
+      .toEqual(['state_endpoint_name@2', 'state_endpoint_name@3', 'state_endpoint_name@7'])
   })
 
   test('a declaration or description naming a state Mermaid cannot name there is read, and reported', async () => {

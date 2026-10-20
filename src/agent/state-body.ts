@@ -1384,15 +1384,13 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
     })),
   ]
   // A body line as authored where verify has the source, since canonical
-  // lines end trimmed; the line a statement's text ends on keeps any `}` the
-  // scan cuts off it.
+  // lines end trimmed.
   const physicalLine = (index: number): string => {
     const canonical = body[index] ?? ''
     const authored = authoredLine?.(header + index + 2)
     return authored?.trim() === canonical.trim() ? authored : canonical
   }
-  const lastLine = (line: number): string => physicalLine(statementEndAt(statementEnds, line, body.length))
-  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, lastLine, physicalLine))
+  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, physicalLine))
   return warnings.sort((left, right) => left.line - right.line)
 }
 
@@ -1402,11 +1400,15 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
  *  transition label or one-line note it ends early; text whose `;` its
  *  entity prepass drops; and a composite given more than one label or
  *  description, which it rejects. Each at its authored line. */
-function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, lastLine: (line: number) => string, physicalLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
+function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, physicalLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
   const warnings: Array<LayoutWarning & { line: number }> = []
-  const warn = (statement: StateStatement, syntax: string, message: string): void => {
-    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: header + statement.line + 2, message })
+  // At the line holding the construct: inside a composite a statement may
+  // run across lines (`A⏎--> B : text`).
+  const warn = (statement: StateStatement, syntax: string, message: string, line = statement.line): void => {
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: header + line + 2, message })
   }
+  // The line holding a statement's text, which runs to that line's end.
+  const textLine = (statement: StateStatement): number => statement.textSpan?.start.line ?? statement.line
   // Mermaid's State lexer reads entity codes first, then ends a description
   // or transition label (DESCR, `":"(?:[^:\n;]|":"[^:\n;])+`) at a `;`, at
   // `::` and before a colon its line ends with. Ours reads the text to the
@@ -1415,8 +1417,9 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   // a colon only blanks follow, which Mermaid reads as text, is reported too.
   const cutText = (statement: StateStatement, value: string): void => {
     const text = lexedStateText(value)
-    if (!/;|::/.test(text) && !(text.endsWith(':') && lastLine(statement.line).endsWith(':'))) return
-    warn(statement, 'state_text_cut', 'A `;`, a `::` or a colon ending the line in a description or transition label is read as part of the text. Pinned Mermaid ends the text there: it reads the rest of the line from a `;` as further statements, the `;` starting a state name, and rejects a `::` or a colon ending the line. The writer writes them as `#59;` and `#58;`, which Mermaid reads as the text.')
+    const line = textLine(statement)
+    if (!/;|::/.test(text) && !(text.endsWith(':') && physicalLine(line).endsWith(':'))) return
+    warn(statement, 'state_text_cut', 'A `;`, a `::` or a colon ending the line in a description or transition label is read as part of the text. Pinned Mermaid ends the text there: it reads the rest of the line from a `;` as further statements, the `;` starting a state name, and rejects a `::` or a colon ending the line. The writer writes them as `#59;` and `#58;`, which Mermaid reads as the text.', line)
   }
   const composites = new Set(statements.flatMap(statement => {
     const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
@@ -1428,7 +1431,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     const count = (compositeLabels.get(id) ?? 0) + 1
     compositeLabels.set(id, count)
     if (count === 2) {
-      warn(statement, 'state_composite_description', `Composite state '${id}' has more than one label or description, which are read as the lines of its label. Pinned Mermaid rejects a composite with more than one (\`Group nodes can only have label\`). Give it one \`state "…" as ${id}\` label.`)
+      warn(statement, 'state_composite_description', `Composite state '${id}' has more than one label or description, which are read as the lines of its label. Pinned Mermaid rejects a composite with more than one (\`Group nodes can only have label\`). Give it one \`state "…" as ${id}\` label.`, textLine(statement))
     }
   }
   // After a block note's opener, until its first line of text.
@@ -1475,7 +1478,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     if (transition) {
       for (const endpoint of new Set([transition.from, transition.to])) {
         if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || hasBareSpelling(endpoint)) continue
-        warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition, here and in the output. Rename the state to keep it portable.`)
+        warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition, here and in the output. Rename the state to keep it portable.`, endpoint === transition.from ? statement.line : statement.toLine)
       }
       if (transition.label !== undefined) cutText(statement, transition.label)
       continue
