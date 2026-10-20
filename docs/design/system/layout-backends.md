@@ -980,3 +980,36 @@ costs and sparse/full visibility graphs. Its sparse option explicitly trades
 memory for potentially suboptimal paths. That is relevant prior art for the
 remaining routing/size trade-offs, not evidence that this bounded aisle repair
 implements a full visibility router or a new research result.
+
+
+### Bounded reuse for edit workflows
+
+ELK already memoizes raw measured layout when source/semantic edits miss the
+outer positioned cache. The native backend now does the same at its neutral
+geometry boundary. It stores no authored display text, prepared-text evidence,
+receipts or final family objects. Keys retain every measured field and private
+solver option, spelling out undefined/non-finite values without marker-string
+collisions. Copies on insertion and hits isolate geometry translated by family
+adapters. Failed computations are never retained. The cache is limited to64
+entries, keys no larger than1Mi code units and an8MiB conservative weighted
+estimate; oversized results stay uncached. `AGENTIC_MERMAID_ELK_CACHE=0` disables
+both engines' geometry reuse. The browser creates this cache only after the
+native implementation is actually loaded.
+
+A source-comment edit diagnostic confirms that the outer positioned cache
+misses while ELK reuses raw placement and native previously recomputed it.
+The new raw cache removes that repeated solver work; full final-candidate
+cleanup/certification remains visible and can still dominate native edit cost.
+These concurrent local stage samples locate work, not qualify speed ratios.
+Five cache-behavior contracts fail with reuse bypassed; public current-text
+reattachment and cache-off controls remain regression guards. The combined
+owning/startup suite passes142 tests /4,641 assertions before further changes.
+
+The next canary predeclares3 paired rounds with25 repetitions (previously5),
+the same reciprocal1.1× A/A limits and the same480s/cache and17-minute CI
+budgets. It retains all22 enrolled inputs and adds the existing full
+`agent:edit-flowchart` workflow, giving6 official +16 scaling +one workflow.
+This improves precision for very short warm samples without changing gates,
+normalizing by controls or deleting adverse observations. All previous failed
+controls and slower native results remain evidence for their exact protocols.
+This workflow repeats one deterministic edit; it is not a cache-churn cohort.
