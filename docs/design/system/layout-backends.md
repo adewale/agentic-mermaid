@@ -3,9 +3,9 @@
 Status: implementation and qualification contract for an opt-in owned backend.
 Native measured Flowchart/State placement includes cycles, loops and independent
 nested scopes. Requirement cards and relationship labels also use measured
-native placement. Flat ER and Class cards and relations also use this kernel;
-ER groups, Class namespaces, cross-hierarchy leaf routes and Architecture
-compound child order/boundary placement still require ELK. Flat Architecture
+native placement. ER cards, frames and relations and flat Class cards and
+relations also use this kernel. Class namespaces, cross-hierarchy Flowchart leaf
+routes and Architecture compound child order/boundary placement still require ELK. Flat Architecture
 placement reuses the native engine; ports, alignments and routing remain owned
 by its adapter. Quality and cost qualification remains
 in progress; admission is not proof of parity. Implementation scheduling remains
@@ -855,7 +855,7 @@ bun run eval/layout-compare/run.ts report --before /tmp/elk-holdout.json \
   --after /tmp/agentic-holdout.json --out /tmp/holdout.html
 ```
 
-The advisory CI diagnostic records all 160 current development cases, including
+The advisory CI diagnostic now records all 224 development cases, including
 adverse results. The clean `9877f370` holdout renders 64/64 natively and 62/64 with
 ELK (one geometry and one paint rejection). Seven shared inputs have additional
 native crossings: seeds 96, 125, 131, 132, 134, 138 and 145. No additional measured
@@ -913,13 +913,70 @@ called universal aesthetic parity. Final bounded implementation evidence and
 cost controls are required. The two difficult sources are now frozen fixtures,
 render-review images and benchmark workloads, retaining every earlier input.
 
-After this bounded implementation is committed, seeds 160–223 form the next
-64-case diagnostic holdout. Keep all 160 development cases and all failed or
-unverified outcomes. If the new cases inform another change, they become
-additional development data; they cannot remain an unseen qualification set.
+At the committed `7a0752c5` checkpoint, the predeclared seeds 160–223 holdout
+renders 64/64 on both backends. Seeds 171 and 217 add native crossings (10 versus
+7, and 22 versus 17), without additional measured label or shared-shaft conflicts.
+Those cases have now informed a change and all 224 are development data. All
+outcomes remain retained. Seeds 224–255 form the next 32-case holdout; measure
+them only after the next implementation is committed.
 
 Mermaid 12.2's [layout-maker guide](https://mermaid.js.org/community/layout-makers-guide.html)
 also separates measured node geometry and edge polylines from shared shapes,
 markers, labels and painting. That supports the existing adapter boundary;
 it does not make family-specific cardinalities, ports or compound boundaries
 interchangeable with generic boxes.
+
+The follow-up preserves the validated small-cycle ordering while spending the
+two scarce larger-compact trials on different cycle cuts before varying input
+order. For true DAG inputs, it reapplies the existing bounded adjacent-switch
+pass after joint-chain moves. A private orientation tag prevents that new DAG
+pass from changing the separately validated cycle policy. Both passes use the
+same existing neighbor-comparison budget. The initial unrestricted combination
+closed the 224-case crossing gaps but added bends to the old nine-node fixture;
+that failed owner test is retained and the adopted policy keeps its no-extra-bend
+requirement. No ELK call participates in native selection.
+
+ER compounds reuse the family's existing frame derivation, scoped directions,
+sibling separation and boundary routing after either producer places measured
+entity cards. Frame endpoint relations retain their original relationship
+indices rather than being submitted as nonexistent entity nodes. Group-only
+and empty frames use the same family-owned placement under both selections.
+Native scoped route repairs preserve the actual attachment face normals so
+cardinality marks stay outside their cards. ELK's legacy path remains intact.
+Tests compare authored fields, membership, endpoints, directions, source/parsed
+SVG, layout, PNG and complete visible labels in all four orientations. Existing
+unverified paint observations remain explicit; native rendering may not add
+uncertainty against a passed ELK proof. The compound fixture is retained in
+geometry, browser dependency, rendered review and execution-cost populations.
+
+Native ER repairs also validate leaf routes after scoped moves, try both aisle
+axes within the same 400,000-operation budget, and reserve the resolved bend and
+stroke envelope around foreign cards and headers. The nested official ER case
+exposes a real rounded-route clearance failure: a 20px sibling gap cannot hold
+both the cardinality stem and rounded bend beside an unrelated card. Native
+rounded placement now reserves that extra gap; ELK keeps its legacy geometry.
+Both sharp and 8px rounded variants retain passed paint certification.
+
+Local validation of this follow-up passes 172 owning tests / 4,546 assertions,
+including the old nine-node no-added-bend contract and both former holdout gaps.
+All 28 ER corpus/workload inputs render on both backends without additional
+proper crossings (28 passed native paint results; ELK has 27 passed / one
+unverified).
+The complete 224-case development scan has 224 native and 221 ELK renders and
+no additional crossings or measured label/shared-shaft conflicts on shared
+successes. This is development evidence; exact committed CI and unseen cases
+are still required. The added fixture contributes one default geometry record
+(315→316), with all 315 previous records unchanged. Two local canonical geometry
+runs timed out rather than passing; do not infer a canonical pass from that
+record comparison. A direct 5s-default ER test run also timed out in PNG work;
+the canonical 30s owning run completes without changing its timeout.
+
+A current community review still identifies wrapping/aspect ratio as a separate
+need ([Mermaid #7505](https://github.com/mermaid-js/mermaid/issues/7505),
+[#7368](https://github.com/mermaid-js/mermaid/issues/7368)); fewer crossings does
+not prove an appropriate viewport shape. Microsoft's [MSAGL rectilinear router](https://github.com/microsoft/automatic-graph-layout/blob/master/GraphLayout/MSAGL/Routing/Rectilinear/RectilinearEdgeRouter.cs)
+already separates obstacle padding, corner-fit radius, port management, bend
+costs and sparse/full visibility graphs. Its sparse option explicitly trades
+memory for potentially suboptimal paths. That is relevant prior art for the
+remaining routing/size trade-offs, not evidence that this bounded aisle repair
+implements a full visibility router or a new research result.

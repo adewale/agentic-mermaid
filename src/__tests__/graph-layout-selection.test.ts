@@ -17,6 +17,7 @@ import { withRenderStageObserver } from '../render-stages.ts'
 import { resolveRenderRequest, validateSerializableRenderOptions } from '../render-contract.ts'
 import { captureCli } from './helpers/cli-capture.ts'
 import { flowchartMultigraph } from '../../eval/benchmark/release-bench-cases.ts'
+import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.ts'
 
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
 const AGENTIC = { graphLayout: { backend: 'agentic' as const } }
@@ -130,6 +131,22 @@ describe('checked graph layout selection', () => {
     expect(quality.labelConflicts?.total).toBe(0)
     expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
     expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+  })
+
+  test.each([171, 217])('retains clear long-edge ordering for holdout seed %s', seed => {
+    const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source
+    const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
+    const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    const quality = measureQuality(native.layout)
+    expect(quality.nodeCount).toBe(8 + seed % 13)
+    expect(quality.edgeCount).toBe(2 * quality.nodeCount + seed % 7)
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    JSON.stringify(rendered.receipt)
+    JSON.stringify(native.receipt)
   })
 
   test.each(['elk', 'agentic'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
@@ -288,7 +305,6 @@ describe('checked graph layout selection', () => {
 
   test.each([
     ['class', 'classDiagram\nnamespace Zone {\nclass A\n}'],
-    ['er', 'erDiagram\nsubgraph Zone\n A\nend'],
     ['architecture', 'architecture-beta\ngroup g[Group]\n service a(server)[A] in g\n service b(server)[B] in g\n a:R --> L:b'],
   ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
     expect(() => renderMermaidSVGWithReceipt(source, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
