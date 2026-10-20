@@ -8,6 +8,7 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { BuiltinFamilyId } from '../agent/families.ts'
+import { renderMermaidASCII } from '../index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -192,9 +193,13 @@ const SEQUENCE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
 // Mermaid's lexer reads a message's sender and receiver as one ID each. Where
 // that ID ends inside ours, arrow tokens follow where Mermaid wants message
 // text; what was meant is unclear, so, like any statement ours cannot read,
-// it is kept as source and the render refuses it. [construct, source, line]
+// it is kept as source and the render refuses it. Both renderers name the
+// line verify reports. [construct, source, line]
 const SEQUENCE_UNREAD: ReadonlyArray<readonly [string, string, number]> = [
   ['an arrow inside the receiver', 'sequenceDiagram\n  Alice->>Bob->>Carol: Hi', 2],
+  ['an arrow inside the receiver after frontmatter and a blank line', '---\ntitle: T\n---\nsequenceDiagram\n\n  Alice->>Bob->>Carol: Hi', 6],
+  ['an arrow inside the receiver after a semicolon', 'sequenceDiagram\n  Alice->>Bob: x; Bob->>Al->>Carol: Hi', 2],
+  ['an arrow inside the receiver after an accDescr block', 'sequenceDiagram\n  accDescr {\n    About\n  }\n  Alice->>Bob->>Carol: Hi', 5],
   ['an arrow ending the receiver', 'sequenceDiagram\n  Alice->Bob->>: Hi', 2],
   ['an arrow inside a central-connection receiver', 'sequenceDiagram\n  Alice()->>Bo->>Bob: Hi', 2],
   ['a sender starting with an arrow', 'sequenceDiagram\n  accDescr {\n    About\n  }-xAlice->Bob: Hi', 4],
@@ -386,9 +391,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(SEQUENCE_UNREAD)('sequence: %s is kept as source and not drawn', async (_construct, source, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     const { typed, error } = ours(source)
+    let ascii: string | undefined
+    try { renderMermaidASCII(source) } catch (caught) { ascii = caught instanceof Error ? caught.message : String(caught) }
     const reported = verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
-    expect({ typed, refused: error?.startsWith('SEQUENCE_UNSUPPORTED_STATEMENT'), reported })
-      .toEqual({ typed: 'sequence', refused: true, reported: expect.arrayContaining([`sequence_statement@${line}`]) })
+    expect({ typed, refused: error?.startsWith(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${line}:`), ascii, reported })
+      .toEqual({ typed: 'sequence', refused: true, ascii: error, reported: expect.arrayContaining([`sequence_statement@${line}`]) })
   })
 
   test.each(SANKEY_READ_GENEROUSLY)('sankey: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {

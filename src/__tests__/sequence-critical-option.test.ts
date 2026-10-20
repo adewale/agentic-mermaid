@@ -32,9 +32,12 @@ describe('Sequence critical/option keyword boundary', () => {
     ['an unclosed block', 'alt choice\nA->>B: inside'],
     ['a continuation for the wrong owner', 'alt choice\nA->>B: inside\nand another\nB->>A: after\nend'],
     ['a branch outside any block', 'A->>B: before\nelse alternative'],
+    ['a stray end after a blank line and a comment', 'A->>B: before\n\n%% note\nend'],
   ])('rejects %s instead of drawing a different control flow', (_name, body) => {
     const source = `sequenceDiagram\n${body}\n`
-    expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_BLOCK_BOUNDARY')
+    // The renderer names the line verify reports.
+    const line = verifyMermaid(source).warnings.find(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'sequence_block_boundary')
+    expect(() => renderMermaidSVG(source)).toThrow(`SEQUENCE_BLOCK_BOUNDARY: line ${line && 'line' in line ? line.line : '?'}:`)
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
