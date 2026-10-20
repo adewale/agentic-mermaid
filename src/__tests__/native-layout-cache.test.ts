@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
 import { createMeasuredLayoutCache, layoutLayeredGraph } from '../layout/agentic-producer-core.ts'
 import { layoutMeasuredForest } from '../layout/measured-forest.ts'
 import type { AgenticLayout, MeasuredGraph } from '../layout/agentic-layered-core.ts'
-import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { createMermaidRenderer, renderMermaidSVGWithReceipt } from '../index.ts'
+import { withPerformanceExperiments } from '../experimental-performance.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 
 const measured = (): MeasuredGraph => ({
   nodes: ['a', 'b', 'c', 'd'].map(id => ({ id, width: 80, height: 32 })),
@@ -14,6 +17,34 @@ const measured = (): MeasuredGraph => ({
 const compute = (input: MeasuredGraph): AgenticLayout => layoutLayeredGraph(input, layoutMeasuredForest, reason => { throw new Error(reason) })
 
 describe('native measured geometry reuse', () => {
+  test('replays the selected order after a comment edit and rechecks changed style maps and host metrics', () => {
+    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8')
+    const options = { graphLayout: { backend: 'agentic' as const }, nodeSpacing: 73 }
+    const observe = (value: string, render = renderMermaidSVGWithReceipt) => {
+      let placements = 0
+      const rendered = withPerformanceExperiments(['text-spans'], () => withRenderStageObserver(sample => {
+        if (sample.stage === 'agentic') placements++
+      }, () => render(value, options)))
+      return { placements, rendered }
+    }
+    const first = observe(source), edited = observe(source + '\n%% reviewed')
+    expect(first.placements).toBeGreaterThan(1)
+    expect(edited.placements).toBe(1)
+    expect(edited.rendered.svg).toBe(first.rendered.svg)
+    expect(edited.rendered.receipt.layoutDecisions).toEqual(first.rendered.receipt.layoutDecisions)
+    expect(edited.rendered.receipt.layoutCertification).toEqual(first.rendered.receipt.layoutCertification)
+    expect(edited.rendered.receipt.requestDigest).not.toBe(first.rendered.receipt.requestDigest)
+    for (const style of ['style n0 stroke-width:4px', 'linkStyle default stroke-width:4px']) {
+      const changed = source + '\n' + style
+      expect(observe(changed).placements).toBeGreaterThan(1)
+      expect(observe(changed + '\n%% reviewed').placements).toBe(1)
+    }
+    const textMeasurement = { id: 'test:native-order', version: '1.0.0', measure: ({ text, fontSize }: { text: string; fontSize: number }) => text.length * fontSize * .55 }
+    const host = createMermaidRenderer({ textMeasurement })
+    expect(observe(source, host.renderMermaidSVGWithReceipt).placements).toBeGreaterThan(1)
+    expect(observe(source + '\n%% profiled', host.renderMermaidSVGWithReceipt).placements).toBeGreaterThan(1)
+  })
+
   test('reattaches current authored text and execution receipts after an edit of equal-size cards', () => {
     const options = { graphLayout: { backend: 'agentic' as const } }
     const first = renderMermaidSVGWithReceipt('flowchart TB\n A[Cat] --> B[Pet]', options)
