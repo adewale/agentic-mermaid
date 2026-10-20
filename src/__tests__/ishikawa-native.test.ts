@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
+import { renderIshikawa } from '../agent/ishikawa-body.ts'
 import { parseRegisteredMermaid, asIshikawa, layoutMermaidWithReceipt, mutate, serializeMermaid, verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 
 describe('native Ishikawa', () => {
@@ -51,6 +52,17 @@ describe('native Ishikawa', () => {
     const parsed = parseRegisteredMermaid('ishikawa\nProblem\nPeople\n  Training\nProcess\n  Review')
     if (!parsed.ok) throw Error('fixture did not parse')
     const diagram = asIshikawa(parsed.value)!
+    const authored = serializeMermaid(diagram)
+    for (const label of ['  Accidental child', 'Trimmed text ']) {
+      expect(mutate(diagram, { kind: 'set_label', id: 'cause-3', label }).ok).toBe(false)
+      expect(mutate(diagram, { kind: 'set_effect', label }).ok).toBe(false)
+      expect(mutate(diagram, { kind: 'add_cause', label }).ok).toBe(false)
+      expect(() => renderIshikawa({ ...diagram.body, nodes: diagram.body.nodes.map(node => node.id === 'cause-3' ? { ...node, label } : node) })).toThrow('without surrounding whitespace')
+    }
+    expect(() => renderIshikawa({ ...diagram.body, nodes: [...diagram.body.nodes, { id: 'other-effect', label: 'Other effect' }] })).toThrow('one effect first')
+    expect(() => renderIshikawa({ ...diagram.body, nodes: [diagram.body.nodes[1]!, diagram.body.nodes[0]!, ...diagram.body.nodes.slice(2)] })).toThrow('one effect first')
+    expect(serializeMermaid(diagram)).toBe(authored)
+    expect(diagram.body.nodes.find(node => node.id === 'cause-3')?.parentId).toBe('effect')
     expect(mutate(diagram, { kind: 'move_cause', id: 'cause-1', parentId: 'cause-2' }).ok).toBe(false)
     const changed = mutate(diagram, { kind: 'set_label', id: 'cause-2', label: 'Documentation' })
     expect(changed.ok).toBe(true)

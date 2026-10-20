@@ -15,17 +15,26 @@ export function parseIshikawaBody(lines: string[]): IshikawaBody | null {
   }
 }
 
+function assertIshikawaLabel(label: unknown): asserts label is string {
+  if (typeof label !== 'string' || !label || label !== label.trim() || /[\r\n]/.test(label) || /^(?:%%|accTitle\b|accDescr\b)/i.test(label)) throw new Error('Ishikawa labels must be nonempty single-line text without surrounding whitespace or Mermaid directives')
+}
+
 export function renderIshikawa(body: IshikawaBody): string {
   validateHierarchy(body.nodes)
+  if (body.nodes.length && (body.nodes[0]!.parentId !== undefined || body.nodes.slice(1).some(node => node.parentId === undefined))) throw new Error('Ishikawa must have one effect first, with every cause below it')
   const lines = ['ishikawa']
   appendAccessibilityLines(lines, body)
   const children = hierarchyChildren(body.nodes)
   const pending = [...(children.get(undefined) ?? [])].reverse().map(node => ({ node, depth: 0 }))
+  let written = 0
   while (pending.length) {
     const { node, depth } = pending.pop()!
+    assertIshikawaLabel(node.label)
+    written++
     lines.push(`${'  '.repeat(depth)}${node.label}`)
     for (const child of [...(children.get(node.id) ?? [])].reverse()) pending.push({ node: child, depth: depth + 1 })
   }
+  if (written !== body.nodes.length) throw new Error('Ishikawa causes must be connected below the effect')
   return lines.join('\n') + '\n'
 }
 
@@ -84,7 +93,6 @@ export function mutateIshikawa(body: IshikawaBody, op: IshikawaMutationOp): Resu
       default:
         throw new Error(formatUnknownOpMessage('ishikawa', op, ISHIKAWA_OP_KINDS.join(', ')))
     }
-    for (const node of next.nodes) if (typeof node.label !== 'string' || !node.label.trim() || /[\r\n]/.test(node.label) || /^\s*(?:%%|accTitle\b|accDescr\b)/i.test(node.label)) throw new Error('Ishikawa labels must be nonempty single-line text, not a Mermaid directive')
     renderIshikawa(next)
     return ok(next)
   } catch (error) {
