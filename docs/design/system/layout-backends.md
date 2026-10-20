@@ -5,7 +5,9 @@ Native measured Flowchart/State placement includes cycles, loops and independent
 nested scopes. Requirement cards and relationship labels also use measured
 native placement. Flat ER and Class cards and relations also use this kernel;
 ER groups, Class namespaces, cross-hierarchy leaf routes and Architecture
-geometry still require ELK. Quality and cost qualification remains
+compound child order/boundary placement still require ELK. Flat Architecture
+placement reuses the native engine; ports, alignments and routing remain owned
+by its adapter. Quality and cost qualification remains
 in progress; admission is not proof of parity. Implementation scheduling remains
 in root TODO.md.
 
@@ -720,7 +722,7 @@ allocation and peak RSS, and requires identical artifacts, outputs and complete
 receipt fingerprints. A control that is suspiciously faster also fails. Normal
 cache measurements enable the position cache before import; disabled-cache
 measurements disable both layout caches while preserving shared text spans.
-The CI canary enrolls five official corpus inputs and eleven frozen/scaling
+The CI canary enrolls six official corpus inputs and thirteen frozen/scaling
 workloads in both regimes. Its corpus aggregate covers only the official inputs,
 with the workloads reported separately; it is not full-domain qualification.
 
@@ -808,3 +810,15 @@ Terminal routing has its own capacity limits. A declined route can retain an
 owned endpoint/marker summary with explicit projection diagnostics, while its
 geometry-collision diagnostic continues to fail terminal geometry certification.
 A rendered summary is neither a physical route nor evidence of backend parity.
+
+Flat Architecture diagrams reuse the graph producer for placement while
+retaining the family adapter's authored side constraints, alignment directives,
+service/junction geometry, obstacle routing and label allocation. Temporary graph
+routes do not rank Architecture's final artifact: both producer choices honor
+`compareRoutePreferences: false`. Only typed capability declines permit the
+requested one-way fallback. Grouped diagrams retain ELK and an explicit native
+decline for compound child order and boundary placement. The initial flat
+diagnostic renders all three eligible official/scaling cases, with passing
+paint proofs and no added proper crossings. An unshipped container-quotient
+experiment renders all seven but adds a crossing on official examples 0 and 5;
+it is not accepted as native compound support.
