@@ -15,7 +15,7 @@ let previewGeneration = 0
 async function renderEditorPreview(source: string, options: RenderOptions = {}) {
   const generation = previewGeneration
   const snapshot = structuredClone(options)
-  const client = await (loadingPreview ??= import('./browser-preview-client.ts').then(module => previewClient = module).catch(error => { loadingPreview = undefined; throw error }))
+  const client = await (loadingPreview ??= import('./browser-preview-client.ts').then(module => previewClient = module).catch(error => { throw new Error('Background renderer could not load; reload the page to retry', { cause: error }) }))
   if (generation !== previewGeneration) throw new client.PreviewSupersededError()
   return client.renderEditorPreview(source, snapshot)
 }

@@ -285,14 +285,20 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {
-  expect(page.workers()).toHaveLength(1)
-  expect(page.workers()[0]!.url()).toStartWith('blob:')
-  const worker = page.workers()[0]
-  await page.locator('#code-editor').fill('flowchart LR\nStandalone --> Verified')
-  await waitForEditorRender()
-  expect(await page.locator('#preview-inner svg').textContent()).toContain('Standalone')
-  expect(page.workers()).toEqual([worker])
-  expect(await page.locator('#render-time').textContent()).toContain('Rendered and verified')
+  const standalone = await browser.newPage()
+  try {
+    await standalone.goto(`${BASE}/editor?empty=1`, { waitUntil: 'networkidle' })
+    const started = standalone.waitForEvent('worker')
+    await standalone.locator('#code-editor').fill('flowchart LR\nStandalone --> Verified')
+    const worker = await started
+    await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
+    expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
+    expect(worker.url()).toStartWith('blob:')
+    await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
+    await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
+    expect(standalone.workers()).toEqual([worker])
+    expect(await standalone.locator('#render-time').textContent()).toContain('Rendered and verified')
+  } finally { await standalone.close() }
 })
 
 describe('browser: live editor integration', () => {

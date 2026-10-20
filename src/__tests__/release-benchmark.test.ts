@@ -1,5 +1,5 @@
 // Exercise the publication decision and scorecard math with controlled worker
-// observations. No clocks, npm registry or browser launch in these tests.
+// observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -295,4 +295,18 @@ test('baseline resolution survives a changed latest tag across CLI retries', asy
   writeFileSync(registry, JSON.stringify({ version: '0.4.2', 'dist.integrity': 'sha512-ZWZnaA==' }))
   expect(await invoke()).toEqual({ status: 0, stderr: '' })
   expect(JSON.parse(readFileSync(lock, 'utf8'))).toEqual({ requested: 'latest', version: '0.4.1', integrity })
+})
+
+
+test('failed editor benchmark reruns invalidate a previous completed report', async () => {
+  const out = temp.dir(), site = temp.dir(), report = join(out, 'editor-preview.json')
+  writeFileSync(report, JSON.stringify({ status: 'completed', samples: ['stale-run'] }))
+  const proc = Bun.spawn([process.execPath, join(import.meta.dir, '../../eval/benchmark/editor-preview-bench.ts'), '--site', site, '--out', out, '--executable', join(site, 'nonexistent-chromium')], {
+    stdout: 'ignore', stderr: 'ignore', timeout: 10_000, killSignal: 'SIGKILL',
+  })
+  expect(await proc.exited).not.toBe(0)
+  const failed = JSON.parse(readFileSync(report, 'utf8'))
+  expect(failed.status).toBe('failed')
+  expect(failed.error).toContain('nonexistent-chromium')
+  expect(failed).not.toHaveProperty('samples')
 })
