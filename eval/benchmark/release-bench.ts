@@ -362,17 +362,19 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
         if (quality?.status !== 'measured' || !quality.metrics || typeof quality.metrics !== 'object') return undefined
         const metrics = quality.metrics as Record<string, unknown>
         const value = field === 'labelConflicts' && metrics.labelConflicts && typeof metrics.labelConflicts === 'object'
-          ? (metrics.labelConflicts as Record<string, unknown>).total : metrics[field]
+          ? (metrics.labelConflicts as Record<string, unknown>).total
+          : (field === 'opposingOverlaps' || field === 'parallelOverlaps') && metrics.routeOverlaps && typeof metrics.routeOverlaps === 'object'
+            ? (metrics.routeOverlaps as Record<string, unknown>)[field === 'opposingOverlaps' ? 'opposing' : 'parallel'] : metrics[field]
         return typeof value === 'number' && Number.isFinite(value) ? value : undefined
       }
       const pairedQuality = shared(inputs).filter(input => baseline.results.get(input.id)?.quality?.status === 'measured' && candidate.results.get(input.id)?.quality?.status === 'measured')
-      const changed = pairedQuality.filter(input => ['edgeCrossings', 'labelConflicts', 'labelLegibility', 'minimumNodeSpacing', 'aspectRatio'].some(field => valueOf(baseline, input, field) !== valueOf(candidate, input, field)))
+      const changed = pairedQuality.filter(input => ['edgeCrossings', 'labelConflicts', 'opposingOverlaps', 'parallelOverlaps', 'labelLegibility', 'minimumNodeSpacing', 'aspectRatio'].some(field => valueOf(baseline, input, field) !== valueOf(candidate, input, field)))
       const shown = [...pairedQuality.filter(input => input.kind !== 'corpus'), ...changed.filter(input => input.kind === 'corpus')].slice(0, 25)
       md.push('', '## Separate public-layout quality observations', '', `${pairedQuality.length}/${inputs.length} matched successful inputs have quality vectors in both arms; ${changed.length} differ on the fields below. Showing up to 25 scaling/changed inputs; complete per-input vectors and unavailable reasons remain in report.json. These projections rerun layout after timing and do not establish human preference.`, '',
-        '| Input | Proper crossings | Padded label conflicts | Label fit fraction | Minimum node gap | Aspect ratio |', '|---|---:|---:|---:|---:|---:|')
+        '| Input | Proper crossings | Padded label conflicts | Opposing / same-endpoint shared spans | Label fit fraction | Minimum node gap | Aspect ratio |', '|---|---:|---:|---|---:|---:|---:|')
       for (const input of shown) {
         const pair = (field: string) => [valueOf(baseline, input, field), valueOf(candidate, input, field)].map(value => value === undefined ? 'unavailable' : Number.isInteger(value) ? String(value) : value.toFixed(3)).join(' → ')
-        md.push(`| ${input.id} | ${pair('edgeCrossings')} | ${pair('labelConflicts')} | ${pair('labelLegibility')} | ${pair('minimumNodeSpacing')} | ${pair('aspectRatio')} |`)
+        md.push(`| ${input.id} | ${pair('edgeCrossings')} | ${pair('labelConflicts')} | ${pair('opposingOverlaps')} / ${pair('parallelOverlaps')} | ${pair('labelLegibility')} | ${pair('minimumNodeSpacing')} | ${pair('aspectRatio')} |`)
       }
     }
   }

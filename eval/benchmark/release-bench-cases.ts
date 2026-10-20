@@ -37,6 +37,17 @@ export function flowchartMesh(nodes: number, labelled: number): string {
   return edges + '\n' + Array.from({ length: labelled }, (_, i) => `  n${Math.floor(rnd() * nodes)} -->|label ${i}| n${Math.floor(rnd() * nodes)}`).join('\n')
 }
 
+export function flowchartMultigraph(nodes: number): string {
+  const rnd = lcg(29)
+  return lines('flowchart TD', nodes, i => `n${i}[Node ${i}]`)
+    + '\n' + Array.from({ length: 3 * nodes }, (_, index) => {
+      const source = Math.floor(rnd() * nodes)
+      const target = index % 8 === 0 ? source : Math.floor(rnd() * nodes)
+      return `n${source} -->${index % 4 === 0 ? `|transition ${index}|` : ''} n${target}`
+    }).join('\n')
+    + '\nn0 --> n1\nn0 --> n1\nn1 --> n0'
+}
+
 function flowchartSubgraphs(groups: number, perGroup: number): string {
   const out = ['flowchart LR']
   for (let g = 0; g < groups; g++) {
@@ -63,6 +74,7 @@ const WORKLOADS = {
   flowchart: [
     { id: 'tree-300', source: flowchartTree(300), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `Node ${i}`) },
     { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => `label ${i}`) },
+    { id: 'multigraph-24-loops', source: flowchartMultigraph(24), expectedSvgLabels: Array.from({ length: 18 }, (_, i) => `transition ${i * 4}`) },
     { id: 'subgraphs-12x8', source: flowchartSubgraphs(12, 8) },
   ],
   sequence: [{ id: '20-participants-300-messages', source: lines('sequenceDiagram', 300, i => `  P${i % 20}->>P${(i * 7 + 1) % 20}: message ${i}`), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `message ${i}`) }],
