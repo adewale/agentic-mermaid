@@ -1,147 +1,77 @@
-name: Release benchmark
-
-# Performance, memory and correctness of the built package against a baseline
-# npm release, measured on one runner in interleaved fresh Node processes.
-# Called by publish.yml with its verified publication artifact; runnable on demand.
-
+name: Forest audit evidence
 on:
-  workflow_call:
-    inputs:
-      candidate-artifact:
-        description: Verified publication artifact from this workflow run (empty builds locally)
-        type: string
-        default: ''
-      baseline:
-        description: npm version or tag to compare against
-        type: string
-        default: latest
   workflow_dispatch:
     inputs:
       baseline:
-        description: npm version or tag to compare against
+        description: Immutable main revision
         type: string
-        default: latest
-
+        required: true
 permissions:
   contents: read
-  actions: read
-
 jobs:
-  benchmark:
-    name: Benchmark against agentic-mermaid@${{ inputs.baseline }}
+  evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 105
+    timeout-minutes: 25
+    env:
+      BASELINE: ${{ inputs.baseline }}
+      CANDIDATE: 9321554736bc38be14b41b171b54f1a566d1cb01
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 9321554736bc38be14b41b171b54f1a566d1cb01
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.4.2
           no-cache: true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '24'
           package-manager-cache: false
-
-      - name: Install frozen dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build the candidate package
-        if: inputs.candidate-artifact == ''
-        run: bun run build
-
-      - name: Install the pinned npm
+      - run: bun install --frozen-lockfile
+      - name: Measure opt-in, default cache, flag-off and A/A controls
         run: |
-          npm install -g npm@11.18.0 --ignore-scripts
-          test "$(npm --version)" = "11.18.0"
-
-      - name: Restore and resolve the immutable benchmark baseline
+          mkdir -p bench-report/audit
+          AGENTIC_MERMAID_EXPERIMENTS=indexed-layout bun run bench:micro --runtime node --baseline "$BASELINE" --rounds 3 --elk-cache off --filter '^render:svg-consumed-(tree50|mesh50|seq20)$' --json bench-report/audit/uncached.json
+          AGENTIC_MERMAID_EXPERIMENTS=indexed-layout bun run bench:micro --runtime node --baseline "$BASELINE" --rounds 3 --elk-cache on --filter '^render:svg-consumed-tree50$' --json bench-report/audit/cached.json
+          AGENTIC_MERMAID_EXPERIMENTS= bun run bench:micro --runtime node --baseline "$BASELINE" --rounds 3 --elk-cache off --filter '^render:svg-consumed-(tree50|mesh50|seq20)$' --json bench-report/audit/flag-off.json
+          AGENTIC_MERMAID_EXPERIMENTS=indexed-layout bun run bench:micro --runtime node --baseline "$CANDIDATE" --rounds 3 --elk-cache off --filter '^render:svg-consumed-(tree50|mesh50|seq20)$' --json bench-report/audit/aa.json
+      - name: Qualify the complete documentation inventory
         env:
-          GH_TOKEN: ${{ github.token }}
-          BASELINE: ${{ inputs.baseline }}
-          BASELINE_ARTIFACT: release-benchmark-baseline-${{ github.run_id }}
+          AGENTIC_MERMAID_SCENE_ASSERTIONS: '1'
+          AGENTIC_MERMAID_ELK_CACHE: '0'
+        run: bun run eval/benchmark/qualify-performance-profile.ts --features indexed-layout --out bench-report/audit/qualification.json
+      - name: Render the same forest through immutable base and candidate
         run: |
-          mkdir -p benchmark-baseline
-          artifacts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-            --jq '.artifacts[] | select(.name == env.BASELINE_ARTIFACT and .expired == false) | .id')"
-          if [ -n "$artifacts" ]; then
-            gh run download "$GITHUB_RUN_ID" --name "$BASELINE_ARTIFACT" --dir benchmark-baseline
-          elif [ "$GITHUB_RUN_ATTEMPT" -gt 1 ] && ! [[ "$BASELINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
-            echo "The previous baseline artifact is unavailable. Start an on-demand run with an explicit previous npm version." >&2
-            exit 1
-          fi
-          bun run eval/benchmark/release-baseline.ts "$BASELINE" benchmark-baseline/baseline.json
-
-      - name: Persist the baseline before measuring
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: release-benchmark-baseline-${{ github.run_id }}
-          path: benchmark-baseline/baseline.json
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 30
-
-      - name: Pack and verify the candidate package
-        if: inputs.candidate-artifact == ''
-        run: bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact
-
-      - name: Download the verified publication artifact
-        if: inputs.candidate-artifact != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: ${{ inputs.candidate-artifact }}
-          path: release-artifact
-
-      - name: Verify the candidate artifact identity
-        run: |
-          test "$(find release-artifact -mindepth 1 -maxdepth 1 -exec printf x \; | wc -c)" -eq 3
-          for artifact_file in package.tgz package.sha256 package-manifest.json; do
-            test -f "release-artifact/$artifact_file"
-            test ! -L "release-artifact/$artifact_file"
-          done
-          test "$(jq -r '.schemaVersion' release-artifact/package-manifest.json)" = 1
-          test "$(jq -r '.filename' release-artifact/package-manifest.json)" = package.tgz
-          manifest_sha="$(jq -er '.sha256 | select(type == "string")' release-artifact/package-manifest.json)"
-          test "${#manifest_sha}" -eq 64
-          case "$manifest_sha" in *[!0-9a-f]*) exit 1;; esac
-          printf '%s  package.tgz\n' "$manifest_sha" | cmp --silent - release-artifact/package.sha256
-          actual_sha="$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)"
-          test "$actual_sha" = "$manifest_sha"
-          manifest_integrity="$(jq -er '.integrity | select(type == "string")' release-artifact/package-manifest.json)"
-          actual_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")"
-          test "$actual_integrity" = "$manifest_integrity"
-
-      - name: Benchmark candidate against the baseline release
-        env:
-          BASELINE: ${{ inputs.baseline }}
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --out bench-report
-
-      - name: Install Chromium for the advisory browser scorecard
-        if: ${{ !cancelled() }}
-        continue-on-error: true
-        timeout-minutes: 5
-        run: bunx playwright install --with-deps chromium
-
-      - name: Measure exact-artifact browser and competitor performance
-        if: ${{ !cancelled() }}
-        continue-on-error: true
-        timeout-minutes: 13
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          timeout 12m bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-lock benchmark-baseline/baseline.json --out bench-report
-
-      - name: Upload the benchmark report
+          git worktree add --detach /tmp/forest-base "$BASELINE"
+          ln -s "$GITHUB_WORKSPACE/node_modules" /tmp/forest-base/node_modules
+          cat > bench-report/audit/input.mmd <<'MMD'
+          flowchart TD
+          A[Receive authored graph] --> B[Measure labels]
+          A --> C[Keep semantic identities]
+          B --> D[Position variable sized nodes]
+          B --> E[Preserve source spans]
+          C --> F[Connect actual outlines]
+          C --> G[Certify final geometry]
+          H[Disconnected component] --> I[Keep its label]
+          MMD
+          cat > bench-report/forest-evidence.ts <<'TS'
+          import { readFileSync, writeFileSync } from 'node:fs'
+          import { Resvg } from '@resvg/resvg-js'
+          const [root,label]=process.argv.slice(2)
+          const api=await import(`${root}/src/index.ts`)
+          const svg=api.renderMermaidSVG(readFileSync('bench-report/audit/input.mmd','utf8'),{bg:'#ffffff',fg:'#18181b',embedFontImport:false})
+          writeFileSync(`bench-report/audit/${label}.svg`,svg)
+          const fontFiles=['Inter-Regular.ttf','Inter-Medium.ttf','Inter-SemiBold.ttf','Inter-Bold.ttf'].map(name=>`${process.cwd()}/assets/fonts/${name}`)
+          writeFileSync(`bench-report/audit/${label}.png`,new Resvg(svg,{background:'#ffffff',font:{loadSystemFonts:false,fontFiles},fitTo:{mode:'width',value:1200}}).render().asPng())
+          TS
+          AGENTIC_MERMAID_EXPERIMENTS= bun run bench-report/forest-evidence.ts /tmp/forest-base before
+          AGENTIC_MERMAID_EXPERIMENTS=indexed-layout bun run bench-report/forest-evidence.ts "$GITHUB_WORKSPACE" after
+          git diff "$BASELINE" "$CANDIDATE" --stat > bench-report/audit/diff-stat.txt
+          node -e 'require("node:fs").writeFileSync("bench-report/audit/receipt.json",JSON.stringify({base:process.env.BASELINE,head:process.env.CANDIDATE,experiment:"indexed-layout",controls:["flag-off","A/A"],cacheModes:["off","on"],rounds:3,consumption:"UTF-8 SVG and serialized complete receipt",allocation:"V8 JS heap estimate only"},null,2))'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: release-benchmark-${{ github.sha }}
-          path: |
-            bench-report/
-            benchmark-baseline/baseline.json
-          if-no-files-found: warn
-          overwrite: true
+          name: forest-audit-9321554736bc38be14b41b171b54f1a566d1cb01
+          path: bench-report/audit/
+          if-no-files-found: error
