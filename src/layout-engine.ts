@@ -43,7 +43,7 @@ import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { layoutAgenticCandidate } from './layout/agentic-layered.ts'
-import { DeferredDependencyError, emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
+import { AGENTIC_LAYERED_IMPLEMENTATION, DeferredDependencyError, emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
@@ -2012,7 +2012,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   }
   const decision: GraphLayoutDecision = {
     requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? 'agentic-layered@9' : 'elk-layered@1', ...(reason ? { reason } : {}),
+    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}),
   }
   positioned.layoutDecision = decision
   emitGraphLayoutDecision(decision)

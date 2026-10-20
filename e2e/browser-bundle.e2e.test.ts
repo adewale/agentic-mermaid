@@ -413,6 +413,7 @@ describe('async family-loaded browser renderer', () => {
         return Promise.all([
           api.renderMermaidSVGAsync('flowchart LR\n  A --> B', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('requirementDiagram\nrequirement fast {\ntext: Respond quickly\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> fast', { graphLayout: { backend } }),
         ])
       }, { entryUrl: `${base}/dist/browser-lazy/index.js`, backend })
       expect(svgs).toEqual([

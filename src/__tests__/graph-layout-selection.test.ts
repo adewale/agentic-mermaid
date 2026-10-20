@@ -269,7 +269,6 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ['requirement', 'requirementDiagram\n requirement fast {\n id: 1\n text: Respond quickly\n risk: high\n verifymethod: test\n }\n element benchmark {\n type: "test"\n }\n benchmark - verifies -> fast'],
     ['class', 'classDiagram\n class A\n class B\n A --> B'],
     ['er', 'erDiagram\n A ||--o{ B : owns'],
     ['architecture', 'architecture-beta\n service a(server)[A]\n service b(server)[B]\n a:R --> L:b'],
