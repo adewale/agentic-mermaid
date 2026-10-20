@@ -501,6 +501,14 @@ Do not pass new selector fields into the pre-change package; run it as the
 unchanged ELK control. Emit the existing machine-readable report plus a readable
 comparison with per-case outcomes, denominators and metric regressions.
 
+The ELK A/A control requires the same artifact and identical SVG, terminal and
+full-receipt fingerprints across workers. Its warm corpus, per-family and
+per-workload latency ratios, corpus allocation and peak RSS must lie within
+the reciprocal 1.1× interval (1/1.1 to 1.1). Reject implausible speedups as well
+as slowdowns: a one-sided publication regression gate cannot establish a
+healthy control. Keep ordinary publication thresholds separate, never divide
+native timings by the A/A ratio, and retain failed or incomplete runs.
+
 ### Populations and attribution
 
 Retain all enrolled inputs, including unsupported families, backend declines,
