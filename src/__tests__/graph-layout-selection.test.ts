@@ -90,6 +90,89 @@ describe('checked graph layout selection', () => {
     JSON.stringify(layout.receipt)
   })
 
+  test.each([
+    { nodes: 11, edges: 24, source: `flowchart TD
+n0[[Node 16-0]]
+n1[(Node 16-1)]
+n2[Node 16-2]
+n3{Node 16-3}
+n4(Node 16-4)
+n5((Node 16-5))
+n6[[Node 16-6]]
+n7[(Node 16-7)]
+n8[Node 16-8]
+n9{Node 16-9}
+n10(Node 16-10)
+n10 -->|edge 0 xxx| n1
+n1 --> n7
+n0 --> n2
+n4 --> n10
+n6 -->|edge 4 xxxxxxx| n1
+n6 --> n10
+n10 --> n5
+n3 --> n5
+n6 -->|edge 8 xxxxxxxxxxx| n8
+n0 --> n6
+n7 --> n4
+n10 --> n9
+n4 -->|edge 12 xxxxxxxxxxxxxxx| n10
+n1 --> n9
+n10 --> n5
+n10 --> n5
+n5 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n4
+n4 --> n6
+n1 --> n5
+n8 --> n10
+n7 -->|edge 20 xxxxxx| n4
+n4 --> n6
+n5 --> n0
+n0 --> n4` },
+    { nodes: 10, edges: 20, source: `flowchart TD
+n0[[Node 28-0]]
+n1[(Node 28-1)]
+n2[Node 28-2]
+n3{Node 28-3}
+n4(Node 28-4)
+n5((Node 28-5))
+n6[[Node 28-6]]
+n7[(Node 28-7)]
+n8[Node 28-8]
+n9{Node 28-9}
+n8 -->|edge 0 xxx| n4
+n0 --> n6
+n2 --> n9
+n0 --> n3
+n2 -->|edge 4 xxxxxxx| n1
+n8 --> n7
+n0 --> n8
+n8 --> n1
+n0 -->|edge 8 xxxxxxxxxxx| n4
+n4 --> n2
+n8 --> n7
+n4 --> n9
+n4 -->|edge 12 xxxxxxxxxxxxxxx| n0
+n2 --> n0
+n6 --> n8
+n4 --> n3
+n2 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n9
+n2 --> n1
+n2 --> n3
+n2 --> n8` },
+  ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges }) => {
+    const svg = renderMermaidSVGWithReceipt(source, AGENTIC)
+    const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const elk = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    const quality = measureQuality(native.layout)
+    expect(quality.nodeCount).toBe(nodes)
+    expect(quality.edgeCount).toBe(edges)
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(elk.layout).edgeCrossings)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    JSON.stringify(svg.receipt)
+    JSON.stringify(native.receipt)
+  })
+
   test.each(['TD', 'LR'] as const)('certifies mixed shape outlines, labelled branches and markers natively in %s', direction => {
     const source = `flowchart ${direction}\nA([Start]) --> B{Choose}\nB -->|yes| C[(Database)]\nB -->|no| D((End))\nD --> E[[Audit]]`
     const stages: string[] = []
