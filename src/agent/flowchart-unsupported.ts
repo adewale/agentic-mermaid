@@ -276,6 +276,9 @@ const DANGLING_LINK_RE = new RegExp(String.raw`[\p{L}\p{N}_\])}](?:\s+|(?!\.))${
  * loss is announced rather than silent, mirroring the other checks above.
  */
 function malformedFlowchartStatement(statement: string): { syntax: string; message: string } | null {
+  if (statement === 'subgraph') {
+    return { syntax: 'flowchart_untitled_subgraph', message: 'A subgraph with neither an id nor a title cannot be read: pinned Mermaid fails on it, and ours rejects it. Give it an id or a title (subgraph S, or subgraph S["Stage one"]).' }
+  }
   if (FLOWCHART_KEYWORD_STATEMENT.test(statement)) return null
   // Metadata (`id@{ … }`) may span source lines and markdown strings go
   // opaque; both already have dedicated warnings above — skip to avoid noise.

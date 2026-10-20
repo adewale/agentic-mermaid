@@ -425,6 +425,15 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
       }
 
       // --- subgraph start: `subgraph Label` or `subgraph id [Label]` ---
+      // Upstream's grammar has a subgraph with neither, which its DB then
+      // fails to read; ours names neither a group nor a node `subgraph`.
+      if (line === 'subgraph') {
+        throw syntaxError({
+          what: `Invalid flowchart statement "${line}": a subgraph needs an id or a title (upstream fails on one with neither)`,
+          expectedForm: 'subgraph id, subgraph id[Title] or subgraph "Title"',
+          example: 'subgraph S["Stage one"]',
+        })
+      }
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (subgraphMatch) {
         const { id, label, labelContent } = declarations[nextDeclaration++]!
