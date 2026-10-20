@@ -592,3 +592,26 @@ object distinguishes `renderability` (`passed`, `failed`, or `not-checked`),
 and compare semantic facts to the requested edit before publishing a diagram.
 Suppressing error codes makes renderability `not-checked`.
 
+
+## Graph layout hints
+
+Flowchart and State graphical renders accept explicit deterministic preferences:
+
+```ts
+const options = {
+  layoutHints: {
+    ranks: { UI: 0, API: 1, Cache: 2, DB: 3 },
+    adjacent: [['Cache', 'DB']],
+    shortEdges: ['API->Cache'],
+  },
+}
+```
+
+Ranks are ordered ELK partitions, with unlisted nodes in partition zero; they
+are not absolute pixel positions. Adjacency prefers consecutive sibling model
+order within one container. Short-edge preferences use authored IDs or
+`from->to` / `from->to#k` occurrence IDs. All references are checked; unknown
+identities and conflicting adjacency groups fail explicitly. These preferences
+never delete relationships, remain subject to geometry certification, and do not
+guarantee a shortest route or fixed positions. Retain render options beside the
+Mermaid source; hints participate in request digests, editor config, and receipts.

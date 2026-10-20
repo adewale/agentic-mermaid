@@ -1,3 +1,4 @@
+import { applyLayoutHints } from './layout/layout-hints.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
@@ -121,7 +122,7 @@ interface LayoutEngineOptions extends RenderOptions {
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn'> & { stateVisual?: ResolvedStateVisualConfig }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints'> & { stateVisual?: ResolvedStateVisualConfig }
 
 // ============================================================================
 // Layout options
@@ -690,6 +691,7 @@ function mermaidToElk(
     elkGraph.edges!.push(crossHierarchyElkEdge(info, style, balancingLabels))
   }
 
+  applyLayoutHints(elkGraph, graph, opts.layoutHints)
   return elkGraph
 }
 

@@ -33,6 +33,7 @@ import type { ConfigDiagnostic, RenderOptions } from '../types.ts'
 const EVIDENCE = 'src/__tests__/family-registration-conformance.test.ts'
 
 const FAMILY_SCOPED_OPTION_VALUES = {
+  layoutHints: { ranks: {} },
   padding: 12,
   nodeSpacing: 77,
   layerSpacing: 91,
