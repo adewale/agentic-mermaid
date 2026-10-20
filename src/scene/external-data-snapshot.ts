@@ -276,10 +276,14 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
   /** A projection copies selected parts of its normalized input and creates
    * bounded marker placements/loss diagnostics. Count a generous envelope
    * without building those copies. Repeated references are deliberately not
-   * deduplicated here. Every input occurrence can account for at most two
-   * placements and their point/descriptor wrappers; factor 32 also covers
-   * copied contours, endpoints, labels, marker fields and their keys. Fixed
-   * overhead covers all projection-only keys, loss strings and diagnostics.
+   * deduplicated here. Ordinary projection fields copy or reuse each input
+   * occurrence at most once; placement point copies add at most two more.
+   * Factor 8 covers these structural copies. Polyline placement wrappers are
+   * charged separately, so this bound does not depend on shared geometry or
+   * particular point keys. Fixed overhead covers line endpoint placements,
+   * the extra endpoint of a degenerate/closed polyline and projection-only
+   * keys/arrays.
+   * Text retains factor 32 for copied strings, loss strings and diagnostics.
    * If ANY bound is close, restart with the actual materialized graph, exactly
    * as the existing conservative UTF-8 pass does. No cap is weakened. */
   const reserveProjection = (node: object, input: ConnectorTerminalProjectionInput, depth: number): void => {
@@ -294,20 +298,20 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
       if (typeof item === 'string') extraText += item.length * 3 * 32
       else if (item !== null && typeof item === 'object') {
         if (depth + level + 8 > limits.maxDepth) throw RECOUNT_EXACTLY
-        extraObjects += 32
+        extraObjects += 8
         if (Array.isArray(item)) {
           if (Math.max(18, item.length + 1) > limits.maxArrayEntries) throw RECOUNT_EXACTLY
-          extraEntries += item.length * 32
+          extraEntries += item.length * 8
           check()
           for (const entry of item) measure(entry, level + 1)
         } else {
           const keys = Object.keys(item)
           if (Math.max(24, keys.length) > limits.maxPropertiesPerObject) throw RECOUNT_EXACTLY
-          extraProperties += keys.length * 32
+          extraProperties += keys.length * 8
           check()
           for (const key of keys) {
             if (Math.max(24, key.length) * 3 > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
-            extraKeys += key.length * 3 * 32
+            extraKeys += key.length * 3 * 8
             measure((item as Record<string, unknown>)[key], level + 1)
           }
         }
@@ -316,6 +320,14 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     }
     check()
     measure(input, 0)
+    if (input.geometry.kind === 'polyline') {
+      const vertices = input.geometry.points.length
+      extraObjects += vertices * 2 // Placement and point copy.
+      extraProperties += vertices * 3 // markerId, point, contourIndex.
+      extraEntries += vertices
+      extraKeys += vertices * 25 * 3 // UTF-8 upper bound for the three keys.
+      check()
+    }
     // One repeated mid marker contributes its identifier at every interior
     // vertex. Unlike object/key counts, this string fan-out is not bounded by
     // a constant multiple of the input's string bytes.

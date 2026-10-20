@@ -9,9 +9,9 @@ import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import type { ConnectorMark, SceneDoc } from '../scene/ir.ts'
 
-function edge(): ConnectorMark {
+function edge(id = 'message'): ConnectorMark {
   return marks.connector({
-    id: 'message', role: 'message',
+    id, role: 'message',
     geometry: { kind: 'line', x1: 10, y1: 20, x2: 90, y2: 20 },
     lineStyle: 'dashed', paint: { stroke: '#111', strokeDasharray: '4 2' },
     endpoints: { from: 'a', to: 'b' },
@@ -51,6 +51,39 @@ describe('deferred terminal projection', () => {
     expect(Object.isFrozen(projection.route.contours[0])).toBe(true)
     expect(Object.isFrozen(projection.diagnostics)).toBe(true)
     expect(() => { retained.terminalProjection = expected }).toThrow(/readonly/)
+  })
+
+  test('keeps a large connector batch deferred through admission and freezes later projections', () => {
+    const group = marks.group({
+      id: 'messages', role: 'message', open: '<g>', close: '</g>',
+      children: Array.from({ length: 400 }, (_, index) => ({
+        indent: 2, node: withDeferredTerminalProjections(() => edge(`message:${index}`)),
+      })),
+    })
+    const nodes = group.children.map(child => child.node as ConnectorMark)
+    const colors = { bg: '#fff', fg: '#111' }
+    const doc: SceneDoc = {
+      family: 'sequence', width: 100, height: 50, colors, transparent: false,
+      parts: [marks.documentOpen({ id: 'prelude', width: 100, height: 50, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">'), group, marks.documentClose()],
+    }
+    admitFamilyScene(getFamily('sequence')!, doc, false)
+    const svg = sceneNodeSerialization(group)
+    expect(nodes.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
+    expect(svg).toContain('data-id="message:0"')
+    expect(svg).toContain('data-id="message:399"')
+    for (const node of [nodes[0]!, nodes.at(-1)!]) {
+      const projection = node.terminalProjection
+      expect(projection.endpoints.from).toBe('a')
+      expect(projection.endpoints.to).toBe('b')
+      expect(projection.geometry).toBe(node.route.geometry)
+      expect(projection.diagnostics.at(-1)).toBe('Preserved diagnostic')
+      expect(Object.isFrozen(projection)).toBe(true)
+      expect(Object.isFrozen(projection.route.contours[0])).toBe(true)
+      expect(Object.isFrozen(projection.diagnostics)).toBe(true)
+      expect(node.terminalProjection).toBe(projection)
+    }
+    expect(deferredTerminalProjectionInput(nodes[1]!)).toBeDefined()
+    expect(sceneNodeSerialization(group)).toBe(svg)
   })
 
   test('keeps direct constructors and path validation eager and restores scope after a failure', () => {
@@ -160,17 +193,35 @@ describe('deferred terminal projection', () => {
 
   test('every resource cap falls back to exact accounting with the same acceptance and diagnostic', () => {
     const limits = EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS
+    const unicodeEdge = (): ConnectorMark => marks.connector({
+      id: 'unicode-keys', role: 'edge', lineStyle: 'solid', paint: {},
+      geometry: { kind: 'polyline', points: [
+        { x: 0, y: 0, ['é'.repeat(20)]: 1, ['漢'.repeat(20)]: 2 },
+        { x: 1, y: 1, ['😀'.repeat(20)]: 3, ['\ud800'.repeat(20)]: 4 },
+        { x: 2, y: 0, ['\udc00'.repeat(20)]: 5 },
+      ] },
+      markers: {
+        start: { id: 'start', shape: 'circle' },
+        mid: [{ id: 'middle', shape: 'circle' }],
+        end: { id: 'end', shape: 'circle' },
+      },
+    })
+    const placementFields = new Set<keyof typeof limits>(['maxObjects', 'maxAggregateProperties', 'maxAggregateArrayEntries', 'maxAggregatePropertyKeyBytes'])
     for (const field of Object.keys(limits) as Array<keyof typeof limits>) {
-      for (const bound of [0, 1, 5, 24, 100, 1000]) {
-        const constrained = { ...limits, [field]: bound }
-        const outcome = (defer: boolean): string => {
-          try {
-            const node = defer ? withDeferredTerminalProjections(edge) : edge()
-            freezeBoundedFirstPartyData(node, constrained, 'scene')
-            return 'accepted'
-          } catch (error) { return error instanceof Error ? error.message : String(error) }
+      const constructors = placementFields.has(field) ? [edge, unicodeEdge] : [edge]
+      const bounds = field === 'maxAggregatePropertyKeyBytes' ? [0, 1, 5, 24, 100, 1000, 4000, 64_000] : [0, 1, 5, 24, 100, 1000]
+      for (const make of constructors) {
+        for (const bound of bounds) {
+          const constrained = { ...limits, [field]: bound }
+          const outcome = (defer: boolean): string => {
+            try {
+              const node = defer ? withDeferredTerminalProjections(make) : make()
+              freezeBoundedFirstPartyData(node, constrained, 'scene')
+              return 'accepted'
+            } catch (error) { return error instanceof Error ? error.message : String(error) }
+          }
+          expect(outcome(true), `${field}=${bound}, ${make.name}`).toBe(outcome(false))
         }
-        expect(outcome(true), `${field}=${bound}`).toBe(outcome(false))
       }
     }
   })
