@@ -7,6 +7,11 @@ authored identities, geometry contracts, Scene lowering, paint certification,
 output security and receipts. Retain ELK for unsupported inputs and rejected
 candidate layouts until each replacement cohort earns promotion.
 
+The [dual backend contract](../design/system/layout-backends.md) defines public
+selection and comparative measurements. ELK remains a supported default;
+Agentic selection is opt-in, with explicit optional ELK fallback. This supersedes
+implicit fallback and eventual ELK retirement as requirements of this proposal.
+
 This is the design and acceptance boundary requested on 20 October 2026.
 Implementation work belongs in the owner's existing issue and backlog process;
 this document does not create a second queue. Sequence Scene optimization and
@@ -151,7 +156,8 @@ keep the new producer off by default during qualification.
 
 Preserve all four established ELK strategies. A preliminary solver gets one
 additional bounded attempt, rather than consuming a fallback slot. Recover
-from ordinary candidate failure through that list. Propagate
+from expected geometric infeasibility through that list only when ELK fallback
+was requested. Unexpected solver defects remain engine errors. Propagate
 `DiagramWorkLimitError` and pass-contract failures, as certification already
 does; fallback must not disguise a work-limit violation or broken invariant.
 
@@ -274,10 +280,9 @@ fallback rates rise materially on the fixed evaluation population, or a
 repeatable performance/allocation regression appears. A fallback that preserves
 correctness but runs both solvers frequently is still a performance failure.
 
-Retire ELK only after every intended family and graph feature has an accepted
-replacement, the dependency/module graph confirms its removal, and final
-release/browser qualification passes. Until then, the useful outcome is a
-progressive reduction in ELK use with measured gains and preserved contracts.
+Retain explicit ELK support and regression coverage alongside the owned backend.
+Any change to default selection requires separate cohort promotion evidence.
+Removing ELK is outside this implementation contract.
 
 ## References
 
