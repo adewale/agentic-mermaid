@@ -50,6 +50,21 @@ describe('rendered edge label conflicts', () => {
     })
   })
 
+  it('scopes proposal scoring to changed labels or routes without counting unrelated collisions', () => {
+    const positioned = {
+      nodes: [node(), node({ id: 'far', x: 290 })],
+      edges: [
+        labeled(), labeled({ labelPosition: { x: 136, y: 100 } }),
+        edge({ points: [{ x: 90, y: 0 }, { x: 90, y: 200 }] }),
+        edge({ points: [{ x: 110, y: 0 }, { x: 110, y: 200 }] }),
+        labeled({ labelPosition: { x: 300, y: 100 } }),
+        edge({ points: [{ x: 300, y: 0 }, { x: 300, y: 200 }] }),
+      ],
+    }
+    expect(measureLabelConflicts(positioned, style, new Set([2]))).toEqual({ total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1 })
+    expect(measureLabelConflicts(positioned, style, new Set([0]))).toEqual({ total: 4, labelLabel: 1, labelNode: 1, labelEdge: 2 })
+  })
+
   it('does not infer shared semantic label ownership from a bundle or matching text', () => {
     const bundled = labeled({ routeCertificate: { invariant: 'bundle', edgeIndex: 0, routeClass: 'primary-forward', bendCount: 1 } })
     const sibling = labeled({ target: 'C', routeCertificate: { invariant: 'bundle', edgeIndex: 1, routeClass: 'primary-forward', bendCount: 1 } })

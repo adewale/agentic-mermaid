@@ -4,6 +4,7 @@ import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { graphTextBlock } from './graph-text.ts'
+import { LABEL_PILL_PADDING } from './shared/edge-label-geometry.ts'
 import { performanceExperimentEnabled } from './experimental-performance.ts'
 import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
@@ -1424,7 +1425,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // Separating genuinely shared duplicate ink preserves authored multiplicity.
     // A local lane proposal may spend at most one crossing per repaired pair.
     mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true }, parallelOverlaps: 'improve-only' },
-    run: c => { applyParallelDuplicateLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled) },
+    run: c => { applyParallelDuplicateLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.elkResult ? undefined : c.style) },
   },
   {
     id: 'collapseTinyBundledHitches', doc: 'remove sub-perceptual hitches introduced by bundling',
@@ -1977,7 +1978,7 @@ function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions, sty
       const source = indices.get(edge.source), target = indices.get(edge.target)
       if (source === undefined || target === undefined) throw new GraphLayoutUnsupportedError('unknown endpoint')
       const block = edge.label ? graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') : undefined
-      return { source, target, minSpan: edge.length ?? 1, ...(block ? { label: { width: block.width + 8, height: block.height + 6 } } : {}) }
+      return { source, target, minSpan: edge.length ?? 1, ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING, height: block.height + 2 * LABEL_PILL_PADDING } } : {}) }
     })
     return { nodes, edges, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing }
   })
