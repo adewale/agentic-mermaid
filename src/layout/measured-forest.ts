@@ -64,6 +64,7 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
     for (const child of peers) { starts[child] = start; start += span[child]! + nodeSpacing }
   }
   return {
+    topology: 'forest',
     width: 2 * padding + (horizontal ? mainExtent : crossExtent),
     height: 2 * padding + (horizontal ? crossExtent : mainExtent),
     nodes: positioned,

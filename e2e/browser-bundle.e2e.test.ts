@@ -427,7 +427,7 @@ describe('async family-loaded browser renderer', () => {
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
-    const source = `flowchart TD\nA["x#hearts;y"] --> B${fallback ? '\nB --> A' : ''}`
+    const source = `flowchart TD\n${fallback ? 'subgraph G[Group]\n' : ''}A["x#hearts;y"] --> B${fallback ? '\nend' : ''}`
     const options = {
       graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
       security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },

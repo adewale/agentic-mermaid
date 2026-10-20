@@ -2,8 +2,8 @@
 
 Status: implementation contract with an initial opt-in DAG backend. ELK remains
 supported and is the default. The current Agentic domain is flat measured
-Flowchart DAGs; cycles, compound groups and specialized family geometry still
-require ELK. Implementation scheduling remains in root TODO.md.
+Flowchart graphs, including cycles; self-loops, compound groups and specialized
+family geometry still require ELK. Implementation scheduling remains in root TODO.md.
 
 This design adds an owned graph-layout backend alongside ELK, lets callers
 select either one, and measures both through the same Agentic Mermaid rendering
@@ -61,6 +61,12 @@ Research and community inputs checked during the continuation:
   DAG placer must account for the corrections, not implement an uncorrected
   recipe. The shared forest producer currently uses conservative subtree
   intervals, not a claim to implement that algorithm.
+- [ELK's layered-algorithm overview](https://eclipse.dev/elk/blog/posts/2025/25-08-21-layered.html)
+  separates private cycle breaking from final authored arrow direction. The
+  native producer uses a deterministic source/sink/degree-bucket variant of the
+  [Eades–Lin–Smyth feedback-arc heuristic](https://www.sciencedirect.com/science/article/pii/002001909390079O),
+  then restores the direction of every authored route. It does not copy ELK's
+  implementation or silently reverse the user's relationships.
 - [Pele's compound-ordering proposal](https://github.com/obsidianmd/pele/pull/4)
   coordinates group order and border-port order from a flat ordering, and
   compares completed routes. Its reported extra layout passes are a reminder
@@ -239,8 +245,11 @@ The first broader owned producer targets flat measured labelled DAGs,
 including fan-in, parallel edges, disconnected components and extended rank
 spans. Nonrectangular Flowchart nodes use the shared outline clipping and
 graph certification; shape-specific paint limitations remain explicit in the
-receipt. The expansion sequence then covers cycles and constrained ports, followed
-by compound graphs and mixed directions. Each expansion needs complete
+receipt. Directed cycles use private feedback-arc ordering and retain authored
+arrow and label ownership. Forest fans retain shared trunks; layered graphs
+retain their separately measured corridors instead of generic trunk bundling.
+Self-loops, constrained family ports, compound graphs and mixed directions need
+further expansion. Each expansion needs complete
 behavioral evidence before the capability predicate accepts those inputs.
 Class/ER compartments, Architecture ports and State semantics remain adapter
 responsibilities even when they share a producer.

@@ -9,21 +9,12 @@ import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexe
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
- * Layout engine for Agentic Mermaid (ELK.js based).
+ * Synchronous graph layout selection and shared final geometry.
  *
- * Converts MermaidGraph to ELK's JSON format, runs layout, and converts
- * the result back to PositionedGraph. This is the core layout engine used
- * by all graph-based diagram types (flowcharts, state, ER, class).
- *
- * ELK (Eclipse Layout Kernel) features:
- *   - Native orthogonal edge routing (no post-processing needed)
- *   - Proper handling of compound nodes (subgraphs)
- *   - Support for disconnected graphs
- *   - Direction overrides per subgraph
- *   - Sophisticated algorithms for complex graphs
- *
- * Uses elk.bundled.js (pure synchronous JS, no WASM/Workers).
- * Safe for Electron, Node, and browser environments.
+ * The ELK adapter prepares its JSON graph and extracts positioned geometry.
+ * The owned producer consumes measured neutral graphs. Both retain authored
+ * identities, shared route/shape rules and independent final certification.
+ * Specialized Class, ER and Architecture adapters keep their family contracts.
  */
 
 import type { ElkNode, ElkExtendedEdge, LayoutOptions } from 'elkjs'
@@ -2006,7 +1997,9 @@ function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions, sty
     ...edge, ...geometry.edges[index]!, edgeIndex: index, inlineStyle: resolveEdgeInlineStyle(index, graph),
     ...(edge.id && graph.classAssignments.has(edge.id) ? { classNames: graph.classAssignments.get(edge.id)!.split(/\s+/).filter(Boolean) } : {}),
   }))
-  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups: [] }, graph, DEFAULTS.mergeEdges, opts.padding, style, 18).positioned
+  // Forest fans use shared trunks. Layered placement reserves private label
+  // corridors; generic bundling can move foreign routes into those corridors.
+  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups: [] }, graph, geometry.topology === 'forest', opts.padding, style, 18).positioned
   if (containsNonFiniteNumber(positioned)) throw new TypeError('Agentic graph pipeline returned non-finite geometry')
   return positioned
 }
@@ -2043,7 +2036,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   }
   const decision: GraphLayoutDecision = {
     requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? 'agentic-layered@1' : 'elk-layered@1', ...(reason ? { reason } : {}),
+    implementation: selected === 'agentic' ? 'agentic-layered@2' : 'elk-layered@1', ...(reason ? { reason } : {}),
   }
   positioned.layoutDecision = decision
   emitGraphLayoutDecision(decision)

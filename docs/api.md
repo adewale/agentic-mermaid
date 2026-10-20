@@ -84,10 +84,11 @@ const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
 console.log(receipt.layoutDecisions)
 ```
 
-Agentic currently supports flat flowchart DAGs, including measured shapes and
-edge labels, fan-in, parallel edges, disconnected components and long links.
+Agentic currently supports flat flowchart graphs, including directed cycles,
+measured shapes and edge labels, fan-in, parallel edges, disconnected components
+and long links.
 The shared geometry pipeline clips ports to each actual shape outline.
-Cycles, self-loops, groups and other graph families retain ELK
+Self-loops, groups and other graph families retain ELK
 support. Omitting fallback makes an unsupported Agentic request throw
 `GraphLayoutUnsupportedError`; requesting `fallback: 'elk'` records the actual
 selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
