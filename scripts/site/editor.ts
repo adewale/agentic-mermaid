@@ -54,7 +54,21 @@ async function readCssFiles(fontPrefix: string): Promise<string> {
     'css/misc.css',
   ]
   const parts = await Promise.all(order.map(f => readFile(f)))
-  return hostedFontFaceCss(fontPrefix) + '\n\n' + parts.join('\n\n')
+  const result = await Bun.build({
+    entrypoints: ['editor-css'],
+    target: 'browser',
+    minify: true,
+    plugins: [{
+      name: 'editor-css',
+      setup(build) {
+        build.onResolve({ filter: /^editor-css$/ }, () => ({ path: 'editor.css', namespace: 'editor-css' }))
+        build.onLoad({ filter: /.*/, namespace: 'editor-css' }, () => ({ contents: parts.join('\n\n'), loader: 'css' }))
+      },
+    }],
+  })
+  if (!result.success) throw new AggregateError(result.logs, 'Editor stylesheet bundle failed')
+  // Keep resource URLs under the existing host policy, outside CSS bundling.
+  return hostedFontFaceCss(fontPrefix) + '\n' + await result.outputs[0]!.text()
 }
 
 function editorExamplesDataJs(): string {
