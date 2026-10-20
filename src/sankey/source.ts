@@ -21,6 +21,7 @@ export function sankeyFamilyLines(source: NormalizedMermaidSource): string[] {
   const endings = body.match(/\r\n?|\n/g) ?? []
   const lines: string[] = []
   let line = ''
+  let continuedRows = 0
   let quoted = false
   let directiveEnd = -1
   for (let index = 0; index < physicalLines.length; index++) {
@@ -41,9 +42,15 @@ export function sankeyFamilyLines(source: NormalizedMermaidSource): string[] {
         else quoted = !quoted
       }
     }
-    if (quoted && endings[index] !== undefined) line += endings[index] === '\r' ? '\r' : '\n'
+    if (quoted && endings[index] !== undefined) {
+      line += endings[index] === '\r' ? '\r' : '\n'
+      continuedRows++
+    }
     else {
       lines.push(line)
+      // The CSV parser reports physical row numbers. Placeholders keep later
+      // records at their original rows after a quoted record was coalesced.
+      while (continuedRows > 0) { lines.push(''); continuedRows-- }
       line = ''
     }
   }

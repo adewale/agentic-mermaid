@@ -94,6 +94,13 @@ const cases: Array<{ name: string; source: string; links: ExpectedLink[]; title?
 ]
 
 describe('Sankey source identities correspond across graphical and terminal projections', () => {
+  test('malformed records after multiline CSV report their physical source row', () => {
+    for (const ending of ['\n', '\r', '\r\n']) {
+      const source = ['sankey-beta', '"A\nB",C,1', 'D,E,2,extra'].join(ending)
+      expect(() => renderMermaidSVG(source)).toThrow('Sankey row 4 has 4 columns')
+    }
+  })
+
   test('a payload CR beside CRLF stays distinct in source and target identities', () => {
     const source = 'sankey-beta\n"A""&amp;\r\r\nB","T&amp;amp;\r\r\nU",1\n"A""&amp;\r\nB","T&amp;amp;\r\nU",2\n"A""&amp;\r\r\r\nB","T&amp;amp;\r\r\r\nU",3'
     const pairs = [
