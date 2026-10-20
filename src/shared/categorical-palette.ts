@@ -253,7 +253,7 @@ function ensureBgContrast(lch: Oklch, bg: string | undefined, darkBg: boolean, d
         diagnostics.candidateEvaluations++
         if (target) diagnostics.pairDistanceChecks++
       }
-      const next = target ? labDistance(candidate.lab, target) : 0
+      const next = target ? constrainedLabDistance(candidate.lab, target) : 0
       if (next < distance) { best = candidate; distance = next }
     }
     if (best) return best.hex
@@ -427,19 +427,26 @@ function visibleCandidateCorpus(bg: string | undefined, diagnostics?: Categorica
 }
 
 const labDistance = (a: Oklab, b: Oklab): number => Math.hypot(a.L - b.L, a.a - b.a, a.b - b.b)
+// Constrained candidates come from finite concrete sRGB. Their bounded OKLab
+// components need no overflow scaling from the general-purpose hypot call.
+const constrainedLabDistance = (a: Oklab, b: Oklab): number => {
+  const dL = a.L - b.L, da = a.a - b.a, db = a.b - b.b
+  return Math.sqrt(dL * dL + da * da + db * db)
+}
 
 /** Farthest-point packing over a bounded visible candidate corpus. Slice zero
  * remains anchored when valid; each subsequent choice maximizes its minimum
  * distance to the whole accepted set. */
 function packVisibleColors(targets: string[], bg: string | undefined, diagnostics?: CategoricalPaletteDiagnostics, labelInk?: string, candidates?: () => LabCandidate[]): string[] {
   if (targets.length < 2) return targets
+  const distance = labelInk === undefined ? labDistance : constrainedLabDistance
   const corpus = candidates?.() ?? visibleCandidateCorpus(bg, diagnostics, labelInk)
   const target0 = hexToOklab(targets[0]!)
   if (!target0) return targets
   const anchor = { hex: targets[0]!, lab: target0 }
   const anchorDistances = labelInk === undefined ? undefined : Float64Array.from(corpus, candidate => {
     if (diagnostics) diagnostics.pairDistanceChecks++
-    return labDistance(candidate.lab, anchor.lab)
+    return distance(candidate.lab, anchor.lab)
   })
   const pack = (second?: LabCandidate): string[] => {
     const selected: LabCandidate[] = second ? [anchor, second] : [anchor]
@@ -449,7 +456,7 @@ function packVisibleColors(targets: string[], bg: string | undefined, diagnostic
       if (!nearest) return
       for (let index = 0; index < corpus.length; index++) {
         if (diagnostics) diagnostics.pairDistanceChecks++
-        nearest[index] = Math.min(nearest[index]!, labDistance(corpus[index]!.lab, accepted.lab))
+        nearest[index] = Math.min(nearest[index]!, distance(corpus[index]!.lab, accepted.lab))
       }
     }
     if (second) updateNearest(second)
@@ -467,11 +474,11 @@ function packVisibleColors(targets: string[], bg: string | undefined, diagnostic
         if (!nearest) {
           for (const accepted of selected) {
             if (diagnostics) diagnostics.pairDistanceChecks++
-            min = Math.min(min, labDistance(candidate.lab, accepted.lab))
+            min = Math.min(min, distance(candidate.lab, accepted.lab))
           }
         }
         if (target && labelInk !== undefined && diagnostics) diagnostics.pairDistanceChecks++
-        const targetDistance = target ? labDistance(candidate.lab, target) : 0
+        const targetDistance = target ? distance(candidate.lab, target) : 0
         if (min > bestMin + 1e-12 || (Math.abs(min - bestMin) <= 1e-12 && targetDistance < bestTargetDistance)) {
           best = candidate
           bestMin = min
@@ -498,7 +505,7 @@ function packVisibleColors(targets: string[], bg: string | undefined, diagnostic
     const lab = hexToOklab(hex)
     if (!lab) continue
     if (diagnostics) diagnostics.pairDistanceChecks++
-    if (labDistance(anchor.lab, lab) < MIN_SLICE_DELTA_E) continue
+    if (distance(anchor.lab, lab) < MIN_SLICE_DELTA_E) continue
     const retry = pack({ hex, lab })
     const score = measuredPairwiseMinimum(retry, diagnostics)
     if (score >= MIN_SLICE_DELTA_E) return retry
@@ -513,7 +520,7 @@ function packVisibleColors(targets: string[], bg: string | undefined, diagnostic
   const updateColumn = (column: number): void => {
     for (let index = 0; index < corpus.length; index++) {
       if (diagnostics) diagnostics.pairDistanceChecks++
-      distances[index * width + column] = labDistance(corpus[index]!.lab, selected[column]!.lab)
+      distances[index * width + column] = distance(corpus[index]!.lab, selected[column]!.lab)
     }
   }
   for (let column = 0; column < width; column++) updateColumn(column)
@@ -523,7 +530,7 @@ function packVisibleColors(targets: string[], bg: string | undefined, diagnostic
       let nearest = Infinity
       for (let other = 0; other < width; other++) if (other !== column) {
         if (diagnostics) diagnostics.pairDistanceChecks++
-        nearest = Math.min(nearest, labDistance(selected[column]!.lab, selected[other]!.lab))
+        nearest = Math.min(nearest, distance(selected[column]!.lab, selected[other]!.lab))
       }
       let replacement: LabCandidate | undefined
       for (let index = 0; index < corpus.length; index++) {
