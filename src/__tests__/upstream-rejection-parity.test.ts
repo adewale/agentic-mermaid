@@ -60,6 +60,9 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a colon right after the member colon', 'classDiagram\n  A::B', ':B', 'class_member_text', 2],
   ['a semicolon in member text', 'classDiagram\n  A : x; y', 'x; y', 'class_member_text', 2],
   ['a second header', 'classDiagram\n  classDiagram\n  class Animal', 'Animal', 'class_repeated_header', 2],
+  // Mermaid reads a member holding `)` as a method, and fails on one with no name and `(…)` before it.
+  ['a `)` with no `(` in a body member', 'classDiagram\n  class A {\n    +deposimount)\n  }', 'deposimount)', 'class_member_parenthesis', 3],
+  ['a method with no name in a member statement', 'classDiagram\n  class A\n  A : (x)', '(x)', 'class_member_parenthesis', 3],
   ['a second header inside a namespace', 'classDiagram\n  namespace Zoo {\n    classDiagram\n    class Animal\n  }', 'Animal', 'class_repeated_header', 3],
   // Before the first colon of a classDef or style, Mermaid's class grammar takes only words, `#`, `%` and commas.
   ['a hyphen before the first colon of a classDef', 'classDiagram\n  class A:::thick\n  classDef thick stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3],
@@ -299,6 +302,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', '%% inside a member', 'classDiagram\n  class Animal {\n    +name %% note\n  }\n  class Cat'],
   ['class', '%% inside a relationship label', 'classDiagram\n  Animal <|-- Dog : is a %% note\n  class Cat'],
   ['class', 'an entity code ending in `;` in member text', 'classDiagram\n  Animal : x #59; y'],
+  ['class', 'a `)` Mermaid reads in a method, as text, or as an entity code', 'classDiagram\n  class A {\n    +f(a) b)\n    )x\n    +x #41;\n  }'],
   ['class', 'keywords in backticks and words that only start like one', 'classDiagram\n  class `class`\n  `class` : x\n  classes : y\n  call: z\n  class call\n  A --> `_self`'],
   ['class', 'colons and `;` in accessibility text', 'classDiagram\n  class A\n  accTitle: a:b; c\n  accDescr {\n    x : y : z\n  }'],
   ['class', 'a hyphenated property after the first colon', 'classDiagram\n  class A:::thick\n  classDef thick fill:#fff,stroke-width:4px\n  style A fill:#eee, stroke-width:2px'],

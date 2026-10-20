@@ -891,6 +891,16 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text', line: header + 1 + node.source.line,
         message: `\`${value.kind}\` is read with its names and CSS as written. Pinned Mermaid's class grammar reads only letters, digits, \`_\`, \`#\`, \`%\` and commas before the line's first colon, and rejects any other character there, such as the \`-\` of \`stroke-width\` or a \`-\` in a name. After a colon it reads any text up to the next colon, so such a property is portable after another: \`fill:#fff,stroke-width:2px\`.`,
       })
+      // Mermaid's class DB reads a member holding `)` as a method, and its
+      // method split, `([#+~-])?(.+)\((.*)\)…`, leaves one it cannot split
+      // without a name, which fails the render (classTypes.ts parseMember).
+      if (value.kind === 'member') {
+        const member = value.text.replace(/#\w+;/g, '#').trim()
+        if (!(member.startsWith('<<') && member.endsWith('>>')) && member.indexOf(')') > 0 && !/^[#+~-]?.+\(.*\)/.test(member)) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_parenthesis', line: header + 1 + node.source.line,
+          message: 'A member holding a `)` with no name and `(…)` before it is read as written. Pinned Mermaid reads a member holding `)` as a method, and fails on one it cannot split into a name and `(…)`: it draws no diagram. Write the `)` as `#41;`, or the method as `name(…)`.',
+        })
+      }
       if (value.kind === 'header') warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_repeated_header', line: header + 1 + node.source.line,
         message: 'A second `classDiagram` header is read as nothing, and the writer leaves it out. Pinned Mermaid rejects it. Remove it.',
