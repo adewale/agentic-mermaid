@@ -53,6 +53,7 @@ import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-
 import { authoredLineForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
+import { timelineUnsupportedSyntaxWarnings } from './timeline-body.ts'
 import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
 import { radarUnsupportedSyntaxWarnings } from './radar-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
@@ -431,6 +432,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   radar: radarUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
   state: stateUnsupportedSyntaxWarnings,
+  timeline: timelineUnsupportedSyntaxWarnings,
   xychart: xychartUnsupportedSyntaxWarnings,
 }
 

@@ -8,7 +8,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
-  TimelineMutationOp, MutationError, Result, Accessibility,
+  TimelineMutationOp, MutationError, Result, Accessibility, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import {
@@ -18,10 +18,11 @@ import {
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
   normalizeTimelineBreaks,
+  parseTimelineHeader,
   splitTimelineEvents,
 } from '../timeline/parse-core.ts'
 import { indexedIdAllocator, resolveInsertIndex, setOptionalField } from './body-utils.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -150,6 +151,38 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
   }
 
   return body
+}
+
+// ---- Verifier ---------------------------------------------------------------
+
+/** Timeline lines ours reads where pinned Mermaid's lexer reads a keyword,
+ * each on its canonical line. Mermaid ends a `section` name at a colon and
+ * adds the events after it to the latest period, failing ("Cannot read
+ * properties of undefined") when there is none; ours reads the whole line as
+ * one period. */
+export function timelineUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => parseTimelineHeader(line) !== null)
+  if (header < 0) return []
+  const warnings: LayoutWarning[] = []
+  for (let index = header + 1; index < lines.length; index++) {
+    let line = lines[index]!.trim()
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive) {
+      index = directive.endIndex
+      if (!directive.suffixLine) continue
+      line = directive.suffixLine.trim()
+    }
+    if (isTimelineCommentLine(line) || TIMELINE_TITLE_RE.test(line)) continue
+    const period = line.match(TIMELINE_PERIOD_RE)
+    const section = period && line.match(/^section\s([^:]+)/i)
+    if (section) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_section_events', line: index + 1,
+      message: `Pinned Mermaid reads this line as section ${JSON.stringify(section[1]!.trim())} and adds the events after ":" to the period before it, failing when there is none. Ours reads it as the period ${JSON.stringify(period[1]!.trim())} with those events; put the section on its own line, and the period with its events below it.`,
+    })
+  }
+  return warnings
 }
 
 // ---- Serializer -------------------------------------------------------------

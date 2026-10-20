@@ -195,6 +195,14 @@ const SEQUENCE_UNREAD: ReadonlyArray<readonly [string, string, number]> = [
   ['a comma in the receiver', 'sequenceDiagram\n  Alice->>Bob,Carol: Hi', 2],
 ]
 
+// Mermaid's Timeline lexer ends a `section` name at a colon and adds the
+// events after it to the latest period, failing when there is none. Ours
+// reads the line as one period.
+const TIMELINE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['events on a section line before any period', 'timeline\n  section 2020s: Launch', 'Launch', 'timeline_section_events', 2],
+  ['events on a section line after a title', 'timeline\n  title Roadmap\n  section Q1: Beta : Gamma\n  2024 : Launch', 'Gamma', 'timeline_section_events', 3],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -238,6 +246,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
   // Mermaid removes a `%%` line with the blank lines before it.
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
+  ['timeline', 'a section on its own line, and "section" starting period labels', 'timeline\n  section 2020s\n  2021 : Launch\n  section : Beta\n  sections X : Gamma'],
   ['sequence', 'nested activations each deactivated once', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Alice->>+Bob: Again\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Bye'],
   ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
   ['c4', 'an unquoted argument before a comma', 'C4Context\n  Person(a, Ann Lee, "A customer")'],
@@ -292,6 +301,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect(readGenerously(source, text)).toEqual({ typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
   })
 
+  test.each(TIMELINE_READ_GENEROUSLY)('timeline: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'timeline', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
   test.each(SEQUENCE_READ_GENEROUSLY)('sequence: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'sequence', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
@@ -340,7 +354,7 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   test.each(C4_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads it otherwise', async (_construct, source, syntax, line) => {
@@ -348,6 +362,15 @@ describe('accept what pinned Mermaid accepts', () => {
     const parsed = parseRegisteredMermaid(source)
     expect({ mermaid, ours: parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => element.id) : [], ...readGenerously(source, 'Bob') })
       .toEqual({ mermaid: { ok: true, value: ['a'] }, ours: ['a', 'b'], typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  test('timeline: events on a section line after a period are reported, as Mermaid adds them to that period', async () => {
+    const source = 'timeline\n  2001 : Alpha\n  section Later: Beta'
+    const mermaid = await upstream.project(source, diagram => diagram.db.getTasks().map((task: { task: string; events: string[] }) => [task.task.trim(), task.events]))
+    const parsed = parseRegisteredMermaid(source)
+    const body = parsed.ok && parsed.value.body.kind === 'timeline' ? parsed.value.body : undefined
+    expect({ mermaid, ours: body?.sections.flatMap(section => section.periods.map(period => [period.label, period.events.map(event => event.text)])), ...readGenerously(source, 'Beta') })
+      .toEqual({ mermaid: { ok: true, value: [['2001', ['Alpha', 'Beta']]] }, ours: [['2001', ['Alpha']], ['section Later', ['Beta']]], typed: 'timeline', draws: true, reported: ['timeline_section_events@3'] })
   })
 
   // The typed serializer must write what Mermaid reads: text that is only
