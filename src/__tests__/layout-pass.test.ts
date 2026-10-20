@@ -201,10 +201,7 @@ describe('declared pass budgets on actual native geometry', () => {
 
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {
     const graph = parseMermaid('flowchart LR\nN0-->N1\nN0-->N1\nN0-->N2')
-    // Exercise the bundled producer's conditional crossing allowance directly.
-    // The default route comparison can instead select an unbundled, crossing-free
-    // proposal after this producer has satisfied its pass budgets.
-    const positioned = layoutGraphSync(graph, { compareRoutePreferences: false })
+    const positioned = layoutGraphSync(graph)
     expect(positioned.edges).toHaveLength(3)
     const pair = positioned.edges.filter(edge => edge.source === 'N0' && edge.target === 'N1')
     expect(pair[0]!.points).not.toEqual(pair[1]!.points)

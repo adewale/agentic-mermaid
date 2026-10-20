@@ -36,6 +36,10 @@ import { resolveRenderStyle } from './styles.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
+import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { LABEL_PILL_PADDING, labelRect, pillRect } from './shared/edge-label-geometry.ts'
+
+export { labelRect } from './shared/edge-label-geometry.ts'
 
 type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'> & {
   invariant: RouteInvariant
@@ -49,8 +53,6 @@ const EPS = 0.01
 const CLEARANCE = 4
 /** Required free space around a label hosted on a straightened lane. */
 const LABEL_CLEARANCE = 8
-/** The renderer draws labels as pills with this padding around the measured text. */
-export const LABEL_PILL_PADDING = 8
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment.
  *  Fork/join bars are plain (rounded) rectangles geometrically, which is what
@@ -795,19 +797,6 @@ function edgeId(e: { source: string; target: string }): string {
   return `${e.source}->${e.target}`
 }
 
-/** The rendered pill rect for a label of this size centered at (cx, cy). */
-function pillRect(cx: number, cy: number, m: { width: number; height: number }): { x: number; y: number; w: number; h: number } {
-  const w = m.width + 2 * LABEL_PILL_PADDING
-  const h = m.height + 2 * LABEL_PILL_PADDING
-  return { x: cx - w / 2, y: cy - h / 2, w, h }
-}
-
-export function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
-  if (!e.label || !e.labelPosition) return null
-  const m = e.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(e.label, e.labelContent), style)
-  return pillRect(e.labelPosition.x, e.labelPosition.y, m)
-}
-
 /**
  * Prove a straight lane at cross-coordinate `c`, spanning [mainLo, mainHi] on
  * the flow axis, clear for `edge`. Returns the blockers ([] = proof succeeded).
@@ -951,25 +940,14 @@ export function findLabelSlot(
   return null
 }
 
-/** Strict-interior intersection of two segments (touching endpoints don't count). */
-function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
-  const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
-  if (Math.abs(det) < 1e-9) return false
-  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
-  const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
-  return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
-}
-
-/** Crossings between a candidate route and every other edge's segments. */
+/** Use the same visible proper crossings for proposals and final scoring. */
 function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): number {
+  if (edge.style === 'invisible') return 0
   let count = 0
   for (const other of ctx.edges) {
-    if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-    for (let i = 1; i < points.length; i++) {
-      for (let j = 1; j < other.points.length; j++) {
-        if (segmentsIntersect(points[i - 1]!, points[i]!, other.points[j - 1]!, other.points[j]!)) count++
-      }
-    }
+    if (other === edge || other.style === 'invisible' || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
+    // Pairwise proposals avoid sorting every unrelated segment in the graph.
+    count += countPolylineCrossings([{ points }, { points: other.points }])
   }
   return count
 }

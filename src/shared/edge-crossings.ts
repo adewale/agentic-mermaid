@@ -37,9 +37,11 @@ function localRays(segment: Segment, point: CrossingPoint, routes: readonly Cros
 function crossingPoint(a: Segment, b: Segment, routes: readonly CrossingPolyline[]): CrossingPoint | undefined {
   const ax = a.b.x - a.a.x, ay = a.b.y - a.a.y
   const bx = b.b.x - b.a.x, by = b.b.y - b.a.y
-  const determinant = ax * by - ay * bx
-  // Parallel paths and shared collinear ink are measured separately.
-  if (Math.abs(determinant) < 1e-9) return undefined
+  const positive = ax * by, negative = ay * bx
+  const determinant = positive - negative
+  // Bound cancellation relative to the actual terms: an absolute cutoff
+  // would mistake tiny, perpendicular subdivision segments for parallel ink.
+  if (Math.abs(determinant) <= Number.EPSILON * (Math.abs(positive) + Math.abs(negative))) return undefined
   const dx = b.a.x - a.a.x, dy = b.a.y - a.a.y
   const t = (dx * by - dy * bx) / determinant
   const u = (dx * ay - dy * ax) / determinant
@@ -86,7 +88,6 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
   segments.sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex)
   let active: Segment[] = []
   const locations = new Map<string, CrossingPoint[]>()
-  let crossings = 0
   for (const segment of segments) {
     active = active.filter(other => other.maxX >= segment.minX)
     for (const other of active) {
@@ -95,12 +96,22 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
       if (!point) continue
       const key = `${Math.min(segment.edgeIndex, other.edgeIndex)}:${Math.max(segment.edgeIndex, other.edgeIndex)}`
       const previous = locations.get(key)
-      if (previous?.some(p => Math.hypot(p.x - point.x, p.y - point.y) <= ENDPOINT_EPSILON)) continue
       if (previous) previous.push(point)
       else locations.set(key, [point])
-      crossings++
     }
     active.push(segment)
+  }
+  let crossings = 0
+  for (const points of locations.values()) {
+    // An epsilon neighbourhood is not transitive. Always choose representatives
+    // in coordinate order so route direction or subdivision cannot choose a
+    // middle location first and suppress both otherwise-distinct outer ones.
+    points.sort((a, b) => a.x - b.x || a.y - b.y)
+    const distinct: CrossingPoint[] = []
+    for (const point of points) {
+      if (!distinct.some(previous => Math.hypot(previous.x - point.x, previous.y - point.y) <= ENDPOINT_EPSILON)) distinct.push(point)
+    }
+    crossings += distinct.length
   }
   return crossings
 }

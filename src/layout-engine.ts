@@ -54,7 +54,7 @@ import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyLayoutCandidates, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -1923,32 +1923,15 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
     candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
     if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }, rememberAlternative), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
-  const placed = certifyLayoutCandidates(graph, style, candidates)
-  const placementReceipt = placed.certification!
-  const makeRoute = routeAlternatives.get(placed)
-  const placementScore = placementReceipt.preference.selectedScore
-  if (!makeRoute || (placementScore.edgeCrossings === 0 && placementScore.labelConflicts === 0)) return placed
   // Search placement strategies first, then test one completed route proposal
-  // only for the selected placement. It shares that placement's ELK result and
-  // retains the symmetry passes. At most four placement pipelines plus one
-  // route pipeline run; the existing 16-ELK exceptional upper bound is unchanged.
-  const routed = certifyLayoutCandidates(graph, style, [
-    { strategy: 'bundled', produce: () => placed, preferNext: preferReadableTitles },
-    { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles },
-  ])
-  const routeReceipt = routed.certification!
-  // Keep the placement decision and its pre-routing comparison scores; only
-  // selectedScore follows the final returned geometry. Routing explains that
-  // final decision separately without teaching generic certification its names.
-  routed.certification = {
-    ...placementReceipt,
-    preference: {
-      ...placementReceipt.preference,
-      selectedScore: routeReceipt.preference.selectedScore,
-      routing: { strategy: routed === placed ? 'bundled' : 'without-generic-bundling', preference: routeReceipt.preference },
-    },
-  }
-  return routed
+  // only for the selected placement, reusing its ELK result and certified score.
+  // At most four placement pipelines plus one route pipeline run; the existing
+  // 16-ELK exceptional upper bound is unchanged.
+  return certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
+    const makeRoute = routeAlternatives.get(placed)
+    if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
+    return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
+  })
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {

@@ -3,12 +3,42 @@ import { describe, expect, test } from 'bun:test'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
+import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { flowchartMesh } from '../../eval/benchmark/release-bench-cases.ts'
 
 // The skip edge crosses a generic fan-in trunk. Keeping its independent route
 // removes that crossing, at the cost of two scored bends and canonical ports.
 const source = 'flowchart TD\nA --> B\nA --> C\nA --> D\nA --> E\nB --> F\nB --> G\nA --> H\nA -->|yes| F'
 
 describe('bounded generic bundle proposals', () => {
+  test.each([
+    { name: 'dense mesh', source: flowchartMesh(50, 20), maxCrossings: 62, maxLabelConflicts: 3 },
+    {
+      name: 'detached feedback',
+      source: 'flowchart TD\nS0["warnings"] --> H["hub"]\nS1["ok"] --> H\nS2["same word ok"] --> H\nS3["a longer label goes here"] --> H\nH --> T["out"]\nT --> S3',
+      maxCrossings: 0, maxLabelConflicts: 0,
+    },
+  ])('preserves the measured quality gain and authored meaning: $name', fixture => {
+    const graph = parseMermaid(fixture.source)
+    const first = LAYOUT_PIPELINE[0]!, run = first.run
+    let routeProposals = 0
+    first.run = context => { if (!context.mergeEdges) routeProposals++; run(context) }
+    let selected: ReturnType<typeof layoutGraphSync>
+    try { selected = layoutGraphSync(graph) } finally { first.run = run }
+    const assessment = assessLayout(graph, selected)
+    expect(hardViolations(assessment)).toEqual([])
+    expect(assessment.metrics.edgeCrossings).toBeLessThanOrEqual(fixture.maxCrossings)
+    expect(assessment.metrics.labelConflicts).toBeLessThanOrEqual(fixture.maxLabelConflicts)
+    expect(routeProposals).toBeLessThanOrEqual(1)
+    expect(selected.nodes.map(node => [node.id, node.label]).sort()).toEqual(
+      [...graph.nodes.values()].map(node => [node.id, node.label]).sort())
+    expect(selected.edges.map(edge => [edge.edgeIndex, edge.source, edge.target, edge.label, edge.style, edge.hasArrowStart, edge.hasArrowEnd])).toEqual(
+      graph.edges.map((edge, index) => [index, edge.source, edge.target, edge.label, edge.style, edge.hasArrowStart, edge.hasArrowEnd]))
+    expect(selected.certification?.preference.selectedScore).toMatchObject({
+      edgeCrossings: assessment.metrics.edgeCrossings, labelConflicts: assessment.metrics.labelConflicts,
+    })
+  })
+
   test('only the selected placement compares an unbundled proposal and it reuses that ELK result', () => {
     const baseline = layoutGraphSync(parseMermaid(source), { compareRoutePreferences: false })
     const first = LAYOUT_PIPELINE[0]!, run = first.run

@@ -109,7 +109,7 @@ fewer bends alone cannot buy a crossing. Canonical ports may yield when the
 certifying route owner measurably repairs hard geometry, reduces crossings or
 removes bends.
 The graph engine independently certifies the
-final candidate before returning it, with at most four deterministic candidates
+final candidate before returning it, with at most four deterministic placement candidates
 and an explicit `LAYOUT_CERTIFICATION_FAILED` error on exhaustion. This certifies
 hard graph geometry, not minimum crossings or universal aesthetic quality.
 Within 64 nodes/groups and 128 edges, a certified graph with crossings or label
@@ -121,7 +121,9 @@ The engine first chooses a certified bundled placement using those existing
 strategies. Only the selected placement may then compare one completed generic
 unbundled route proposal, using the same ELK result and the same preference
 order. The decision to try this proposal reuses the selected placement's existing
-certification score. It does not explore an unbundled version of every placement strategy.
+certification score, including the final comparison: unchanged selected geometry
+is not certified a second time. It does not explore an unbundled version of
+every placement strategy.
 Symmetric fan-in/fan-out routing remains enabled.
 Graphs containing parallel edges keep their specialized route owners and skip
 the generic unbundled proposal. A smaller proper-crossing count alone does not
@@ -131,6 +133,8 @@ The receipt's `preference.compared` entries retain the certified bundled
 placement scores. `preference.selectedScore` describes the actual final routes,
 and `preference.routing` records the selected placement's bundled/unbundled
 comparison, scores and deciding criterion.
+The receipt's `attempts` counts placement productions; the optional final route
+comparison is recorded separately.
 Clean graphs, equivalent strategies and larger inputs skip these comparisons;
 the upper bound is four placement pipelines plus one unbundled route pipeline,
 with the existing maximum of 16 ELK attempts. The unbundled proposal reuses the
@@ -145,7 +149,7 @@ layouters get one attempt and fail explicitly; their identical layout is not
 repeated as a pretend fallback. Verification and quality reuse that retained
 projection rather than positioning or projecting the artifact again.
 
-Final ranking, pass budgets and public quality share the crossing predicate in
+Route proposals, final ranking, pass budgets and public quality share the crossing predicate in
 `src/shared/edge-crossings.ts`. It excludes invisible shafts, endpoint contacts,
 tangencies and shared collinear ink. It counts each crossing location once per
 logical edge pair, including crossings far from a shared graph endpoint; route
@@ -157,6 +161,8 @@ Invisible links may still have visible labels: those pills remain obstacles.
 Label-conflict counts share one implementation and the renderer's eight-pixel
 pill padding. A bundle certificate or matching text does not authorize two
 distinct labels to occupy the same space.
+Label/node conflicts use conservative node bounding rectangles; hard route/node
+avoidance retains its separate shape-aware contract.
 
 ## The rubric (used by both the LLM judge and the perceptual checker)
 

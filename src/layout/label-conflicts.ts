@@ -1,7 +1,7 @@
 import type { Point, PositionedGraph } from '../types.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import { LABEL_PILL_PADDING, labelRect } from '../route-contracts.ts'
+import { LABEL_PILL_PADDING, labelRect } from '../shared/edge-label-geometry.ts'
 import { calculatePathMidpoint } from './geometry.ts'
 
 export interface LabelConflictCounts {

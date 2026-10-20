@@ -51,6 +51,7 @@ export interface LayoutPreferenceEvidence {
 export interface LayoutCertificationReceipt {
   status: 'passed'
   strategy: string
+  /** Placement-production attempts; an optional final routing comparison is separate. */
   attempts: number
   hardViolations: 0
   preference: LayoutPreferenceEvidence
@@ -249,64 +250,140 @@ export function withinLayoutPreferenceBudget(graph: MermaidGraph): boolean {
   return nodes <= MAX_PREFERENCE_NODES && graph.edges.length <= MAX_PREFERENCE_EDGES
 }
 
-/** Hard feasibility gates every candidate. One additional certified alternative
- * may improve a title or a small graph with label conflicts or crossings, with stable candidate-order
- * ties. Cosmetic scores never initiate another expensive layout production. */
-export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[]): PositionedGraph {
+interface CertifiedCandidate {
+  positioned: PositionedGraph
+  strategy: string
+  score: LayoutPreferenceScore
+}
+
+interface CertifiedSelection {
+  selected: CertifiedCandidate
+  reason: LayoutPreferenceEvidence['reason']
+  compared: Array<{ strategy: string; score: LayoutPreferenceScore }>
+  attempts: number
+}
+
+function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate): {
+  certified?: CertifiedCandidate
+  attempt: LayoutCertificationAttempt
+} {
+  try {
+    const positioned = candidate.produce()
+    const violations = [...correspondenceViolations(graph, positioned, style), ...positionedGeometryViolations(positioned, style)]
+    const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
+    if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
+    const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
+    return {
+      attempt: { strategy: candidate.strategy, violations },
+      ...(violations.length === 0 && rubric ? {
+        certified: { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext) },
+      } : {}),
+    }
+  } catch (error) {
+    // A successful alternative cannot hide a broken pass or exceeded input work limit.
+    if (error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError) throw error
+    return { attempt: { strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] } }
+  }
+}
+
+function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCandidate): {
+  selected: CertifiedCandidate
+  reason: LayoutPreferenceEvidence['reason']
+} {
+  for (const criterion of PREFERENCE_ORDER) {
+    if (alternative.score[criterion] < first.score[criterion]) return { selected: alternative, reason: criterion }
+    if (alternative.score[criterion] > first.score[criterion]) return { selected: first, reason: criterion }
+  }
+  return { selected: first, reason: 'candidate-order' }
+}
+
+function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[]): CertifiedSelection {
   const attempts: LayoutCertificationAttempt[] = []
   const bounded = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
-  type Certified = { positioned: PositionedGraph; strategy: string; score: LayoutPreferenceScore }
-  let deferred: Certified | undefined
+  let deferred: CertifiedCandidate | undefined
   let probe: 'readability' | 'routing' | undefined
-  const compared: Array<{ strategy: string; score: LayoutPreferenceScore }> = []
-  const accept = (selected: Certified, reason: LayoutPreferenceEvidence['reason']): PositionedGraph => {
-    retainAuthoredMembership(graph, selected.positioned)
-    selected.positioned.certification = {
-      status: 'passed', strategy: selected.strategy, attempts: attempts.length, hardViolations: 0,
-      preference: { selectedScore: selected.score, reason, compared },
-    }
-    return selected.positioned
-  }
+  const compared: CertifiedSelection['compared'] = []
+  const accept = (selected: CertifiedCandidate, reason: LayoutPreferenceEvidence['reason']): CertifiedSelection =>
+    ({ selected, reason, compared, attempts: attempts.length })
   for (const [index, candidate] of bounded.entries()) {
     if (deferred && probe === 'routing' && candidate.qualityAlternative === false) continue
-    try {
-      const positioned = candidate.produce()
-      const violations = [...correspondenceViolations(graph, positioned, style), ...positionedGeometryViolations(positioned, style)]
-      const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
-      if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
-      const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
-      attempts.push({ strategy: candidate.strategy, violations })
-      if (violations.length === 0 && rubric) {
-        const certified = { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext) }
-        compared.push({ strategy: certified.strategy, score: certified.score })
-        if (deferred) {
-          for (const criterion of PREFERENCE_ORDER) {
-            if (certified.score[criterion] < deferred.score[criterion]) return accept(certified, criterion)
-            if (certified.score[criterion] > deferred.score[criterion]) return accept(deferred, criterion)
-          }
-          return accept(deferred, 'candidate-order')
-        }
-        const alternatives = bounded.slice(index + 1)
-        if (preferNext && alternatives.length > 0) {
-          deferred = certified
-          probe = 'readability'
-          continue
-        }
-        if (rubric.metrics.edgeCrossings === 0 && rubric.metrics.labelConflicts === 0) return accept(certified, 'first-certified')
-        if (!withinLayoutPreferenceBudget(graph)) return accept(certified, 'work-budget')
-        if (!alternatives.some(alternative => alternative.qualityAlternative !== false)) return accept(certified, 'no-alternative')
+    const result = certifyCandidate(graph, style, candidate)
+    attempts.push(result.attempt)
+    const certified = result.certified
+    if (certified) {
+      compared.push({ strategy: certified.strategy, score: certified.score })
+      if (deferred) {
+        const choice = preferredCandidate(deferred, certified)
+        return accept(choice.selected, choice.reason)
+      }
+      const alternatives = bounded.slice(index + 1)
+      if (certified.score.unreadableTitles && alternatives.length > 0) {
         deferred = certified
-        probe = 'routing'
+        probe = 'readability'
         continue
       }
-    } catch (error) {
-      // A successful alternative cannot hide a broken pass or exceeded input
-      // work limit. These diagnostics intentionally stop certification.
-      if (error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError) throw error
-      attempts.push({ strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] })
+      if (certified.score.edgeCrossings === 0 && certified.score.labelConflicts === 0) return accept(certified, 'first-certified')
+      if (!withinLayoutPreferenceBudget(graph)) return accept(certified, 'work-budget')
+      if (!alternatives.some(alternative => alternative.qualityAlternative !== false)) return accept(certified, 'no-alternative')
+      deferred = certified
+      probe = 'routing'
+      continue
     }
     if (deferred) return accept(deferred, 'alternative-invalid')
   }
   if (deferred) return accept(deferred, 'no-alternative')
   throw new LayoutCertificationError(attempts)
+}
+
+function retainSelection(graph: MermaidGraph, selection: CertifiedSelection): PositionedGraph {
+  const { selected, reason, compared, attempts } = selection
+  retainAuthoredMembership(graph, selected.positioned)
+  selected.positioned.certification = {
+    status: 'passed', strategy: selected.strategy, attempts, hardViolations: 0,
+    preference: { selectedScore: selected.score, reason, compared },
+  }
+  return selected.positioned
+}
+
+/** Hard feasibility gates every candidate. One additional certified alternative
+ * may improve a title or a bounded graph with label conflicts or crossings.
+ * Stable candidate-order ties never initiate another expensive production. */
+export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[]): PositionedGraph {
+  return retainSelection(graph, selectCertifiedCandidates(graph, style, candidates))
+}
+
+/** Select placement, then optionally certify one new route proposal. The baseline
+ * and score stay private to this invocation; an attached public receipt is never
+ * accepted as proof that caller-owned geometry was already checked. */
+export function certifyLayoutWithRouteAlternative(
+  graph: MermaidGraph,
+  style: ResolvedRenderStyle,
+  candidates: readonly LayoutCertificationCandidate[],
+  routeFor: (placed: PositionedGraph, score: Readonly<LayoutPreferenceScore>) =>
+    (LayoutCertificationCandidate & { strategy: 'without-generic-bundling' }) | undefined,
+): PositionedGraph {
+  const placement = selectCertifiedCandidates(graph, style, candidates)
+  const placed = retainSelection(graph, placement)
+  const alternative = routeFor(placed, placement.selected.score)
+  if (!alternative) return placed
+  const baseline = { ...placement.selected, strategy: 'bundled' }
+  const result = certifyCandidate(graph, style, alternative)
+  const compared = [{ strategy: baseline.strategy, score: baseline.score }]
+  if (result.certified) compared.push({ strategy: result.certified.strategy, score: result.certified.score })
+  const choice = result.certified ? preferredCandidate(baseline, result.certified)
+    : { selected: baseline, reason: 'alternative-invalid' as const }
+  const routed = choice.selected.positioned
+  retainAuthoredMembership(graph, routed)
+  routed.certification = {
+    ...placed.certification!,
+    preference: {
+      ...placed.certification!.preference,
+      selectedScore: choice.selected.score,
+      routing: {
+        strategy: choice.selected === baseline ? 'bundled' : alternative.strategy,
+        preference: { selectedScore: choice.selected.score, reason: choice.reason, compared },
+      },
+    },
+  }
+  return routed
 }

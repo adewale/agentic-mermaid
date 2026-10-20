@@ -102,6 +102,40 @@ describe('shared visible proper-crossing metric', () => {
     }
   })
 
+  test('nearby crossing locations do not depend on route traversal or input order', () => {
+    const horizontal = edge([[-10, 0], [10, 0]])
+    // The three crossings are at x=0, 0.006 and 0.012. The two outer
+    // locations exceed the physical tolerance and must not both disappear
+    // merely because the middle crossing was visited first.
+    const points: Array<[number, number]> = [
+      [-1, -1], [1, (1 - 0.006) / (1 + 0.006)], [-1, -1],
+      [1, 1], [-1, -1], [1, (1 - 0.012) / (1 + 0.012)], [-1, -1],
+    ]
+    for (const subdivide of [false, true]) for (const reverseEdges of [false, true]) for (const reverseFirst of [false, true]) for (const reverseSecond of [false, true]) {
+      const polyline = subdivide ? points.flatMap((point, index): Array<[number, number]> => {
+        const next = points[index + 1]
+        return next ? [point, [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2]] : [point]
+      }) : points
+      const routes = [
+        { ...horizontal, points: reverseFirst ? [...horizontal.points].reverse() : horizontal.points },
+        edge(reverseSecond ? [...polyline].reverse() : polyline, 'C', 'D'),
+      ]
+      if (reverseEdges) routes.reverse()
+      expect(crossingMeasurements(routes)).toEqual([2, 2])
+    }
+  })
+
+  test('collinear subdivisions retain a crossing even when the new segment is tiny', () => {
+    const vertical = edge([[0.5, -1], [0.5, 1]], 'C', 'D')
+    for (const halfLength of [1e-2, 1e-6, 1e-10, 1e-13]) {
+      const horizontal = edge([[0, 0], [0.5 - halfLength, 0], [0.5 + halfLength, 0], [1, 0]])
+      for (const reversePoints of [false, true]) {
+        const routes = [horizontal, vertical].map(route => ({ ...route, points: reversePoints ? [...route.points].reverse() : route.points }))
+        expect(crossingMeasurements(routes)).toEqual([1, 1])
+      }
+    }
+  })
+
   test('counts distinct incidences while excluding tangencies, shared ink, and self-crossings', () => {
     const horizontal = edge([[0, 50], [100, 50]])
     const twice = edge([[25, 0], [25, 100], [75, 100], [75, 0]], 'C', 'D')
