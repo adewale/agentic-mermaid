@@ -696,3 +696,28 @@ shaft clearance. Candidate slots check the same padded-rectangle interior
 predicate used by the label-conflict counter, including terminal ink and halos.
 The additional shaft checks have a shared one-million-segment work bound;
 exhaustion stops optional sliding. The retained ELK repair policy is unchanged.
+
+Distinct native ports follow neighboring reserved lanes when the node face has
+room for eight-pixel separation and corner margins. Dense sides retain the
+proportional spread, and loop attachment pairs keep their existing allocation.
+This reduces terminal jogs without authorizing shared ink. Final route closure
+and its auditor treat settled reciprocal labels as obstacles: unlike an earlier
+repair, they have no later label pass on which to rely.
+
+[Edge concentration in hierarchical drawing](https://cs.brown.edu/people/rtamassi/gdhandbook/chapters/hierarchical.pdf)
+and [ELK's merged-port option](https://eclipse.dev/elk/reference/options/org-eclipse-elk-layered-mergeEdges.html)
+are established alternatives for reducing repeated fan routing. Exploratory
+one-sided concentration and direct shared-port variants increased bends or
+crossings in the generated multigraph cohort; neither is enabled. Broader
+cycle-orientation sampling within the same twelve-alternative cap also trades
+some crossing improvements for regressions elsewhere. Keep those adverse
+results rather than presenting either experiment as a proven improvement.
+
+The release runner uses a reciprocal 1.1-times interval for ELK A/A timing,
+allocation and peak RSS, and requires identical artifacts, outputs and complete
+receipt fingerprints. A control that is suspiciously faster also fails. Normal
+cache measurements enable the position cache before import; disabled-cache
+measurements disable both layout caches while preserving shared text spans.
+The CI canary enrolls two official corpus inputs and two frozen cyclic workloads
+in both regimes. Its corpus aggregate covers only the official inputs, with the
+frozen workloads reported separately; it is not full-domain qualification.
