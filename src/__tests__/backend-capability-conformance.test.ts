@@ -12,6 +12,9 @@ import {
   verifySvgDocumentEnvelope,
 } from '../index.ts'
 import { createMermaidPNGRenderer } from '../agent/png.ts'
+import { getFamily } from '../agent/core.ts'
+import { parseClassDiagram } from '../class/parser.ts'
+import { layoutClassDiagram } from '../class/layout.ts'
 import { primitiveCapabilityClaimKey } from '../scene/capabilities.ts'
 import { pngFixture } from './helpers/png-fixture.ts'
 const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10]
@@ -24,6 +27,26 @@ function firstPartyBackends() {
 }
 
 describe('claim-keyed backend capability conformance', () => {
+  test.each(['open', 'close'] as const)('preserves the untouched group field after redefining %s as equal own data', field => {
+    for (const { backend } of firstPartyBackends()) {
+      const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'class A']))
+      const scene = getFamily('class')!.lowerScene!({ positioned,
+        colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })
+      const group = scene.parts.find(part => part.kind === 'group' && part.role === 'class-box')!
+      if (group.kind !== 'group') throw new Error('Expected the public Class group')
+      const original = group[field]
+      Object.defineProperty(group, field, { value: original, writable: true })
+      const svg = backend.render(scene, { seed: 0 })
+      expect(verifySvgDocumentEnvelope(svg)).toBe(true)
+      expect(svg).toContain('class="class-node" data-id="A" data-label="A"')
+      expect(svg).toContain('>A</text>')
+      expect(() => applyOutputSecurityPolicy(svg, 'strict')).not.toThrow()
+      expect(Object.getOwnPropertyDescriptor(group, field)?.value).toBe(original)
+      expect(Object.isFrozen(group)).toBe(false)
+      expect(Object.isFrozen(scene)).toBe(false)
+    }
+  })
+
   test('executes exactly one passing witness for every first-party declaration', () => {
     const backends = firstPartyBackends()
     expect(backends.map(descriptor => descriptor.identity.id)).toEqual([

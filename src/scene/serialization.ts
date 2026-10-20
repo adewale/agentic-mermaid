@@ -42,7 +42,7 @@ export function sceneNodeEmission(node: object): SvgEmissionRecipe | undefined {
 
 /** The compatibility strings are derived views, never retained SVG authority.
  * External admission recognizes only these exact privately registered views. */
-export function attachGroupEmissionViews(node: GroupMark, recipe: SvgGroupEmission): GroupMark {
+export function attachGroupEmissionViews(node: GroupMark, recipe: SvgGroupEmission, fields: 'open' | 'close' | 'both' = 'both'): GroupMark {
   const open = (): string => {
     const writer = new SvgWriter()
     writeSvgGroupOpen(node, recipe, writer)
@@ -50,10 +50,13 @@ export function attachGroupEmissionViews(node: GroupMark, recipe: SvgGroupEmissi
   }
   const close = (): string => '</g>'
   GROUP_VIEWS.set(node, { open, close })
-  Object.defineProperties(node, {
+  const descriptors: PropertyDescriptorMap = {
     open: { enumerable: true, configurable: true, get: open },
     close: { enumerable: true, configurable: true, get: close },
-  })
+  }
+  if (fields === 'close') delete descriptors.open
+  if (fields === 'open') delete descriptors.close
+  Object.defineProperties(node, descriptors)
   return node
 }
 

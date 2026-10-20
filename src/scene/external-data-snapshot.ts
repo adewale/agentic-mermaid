@@ -250,8 +250,12 @@ export function snapshotBoundedExternalData(
         })
       }
       const recipe = sceneNodeEmission(snapshot)
-      if (recipe?.kind === 'group' && hasOwnedSceneEmissionView(candidate, 'open') && hasOwnedSceneEmissionView(candidate, 'close')) {
-        attachGroupEmissionViews(snapshot as unknown as GroupMark, recipe as SvgGroupEmission)
+      if (recipe?.kind === 'group') {
+        const open = hasOwnedSceneEmissionView(candidate, 'open')
+        const close = hasOwnedSceneEmissionView(candidate, 'close')
+        // A caller may redefine only one compatibility field as own data.
+        // Keep that captured value and independently restore the other view.
+        if (open || close) attachGroupEmissionViews(snapshot as unknown as GroupMark, recipe as SvgGroupEmission, open && close ? 'both' : open ? 'open' : 'close')
       }
       transferRetainedPixelText(candidate, snapshot)
       return Object.freeze(snapshot)
