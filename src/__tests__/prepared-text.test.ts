@@ -262,8 +262,9 @@ describe('prepared text at the graphical boundary', () => {
     expect(problems).toEqual([])
     expect(block.lineBlocks[0]!.fragments!.map(fragment => fragment.width)).toEqual(source.includes(' ') ? [10, 0, 10] : [10])
     const resvg = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><style>text{font-family:Inter}</style>${markup}</svg>`, { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render()
+    const pixels = resvg.pixels
     const ink: number[] = []
-    for (let y = 0; y < resvg.height; y++) for (let x = 0; x < resvg.width; x++) if (resvg.pixels[(y * resvg.width + x) * 4 + 3]) ink.push(x)
+    for (let y = 0; y < resvg.height; y++) for (let x = 0; x < resvg.width; x++) if (pixels[(y * resvg.width + x) * 4 + 3]) ink.push(x)
     expect(ink.length).toBeGreaterThan(0)
     expect(Math.min(...ink)).toBeGreaterThanOrEqual(29)
     expect(Math.max(...ink)).toBeLessThanOrEqual(source.includes(' ') ? 51 : 41)
