@@ -392,8 +392,9 @@ export function flowchartRegionAt(text: string, at: number): FlowchartRegion | u
 }
 
 /** `labelStrings`: a `"` in shape text opens a string only where the text
- * begins; elsewhere it is text, as the parser's shape patterns read it. */
-function lex(text: string, from: number, single: boolean, labelStrings: boolean): FlowchartScan {
+ * begins; elsewhere it is text, as the parser's shape patterns read it. A
+ * `"` at `textQuote` is text wherever it is. */
+function lex(text: string, from: number, single: boolean, labelStrings: boolean, textQuote = -1): FlowchartScan {
   const regions: MutableRegion[] = []
   // A single region needs no statement-level map, and must not pay for one.
   const topLevel = single ? [] : Array<boolean>(text.length).fill(false)
@@ -427,7 +428,7 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
       else if (char === '"') open('string', index, index + 1)
       continue
     }
-    if (char === '"' && !(labelStrings && inner?.kind === 'shape' && index !== inner.contentStart) && !(inner === undefined && continuesNodeId(text, index))) {
+    if (char === '"' && index !== textQuote && !(labelStrings && inner?.kind === 'shape' && index !== inner.contentStart) && !(inner === undefined && continuesNodeId(text, index))) {
       if (text[index + 1] === '`') { open('markdown', index, index + 2); index++ }
       else open('string', index, index + 1)
       continue
@@ -634,6 +635,24 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
     }
     return closes[index] === 1
   }
+  // Upstream reads a string where shape text begins (`A["a⏎b"]`) across
+  // lines to the next `"`. Ours carries one on only when the first later line
+  // holding a `"` closes it there, before a shape closer; otherwise its `"`
+  // is text, as a `"` later in the label is, and the label runs on to the
+  // shape's closer. So a `&quot;` the render path decodes where a label
+  // begins joins lines as the authored entity does.
+  let labelStringCloses: Uint8Array | undefined
+  const labelStringClosesFrom = (index: number): boolean => {
+    if (!labelStringCloses) {
+      labelStringCloses = new Uint8Array(lines.length + 1)
+      for (let at = lines.length - 1; at >= 0; at--) {
+        const line = lines[at]!
+        const found = line.indexOf('"')
+        labelStringCloses[at] = found < 0 ? labelStringCloses[at + 1]! : Number(/^\s*[\])}]/.test(line.slice(found + 1)))
+      }
+    }
+    return labelStringCloses[index] === 1
+  }
   // The last line of the accessibility directive starting at `index`. Once
   // one `accDescr {` is unclosed, no later line holds a `}`: a later opener
   // is not scanned to the end again.
@@ -699,6 +718,8 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
       const endsWithLink = open.length === 0 && scan.links.at(-1)?.end === scanned.trimEnd().length
       if (group && !keyword && ((endsWithLink && !KEYWORD_STATEMENT_RE.test(trimmed)) || lineScan.links[0]?.start === 0)) joint = ' '
     }
+    const leading = leadingLabelString(lineScan)
+    if (leading !== undefined && !labelStringClosesFrom(index + 1)) lineScan = lex(text, 0, false, true, leading)
     if (joint === undefined) {
       group = { text: raw, line: index }
       out.push(group)
@@ -739,6 +760,14 @@ export function flowchartStatementEnds(lines: readonly string[]): number[] {
     if (last !== undefined) ends[read[group.line]!] = read[last]!
   }
   return ends
+}
+
+/** The offset of a string left open at the end of `scan` where its shape
+ * text begins (`A["a`), or undefined. */
+function leadingLabelString(scan: FlowchartScan): number | undefined {
+  const inner = scan.regions.filter(region => !region.closed).at(-1)
+  const shape = inner && inner.parent >= 0 ? scan.regions[inner.parent] : undefined
+  return inner?.kind === 'string' && shape?.kind === 'shape' && inner.start === shape.contentStart ? inner.start : undefined
 }
 
 /** An open subgraph title: `id[…`, `"…` where the title begins, or `id["…`. */

@@ -307,7 +307,10 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
   ['flowchart', 'a `&` list with a blank on each side, and a lone `&` node', 'flowchart LR\n  A & B --> C & &\n  D &\tE'],
-  ['flowchart', '`;` after colors and entity codes Mermaid reads as we do', 'flowchart LR\n  A[#quot;x#quot;] --> B;C\n  style A fill:#f00;\n  classDef c fill:#f9f,stroke:#333;\n  style B fill:#fff ;style C fill:#000;'],
+  // The render path decodes `&quot;` before it reads the lines, so the
+  // label begins with a `"` that no later line closes.
+  ['flowchart', 'labels beginning with an entity quote that run across lines', 'flowchart LR\n  A[&quot;x\n  y] --> B\n  subgraph S[&quot;t\n  u]\n    C\n  end'],
+  ['flowchart', '`;` after colors and entity codes Mermaid reads as we do','flowchart LR\n  A[#quot;x#quot;] --> B;C\n  style A fill:#f00;\n  classDef c fill:#f9f,stroke:#333;\n  style B fill:#fff ;style C fill:#000;'],
   ['flowchart', 'subgraph titles of letters, digits and the punctuation Mermaid reads unquoted, and a quoted one',"flowchart LR\n  subgraph a.-b!#$%&'*+/:?^_`x\n    A\n  end\n  subgraph \"a(b)\"\n    B\n  end\n  subgraph 東京 Ελλάδα\n    C\n  end"],
   ['flowchart', 'delimiters inside quoted labels and trapezoid text, and parentheses in a text-arrow label','flowchart LR\n  A["a (b) c"] -->|"x [y]"| B[/a | b "c"/]\n  A -- a (b) --> C["a" ]\n  subgraph S["x (y)"]\n    C\n  end'],
 ]
