@@ -1,8 +1,8 @@
 # Graph layout backends and comparative measurement
 
 Status: implementation contract with an initial opt-in DAG backend. ELK remains
-supported and is the default. The initial Agentic domain is flat rectangular
-labelled DAGs; cycles, compound groups and specialized family geometry still
+supported and is the default. The current Agentic domain is flat measured
+Flowchart DAGs; cycles, compound groups and specialized family geometry still
 require ELK. Implementation scheduling remains in root TODO.md.
 
 This design adds an owned graph-layout backend alongside ELK, lets callers
@@ -235,9 +235,11 @@ cycles, long-rank edges or State-specific visuals. Unsupported shapes or graph
 features must be declined before expensive work; they must not be silently
 flattened, dropped or reinterpreted.
 
-The first broader owned producer targets flat rectangular labelled DAGs,
+The first broader owned producer targets flat measured labelled DAGs,
 including fan-in, parallel edges, disconnected components and extended rank
-spans. The expansion sequence then covers cycles and constrained ports, followed
+spans. Nonrectangular Flowchart nodes use the shared outline clipping and
+graph certification; shape-specific paint limitations remain explicit in the
+receipt. The expansion sequence then covers cycles and constrained ports, followed
 by compound graphs and mixed directions. Each expansion needs complete
 behavioral evidence before the capability predicate accepts those inputs.
 Class/ER compartments, Architecture ports and State semantics remain adapter
