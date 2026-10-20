@@ -759,7 +759,9 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         value = text.includes('{') ? { kind: 'unknown', reason: `Unrecognized class member "${text}": a class body cannot hold "{"` }
           : annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
       } else value = classifyClassStatement(text, fragment.authored)
-      const parts = value.kind === 'unknown' ? splitClassBlockStatement(text, owner?.value.kind === 'namespace') : null
+      // A member is never split: inside a body the splitter would hand back
+      // the same text and the reader would never end.
+      const parts = value.kind === 'unknown' && !inClass ? splitClassBlockStatement(text, owner?.value.kind === 'namespace') : null
       if (parts) {
         putBack(fragment, parts)
         continue

@@ -87,6 +87,7 @@ describe('parseClassDiagram – class definitions', () => {
     ['`call` before a blank as a relationship source', 'call "1" --> A', 'Unrecognized class relationship statement "call "1" --> A"'],
     ['`call` ending a relationship', 'A -- call', 'Unrecognized class relationship statement "A -- call"'],
     ['open brace in a member below the block\'s line', 'namespace N {\nclass A {\nint x\nstrontend {\ncing : foo\n}\nclass B\n}', 'Unrecognized class member "strontend {"'],
+    ['a class block opened inside another', 'class C {\nclass A {\n}\n}', 'Unrecognized class member "class A {"'],
   ])('refuses a partial drawing for %s', (_name, source, reason) => {
     expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
   })
