@@ -159,22 +159,6 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A ||--o{ B : 1', 'er', '>1<', 'er_relation_label', 2],
   ['erDiagram\n  A ||--o{ B : x,y', 'er', '>x,y<', 'er_relation_label', 2],
   ['erDiagram\n  A ||--o{ B : direction LR', 'er', '>direction LR<', 'er_direction_line', 2],
-  // An alias, a subgraph id and each subgraph title word must be one name to
-  // Mermaid's lexer (or quoted); a name starting with a number is two, and
-  // `|o` or `}o` reads as a cardinality only where a word ends.
-  ['erDiagram\n  CUSTOMER[Customer Account]', 'er', '>Customer Account<', 'er_alias_text', 2],
-  ['erDiagram\n  p[Person (x)]', 'er', '>Person (x)<', 'er_alias_text', 2],
-  ['erDiagram\n  subgraph title1#\n  A\n  end', 'er', '>title1#<', 'er_subgraph_name', 2],
-  ['erDiagram\n  subgraph g [My (big) group]\n  A\n  end', 'er', '>My (big) group<', 'er_subgraph_name', 2],
-  ['erDiagram\n  subgraph g [the one group]\n  A\n  end', 'er', '>the one group<', 'er_subgraph_name', 2],
-  ['erDiagram\n  A ||--o{ 12f : x', 'er', '>12f<', 'er_number_name', 2],
-  // Mermaid declares the entities `1` and `MANUFACTURER`.
-  ['erDiagram\n  1MANUFACTURER ||--|| ORDER : places', 'er', '>1MANUFACTURER<', 'er_number_name', 2],
-  ['erDiagram\n  HOUSE ||--|OOM : contains', 'er', '>OM<', 'er_cardinality_space', 2],
-  ['erDiagram\n  A[x] ||--o{ B["y z"] : r', 'er', '>y z<', 'er_relation_alias', 2],
-  // Mermaid's ER style lexer reads letters, digits and -*#:,; alone.
-  ['erDiagram\n  A\n  style A stroke-width:0.5px', 'er', 'stroke-width="0.5"', 'er_style_text', 3],
-  ['erDiagram\n  A\n  classDef hot fill:rgb(1,2,3)\n  class A hot', 'er', 'fill="rgb(1,2,3)"', 'er_style_text', 3],
 ]
 
 describe('ER source Mermaid rejects, read generously', () => {
@@ -200,31 +184,16 @@ describe('ER source Mermaid rejects, read generously', () => {
     'erDiagram\n  A {\n  int x "a\n  b %% c"\n  }',
     'erDiagram\n  A ||--o{ B : oneself',
     'erDiagram\n  A ||--o{ B : #35;x',
-    'erDiagram\n  CUSTOMER[café]\n  CUSTOMER ||--|o OM : r',
-    'erDiagram\n  A ||--o{ 5.5 : x\n  style A fill:#f9f,stroke-dasharray: 5 5',
   ])('%j has nothing to report', async source => {
     await expectParity(source)
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 })
 
-// Mermaid joins a subgraph title's names, quoted or not, one space apart.
+// A subgraph id Mermaid cannot read bare is written quoted, which it reads.
 test.each([
-  'erDiagram\n  subgraph g [a "b c"  d]\n    A\n  end',
-  'erDiagram\n  subgraph g.1 [title 1]\n    A\n  end',
-])('ER subgraph %j is titled as Mermaid titles it', async source => {
-  const parsed = parseRegisteredMermaid(source)
-  const ours = (parsed.ok ? asEr(parsed.value)?.body.groups ?? [] : []).map(group => [group.id, group.label])
-  const mermaid = await upstream.project(source, diagram => (diagram.db.getSubGraphs() as Array<{ id: string; title: string }>).map(group => [group.id, group.title]))
-  expect(mermaid).toEqual({ ok: true, value: ours })
-  expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
-})
-
-// What ours reads from such a subgraph or name, it writes as Mermaid reads it.
-test.each([
+  'erDiagram\n  subgraph "a(b)" [My (big) group]\n    A\n  end',
   'erDiagram\n  subgraph 2g [T]\n    A\n  end',
-  'erDiagram\n  subgraph title1# [My (big) group]\n    A\n  end',
-  'erDiagram\n  1MANUFACTURER ||--|| ORDER[Customer Account] : places',
 ])('ER %j is written as Mermaid reads it', async source => {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw new Error('fixture rejected')

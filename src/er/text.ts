@@ -30,10 +30,9 @@ const ER_ENTITY_REFUSAL: EntityRefusal = { subject: 'ER text entity', example: '
  * breaks are the display layer's `<br>`.) */
 const ER_NAME_RESERVED = '"%\\'
 
-/** Hears ER text Mermaid rejects that ours reads: what ours reads there, how
- * to write it portably, and the syntax verify names (`er_quoted_text` when
- * none is given). */
-export type ErQuotedTextReport = (what: string, portable: string, syntax?: string) => void
+/** Hears quoted ER text Mermaid rejects that ours reads: what ours reads
+ * there, and how to write it portably. */
+export type ErQuotedTextReport = (what: string, portable: string) => void
 
 /** Quoted text read generously: `\"` and `\\` are `"` and `\`. */
 function unescapeErQuoted(text: string): string {
