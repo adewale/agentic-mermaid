@@ -76,7 +76,7 @@ jobs:
         run: |
           mkdir -p "$LAYOUT_REVIEW"
           bun -e '
-            import { renderMermaidPNGWithReceipt } from "./src/agent/index.ts";
+            import { renderMermaidPNGWithReceipt, renderMermaidSVGWithReceipt } from "./src/agent/index.ts";
             import { flowchartTree } from "./eval/benchmark/release-bench-cases.ts";
             const fixtures = [
               ["fan-in-fan-out", await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text()],
@@ -86,9 +86,12 @@ jobs:
             const directory = process.env.LAYOUT_REVIEW;
             for (const [name, source] of fixtures) for (const backend of ["elk", "agentic"]) {
               const options = { graphLayout: { backend }, security: "strict" };
-              const rendered = renderMermaidPNGWithReceipt(source, options);
+              const pngOptions = { ...options, ...(name === "tree-300" ? { fitTo: { width: 1600 } } : {}) };
+              const rendered = renderMermaidPNGWithReceipt(source, pngOptions);
+              const vector = renderMermaidSVGWithReceipt(source, options);
+              await Bun.write(`${directory}/${name}-${backend}.svg`, vector.svg);
               await Bun.write(`${directory}/${name}-${backend}.png`, rendered.png);
-              await Bun.write(`${directory}/${name}-${backend}.json`, JSON.stringify({ source, options, receipt: rendered.receipt }, null, 2));
+              await Bun.write(`${directory}/${name}-${backend}.json`, JSON.stringify({ source, options: pngOptions, receipt: rendered.receipt, svgOptions: options, svgReceipt: vector.receipt, review: name === "tree-300" ? "PNG is an overview; zoom the full SVG for leaf labels and route crossings." : "Inspect labels, arrows and route clearance." }, null, 2));
             }
           '
       - uses: actions/upload-artifact@v7

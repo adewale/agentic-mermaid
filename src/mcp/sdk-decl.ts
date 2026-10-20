@@ -84,13 +84,13 @@ interface LayoutRenderOptions extends SharedRenderOptions {
 
 const CODE_MODE_RENDER_RECEIPT_DECLARATIONS = `interface RenderArtifactDiagnostic { code: string; message?: string; reference?: string; feature?: string; input?: string; canonicalId?: string; removal?: { release: string; date: string } }
 interface CapabilityResolution { readonly id: \`\${string}:\${string}\`; readonly range: string; readonly level: 'required' | 'preferred' | 'optional'; readonly status: 'selected' | 'unsupported' | 'incompatible'; readonly version?: string }
-interface CapabilityDecision { readonly version: 1; readonly accepted: boolean; readonly resolutions: readonly CapabilityResolution[] }
+type CapabilityDecision = Readonly<{ version: 1; accepted: boolean; resolutions: readonly CapabilityResolution[] }>
 interface RenderExecutionDecision {
   readonly family: { readonly id: string; readonly version: string }
   readonly backend: { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean } | { readonly mode: 'family-svg' }
   readonly digest: string
 }
-interface GraphLayoutDecision { readonly requested: 'elk' | 'agentic'; readonly fallback: 'none' | 'elk'; readonly selected: 'elk' | 'agentic'; readonly reason?: string; readonly attempts: readonly { readonly backend: 'elk' | 'agentic'; readonly outcome: 'selected' | 'unsupported' | 'candidate-rejected'; readonly reason?: string }[]; readonly implementation: string; readonly role?: 'primary' | 'companion' }
+type GraphLayoutDecision = Readonly<{ requested: 'elk' | 'agentic'; fallback: 'none' | 'elk'; selected: 'elk' | 'agentic'; reason?: string; attempts: readonly Readonly<{ backend: 'elk' | 'agentic'; outcome: 'selected' | 'unsupported' | 'candidate-rejected'; reason?: string }>[]; implementation: string; role?: 'primary' | 'companion' }>
 interface RenderRequestReceipt { version: ${RENDER_CONTRACT_VERSION}; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision; layoutDecisions?: readonly GraphLayoutDecision[] }`
 
 /** Lossless whitespace projection for the tools/list context budget. Every
