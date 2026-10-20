@@ -313,7 +313,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       subgraphs: [],
     })
     const verified = verifyMermaid(parsed.value)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_preprocessor_quote_rewrite', line: 2 }))
+    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_cleanup', line: 2 }))
     expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(false)
     expect((await upstream.parse(source)).ok).toBe(false)
     const written = serializeMermaid(parsed.value)
@@ -327,14 +327,14 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(renderMermaidSVG(source)).toContain('&lt;a=')
     const reread = parseRegisteredMermaid(written)
     if (!reread.ok) throw new Error('export rejected')
-    expect(verifyMermaid(reread.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite')).toBe(false)
+    expect(verifyMermaid(reread.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
   })
 
   test('a preprocessing quote rewrite that breaks metadata YAML is diagnosed and exports portably', async () => {
     const source = 'flowchart TD\nA@{label: \'<a href="x">ok</a>\'} --> B'
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok || !asFlowchart(parsed.value)) throw new Error('structured flowchart required')
-    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_preprocessor_quote_rewrite', line: 2 }))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_cleanup', line: 2 }))
     expect(await upstream.accepts(source)).toBe(false)
     const written = serializeMermaid(parsed.value)
     const upstreamWritten = await upstream.parse(written)
@@ -343,10 +343,10 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(ours(parseOurs(written))).toEqual(ours(parseOurs(source)))
     expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
     expect(renderMermaidSVG(source)).toContain('&lt;a href=&quot;x&quot;&gt;ok&lt;/a&gt;')
-    expect(verifyMermaid(written).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite')).toBe(false)
+    expect(verifyMermaid(written).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
   })
 
-  test('accepted formatting, attributes and comments do not trigger the preprocessing warning', async () => {
+  test('accepted formatting warns exactly when Mermaid rewrites source attributes', async () => {
     for (const source of [
       'flowchart TD\nA["<b>bold</b><br>next"] --> B',
       'flowchart TD\nA -->|"#lt;a="| B["b"] --> C',
@@ -363,7 +363,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       expect({ source, accepted: await upstream.accepts(source) }).toEqual({ source, accepted: true })
       const parsed = parseRegisteredMermaid(source)
       if (!parsed.ok) throw new Error('fixture rejected')
-      expect({ source, warned: verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite') }).toEqual({ source, warned: false })
+      expect({ source, warned: verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup') }).toEqual({ source, warned: source.includes('href="x"') })
     }
   })
 

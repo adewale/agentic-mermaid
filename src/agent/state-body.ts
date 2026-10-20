@@ -1360,11 +1360,6 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   }
   for (const statement of statements) {
     const text = statement.text
-    // Text: a note's, a transition label, a description or a quoted name.
-    const holdsText = statement.noteBody || matchNoteLine(text) !== null || matchTransitionLine(text)?.label !== undefined || STATE_DESCRIPTION_RE.test(text) || /^state\s+"/i.test(text)
-    if (holdsText && prepassedStateText(text) !== text) {
-      warn(statement, 'state_text_prepass', 'A `;` ending a `style…:…#…;` or `classDef…:…#…;` run in this text is read as part of the text. Pinned Mermaid\'s entity prepass drops that `;` before it reads the line, so it reads the text without it, and a `#name` the `;` ended as plain text rather than an entity code. A blank between the colon and the `#` keeps the text portable.')
-    }
     if (statement.noteBody) continue
     const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
     if (keyword === 'cssClass') {

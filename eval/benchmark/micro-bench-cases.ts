@@ -59,10 +59,19 @@ const inputText = (value: unknown) => JSON.stringify(value, (_key, item) => (ite
 const isSvg = (value: unknown) => typeof value === 'string' && value.startsWith('<svg')
 const nonEmptyString = (value: unknown) => typeof value === 'string' && value.length > 0
 
+// Same authored bytes at every revision: cleanup is measured through existing
+// source, typed-parse and render-request boundaries, including their callers.
+const ENTITY_FLOW50 = ['flowchart TD', ...Array.from({ length: 50 }, (_, i) =>
+  `  N${i}["Item ${i} #amp; #35; #quot; #lt;literal#gt;"]${i ? ` --> N${i - 1}` : ''}`)].join('\n')
+const WRAPPED_ENTITY_FLOW50 = `\uFEFF---\r\ntitle: Cleanup benchmark\r\n---\r\n%%{init: {"theme":"default"}}%%\r\n%% authored comment\r\n${ENTITY_FLOW50.replace(/\n/g, '\r\n')}\r\n`
+const ENTITY_SEQUENCE20 = ['sequenceDiagram', ...Array.from({ length: 20 }, (_, i) =>
+  `  P${i % 5}->>P${(i + 1) % 5}: message ${i} #amp; #35; #quot; #lt;literal#gt;`)].join('\n')
+
 const src = {
   index: () => import('../../src/index.ts'),
   agent: () => import('../../src/agent/index.ts'),
   parser: () => import('../../src/parser.ts'),
+  source: () => import('../../src/mermaid-source.ts'),
   layoutEngine: () => import('../../src/layout-engine.ts'),
   elk: () => import('../../src/elk-instance.ts'),
   rubric: () => import('../../src/layout-rubric.ts'),
@@ -86,6 +95,42 @@ const src = {
   conformance: () => import('../../src/scene/backend-conformance.ts'),
   paintCertification: () => import('../../src/scene/paint-certification.ts'),
   builtinBackends: () => import('../../src/scene/builtin-backends.ts'),
+}
+
+function cleanupCases(): MicroCase[] {
+  return [
+    ...([['plain-flow5', MICRO_WORKLOADS.flow5], ['wrapped-entities-flow50', WRAPPED_ENTITY_FLOW50]] as const).map(([name, source]): MicroCase => ({
+      id: `cleanup:normalize-${name}`,
+      description: `normalizeMermaidSource on ${name}, exact authored source`,
+      async setup() {
+        const { normalizeMermaidSource } = await src.source()
+        return () => normalizeMermaidSource(source)
+      },
+      check: value => (value as { firstLine?: string }).firstLine === 'flowchart td',
+    })),
+    ...([['entities-flow50', ENTITY_FLOW50, 'flowchart'], ['entities-seq20', ENTITY_SEQUENCE20, 'sequence']] as const).map(([name, source, kind]): MicroCase => ({
+      id: `cleanup:registered-${name}`,
+      description: `parseRegisteredMermaid on ${name}, exact authored source`,
+      async setup() {
+        const { parseRegisteredMermaid } = await src.agent()
+        return () => parseRegisteredMermaid(source)
+      },
+      check: value => {
+        const parsed = value as { ok?: boolean; value?: { body?: { kind?: string } } }
+        return parsed.ok === true && parsed.value?.body?.kind === kind
+      },
+    })),
+    {
+      id: 'cleanup:resolve-wrapped-entities-flow50',
+      description: 'resolveRenderRequest on wrapped-entities-flow50, exact authored source',
+      async setup() {
+        await src.index()
+        const { resolveRenderRequest } = await src.contract()
+        return () => resolveRenderRequest(WRAPPED_ENTITY_FLOW50, {}, 'svg')
+      },
+      check: value => value !== undefined && value !== null,
+    },
+  ]
 }
 
 /** The staged SVG pipeline, run once outside timing: request → positioned
@@ -290,6 +335,7 @@ function svgPassCases(workload: Workload): MicroCase[] {
 
 export function microCases(): readonly MicroCase[] {
   return [
+    ...cleanupCases(),
     {
       id: 'text:graphemes-ascii',
       description: 'graphemes() on a 38-character ASCII label (printable-ASCII fast path)',

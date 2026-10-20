@@ -2045,9 +2045,8 @@ export function resolveRenderRequestForExecution(
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
-  const decodedText = decodeXML(text)
-  const normalizedSource = normalizeMermaidSourceWithOverrides(decodedText, admittedOptions.mermaidConfig ?? {})
-  const authoredEnvelope = decodedText === text ? normalizedSource : normalizeMermaidSource(text)
+  const normalizedSource = normalizeMermaidSourceWithOverrides(text, admittedOptions.mermaidConfig ?? {}, 'render')
+  const authoredEnvelope = normalizedSource.cleanup?.text === text ? normalizedSource : normalizeMermaidSource(text)
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.

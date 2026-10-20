@@ -30,7 +30,7 @@ import type {
 import { ok, err } from './types.ts'
 import { assertJsonConfigAdmission, JsonConfigAdmissionError } from '../shared/json-config-admission.ts'
 import { isBuiltinFamilyId } from './families.ts'
-import { attachSourceMapSpans, type SourceSpanGrammar } from './source-map-spans.ts'
+import { attachSourceMapSpans, recordSourceCleanup, type SourceSpanGrammar } from './source-map-spans.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
 export { parseSequenceBody } from './sequence-body.ts'
@@ -209,8 +209,10 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     familyLine.authoredHeader || semanticHeader,
     familyLineBoundary,
   )
-  const tracedSourceMap = (map: SourceMap, grammar?: SourceSpanGrammar): SourceMap =>
-    attachSourceMapSpans(map, canonicalSource, source, documentSpans, grammar)
+  const tracedSourceMap = (map: SourceMap, grammar?: SourceSpanGrammar): SourceMap => {
+    if (authoredEnvelope.cleanup) recordSourceCleanup(map, authoredEnvelope.cleanup)
+    return attachSourceMapSpans(map, canonicalSource, source, documentSpans, grammar)
+  }
   // Opaque and extension bodies own the exact authored bytes AFTER the leading
   // wrapper. The wrapper is retained separately in meta.wrapperSource, so
   // deriving this value from the preprocessed body would leave leading

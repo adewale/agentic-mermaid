@@ -74,8 +74,6 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
-  const rewritten = preprocessorQuoteRewriteWarning(source)
-  if (rewritten) warnings.push(rewritten)
   // The lines of the subgraphs open so far.
   const openSubgraphs: number[] = []
   for (const { text, line } of statements) {

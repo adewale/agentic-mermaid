@@ -39,6 +39,7 @@ import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './famili
 import { detectsFlowchartFamily } from './family-router.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
+import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
@@ -47,7 +48,7 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
-import { authoredLineForCanonical } from './source-map-spans.ts'
+import { authoredLineForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
 import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
@@ -429,12 +430,14 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
 
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
-  if (!rule) return []
   const lines = authored?.split(/\r?\n/)
   const authoredLine = lines && ((line: number) => lines[authoredLineForCanonical(d.source, line) - 1])
-  return rule(d.canonicalSource, authoredLine).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+  const cleanup = sourceCleanup(d.source)
+  const cleanupWarnings = cleanup ? mermaidCleanupWarnings(cleanup) : authored ? mermaidCleanupWarnings(authored) : mermaidCleanupWarnings(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) } : warning)
+  return [...cleanupWarnings, ...(rule?.(d.canonicalSource, authoredLine) ?? []).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
     ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
-    : warning)
+    : warning)]
 }
 
 /** Preserve Mermaid-authored Radar paint exactly and diagnose measurable

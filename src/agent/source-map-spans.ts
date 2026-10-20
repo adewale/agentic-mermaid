@@ -1,6 +1,7 @@
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
+import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
 
 interface PhysicalLine {
   text: string
@@ -8,6 +9,15 @@ interface PhysicalLine {
 }
 
 const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, number>>()
+const cleanupBySourceMap = new WeakMap<SourceMap, MermaidCleanup>()
+
+export function recordSourceCleanup(sourceMap: SourceMap, cleanup: MermaidCleanup): void {
+  cleanupBySourceMap.set(sourceMap, cleanup)
+}
+
+export function sourceCleanup(sourceMap: SourceMap): MermaidCleanup | undefined {
+  return cleanupBySourceMap.get(sourceMap)
+}
 
 /** Where statements end, for a family that knows: keyed like the location
  * maps, in canonical coordinates, just after the last character. Such an

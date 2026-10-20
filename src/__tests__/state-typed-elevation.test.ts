@@ -549,7 +549,7 @@ stateDiagram-v2
     // Before it reads entity codes, Mermaid drops the `;` ending a line's
     // `style…:…#…;` run, then its `classDef…:…#…;` run, in that case only.
     const dropped = ['A : style:#f00; x', 'A --> B : style:#f00 x; y', 'A : classDef x:#fff; y', 'state "style:#f00; x" as A', 'note right of A\n    style:#f00; x\n  end note'].map(body => `stateDiagram-v2\n  ${body}`)
-    expect(dropped.map(unsupportedSyntax)).toEqual([...Array(4).fill(['state_text_prepass@2']), ['state_text_prepass@3']])
+    expect(dropped.map(unsupportedSyntax)).toEqual([...Array(4).fill(['mermaid_cleanup@2']), ['mermaid_cleanup@3']])
     const kept = ['A : style: #f00; x', 'A : Style:#f00; x', 'A --> B\n  style A fill:#f00;'].map(body => `stateDiagram-v2\n  ${body}`)
     expect(kept.map(unsupportedSyntax)).toEqual(kept.map(() => []))
     // Ours reads the `;`, and an entity code it ends; the writer spells the

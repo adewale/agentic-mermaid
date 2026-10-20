@@ -27,6 +27,7 @@ import {
 import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
+import { cleanupMermaidSource, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
 import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
@@ -438,6 +439,10 @@ export interface MermaidSourceAccessibility extends MermaidAccessibility {}
 export interface NormalizedMermaidSource {
   /** Original bytes supplied at the public boundary. */
   originalText: string
+  /** Shared cleanup receipt, with offsets back to the exact input. */
+  cleanup?: MermaidCleanup
+  /** Authored grammar view retained when transport decoding changes source. */
+  authoredFamilyLines?: string[]
   text: string
   body: string
   lines: string[]
@@ -525,8 +530,11 @@ function stableConfigIdentity(value: MermaidConfigValue): string {
 export function normalizeMermaidSource(
   text: string,
   baseConfig: MermaidRuntimeConfig = {},
+  view: 'authored' | 'render' = 'authored',
 ): NormalizedMermaidSource {
-  const processed = preprocessMermaidSource(text, runtimeConfigToFrontmatterMap(baseConfig))
+  const cleanup = cleanupMermaidSource(text)
+  const semanticText = view === 'render' ? cleanup.text : text
+  const processed = preprocessMermaidSource(semanticText, runtimeConfigToFrontmatterMap(baseConfig))
   const physicalLines = processed.body.split(/\r?\n/)
   const sequence = /^sequenceDiagram\b/i.test(processed.lines[0] ?? '')
   const accessibilityLines = sequence && /;\s*acc(?:Title|Descr)\b/i.test(processed.body)
@@ -537,7 +545,7 @@ export function normalizeMermaidSource(
     accessibilityLines,
     installedFamilyStatementEnds(processed.lines[0] ?? '', accessibilityLines),
   )
-  const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
+  const envelope = sourceEnvelopeMetadata(semanticText, accessibilityScan.accessibility)
   const familyBody = accessibilityScan.familyLines.join('\n')
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(processed.lines[0] ?? '')
   const familyLines = state
@@ -546,6 +554,8 @@ export function normalizeMermaidSource(
 
   return {
     originalText: text,
+    cleanup,
+    ...(semanticText !== text ? { authoredFamilyLines: normalizeMermaidSource(text).familyLines } : {}),
     text: processed.lines.join('\n'),
     body: processed.body,
     lines: processed.lines,
@@ -568,8 +578,9 @@ export function normalizeMermaidSource(
 export function normalizeMermaidSourceWithOverrides(
   text: string,
   overrides: MermaidRuntimeConfig = {},
+  view: 'authored' | 'render' = 'authored',
 ): NormalizedMermaidSource {
-  const source = normalizeMermaidSource(text)
+  const source = normalizeMermaidSource(text, {}, view)
   if (Object.keys(overrides).length === 0) return source
   const frontmatter = mergeFrontmatterMaps(source.frontmatter, runtimeConfigToFrontmatterMap(overrides))
   return {
