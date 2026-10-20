@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, writeFileSync, writeSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, rmSync, writeFileSync, writeSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { knownBuiltinFamilies } from '../../src/agent/core.ts'
@@ -346,6 +346,11 @@ function mutate(seeds: readonly Sample[], fragments: readonly string[], rnd: () 
   return { source, parent: parent.id }
 }
 
+// Ours runs on this one thread, so a hang in it blocks every worker and no
+// error ever names the input. Each call into ours first records its input;
+// a run that never finishes leaves the last one behind.
+const inProgress = join(output, 'in-progress.json')
+const entering = (family: string, id: string, stage: string, source: string): void => writeFileSync(inProgress, JSON.stringify({ family, id, stage, source }) + '\n')
 /** Silent reads reduced per family; the rest are counted, not reduced. */
 const SILENT_REDUCTIONS = 8
 const pending = [...families]
@@ -385,7 +390,10 @@ async function worker(): Promise<void> {
         async function assess(batch: readonly Sample[], c: Counters): Promise<void> {
           const originals = await oracle.parseMany(batch.map(sample => ({ family: family!, source: sample.source })))
           originals.forEach((reply, i) => assertReferenceInstrumentation(reply, `${family}/${batch[i]!.id}/original`))
-          const local = batch.map(sample => inspectAgenticGrammar(family!, sample.source))
+          const local = batch.map(sample => {
+            entering(family!, sample.id, 'inspect', sample.source)
+            return inspectAgenticGrammar(family!, sample.source)
+          })
           local.forEach((result, i) => assertNativeInstrumentation(result, `${family}/${batch[i]!.id}`))
           const extraRequests: Array<{ family: string; source: string }> = []
           const indices = batch.map((sample, i) => {
@@ -414,6 +422,7 @@ async function worker(): Promise<void> {
             let verify: string[] | undefined
             if (!before.accepted && readsAsFamily(family!, agentic)) {
               c.readsMermaidRejects++
+              entering(family!, sample.id, 'verify', sample.source)
               verify = verifyCodes(sample.source)
               if (!announces(verify)) {
                 c.silentReads++
@@ -483,6 +492,7 @@ async function worker(): Promise<void> {
         // each distinct reduction once with the input it came from.
         const reductions = new Map<string, SilentReadExample>()
         for (const { sample, verify } of silent) {
+          entering(family, sample.id, 'reduce', sample.source)
           const source = await reduceSilentRead(family, sample.source, async candidate => (await oracle.control(family!, candidate)).accepted)
           const seen = reductions.get(source)
           if (seen) {
@@ -563,6 +573,7 @@ const summary = {
   families: results,
 }
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
+rmSync(inProgress, { force: true })
 console.log(`\nSilent reads, seed ${seed}: ${silentReads.total} (${SILENT_READ_DEFINITION})`)
 for (const [family, counts] of Object.entries(silentReads.byFamily)) console.log(`  ${family}: corpus ${counts.corpus}, mutations ${counts.mutations}`)
 for (const example of silentReads.examples) console.log(`  ${example.family} ${example.id} x${example.occurrences}: ${example.spelled}\n    ours (${example.ours.native} native, ${example.ours.envelope}): ${JSON.stringify(example.ours.read).slice(0, 300)}`)

@@ -157,19 +157,23 @@ jobs:
           fi
 
       # summary.json holds the seed, the counts and each reduced read's
-      # unreduced input; the per-input JSONL files are too large to keep.
+      # unreduced input, and in-progress.json, left only by a run that did not
+      # finish, the input it was in; the per-input JSONL files are too large.
       - name: Retain the finder summary
         if: ${{ always() && steps.search.outcome != 'skipped' }}
         uses: actions/upload-artifact@v7
         with:
           name: grammar-finder-summary
-          path: grammar-finder/summary.json
+          path: |
+            grammar-finder/summary.json
+            grammar-finder/in-progress.json
           retention-days: 30
           if-no-files-found: warn
 
       # Silent reads are findings and never fail the search. It fails only when
       # the comparison's own instrumentation throws, or on its step timeout, so
-      # here a failure, like a skip or a cancel, means nothing was reported.
+      # here a failure, like a skip or a cancel, means nothing was reported. A
+      # hang in ours shows up as the timeout; the run names the input it was in.
       - name: Report a search that did not run to completion
         if: ${{ always() && steps.search.outcome != 'success' }}
         env:
@@ -180,6 +184,9 @@ jobs:
         run: |
           title='Nightly finder: the rolling-seed grammar search did not run to completion'
           body="The rolling-seed Mermaid grammar search ended as \`${SEARCH_OUTCOME:-not started}\` (\`skipped\` means an earlier step failed, such as the reference install; \`failure\` means an instrumentation assertion threw or the 75-minute step timeout hit; \`cancelled\` usually means the 100-minute job timeout), so it reported nothing. The log names the seed. Run: $RUN_URL"
+          if [ -s grammar-finder/in-progress.json ]; then
+            body="$body"$'\n\nIt was last in this input, which may be what stalled it:\n\n`````json\n'"$(cat grammar-finder/in-progress.json)"$'\n`````'
+          fi
           existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"
