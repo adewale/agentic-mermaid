@@ -7,6 +7,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { runCli } from '../cli/index.ts'
+import { measureQuality } from '../agent/quality.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
 import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
@@ -52,6 +53,21 @@ describe('checked graph layout selection', () => {
     const png = renderMermaidPNGWithReceipt(SOURCE, AGENTIC)
     expect(png.receipt.layoutDecisions).toEqual(source.receipt.layoutDecisions)
     expect(png.png.length).toBeGreaterThan(0)
+  })
+
+  test.each(['TD', 'LR'] as const)('keeps an incomplete ternary tree crossing-free after all geometry passes in %s', direction => {
+    const source = `flowchart ${direction}\n` + Array.from({ length: 299 }, (_, index) => {
+      const parent = Math.floor(index / 3)
+      return `n${parent}[Node ${parent}] --> n${index + 1}[Node ${index + 1}]`
+    }).join('\n')
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const quality = measureQuality(result.layout)
+    expect(quality.nodeCount).toBe(300)
+    expect(quality.edgeCount).toBe(299)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    JSON.stringify(result.receipt)
   })
 
   test('declines cycles explicitly and attributes a requested ELK fallback consistently across cache states', () => {

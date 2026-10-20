@@ -1,5 +1,6 @@
 import type { Direction, Point } from '../types.ts'
 import { GraphLayoutUnsupportedError } from './backend.ts'
+import { layoutMeasuredForest } from './measured-forest.ts'
 
 export interface MeasuredGraph {
   nodes: readonly { id: string; width: number; height: number }[]
@@ -81,6 +82,9 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
     incoming[edge.target]!.push(index)
     indegree[edge.target] = indegree[edge.target]! + 1
   }
+
+  const forest = layoutMeasuredForest(input)
+  if (forest) return forest
 
   // Two private ranks per minimum span leave room for a measured edge label
   // even on an edge between adjacent authored ranks.
