@@ -11,14 +11,14 @@
     "flowchart": {
       "requests": 36,
       "raw": 2304000,
-      "gzip": 706000,
-      "brotli": 571000
+      "gzip": 707000,
+      "brotli": 572000
     },
     "state": {
       "requests": 35,
       "raw": 2302000,
-      "gzip": 706000,
-      "brotli": 571000
+      "gzip": 707000,
+      "brotli": 572000
     },
     "sequence": {
       "requests": 34,
@@ -42,7 +42,7 @@
       "requests": 40,
       "raw": 2311000,
       "gzip": 716000,
-      "brotli": 578000
+      "brotli": 579000
     },
     "journey": {
       "requests": 33,
@@ -131,8 +131,8 @@
     "treemap": {
       "requests": 33,
       "raw": 597000,
-      "gzip": 196000,
-      "brotli": 174000
+      "gzip": 197000,
+      "brotli": 175000
     },
     "ishikawa": {
       "requests": 31,
