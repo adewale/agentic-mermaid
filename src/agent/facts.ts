@@ -1,4 +1,5 @@
 import { stableFamilyFacts } from './stable-family-adapters.ts'
+
 // ============================================================================
 // Mermaid semantic facts/checks.
 //
@@ -8,10 +9,10 @@ import { stableFamilyFacts } from './stable-family-adapters.ts'
 // renderable while these facts prove it still says the requested thing.
 // ============================================================================
 
+import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts } from './sequence-body.ts'
-import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
@@ -467,6 +468,7 @@ function factsGitGraph(out: string[], body: GitGraphBody): void {
   for (const commit of body.commits) {
     add(out, `commit ${clean(commit.id)} branch ${clean(commit.branch)}`)
     add(out, `commit ${clean(commit.id)} type ${commit.type}`)
+    if (commit.sourceId) add(out, `commit ${clean(commit.id)} source-id ${clean(commit.sourceId)}`)
     if (commit.message) add(out, `commit ${clean(commit.id)} message ${clean(commit.message)}`)
     commit.tags.forEach(tag => add(out, `commit ${clean(commit.id)} tag ${clean(tag)}`))
     commit.parents.forEach(parent => add(out, edgeFact(parent, commit.id, commit.source === 'commit' ? undefined : commit.source)))

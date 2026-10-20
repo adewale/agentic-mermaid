@@ -9,18 +9,14 @@
 // (first-fit by source order).
 // ============================================================================
 
-import type {
-  GanttModel, GanttSchedule, GanttLayoutResult, GanttBarLayout, GanttRowLayout,
-  GanttSectionBand, GanttVertLayout, GanttTick, GanttTickUnit, GanttDependencyLayout,
-  GanttExcludedBand, EpochMs,
-} from './types.ts'
-import { DAY_MS, dayOfWeek, WEEKDAY_INDEX, formatGanttInstant, ganttDependencyEdges, startOfDay } from './schedule.ts'
-import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
-import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import type { RenderOptions } from '../types.ts'
+import { DAY_MS, dayOfWeek, formatGanttInstant, ganttDependencyEdges, startOfDay, WEEKDAY_INDEX } from './schedule.ts'
+import type { EpochMs, GanttBarLayout, GanttDependencyLayout, GanttExcludedBand, GanttLayoutResult, GanttModel, GanttRowLayout, GanttSchedule, GanttSectionBand, GanttTick, GanttTickUnit, GanttVertLayout } from './types.ts'
 
 export const GANTT_MAX_TICKS = 120
 
@@ -115,10 +111,7 @@ interface TickPlan {
   format: string
 }
 
-export function resolveGanttRenderStyle(
-  options: RenderOptions = {},
-  styleFace?: Readonly<InternalStyleFace>,
-): ResolvedRenderStyle {
+export function resolveGanttRenderStyle(options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): ResolvedRenderStyle {
   return resolveRenderStyle(options, GANTT_STYLE_DEFAULTS, styleFace)
 }
 
@@ -142,12 +135,7 @@ export function ganttAxisLabelOffset(style: ResolvedRenderStyle): number {
   return Math.max(10, style.edgeLabelFontSize * 0.75)
 }
 
-export function ganttMeasureTextWidth(
-  text: string,
-  fontSize: number,
-  fontWeight: number,
-  letterSpacing = 0,
-): number {
+export function ganttMeasureTextWidth(text: string, fontSize: number, fontWeight: number, letterSpacing = 0): number {
   return preparePixelText(text, { display: 'literal', fontSize, fontWeight, letterSpacing }).width
 }
 
@@ -186,16 +174,23 @@ export function planTicks(schedule: GanttSchedule, model: GanttModel, targetTick
   const last = AUTO_TICKS[AUTO_TICKS.length - 1]!
   // Beyond the largest candidate: scale year ticks up until bounded.
   let count = last.count
-  while ((span / (TICK_UNIT_MS.month * count)) > GANTT_MAX_TICKS) count *= 2
+  while (span / (TICK_UNIT_MS.month * count) > GANTT_MAX_TICKS) count *= 2
   return { unit: 'month', count, format: model.axisFormat ?? last.format }
 }
 
 function defaultFormatFor(unit: GanttTickUnit): string {
   switch (unit) {
-    case 'millisecond': case 'second': return '%H:%M:%S'
-    case 'minute': case 'hour': return '%H:%M'
-    case 'day': case 'week': return '%m-%d'
-    case 'month': return '%b %Y'
+    case 'millisecond':
+    case 'second':
+      return '%H:%M:%S'
+    case 'minute':
+    case 'hour':
+      return '%H:%M'
+    case 'day':
+    case 'week':
+      return '%m-%d'
+    case 'month':
+      return '%b %Y'
   }
 }
 
@@ -230,6 +225,7 @@ function nextTick(t: EpochMs, plan: TickPlan): EpochMs {
  * Bounded by GANTT_MAX_TICKS regardless of inputs.
  */
 export function resolveTicks(schedule: GanttSchedule, model: GanttModel, targetTicks = 8): Array<{ time: EpochMs; label: string }> {
+  if (schedule.tasks.length === 0) return []
   const plan = planTicks(schedule, model, targetTicks)
   const weekStart = WEEKDAY_INDEX[model.weekStart]
   const out: Array<{ time: EpochMs; label: string }> = []
@@ -287,10 +283,26 @@ export const GANTT_DEP_STUB = 8
 
 const DEP_EPS = 0.01
 
-interface DepPoint { x: number; y: number }
-interface DepRect { x: number; y: number; w: number; h: number }
-interface DepBand { y: number; h: number }
-interface DepPlot { x: number; y: number; w: number; h: number }
+interface DepPoint {
+  x: number
+  y: number
+}
+interface DepRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+interface DepBand {
+  y: number
+  h: number
+}
+interface DepPlot {
+  x: number
+  y: number
+  w: number
+  h: number
+}
 interface DepAnchor {
   rect: DepRect
   /** Milestone diamond center — top/bottom exits/entries aim at the tip. */
@@ -381,8 +393,7 @@ function compactDepPoints(points: DepPoint[]): DepPoint[] {
       const a = out[n - 3]!
       const b = out[n - 2]!
       const c = out[n - 1]!
-      if ((Math.abs(a.x - b.x) <= DEP_EPS && Math.abs(b.x - c.x) <= DEP_EPS)
-        || (Math.abs(a.y - b.y) <= DEP_EPS && Math.abs(b.y - c.y) <= DEP_EPS)) {
+      if ((Math.abs(a.x - b.x) <= DEP_EPS && Math.abs(b.x - c.x) <= DEP_EPS) || (Math.abs(a.y - b.y) <= DEP_EPS && Math.abs(b.y - c.y) <= DEP_EPS)) {
         out.splice(n - 2, 1)
       }
     }
@@ -390,13 +401,7 @@ function compactDepPoints(points: DepPoint[]): DepPoint[] {
   return out
 }
 
-function routeDependency(
-  from: DepAnchor,
-  to: DepAnchor,
-  obstacles: DepRect[],
-  bands: DepBand[],
-  plot: DepPlot,
-): { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up' } | null {
+function routeDependency(from: DepAnchor, to: DepAnchor, obstacles: DepRect[], bands: DepBand[], plot: DepPlot): { points: DepPoint[]; arrowDir: 'right' | 'down' | 'up' } | null {
   const S = GANTT_DEP_STUB
   const fr = from.rect
   const tr = to.rect
@@ -409,9 +414,7 @@ function routeDependency(
   const sameBand = fromBand === toBand
   const down = sameBand || toBand > fromBand // same-band routes dip through the gutter below
   const exitGutterY = down ? gutterBelow(bands, fromBand, plot) : gutterAbove(bands, fromBand, plot)
-  const entryGutterY = sameBand
-    ? exitGutterY
-    : down ? gutterAbove(bands, toBand, plot) : gutterBelow(bands, toBand, plot)
+  const entryGutterY = sameBand ? exitGutterY : down ? gutterAbove(bands, toBand, plot) : gutterBelow(bands, toBand, plot)
 
   const points: DepPoint[] = []
 
@@ -465,7 +468,10 @@ function routeDependency(
   } else {
     const enterX = to.tipX ?? (tr.w >= 2 * S ? tr.x + S : tr.x + tr.w / 2)
     const fromAbove = entryGutterY < tr.y
-    entryPts = [{ x: enterX, y: entryGutterY }, { x: enterX, y: fromAbove ? tr.y : tr.y + tr.h }]
+    entryPts = [
+      { x: enterX, y: entryGutterY },
+      { x: enterX, y: fromAbove ? tr.y : tr.y + tr.h },
+    ]
     arrowDir = fromAbove ? 'down' : 'up'
   }
   points.push({ x: curX, y: entryGutterY }, ...entryPts)
@@ -479,13 +485,7 @@ function routeDependency(
   return { points: compacted, arrowDir }
 }
 
-function routeGanttDependencies(
-  model: GanttModel,
-  schedule: GanttSchedule,
-  bars: GanttBarLayout[],
-  rows: GanttRowLayout[],
-  plot: DepPlot,
-): GanttDependencyLayout[] {
+function routeGanttDependencies(model: GanttModel, schedule: GanttSchedule, bars: GanttBarLayout[], rows: GanttRowLayout[], plot: DepPlot): GanttDependencyLayout[] {
   const edges = ganttDependencyEdges(model)
   if (edges.length === 0) return []
   const barByTask = new Map(bars.map(b => [b.taskIndex, b]))
@@ -497,24 +497,21 @@ function routeGanttDependencies(
     const fb = barByTask.get(edge.from)
     const tb = barByTask.get(edge.to)
     if (!fb || !tb) continue // vert tasks render as markers, not bars — nothing to anchor
-    const route = routeDependency(
-      { rect: depBarRect(fb), tipX: fb.milestoneX },
-      { rect: depBarRect(tb), tipX: tb.milestoneX },
-      obstacles, bands, plot,
-    )
+    const route = routeDependency({ rect: depBarRect(fb), tipX: fb.milestoneX }, { rect: depBarRect(tb), tipX: tb.milestoneX }, obstacles, bands, plot)
     if (!route) continue
     const fromTask = schedule.tasks[edge.from]!
     const toTask = schedule.tasks[edge.to]!
     // A connector is critical when it is a BINDING after-edge between two
     // critical-path tasks: the successor starts exactly at this predecessor's
     // end (with several `after` refs only the latest end binds).
-    const critical = edge.kind === 'after'
-      && fromTask.id !== undefined && toTask.id !== undefined
-      && critIds.has(fromTask.id) && critIds.has(toTask.id)
-      && fromTask.end === toTask.start
+    const critical = edge.kind === 'after' && fromTask.id !== undefined && toTask.id !== undefined && critIds.has(fromTask.id) && critIds.has(toTask.id) && fromTask.end === toTask.start
     out.push({
-      fromTaskIndex: edge.from, toTaskIndex: edge.to, kind: edge.kind,
-      critical, points: route.points, arrowDir: route.arrowDir,
+      fromTaskIndex: edge.from,
+      toTaskIndex: edge.to,
+      kind: edge.kind,
+      critical,
+      points: route.points,
+      arrowDir: route.arrowDir,
     })
   }
   return out
@@ -523,24 +520,28 @@ function routeGanttDependencies(
 /** A column label wrapped to the budget: transformed display lines plus the
  *  widest measured line. Single-line results keep `lines.length === 1` and the
  *  exact pre-wrap measurement, so unwrapped charts stay byte-identical. */
-interface WrappedColumnLabel { lines: string[]; width: number; block: PixelTextBlock }
+interface WrappedColumnLabel {
+  lines: string[]
+  width: number
+  block: PixelTextBlock
+}
 
-function wrapColumnLabel(
-  raw: string,
-  transform: ResolvedRenderStyle['nodeTextTransform'],
-  fontSize: number,
-  fontWeight: number,
-  letterSpacing: number,
-): WrappedColumnLabel {
+function wrapColumnLabel(raw: string, transform: ResolvedRenderStyle['nodeTextTransform'], fontSize: number, fontWeight: number, letterSpacing: number): WrappedColumnLabel {
   const block = preparePixelText(raw, {
-    display: 'literal', transform, fontSize, fontWeight, letterSpacing, maxWidth: GANTT_LABEL_WRAP_BUDGET,
+    display: 'literal',
+    transform,
+    fontSize,
+    fontWeight,
+    letterSpacing,
+    maxWidth: GANTT_LABEL_WRAP_BUDGET,
   })
   return { lines: [...block.lines], width: block.width, block }
 }
 
 export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options: GanttLayoutOptions = {}): GanttLayoutResult {
   const style = resolveGanttRenderStyle(options.renderOptions, options.styleFace)
-  const compact = options.compact ?? (model.displayMode === 'compact')
+  const compact = options.compact ?? model.displayMode === 'compact'
+  const emptyLabel = schedule.tasks.length === 0 ? preparePixelText('No tasks scheduled', { fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing }) : undefined
   const barHeight = options.barHeight ?? model.barHeight ?? GL.barHeight
   let rowH = ganttRowHeight(style, barHeight)
 
@@ -582,20 +583,29 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   // Axis labels are centered on their ticks, so a tick at (or near) the end of
   // the range reaches past the plot by up to half its label; the right margin
   // grows to hold it. A title wider than the chart widens the canvas.
-  const span = schedule.timeMax - schedule.timeMin
+  const span = Math.max(1, schedule.timeMax - schedule.timeMin)
   const tickLabels = resolveTicks(schedule, model).map(tick => ({ ...tick, block: preparePixelText(tick.label, { display: 'literal', transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing }) }))
-  const tickOverhang = (plotW: number): number => Math.max(0, ...tickLabels.map(tick => {
-    const half = tick.block.width / 2
-    return half - ((schedule.timeMax - tick.time) / span) * plotW
-  }))
+  const tickOverhang = (plotW: number): number =>
+    Math.max(
+      0,
+      ...tickLabels.map(tick => {
+        const half = tick.block.width / 2
+        return half - ((schedule.timeMax - tick.time) / span) * plotW
+      }),
+    )
   const plotX = GL.padding + labelColumnWidth
-  const naturalWidth = options.width ?? (GL.padding * 2 + labelColumnWidth + GL.plotWidth)
+  const naturalWidth = options.width ?? GL.padding * 2 + labelColumnWidth + GL.plotWidth
   const rightPadding = Math.max(GL.padding, Math.ceil(tickOverhang(Math.max(120, naturalWidth - plotX - GL.padding)) + GANTT_EDGE_GAP))
-  const titleBlock = model.title ? preparePixelText(model.title, {
-    display: 'literal', transform: style.groupTextTransform, fontSize: ganttTitleFontSize(style),
-    fontWeight: ganttTitleFontWeight(style), letterSpacing: style.groupLetterSpacing,
-    ...(options.width === undefined ? {} : { maxWidth: Math.max(1, options.width - GL.padding * 2) }),
-  }) : undefined
+  const titleBlock = model.title
+    ? preparePixelText(model.title, {
+        display: 'literal',
+        transform: style.groupTextTransform,
+        fontSize: ganttTitleFontSize(style),
+        fontWeight: ganttTitleFontWeight(style),
+        letterSpacing: style.groupLetterSpacing,
+        ...(options.width === undefined ? {} : { maxWidth: Math.max(1, options.width - GL.padding * 2) }),
+      })
+    : undefined
   const titleWidth = titleBlock?.width ?? 0
   const titleExtraHeight = titleBlock ? titleBlock.height - titleBlock.lineHeight : 0
   const width = options.width ?? Math.max(naturalWidth + rightPadding - GL.padding, Math.ceil(titleWidth) + GL.padding * 2)
@@ -619,8 +629,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   // the bar's vertical center and the rest below, so the row must advance far
   // enough for the block to clear the next row. Single-line rows keep the
   // uniform rowH by construction (bh/2 + lh/2 <= max(bh, lh) always).
-  const rowAdvance = (lineCount: number, lineHeight: number): number =>
-    Math.max(rowH, Math.ceil(barHeight / 2 + (lineCount - 0.5) * lineHeight) + GL.rowGap)
+  const rowAdvance = (lineCount: number, lineHeight: number): number => Math.max(rowH, Math.ceil(barHeight / 2 + (lineCount - 0.5) * lineHeight) + GL.rowGap)
   const taskLineHeight = Math.max(style.nodeLabelFontSize * 1.3, ...[...taskWraps.values()].map(label => label.block.lineHeight))
   const sectionLineHeight = Math.max(style.groupHeaderFontSize * 1.3, ...[...sectionWraps.values()].map(label => label.block.lineHeight))
 
@@ -672,11 +681,20 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
       }
       const taskLines = taskWraps.get(t.index)?.lines
       bars.push({
-        taskIndex: t.index, id: t.id, label: t.label, labelBlock: taskWraps.get(t.index)?.block, tags: t.tags, sectionIndex: bandIndex,
-        x, y: row.y, w, h: barHeight,
+        taskIndex: t.index,
+        id: t.id,
+        label: t.label,
+        labelBlock: taskWraps.get(t.index)?.block,
+        tags: t.tags,
+        sectionIndex: bandIndex,
+        x,
+        y: row.y,
+        w,
+        h: barHeight,
         milestoneX,
         rowIndex: rowStart + (section.label !== undefined ? 1 : 0) + lane,
-        start: t.start, end: t.renderEnd,
+        start: t.start,
+        end: t.renderEnd,
         ...(taskLines && taskLines.length > 1 ? { labelLines: taskLines } : {}),
       })
       row.barIndexes.push(bars.length - 1)
@@ -688,29 +706,37 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
       for (const t of sectionTasks) y += rowAdvance(taskWraps.get(t.index)?.lines.length ?? 1, taskLineHeight)
     }
     sections.push({
-      label: section.label, labelBlock: sectionWraps.get(si)?.block, y: bandStartY, h: y - bandStartY,
-      rowStart, rowEnd: rows.length,
+      label: section.label,
+      labelBlock: sectionWraps.get(si)?.block,
+      y: bandStartY,
+      h: y - bandStartY,
+      rowStart,
+      rowEnd: rows.length,
       ...(sectionLines && sectionLines.length > 1 ? { labelLines: sectionLines } : {}),
     })
     y += GL.sectionGap
   }
 
-  const plotH = Math.max(rowH, y - plotY)
+  const plotH = Math.max(rowH, y - plotY, emptyLabel ? emptyLabel.height + GL.padding : 0)
   const height = plotY + plotH + axisH + GL.padding
 
   // ---- ticks / markers --------------------------------------------------------
   const ticks: GanttTick[] = tickLabels.map(t => ({
-    time: t.time, x: xOf(t.time), label: t.label, labelBlock: t.block,
+    time: t.time,
+    x: xOf(t.time),
+    label: t.label,
+    labelBlock: t.block,
   }))
 
   const verts: GanttVertLayout[] = vertTasks.map(t => ({
-    taskIndex: t.index, label: t.label, labelBlock: vertBlocks.get(t.index),
-    x: xOf(t.start + (t.renderEnd - t.start) / 2), time: t.start,
+    taskIndex: t.index,
+    label: t.label,
+    labelBlock: vertBlocks.get(t.index),
+    x: xOf(t.start + (t.renderEnd - t.start) / 2),
+    time: t.start,
   }))
 
-  const todayX = options.today !== undefined && options.today >= schedule.timeMin && options.today <= schedule.timeMax
-    ? xOf(options.today)
-    : undefined
+  const todayX = options.today !== undefined && options.today >= schedule.timeMin && options.today <= schedule.timeMax ? xOf(options.today) : undefined
 
   // ---- excluded-day shading bands (item 2; default-on, upstream parity) -----
   // One calendar, two consumers: the SAME isExcludedDay predicate that drives
@@ -718,8 +744,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   // meaning on date-only charts; consecutive excluded days merge into one
   // band, clipped to the visible range.
   const excludedBands: GanttExcludedBand[] = []
-  if (model.excludes.length > 0 && schedule.dateOnly
-    && (schedule.timeMax - startOfDay(schedule.timeMin)) / DAY_MS <= GANTT_MAX_SHADED_DAYS) {
+  if (model.excludes.length > 0 && schedule.dateOnly && (schedule.timeMax - startOfDay(schedule.timeMin)) / DAY_MS <= GANTT_MAX_SHADED_DAYS) {
     let runStart: EpochMs | undefined
     const flush = (runEnd: EpochMs): void => {
       if (runStart === undefined) return
@@ -739,15 +764,16 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   }
 
   const critIds = new Set(schedule.analysis?.criticalPathTaskIds ?? [])
-  const criticalTaskIndexes = schedule.tasks
-    .filter(t => t.id !== undefined && critIds.has(t.id))
-    .map(t => t.index)
+  const criticalTaskIndexes = schedule.tasks.filter(t => t.id !== undefined && critIds.has(t.id)).map(t => t.index)
   const dependencies = routeGanttDependencies(model, schedule, bars, rows, { x: plotX, y: plotY, w: plotW, h: plotH })
-  const taskIndexById = new Map(model.tasks.flatMap(task => task.id ? [[task.id, task.index] as const] : []))
+  const taskIndexById = new Map(model.tasks.flatMap(task => (task.id ? [[task.id, task.index] as const] : [])))
   const links = model.clicks.flatMap(click => {
     if (click.action !== 'href') return [] // callbacks are deliberately never executable
     const taskIndex = taskIndexById.get(click.taskId)
-    const token = click.rest.match(/^"((?:\\.|[^"])*)"|^(\S+)/)?.slice(1).find(Boolean)
+    const token = click.rest
+      .match(/^"((?:\\.|[^"])*)"|^(\S+)/)
+      ?.slice(1)
+      .find(Boolean)
     if (taskIndex === undefined || !token || !/^(?:https?:|mailto:)/i.test(token)) return []
     return [{ taskIndex, href: token.replace(/\\(["\\])/g, '$1') }]
   })
@@ -766,27 +792,34 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
       const y = bar.y + bar.h / 2
       const leftLimit = index > 0 ? row[index - 1]!.x + row[index - 1]!.w + 4 : 2
       const rightLimit = index + 1 < row.length ? row[index + 1]!.x - 4 : width - 2
-      bar.labelPosition = !compact ? { x: 16, y, anchor: 'start' }
-        : bar.x - 6 - block.width >= leftLimit ? { x: bar.x - 6, y, anchor: 'end' }
-          : bar.x + bar.w + 6 + block.width <= rightLimit ? { x: bar.x + bar.w + 6, y, anchor: 'start' }
-            : { x: 16, y, anchor: 'start' }
+      bar.labelPosition = !compact ? { x: 16, y, anchor: 'start' } : bar.x - 6 - block.width >= leftLimit ? { x: bar.x - 6, y, anchor: 'end' } : bar.x + bar.w + 6 + block.width <= rightLimit ? { x: bar.x + bar.w + 6, y, anchor: 'start' } : { x: 16, y, anchor: 'start' }
     })
   }
   return {
+    ...(emptyLabel ? { emptyLabel } : {}),
     title: titleBlock?.text,
     titleBlock,
     titleY: Math.max(ganttTitleY(style), (titleBlock?.lineHeight ?? 0) / 2) + titleExtraHeight / 2,
-    width, height,
+    width,
+    height,
     plot: { x: plotX, y: plotY, w: plotW, h: plotH },
     labelColumnWidth,
-    rows, sections, bars, links, verts, ticks,
-    dependencies, criticalTaskIndexes,
+    rows,
+    sections,
+    bars,
+    links,
+    verts,
+    ticks,
+    dependencies,
+    criticalTaskIndexes,
     excludedBands,
     topAxis: model.topAxis,
     todayX,
     ...(model.todayMarker?.style !== undefined ? { todayMarkerStyle: model.todayMarker.style } : {}),
-    timeMin: schedule.timeMin, timeMax: schedule.timeMax,
+    timeMin: schedule.timeMin,
+    timeMax: schedule.timeMax,
     dateOnly: schedule.dateOnly,
-    compact, barHeight,
+    compact,
+    barHeight,
   }
 }

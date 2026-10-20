@@ -1,4 +1,5 @@
-import { isStableFamilyBody, stableFamilyTree, stableFamilyCount } from './stable-family-adapters.ts'
+import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
+
 // ============================================================================
 // describeMermaid — natural-language summary of a diagram.
 //
@@ -11,15 +12,15 @@ import { isStableFamilyBody, stableFamilyTree, stableFamilyCount } from './stabl
 // only have a string.
 // ============================================================================
 
+import { effectiveC4Shape } from '../c4/config.ts'
+import { c4BoundaryText, c4ElementText, c4RelationshipText } from '../c4/projection.ts'
+import type { C4Boundary, C4Element, C4Relationship, C4Shape } from '../c4/types.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { formatGanttInstant, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { c4ElementText, c4BoundaryText, c4RelationshipText } from '../c4/projection.ts'
-import { effectiveC4Shape } from '../c4/config.ts'
-import type { C4Element, C4Boundary, C4Relationship, C4Shape } from '../c4/types.ts'
 import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
@@ -227,7 +228,7 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     visit(d.body.root)
   } else if (d.body.kind === 'gitgraph') {
     for (const commit of d.body.commits) {
-      tree.nodes.push({ id: commit.id, label: commit.message || commit.id })
+      tree.nodes.push({ id: commit.id, label: commit.message || commit.sourceId || commit.id })
       commit.parents.forEach(parent => tree.edges.push({ from: parent, to: commit.id, label: commit.source === 'commit' ? undefined : commit.source }))
     }
   } else if (d.body.kind === 'radar') {
@@ -526,8 +527,10 @@ function describeGantt(d: ValidDiagram & { body: import('./types.ts').GanttBody 
   // the fallback when the source needs context this body cannot see.
   try {
     const schedule = resolveGanttSchedule(parseGanttModel(toMermaidLines(d.canonicalSource)))
-    const fmt = schedule.dateOnly ? '%Y-%m-%d' : '%Y-%m-%d %H:%M'
-    s += ` Schedule: ${formatGanttInstant(schedule.timeMin, fmt)} to ${formatGanttInstant(schedule.timeMax, fmt)}.`
+    if (schedule.tasks.length > 0) {
+      const fmt = schedule.dateOnly ? '%Y-%m-%d' : '%Y-%m-%d %H:%M'
+      s += ` Schedule: ${formatGanttInstant(schedule.timeMin, fmt)} to ${formatGanttInstant(schedule.timeMax, fmt)}.`
+    } else s += ' No tasks scheduled.'
     if (schedule.analysis && schedule.analysis.criticalPathTaskIds.length > 0) {
       s += ` Critical path: ${schedule.analysis.criticalPathTaskIds.join(' -> ')}.`
     }

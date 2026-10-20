@@ -1,6 +1,6 @@
-import { STABLE_FAMILY_AGENT_HOOKS } from './stable-family-adapters.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
-import { parseC4Body, renderC4, mutateC4, lintC4, buildC4SourceMap } from './c4-body.ts'
+import { buildC4SourceMap, lintC4, mutateC4, parseC4Body, renderC4 } from './c4-body.ts'
+import { STABLE_FAMILY_AGENT_HOOKS } from './stable-family-adapters.ts'
 // ============================================================================
 // Built-in family agent-operation definitions.
 //
@@ -21,18 +21,19 @@ import { parseC4Body, renderC4, mutateC4, lintC4, buildC4SourceMap } from './c4-
 // ============================================================================
 
 import { decodeXML } from 'entities'
-import { readClassStatements, type ClassStatementNode } from '../class/parser.ts'
-import { readErStatements, type ErSourceStatement, type ParsedErRelationshipSyntax } from '../er/parser.ts'
-import { GitGraphDuplicateCommitError } from '../gitgraph/parser.ts'
+import { readArchitectureStatements } from '../architecture/parser.ts'
+import { type ClassStatementNode, readClassStatements } from '../class/parser.ts'
+import { type ErSourceStatement, type ParsedErRelationshipSyntax, readErStatements } from '../er/parser.ts'
+import { readGanttStatements } from '../gantt/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
-import { splitPointClassSuffix } from '../quadrant/point-style.ts'
-import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
+import { splitPointClassSuffix } from '../quadrant/point-style.ts'
+import { splitSequenceStatementLines } from '../sequence/statements.ts'
+import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
+import { adoptStatementAccessibility } from './accessibility-envelope.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
-import { readArchitectureStatements } from '../architecture/parser.ts'
-import { readGanttStatements } from '../gantt/parser.ts'
 import { mutateClass, parseClassBody, renderClass, verifyClass } from './class-body.ts'
 import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
 import type { ExtractedLabel, FamilyOperations } from './families.ts'
@@ -48,14 +49,12 @@ import { mutateQuadrant, parseQuadrantBody, renderQuadrant, verifyQuadrant } fro
 import { mutateRadar, parseRadarBody, renderRadar, verifyRadar } from './radar-body.ts'
 import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './sankey-body.ts'
 import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
-import { splitSequenceStatementLines } from '../sequence/statements.ts'
-import { mutateState, parseStateBody, renderState, verifyState, verifyOpaqueState } from './state-body.ts'
+import { recordSourceMapEnds } from './source-map-spans.ts'
+import { mutateState, parseStateBody, renderState, verifyOpaqueState, verifyState } from './state-body.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
 import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceLocation, SourceMap, XyChartBody } from './types.ts'
-import { recordSourceMapEnds } from './source-map-spans.ts'
 import { err, ok } from './types.ts'
 import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart } from './xychart-body.ts'
-import { adoptStatementAccessibility } from './accessibility-envelope.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -538,7 +537,7 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
       const entries = attributeSources.get(key) ?? []
       entries.push(loc(source.lineIndex + 1, source.start + 1))
       attributeSources.set(key, entries)
-      attributeEnds.set(key, [...attributeEnds.get(key) ?? [], endOf(entry)])
+      attributeEnds.set(key, [...(attributeEnds.get(key) ?? []), endOf(entry)])
     } else if (syntax.kind === 'relation') {
       relationSources.push({ source, relation: syntax.relation, end: endOf(entry) })
     } else if (syntax.kind === 'entity' || syntax.kind === 'block-open') {
@@ -1281,9 +1280,9 @@ const MINDMAP_AGENT_HOOKS = {
 
 // ---- GitGraph --------------------------------------------------------------
 const GITGRAPH_AGENT_HOOKS = {
-  renderSource: body => (body.kind !== 'opaque' || body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID' ? 'serialized' : 'canonical'),
+  renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
-  parse: ({ source, meta, opaqueSource }) => {
+  parse: ({ source, meta }) => {
     try {
       const merged: Record<string, unknown> = {
         ...(meta.frontmatter?.gitGraph && typeof meta.frontmatter.gitGraph === 'object' ? meta.frontmatter.gitGraph : {}),
@@ -1300,12 +1299,6 @@ const GITGRAPH_AGENT_HOOKS = {
         }),
       )
     } catch (error) {
-      // Mermaid 11.16 accepts duplicate custom IDs with a warning, but our
-      // deterministic identity model cannot safely mutate the ambiguous graph.
-      // Keep the authored source losslessly while native rendering rejects it.
-      if (error instanceof GitGraphDuplicateCommitError) {
-        return ok({ kind: 'opaque', family: 'gitgraph', source: opaqueSource, diagnostic: { code: error.code, id: error.id } })
-      }
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
   },
@@ -1314,19 +1307,7 @@ const GITGRAPH_AGENT_HOOKS = {
     return renderGitGraphBody(body)
   },
   mutate: (body, op) => (body.kind === 'gitgraph' ? mutateGitGraph(body, op as never) : err({ code: 'INVALID_OP', message: `gitgraph mutator received body kind ${body.kind}` })),
-  verify: (body, opts): LayoutWarning[] => {
-    if (body.kind === 'gitgraph') return verifyGitGraph(body, opts)
-    if (body.kind === 'opaque' && body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID') {
-      return [
-        {
-          code: 'UNSUPPORTED_SYNTAX',
-          syntax: 'gitgraph_duplicate_commit_id',
-          message: 'Pinned Mermaid warns and continues on duplicate GitGraph commit IDs, but Agentic Mermaid requires unique IDs for deterministic identity. The source is preserved; native rendering and typed mutation are unavailable. Rename one duplicate ID to render or mutate it.',
-        },
-      ]
-    }
-    return []
-  },
+  verify: (body, opts): LayoutWarning[] => (body.kind === 'gitgraph' ? verifyGitGraph(body, opts) : []),
 } satisfies FamilyOperations
 
 // ---- Radar -----------------------------------------------------------------
