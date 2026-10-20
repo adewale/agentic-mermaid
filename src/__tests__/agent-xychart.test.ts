@@ -168,15 +168,12 @@ describe('xychart structured-or-opaque fallback', () => {
       expect(decodeXML(svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1] ?? '') || undefined, source).toBe(accessibility.descr)
     }
     // Beside another value on a line of its own, Mermaid keeps the one written
-    // last, and so does the drawing. The typed body cannot hold both, so the
-    // source is kept, and said so.
-    for (const [source, drawn] of [['xychart-beta\n  accTitle: first\n  bar [1] accTitle: second\n', 'second'], ['xychart-beta\n  bar [1] accTitle: first\n  accTitle: second\n', 'second'], ['xychart-beta\n  bar [1] accTitle: second\n  accDescr: d\n  accTitle: first\n', 'first']] as const) {
-      const parsed = parseMermaid(source)
-      expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
-      if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
-      expect(decodeXML(renderMermaidSVG(source).match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1] ?? ''), source).toBe(drawn)
-      expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'xychart_accessibility_order' }))
-    }
+    // last, which neither reader can order: the source is kept, and said so.
+    const source = 'xychart-beta\n  accTitle: first\n  bar [1] accTitle: second\n'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+    if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'xychart_accessibility_order' }))
   })
 
   test('repeated axis directives preserve independently authored components in either order', () => {

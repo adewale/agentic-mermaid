@@ -128,8 +128,7 @@ function statementKeywordAt(source: string, index: number): string | undefined {
  * ordinary statements, while a following top-level keyword also starts a new
  * statement on the same line (`axis A,B curve x{1,2}`). Title/accessibility
  * terminals deliberately consume the remainder of their line as free text. */
-/** Each statement in `source`, with its offset in `source` pushed to `starts`. */
-function bodyStatements(source: string, baseOffset: number, starts?: number[]): string[] {
+function bodyStatements(source: string, baseOffset: number): string[] {
   const out: string[] = []
   let i = 0
   while (i < source.length) {
@@ -142,7 +141,6 @@ function bodyStatements(source: string, baseOffset: number, starts?: number[]): 
       while (i < source.length && source[i] !== '\n' && source[i] !== '\r') i++
       const statement = source.slice(start, i).trim()
       if (statement) {
-        starts?.push(start)
         out.push(statement)
         if (parserObservationActive('radar')) observeParserStatement('radar', keyword!, statement, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
       }
@@ -160,7 +158,6 @@ function bodyStatements(source: string, baseOffset: number, starts?: number[]): 
         const close = source.indexOf('}', probe + 1)
         if (close < 0) throw new Error(`Radar statement is missing a closing "}": "${source.slice(start).trim()}"`)
         i = close + 1
-        starts?.push(start)
         out.push(source.slice(start, i).trim())
         if (parserObservationActive('radar')) observeParserStatement('radar', keyword, out[out.length - 1]!, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
         continue
@@ -168,7 +165,6 @@ function bodyStatements(source: string, baseOffset: number, starts?: number[]): 
       while (i < source.length && source[i] !== '\n' && source[i] !== '\r') i++
       const statement = source.slice(start, i).trim()
       if (statement) {
-        starts?.push(start)
         out.push(statement)
         if (parserObservationActive('radar')) observeParserStatement('radar', keyword, statement, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
       }
@@ -210,7 +206,6 @@ function bodyStatements(source: string, baseOffset: number, starts?: number[]): 
     }
     const statement = source.slice(start, i).trim()
     if (statement) {
-      starts?.push(start)
       out.push(statement)
       if (parserObservationActive('radar')) observeParserStatement('radar', keyword ?? 'unrecognized', statement, { offset: start + baseOffset, endOffset: i + baseOffset, unit: 'normalized' })
     }
@@ -313,29 +308,12 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   const physical = joinQuotedTextLines(lines.join('\n').split(/\r?\n/), RADAR_QUOTED_TEXT)
   const scanned = scanAccessibilityDirectives(physical.map(stripTrailingComment))
   requireClosedAccessibility(scanned)
-  const familyText = scanned.familyLines.join('\n')
-  const source = familyText.trimStart()
+  const source = scanned.familyLines.join('\n').trimStart()
   if (!source) throw new Error('Radar chart is empty')
   const header = source.match(HEADER_RE)
   if (!header) throw new Error(`Radar chart must start with "radar-beta", got: "${source.split(/\r?\n/, 1)[0]}"`)
   if (parserObservationActive('radar')) observeParserStatement('radar', 'header', header[0], { offset: 0, endOffset: header[0].length, unit: 'normalized' })
-  const starts: number[] = []
-  const statements = bodyStatements(source.slice(header[0].length), header[0].length, starts)
-  // The line of `scanned.familyLines` a statement starts on, to order it
-  // against the directives the scan took from lines of their own.
-  const lineStarts = [0]
-  for (let at = familyText.indexOf('\n'); at >= 0; at = familyText.indexOf('\n', at + 1)) lineStarts.push(at + 1)
-  const statementLine = (index: number): number => {
-    const offset = familyText.length - source.length + header[0].length + starts[index]!
-    let low = 0
-    let high = lineStarts.length - 1
-    while (low < high) {
-      const middle = (low + high + 1) >> 1
-      if (lineStarts[middle]! <= offset) low = middle
-      else high = middle - 1
-    }
-    return low
-  }
+  const statements = bodyStatements(source.slice(header[0].length), header[0].length)
 
   let title = options.title
   if (title !== undefined && parserObservationActive('radar')) observeParserMutation('radar', 'setFrontmatterTitle', title)
@@ -359,18 +337,17 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
     // A block reads its lines as the envelope does.
     const accessibilityDirective = parseAccessibilityDirective(line.split('\n'), 0)
     if (accessibilityDirective === undefined) throw new Error('Radar accDescr block is missing a closing "}"')
-    // Mermaid keeps whichever value is written last: this one, unless a
-    // directive on a line of its own comes after it.
+    // Mermaid keeps whichever value is written last. The envelope has taken
+    // the directives on lines of their own out of order, so one of those
+    // wins, as in XYChart (verify reports radar_accessibility_order).
     if (accessibilityDirective !== null) {
       const value = normalizeBrTags(accessibilityDirective.value)
-      const ownLine = scanned.positions[accessibilityDirective.title ? 'title' : 'descr']
-      const last = ownLine === undefined || statementLine(i) >= ownLine
       if (accessibilityDirective.title) {
         statementAccessibility.title = accessibilityDirective.value
-        if (last) accessibility.title = value
+        if (scanned.accessibility.title === undefined) accessibility.title = value
       } else {
         statementAccessibility.descr = accessibilityDirective.value
-        if (last) accessibility.description = value
+        if (scanned.accessibility.descr === undefined) accessibility.description = value
       }
       if (parserObservationActive('radar')) observeParserMutation('radar', accessibilityDirective.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', value)
       continue

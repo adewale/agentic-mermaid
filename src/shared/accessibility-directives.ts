@@ -29,10 +29,6 @@ export interface AccessibilityScan {
   familyOrigins: number[]
   /** First unterminated accDescr block, retained in `familyLines`. */
   unclosedIndex?: number
-  /** Where the directive that set each value stood: the number of
-   * `familyLines` before it. A family statement on `familyLines[k]` comes
-   * after it when `k` is at least this. */
-  positions: { title?: number; descr?: number }
 }
 
 const ACC_TITLE_RE = /^\s*accTitle(?:\s*:\s*|\s+)(.+)$/i
@@ -105,7 +101,6 @@ export function parseAccessibilityDirective(
 export function scanAccessibilityDirectives(lines: readonly string[], statementEnds?: readonly number[]): AccessibilityScan {
   const accessibility: MermaidAccessibility = {}
   const familyLines: string[] = []
-  const positions: AccessibilityScan['positions'] = {}
   const familyOrigins: number[] = []
   let unclosedIndex: number | undefined
 
@@ -126,7 +121,6 @@ export function scanAccessibilityDirectives(lines: readonly string[], statementE
     }
     if (directive.title) accessibility.title = directive.value
     else accessibility.descr = directive.value
-    positions[directive.title ? 'title' : 'descr'] = familyLines.length
     if (directive.suffixLine) {
       familyLines.push(directive.suffixLine)
       familyOrigins.push(directive.endIndex)
@@ -139,7 +133,6 @@ export function scanAccessibilityDirectives(lines: readonly string[], statementE
     familyLines,
     familyOrigins,
     ...(unclosedIndex !== undefined ? { unclosedIndex } : {}),
-    positions,
   }
 }
 

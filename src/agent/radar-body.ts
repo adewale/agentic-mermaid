@@ -380,7 +380,7 @@ export function radarUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
   return statementAccessibilityConflicts(read ?? {}, source.accessibility).map(directive => ({
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'radar_accessibility_order',
-    message: `Radar chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last, and so does the drawing; the typed body cannot hold both, so the source is kept as written. Keep one ${directive}, on a line of its own.`,
+    message: `Radar chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last; this reader cannot tell which that is, so the source is kept as written and the one on its own line is drawn. Keep one ${directive}, on a line of its own.`,
   }))
 }
 
