@@ -94,6 +94,26 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
+  test.each(['TD', 'LR', 'BT', 'RL'])('retains State pseudostates, configured bars and notes without ELK in %s', direction => {
+    const source = `stateDiagram-v2\ndirection ${direction}\nstate F <<fork>>\nstate J <<join>>\nstate C <<choice>>\n[*] --> F\nF --> A\nF --> B\nA --> J\nB --> J\nJ --> C\nC --> A: retry\nC --> [*]: done\nnote right of A : keep this note`
+    const options = { ...AGENTIC, mermaidConfig: { state: { forkWidth: 120, forkHeight: 24, fontSize: 22, noteMargin: 50 } } }
+    const stages: string[] = []
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, options))
+    const rendered = layoutMermaidWithReceipt(source, { ...options, debug: true })
+    const bars = rendered.layout.nodes.filter(node => node.id === 'F' || node.id === 'J')
+    expect(bars).toHaveLength(2)
+    for (const bar of bars) expect([Number(bar.w), Number(bar.h)]).toEqual(direction === 'LR' || direction === 'RL' ? [24, 120] : [120, 24])
+    expect(stages).not.toContain('elk')
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    for (const text of ['keep this note', 'retry', 'done', 'font-size="22"']) expect(result.svg).toContain(text)
+    const quality = measureQuality(rendered.layout)
+    expect(quality.minimumNodeSpacing).toBeGreaterThanOrEqual(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(result.svg).toBe(renderMermaidSVGWithReceipt(source, options).svg)
+    JSON.stringify(result.receipt)
+    JSON.stringify(rendered.receipt)
+  })
+
   test.each([
     { name: 'disconnected fan-out', source: 'flowchart TD\nn58 --> n66\nn58 --> n70\nn29 -->|label 37| n16\nn113 -->|label 38| n16', nodes: 6, edges: 4, parallel: undefined },
     { name: 'duplicate lanes', source: 'flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6', nodes: 3, edges: 3, parallel: ['n0', 'n6'] },
@@ -137,7 +157,7 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ['state', 'stateDiagram-v2\n A --> B'],
+    ['State composite', 'stateDiagram-v2\n state Composite {\n A --> B\n }'],
     ['class', 'classDiagram\n class A\n class B\n A --> B'],
     ['er', 'erDiagram\n A ||--o{ B : owns'],
     ['architecture', 'architecture-beta\n service a(server)[A]\n service b(server)[B]\n a:R --> L:b'],
