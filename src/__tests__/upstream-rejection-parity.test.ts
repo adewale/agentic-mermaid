@@ -169,45 +169,9 @@ const C4_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['an empty boundary', 'C4Context\n  Person(a, "Ann")\n  System_Boundary(b, "Bank") {\n  }', 'Bank', 'c4_empty_boundary', 3],
   ['a standalone direction', 'C4Context\n  direction LR\n  Person(a, "Ann")', 'Ann', 'c4_direction', 2],
   ['a legend directive', 'C4Context\n  Person(a, "Ann")\n  SHOW_LEGEND()', 'Ann', 'c4_directive_extension', 3],
-  // Mermaid's C4 lexer reads unquoted argument text up to the next comma, so
-  // after the last comma it takes the closing parenthesis too.
-  ['an unquoted last argument', 'C4Context\n  Person(a, Ann Lee)', 'Ann Lee', 'c4_unquoted_argument', 2],
-  ['a space before the closing parenthesis', 'C4Context\n  Person(a, "Ann" )', 'Ann', 'c4_unquoted_argument', 2],
-  ['a space before a boundary\'s closing parenthesis', 'C4Context\n  System_Boundary(b, "Bank", ) {\n    Person(a, "Ann")\n  }', 'Bank', 'c4_unquoted_argument', 2],
-  ['an unquoted named value', 'C4Context\n  Person(a, "Ann", $descr=Banker, $link="https://example.com")', 'Banker', 'c4_unquoted_argument', 2],
   // Mermaid's lexer reads only "(" straight after a macro's name.
   ['a space before the argument list', 'C4Context\n  Person (a, "Ann")', 'Ann', 'c4_space_before_arguments', 2],
   ['a line break before a boundary\'s argument list', 'C4Context\n  System_Boundary\n  (b, "Bank") {\n    Person(a, "Ann")\n  }', 'Bank', 'c4_space_before_arguments', 2],
-]
-
-// C4 arguments whose quotes Mermaid's lexer pairs differently from ours
-// have no clear meaning: like an unknown argument, the statement is retained
-// as source and the render refuses it. [construct, source, line]
-const C4_UNREADABLE: ReadonlyArray<readonly [string, string, number]> = [
-  ['text glued to a closing quote', 'C4Container\n  Container(c, "C"web_app $techn="Java")', 2],
-  ['text glued to a named value', 'C4Context\n  Person(a, "A")\n  Rel(a, a, "uses", $tags="async"sign)', 3],
-  ['a $ without name="text"', 'C4Context\n  System(s, "S", "desc", $tags=tags="cylinder")', 2],
-  ['quotes in an unquoted last argument', 'C4Context\n  Person(a, link="https://example.com")', 2],
-  ['a comma between quotes in unquoted text', 'C4Context\n  Person(a, "", SMTP"A customer, with accounts.")', 2],
-]
-
-// When a comma follows, Mermaid's lexer reads on past the closing parenthesis
-// and takes the next statement into the argument: it accepts the diagram but
-// reads one element where ours reads two. [construct, source, syntax, line]
-const C4_READ_OTHERWISE: ReadonlyArray<readonly [string, string, string, number]> = [
-  ['an unquoted last argument before another statement', 'C4Context\n  Person(a, Ann)\n  Person(b, "Bob")', 'c4_unquoted_argument', 2],
-  ['text glued to a closing quote before another statement', 'C4Context\n  Person(a, "Ann"x)\n  Person(b, "Bob")', 'c4_argument_quoting', 2],
-]
-
-// Mermaid's lexer reads these argument lists, but into other arguments than
-// ours: text after a closing quote is another argument, a comma always ends
-// unquoted text, and "$" starts a name running to "=". [construct, source,
-// Mermaid's label and description]
-const C4_ARGUMENTS_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly [string, string]]> = [
-  ['text glued to a closing quote', 'C4Context\n  Person(a, "Ann"glued, "A customer")', ['Ann', 'glued']],
-  ['a space before a comma after a quoted argument', 'C4Context\n  Person(a, "Ann" , "A customer")', ['Ann', '']],
-  ['a comma inside parentheses', 'C4Context\n  Person(a, Ann (x, y), "A customer")', ['Ann (x', 'y)']],
-  ['a space inside an argument name', 'C4Context\n  Person(a, "Ann", $de scr="A customer")', ['Ann', '']],
 ]
 
 // Mermaid's database throws when a participant that is not active is
@@ -448,8 +412,6 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['sequence', 'a slash and a dash inside the sender', 'sequenceDiagram\n  x/-y-->>z: m'],
   ['sequence', 'a backslash and a dash inside the sender, before an activation', 'sequenceDiagram\n  A\\-B->>+C: Hi\n  C-->>-A\\-B: Back'],
   ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
-  ['c4', 'an unquoted argument before a comma', 'C4Context\n  Person(a, Ann Lee, "A customer")'],
-  ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
   ['flowchart', 'blanks between the pipes of a label', 'flowchart LR\n  A -->| | B ==>|\t| C'],
   // Mermaid's prepass writes a tag's double-quoted attributes with single quotes.
@@ -561,14 +523,6 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect({ typed, refused: error?.includes('has a quote inside the unquoted field') }).toEqual({ typed: 'opaque', refused: true })
   })
 
-  test.each(C4_UNREADABLE)('c4: %s is retained as source and not drawn', async (_construct, source, line) => {
-    expect((await upstream.parse(source)).ok).toBe(false)
-    const { typed, error } = ours(source)
-    const reported = verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
-    expect({ typed, refused: error?.startsWith('C4 unsupported syntax'), reported })
-      .toEqual({ typed: 'c4', refused: true, reported: [`c4_argument_quoting@${line}`] })
-  })
-
   test.each(FLOWCHART_READ_GENEROUSLY)('flowchart: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'flowchart', draws: true, reported: [`${syntax}@${line}`] })
@@ -669,13 +623,6 @@ describe('accept what pinned Mermaid accepts', () => {
     if (family === 'architecture' || family === 'class' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey' || family === 'flowchart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax !== 'empty_layout')).toEqual([])
   })
 
-  test.each(C4_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads it otherwise', async (_construct, source, syntax, line) => {
-    const mermaid = await upstream.project(source, diagram => diagram.db.getC4ShapeArray().map((shape: { alias: string }) => shape.alias))
-    const parsed = parseRegisteredMermaid(source)
-    expect({ mermaid, ours: parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => element.id) : [], ...readGenerously(source, 'Bob') })
-      .toEqual({ mermaid: { ok: true, value: ['a'] }, ours: ['a', 'b'], typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
-  })
-
   // Participants and messages as Mermaid's database holds them.
   test.each(ACCEPTED.filter(([family]) => family === 'sequence'))('%s: %s is read as Mermaid reads it', async (_family, _construct, source) => {
     const mermaid = await upstream.parse(source)
@@ -687,14 +634,6 @@ describe('accept what pinned Mermaid accepts', () => {
     }
     const actual: Record<string, unknown> = { participants: body?.participants.map(participant => participant.id), messages: body?.messages.map(message => [message.from, message.to, message.text]) }
     expect(actual).toEqual(expected)
-  })
-
-  test.each(C4_ARGUMENTS_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads other arguments', async (_construct, source, fields) => {
-    const mermaid = await upstream.project(source, diagram => diagram.db.getC4ShapeArray().map((shape: { label?: { text: string }; descr?: { text: string } }) => [shape.label?.text, shape.descr?.text ?? '']))
-    const parsed = parseRegisteredMermaid(source)
-    const ours = parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => [element.label, element.description ?? '']) : []
-    expect({ mermaid, differs: JSON.stringify(ours) !== JSON.stringify([fields]), ...readGenerously(source, '<svg') })
-      .toEqual({ mermaid: { ok: true, value: [fields] }, differs: true, typed: 'c4', draws: true, reported: ['c4_argument_reading@2'] })
   })
 
   test('timeline: a continuation after a section header adds to the period before it, as Mermaid does', async () => {
@@ -755,18 +694,17 @@ describe('accept what pinned Mermaid accepts', () => {
 // The typed C4 serializer writes each reader extension in a spelling pinned
 // Mermaid reads as ours reads the source: one statement per line, quoted and
 // named arguments. An empty boundary, a standalone direction and the legend
-// and tag directives have no such spelling, and text glued to a quote has no
-// clear meaning to keep: those are written as authored.
+// and tag directives have no such spelling, and Mermaid cannot read a body
+// holding a statement with no native interpretation: those are written as
+// authored.
 // [construct, source, kept as written]
 const C4_NO_MERMAID_SPELLING = new Set(['c4_empty_boundary', 'c4_direction', 'c4_directive_extension'])
 const C4_WRITTEN: ReadonlyArray<readonly [string, string, boolean]> = [
   ...C4_READ_GENEROUSLY.map(([construct, source, , syntax]) => [construct, source, C4_NO_MERMAID_SPELLING.has(syntax)] as const),
-  ...C4_READ_OTHERWISE.map(([construct, source, syntax]) => [construct, source, syntax === 'c4_argument_quoting'] as const),
-  ...C4_ARGUMENTS_READ_OTHERWISE.map(([construct, source]) => [construct, source, false] as const),
-  ...C4_UNREADABLE.map(([construct, source]) => [construct, source, true] as const),
   ['a semicolon, statements on one line and a comment taking the line break', 'C4Context\n  Person(a, "A"); Person(b, "B") Person(c, "C") %% note\n  Rel(a, b, "uses");Rel(b, c, "calls")', false],
   ['positional RelIndex metadata', 'C4Dynamic\n  Person(a, "A")\n  Person(b, "B")\n  RelIndex(1, a, b, "uses", "tag1", "https://example.com")', false],
   ['a single-quoted argument', 'C4Context\n  Person(a, \'Ann\', "A customer")', false],
+  ['a semicolon beside a macro with no native interpretation', 'C4Context\n  Person(a, "Ann"); Person(b, "Bob")\n  Unknown(c)', true],
   ['a boundary and its statements on one line', 'C4Context\n  System_Boundary(b, "B") { Person(a, "A"); Person(c, "C") }\n  Rel(a, c, "uses")', false],
   // Mermaid's grammar trims every argument; an encoded blank stays.
   ['blanks inside the quotes of each kind of argument', 'C4Container\n  Container(c, " C ", " Java ", "\tdesc\t")\n  System_Boundary(b, " Bank ") {\n    Person(" a ", "\n  Ann\n", $descr=" A customer ")\n  }\n  Rel(" a ", c, " uses ", $techn="#32;HTTPS ")', false],

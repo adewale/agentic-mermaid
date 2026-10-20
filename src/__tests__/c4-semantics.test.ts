@@ -362,15 +362,6 @@ UpdateElementStyle(g,$borderColor="navy")`
     expect(renderC4(body)).toBe(written)
   })
 
-  // The Mermaid spelling joins the arguments on one line and writes the label's
-  // line break as <br/>, which ours reads as "\n", not the authored "\r\n".
-  test('a respelled statement ours would read otherwise keeps its authored bytes', () => {
-    const source = 'C4Context\n  Person(a,\n    "A\r\nB")\n  Person(b, Bob)'
-    const body = parseC4Diagram(source)
-    expect(body.elements.map(record => record.label)).toEqual(['A\r\nB', 'Bob'])
-    expect(renderC4(body)).toBe('C4Context\n  Person(a,\n    "A\r\nB")\n  Person(b, "Bob")')
-  })
-
   test('source map addresses independent relationships and exact label starts', () => {
     const body = parseC4Diagram(source)
     const map = buildC4SourceMap(body, source)

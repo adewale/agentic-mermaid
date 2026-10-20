@@ -116,8 +116,8 @@ function canonicalStatements(body: C4Body): C4Statement[] {
 // Reader extensions with a spelling pinned Mermaid reads as ours reads them:
 // the statement's canonical rendering (one line, quoted and named arguments).
 const RESPELLED_C4_EXTENSIONS = new Set([
-  'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_unquoted_argument', 'c4_space_before_arguments',
-  'c4_quoted_string_extension', 'c4_relindex_positional_metadata', 'c4_argument_reading',
+  'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_space_before_arguments',
+  'c4_quoted_string_extension', 'c4_relindex_positional_metadata',
 ])
 
 /** Unchanged statements retain exact raw bytes. A typed edit rewrites only its
@@ -126,13 +126,12 @@ const RESPELLED_C4_EXTENSIONS = new Set([
  * `portable` writes each reader extension with a Mermaid spelling instead
  * (RESPELLED_C4_EXTENSIONS, `;` as a line break, a line break after a
  * statement that shares its line), unless a statement has no native
- * interpretation: Mermaid cannot read that source anyway, so it is kept.
- * Statements in `kept` keep their authored bytes. */
-function renderC4Unchecked(body: C4Body, portable = false, kept: ReadonlySet<string> = new Set()): string {
+ * interpretation: Mermaid cannot read that source anyway, so it is kept. */
+function renderC4Unchecked(body: C4Body, portable = false): string {
   const respell = portable && !body.diagnostics.some(item => item.severity === 'error')
   const flagged = (syntax: (code: string) => boolean): Set<string | undefined> =>
     new Set(respell ? body.diagnostics.filter(item => syntax(item.syntax)).map(item => item.statementId) : [])
-  const canonical = new Set([...flagged(code => RESPELLED_C4_EXTENSIONS.has(code))].filter(id => id === undefined || !kept.has(id)))
+  const canonical = flagged(code => RESPELLED_C4_EXTENSIONS.has(code))
   const semicolons = flagged(code => code === 'c4_semicolon_separator')
   const breaks = flagged(code => code === 'c4_statements_on_one_line')
   const parts: RenderedPart[] = []
@@ -198,44 +197,7 @@ function lineBreakBefore(parts: RenderedPart[]): void {
 export function renderC4(body: C4Body): string {
   const problem = c4BodyProblem(body)
   if (problem) throw new Error(problem)
-  return renderPortableC4(body)
-}
-
-/** The Mermaid spelling, checked by reading it back: a respelled statement
- * whose record ours would read otherwise keeps its authored bytes, and if
- * the whole still reads otherwise, every statement does. */
-function renderPortableC4(body: C4Body): string {
-  const authored = renderC4Unchecked(body)
-  const kept = new Set<string>()
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const written = renderC4Unchecked(body, true, kept)
-    if (written === authored) return written
-    const misread = misreadStatements(body, written)
-    if (misread?.size === 0) return written
-    if (!misread) break
-    for (const id of misread) kept.add(id)
-  }
-  return authored
-}
-
-/** The statements whose record ours reads otherwise from `source` (its
- * fields, not how its arguments are spelled), or undefined when more than
- * those records differs. */
-function misreadStatements(body: C4Body, source: string): Set<string> | undefined {
-  let read: C4Body
-  try { read = readC4Source(source) } catch { return undefined }
-  const fields = ({ args: _args, statementId: _statementId, ...rest }: C4Element | C4Boundary | C4Relationship): string => stableJSON(rest)
-  const misread = new Set<string>()
-  for (const [mine, theirs] of [[body.elements, read.elements], [body.boundaries, read.boundaries], [body.relationships, read.relationships]] as const) {
-    if (mine.length !== theirs.length) return undefined
-    const byId = new Map<string, C4Element | C4Boundary | C4Relationship>(theirs.map(record => [record.id, record]))
-    for (const record of mine) {
-      const other = byId.get(record.id)
-      if (!other || fields(other) !== fields(record)) misread.add(record.statementId)
-    }
-  }
-  const rest = (value: C4Body): string => stableJSON({ ...(semanticSnapshot(value) as object), elements: [], boundaries: [], relationships: [] })
-  return rest(body) === rest(read) ? misread : undefined
+  return renderC4Unchecked(body, true)
 }
 
 function validText(value: unknown, name: string, required = false): string | null {

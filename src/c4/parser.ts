@@ -214,119 +214,8 @@ function diagnostic(body: C4Body, statementId: string, syntax: string, message: 
   body.diagnostics.push({ code: 'UNSUPPORTED_SYNTAX', syntax, severity, statementId, message })
 }
 
-/** Where pinned Mermaid's C4 argument lexer (c4Diagram.jison, state
- * `attribute`) stops reading one argument list and its closing `)` as ours
- * does. That lexer reads `"text"`, `$name="text"`, and unquoted text up to the
- * next comma: after the last comma, unquoted text takes the `)` too. `seeks`
- * is what it then reads on past the `)` to find, if anything. Where it reads
- * the whole list, `attributes` receives what it read, as its grammar keeps
- * each (trimmed; `,,` and a leading `,` are empty). */
-interface C4ArgumentLexFailure {
-  kind: 'unquoted' | 'named' | 'unclosed' | 'early-close'
-  at: number
-  afterQuote: boolean
-  seeks?: ',' | '"' | '='
-}
-
-interface MermaidC4Attribute { key?: string; value: string }
-
-function mermaidC4ArgumentFailure(text: string, start: number, attributes: MermaidC4Attribute[] = []): C4ArgumentLexFailure | undefined {
-  const input = `${text})`
-  let at = start, afterQuote = false
-  const leading = /^ *,/.exec(input.slice(start))
-  if (start === 0 && leading) { attributes.push({ value: '' }); at = leading[0].length }
-  while (at < input.length) {
-    if (input[at] === ')') return at === input.length - 1 ? undefined : { kind: 'early-close', at, afterQuote }
-    if (input.startsWith(',,', at)) { attributes.push({ value: '' }); at += 2; afterQuote = false; continue }
-    if (input[at] === ',') { at++; afterQuote = false; continue }
-    let opener = at
-    while (input[opener] === ' ') opener++
-    if (input[opener] === '"') {
-      const close = input.indexOf('"', opener + 1)
-      if (close < 0) return { kind: 'unclosed', at: opener, afterQuote, seeks: '"' }
-      attributes.push({ value: input.slice(opener + 1, close).trim() })
-      at = close + 1; afterQuote = true; continue
-    }
-    if (input[opener] === '$') {
-      const equals = input.indexOf('=', opener + 1)
-      if (equals < 0) return { kind: 'named', at: opener, afterQuote, seeks: '=' }
-      let quote = equals + 1
-      while (input[quote] === ' ') quote++
-      if (input[quote] !== '"') return { kind: 'named', at: opener, afterQuote }
-      const close = input.indexOf('"', quote + 1)
-      if (close < 0) return { kind: 'unclosed', at: quote, afterQuote, seeks: '"' }
-      attributes.push({ key: input.slice(opener + 1, equals).trim(), value: input.slice(quote + 1, close).trim() })
-      at = close + 1; afterQuote = true; continue
-    }
-    const comma = input.indexOf(',', at)
-    if (comma < 0) return { kind: 'unquoted', at, afterQuote, seeks: ',' }
-    attributes.push({ value: input.slice(at, comma).trim() })
-    at = comma; afterQuote = false
-  }
-  return undefined
-}
-
-/** The arguments as fields: a name (or the slot's) and its non-empty text. */
-function c4ArgumentReading(items: ReadonlyArray<{ name?: string; value: string }>, slots: readonly string[]): string {
-  return items.flatMap((item, index) => item.value === '' ? [] : [`${item.name ?? slots[index] ?? `argument ${index + 1}`} ${JSON.stringify(item.value)}`]).join(', ')
-}
-
-/** Report argument text pinned Mermaid's lexer cannot read. Unquoted text
- * without quotes means what it says: read it and warn. Quotes the two lexers
- * pair differently leave the arguments unclear: retain them as source, unless
- * Mermaid may read on into later statements (`follows` finds what it seeks
- * there), where refusing could reject a diagram Mermaid accepts. Where
- * Mermaid reads the list, but into other arguments than ours, warn. */
-function mermaidC4ArgumentDiagnostics(body: C4Body, statementId: string, macro: string, text: string, args: readonly C4Argument[], slots: readonly string[], follows: (seeks: string) => boolean): void {
-  const attributes: MermaidC4Attribute[] = []
-  if (!mermaidC4ArgumentFailure(text, 0, attributes)) {
-    const mermaid = c4ArgumentReading(attributes.map(({ key, value }) => ({ ...(key !== undefined ? { name: key } : {}), value })), slots)
-    const ours = c4ArgumentReading(args.map(arg => ({ ...(arg.name ? { name: arg.name } : {}), value: argumentValue(arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw, false).trim() })), slots)
-    if (mermaid !== ours) diagnostic(body, statementId, 'c4_argument_reading', `Pinned Mermaid reads these ${macro} arguments as ${mermaid || 'none'}, where ours reads ${ours || 'none'}. Write each argument as "text" or $name="text", with only a comma between them`)
-    return
-  }
-  const starts: number[] = []
-  for (let offset = 0, index = 0; index < args.length; offset += args[index]!.raw.length + 1, index++) starts.push(offset)
-  const outcome = (failure: C4ArgumentLexFailure): { rejects: boolean; text: string } => {
-    const rejects = failure.kind !== 'early-close' && !(failure.seeks && follows(failure.seeks))
-    return { rejects, text: rejects ? 'Mermaid rejects the diagram' : 'Mermaid rejects the diagram or reads the arguments otherwise' }
-  }
-  const warnings: string[] = []
-  for (let at = 0; ;) {
-    const failure = mermaidC4ArgumentFailure(text, at)
-    if (!failure) break
-    let index = starts.length - 1
-    while (index > 0 && starts[index]! > failure.at) index--
-    const arg = args[index], result = outcome(failure)
-    if (failure.kind === 'unquoted' && !text.slice(failure.at).trim()) {
-      warnings.push(`Pinned Mermaid reads text after the last ${macro} argument, even a space before ")", as unquoted argument text up to the next comma, so it runs past ")": ${result.text}. Ours ignores it; put ")" right after the last argument`)
-      break
-    }
-    if (failure.kind === 'unquoted' && arg && index === args.length - 1 && !arg.raw.includes('"')) {
-      warnings.push(`The last ${macro} argument is unquoted. Pinned Mermaid reads unquoted argument text up to the next comma, so it runs past ")": ${result.text}. Read as ${JSON.stringify(arg.value)}; quote it`)
-      break
-    }
-    if (failure.kind === 'named' && arg?.name && !arg.raw.includes('"')) {
-      if (arg.value !== '') warnings.push(`${macro} argument $${arg.name} has an unquoted value; pinned Mermaid reads $${arg.name}= only before a quoted value, so ${result.text}. Read as ${JSON.stringify(arg.value)}; quote it`)
-      if (index === args.length - 1) break
-      at = starts[index + 1]!
-      continue
-    }
-    const reason = failure.kind === 'unquoted'
-      ? failure.afterQuote
-        ? 'reads text after a closing quote as another, unquoted argument up to the next comma; here it runs past ")"'
-        : 'reads unquoted argument text, quotes and all, up to the next comma; here it runs past ")"'
-      : failure.kind === 'named' ? 'reads "$" as the start of a $name="text" argument'
-        : failure.kind === 'unclosed' ? 'finds no closing quote for an argument'
-          : 'ends the argument list at an earlier ")"'
-    const advice = 'Write each argument as "text", $name="text", or unquoted text without quotes before a comma'
-    if (result.rejects) diagnostic(body, statementId, 'c4_argument_quoting', `${macro} arguments are retained but have no native interpretation: pinned Mermaid ${reason}, so ${result.text}. ${advice}`, 'error')
-    else diagnostic(body, statementId, 'c4_argument_quoting', `Pinned Mermaid ${reason}, so ${result.text}; ours reads the ${macro} arguments as authored. ${advice}`)
-    return
-  }
-  for (const message of warnings) diagnostic(body, statementId, 'c4_unquoted_argument', message)
-}
-
+// The directives pinned Mermaid's C4 grammar knows, besides the element,
+// boundary and relationship macros.
 const MERMAID_C4_DIRECTIVES = new Set(['UpdateElementStyle', 'UpdateRelStyle', 'UpdateLayoutConfig'])
 
 export function c4DirectiveCategory(name: string): C4Directive['category'] {
@@ -460,8 +349,6 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
   const body = emptyC4Body()
   if (parserObservationActive('c4')) observeParserMutation('c4', 'initialize', body)
   body.statements = statements(source)
-  // Mermaid's argument lexer can read on past a statement to the next of these.
-  const lastOffsets = new Map([',', '"', '='].map(seeks => [seeks, source.lastIndexOf(seeks)]))
   const parents: string[] = []
   const ids = new Set<string>()
   let header = false
@@ -536,8 +423,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       continue
     }
     const macro = call[1]!, args = parseC4Arguments(call[2]!)
-    const multiline = /[\r\n]/.test(call[2]!.replace(/"[^"]*"|'[^']*'/g, ''))
-    if (multiline) diagnostic(body, statement.id, 'c4_multiline_arguments', 'Line breaks between C4 arguments are a reader extension; quoted multiline text remains supported')
+    if (/[\r\n]/.test(call[2]!.replace(/"[^"]*"|'[^']*'/g, ''))) diagnostic(body, statement.id, 'c4_multiline_arguments', 'Line breaks between C4 arguments are a reader extension; quoted multiline text remains supported')
     if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'c4_empty_named_argument', 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
     const mermaidMacro = Boolean(element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro)
@@ -626,8 +512,6 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     }
     if (args.some(arg => /^\s*'/.test(arg.raw) || /\\["']/.test(arg.raw))) {
       diagnostic(body, statement.id, 'c4_quoted_string_extension', 'Quoted-string extension is preserved; typed edits write Mermaid entity escapes')
-    } else if (!multiline && mermaidMacro) {
-      mermaidC4ArgumentDiagnostics(body, statement.id, macro, call[2]!, args, knownNames ?? [], seeks => (lastOffsets.get(seeks) ?? -1) >= statement.span.end)
     }
   }
   if (!header) throw new Error('C4: missing diagram header')
