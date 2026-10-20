@@ -40,6 +40,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - A registered family whose parse hook throws no longer makes `parseMermaid`
   and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
   which `verify` reports as `RENDER_FAILED` with origin `config`.
+- A State diagram that names a state `_start` or `_end` (or `_start2`, …)
+  keeps its `[*]` start and end nodes. The generated pseudostate took the
+  author's id, so the start node vanished into the authored state and
+  `verify` still reported `ok`; a generated id now skips any an author wrote.
 - A Flowchart, State, Sequence, Class or ER diagram with a frontmatter title
   and nothing else draws its title, as every other family does and as its
   terminal output already did. Flowchart and State used to fail the render

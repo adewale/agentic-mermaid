@@ -641,9 +641,16 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const group = composites.get(id)
     if (group) Object.assign(group, stateLabel(group, pieces))
   }
-  // Counter for unique [*] pseudostate IDs
+  // Counter for unique [*] pseudostate IDs. A generated id skips any an
+  // author wrote, so a state named `_start` is never taken for a `[*]`.
   let startCount = 0
   let endCount = 0
+  const authoredPseudoIds = new Set(lines.join('\n').match(/(?<![\w-])_(?:start|end)\d*(?![\w-])/g) ?? [])
+  const pseudostateId = (base: '_start' | '_end', count: number): { id: string; count: number } => {
+    let next = count + 1
+    while (authoredPseudoIds.has(`${base}${next > 1 ? next : ''}`)) next++
+    return { id: `${base}${next > 1 ? next : ''}`, count: next }
+  }
   // Per-composite region counter (for stable region ids `X__r1`, `X__r2`, …).
   const regionCounts = new Map<string, number>()
   // The parent each composite was attached under, and each open group's depth
@@ -683,15 +690,15 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   const resolveEndpoint = (raw: string, endpoint: 'source' | 'target'): string => {
     if (raw === '[*]') {
       if (endpoint === 'source') {
-        startCount++
-        const id = `_start${startCount > 1 ? startCount : ''}`
-        registerStateNode(graph, compositeStack, { id, label: '', shape: 'state-start' })
-        return id
+        const start = pseudostateId('_start', startCount)
+        startCount = start.count
+        registerStateNode(graph, compositeStack, { id: start.id, label: '', shape: 'state-start' })
+        return start.id
       }
-      endCount++
-      const id = `_end${endCount > 1 ? endCount : ''}`
-      registerStateNode(graph, compositeStack, { id, label: '', shape: 'state-end' })
-      return id
+      const end = pseudostateId('_end', endCount)
+      endCount = end.count
+      registerStateNode(graph, compositeStack, { id: end.id, label: '', shape: 'state-end' })
+      return end.id
     }
     const history = matchHistoryEndpoint(raw)
     if (history) {
