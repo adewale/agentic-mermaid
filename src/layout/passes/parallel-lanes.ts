@@ -1,3 +1,5 @@
+import type { ResolvedRenderStyle } from '../../styles.ts'
+import { measureLabelConflicts } from '../label-conflicts.ts'
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { countEdgeCrossings, countParallelRouteOverlaps, onShapeOutline } from '../../layout-rubric.ts'
@@ -181,15 +183,20 @@ export function applySymmetricParallelEdgeLanes(
  * owned by `applySymmetricParallelEdgeLanes` (they need outer lanes for their
  * labels); everything else is left to the certifying route contracts.
  */
-function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>, options?: { allowCrossingsForOverlap: boolean }): boolean {
+function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>, options?: { allowCrossingsForOverlap: boolean; labelClearance?: { nodes: PositionedNode[]; style: ResolvedRenderStyle } }): boolean {
   const points = new Map(proposed.map(candidate => [candidate.edge, candidate.points]))
   const involved = new Set<number>()
   const candidate = edges.map((edge, index) => {
     const route = points.get(edge)
     if (!route) return edge
     involved.add(index)
+    if (options?.labelClearance) return { ...edge, points: route, labelPosition: edge.label ? longestSegmentMidpoint(route) : undefined }
     return { ...edge, points: route }
   })
+  if (options?.labelClearance) {
+    const { nodes, style } = options.labelClearance
+    if (measureLabelConflicts({ nodes, edges: candidate }, style, involved).total > measureLabelConflicts({ nodes, edges }, style, involved).total) return false
+  }
   const extraCrossings = countEdgeCrossings(candidate, involved) - countEdgeCrossings(edges, involved)
   if (!options?.allowCrossingsForOverlap) return extraCrossings <= 0
   const repairedPairs = countParallelRouteOverlaps(edges, involved) - countParallelRouteOverlaps(candidate, involved)
@@ -206,12 +213,15 @@ export function applyParallelDuplicateLanes(
   groups: PositionedGroup[],
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
+  preserveLabels?: ResolvedRenderStyle,
 ): void {
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const f = layoutFlow(graph.direction)
   const TARGET_SEP = 14
   const MARGIN = 5
   const BASE_GAP = 16
+  const proposalOptions = { allowCrossingsForOverlap: true,
+    ...(preserveLabels ? { labelClearance: { nodes, style: preserveLabels } } : {}) }
   const mainSize = (n: PositionedNode) => (f.isHorizontal ? n.width : n.height)
   const crossSize = (n: PositionedNode) => (f.isHorizontal ? n.height : n.width)
   const mk = (mainVal: number, crossVal: number): Point =>
@@ -336,7 +346,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: clipped })
     }
-    if (!parallelLaneProposalAllowed(edges, proposed, { allowCrossingsForOverlap: true })) return false
+    if (!parallelLaneProposalAllowed(edges, proposed, proposalOptions)) return false
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.labelPosition = edge.label ? longestSegmentMidpoint(points) : undefined
@@ -472,7 +482,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: pts })
     }
-    if (!ok || !parallelLaneProposalAllowed(edges, proposed, { allowCrossingsForOverlap: true })) return
+    if (!ok || !parallelLaneProposalAllowed(edges, proposed, proposalOptions)) return
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.labelPosition = undefined

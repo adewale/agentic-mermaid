@@ -54,6 +54,7 @@ function segmentEntersInterior(a: Point, b: Point, rect: Rect): boolean {
 export function measureLabelConflicts(
   positioned: Pick<PositionedGraph, 'nodes' | 'edges'>,
   style: ResolvedRenderStyle,
+  involved?: ReadonlySet<number>,
 ): LabelConflictCounts {
   const labels = positioned.edges.flatMap((edge, index) => {
     if (!edge.label) return []
@@ -65,6 +66,7 @@ export function measureLabelConflicts(
     labels,
     positioned.nodes.map(node => ({ x: node.x, y: node.y, w: node.width, h: node.height })),
     positioned.edges.map(edge => ({ points: edge.points, hidden: edge.style === 'invisible' })),
+    involved,
   )
 }
 
@@ -88,19 +90,22 @@ export function measureRenderedLabelConflicts(layout: RenderedLayout): LabelConf
   )
 }
 
-function countLabelConflicts(labels: readonly Label[], nodes: readonly Rect[], routes: readonly Route[]): LabelConflictCounts {
+function countLabelConflicts(labels: readonly Label[], nodes: readonly Rect[], routes: readonly Route[], involved?: ReadonlySet<number>): LabelConflictCounts {
   const counts = emptyCounts()
   for (let i = 0; i < labels.length; i++) {
     const label = labels[i]!
+    const changedLabel = !involved || involved.has(label.edgeIndex)
     for (let j = i + 1; j < labels.length; j++) {
+      if (!changedLabel && !involved!.has(labels[j]!.edgeIndex)) continue
       if (overlappingInteriors(label.rect, labels[j]!.rect)) counts.labelLabel++
     }
-    for (const node of nodes) {
+    if (changedLabel) for (const node of nodes) {
       if (overlappingInteriors(label.rect, node)) counts.labelNode++
     }
     for (let j = 0; j < routes.length; j++) {
       const other = routes[j]!
       if (j === label.edgeIndex || other.hidden) continue
+      if (!changedLabel && !involved!.has(j)) continue
       for (let segment = 1; segment < other.points.length; segment++) {
         if (segmentEntersInterior(other.points[segment - 1]!, other.points[segment]!, label.rect)) {
           counts.labelEdge++
