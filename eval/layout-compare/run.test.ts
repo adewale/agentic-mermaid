@@ -1,6 +1,28 @@
 import { expect, test } from 'bun:test'
-import { snapshotSample, compareSample, buildReportHtml } from './run.ts'
+import { snapshotSample, compareSample, buildReportHtml, buildSnapshot } from './run.ts'
+import { generatedFlowchartSamples } from './generated.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
+
+test('generated quality snapshots replay an explicit population and retain fully consumed backend evidence', () => {
+  const range = { start: 66, count: 1 }
+  expect(generatedFlowchartSamples(range)).toEqual(generatedFlowchartSamples(range))
+  expect(generatedFlowchartSamples({ start: 67, count: 1 })[0]!.source).not.toBe(generatedFlowchartSamples(range)[0]!.source)
+  const snapshot = buildSnapshot('generated', { generated: range, renderOptions: { graphLayout: { backend: 'agentic' } } })
+  expect(snapshot.population).toEqual({ ...range, kind: 'generated-flowchart', terminal: 'not-requested' })
+  expect(snapshot.samples).toHaveLength(1)
+  const sample = snapshot.samples[0]!
+  expect(sample).toMatchObject({ id: 'generated-cyclic:66', ok: true, family: 'flowchart', metrics: { nodeCount: 9, edgeCount: 21 } })
+  expect(sample.ascii).toBeUndefined()
+  for (const receipt of [sample.svgReceipt, sample.layoutReceipt]) expect(receipt?.layoutDecisions?.[0]).toMatchObject({ requested: 'agentic', selected: 'agentic' })
+  expect(buildReportHtml(snapshot, snapshot)).toContain('not-requested')
+})
+
+test('generated quality comparisons reject unbounded, empty or implicit-policy populations before rendering', () => {
+  for (const range of [{ start: 0, count: 0 }, { start: 0, count: 257 }, { start: -1, count: 1 }, { start: 0, count: 1.5 }, { start: 0xffffffff, count: 2 }]) {
+    expect(() => generatedFlowchartSamples(range)).toThrow(RangeError)
+  }
+  expect(() => buildSnapshot('implicit', { generated: { start: 0, count: 1 } })).toThrow('explicit graphLayout.backend')
+})
 
 test('visual snapshots apply the same backend to source rendering and parsed quality, retaining both receipts', () => {
   const input = { id: 'labelled-branch', family: 'flowchart', source: 'flowchart TD\nA([Start]) -->|yes| B{Choose}\nB --> C\nB --> D' }
