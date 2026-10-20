@@ -186,6 +186,17 @@ const C4_READ_OTHERWISE: ReadonlyArray<readonly [string, string, string, number]
   ['text glued to a closing quote before another statement', 'C4Context\n  Person(a, "Ann"x)\n  Person(b, "Bob")', 'c4_argument_quoting', 2],
 ]
 
+// Mermaid's lexer reads these argument lists, but into other arguments than
+// ours: text after a closing quote is another argument, a comma always ends
+// unquoted text, and "$" starts a name running to "=". [construct, source,
+// Mermaid's label and description]
+const C4_ARGUMENTS_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly [string, string]]> = [
+  ['text glued to a closing quote', 'C4Context\n  Person(a, "Ann"glued, "A customer")', ['Ann', 'glued']],
+  ['a space before a comma after a quoted argument', 'C4Context\n  Person(a, "Ann" , "A customer")', ['Ann', '']],
+  ['a comma inside parentheses', 'C4Context\n  Person(a, Ann (x, y), "A customer")', ['Ann (x', 'y)']],
+  ['a space inside an argument name', 'C4Context\n  Person(a, "Ann", $de scr="A customer")', ['Ann', '']],
+]
+
 // Mermaid's database throws when a participant that is not active is
 // deactivated; ours ignores that deactivation.
 const SEQUENCE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
@@ -470,6 +481,14 @@ describe('accept what pinned Mermaid accepts', () => {
     const parsed = parseRegisteredMermaid(source)
     expect({ mermaid, ours: parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => element.id) : [], ...readGenerously(source, 'Bob') })
       .toEqual({ mermaid: { ok: true, value: ['a'] }, ours: ['a', 'b'], typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  test.each(C4_ARGUMENTS_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads other arguments', async (_construct, source, fields) => {
+    const mermaid = await upstream.project(source, diagram => diagram.db.getC4ShapeArray().map((shape: { label?: { text: string }; descr?: { text: string } }) => [shape.label?.text, shape.descr?.text ?? '']))
+    const parsed = parseRegisteredMermaid(source)
+    const ours = parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => [element.label, element.description ?? '']) : []
+    expect({ mermaid, differs: JSON.stringify(ours) !== JSON.stringify([fields]), ...readGenerously(source, '<svg') })
+      .toEqual({ mermaid: { ok: true, value: [fields] }, differs: true, typed: 'c4', draws: true, reported: ['c4_argument_reading@2'] })
   })
 
   test('timeline: events on a section line after a period are reported, as Mermaid adds them to that period', async () => {
