@@ -227,4 +227,25 @@ xychart
   test('a clean inline SVG passes', () => {
     expect(verifyNoExternalRefs('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>')).toEqual({ ok: true, refs: [] })
   })
+
+  test('retains distinct attribute and stylesheet handling when escaped CSS reveals a comment', () => {
+    for (const paint of [
+      String.raw`u\2f\2a x\2a\2f rl(https://example.invalid/fill.svg)`,
+      String.raw`\26 #117;rl(relative.svg)`,
+    ]) {
+      const attribute = svgDocument(`<rect fill="${paint}"/>`)
+      expect(applyOutputSecurityPolicy(attribute)).toEqual({
+        svg: attribute,
+        diagnostics: [{ code: 'EXTERNAL_REFERENCE', reference: `fill=${paint}` }],
+      })
+      expect(() => applyOutputSecurityPolicy(attribute, 'strict')).toThrow('strict verification failed')
+
+      // The existing attribute policy applies its reference normalization twice;
+      // stylesheet policy applies it once. Neither decoding step is idempotent.
+      const stylesheet = svgDocument(`<style>rect{fill:${paint}}</style>`)
+      expect(applyOutputSecurityPolicy(stylesheet, 'strict')).toEqual({ svg: stylesheet, diagnostics: [] })
+    }
+    expect(() => applyOutputSecurityPolicy(svgDocument(String.raw`<rect fill="\110000"/>`)))
+      .toThrow(RangeError)
+  })
 })

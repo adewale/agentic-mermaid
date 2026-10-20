@@ -110,6 +110,8 @@ describe('claim-keyed backend capability conformance', () => {
         for (const [markup, diagnostic] of [
           ['<g onload="alert(1)"/>', 'active content'],
           ['<a href="javascript&#x3a;alert(1)"><rect/></a>', 'active content'],
+          [String.raw`<rect style="fill:java\73 cript:alert(1)"/>`, 'active content'],
+          ['<style>rect{fill:expre/**/ssion(alert(1))}</style>', 'active content'],
           ['<rect x="1" x="2"/>', 'invalid SVG document envelope'],
         ] as const) {
           content = markup
@@ -119,13 +121,19 @@ describe('claim-keyed backend capability conformance', () => {
           expect(renderer.renderMermaidSVG(source, { security })).toBe(safe)
         }
       }
-      content = '<a href="https://example.invalid/host-link"><rect/></a>'
-      const external = renderer.renderMermaidSVGWithReceipt(source)
-      expect(external.svg).toContain(content)
-      expect(external.receipt.diagnostics).toContainEqual({
-        code: 'EXTERNAL_REFERENCE', reference: 'https://example.invalid/host-link',
-      })
-      expect(() => renderer.renderMermaidSVG(source, { security: 'strict' })).toThrow('strict verification failed')
+      for (const [markup, reference] of [
+        ['<a href="https://example.invalid/host-link"><rect/></a>', 'https://example.invalid/host-link'],
+        [String.raw`<rect fill="u\2f\2a x\2a\2f rl(https://example.invalid/fill.svg)"/>`,
+          String.raw`fill=u\2f\2a x\2a\2f rl(https://example.invalid/fill.svg)`],
+        [String.raw`<rect fill="\26 #117;rl(relative.svg)"/>`, String.raw`fill=\26 #117;rl(relative.svg)`],
+      ] as const) {
+        content = markup
+        const external = renderer.renderMermaidSVGWithReceipt(source)
+        expect(external.svg).toContain(content)
+        expect(external.receipt.diagnostics).toContainEqual({ code: 'EXTERNAL_REFERENCE', reference })
+        expect(() => renderer.renderMermaidSVG(source, { security: 'strict' })).toThrow('strict verification failed')
+        expect(() => renderer.renderMermaidSVGWithReceipt(source, { security: 'strict' })).toThrow('strict verification failed')
+      }
       content = ''
       expect(renderer.renderMermaidSVGWithReceipt(source).svg).toBe(safe)
     } finally {
