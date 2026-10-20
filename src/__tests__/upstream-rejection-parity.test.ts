@@ -371,6 +371,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'an entity code ending in `;` in member text', 'classDiagram\n  Animal : x #59; y'],
   ['class', 'a `)` Mermaid reads in a method, as text, or as an entity code', 'classDiagram\n  class A {\n    +f(a) b)\n    )x\n    +x #41;\n  }'],
   ['class', 'keywords in backticks and words that only start like one', 'classDiagram\n  class `class`\n  `class` : x\n  classes : y\n  call: z\n  class call\n  A --> `_self`'],
+  ['class', '`call` with no blank after it in a relationship', 'classDiagram\n  call-->A\n  B --> call: uses\n  call<|--C'],
   ['class', 'colons and `;` in accessibility text', 'classDiagram\n  class A\n  accTitle: a:b; c\n  accDescr {\n    x : y : z\n  }'],
   ['class', 'a hyphenated property after the first colon', 'classDiagram\n  class A:::thick\n  classDef thick fill:#fff,stroke-width:4px\n  style A fill:#eee, stroke-width:2px'],
   ['quadrant', 'a < in a quoted point label', 'quadrantChart\n  "A < B": [0.3, 0.4]'],

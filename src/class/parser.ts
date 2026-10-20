@@ -1330,6 +1330,7 @@ function classRelationText(label?: string, fromCardinality?: string, toCardinali
 /** Endpoints, generics, cardinalities and labels share one bounded scanner for
  * one-ended and mixed relationships, including escaped IDs with spaces. */
 function parseClassRelationEndpoints(leftSource: string, rightSource: string): (Omit<ClassRelationship, 'type' | 'markerAt'> & { fromGeneric?: string; toGeneric?: string }) | null {
+  if (callBeforeBlank(leftSource, rightSource)) return null
   let left = leftSource.trim()
   let right = rightSource.trim()
   let fromCardinality: string | undefined
@@ -1402,7 +1403,7 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string): (
  * arrow grammar below remains responsible for marked relationships. */
 function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
   const operator = findMarkerlessRelationshipOperator(line)
-  if (operator < 0) return null
+  if (operator < 0 || callBeforeBlank(line.slice(0, operator), line.slice(operator + 2))) return null
 
   const left = line.slice(0, operator).trim()
   let right = line.slice(operator + 2).trim()
@@ -1493,6 +1494,13 @@ const CLASS_STATEMENT_KEYWORDS = new Set([...CLASS_KEYWORDS, 'class', 'classDiag
  *  as a class name: after `class`, or where a statement starts. */
 export function readsAsClassName(id: string, backticked: boolean, statementStart: boolean): boolean {
   return !(backticked ? CLASS_KEYWORDS_IN_BACKTICKS : statementStart ? CLASS_STATEMENT_KEYWORDS : CLASS_KEYWORDS).has(id)
+}
+
+/** Whether a relationship's source or target is `call` before a blank or
+ *  the line's end, as written around its arrow: Mermaid's lexer reads it
+ *  there as a callback, where `call-->A` and `A --> call: x` name a class. */
+function callBeforeBlank(leftSource: string, rightSource: string): boolean {
+  return /^\s*call\s/.test(leftSource) || /^\s*(?:"[^"]*"\s*)?call(?:\s|$)/.test(rightSource)
 }
 
 /** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
