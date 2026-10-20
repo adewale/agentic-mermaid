@@ -148,6 +148,31 @@ const C4_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['an empty boundary', 'C4Context\n  Person(a, "Ann")\n  System_Boundary(b, "Bank") {\n  }', 'Bank', 'c4_empty_boundary', 3],
   ['a standalone direction', 'C4Context\n  direction LR\n  Person(a, "Ann")', 'Ann', 'c4_direction', 2],
   ['a legend directive', 'C4Context\n  Person(a, "Ann")\n  SHOW_LEGEND()', 'Ann', 'c4_directive_extension', 3],
+  // Mermaid's C4 lexer reads unquoted argument text up to the next comma, so
+  // after the last comma it takes the closing parenthesis too.
+  ['an unquoted last argument', 'C4Context\n  Person(a, Ann Lee)', 'Ann Lee', 'c4_unquoted_argument', 2],
+  ['a space before the closing parenthesis', 'C4Context\n  Person(a, "Ann" )', 'Ann', 'c4_unquoted_argument', 2],
+  ['a space before a boundary\'s closing parenthesis', 'C4Context\n  System_Boundary(b, "Bank", ) {\n    Person(a, "Ann")\n  }', 'Bank', 'c4_unquoted_argument', 2],
+  ['an unquoted named value', 'C4Context\n  Person(a, "Ann", $descr=Banker, $link="https://example.com")', 'Banker', 'c4_unquoted_argument', 2],
+]
+
+// C4 arguments whose quotes Mermaid's lexer pairs differently from ours
+// have no clear meaning: like an unknown argument, the statement is retained
+// as source and the render refuses it. [construct, source, line]
+const C4_UNREADABLE: ReadonlyArray<readonly [string, string, number]> = [
+  ['text glued to a closing quote', 'C4Container\n  Container(c, "C"web_app $techn="Java")', 2],
+  ['text glued to a named value', 'C4Context\n  Person(a, "A")\n  Rel(a, a, "uses", $tags="async"sign)', 3],
+  ['a $ without name="text"', 'C4Context\n  System(s, "S", "desc", $tags=tags="cylinder")', 2],
+  ['quotes in an unquoted last argument', 'C4Context\n  Person(a, link="https://example.com")', 2],
+  ['a comma between quotes in unquoted text', 'C4Context\n  Person(a, "", SMTP"A customer, with accounts.")', 2],
+]
+
+// When a comma follows, Mermaid's lexer reads on past the closing parenthesis
+// and takes the next statement into the argument: it accepts the diagram but
+// reads one element where ours reads two. [construct, source, syntax, line]
+const C4_READ_OTHERWISE: ReadonlyArray<readonly [string, string, string, number]> = [
+  ['an unquoted last argument before another statement', 'C4Context\n  Person(a, Ann)\n  Person(b, "Bob")', 'c4_unquoted_argument', 2],
+  ['text glued to a closing quote before another statement', 'C4Context\n  Person(a, "Ann"x)\n  Person(b, "Bob")', 'c4_argument_quoting', 2],
 ]
 
 // [family, construct, source]
@@ -193,6 +218,9 @@ const ACCEPTED:ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
   // Mermaid removes a `%%` line with the blank lines before it.
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
+  ['c4', 'an unquoted argument before a comma', 'C4Context\n  Person(a, Ann Lee, "A customer")'],
+  ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
+  ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
@@ -241,6 +269,14 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
   })
+
+  test.each(C4_UNREADABLE)('c4: %s is retained as source and not drawn', async (_construct, source, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    const { typed, error } = ours(source)
+    const reported = verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
+    expect({ typed, refused: error?.startsWith('C4 unsupported syntax'), reported })
+      .toEqual({ typed: 'c4', refused: true, reported: [`c4_argument_quoting@${line}`] })
+  })
 })
 
 // Every Mermaid grammar needs the colon after accTitle and accDescr: without
@@ -269,7 +305,14 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
+
+  test.each(C4_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads it otherwise', async (_construct, source, syntax, line) => {
+    const mermaid = await upstream.project(source, diagram => diagram.db.getC4ShapeArray().map((shape: { alias: string }) => shape.alias))
+    const parsed = parseRegisteredMermaid(source)
+    expect({ mermaid, ours: parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => element.id) : [], ...readGenerously(source, 'Bob') })
+      .toEqual({ mermaid: { ok: true, value: ['a'] }, ours: ['a', 'b'], typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
   })
 
   // The typed serializer must write what Mermaid reads: text that is only
