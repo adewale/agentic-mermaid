@@ -1655,6 +1655,7 @@ function finishGraphGeometry(
   style: ResolvedRenderStyle,
   stateNoteMargin: number,
   elkResult?: ElkNode,
+  sharedEdges?: readonly number[],
 ): LayoutRouteProposal {
   const { nodes, edges, groups } = initial
 
@@ -1687,6 +1688,7 @@ function finishGraphGeometry(
     stateNoteMargin,
     frozen: false,
   }
+  if (sharedEdges) for (const index of sharedEdges) ctx.bundled.add(edges[index]!)
   retainGraphText(ctx, style)
   runPipeline(ctx, LAYOUT_PIPELINE, { measureMetrics: measureLayoutPass })
 
@@ -2010,7 +2012,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   }
   const decision: GraphLayoutDecision = {
     requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? 'agentic-layered@3' : 'elk-layered@1', ...(reason ? { reason } : {}),
+    implementation: selected === 'agentic' ? 'agentic-layered@4' : 'elk-layered@1', ...(reason ? { reason } : {}),
   }
   positioned.layoutDecision = decision
   emitGraphLayoutDecision(decision)
