@@ -68,13 +68,11 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
  * canonical line: a `@{…}` block with a space before `@` or inside `@{`, a
  * text-arrow label that a link of another stroke closes, a `linkStyle`
  * index past the links defined above it, an `end` with no subgraph open
- * (alone or before a statement: `end B`), a subgraph no `end` closes, a `&`
- * list without a blank on each side of the `&`, or with an HTML-escaped `&`
- * (`A &amp; B`), an empty quoted label (`A[""]`) or pipe label
- * (`A -->|| B`), label text holding a
- * character upstream's lexer reads as a delimiter there, a subgraph title it
- * cannot read without quotes, a `;` ours ends a statement at where pinned
- * Mermaid's entity prepass reads it otherwise, a `;` between style
+ * (alone or before a statement: `end B`), a subgraph no `end` closes, an
+ * empty quoted label (`A[""]`) or pipe label (`A -->|| B`), label text
+ * holding a character upstream's lexer reads as a delimiter there, a subgraph
+ * title it cannot read without quotes, a `;` ours ends a statement at where
+ * pinned Mermaid's entity prepass reads it otherwise, a `;` between style
  * properties, which Mermaid reads as ending the statement, and quoted text
  * whose boundaries pinned Mermaid's HTML-like preprocessor rewrites; and a
  * link repeating an earlier link's edge id, which Mermaid accepts and, as
@@ -92,21 +90,15 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     else if (text === 'end') {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
     }
-    const notes = text.startsWith('subgraph') || /[&@[\](){}|"]/.test(text) ? flowchartStatementNotes(text, graph) : undefined
+    const notes = text.startsWith('subgraph') || /[@[\](){}|"]/.test(text) ? flowchartStatementNotes(text, graph) : undefined
     if (/^(?:style|classDef|linkStyle)\s/.test(text) && scanFlowchart(text).separators.length > 0) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_style_semicolon', message: 'A `;` between style properties (fill:#f9f;stroke:#0a0) is read as separating them, as in CSS. Pinned Mermaid ends the statement at the `;` and reads the next property as a node (stroke:blue), or, after a `#` color, joins the two into one declaration that paints nothing; separate style properties with `,`.' })
-    }
-    if (notes?.has('amp-spacing')) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_amp_spacing', message: 'A `&` with no blank on one side (A &B) is read as listing the nodes on either side of it. Pinned Mermaid lists nodes only with a blank on each side of `&`, and rejects this; write A & B.' })
     }
     if (notes?.has('empty-string')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_empty_string', message: 'An empty quoted label (A[""], A -->|""| B, subgraph S[""]) is read as an empty label. Pinned Mermaid reads no empty string, and rejects this; put a blank between the quotes (A[" "]), which reads back as an empty label.' })
     }
     if (notes?.has('empty-pipe-label')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_empty_pipe_label', message: 'A pipe label with nothing between its pipes (A -->|| B) is read as a link with no label. Pinned Mermaid reads no pipe label without text, and rejects this; leave the pipes out (A --> B), as the writer does, or put a blank between them (A -->| | B).' })
-    }
-    if (notes?.has('escaped-amp')) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_escaped_amp', message: 'An HTML-escaped `&` after a node (A &amp; B, or &#38;) is read as the `&` listing the nodes on either side of it. Pinned Mermaid reads `&` only unescaped there, and rejects this; write A & B.' })
     }
     if (notes?.has('subgraph-title')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_subgraph_title', message: 'This subgraph title is read as its text. Without quotes, pinned Mermaid reads only letters, digits, blanks, the backtick and !#$%&\'*+-./:?\\^_ in a title, with no link, `:::` or `"` starting a word, and rejects this one; quote the title (subgraph "a (b)"), or give an id and a quoted bracket title (subgraph id["a (b)"]).' })

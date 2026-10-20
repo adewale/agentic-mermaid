@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_ESCAPED_AMP_RE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -536,21 +536,20 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
 }
 
 /** A spelling ours reads in a statement where pinned Mermaid's lexer reads
- * otherwise, which verify reports: a `&` list without a blank on each side
- * of the `&` (`A &B`), or with an HTML-escaped `&` (`A &amp; B`), label text holding a character upstream's lexer reads
- * as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter), and a
- * subgraph title it cannot read without quotes (subgraphTitleUnreadable), a
- * node whose text runs on without a blank to an `@`, or a pipe label whose
- * text does from its pipe, which upstream reads as an edge id (`A[a@b]`,
- * `A -->|a@b| B`); and where ours rejects a statement, a node id
- * (commaIdStop) upstream reads there that ours does not, or a link label
- * whose markers make no link type there (mismatchedLinkMarkers). An empty
- * quoted label (`A[""]`), which upstream's string token cannot read, is
- * noted too, as is a pipe label with
- * nothing between its pipes (`A -->|| B`), which upstream's grammar cannot,
- * and a link whose edge id an earlier link has, which the parser leaves off
- * it, as upstream does. */
-export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'empty-pipe-label' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'link-markers' | 'duplicate-edge-id'
+ * otherwise, which verify reports: label text holding a character
+ * upstream's lexer reads as a delimiter there (flowchart-lexer.ts
+ * labelTextHoldsDelimiter), and a subgraph title it cannot read without
+ * quotes (subgraphTitleUnreadable), a node whose text runs on without a
+ * blank to an `@`, or a pipe label whose text does from its pipe, which
+ * upstream reads as an edge id (`A[a@b]`, `A -->|a@b| B`); and where ours
+ * rejects a statement, a node id (commaIdStop) upstream reads there that
+ * ours does not, or a link label whose markers make no link type there
+ * (mismatchedLinkMarkers). An empty quoted label (`A[""]`), which
+ * upstream's string token cannot read, is noted too, as is a pipe label
+ * with nothing between its pipes (`A -->|| B`), which upstream's grammar
+ * cannot, and a link whose edge id an earlier link has, which the parser
+ * leaves off it, as upstream does. */
+export type FlowchartStatementNote = 'empty-string' | 'empty-pipe-label' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'link-markers' | 'duplicate-edge-id'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -1539,26 +1538,19 @@ function consumeNodeGroup(
   if (!first) return null
 
   const ids = [first.id]
-  let remaining = first.remaining
+  let remaining = first.remaining.trim()
 
-  // Check for & separators, plain or HTML-escaped (`&amp;`), which the lexer
-  // leaves in the statement after a node. One that no node follows
-  // (upstream reads one on its line only) stays unconsumed, so the statement
-  // fails.
-  while (remaining.trimStart().startsWith('&')) {
+  // Check for & separators. One that no node follows (upstream reads one on
+  // its line only) stays unconsumed, so the statement fails.
+  while (remaining.startsWith('&')) {
     if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'parallel-separator', '&')
-    const escaped = FLOWCHART_ESCAPED_AMP_RE.exec(remaining.trimStart())?.[0]
-    const after = remaining.trimStart().slice(escaped?.length ?? 1)
-    const next = consumeNode(after.trim(), graph, subgraphStack, declaredSubgraphIds, notes)
+    const next = consumeNode(remaining.slice(1).trim(), graph, subgraphStack, declaredSubgraphIds, notes)
     if (!next) break
-    // Upstream lists nodes only with a plain `&`, and a blank on each side.
-    if (escaped) notes?.add('escaped-amp')
-    else if (!/^\s/.test(remaining) || !/^\s/.test(after)) notes?.add('amp-spacing')
     ids.push(next.id)
-    remaining = next.remaining
+    remaining = next.remaining.trim()
   }
 
-  return { ids, remaining: remaining.trim() }
+  return { ids, remaining }
 }
 
 interface ConsumedNode {
