@@ -1380,6 +1380,16 @@ function mismatchedLinkMarkers(parsed: Extract<EdgeLineParseResult, { ok: false 
   return endMarkerForOp(arrow.closeOp) === (arrow.startMark === 'x' ? 'cross' : 'circle') ? undefined : parsed.remaining.slice(0, arrow.end)
 }
 
+/** The `:::class` right after a node, unless upstream's edge id token
+ * begins there: after a shape's closing delimiter, with no blank, a run to
+ * an `@` before a link is one (`A["x"]:::cx--e1@-->B` is the edge id
+ * `:::cx--e1`, and A takes no class). */
+function consumeNodeClass(text: string, remaining: string): { className: string; length: number } | null {
+  const closer = text[text.length - remaining.length - 1]
+  if (closer !== undefined && /[\])}]/.test(closer) && GLUED_EDGE_ID_PREFIX_REGEX.test(remaining)) return null
+  return consumeClassShorthand(remaining)
+}
+
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
   const parsed = consumeClassShorthandPrefix(text)
   if (!parsed) return null
@@ -1719,7 +1729,7 @@ function consumeNode(
   const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
   if (metadataNode) {
     let remaining = metadataNode.remaining
-    const classMatch = consumeClassShorthand(remaining)
+    const classMatch = consumeNodeClass(text, remaining)
     if (classMatch) {
       appendGraphClass(graph.classAssignments, metadataNode.id, classMatch.className)
       if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'append-class', { id: metadataNode.id, name: classMatch.className, classes: graph.classAssignments.get(metadataNode.id) })
@@ -1733,7 +1743,7 @@ function consumeNode(
   if (quotedShapeNode) {
     let remaining = consumeNodeMetadataSuffix(quotedShapeNode.id, quotedShapeNode.remaining, graph, subgraphStack)
       ?? quotedShapeNode.remaining
-    const classMatch = consumeClassShorthand(remaining)
+    const classMatch = consumeNodeClass(text, remaining)
     if (classMatch) {
       appendGraphClass(graph.classAssignments, quotedShapeNode.id, classMatch.className)
       if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'append-class', { id: quotedShapeNode.id, name: classMatch.className, classes: graph.classAssignments.get(quotedShapeNode.id) })
@@ -1782,7 +1792,7 @@ function consumeNode(
   remaining = consumeNodeMetadataSuffix(id, remaining, graph, subgraphStack) ?? remaining
 
   // Check for ::: class shorthand suffix immediately after the node
-  const classMatch = consumeClassShorthand(remaining)
+  const classMatch = consumeNodeClass(text, remaining)
   if (classMatch) {
     appendGraphClass(graph.classAssignments, id, classMatch.className)
     if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'append-class', { id, name: classMatch.className, classes: graph.classAssignments.get(id) })
