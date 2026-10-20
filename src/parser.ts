@@ -834,7 +834,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       if (!graph.nodes.has(stereotype.id)) assertGraphNodeInsertion(graph)
       graph.nodes.set(stereotype.id, { id: stereotype.id, label, shape })
       if (parserObservationActive('state')) observeParserMutation('state', 'upsert-node', graph.nodes.get(stereotype.id))
-      trackInStateScope(compositeStack, stereotype.id)
+      trackInStateScope(graph, compositeStack, stereotype.id)
       continue
     }
 
@@ -1075,14 +1075,20 @@ function stateLabel<T extends { label: string; labelContent?: LabelContent }>(ta
   return { ...rest, label: text, ...(content ? { labelContent: content } : {}) } as T
 }
 
-function trackInStateScope(compositeStack: MermaidSubgraph[], id: string): void {
-  if (compositeStack.length > 0) {
-    const current = compositeStack[compositeStack.length - 1]!
-    if (!current.nodeIds.includes(id)) {
-      current.nodeIds.push(id)
-      if (parserObservationActive('state')) observeParserMutation('state', 'add-member', { parent: current.id, id })
-    }
-  }
+// The composite (or concurrency region) that first took each state. A state
+// belongs to one: a later mention in another composite or region, such as a
+// transition to it, reaches across to it rather than adding it there too.
+const stateMemberOwners = new WeakMap<MermaidGraph, Map<string, MermaidSubgraph>>()
+
+function trackInStateScope(graph: MermaidGraph, compositeStack: MermaidSubgraph[], id: string): void {
+  const current = compositeStack.at(-1)
+  if (!current || current.nodeIds.includes(id)) return
+  let owners = stateMemberOwners.get(graph)
+  if (!owners) stateMemberOwners.set(graph, owners = new Map())
+  if (owners.has(id)) return
+  owners.set(id, current)
+  current.nodeIds.push(id)
+  if (parserObservationActive('state')) observeParserMutation('state', 'add-member', { parent: current.id, id })
 }
 
 /** Register a state node and track in composite state if applicable */
@@ -1097,13 +1103,7 @@ function registerStateNode(
     graph.nodes.set(node.id, node)
     if (parserObservationActive('state')) observeParserMutation('state', 'add-node', node)
   }
-  if (compositeStack.length > 0) {
-    const current = compositeStack[compositeStack.length - 1]!
-    if (!current.nodeIds.includes(node.id)) {
-      current.nodeIds.push(node.id)
-      if (parserObservationActive('state')) observeParserMutation('state', 'add-member', { parent: current.id, id: node.id })
-    }
-  }
+  trackInStateScope(graph, compositeStack, node.id)
 }
 
 /** Ensure a state node exists with default rounded shape */
@@ -1115,14 +1115,7 @@ function ensureStateNode(
   if (!graph.nodes.has(id)) {
     registerStateNode(graph, compositeStack, { id, label: id, shape: 'rounded' })
   } else {
-    // Track in composite if applicable
-    if (compositeStack.length > 0) {
-      const current = compositeStack[compositeStack.length - 1]!
-      if (!current.nodeIds.includes(id)) {
-        current.nodeIds.push(id)
-        if (parserObservationActive('state')) observeParserMutation('state', 'add-member', { parent: current.id, id })
-      }
-    }
+    trackInStateScope(graph, compositeStack, id)
   }
 }
 

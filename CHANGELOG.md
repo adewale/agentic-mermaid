@@ -40,6 +40,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - A registered family whose parse hook throws no longer makes `parseMermaid`
   and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
   which `verify` reports as `RENDER_FAILED` with origin `config`.
+- A State transition to a state that another composite or concurrency region
+  already holds (`state B { y }` then `state A { x --> y }`) draws the
+  transition across to it. Each mention used to add the state to every
+  composite, which the layout refused as a duplicate (`INTERNAL_ERROR`). The
+  first composite to mention a state owns it; Mermaid moves it into the last,
+  a difference recorded in `docs/project/divergences.md`.
 - A State diagram that names a state `_start` or `_end` (or `_start2`, …)
   keeps its `[*]` start and end nodes. The generated pseudostate took the
   author's id, so the start node vanished into the authored state and
