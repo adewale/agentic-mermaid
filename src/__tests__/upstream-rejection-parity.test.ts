@@ -326,6 +326,12 @@ const FLOWCHART_LABELS: ReadonlyArray<readonly [string, string]> = [
   ['a string then text in shape, pipe, text-arrow and subgraph labels', 'flowchart LR\n  A["a" b] -->|"c" d| B -- "e" f --> C\n  subgraph S["g" h]\n    A\n  end\n  subgraph "i"j\n    B\n  end'],
 ]
 
+// Flowchart subgraphs whose Mermaid id no statement can name: ours derives
+// one, and reads the same title and members. [construct, source]
+const FLOWCHART_GROUPS: ReadonlyArray<readonly [string, string]> = [
+  ['a bracket title after an id holding blanks, repeated', 'flowchart LR\n  subgraph a b[c]\n    A\n  end\n  subgraph a b[d]\n    B\n  end'],
+]
+
 // Flowchart source Mermaid accepts but reads otherwise than its author meant.
 // [construct, source, Mermaid's nodes, ours, text the render draws, syntax verify reports, its line]
 const FLOWCHART_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly string[], readonly string[], string, string, number]> = [
@@ -407,6 +413,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   // label begins with a `"` that no later line closes.
   ['flowchart', 'labels beginning with an entity quote that run across lines', 'flowchart LR\n  A[&quot;x\n  y] --> B\n  subgraph S[&quot;t\n  u]\n    C\n  end'],
   ...FLOWCHART_LABELS.map(([construct, source]) => ['flowchart', construct, source] as const),
+  ...FLOWCHART_GROUPS.map(([construct, source]) => ['flowchart', construct, source] as const),
   ['flowchart', 'an `@` after a blank, in quotes, in an edge id and in metadata', 'flowchart LR\n  A[ a@b.com] --> B["c@d"]\n  B e1@--> C@{ label: "e@f" }'],
   ['flowchart', '`;` after colors and entity codes Mermaid reads as we do', 'flowchart LR\n  A[#quot;x#quot;] --> B;C\n  style A fill:#f00;\n  classDef c fill:#f9f,stroke:#333;\n  style B fill:#fff ;style C fill:#000;'],
   ['flowchart', 'subgraph titles of letters, digits and the punctuation Mermaid reads unquoted, and a quoted one',"flowchart LR\n  subgraph a.-b!#$%&'*+/:?^_`x\n    A\n  end\n  subgraph \"a(b)\"\n    B\n  end\n  subgraph 東京 Ελλάδα\n    C\n  end"],
@@ -545,6 +552,13 @@ describe('accessibility directives without their colon', () => {
 })
 
 describe('accept what pinned Mermaid accepts', () => {
+  test.each(FLOWCHART_GROUPS)('flowchart: %s has the title and members Mermaid reads', async (_construct, source) => {
+    const mermaid = await upstream.parse(source)
+    const read = mermaid.ok ? mermaid.flowchart : undefined
+    expect(parseMermaid(source).subgraphs.map(group => [group.label, group.nodeIds]))
+      .toEqual(read?.subgraphs.map(group => [group.title, group.nodes]) ?? [])
+  })
+
   test.each(FLOWCHART_LABELS)('flowchart: %s are read as Mermaid reads them', async (_construct, source) => {
     const mermaid = await upstream.parse(source)
     const read = mermaid.ok ? mermaid.flowchart : undefined

@@ -139,15 +139,25 @@ function subgraphBracketTitle(rest: string): { id: string; title: string } | und
     : undefined
 }
 
-function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string } {
+/** A subgraph declaration: `titled` when it has a bracket title, whose id
+ * part names the group, repeats included, whatever it holds. */
+type SubgraphDeclaration = Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string; titled: boolean }
+
+function parseFlowchartSubgraphDeclaration(rest: string): SubgraphDeclaration {
   const titled = subgraphBracketTitle(rest)
   if (titled) {
-    const { id } = titled
-    if (!isFlowchartNodeId(id)) {
-      throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
-    }
     const parsed = parseFlowchartLabel(titled.title)
-    return { id, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity: id }
+    const label = { label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}) }
+    if (isFlowchartNodeId(titled.id)) return { id: titled.id, ...label, generated: false, identity: titled.id, titled: true }
+    // Upstream's id there is any title it reads without brackets (`a b`,
+    // `"a b"`); one that is no node id cannot be named in a link, so ours
+    // derives one, as for a title alone.
+    if (subgraphTitleUnreadable(titled.id)) {
+      throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(titled.id)}`)
+    }
+    const identity = unquoteFlowchartLabel(titled.id).trim()
+    if (isFlowchartNodeId(identity)) return { id: identity, ...label, generated: false, identity, titled: true }
+    return { id: derivedSubgraphId(identity), ...label, generated: true, identity, titled: true }
   }
   const parsed = parseFlowchartLabel(rest)
   // Identity comes from the logical source spelling, before display decoding.
@@ -158,15 +168,18 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   // A title that is one node id (`a.b`, `**Two**`) is the subgraph's id, as
   // upstream reads it there, so a link to that id ends at the subgraph.
   if (isFlowchartNodeId(identity)) {
-    return { id: identity, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity }
+    return { id: identity, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity, titled: false }
   }
-  // Mermaid identifiers are Unicode-aware everywhere else in this parser.
-  // Preserve non-Latin letters/numbers when deriving the implicit container id
-  // instead of silently collapsing a CJK title to an empty string. A markup
-  // tag separates words like a space: a line break the title runs across is
-  // `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`.
-  const id = identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
-  return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: true, identity }
+  return { id: derivedSubgraphId(identity), label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: true, identity, titled: false }
+}
+
+/** A container id derived from a subgraph's identity. Mermaid identifiers
+ * are Unicode-aware everywhere else in this parser: non-Latin letters and
+ * numbers stay, so a CJK title does not collapse to an empty string. A markup
+ * tag separates words like a space: a line break the title runs across is
+ * `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`. */
+function derivedSubgraphId(identity: string): string {
+  return identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_') || 'group'
 }
 
 /** Whether `text` is one whole node id (flowchartNodeIdLength). */
@@ -606,9 +619,9 @@ function commaIdStop(line: string, parsed: Extract<EdgeLineParseResult, { ok: fa
  * One holding whitespace, or a line break (`breaks`: for each line, the
  * offsets where a line joined on, coalesceFlowchartLines), names no group:
  * each such block is a group of its own, as upstream's `subGraphN`. */
-function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> {
-  const declarations: Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> = []
-  const distinct = new Set<ReturnType<typeof parseFlowchartSubgraphDeclaration>>()
+function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): SubgraphDeclaration[] {
+  const declarations: SubgraphDeclaration[] = []
+  const distinct = new Set<SubgraphDeclaration>()
   const reserved = new Set<string>()
   for (const [lineIndex, raw] of lines.entries()) {
     for (const { text: line, start } of flowchartStatementSpans(raw)) {
@@ -618,7 +631,7 @@ function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyA
         const declaration = parseFlowchartSubgraphDeclaration(rest)
         declarations.push(declaration)
         if (!declaration.generated) reserved.add(declaration.id)
-        else if (/\s/.test(declaration.identity) || breaks[lineIndex]?.some(at => at > start && at < start + line.length)) distinct.add(declaration)
+        else if (!declaration.titled && (/\s/.test(declaration.identity) || breaks[lineIndex]?.some(at => at > start && at < start + line.length))) distinct.add(declaration)
       } else {
         // Reserving every node id the line could hold also covers
         // declarations inside compound chains and metadata without executing
