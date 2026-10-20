@@ -116,17 +116,24 @@ all 4,096 subsets. Keep acceptance, geometry/label fidelity, cold throughput,
 repeated-request latency, allocation, retained heap, RSS and download bytes as
 separate quantities. Rejections do not count as fast successful rendering.
 
-The branch was rebased onto `3187824137a049e326745e9a2d964bb793fb27b2`
-after the typed SVG writer landed. Measurements from the earlier production
-base are diagnostic only. Rebase review also exposed two correctness gaps:
+The branch was rebased onto `c517a1611290c7aa463512dc8b8d5156a3424a98`,
+including PR #437's SVG/terminal allocation and deferred receipts and PR #432's
+grammar, normalization and authored-meaning changes. The `07ab`/`318` and
+`31c24a06`/`1b1ba848` studies remain historical; their measurements were not
+relabeled after either rebase. Earlier review also exposed two correctness gaps:
 C4 identity callbacks require positioned-cache bypass, and inline connector
 labels must inherit enclosing group opacity in both inspection paths. Both
 have behavioral red-to-green regressions.
 
 ## Measured selection
 
-The [dated results and ranked opportunities](flagged-performance-results-2026-10-19.md)
-report the complete frozen study. The conditional `text-spans,indexed-layout`
-profile has repeatable cold forest gains and lower matched browser-corpus time.
-Small broad Node/Bun and normal-cache changes remain unresolved against controls.
-Released browser heap and shipped code grow; all flags stay off by default.
+The [current results and ranked opportunities](flagged-performance-results-2026-10-20.md)
+describe the rebased study. The conditional `text-spans,indexed-layout` profile
+has repeatable cold forest gains, including fully consumed SVG/receipt calls.
+Broader gains depend on runtime and consumption boundary. Adding
+`position-cache` is a separate exact-repeat profile with lower allocation,
+higher settled heap and adverse cases. Runtime flags retain optional code in
+the download. Shared dispatch and wrapper work also remains when flags are off;
+the current off control has repeated tree regressions. Disabled experiments do
+not imply zero runtime cost. All flags stay off by default. The
+[prior-baseline report](flagged-performance-results-2026-10-19.md) is historical.

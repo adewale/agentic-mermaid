@@ -1,4 +1,11 @@
-# Flagged performance experiments and the Mermaid community
+# Historical performance study — before the production rebases
+
+This report preserves the **07ab/318** study completed before PR #437 changed
+production SVG/terminal allocation and deferred receipt work, and before PR
+#432's grammar and normalization changes. Its measurements
+and review claims apply only to those recorded revisions. For the rebased
+candidate, use the [20 October results](flagged-performance-results-2026-10-20.md).
+References below to the study's final runs do not describe the final PR head.
 
 Measurement source: **07ab2f3fe50242c656db94c64a847b56413b1dbe**. Production baseline: **3187824137a049e326745e9a2d964bb793fb27b2**, including the typed writer and Scene-admission work from [PR #435](https://github.com/adewale/agentic-mermaid/pull/435). All twelve experiments remain **off by default**.
 
@@ -332,14 +339,14 @@ env AGENTIC_MERMAID_EXPERIMENTS="$AM_FLAGS" bun run bench:pipeline --cache off -
 env AGENTIC_MERMAID_EXPERIMENTS="$AM_FLAGS,position-cache" bun run bench:pipeline --cache on --rounds 3 --reps 5 --out "$AM_OUT/pipeline-repeat"
 ```
 
-Generated JSON, samples, CPU/allocation profiles, screenshots and plots remain uncommitted under bench-report. The preserved execution driver has the exact warm-up/sample settings, configs, artifacts, hashes, cache policy and process ordering; abbreviated commands above identify every benchmark type. A runtime flag cannot remove already bundled code. Measured source is 07ab. Final-head CI, audit records and rebuilt-package byte-identity verification are recorded in [PR #436](https://github.com/adewale/agentic-mermaid/pull/436); later report/workflow-only edits do not supply new runtime measurements.
+Generated JSON, samples, CPU/allocation profiles, screenshots and plots remain uncommitted under bench-report. The preserved execution driver has the exact warm-up/sample settings, configs, artifacts, hashes, cache policy and process ordering; abbreviated commands above identify every benchmark type. A runtime flag cannot remove already bundled code. Measured source is 07ab. Historical report-only package verification preceded the runtime-changing rebases onto 1b and c517; it does not establish identity with the current candidate. The current study has separate artifacts, measurements and reviews.
 
 ## Validation and final review
 
 Owning-boundary tests and initial independent combined-path audits cover the implemented paths. They corrected typography-key aliases, packed-BVH over-allocation, source-offset truncation, benchmark baseline/failure accounting, retained-output contamination, inherited inline-label group opacity and callback-bearing C4 retention. External admission, final geometry/paint certification, wide-grapheme ownership and final SVG security remain authoritative.
 
-The final PR records its exact head, independent adversarial source/boundary and measurement-claim reviews, required CI outcomes and rebuilt shipped-byte comparison. Earlier implementation audits and 07ab CI are separate from those final-head checks.
+The historical study's implementation audits and 07ab CI apply to their recorded source. The rebased combined candidate requires its own source/boundary and measurement-claim reviews, required CI and shipped-byte comparison; see the 20 October report and current PR.
 
-Visual evidence must link the actual final-head CI artifact with captioned before/after geometry and the correct feature profile. The observed forest changes spacing while preserving authored identities, labels and endpoints; passing geometry contracts is not a universal aesthetics ranking. See the **Visual evidence** section of [PR #436](https://github.com/adewale/agentic-mermaid/pull/436) for immutable base/head identities, the selected-profile receipt and the actual CI artifact.
+The historical forest witness changed spacing while preserving authored identities, labels and endpoints; passing geometry contracts is not a universal aesthetics ranking. It is separate from the rebased candidate's witness. The **Visual evidence** section of [PR #436](https://github.com/adewale/agentic-mermaid/pull/436) identifies the current base/head, selected-profile receipt and CI artifact.
 
 These flags are constrained prototypes, not all twelve full original ambitious designs. Keep the conditional profile, adverse results, memory/payload tradeoffs and fallback coverage visible when deciding whether to promote any one of them.
