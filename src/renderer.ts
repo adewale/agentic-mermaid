@@ -120,7 +120,12 @@ export function lowerGraphScene(
   }
 
   // 2. Edges (polylines — rendered behind nodes)
-  // Each edge is a <polyline> with semantic data-* attributes
+  // Each edge is a <polyline> with semantic data-* attributes. Its authored
+  // edge id is its identity, unless a node or subgraph has that id too
+  // (`A A@--> B`, which Mermaid accepts): that edge keeps its generated one.
+  const nodeAndGroupIds = new Set(graph.nodes.map(node => node.id))
+  const addGroupIds = (groups: readonly PositionedGroup[]): void => groups.forEach(group => { nodeAndGroupIds.add(group.id); addGroupIds(group.children) })
+  addGroupIds(graph.groups)
   const edgeOccurrence = new Map<string, number>()
   const edgeSceneIds = new Map<PositionedEdge, string>()
   for (const edge of graph.edges) {
@@ -130,7 +135,8 @@ export function lowerGraphScene(
     edgeOccurrence.set(pairKey, k + 1)
     const sceneId = `edge:${pairKey}#${k}`
     edgeSceneIds.set(edge, sceneId)
-    parts.push(renderEdge(edge, style, sceneId, markerResources))
+    const identity = edge.id !== undefined && !nodeAndGroupIds.has(edge.id) ? edge.id : sceneId
+    parts.push(renderEdge(edge, style, sceneId, identity, markerResources))
   }
 
   // 3. Edge labels (positioned at midpoint of edge)
@@ -342,6 +348,7 @@ function renderEdge(
   edge: PositionedEdge,
   style: ResolvedRenderStyle,
   sceneId: string,
+  identityId: string,
   markerResources: readonly MarkerDescriptor[],
 ): SceneNode {
   const lineStyle = edge.style === 'dotted' ? 'dotted'
@@ -365,7 +372,7 @@ function renderEdge(
     .map(name => name.replace(/[^A-Za-z0-9_-]/g, ''))
     .filter(Boolean)
   const connectorSemantics = {
-    identity: { id: edge.id ?? sceneId, ...(authoredClassNames.length ? { classNames: authoredClassNames } : {}) },
+    identity: { id: identityId, ...(authoredClassNames.length ? { classNames: authoredClassNames } : {}) },
     endpoints: { from: edge.source, to: edge.target },
     relationship: {
       kind: 'flowchart-edge',

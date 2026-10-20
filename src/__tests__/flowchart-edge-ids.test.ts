@@ -7,7 +7,8 @@
  *  - the agent parser stays STRUCTURED (edge IDs no longer force opaque) and
  *    the serializer re-emits `id@` verbatim before the arrow operator;
  *  - the SVG emits the authored ID as the edge's `data-id` (X4 identity
- *    contract — nodes/subgraphs already carry data-id);
+ *    contract — nodes/subgraphs already carry data-id, and keep it when an
+ *    edge ID repeats theirs);
  *  - ops (remove_edge, set_label) target edges by authored ID as well as by
  *    the endpoint form `A->B`/`A->B#k`;
  *  - the flowchart_edge_id UNSUPPORTED_SYNTAX lint is retired (modeled now);
@@ -189,6 +190,24 @@ describe('flowchart edge IDs — SVG identity (X4)', () => {
     expect(svg).toMatch(/<polyline[^>]*data-id="edge:A-&gt;B#0"/)
     expect(svg).toMatch(/<polyline[^>]*data-role="edge"/)
   })
+
+  // Mermaid accepts an edge id a node or subgraph also has (mermaid-js/mermaid#7033).
+  // The node or subgraph keeps that identity, and the edge its endpoint one.
+  it.each([
+    ['the node it leaves', 'flowchart LR\n  A A@--> B', 'A', 'node'],
+    ['a node a later link declares', 'flowchart LR\n  A e1@--> B\n  e1 --> C', 'e1', 'node'],
+    ['a subgraph', 'flowchart LR\n  subgraph S\n    X\n  end\n  A S@--> B', 'S', 'group'],
+  ])('an edge id naming %s leaves every data-id unique', (_case, source, id, role) => {
+    const marks = [...renderMermaidSVG(source).matchAll(/<[a-z]+\b[^>]*\sdata-id="[^"]*"[^>]*>/g)].map(([element]) => ({
+      id: element.match(/\sdata-id="([^"]*)"/)![1],
+      role: element.match(/\sdata-role="([^"]*)"/)?.[1],
+      from: element.match(/\sdata-from="([^"]*)"/)?.[1],
+      to: element.match(/\sdata-to="([^"]*)"/)?.[1],
+    }))
+    expect(new Set(marks.map(mark => mark.id)).size).toBe(marks.length)
+    expect(marks).toContainEqual({ id, role, from: undefined, to: undefined })
+    expect(marks).toContainEqual({ id: 'edge:A-&gt;B#0', role: 'edge', from: 'A', to: 'B' })
+  })
 })
 
 describe('flowchart edge classes — authored edge paint', () => {
@@ -271,6 +290,15 @@ describe('flowchart edge IDs — op targeting', () => {
     if (!labeled.ok) throw new Error(labeled.error.message)
     expect(labeled.value.body.graph.edges[0]!.label).toBe('yes')
     expect(serializeMermaid(labeled.value)).toBe('flowchart LR\n  A e1@-->|yes| B\n')
+  })
+
+  it('set_label names the node an edge id also names, and the endpoint form that edge', () => {
+    const d = asFlowchart(parseAgent('flowchart LR\n  A A@--> B'))!
+    const node = mutate(d, { kind: 'set_label', target: 'A', label: 'Start' })
+    const edge = mutate(d, { kind: 'set_label', target: 'A->B', label: 'go' })
+    if (!node.ok || !edge.ok) throw new Error('set_label failed')
+    expect(serializeMermaid(node.value)).toBe('flowchart LR\n  A[Start] A@--> B\n')
+    expect(serializeMermaid(edge.value)).toBe('flowchart LR\n  A A@-->|go| B\n')
   })
 
   it('endpoint targeting still works alongside authored IDs', () => {

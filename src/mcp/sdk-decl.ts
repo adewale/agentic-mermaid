@@ -781,7 +781,7 @@ type FlowchartMutationOp =
   | { kind: 'add_node'; id: string; label: string; shape?: string; parent?: string }
   | { kind: 'remove_node'; id: string }
   | { kind: 'rename_node'; from: string; to: string }
-  | { kind: 'set_label'; target: string; label: string }   // target: node id, authored edge ID (e1), or 'from->to'/'from->to#k'
+  | { kind: 'set_label'; target: string; label: string }   // target: node id, authored edge ID (e1), or 'from->to'/'from->to#k'; an id a node and an edge share names the node
   | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick' | 'invisible' }
   | { kind: 'remove_edge'; id: string }                    // id: authored edge ID (e1), or 'from->to'/'from->to#k'
   | { kind: 'set_shape'; id: string; shape: string }       // geometry name or v11 @{ shape } name/alias

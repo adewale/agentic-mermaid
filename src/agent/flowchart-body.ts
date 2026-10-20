@@ -739,6 +739,8 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
       return done()
     }
     case 'set_label': {
+      // A node wins over an edge with its id, as the SVG identifies them; the
+      // endpoint forms name that edge.
       if (graph.nodes.has(op.target)) {
         const n = graph.nodes.get(op.target)!
         if (op.label.trim() !== n.label) delete n.labelContent
