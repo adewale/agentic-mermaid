@@ -86,6 +86,110 @@ describe('deferred terminal projection', () => {
     expect(sceneNodeSerialization(group)).toBe(svg)
   })
 
+  test.each([
+    ['maxObjects', 1500],
+    ['maxTextBytes', 60_000],
+    ['maxAggregateArrayEntries', 700],
+    ['maxAggregateProperties', 5000],
+    ['maxAggregatePropertyKeyBytes', 100_000],
+  ] as const)('reconciles projections under %s pressure while retaining unused deferred projections', (field, bound) => {
+    const group = marks.group({
+      id: 'messages', role: 'message', open: '<g>', close: '</g>',
+      children: Array.from({ length: 12 }, (_, index) => ({
+        indent: 2, node: withDeferredTerminalProjections(() => edge(`message:${index}`)),
+      })),
+    })
+    const nodes = group.children.map(child => child.node as ConnectorMark)
+    const svg = sceneNodeSerialization(group)
+    freezeBoundedFirstPartyData(group, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, [field]: bound })
+    const pending = nodes.filter(node => deferredTerminalProjectionInput(node) !== undefined)
+    const materialized = nodes.filter(node => deferredTerminalProjectionInput(node) === undefined)
+    expect(pending.length).toBeGreaterThan(0)
+    expect(materialized.length).toBeGreaterThan(0)
+    expect(sceneNodeSerialization(group)).toBe(svg)
+    for (const node of [materialized[0]!, pending.at(-1)!]) {
+      const projection = node.terminalProjection
+      expect(projection.endpoints).toEqual(node.endpoints)
+      expect(projection.geometry).toBe(node.route.geometry)
+      expect(projection.diagnostics.at(-1)).toBe('Preserved diagnostic')
+      expect(Object.isFrozen(node)).toBe(true)
+      expect(Object.isFrozen(projection)).toBe(true)
+      expect(Object.isFrozen(projection.route.contours[0]!.start)).toBe(true)
+      expect(Object.isFrozen(projection.diagnostics)).toBe(true)
+      expect(node.terminalProjection).toBe(projection)
+      expect(() => { node.terminalProjection = projection }).toThrow(/readonly/)
+    }
+    expect(sceneNodeSerialization(group)).toBe(svg)
+  })
+
+  test.each([
+    ['array entries', { maxAggregateArrayEntries: 1000 }, () => new Array(500).fill(0)],
+    ['text bytes', { maxTextBytes: 100_000 }, () => 'x'.repeat(15_000)],
+  ] as const)('makes room before charging a large later increment of %s', (_name, constrained, tail) => {
+    const nodes = Array.from({ length: 6 }, (_, index) => withDeferredTerminalProjections(() => edge(`message:${index}`)))
+    const value = { nodes, tail: tail() }
+    expect(freezeBoundedFirstPartyData(value, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, ...constrained })).toBe(value)
+    expect(deferredTerminalProjectionInput(nodes[0]!)).toBeUndefined()
+    expect(deferredTerminalProjectionInput(nodes.at(-1)!)).toBeDefined()
+    expect(Object.isFrozen(value)).toBe(true)
+    expect(Object.isFrozen(value.tail)).toBe(true)
+  })
+
+  test('materializes one oversized projection envelope without consuming unrelated projections', () => {
+    const label = 'Kept label '.repeat(300)
+    const nodes = withDeferredTerminalProjections(() => [
+      ...Array.from({ length: 3 }, (_, index) => edge(`before:${index}`)),
+      marks.connector({
+        id: 'long-label', role: 'message',
+        geometry: { kind: 'line', x1: 10, y1: 20, x2: 90, y2: 20 },
+        lineStyle: 'solid', paint: {}, labels: [{ text: label }],
+      }),
+      ...Array.from({ length: 3 }, (_, index) => edge(`after:${index}`)),
+    ])
+    const oversized = nodes[3]!
+    const unrelated = nodes.filter(node => node !== oversized)
+    expect(nodes.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
+
+    freezeBoundedFirstPartyData({ nodes }, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 100_000 })
+
+    expect(deferredTerminalProjectionInput(oversized)).toBeUndefined()
+    expect(unrelated.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
+    const projection = oversized.terminalProjection
+    expect(projection.labels[0]!.text).toBe(label)
+    expect(Object.isFrozen(oversized)).toBe(true)
+    expect(Object.isFrozen(projection)).toBe(true)
+    expect(Object.isFrozen(projection.labels)).toBe(true)
+    expect(oversized.terminalProjection).toBe(projection)
+  })
+
+  test('preserves eager depth rejection when later projections reach their original property position', () => {
+    const make = (defer: boolean) => {
+      const lower = () => {
+        const nodes = Array.from({ length: 6 }, (_, index) => edge(`message:${index}`))
+        let nested: Record<string, unknown> = {}
+        for (let index = 0; index < 16; index++) nested = { next: nested }
+        const transform = { kind: 'rotate' as const, angle: 0, cx: 0, cy: 0, nested }
+        nodes.push(marks.connector({
+          id: 'deep-transform', role: 'message', transform,
+          geometry: { kind: 'line', x1: 10, y1: 20, x2: 90, y2: 20 },
+          lineStyle: 'solid', paint: {},
+        }))
+        return { nodes }
+      }
+      return defer ? withDeferredTerminalProjections(lower) : lower()
+    }
+    // The retained nested value reaches depth 21 through the projection,
+    // before the shallower public transform can mark it as already visited.
+    for (const limits of [
+      { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxObjects: 1500, maxDepth: 20 },
+      { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxArrayEntries: 10, maxDepth: 20 },
+    ]) {
+      for (const defer of [false, true]) {
+        expect(() => freezeBoundedFirstPartyData(make(defer), limits)).toThrow('External Scene input object graph is too deeply nested')
+      }
+    }
+  })
+
   test('keeps direct constructors and path validation eager and restores scope after a failure', () => {
     expect(deferredTerminalProjectionInput(edge())).toBeUndefined()
     expect(() => withDeferredTerminalProjections(() => { throw new Error('lowering failed') })).toThrow('lowering failed')
@@ -207,9 +311,16 @@ describe('deferred terminal projection', () => {
       },
     })
     const placementFields = new Set<keyof typeof limits>(['maxObjects', 'maxAggregateProperties', 'maxAggregateArrayEntries', 'maxAggregatePropertyKeyBytes'])
+    const batch = () => ({
+      nodes: Array.from({ length: 6 }, (_, index) => edge(`message:${index}`)),
+      // The late ASCII value exhausts every pending text reservation before
+      // exact UTF-8 accounting decides acceptance or the original diagnostic.
+      tail: 'x'.repeat(20_000),
+    })
     for (const field of Object.keys(limits) as Array<keyof typeof limits>) {
-      const constructors = placementFields.has(field) ? [edge, unicodeEdge] : [edge]
-      const bounds = field === 'maxAggregatePropertyKeyBytes' ? [0, 1, 5, 24, 100, 1000, 4000, 64_000] : [0, 1, 5, 24, 100, 1000]
+      const constructors: Array<() => unknown> = placementFields.has(field) ? [edge, unicodeEdge, batch] : field === 'maxTextBytes' ? [edge, batch] : [edge]
+      const bounds = field === 'maxAggregatePropertyKeyBytes' ? [0, 1, 5, 24, 100, 1000, 4000, 64_000]
+        : field === 'maxTextBytes' ? [0, 1, 5, 24, 100, 1000, 20_000, 30_000] : [0, 1, 5, 24, 100, 1000]
       for (const make of constructors) {
         for (const bound of bounds) {
           const constrained = { ...limits, [field]: bound }
