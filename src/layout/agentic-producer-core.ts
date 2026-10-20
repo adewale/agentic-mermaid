@@ -4,9 +4,30 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
-import { WeightedLru } from '../experimental/weighted-lru.ts'
-import { customTextMeasurementActive } from '../text-measurement-profile.ts'
-import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from '../experimental-performance.ts'
+
+// Keep cache storage inside the optional solver chunk: importing shared
+// request helpers here creates extra requests for families selecting ELK.
+class NativeResults<T> {
+  private readonly entries = new Map<string, { value: T; weight: number }>()
+  private weight = 0
+  constructor(private readonly maxWeight: number) {}
+  get(key: string): T | undefined {
+    const found = this.entries.get(key)
+    if (!found) return undefined
+    this.entries.delete(key); this.entries.set(key, found)
+    return found.value
+  }
+  set(key: string, value: T, weight: number): void {
+    if (weight > this.maxWeight) return
+    const prior = this.entries.get(key)
+    if (prior) { this.entries.delete(key); this.weight -= prior.weight }
+    this.entries.set(key, { value, weight }); this.weight += weight
+    while (this.entries.size > 64 || this.weight > this.maxWeight) {
+      const oldest = this.entries.keys().next().value!
+      this.weight -= this.entries.get(oldest)!.weight; this.entries.delete(oldest)
+    }
+  }
+}
 
 const nativeHost = globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }
 const NATIVE_CACHE_ENABLED = (nativeHost.process?.env?.AGENTIC_MERMAID_ELK_CACHE ?? nativeHost.AGENTIC_MERMAID_ELK_CACHE) !== '0'
@@ -23,12 +44,12 @@ function geometryInputKey(input: unknown): string {
 }
 
 type NativeOrder = 'primary' | 'authored' | 'compact'
-const orderChoices = new WeakMap<AgenticGraphBindings, WeightedLru<string, NativeOrder>>()
+const orderChoices = new WeakMap<AgenticGraphBindings, NativeResults<NativeOrder>>()
 
 /** Reuse measured geometry across source edits without retaining authored text,
  * prepared-text evidence or receipts. Every caller owns its returned arrays. */
 export function createMeasuredLayoutCache(compute: (input: MeasuredGraph) => AgenticLayout): (input: MeasuredGraph) => AgenticLayout {
-  const results = new WeightedLru<string, AgenticLayout>(64, 8 * 1024 * 1024)
+  const results = new NativeResults<AgenticLayout>(8 * 1024 * 1024)
   return input => {
     // The legacy startup switch controls both engines and both native caches.
     if (!NATIVE_CACHE_ENABLED) return compute(input)
@@ -143,15 +164,14 @@ export function layoutNativeGraphCandidate(
   const eligible = options.compareRoutePreferences !== false && !options.stateVisual && !graph.subgraphs.length && graph.nodes.size <= 20 && graph.edges.length <= 64
   // Retain only the chosen strategy, never prepared text, geometry or proof.
   // Replayed production still passes the caller's mandatory final certifier.
-  let key: string | undefined, choices: WeightedLru<string, NativeOrder> | undefined
-  if (eligible && NATIVE_CACHE_ENABLED && !customTextMeasurementActive()) {
+  let key: string | undefined, choices: NativeResults<NativeOrder> | undefined
+  if (eligible && NATIVE_CACHE_ENABLED && !bindings.customTextMeasurementActive()) {
     const serialized = geometryInputKey([graph, options, style,
-      Object.entries(nativeHost.process?.env ?? {}).filter(([name]) => name.startsWith('APL_')).sort(),
-      PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)])
+      Object.entries(nativeHost.process?.env ?? {}).filter(([name]) => name.startsWith('APL_')).sort()])
     if (serialized.length <= 65536) {
       key = serialized
       choices = orderChoices.get(bindings)
-      if (!choices) { choices = new WeightedLru(64, 1024 * 1024); orderChoices.set(bindings, choices) }
+      if (!choices) { choices = new NativeResults(1024 * 1024); orderChoices.set(bindings, choices) }
       const chosen = choices.get(key)
       if (chosen) return placeNativeGraphCandidate(graph, options, style,
         chosen === 'primary' ? layoutAgenticGraph : input => layoutAgenticGraph({ ...input, ...(chosen === 'authored' ? { authoredCycleOrder: true } : { compactPrivateRanks: true }) }), bindings)

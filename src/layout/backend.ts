@@ -1,4 +1,15 @@
-import type { RenderOptions } from '../types.ts'
+import type { Direction, RenderOptions } from '../types.ts'
+
+/** Family adapters share ELK's direction mapping without importing the full
+ * Flowchart/State geometry pipeline for this small conversion. */
+export function directionToElk(direction: Direction): string {
+  switch (direction) {
+    case 'LR': return 'RIGHT'
+    case 'RL': return 'LEFT'
+    case 'BT': return 'UP'
+    default: return 'DOWN'
+  }
+}
 
 export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@14'
 
@@ -78,4 +89,68 @@ export function selectElkForGraphFamily(options: Pick<RenderOptions, 'graphLayou
     return { requested, fallback, selected: 'elk', reason, attempts: [{ backend: 'agentic', outcome: 'unsupported', reason }, { backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
   }
   return { requested, fallback, selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
+}
+
+/** Family adapters retain their measured geometry and painting rules. Only a
+ * typed native capability decline permits the requested one-way fallback. */
+export function runMeasuredGraphBackend<T>(
+  options: Pick<RenderOptions, 'graphLayout'>,
+  native: () => T,
+  elk: () => T,
+): T {
+  const policy = options.graphLayout
+  if (!policy) return elk()
+  const attempts: Array<GraphLayoutDecision['attempts'][number]> = []
+  let result: T, selected = policy.backend, reason: string | undefined
+  if (policy.backend === 'agentic') {
+    try {
+      result = native()
+      attempts.push({ backend: 'agentic', outcome: 'selected' })
+    } catch (error) {
+      if (!(error instanceof GraphLayoutUnsupportedError) || policy.fallback !== 'elk') throw error
+      reason = error.reason
+      attempts.push({ backend: 'agentic', outcome: 'unsupported', reason })
+      result = elk()
+      selected = 'elk'
+      attempts.push({ backend: 'elk', outcome: 'selected' })
+    }
+  } else {
+    result = elk()
+    attempts.push({ backend: 'elk', outcome: 'selected' })
+  }
+  emitGraphLayoutDecision({ requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
+    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) })
+  return result
+}
+
+export interface LayoutCertificationAttempt {
+  strategy: string
+  violations: string[]
+}
+
+/** Shared by graph certification and the family-neutral final geometry veto. */
+export class LayoutCertificationError extends Error {
+  readonly code = 'LAYOUT_CERTIFICATION_FAILED'
+  constructor(readonly attempts: readonly LayoutCertificationAttempt[]) {
+    super(`No certified layout after ${attempts.length} bounded attempts: ${attempts.map(attempt => `${attempt.strategy}: ${attempt.violations.join('; ')}`).join(' | ')}`)
+    this.name = 'LayoutCertificationError'
+  }
+}
+
+/** Internal diagnostic observation. No clock reads occur in normal renders. */
+export type RenderStage = 'request' | 'layout' | 'graph-preparation' | 'agentic' | 'elk' | 'scene' | 'drawing' | 'paint-certification' | 'backend' | 'svg-security'
+export interface RenderStageSample { readonly stage: RenderStage; readonly ms: number }
+let stageObserver: ((sample: RenderStageSample) => void) | undefined
+
+export function withRenderStageObserver<T>(observe: (sample: RenderStageSample) => void, run: () => T): T {
+  const previous = stageObserver
+  stageObserver = observe
+  try { return run() } finally { stageObserver = previous }
+}
+
+export function measureRenderStage<T>(stage: RenderStage, run: () => T): T {
+  const observe = stageObserver
+  if (!observe) return run()
+  const start = performance.now()
+  try { return run() } finally { observe(Object.freeze({ stage, ms: performance.now() - start })) }
 }

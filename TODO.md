@@ -320,7 +320,7 @@ A new defect needs a current reproduction at its owning boundary.
 
 - [x] Retain explicit ELK, checked native selection, typed fallback and immutable execution receipts.
 - [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement, Class and Architecture adapters, plus ER frames and boundary relations.
-- [ ] Bind the zero-additional-crossing 224-case prototype to the final implementation, then check the predeclared 224–255 holdout; review bends/area and all unverified dimensions.
+- [ ] Close the retained seed228 gap (15 versus12 crossings) in the256-case development population, then declare a fresh committed holdout; review bends/area and unverified dimensions.
 - [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
 - [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
 - [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence.
