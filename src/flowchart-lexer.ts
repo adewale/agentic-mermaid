@@ -88,6 +88,10 @@ export const FLOWCHART_LINK_SOURCE = `<?(?:${FLOWCHART_LINK_BODY})`
  * blank (`x--e1@--x` is the label `e1@` between `x--` and `--x` there).
  */
 export const FLOWCHART_EDGE_ID_SOURCE = String.raw`(?!${FLOWCHART_LINK_SOURCE}|[xo]?(?:-{2,}|-\.|={2,}))[^\s"@[\](){}|<>;]+`
+/** An edge id glued to the shape before it (`A["a"]x--e1@-->B`), where
+ * upstream's LINK_ID token begins with no blank before it and takes in a
+ * leading link opener (`x--e1`, `--e1`, `==e1`). */
+export const FLOWCHART_GLUED_EDGE_ID_SOURCE = String.raw`[^\s"@[\](){}|<>;]+`
 /** An edge id as upstream's LINK_ID token reads one after a blank: a run
  * without blanks or `"` before an `@` and a link or link label opener. */
 const EDGE_ID_TOKEN_RE = new RegExp(String.raw`(?![xo]?(?:-{2,}|-\.|={2,}))([^\s"]+)@\s*(?:${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'y')

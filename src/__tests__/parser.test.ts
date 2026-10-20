@@ -959,6 +959,7 @@ describe('parseMermaid – edge cases', () => {
     ['a subgraph with no title', 'graph TD\n  subgraph\n    A\n  end', /a subgraph needs an id or a title/],
     // Upstream's LINK_ID takes any run without blanks or `"` before `@`.
     ['an edge id holding `[`', 'graph TD\n  A e[1@--> B', /upstream reads "e\[1@" as an edge id/],
+    ['an edge id holding `[` after a link opener, glued to a shape', 'graph TD\n  A["x"]x--[e1]@-->B', /upstream reads "x--\[e1\]@" as an edge id/],
     // A `;` in it ends no statement there.
     ['an edge id holding `;`', 'graph TD\n  A e;1@--> B;C', /upstream reads "e;1@" as an edge id/],
     ['an edge id holding `@`, after a shape', 'graph TD\n  A[a] e1@x@-- b --> B', /upstream reads "e1@x@" as an edge id/],

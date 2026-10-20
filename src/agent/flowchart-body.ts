@@ -22,6 +22,7 @@ import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import {
   coalesceFlowchartLines,
+  FLOWCHART_EDGE_ID_SOURCE,
   FLOWCHART_LINK_SOURCE,
   type FlowchartLineGroup,
   type FlowchartRegion,
@@ -485,8 +486,10 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
 
   for (const edge of graph.edges) {
     // A metadata block followed by a named link is not one upstream vertex
-    // expression. Declare its endpoints first, then link their bare identities.
+    // expression. Declare its endpoints first, then link their bare identities;
+    // a source whose edge id is glued to it is declared on the edge's line.
     if (edge.id) for (const id of [edge.source, edge.target]) {
+      if (id === edge.source && gluesEdgeId(edge, graph.nodes)) continue
       const node = graph.nodes.get(id)
       if (node && !declaredInline.has(id) && (node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined)) {
         lines.push(`  ${id}${renderShape(node)}`)
@@ -526,7 +529,9 @@ function needsExplicitDeclaration(node: MermaidNode): boolean {
   return node.label !== node.id || node.shape !== 'rectangle' || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
 }
 
-function renderShape(node: MermaidNode): string {
+/** `quoted` writes a non-empty bracket label in quotes, so upstream's edge
+ *  id token cannot begin at the node's id and run on through it. */
+function renderShape(node: MermaidNode, quoted = false): string {
   // Media metadata is fully modeled as inert local presentation data, so the
   // typed serializer can reproduce it without falling back to an opaque body.
   if (node.icon !== undefined || node.image !== undefined) {
@@ -544,7 +549,7 @@ function renderShape(node: MermaidNode): string {
     const label = node.label !== node.id ? `, label: ${quoteMetadataLabel(node.label, node.labelContent)}` : ''
     return `@{ shape: ${node.authoredShape}${label} }`
   }
-  const lbl = escapeNodeLabel(node.label, node.labelContent)
+  const lbl = quoted && node.label !== '' ? quoteLabel(node.label, node.labelContent) : escapeNodeLabel(node.label, node.labelContent)
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
@@ -615,13 +620,24 @@ function escapeNodeLabel(label: string, content?: LabelContent): string {
   return /;|^[-/\\]/.test(label) ? quoteLabel(label, content) : escapeLabel(label, content)
 }
 
+/** An edge id upstream reads after a blank (`A e1@--> B`). One that begins
+ *  like a link (`x--e1`) it reads as an edge id only glued to the shape
+ *  before it (`A["a"]x--e1@-->B`). */
+const BLANK_EDGE_ID_RE = new RegExp(`^${FLOWCHART_EDGE_ID_SOURCE}$`, 'u')
+
+function gluesEdgeId(edge: MermaidEdge, nodes: Map<string, MermaidNode>): boolean {
+  return edge.id !== undefined && nodes.has(edge.source) && !BLANK_EDGE_ID_RE.test(edge.id)
+}
+
 function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {
-  const src = inlineNodeRef(edge.source, nodes, declaredInline)
+  const glued = gluesEdgeId(edge, nodes)
+  if (glued) declaredInline.add(edge.source)
+  const src = glued ? `${edge.source}${renderShape(nodes.get(edge.source)!, true)}` : inlineNodeRef(edge.source, nodes, declaredInline)
   const dst = inlineNodeRef(edge.target, nodes, declaredInline)
   const labelPart = edge.label ? `|${escapeLabel(edge.label, edge.labelContent)}|` : ''
   // v11.6 edge identity: the authored `id@` prefix round-trips verbatim.
   const idPrefix = edge.id ? `${edge.id}@` : ''
-  return `${src} ${idPrefix}${renderEdgeArrow(edge)}${labelPart} ${dst}`
+  return `${src}${glued ? '' : ' '}${idPrefix}${renderEdgeArrow(edge)}${labelPart} ${dst}`
 }
 
 function renderEdgeMetadata(edge: MermaidEdge): string | null {

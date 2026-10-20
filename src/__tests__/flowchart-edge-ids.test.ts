@@ -61,6 +61,31 @@ describe('flowchart edge IDs — parse', () => {
     }
   })
 
+  // Upstream's LINK_ID token begins where a shape holding a blank or a
+  // string ends, with no blank before it, and takes in a link opener there;
+  // after a blank, `x--` opens a link label instead (`A x--e1@--x B`).
+  // [source, the edge id, its end marker]
+  const GLUED: ReadonlyArray<readonly [string, string, 'arrow' | 'circle' | 'cross']> = [
+    ['flowchart LR\n  A["x"]x--e1@-->B', 'x--e1', 'arrow'],
+    ['flowchart LR\n  A(a b)o--e1@--oB', 'o--e1', 'circle'],
+    ['flowchart LR\n  A@{ shape: rect }--e1@-- t --xB', '--e1', 'cross'],
+    ['flowchart LR\n  A{{"x"}}==e1@==>B', '==e1', 'arrow'],
+  ]
+  it.each(GLUED)('reads the edge id glued to a shape in %s as Mermaid does, and writes it back', async (source, id, endMarker) => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const serialized = serializeMermaid(parsed.value)
+      const edges = (diagram: { db: { getEdges(): Array<{ start: string; end: string; id: string; type: string }> } }) => diagram.db.getEdges().map(edge => [edge.start, edge.end, edge.id, edge.type])
+      const read = [['A', 'B', id, { arrow: 'arrow_point', circle: 'arrow_circle', cross: 'arrow_cross' }[endMarker]]]
+      expect(await upstream.projectEach([source, serialized], edges)).toEqual([{ ok: true, value: read }, { ok: true, value: read }])
+      for (const graph of [parseGraph(source), parseGraph(serialized)]) {
+        expect(graph.edges).toEqual([expect.objectContaining({ id, source: 'A', target: 'B', hasArrowStart: false, endMarker })])
+      }
+    } finally { upstream.close() }
+  })
+
   it('edges without an authored ID carry none', () => {
     expect(parseGraph('flowchart LR\n  A --> B').edges[0]!.id).toBeUndefined()
   })

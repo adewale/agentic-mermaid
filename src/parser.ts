@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_ESCAPED_AMP_RE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_ESCAPED_AMP_RE, FLOWCHART_GLUED_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -1347,9 +1347,14 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
 }
 
 const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
+/** An edge id with no blank between it and the shape before it, which may
+ * begin with a link opener (`A["a"]x--e1@-->B` is the edge id `x--e1`). */
+const GLUED_EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_GLUED_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
 /** An edge id as upstream's LINK_ID token reads one (`[^\s"]+@`), before a
  * link or a link label's opener. */
 const UPSTREAM_EDGE_ID_REGEX = new RegExp(String.raw`^(?![xo]?(?:-{2,}|-\.|={2,}))([^\s"]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'u')
+/** The same, glued to the shape before it, where it may begin with a link. */
+const GLUED_UPSTREAM_EDGE_ID_REGEX = new RegExp(String.raw`^([^\s"]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'u')
 const NODE_ID_CHARACTER_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/:-]/u
 
 /** Where a statement's parse stopped expecting a link after a node, the
@@ -1362,7 +1367,7 @@ function unreadableEdgeId(line: string, parsed: Extract<EdgeLineParseResult, { o
   const statement = line.trim().replace(/;\s*$/, '').trim()
   const before = statement[statement.length - parsed.remaining.length - 1]
   if (!statement.endsWith(parsed.remaining) || before === undefined || NODE_ID_CHARACTER_RE.test(before)) return undefined
-  return UPSTREAM_EDGE_ID_REGEX.exec(parsed.remaining)?.[1]
+  return (/[\])}]/.test(before) ? GLUED_UPSTREAM_EDGE_ID_REGEX : UPSTREAM_EDGE_ID_REGEX).exec(parsed.remaining)?.[1]
 }
 
 /** Where a statement's parse stopped expecting a link, a link label opened
@@ -1419,6 +1424,7 @@ function parseEdgeLine(
   remaining = firstGroup.remaining.trim()
   if (remaining.length === 0) return { ok: true, listed: firstGroup.ids }
   let prevGroupIds = firstGroup.ids
+  let glued = firstGroup.glued
 
   // Parse arrow + node-group pairs until the line is exhausted.
   while (remaining.length > 0) {
@@ -1434,7 +1440,8 @@ function parseEdgeLine(
     // v11.6 edge IDs (`e1@-->`): the authored ID is modeled as stable edge
     // identity (plan §Flowchart 7) — carried on MermaidEdge.id, re-emitted
     // verbatim by the serializer, and accepted as an op target selector.
-    const edgeIdMatch = remaining.match(EDGE_ID_PREFIX_REGEX)
+    // Upstream's edge id token begins a link opener only glued to a shape.
+    const edgeIdMatch = remaining.match(glued ? GLUED_EDGE_ID_PREFIX_REGEX : EDGE_ID_PREFIX_REGEX)
     const edgeId = edgeIdMatch?.[1]
     if (edgeIdMatch) {
       if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'edge-id', edgeIdMatch[0])
@@ -1491,6 +1498,7 @@ function parseEdgeLine(
     }
 
     remaining = nextGroup.remaining.trim()
+    glued = nextGroup.glued
 
     // Admit the expansion before allocating any of its edges.
     assertDiagramWorkLimit('edges', graph.edges.length + prevGroupIds.length * nextGroup.ids.length)
@@ -1522,6 +1530,9 @@ function parseEdgeLine(
 interface ConsumedNodeGroup {
   ids: string[]
   remaining: string
+  /** Whether the remaining text follows the last node's closing shape
+   * delimiter with no blank (`A["a"]x--e1@-->B`). */
+  glued: boolean
 }
 
 /**
@@ -1539,6 +1550,7 @@ function consumeNodeGroup(
 
   const ids = [first.id]
   let remaining = first.remaining
+  let lastText = text
 
   // Check for & separators, plain or HTML-escaped (`&amp;`), which the lexer
   // leaves in the statement after a node. One that no node follows
@@ -1550,6 +1562,7 @@ function consumeNodeGroup(
     const after = remaining.trimStart().slice(escaped?.length ?? 1)
     const next = consumeNode(after.trim(), graph, subgraphStack, declaredSubgraphIds, notes)
     if (!next) break
+    lastText = after.trim()
     // Upstream lists nodes only with a plain `&`, and a blank on each side.
     if (escaped) notes?.add('escaped-amp')
     else if (!/^\s/.test(remaining) || !/^\s/.test(after)) notes?.add('amp-spacing')
@@ -1557,7 +1570,8 @@ function consumeNodeGroup(
     remaining = next.remaining
   }
 
-  return { ids, remaining: remaining.trim() }
+  const closer = lastText[lastText.length - remaining.length - 1]
+  return { ids, remaining: remaining.trim(), glued: closer !== undefined && /[\])}]/.test(closer) && !/^\s/.test(remaining) }
 }
 
 interface ConsumedNode {
