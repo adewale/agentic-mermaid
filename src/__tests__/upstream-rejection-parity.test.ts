@@ -299,6 +299,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', '%% inside a member', 'classDiagram\n  class Animal {\n    +name %% note\n  }\n  class Cat'],
   ['class', '%% inside a relationship label', 'classDiagram\n  Animal <|-- Dog : is a %% note\n  class Cat'],
   ['class', 'an entity code ending in `;` in member text', 'classDiagram\n  Animal : x #59; y'],
+  ['class', 'keywords in backticks and words that only start like one', 'classDiagram\n  class `class`\n  `class` : x\n  classes : y\n  call: z\n  class call\n  A --> `_self`'],
   ['class', 'colons and `;` in accessibility text', 'classDiagram\n  class A\n  accTitle: a:b; c\n  accDescr {\n    x : y : z\n  }'],
   ['class', 'a hyphenated property after the first colon', 'classDiagram\n  class A:::thick\n  classDef thick fill:#fff,stroke-width:4px\n  style A fill:#eee, stroke-width:2px'],
   ['quadrant', 'a < in a quoted point label', 'quadrantChart\n  "A < B": [0.3, 0.4]'],

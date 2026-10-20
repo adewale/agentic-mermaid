@@ -513,6 +513,9 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   if (annotation) return { kind: 'annotation', annotation }
   const declaration = parseClassDeclaration(text)
+  if (declaration && !readsAsClassName(declaration.id, /^class\s+`/.test(text), false)) {
+    return { kind: 'unknown', reason: `Unrecognized class statement "${text}": Mermaid reads \`${declaration.id}\` there as a keyword, not a class name` }
+  }
   if (declaration) return { kind: 'class', declaration }
   const shorthand = text.match(/^(.+?):::([\w-]+)$/)
   if (shorthand) {
@@ -522,6 +525,9 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const member = text.match(/^(\S+?)\s*:\s*(.+)$/)
   if (member) {
     const reference = parseClassReference(member[1]!)
+    if (reference && (!readsAsClassName(reference.id, member[1]!.startsWith('`'), true) || /^call\s/.test(text))) {
+      return { kind: 'unknown', reason: `Unrecognized class member statement "${text}": Mermaid reads \`${reference.id}\` there as a keyword, not a class name` }
+    }
     if (reference) return { kind: 'member', reference, text: member[2]!.trim() }
   }
   const relationship = parseClassRelationship(text)
@@ -1475,14 +1481,27 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   }
 }
 
-const BARE_RELATION_RESERVED_IDS = new Set(['o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass'])
-const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
+// Words Mermaid's class lexer reads as keywords where a class name stands:
+// in any lexer state, inside backticks too; in any state, bare; and, bare,
+// where a statement starts (a relationship or `A : member`), as `call`
+// before a blank is too.
+const CLASS_KEYWORDS_IN_BACKTICKS = new Set(['note', 'click', 'link', 'cssClass', 'href', 'callback'])
+const CLASS_KEYWORDS = new Set([...CLASS_KEYWORDS_IN_BACKTICKS, 'o', '_self', '_blank', '_parent', '_top'])
+const CLASS_STATEMENT_KEYWORDS = new Set([...CLASS_KEYWORDS, 'class', 'classDiagram', 'namespace', 'style', 'classDef'])
+
+/** Whether Mermaid's class lexer reads `id`, written bare or in backticks,
+ *  as a class name: after `class`, or where a statement starts. */
+export function readsAsClassName(id: string, backticked: boolean, statementStart: boolean): boolean {
+  return !(backticked ? CLASS_KEYWORDS_IN_BACKTICKS : statementStart ? CLASS_STATEMENT_KEYWORDS : CLASS_KEYWORDS).has(id)
+}
 
 /** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
  * unescaped dollar signs. Escaped IDs containing `~` denote a generic base
  * identity upstream, which this relationship model cannot yet preserve. */
 export function supportedRelationEndpoint(id: string, raw: string): boolean {
-  return raw.startsWith('`') ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~') : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
+  return raw.startsWith('`')
+    ? readsAsClassName(id, true, true) && !id.includes('~')
+    : !id.includes('$') && readsAsClassName(id, false, true)
 }
 
 function findMarkerlessRelationshipOperator(line: string): number {

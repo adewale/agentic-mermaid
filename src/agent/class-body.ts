@@ -328,7 +328,8 @@ function arrowForRelation(relation: ClassRelation): string {
 }
 
 function quoteIfNeeded(id: string): string {
-  if (/^[\w$]+$/.test(id) && supportedRelationEndpoint(id, id)) {
+  // Mermaid reads `call` before a blank as a callback where a statement starts.
+  if (/^[\w$]+$/.test(id) && id !== 'call' && supportedRelationEndpoint(id, id)) {
     const relation = `${id} -- __endpoint`
     const statements = readClassStatements([id, relation]).statements
     if (parseAccessibilityDirective([relation], 0) === null && statements[0]?.value.kind !== 'header' && statements[1]?.value.kind === 'relationship') return id
