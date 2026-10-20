@@ -381,8 +381,8 @@ divergence, not another runtime defect.
 ## Owned graph backend qualification (owner request, PR #449)
 
 - [x] Retain explicit ELK, checked native selection, typed fallback and immutable execution receipts.
-- [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement, ER, Class and Architecture adapters.
-- [ ] Bind the zero-additional-crossing 160-case joint-chain prototype to the final bounded implementation, then check the predeclared 160–223 holdout; review bends/area and all unverified dimensions.
+- [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement, Class and Architecture adapters, plus ER frames and boundary relations.
+- [ ] Bind the zero-additional-crossing 224-case prototype to the final implementation, then check the predeclared 224–255 holdout; review bends/area and all unverified dimensions.
 - [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
 - [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
 - [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence.
