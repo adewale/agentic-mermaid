@@ -8,6 +8,8 @@ import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { runCli } from '../cli/index.ts'
 import { measureQuality } from '../agent/quality.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { parseMermaid as parseFlowchart } from '../parser.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
 import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
@@ -67,6 +69,17 @@ describe('checked graph layout selection', () => {
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.labelConflicts?.total).toBe(0)
     expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    JSON.stringify(result.receipt)
+  })
+
+  test.each(['TD', 'LR'] as const)('certifies mixed shape outlines, labelled branches and markers natively in %s', direction => {
+    const source = `flowchart ${direction}\nA([Start]) --> B{Choose}\nB -->|yes| C[(Database)]\nB -->|no| D((End))\nD --> E[[Audit]]`
+    const stages: string[] = []
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    for (const label of ['Start', 'Choose', 'Database', 'End', 'Audit', 'yes', 'no']) expect(result.svg).toContain(label)
     JSON.stringify(result.receipt)
   })
 
