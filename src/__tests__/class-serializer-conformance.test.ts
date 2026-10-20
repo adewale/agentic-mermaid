@@ -107,8 +107,8 @@ test('public layout reports each interface circle at its actual marker geometry,
       const layout = layoutMermaid(parsed.value)
       const node = layout.nodes.find(node => node.id === 'interface0')!
       expect(node.shape).toBe('circle')
-      expect(node.w).toBe(10)
-      expect(node.h).toBe(10)
+      expect(Number(node.w)).toBe(10)
+      expect(Number(node.h)).toBe(10)
       const route = layout.edges[0]!.path!
       const endpoint = side === 'from' ? route[0]! : route.at(-1)!
       const neighbour = side === 'from' ? route[1]! : route.at(-2)!
