@@ -238,6 +238,10 @@ const SANKEY_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a tab inside a quoted field', 'sankey\nGrid,"Heating\tcooling",1', 'Heating', 'sankey_unsupported_character', 2],
   ['a tab indenting a row', 'sankey\nGrid,Homes,1\n\tGrid,Shops,2', 'Shops', 'sankey_unsupported_character', 3],
   ['a non-ASCII letter in an unquoted field', 'sankey\nÉlectricité,Homes,1', 'Électricité', 'sankey_unsupported_character', 2],
+  // A space before an opening quote or after a closing one is unquoted text.
+  ['a space after the comma before a quoted field', 'sankey\nGrid, "Homes",1', 'Homes', 'sankey_quoted_field_spacing', 2],
+  ['a space after a closing quote', 'sankey\nGrid,"Homes" ,1', 'Homes', 'sankey_quoted_field_spacing', 2],
+  ['an indented row starting with a quoted field', 'sankey\nGrid,Homes,1\n  "Grid",Shops,2', 'Shops', 'sankey_quoted_field_spacing', 3],
 ]
 
 // Mermaid's Sankey CSV lexer reads a quote after unquoted text as the start
@@ -327,6 +331,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
   // Mermaid removes a `%%` line with the blank lines before it.
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
+  ['sankey', 'a space after the closing quote that ends the source', 'sankey\nGrid,"Homes",1\nGrid,Shops,"2" '],
   ['sankey', 'spaces around fields, a non-ASCII comment and a tab ending the source', 'sankey\n%% café\n  Grid , Homes , 1\nGrid,"Shops, offices",2\t'],
   ['timeline', '"timelines" starting a period, and "timeline" in a title and an event', 'timeline\n  title timeline view\n  timelines : timeline'],
   ['timeline', 'a continuation after a section header', 'timeline\n  2001 : Alpha\n  section Later\n  : Beta\n  2002 : Gamma'],

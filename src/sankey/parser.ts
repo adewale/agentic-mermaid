@@ -210,7 +210,7 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
 
 /** True when a logical CSV record ends inside a quoted field. Doubled quotes
  * are one escaped data character and therefore do not change quote state. */
-function csvQuotedFieldIsOpen(record: string): boolean {
+export function csvQuotedFieldIsOpen(record: string): boolean {
   let open = false
   for (let index = 0; index < record.length; index++) {
     if (record[index] !== '"') continue

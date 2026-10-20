@@ -19,7 +19,7 @@
 // links) → opaque, so the loud "no rows" render error still surfaces.
 // ============================================================================
 
-import { findSankeyCycle, parseSankeyDiagram } from '../sankey/parser.ts'
+import { csvQuotedFieldIsOpen, findSankeyCycle, parseSankeyDiagram } from '../sankey/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -265,13 +265,20 @@ export function verifySankey(body: SankeyBody, opts: VerifyOptions): LayoutWarni
  * canonical line. Mermaid's CSV lexer reads only printable ASCII in a row
  * (RFC 4180 TEXTDATA, plus commas and quotes), quoted or not: a tab or any
  * non-ASCII character fails, except in the whitespace it trims from the end
- * of the whole source. Ours reads the text as written. */
+ * of the whole source. Ours reads the text as written. A space before an
+ * opening quote or after a closing one is unquoted text there, and a field
+ * mixing the two fails too; ours trims it. */
 export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined): LayoutWarning[] {
   const lines = canonicalSource.split(/\r?\n/)
   const header = lines.findIndex(line => HEADER_RE.test(line.trim()))
   if (header < 0) return []
   let last = lines.length - 1
   while (last > header && !lines[last]!.trim()) last--
+  // Mermaid trims whitespace from the end of the source.
+  const rawAt = (index: number): string => {
+    const raw = authoredLine?.(index + 1) ?? lines[index]!
+    return index === last ? raw.trimEnd() : raw
+  }
   const warnings: LayoutWarning[] = []
   for (let index = header + 1; index <= last; index++) {
     const trimmed = lines[index]!.trim()
@@ -279,14 +286,50 @@ export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authore
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
     if (directive) { index = directive.endIndex; continue }
-    const raw = authoredLine?.(index + 1) ?? lines[index]!
-    const outside = /[^\x20-\x7E\r]/u.exec(index === last ? raw.trimEnd() : raw)?.[0]
-    if (outside === undefined) continue
-    const what = outside === '\t' ? 'a tab' : `${JSON.stringify(outside)} (U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`
-    warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: index + 1,
-      message: `Pinned Mermaid's Sankey reader takes only printable ASCII characters in a row, quoted or not, and rejects ${what} here. Ours reads the row as written; ${outside === '\t' ? 'use spaces instead' : 'Mermaid has no spelling for this character'}.`,
+    // A quoted field may run across lines, as in the parser.
+    const start = index
+    let record = rawAt(index)
+    while (csvQuotedFieldIsOpen(record) && index < last) record += `\n${rawAt(++index)}`
+    for (let at = start; at <= index; at++) {
+      const outside = /[^\x20-\x7E\r]/u.exec(rawAt(at))?.[0]
+      if (outside === undefined) continue
+      const what = outside === '\t' ? 'a tab' : `${JSON.stringify(outside)} (U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: at + 1,
+        message: `Pinned Mermaid's Sankey reader takes only printable ASCII characters in a row, quoted or not, and rejects ${what} here. Ours reads the row as written; ${outside === '\t' ? 'use spaces instead' : 'Mermaid has no spelling for this character'}.`,
+      })
+    }
+    const spaced = spacedQuotedField(record)
+    if (spaced) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_quoted_field_spacing', line: start + 1,
+      message: `Pinned Mermaid's Sankey reader takes a space ${spaced.before ? 'before an opening' : 'after a closing'} quote as unquoted text, and rejects a field that mixes the two. Ours trims the space and reads the quoted field ${JSON.stringify(spaced.value)}; write the quote ${spaced.before ? 'straight after the comma (or at the start of the row)' : 'straight before the comma'}.`,
     })
   }
   return warnings
+}
+
+/** The first quoted field in a CSV record with spaces before its opening
+ * quote or after its closing one (tabs are reported as characters). */
+function spacedQuotedField(record: string): { before: boolean; value: string } | undefined {
+  for (let index = 0; index <= record.length;) {
+    let open = index
+    while (record[open] === ' ') open++
+    if (record[open] !== '"') {
+      const comma = record.indexOf(',', index)
+      if (comma < 0) return undefined
+      index = comma + 1
+      continue
+    }
+    let close = open + 1
+    while (close < record.length && !(record[close] === '"' && record[close + 1] !== '"')) close += record[close] === '"' ? 2 : 1
+    let after = close + 1
+    while (record[after] === ' ') after++
+    const value = record.slice(open + 1, close).replace(/""/g, '"').trim()
+    if (open > index) return { before: true, value }
+    if (after > close + 1 && (after >= record.length || record[after] === ',')) return { before: false, value }
+    const comma = record.indexOf(',', close + 1)
+    if (comma < 0) return undefined
+    index = comma + 1
+  }
+  return undefined
 }
