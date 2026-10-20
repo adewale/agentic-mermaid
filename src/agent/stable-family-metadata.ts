@@ -92,7 +92,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     editorGlyph: 'TM',
     config: { section: 'treemap', keys: ['useMaxWidth', 'padding', 'diagramPadding', 'showValues', 'nodeWidth', 'nodeHeight', 'borderWidth', 'valueFontSize', 'labelFontSize', 'valueFormat'], noopKeys: ['useMaxWidth'] },
     semanticChannels: ['value', 'category'],
-    sceneRoles: [...documentRoles.filter(role => role.role !== 'chrome'), { role: 'chrome', primitives: ['document'] }, { role: 'node', primitives: ['container'] }, { role: 'group', primitives: ['container'] }, { role: 'bar', primitives: ['shape', 'data-mark'] }, { role: 'label', primitives: ['text'] }],
+    sceneRoles: [...documentRoles, { role: 'node', primitives: ['container'] }, { role: 'group', primitives: ['container'] }, { role: 'bar', primitives: ['shape', 'data-mark'] }, { role: 'label', primitives: ['text'] }],
     detect: (line: string) => /^treemap(?:-beta)?\s*$/.test(line),
     example: 'treemap\n"Product"\n  "Engineering": 60\n  "Design": 40',
     editorExample: 'treemap\ntitle Product investment\n"Build"\n  "Engineering": 60\n  "Design": 25\n"Learn"\n  "Research": 30\n  "Analytics": 15',

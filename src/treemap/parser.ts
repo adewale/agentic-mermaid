@@ -2,6 +2,7 @@ import { accessibilityFields, requireClosedAccessibility, scanAccessibilityDirec
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import type { TreemapBody, TreemapNode } from './types.ts'
 
 /** Flat authored order is retained independently of value-sorted placement. */
@@ -37,12 +38,13 @@ export function parseTreemapDiagram(input: string | readonly string[]): TreemapB
     while (remaining) {
       const match = /^(?:"([^"]*)"|'([^']*)')(?:\s*[:,]\s*([0-9_.,]+))?(?:\s*:::\s*([A-Za-z_]\w*))?/.exec(remaining)
       if (!match) throw new Error(`Invalid Treemap statement at line ${i + 1}: ${remaining}`)
-      if (body.nodes.length >= 10000) throw new Error('Treemap exceeds the 10000-node limit')
+      assertDiagramWorkLimit('nodes', body.nodes.length + 1)
       while (stack.length && stack.at(-1)!.indent >= rowIndent) stack.pop()
       const parentId = stack.at(-1)?.node.id
       // Each quoted entry is a grammar row. Its indentation is the whitespace
       // immediately before that entry, even when another row shares the line.
       const value = match[3] === undefined ? undefined : Number(match[3].replace(/[,_]/g, ''))
+      assertDiagramWorkLimit('nesting', stack.length + (value === undefined ? 1 : 0))
       if (value !== undefined && (!Number.isFinite(value) || value < 0)) throw new Error(`Invalid Treemap value at line ${i + 1}`)
       const node: TreemapNode = { id: `treemap-${body.nodes.length}`, label: match[1] ?? match[2]!, ...(parentId ? { parentId } : {}), ...(value === undefined ? {} : { value }), ...(match[4] ? { className: match[4] } : {}) }
       body.nodes.push(node)

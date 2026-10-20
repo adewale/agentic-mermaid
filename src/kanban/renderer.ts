@@ -1,4 +1,4 @@
-import { inkOnNodeFill } from '../color-resolver.ts'
+import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import type { SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
@@ -10,6 +10,7 @@ import type { KanbanText, PositionedKanbanDiagram } from './types.ts'
 
 export function lowerKanbanScene({ positioned: diagram, colors, resolved }: RenderContext<PositionedKanbanDiagram>): SceneDoc {
   const style = resolveRenderStyle(resolved.renderOptions, undefined, resolved.styleFace)
+  const inkOnFill = createFillInkResolver(colors)
   const transparent = resolved.renderOptions.transparent ?? false
   const parts: SceneNode[] = []
   if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
@@ -28,10 +29,11 @@ export function lowerKanbanScene({ positioned: diagram, colors, resolved }: Rend
       }),
       marks.shape({ id: `${column.id}:header`, role: 'group-header', owner: { id: column.id, role: 'group' }, geometry: { kind: 'rect', x: column.x, y: column.y, width: column.width, height: column.headerHeight, rx: style.groupCornerRadius }, paint: { fill: headerFill, stroke: 'none' } }),
     ]
-    column.texts.forEach((text, index) => children.push(textMark(`${column.id}:text-${index}`, text, style.groupTextColor ?? inkOnNodeFill(undefined, colors, headerFill)('var(--_text)'), { id: column.id, role: 'group' })))
+    const headerInk = style.groupTextColor ?? inkOnFill('var(--_text)', headerFill)
+    column.texts.forEach((text, index) => children.push(textMark(`${column.id}:text-${index}`, text, headerInk, { id: column.id, role: 'group' })))
     for (const task of column.tasks) {
       const fill = style.nodeFillColor ?? 'var(--_node-fill)',
-        ink = style.nodeTextColor ?? inkOnNodeFill(undefined, colors, fill)('var(--_text)')
+        ink = style.nodeTextColor ?? inkOnFill('var(--_text)', fill)
       const nodes: SceneNode[] = [
         marks.shape({
           id: `${task.id}:surface`,

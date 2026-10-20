@@ -8,16 +8,19 @@ import type { PacketBody, PacketVisualConfig, PositionedPacketDiagram, Positione
 
 /** Geometry encodes inclusive bit counts. Text changes row height, never widths. */
 export function layoutPacketDiagram(body: PacketBody, options: Readonly<RenderOptions> = {}, visual: PacketVisualConfig = resolvePacketConfig(), styleFace?: Readonly<InternalStyleFace>): PositionedPacketDiagram {
+  const rowCount = body.fields.length ? Math.floor(body.fields.at(-1)!.end / visual.bitsPerRow) + 1 : 0
+  assertDiagramWorkLimit('nodes', rowCount + body.fields.length)
   const style = resolveRenderStyle(options, undefined, styleFace)
   const pad = options.padding ?? 24
   const titleBand = diagramTitleBand(body.title, style)
-  const rowCount = body.fields.length ? Math.floor(body.fields.at(-1)!.end / visual.bitsPerRow) + 1 : 0
-  assertDiagramWorkLimit('nodes', rowCount + body.fields.length)
+  const textPaddingX = styleFace?.node?.paddingX, textPaddingY = styleFace?.node?.paddingY ?? 8
   const bitSize = Math.max(8, Math.min(11, style.edgeLabelFontSize))
   const bitGutter = visual.showBits ? bitSize * 1.5 + 4 : 0
   const fields: PositionedPacketField[] = []
   const rowHeights = Array.from({ length: rowCount }, () => visual.rowHeight)
+  const textOptions = { display: 'formatted' as const, transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, fontFamily: options.font }
   for (const field of body.fields) {
+    let measured: ReturnType<typeof preparePixelText> | undefined
     for (let start = field.start; start <= field.end; ) {
       const row = Math.floor(start / visual.bitsPerRow),
         rowStart = row * visual.bitsPerRow
@@ -25,23 +28,26 @@ export function layoutPacketDiagram(body: PacketBody, options: Readonly<RenderOp
       const slotWidth = (end - start + 1) * visual.bitWidth
       const gap = Math.min(visual.paddingX, slotWidth - 1),
         width = slotWidth - gap
-      const textOptions = { display: 'formatted' as const, transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, fontFamily: options.font }
-      const measured = preparePixelText(field.label, textOptions)
       // A one-bit flag commonly carries an acronym (URG, ACK, SYN). Fit that
       // short label as a unit before wrapping; never widen its encoded bit.
-      const compactFlag = start === end && measured.lines.length === 1 && measured.text.length <= 4
-      const fontSize = compactFlag ? Math.max(9, Math.min(textOptions.fontSize, Math.floor((textOptions.fontSize * Math.max(1, width - 2)) / Math.max(1, measured.width)))) : textOptions.fontSize
-      const labelBlock = preparePixelText(field.label, { ...textOptions, fontSize, maxWidth: Math.max(1, width - (compactFlag ? 2 : 8)) })
+      if (start === end) measured ??= preparePixelText(field.label, textOptions)
+      const compactFlag = start === end && measured!.lines.length === 1 && measured!.text.length <= 4
+      const availableWidth = Math.max(1, width - (textPaddingX === undefined ? compactFlag ? 2 : 8 : textPaddingX * 2))
+      const fontSize = compactFlag ? Math.max(9, Math.min(textOptions.fontSize, Math.floor((textOptions.fontSize * availableWidth) / Math.max(1, measured!.width)))) : textOptions.fontSize
+      const labelBlock = preparePixelText(field.label, { ...textOptions, fontSize, maxWidth: availableWidth })
       const x = pad + (visual.bitOrder === 'descending' ? visual.bitsPerRow - (end - rowStart + 1) : start - rowStart) * visual.bitWidth + gap / 2
       fields.push({ ...field, id: `${field.id}:row-${row}`, fieldId: field.id, start, end, row, x, y: 0, width, slotWidth, height: 0, labelBlock, bitLabels: [] })
-      rowHeights[row] = Math.max(rowHeights[row]!, labelBlock.height + 16)
+      rowHeights[row] = Math.max(rowHeights[row]!, labelBlock.height + textPaddingY * 2)
       assertDiagramWorkLimit('nodes', fields.length)
       start = end + 1
     }
   }
   let top = pad + (titleBand?.height ?? 0)
+  let fieldIndex = 0
   for (let row = 0; row < rowCount; row++) {
-    for (const field of fields.filter(field => field.row === row)) {
+    // Contiguous authored ranges emit segments in monotonically increasing rows.
+    while (fieldIndex < fields.length && fields[fieldIndex]!.row === row) {
+      const field = fields[fieldIndex++]!
       field.y = top + bitGutter
       field.height = rowHeights[row]!
       if (visual.showBits) {

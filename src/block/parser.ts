@@ -7,6 +7,7 @@ import { BlockDb as Database } from './db.ts'
 import type { BlockBody } from './types.ts'
 import { tokenize } from './lexer.ts'
 import { T, TOKEN_NAMES } from './tokens.ts'
+import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import type { Block, Statement } from './types.ts'
 export type BlockBuilder = Pick<BlockDb, 'typeStr2Type' | 'edgeStrToEdgeData' | 'edgeStrToEdgeStartData' | 'edgeStrToThickness' | 'edgeStrToPattern' | 'generateId' | 'setHierarchy'>
 interface NodeInfo {
@@ -132,11 +133,13 @@ export function parseBlock(src: string, db: BlockBuilder): void {
       }
       case T.KEY:
         i++
+        assertDiagramWorkLimit('nesting', open.length + 1)
         open.push({ list, header: undefined })
         list = []
         break
       case T.ID_BLOCK:
         i++
+        assertDiagramWorkLimit('nesting', open.length + 1)
         if (types[i]! !== T.NODE_ID) fail("'NODE_ID'")
         open.push({ list, header: nodeStatement() })
         list = []

@@ -1,6 +1,6 @@
 import type { AsciiContext } from '../agent/families.ts'
 import { parseTreemapDiagram } from '../treemap/parser.ts'
-import { formatTreemapValue, resolveTreemapConfig } from '../treemap/layout.ts'
+import { compileTreemapValueFormat, resolveTreemapConfig } from '../treemap/layout.ts'
 import { hierarchyChildren } from '../shared/hierarchy-model.ts'
 import { TerminalDocument } from './terminal-document.ts'
 import { terminalArtifact } from './terminal-artifact.ts'
@@ -18,11 +18,12 @@ export function renderTreemapTerminal(ctx: AsciiContext) {
   const totals = new Map<string, number>()
   for (const node of [...body.nodes].reverse()) totals.set(node.id, node.value ?? (children.get(node.id) ?? []).reduce((sum, child) => sum + (totals.get(child.id) ?? 0), 0))
   const depths = new Map<string, number>()
+  let formatValue: ((value: number) => string) | undefined
   for (const node of body.nodes) {
     const depth = node.parentId ? (depths.get(node.parentId) ?? 0) + 1 : 0
     depths.set(node.id, depth)
     const prefix = `${'  '.repeat(depth)}${ctx.config.useAscii ? '+-' : '├─'} `
-    const label = `${node.label}${config.showValues ? `: ${formatTreemapValue(totals.get(node.id) ?? 0, config.valueFormat)}` : ''}`
+    const label = `${node.label}${config.showValues ? `: ${(formatValue ??= compileTreemapValueFormat(config.valueFormat))(totals.get(node.id) ?? 0)}` : ''}`
     const lines = wrapText(label, ctx.options.targetWidth ? Math.max(1, ctx.options.targetWidth - prefix.length) : undefined)
     for (const [index, line] of lines.entries())
       document.line([

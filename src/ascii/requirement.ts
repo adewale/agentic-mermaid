@@ -50,10 +50,17 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
   const ranks = new Map<string, number>(),
     incoming = new Set(model.relations.filter(e => e.src !== e.dst).map(e => e.dst)),
     queue = cards.filter(c => !incoming.has(c.id)).map(c => c.id)
+  const outgoing = new Map<string, typeof model.relations>()
+  for (const edge of model.relations) {
+    if (edge.src === edge.dst) continue
+    const siblings = outgoing.get(edge.src)
+    if (siblings) siblings.push(edge)
+    else outgoing.set(edge.src, [edge])
+  }
   queue.forEach(id => ranks.set(id, 0))
   for (let i = 0; i < queue.length; i++) {
     const id = queue[i]!
-    for (const e of model.relations.filter(e => e.src === id && e.src !== e.dst)) {
+    for (const e of outgoing.get(id) ?? []) {
       const next = (ranks.get(id) ?? 0) + 1
       if (next >= cards.length || (ranks.get(e.dst) ?? -1) >= next) continue
       ranks.set(e.dst, next)
@@ -62,12 +69,18 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
   }
   let cycle = Math.max(-1, ...ranks.values()) + 1
   for (const c of cards) if (!ranks.has(c.id)) ranks.set(c.id, cycle++)
+  const rows = new Map<number, typeof cards>()
+  for (const card of cards) {
+    const rank = ranks.get(card.id)!, siblings = rows.get(rank)
+    if (siblings) siblings.push(card)
+    else rows.set(rank, [card])
+  }
   const boxes: (TerminalBox & { sections: string[][] })[] = []
   let axis = 4
   for (let rank = 0; rank <= Math.max(-1, ...ranks.values()); rank++) {
     let cross = 4,
       extent = 0
-    for (const c of cards.filter(c => ranks.get(c.id) === rank)) {
+    for (const c of rows.get(rank) ?? []) {
       const size = sizes.get(c.id)!
       boxes.push({ ...size, id: c.id, sections: c.sections, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
       cross += (horizontal ? size.height : size.width) + 6
@@ -78,8 +91,9 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
   reverseBoxes(boxes, direction)
   const doc = new TerminalDocument(),
     routes = allocateBoxRoutes(boxes, relations, direction)
+  const byId = new Map(model.relations.map(edge => [edge.id, edge]))
   for (const route of routes) {
-    const edge = model.relations.find(e => e.id === route.relation.id)!,
+    const edge = byId.get(route.relation.id)!,
       owner = doc.element({ id: edge.id, kind: 'edge', from: edge.src, to: edge.dst })
     paintBoxRoute(doc, route, owner, config.useAscii, edge.type !== 'contains')
     const end = edge.type === 'contains' ? 'start' : 'end',

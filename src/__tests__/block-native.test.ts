@@ -2,10 +2,16 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import fc from 'fast-check'
 import { asBlock, layoutMermaid, mutate, parseRegisteredMermaid as parse, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
-import { layoutBlockDiagram } from '../block/layout.ts'
+import { blockShapeNode, layoutBlockDiagram } from '../block/layout.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
 import { blockDisplayText } from '../block/text.ts'
 import type { Block, BlockBody } from '../block/types.ts'
+import { lowerPositionedFamilyScene } from '../graphical-render.ts'
+import { onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { resolveRenderRequestForExecution } from '../render-contract.ts'
+import type { GroupMark } from '../scene/ir.ts'
+import { wcagContrastRatio } from '../shared/color-math.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 const cases = JSON.parse(readFileSync(new URL('../../eval/mermaid-block-bench/cases.json', import.meta.url), 'utf8')) as { id: string; source: string; expect: unknown }[]
@@ -99,6 +105,14 @@ describe('native block', () => {
     expect(c.x).toBeGreaterThan(group.x + group.width)
     const wider = layoutBlockDiagram(model, {}, undefined, { padding: 40 })
     expect(wider.width).toBeGreaterThan(p.width)
+    // Low-level bodies may use a spacer as a route endpoint. It has geometry
+    // even though it contributes no obstacle or painted node.
+    const spacer = model.root.children!.find(node => node.type === 'space')!
+    model.edges.push({ id: 'spacer-route', type: 'edge', start: spacer.id, end: 'd' })
+    const routed = layoutBlockDiagram(model), edge = routed.edges.find(edge => edge.id === 'spacer-route')!,
+      cell = routed.nodes.find(node => node.id === spacer.id)!, port = edge.points[0]!
+    expect(edge.points.length).toBeGreaterThanOrEqual(2)
+    expect(port.x === cell.x || port.x === cell.x + cell.width || port.y === cell.y || port.y === cell.y + cell.height).toBe(true)
   })
   test('all authored links in a chain and names resembling generated ids survive', () => {
     const source = 'block\nblock_generated_1 A B\nblock\nC\nend\nA --> B --> C\nstyle A fill:#fff\n',
@@ -127,6 +141,7 @@ describe('native block', () => {
     const source = 'block\nA["Card"] B[("Database")]\nclassDef dashed stroke-dasharray:5 5\nclass A,B dashed',
       parsed = structured(source)
     expect(renderMermaidSVG(source).match(/stroke-dasharray="5 5"/g)?.length).toBeGreaterThanOrEqual(3)
+    expect(renderMermaidSVG(source)).toContain('class="block-node dashed"')
     const changed = mutate(parsed, { kind: 'set_node_style', id: 'A', style: 'stroke-dasharray:2 3' })
     expect(changed.ok).toBe(true)
     if (!changed.ok) return
@@ -173,6 +188,54 @@ describe('native block', () => {
       expect(result.layoutCertification?.coverage.unmeasured).toBe(0)
     }
     expect(verifyMermaid('block\ncolumns 3\nA B C\nA --> C').ok).toBe(true)
+    expect(renderMermaidSVG('block\ncolumns 3\nA B C\nA --> C', { style: { roles: { edge: { bendRadius: 12 } } } })).toMatch(/<path\b[^>]*d="[^"]*Q/)
+  })
+  test('reciprocal and parallel labeled links occupy distinct clear routes without moving authored cells', () => {
+    for (const columns of [1, 2]) {
+      const cells = `block\ncolumns ${columns}\nA["API"] B["Database"]`,
+        source = `${cells}\nA -- "Read" --> B\nB -- "Reply" --> A\nA -- "Write" --> B`,
+        p = layoutBlockDiagram(structured(source).body),
+        unlinked = layoutBlockDiagram(structured(cells).body),
+        byId = new Map(p.nodes.map(node => [node.id, node]))
+      expect(p.nodes.map(node => [node.id, node.width, node.height])).toEqual(unlinked.nodes.map(node => [node.id, node.width, node.height]))
+      expect(new Set(p.edges.map(edge => JSON.stringify(edge.points)))).toHaveProperty('size', 3)
+      for (const edge of p.edges) {
+        expect(onShapeOutline(blockShapeNode(byId.get(edge.start!)!), edge.points[0]!)).toBe(true)
+        expect(onShapeOutline(blockShapeNode(byId.get(edge.end!)!), edge.points.at(-1)!)).toBe(true)
+        for (const node of p.nodes.filter(node => node.id !== edge.start && node.id !== edge.end)) for (let i = 1; i < edge.points.length; i++) expect(segmentThroughShape(edge.points[i - 1]!, edge.points[i]!, blockShapeNode(node))).toBe(false)
+      }
+      for (let i = 0; i < p.edges.length; i++)
+        for (let j = i + 1; j < p.edges.length; j++) {
+          const a = p.edges[i]!,
+            b = p.edges[j]!
+          expect(Math.abs(a.labelPosition.x - b.labelPosition.x) >= (a.labelBlock.width + b.labelBlock.width) / 2 + 12 || Math.abs(a.labelPosition.y - b.labelPosition.y) >= (a.labelBlock.height + b.labelBlock.height) / 2 + 8).toBe(true)
+        }
+      expect(verifyMermaid(source).ok).toBe(true)
+      expect(renderMermaidSVG(source)).toContain('Write')
+    }
+  })
+  test('nested composites retain actual Scene containment and independent semantic Style roles', () => {
+    const source = 'block\nblock:outer["Outer"]\nblock:inner["Inner"]\nA["API"]\nend\nend',
+      options = { style: { roles: { node: { textColor: '#b91c1c' }, group: { textColor: '#174ea6', fontSize: 22, fontWeight: 800, paddingX: 36, paddingY: 28, cornerRadius: 17, lineWidth: 3, borderColor: '#008800', headerFillColor: '#fef3c7' } } } },
+      request = resolveRenderRequestForExecution(source, options, 'svg'),
+      scene = lowerPositionedFamilyScene(request, positionResolvedFamily('block', request)),
+      outer = scene.parts.find(node => node.kind === 'group' && node.id === 'block:outer') as GroupMark,
+      inner = outer?.children.find(({ node }) => node.kind === 'group' && node.id === 'block:inner')?.node as GroupMark,
+      leaf = inner?.children.find(({ node }) => node.kind === 'group' && node.id === 'block:A')?.node as GroupMark
+    expect(leaf).toBeDefined()
+    const header = outer.children.find(({ node }) => node.kind === 'text')!.node
+    expect(header).toMatchObject({ fontSize: 22, fontWeight: 800, paint: { fill: '#174ea6' } })
+    expect(outer.children.find(({ node }) => node.kind === 'shape')!.node).toMatchObject({ geometry: { rx: 17 }, paint: { stroke: '#008800', strokeWidth: '3' } })
+    expect(outer.children.find(({ node }) => node.id === 'header:outer')!.node).toMatchObject({ paint: { fill: '#fef3c7' } })
+    expect(leaf.children.find(({ node }) => node.kind === 'text')!.node).toMatchObject({ paint: { fill: '#b91c1c' } })
+    const svg = renderMermaidSVG(source, options)
+    expect(svg).toContain('data-parent="outer"')
+    expect(svg).toContain('data-parent="inner"')
+    expect(verifyMermaid(source, { renderOptions: options }).ok).toBe(true)
+    const darkHeader = renderMermaidSVG(source, { style: { roles: { group: { headerFillColor: '#000000' } } } })
+    const headerInk = darkHeader.match(/<text\b[^>]*fill="([^"]*)"[^>]*>Outer<\/text>/)?.[1]
+    expect(headerInk).toBeDefined()
+    expect(wcagContrastRatio(headerInk!, '#000000')).toBeGreaterThanOrEqual(4.5)
   })
   test('independently generated labels retain order, spans and explicit gaps', () => {
     fc.assert(

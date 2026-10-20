@@ -31,8 +31,10 @@ interface Category {
 export function layoutIshikawaDiagram(body: IshikawaBody, options: RenderOptions = {}, styleFace?: InternalStyleFace, title?: string, diagramPadding = 24): PositionedIshikawa {
   validateHierarchy(body.nodes)
   const style = resolveRenderStyle(options, FLOWCHART_STYLE_DEFAULTS, styleFace)
+  const categoryPadX = styleFace?.node?.paddingX ?? 12, categoryPadY = styleFace?.node?.paddingY ?? 8,
+    effectPadX = styleFace?.node?.paddingX ?? 16, effectPadY = styleFace?.node?.paddingY ?? 12
   const children = hierarchyChildren(body.nodes)
-  const measure = (label: string, bold = false) => preparePixelText(label, { fontSize: style.nodeLabelFontSize, fontWeight: bold ? Math.max(600, style.nodeLabelFontWeight) : style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, transform: style.nodeTextTransform, maxWidth: 220 })
+  const measure = (label: string, bold = false) => preparePixelText(label, { fontSize: style.nodeLabelFontSize, fontWeight: bold && styleFace?.node?.fontWeight === undefined && styleFace?.text?.fontWeight === undefined ? Math.max(600, style.nodeLabelFontWeight) : style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, transform: style.nodeTextTransform, maxWidth: 220 })
   const band = diagramTitleBand(title, style)
   const root = body.nodes[0]
   if (!root) return { width: Math.max(100, (band?.width ?? 0) + diagramPadding * 2), height: 80 + (band?.height ?? 0), body, nodes: [], branches: [], spine: [], options, ...(band ? { title: positionDiagramTitle(band, Math.max(100, band.width + diagramPadding * 2), diagramPadding) } : {}) }
@@ -64,7 +66,7 @@ export function layoutIshikawaDiagram(body: IshikawaBody, options: RenderOptions
       bones[index]!.rise = rise + height / 2
       rise += height
     }
-    let reach = (block.width + 24) / 2
+    let reach = (block.width + categoryPadX * 2) / 2
     for (const bone of bones) {
       const parent = bone.parent < 0 ? undefined : bones[bone.parent]
       if (bone.depth % 2 === 0) {
@@ -76,12 +78,12 @@ export function layoutIshikawaDiagram(body: IshikawaBody, options: RenderOptions
       }
       reach = Math.max(reach, bone.block.width - bone.textEnd)
     }
-    return { node, block, width: block.width + 24, height: block.height + 16, bones, rise: Math.max(64, rise + 12), reach }
+    return { node, block, width: block.width + categoryPadX * 2, height: block.height + categoryPadY * 2, bones, rise: Math.max(64, rise + 12), reach }
   }
   const categories = (children.get(root.id) ?? []).map((node, index) => arrange(node, index % 2 === 0))
   const head = measure(root.label, true)
-  const headWidth = head.width + 32
-  const headHeight = Math.max(52, head.height + 24)
+  const headWidth = head.width + effectPadX * 2
+  const headHeight = Math.max(52, head.height + effectPadY * 2)
   const nodes: PositionedIshikawaNode[] = [{ node: root, block: head, x: 0, y: -headHeight / 2, width: headWidth, height: headHeight, depth: 0 }]
   const branches: IshikawaBranch[] = []
   let minX = -40

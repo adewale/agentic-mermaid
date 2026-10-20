@@ -1,10 +1,10 @@
 import { format } from 'd3-format'
-import type { TreemapBody, TreemapCell, TreemapConfig, PositionedTreemap, TreemapNode } from './types.ts'
-import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { FLOWCHART_STYLE_DEFAULTS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
-import { preparePixelText } from '../shared/prepared-text.ts'
 import { hierarchyChildren, validateHierarchy } from '../shared/hierarchy-model.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
+import { diagramTitleBand, FLOWCHART_STYLE_DEFAULTS, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
+import type { RenderOptions } from '../types.ts'
+import type { PositionedTreemap, TreemapBody, TreemapCell, TreemapConfig, TreemapNode } from './types.ts'
 
 export function resolveTreemapConfig(input: Record<string, unknown> = {}): TreemapConfig {
   const number = (key: string, fallback: number, minimum = 0): number => {
@@ -26,13 +26,18 @@ export function resolveTreemapConfig(input: Record<string, unknown> = {}): Treem
   }
 }
 
-export function formatTreemapValue(value: number, spec: string): string {
+/** Compile per request so every value shares the same locale and format. */
+export function compileTreemapValueFormat(spec: string): (value: number) => string {
   if (spec === '$0,0') spec = '$,'
   try {
-    return format(spec)(value)
+    return format(spec)
   } catch {
     throw new Error(`Invalid treemap.valueFormat ${JSON.stringify(spec)}`)
   }
+}
+
+export function formatTreemapValue(value: number, spec: string): string {
+  return compileTreemapValueFormat(spec)(value)
 }
 
 interface Tile {
@@ -98,8 +103,8 @@ export function squarifyTreemap(values: readonly { id: string; value: number }[]
 }
 
 export function layoutTreemapDiagram(body: TreemapBody, options: RenderOptions = {}, config = resolveTreemapConfig(), styleFace?: InternalStyleFace): PositionedTreemap {
-  validateHierarchy(body.nodes)
-  const style = resolveRenderStyle(options, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: config.labelFontSize }, styleFace)
+  validateHierarchy(body.nodes, node => node.value === undefined)
+  const style = resolveRenderStyle(options, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: config.labelFontSize, groupHeaderFontSize: config.labelFontSize, groupHeaderFontWeight: FLOWCHART_STYLE_DEFAULTS.nodeLabelFontWeight }, styleFace)
   const children = hierarchyChildren(body.nodes)
   const totals = new Map<string, number>()
   for (const node of [...body.nodes].reverse()) totals.set(node.id, node.value ?? (children.get(node.id) ?? []).reduce((sum, child) => sum + (totals.get(child.id) ?? 0), 0))
@@ -109,6 +114,7 @@ export function layoutTreemapDiagram(body: TreemapBody, options: RenderOptions =
   const height = config.height + (titleBand?.height ?? 0) + padding * 2
   const cells: TreemapCell[] = []
   const hiddenLabels: string[] = []
+  let formatValue: ReturnType<typeof compileTreemapValueFormat> | undefined
   const roots = children.get(undefined) ?? []
   const categories = new Map(roots.map((node, index) => [node.id, index]))
   const nodesById = new Map(body.nodes.map(node => [node.id, node]))
@@ -123,21 +129,34 @@ export function layoutTreemapDiagram(body: TreemapBody, options: RenderOptions =
       const node = nodesById.get(tile.id)!
       const category = plan.category ?? categories.get(node.id) ?? 0
       const cell: TreemapCell = { node, total: tile.value, x: tile.x, y: tile.y, width: tile.width, height: tile.height, depth: plan.depth, category }
-      const label = preparePixelText(node.label, { fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, transform: style.nodeTextTransform, maxWidth: Math.max(1, tile.width - 12) })
-      const valueLabel = config.showValues ? preparePixelText(formatTreemapValue(tile.value, config.valueFormat), { fontSize: config.valueFontSize, fontWeight: 400, maxWidth: Math.max(1, tile.width - 12) }) : undefined
+      const section = node.value === undefined,
+        face = section ? styleFace?.group : styleFace?.node,
+        paddingX = face?.paddingX ?? 6,
+        paddingY = face?.paddingY ?? 6,
+        maxWidth = Math.max(1, tile.width - paddingX * 2),
+        fontFamily = section ? (style.groupFont ?? options.font) : options.font,
+        letterSpacing = section ? style.groupLetterSpacing : style.nodeLetterSpacing,
+        transform = section ? style.groupTextTransform : style.nodeTextTransform
+      const label = preparePixelText(node.label, { fontSize: section ? style.groupHeaderFontSize : style.nodeLabelFontSize, fontWeight: section ? style.groupHeaderFontWeight : style.nodeLabelFontWeight, letterSpacing, transform, fontFamily, maxWidth })
+      const valueLabel = config.showValues
+        ? preparePixelText((formatValue ??= compileTreemapValueFormat(config.valueFormat))(tile.value), { fontSize: face?.fontSize ?? styleFace?.text?.fontSize ?? config.valueFontSize, fontWeight: face?.fontWeight ?? styleFace?.text?.fontWeight ?? 400, letterSpacing, transform, fontFamily, maxWidth })
+        : undefined
       const inner = children.get(node.id)
-      const labelHeight = label.height + (valueLabel ? valueLabel.height + 4 : 0) + 12
-      if (label.width <= tile.width - 12 && labelHeight <= tile.height) {
+      const labelHeight = label.height + (valueLabel ? valueLabel.height + 4 : 0) + paddingY * 2
+      if (label.width <= tile.width - paddingX * 2 && labelHeight <= tile.height) {
         cell.label = label
         cell.valueLabel = valueLabel
-        cell.labelY = tile.y + 6 + label.height / 2
-        if (valueLabel) cell.valueY = tile.y + 10 + label.height + valueLabel.height / 2
+        cell.labelY = tile.y + paddingY + label.height / 2
+        if (valueLabel) cell.valueY = tile.y + paddingY + 4 + label.height + valueLabel.height / 2
+        if (section && style.groupHeaderFillColor !== undefined) cell.headerHeight = labelHeight
       } else hiddenLabels.push(node.label)
       cells.push(cell)
       if (inner?.length) {
         const header = cell.label ? labelHeight : 0
         const gap = Math.min(config.padding, tile.width / 4, Math.max(0, tile.height - header) / 4)
-        pending.push({ items: inner, box: { x: tile.x + gap, y: tile.y + header + gap, width: Math.max(0, tile.width - 2 * gap), height: Math.max(0, tile.height - header - 2 * gap) }, depth: plan.depth + 1, category })
+        const gapX = styleFace?.group?.paddingX === undefined ? gap : Math.min(styleFace.group.paddingX, tile.width / 4),
+          gapY = styleFace?.group?.paddingY === undefined ? gap : Math.min(styleFace.group.paddingY, Math.max(0, tile.height - header) / 4)
+        pending.push({ items: inner, box: { x: tile.x + gapX, y: tile.y + header + gapY, width: Math.max(0, tile.width - 2 * gapX), height: Math.max(0, tile.height - header - 2 * gapY) }, depth: plan.depth + 1, category })
       }
     }
   }

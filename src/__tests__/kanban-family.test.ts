@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { collectActionRecords } from '../agent/analyze.ts'
-import { asKanban, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asKanban, layoutMermaidWithReceipt, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { mutateKanban, parseKanbanBody, renderKanban } from '../agent/kanban-body.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -9,6 +9,18 @@ import { kanbanTicketUrl } from '../kanban/config.ts'
 import { layoutKanbanDiagram } from '../kanban/layout.ts'
 import { parseKanbanDiagram } from '../kanban/parser.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
+
+test('Kanban group padding reserves real space around cards independently of node padding', () => {
+  const source = 'kanban\n  todo[To do]\n    work[日本 delivery]@{assigned: "Alice"}\n  done[Done]',
+    style = { roles: { group: { paddingX: 40, paddingY: 37 }, node: { paddingX: 12, paddingY: 11 } } },
+    layout = layoutMermaidWithReceipt(source, { style }).layout,
+    group = layout.groups.find(group => group.id === 'todo')!, card = layout.nodes.find(node => node.id === 'work')!
+  expect(card.x - group.x).toBe(40)
+  expect(group.x + group.w - card.x - card.w).toBe(40)
+  expect(card.y - group.y).toBeGreaterThanOrEqual(37 + 32)
+  expect(group.y + group.h - card.y - card.h).toBeGreaterThanOrEqual(37)
+  expect(renderMermaidSVG(source, { style })).toContain('日本 delivery')
+})
 
 test('Kanban duplicate authored IDs remain distinct across columns and generated-looking identities', () => {
   const body = parseKanbanDiagram('kanban\nTodo\n  same[First]\nDone\n  same[Second]\n  same#2[Third]')

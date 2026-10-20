@@ -4,9 +4,21 @@ import { parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
-import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
+import { observeParserMutation, type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 
 describe('native parser observation', () => {
+  test('selective mutation observation avoids reading excluded payloads and restores the enclosing scope', () => {
+    const events: ParserObservation[] = []
+    const unused = { get children(): never { throw new Error('excluded payload was traversed') } }
+    withParserObservation('block', event => events.push(event), () => {
+      withParserObservation('block', event => events.push(event), () => {
+        observeParserMutation('block', 'upsert-block', unused)
+        observeParserMutation('block', 'generate-id', 'anonymous-1')
+      }, { mutations: ['generate-id'] })
+      observeParserMutation('block', 'upsert-block', { id: 'outer' })
+    })
+    expect(events.map(event => [event.kind, event.value])).toEqual([['generate-id', 'anonymous-1'], ['upsert-block', { id: 'outer' }]])
+  })
   for (const family of knownBuiltinFamilies()) {
     test(`${family}: public SVG is identical with actual native consumption/build observation`, () => {
       const source = getFamily(family)!.example

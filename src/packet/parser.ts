@@ -20,7 +20,9 @@ export function parsePacketDiagram(input: readonly string[] | string, accessibil
   const source = lines.join('\n')
   const token = /(?:title(?:[ \t]+([^\n]*))?(?:\n|$)|(\+)?(0|[1-9]\d*)[ \t]*(?:-[ \t]*(0|[1-9]\d*))?[ \t]*:[ \t]*("(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\]|\\[\s\S])*')[ \t]*(?:%%[^\n]*)?(?:\n|$))/gy
   let offset = 0,
-    lastBit = -1
+    lastBit = -1,
+    observationOffset = 0,
+    observationLine = 2
   while (offset < source.length) {
     const trivia = /^(?:\s+|%%[^\n]*(?:\n|$))/.exec(source.slice(offset))
     if (trivia) {
@@ -34,7 +36,11 @@ export function parsePacketDiagram(input: readonly string[] | string, accessibil
       throw syntaxError({ what: `Invalid packet statement: ${source.slice(offset).split('\n')[0]}`, expectedForm: 'start-end: "label" or +bits: "label"', example: '+16: "Source Port"' })
     }
     offset = token.lastIndex
-    if (parserObservationActive('packet')) observeParserStatement('packet', match[2] === undefined && match[3] === undefined ? 'title' : 'field', match[0], { line: source.slice(0, match.index).split('\n').length + 1, offset: match.index, endOffset: token.lastIndex, unit: 'normalized' })
+    if (parserObservationActive('packet')) {
+      // Observe each source character at most once, including quoted newlines.
+      for (; observationOffset < match.index; observationOffset++) if (source.charCodeAt(observationOffset) === 10) observationLine++
+      observeParserStatement('packet', match[2] === undefined && match[3] === undefined ? 'title' : 'field', match[0], { line: observationLine, offset: match.index, endOffset: token.lastIndex, unit: 'normalized' })
+    }
     if (match[2] === undefined && match[3] === undefined) {
       body.title = stripTrailingComment(match[1] ?? '').trim()
       observeParserMutation('packet', 'set-title', body.title)

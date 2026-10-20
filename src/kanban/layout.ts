@@ -25,8 +25,12 @@ export function layoutKanbanDiagram(body: KanbanBody, options: Readonly<RenderOp
   const pad = options.padding ?? 24,
     inset = Math.max(4, visual.padding),
     cardPadX = Math.max(8, style.nodePaddingX),
-    cardPadY = Math.max(8, style.nodePaddingY)
-  const width = Math.max(visual.sectionWidth, inset * 2 + cardPadX * 2 + 24)
+    cardPadY = Math.max(8, style.nodePaddingY),
+    groupPadX = styleFace?.group?.paddingX ?? inset,
+    groupPadY = styleFace?.group?.paddingY ?? inset,
+    headerPadX = styleFace?.group?.paddingX ?? inset + cardPadX,
+    headerPadY = styleFace?.group?.paddingY ?? cardPadY
+  const width = Math.max(visual.sectionWidth, groupPadX * 2 + cardPadX * 2 + 24, headerPadX * 2 + 24)
   const band = diagramTitleBand(body.title, style)
   const textBlocks = (item: KanbanItem, header: boolean): KanbanText[] =>
     kanbanItemText(item).map(({ text, kind }) => {
@@ -38,24 +42,24 @@ export function layoutKanbanDiagram(body: KanbanBody, options: Readonly<RenderOp
         fontWeight: header ? style.groupHeaderFontWeight : primary ? style.nodeLabelFontWeight : style.edgeLabelFontWeight,
         letterSpacing: header ? style.groupLetterSpacing : style.nodeLetterSpacing,
         fontFamily: header ? (style.groupFont ?? options.font) : options.font,
-        maxWidth: width - 2 * inset - 2 * cardPadX,
+        maxWidth: width - 2 * (header ? headerPadX : groupPadX + cardPadX),
       })
       return { text, kind, block, x: 0, y: 0 }
     })
   const headers = body.columns.map(column => textBlocks(column, true))
-  const headerHeight = Math.max(32, ...headers.map(texts => texts.reduce((height, text) => height + text.block.height + 6, 2 * cardPadY)))
+  const headerHeight = Math.max(32, ...headers.map(texts => texts.reduce((height, text) => height + text.block.height + 6, 2 * headerPadY)))
   const columns: PositionedKanbanColumn[] = []
   body.columns.forEach((column, index) => {
     const x = pad + index * (width + Math.max(16, inset * 2)),
       y = pad + (band?.height ?? 0)
     const texts = headers[index]!
-    let textY = y + cardPadY
+    let textY = y + headerPadY
     for (const text of texts) {
-      text.x = x + inset + cardPadX
+      text.x = x + headerPadX
       text.y = textY + text.block.height / 2
       textY += text.block.height + 6
     }
-    let cardY = y + headerHeight + inset
+    let cardY = y + headerHeight + groupPadY
     const tasks = column.tasks.map(task => {
       const texts = textBlocks(task, false),
         height = Math.max(
@@ -64,17 +68,17 @@ export function layoutKanbanDiagram(body: KanbanBody, options: Readonly<RenderOp
         )
       let top = cardY + cardPadY
       for (const text of texts) {
-        text.x = x + inset + cardPadX
+        text.x = x + groupPadX + cardPadX
         text.y = top + text.block.height / 2
         top += text.block.height + 6
       }
-      const positioned = { ...task, parentId: column.id, x: x + inset, y: cardY, width: width - inset * 2, height, texts, ...(task.metadata.ticket ? { ticketUrl: kanbanTicketUrl(visual.ticketBaseUrl, String(task.metadata.ticket)) } : {}) }
+      const positioned = { ...task, parentId: column.id, x: x + groupPadX, y: cardY, width: width - groupPadX * 2, height, texts, ...(task.metadata.ticket ? { ticketUrl: kanbanTicketUrl(visual.ticketBaseUrl, String(task.metadata.ticket)) } : {}) }
       cardY += height + inset
       return positioned
     })
-    columns.push({ ...column, x, y, width, height: cardY - y + inset, headerHeight, texts, tasks })
+    columns.push({ ...column, x, y, width, height: cardY - y + groupPadY, headerHeight, texts, tasks })
   })
-  const maxHeight = Math.max(headerHeight + inset * 2, ...columns.map(column => column.height))
+  const maxHeight = Math.max(headerHeight + groupPadY * 2, ...columns.map(column => column.height))
   for (const column of columns) column.height = maxHeight
   const canvasWidth = Math.max(pad * 2 + Math.max(0, columns.length * width + Math.max(0, columns.length - 1) * Math.max(16, inset * 2)), (band?.width ?? 0) + 2 * pad)
   return { columns, visual, width: canvasWidth, height: pad * 2 + (band?.height ?? 0) + maxHeight, ...(band ? { title: positionDiagramTitle(band, canvasWidth, pad) } : {}) }

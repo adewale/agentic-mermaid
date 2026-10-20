@@ -9,7 +9,7 @@
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { contrastTextColor } from '../color-resolver.ts'
+import { contrastTextColor, createFillInkResolver } from '../color-resolver.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
@@ -67,6 +67,16 @@ describe('#116 auto-contrast node text on custom fills', () => {
 // every opaque fill. A brightness cut-off picked white on mid-tone fills such
 // as #3b82f6 (3.68:1) and #10b981 (2.54:1).
 describe('auto-contrast ink contract', () => {
+  test('a render-local ink resolver keeps authored-fill policy and page colors independent', () => {
+    const ink = createFillInkResolver({ bg: '#ffffff', fg: '#27272a' })
+    // A Style's explicit ink stays authoritative on its own surface. The same
+    // ink on an independently authored fill must adapt to remain legible.
+    expect(ink('#ffffff', '#ffffff')).toBe('#ffffff')
+    expect(wcagContrastRatio(ink('#ffffff', '#ffffff', true), '#ffffff')!).toBeGreaterThanOrEqual(4.5)
+    expect(ink('#ffffff', '#ffffff')).toBe('#ffffff')
+    expect(wcagContrastRatio(ink('#ffffff', '#000000', true), '#000000')!).toBeGreaterThanOrEqual(4.5)
+    expect(createFillInkResolver({ bg: 'var(--page)', fg: 'var(--ink)' })('var(--_text)', 'var(--surface)')).toBe('var(--_text)')
+  })
   const hexArb = fc.integer({ min: 0, max: 0xffffff }).map(value => `#${value.toString(16).padStart(6, '0')}`)
 
   test('picks the higher-contrast ink, at least 4.5:1, for any opaque fill', () => {

@@ -2,6 +2,7 @@ import { rerouteEdgesThroughNodes } from '../layout/passes/index.ts'
 import { simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { shapeCardinalPorts } from '../shape-outline.ts'
+import { assertBlockDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
@@ -38,6 +39,7 @@ interface View extends Cell {
   style: Record<string, string>
 }
 export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}, face?: Readonly<InternalStyleFace>, config: Record<string, unknown> = {}): PositionedBlockDiagram {
+  assertBlockDiagramWork(model)
   const style = resolveRenderStyle(options, undefined, face),
     pad = options.padding ?? 32
   const edgeLabels = model.edges.map(edge => preparePixelText(blockTextPlan(edge.label ?? ''), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, maxWidth: 320, transform: style.edgeTextTransform, letterSpacing: style.edgeLetterSpacing }))
@@ -45,15 +47,23 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
   const classes = new Map(model.classDefs.map(d => [d.id, d])),
     views: View[] = []
   const make = (block: Block, parentId?: string): View => {
+    const composite = block.type === 'composite'
     const declarations = [...(classes.get('default')?.styles ?? []), ...(block.classes ?? []).flatMap(name => classes.get(name)?.styles ?? []), ...(block.styles ?? [])]
     const props = checkedAuthoredStyle(parseStyleProps(declarations.join(',')), `style ${block.id}`),
-      fontSize = Number.parseFloat(props['font-size'] ?? '') || style.nodeLabelFontSize
+      fontSize = Number.parseFloat(props['font-size'] ?? '') || (composite ? style.groupHeaderFontSize : style.nodeLabelFontSize)
     const authoredWeight = props['font-weight']?.trim().toLowerCase(),
-      fontWeight = authoredWeight === undefined ? style.nodeLabelFontWeight : authoredWeight === 'normal' ? 400 : authoredWeight === 'bold' ? 700 : Number(authoredWeight)
+      fontWeight = authoredWeight === undefined ? (composite ? style.groupHeaderFontWeight : style.nodeLabelFontWeight) : authoredWeight === 'normal' ? 400 : authoredWeight === 'bold' ? 700 : Number(authoredWeight)
     if (!Number.isFinite(fontWeight) || fontWeight < 1 || fontWeight > 1000) throw new Error(`style ${block.id}: font-weight must be normal, bold, or a number from 1 to 1000`)
-    const label = preparePixelText(blockTextPlan(block.label ?? (block.type === 'composite' ? '' : block.id)), { fontSize, fontWeight, maxWidth: 320, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing })
-    let nw = Math.max(80, label.width + style.nodePaddingX * 2),
-      nh = Math.max(44, label.height + style.nodePaddingY * 2)
+    const label = preparePixelText(blockTextPlan(block.label ?? (composite ? '' : block.id)), {
+      fontSize,
+      fontWeight,
+      maxWidth: 320,
+      transform: composite ? style.groupTextTransform : style.nodeTextTransform,
+      letterSpacing: composite ? style.groupLetterSpacing : style.nodeLetterSpacing,
+      fontFamily: composite ? (style.groupFont ?? options.font) : options.font,
+    })
+    let nw = Math.max(80, label.width + (composite ? style.groupLabelPaddingX : style.nodePaddingX) * 2),
+      nh = Math.max(44, label.height + (composite ? style.groupPaddingY : style.nodePaddingY) * 2)
     if (['diamond', 'hexagon', 'lean_right', 'lean_left', 'trapezoid', 'inv_trapezoid'].includes(block.type ?? '')) {
       nw += 48
       nh += 24
@@ -70,7 +80,29 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
       nh = 24
     }
     const head = block.type === 'composite' && label.text ? label.height + 16 : 0
-    return { block, parentId, label, style: props, children: [], columns: block.columns ?? -1, span: block.widthInColumns ?? 1, space: block.type === 'space', head, nw: block === model.root ? 0 : nw, nh: block === model.root ? 0 : nh, col: 0, row: 0, cols: 0, heights: [], x: 0, y: 0, w: 0, h: 0 }
+    return {
+      block,
+      parentId,
+      label,
+      style: props,
+      children: [],
+      columns: block.columns ?? -1,
+      span: block.widthInColumns ?? 1,
+      space: block.type === 'space',
+      head,
+      insetX: face?.group?.paddingX,
+      insetY: face?.group?.paddingY,
+      nw: block === model.root ? 0 : nw,
+      nh: block === model.root ? 0 : nh,
+      col: 0,
+      row: 0,
+      cols: 0,
+      heights: [],
+      x: 0,
+      y: 0,
+      w: 0,
+      h: 0,
+    }
   }
   const root = make(model.root),
     pending = [root]
@@ -82,7 +114,6 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
       pending.push(v)
       views.push(v)
     }
-    if (pending.length > 10000) throw new Error('Block diagram exceeds 10000 blocks')
   }
   const bounds = layoutGrid(root, gap),
     band = diagramTitleBand(model.title, style),
@@ -97,23 +128,54 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     return { id: v.block.id, block: v.block, parentId: v.parentId, x: v.x - width / 2 + ox, y: v.y - height / 2 + oy, width, height, label: v.label, style: v.style }
   })
   const byId = new Map(nodes.map(n => [n.id, n])),
-    parallel = new Map<string, number>()
+    shapeNodes = nodes.filter(node => node.block.type !== 'space').map(blockShapeNode),
+    ports = new Map(shapeNodes.map(node => [node.id, shapeCardinalPorts(node)])),
+    ordinaryObstacles = shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite'),
+    pairs = new Map<string, number[]>()
+  const pairKey = (edge: Block) => (edge.start! < edge.end! ? `${edge.start}\0${edge.end}` : `${edge.end}\0${edge.start}`)
+  model.edges.forEach((edge, index) => {
+    const key = pairKey(edge),
+      siblings = pairs.get(key) ?? []
+    siblings.push(index)
+    pairs.set(key, siblings)
+  })
+  const pairSlots = new Map<number, { slot: number; count: number; width: number; height: number }>()
+  for (const siblings of pairs.values()) {
+    const width = Math.max(...siblings.map(index => edgeLabels[index]!.width)),
+      height = Math.max(...siblings.map(index => edgeLabels[index]!.height))
+    siblings.forEach((index, slot) => pairSlots.set(index, { slot, count: siblings.length, width, height }))
+  }
   const edges = model.edges.map((edge, index) => {
     const source = byId.get(edge.start!),
       target = byId.get(edge.end!)
     if (!source || !target) throw new Error(`Block edge ${edge.id} references undeclared endpoints`)
     const labelBlock = edgeLabels[index]!
-    const key = `${edge.start}\0${edge.end}`,
-      occurrence = parallel.get(key) ?? 0
-    parallel.set(key, occurrence + 1)
-    const s = shapeCardinalPorts(blockShapeNode(source)),
-      t = shapeCardinalPorts(blockShapeNode(target))
+    const { slot: occurrence, count, width: labelWidth, height: labelHeight } = pairSlots.get(index)!,
+      lane = occurrence - (count - 1) / 2,
+      s = ports.get(source.id) ?? shapeCardinalPorts(blockShapeNode(source)),
+      t = ports.get(target.id) ?? shapeCardinalPorts(blockShapeNode(target))
     let points: Point[]
     const sc = { x: source.x + source.width / 2, y: source.y + source.height / 2 },
       tc = { x: target.x + target.width / 2, y: target.y + target.height / 2 }
     if (source === target) {
-      const r = 28 + occurrence * 18
+      const r = 28 + occurrence * (Math.max(labelWidth, labelHeight) + 24)
       points = [s.E, { x: s.E.x + r, y: s.E.y }, { x: s.E.x + r, y: source.y - r }, { x: s.N.x, y: source.y - r }, s.N]
+    } else if (count > 1 && lane !== 0) {
+      // Reciprocal and duplicate links share one allocation. Outer corridors
+      // keep labels readable without changing the author's grid or shapes.
+      const horizontal = Math.abs(tc.x - sc.x) >= Math.abs(tc.y - sc.y)
+      const separation = (horizontal ? labelHeight : labelWidth) + 24
+      if (horizontal) {
+        const y = lane < 0 ? Math.min(source.y, target.y) + lane * separation : Math.max(source.y + source.height, target.y + target.height) + lane * separation
+        const from = lane < 0 ? s.N : s.S,
+          to = lane < 0 ? t.N : t.S
+        points = [from, { x: from.x, y }, { x: to.x, y }, to]
+      } else {
+        const x = lane < 0 ? Math.min(source.x, target.x) + lane * separation : Math.max(source.x + source.width, target.x + target.width) + lane * separation
+        const from = lane < 0 ? s.W : s.E,
+          to = lane < 0 ? t.W : t.E
+        points = [from, { x, y: from.y }, { x, y: to.y }, to]
+      }
     } else if (source.y + source.height <= target.y || target.y + target.height <= source.y) {
       const from = tc.y >= sc.y ? s.S : s.N,
         to = tc.y >= sc.y ? t.N : t.S,
@@ -130,10 +192,10 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
         mid = (from.y + to.y) / 2 + occurrence * 12
       points = [from, { x: from.x, y: mid }, { x: to.x, y: mid }, to]
     }
-    const route: PositionedEdge = { id: edge.id, source: source.id, target: target.id, style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: simplifyPolyline(points) }
+    const route: PositionedEdge = { id: edge.id, source: source.id, target: target.id, style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: simplifyPolyline(points.map(point => ({ ...point }))) }
     // Authored grid cells remain fixed. Shared shape-aware repair owns only the
     // connector interior, including skip links across an occupied grid cell.
-    const obstacles = nodes.filter(n => n.block.type !== 'space' && (n.block.type !== 'composite' || n === source || n === target)).map(blockShapeNode)
+    const obstacles = source.block.type === 'composite' || target.block.type === 'composite' ? shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite' || node.id === source.id || node.id === target.id) : ordinaryObstacles
     rerouteEdgesThroughNodes(obstacles, [route], { direction: source.y + source.height <= target.y || target.y + target.height <= source.y ? 'TB' : 'LR' })
     points = route.points
     let best = 0

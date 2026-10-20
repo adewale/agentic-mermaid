@@ -1,12 +1,13 @@
 import { expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { asPacket, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { asPacket, layoutMermaidWithReceipt, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { mutatePacket, parsePacketBody, renderPacket } from '../agent/packet-body.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { resolvePacketConfig } from '../packet/config.ts'
 import { layoutPacketDiagram } from '../packet/layout.ts'
 import { parsePacketDiagram } from '../packet/parser.ts'
+import { withParserObservation } from '../shared/parser-observation.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 test('Packet mirrors each word, including partial final words, without changing field widths', () => {
@@ -20,6 +21,19 @@ test('Packet mirrors each word, including partial final words, without changing 
     expect(field.bitLabels.map(label => label.text)).toEqual(original.bitLabels.map(label => label.text).reverse())
   }
   expect(descending.fields.at(-1)!.x + descending.fields.at(-1)!.width + descending.visual.paddingX / 2).toBe(24 + 16 * 32)
+})
+
+test('Packet node padding and corners affect retained text and artwork without changing encoded widths', () => {
+  const source = 'packet\n+2: "Readable field"\n+30: "Payload"',
+    style = { roles: { node: { paddingX: 20, paddingY: 37, cornerRadius: 11 } } },
+    before = layoutMermaidWithReceipt(source).layout,
+    after = layoutMermaidWithReceipt(source, { style }).layout
+  expect(after.nodes.map(node => [node.id, node.x, node.w])).toEqual(before.nodes.map(node => [node.id, node.x, node.w]))
+  expect(after.nodes[0]!.h).toBeGreaterThan(before.nodes[0]!.h + 40)
+  expect(after.nodes[0]!.labelBounds!.h).toBeGreaterThan(before.nodes[0]!.labelBounds!.h)
+  const svg = renderMermaidSVG(source, { style })
+  expect(svg).toContain('rx="11"')
+  expect(svg).toContain('data-start="0" data-end="1"')
 })
 
 test('Packet count mutations maintain contiguity and reject invalid edits atomically', () => {
@@ -67,9 +81,19 @@ test.each(['ascending', 'descending'] as const)('Packet showBits:false hides num
 })
 
 test('Packet multiline strings preserve blank lines, comment-looking text and trailing comments', () => {
-  const body = parsePacketDiagram('packet\n0-7: "First\n\n%% literal line\nLast" %% actual comment\n+1: \'flag\'')
+  const source = 'packet\n0-7: "First\n\n%% literal line\nLast" %% actual comment\n\n%% between fields\n+1: \'flag\'',
+    statements: [string, number | undefined][] = []
+  const body = withParserObservation(
+    'packet',
+    event => {
+      if (event.unit === 'statement' && event.kind === 'field') statements.push([event.text ?? '', event.source?.line])
+    },
+    () => parsePacketDiagram(source),
+  )
   expect(body.fields.map(field => field.label)).toEqual(['First\n\n%% literal line\nLast', 'flag'])
   expect(parsePacketDiagram(renderPacket(body)).fields.map(field => field.label)).toEqual(body.fields.map(field => field.label))
+  expect(statements.map(([, line]) => line)).toEqual([2, 8])
+  expect(statements[1]![0]).toBe("+1: 'flag'")
 })
 
 test('Packet typed wrapper and all public outputs agree on title, labels and mutation', () => {

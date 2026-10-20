@@ -53,6 +53,39 @@ terminal-cell area proportionality. Ishikawa presents the cause/effect tree
 without claiming an ASCII drawing of the SVG fishbone. Both projections report
 that limitation and retain full authored text.
 
+## Contract and cost follow-up (2026-10-20)
+
+The first candidate (`21aeeb12`) had native support, but an audit found gaps in
+shared Style consumption, Block containment and parallel-edge clearance, and
+early host work admission. Those are implementation defects rather than
+intentional Mermaid divergences. The follow-up uses the existing authorities:
+
+| Contract | Implementation and owning evidence |
+|---|---|
+| Bounded work before measurement | The shared 5,000-object/5,000-edge and 64-container-depth limits cover the new source parsers and programmatic layout inputs. Expanded Block spaces count before allocation; Packet row expansion counts before preparing its title. `diagram-work-limits.test.ts` exercises both graphical and terminal refusals. Source configuration cannot raise these limits. |
+| Styles describe real paint and geometry | Node/group padding, typography, corners, borders and ink reach their owned marks. Requirement relationships refine edge styling; Block and Requirement use the shared rounded-path projection. Treemap bar category bindings use the existing role authority. Authored styles retain precedence. Native family tests inspect actual text blocks, owned shapes and measured allocations. |
+| Authored identity and containment | Block composite Scene groups contain their children and expose parent identities. Parallel and reciprocal links share an unordered endpoint-pair allocation, retain distinct routes and clear complete labels. `block-native.test.ts` checks actual Scene nesting, route/label geometry and public paint certification. |
+| Quantitative meaning | Packet padding changes text allocation and row height without changing bit intervals or widths. Treemap header bands and padding consume content space without changing the outer quantitative partition or sibling value ratios. Independent conservation properties remain the geometry oracle. |
+| Accessibility, security and output correspondence | The universal source envelope, output security policy, retained text, stable SVG identities and family descriptor contracts remain shared. Their existing all-family tests exercise the new families; family-specific terminal projections retain their explicit limitations above. |
+| Determinism and request isolation | Child, row, relation and obstacle indexes retain authored iteration order. Number formatters and resolved fill-ink values are reused only within one request; no cache survives into a differently styled diagram. Parser observation can select mutations before snapshotting, while ordinary full observation retains its lossless model snapshots. |
+
+The performance comparison uses both the original candidate and a separate
+merge-only baseline (`2199c535`) so improvements already on main are not
+attributed to the native-family optimizations. Stage measurements use the
+existing Node microbenchmark with matched inputs and alternating rounds;
+complete SVG, allocation, heap and RSS measurements use the existing release
+benchmark with separate fresh processes. Download cost is assessed separately
+through actual lazy module graphs and the complete shipped browser bundle.
+Generated samples, images and reports are review artifacts, not new committed
+baselines. Small timing differences on a shared runner are not treated as
+proof of an end-to-end speedup.
+
+These checks establish the stated contracts for the exercised inputs. They do
+not establish every possible dense layout, every external font, or an
+unmodified run of Mermaid's entire browser suite. The pinned portable tests,
+their explicit exclusion ledgers, semantic comparisons and render acceptance
+scores continue to have separate denominators.
+
 ## Community signals translated into implementation
 
 Links below are evidence and design inputs, not promises to merge upstream

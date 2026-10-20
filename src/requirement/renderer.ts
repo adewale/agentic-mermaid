@@ -1,8 +1,9 @@
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/families.ts'
-import { toneOnFill } from '../color-resolver.ts'
+import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { canvasOf, f, labelRect, retainedLabelBounds, retainedLabelGeometry } from '../positioned-views/geometry.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import * as marks from '../scene/marks.ts'
@@ -11,8 +12,8 @@ import { buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedRequirementDiagram } from './types.ts'
 
-const arrow = tipAnchoredArrow('requirement-arrow', { width: 9, height: 7 }, 'end', { fill: 'none', stroke: 'var(--_arrow)', strokeWidth: '1' }, 'userSpaceOnUse')
-const contains: MarkerDescriptor = {
+const defaultArrow = tipAnchoredArrow('requirement-arrow', { width: 9, height: 7 }, 'end', { fill: 'none', stroke: 'var(--_arrow)', strokeWidth: '1' }, 'userSpaceOnUse')
+const defaultContains: MarkerDescriptor = {
   id: 'requirement-contains',
   shape: 'circle',
   size: { width: 12, height: 12 },
@@ -28,12 +29,15 @@ const contains: MarkerDescriptor = {
   },
   paint: { fill: 'var(--bg)', stroke: 'var(--_arrow)', strokeWidth: '1' },
 }
-const resources = [arrow, contains]
 export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDiagram>): SceneDoc {
   const { positioned: p, colors } = ctx,
     transparent = ctx.resolved.renderOptions.transparent ?? false,
     font = colors.font ?? 'Inter',
-    parts: SceneNode[] = []
+    parts: SceneNode[] = [],
+    arrow = p.style.edgeStrokeColor ? { ...defaultArrow, paint: { ...defaultArrow.paint, stroke: p.style.edgeStrokeColor } } : defaultArrow,
+    contains = p.style.edgeStrokeColor ? { ...defaultContains, paint: { ...defaultContains.paint, stroke: p.style.edgeStrokeColor } } : defaultContains,
+    resources = [arrow, contains]
+  const fillInk = createFillInkResolver(colors)
   let open = svgOpenTag(p.width, p.height, colors, transparent)
   if (p.model.accessibilityTitle) open += `<title>${escapeXml(p.model.accessibilityTitle)}</title>`
   if (p.model.accessibilityDescription) open += `<desc>${escapeXml(p.model.accessibilityDescription)}</desc>`
@@ -43,7 +47,7 @@ export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDi
   for (const node of p.nodes) {
     const fill = node.style.fill ?? p.style.nodeFillColor ?? 'var(--_node-fill)',
       stroke = node.style.stroke ?? p.style.nodeBorderColor ?? 'var(--_node-stroke)',
-      ink = node.style.color ?? toneOnFill('var(--_text)', fill, colors)
+      ink = node.style.color ?? p.style.nodeTextColor ?? fillInk('var(--_text)', fill)
     const children: { node: SceneNode; indent: number }[] = [
       {
         indent: 2,
@@ -59,21 +63,23 @@ export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDi
       { indent: 2, node: marks.text({ id: `header:${node.id}`, role: 'label', owner: { id: node.id, role: 'node' }, text: node.header.text, block: node.header, x: node.x + node.width / 2, y: node.y + node.headerHeight / 2, fontSize: node.header.fontSize, anchor: 'middle', paint: { fill: ink } }) },
       ...node.rows.map((row, i) => ({ indent: 2, node: marks.text({ id: `field:${node.id}:${i}`, role: 'attribute', owner: { id: node.id, role: 'node' }, text: row.block.text, block: row.block, x: node.x + node.paddingX, y: node.y + row.y, fontSize: row.block.fontSize, anchor: 'start', paint: { fill: ink } }) })),
     ]
-    parts.push(marks.group({ id: `node:${node.id}`, role: 'node', open: `<g class="requirement-node" data-id="${escapeAttr(node.id)}">`, close: '</g>', children }))
+    const classes = ['requirement-node', ...(node.requirement ?? node.element)!.classes.filter(name => /^[\w-]+$/.test(name))]
+    parts.push(marks.group({ id: `node:${node.id}`, role: 'node', open: `<g class="${escapeAttr(classes.join(' '))}" data-id="${escapeAttr(node.id)}">`, close: '</g>', children }))
   }
   for (const edge of p.edges) {
+    const projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius, { precision: 3 }) : undefined
     parts.push(
       marks.connector({
         id: edge.id,
         role: 'relationship',
-        geometry: { kind: 'polyline', points: edge.points },
+        geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
         lineStyle: edge.type === 'contains' ? 'solid' : 'dashed',
-        paint: { stroke: 'var(--_line)', strokeWidth: String(p.style.lineWidth), fill: 'none' },
+        paint: { stroke: p.style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(p.style.lineWidth), fill: 'none' },
         endpoints: { from: edge.src, to: edge.dst },
         relationship: { kind: edge.type, direction: 'forward' },
         markers: edge.type === 'contains' ? { start: contains } : { end: arrow },
         labels: [{ text: edge.label.text, anchor: edge.labelPosition }],
-        route: { ownership: 'layout', labelAnchors: [edge.labelPosition] },
+        route: { ownership: 'layout', bendRadius: p.style.edgeBendRadius, labelAnchors: [edge.labelPosition], ...(projection ? { contours: projection.contours } : {}) },
       }),
     )
   }
@@ -88,7 +94,7 @@ export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDi
         close: '</g>',
         children: [
           { indent: 2, node: marks.shape({ id: `label-bg:${edge.id}`, role: 'chrome', owner: { id: edge.id, role: 'relationship' }, geometry: { kind: 'rect', x: q.x - b.width / 2 - 6, y: q.y - b.height / 2 - 4, width: b.width + 12, height: b.height + 8 }, paint: { fill: 'var(--bg)', stroke: 'none' } }) },
-          { indent: 2, node: marks.text({ id: `label:${edge.id}`, role: 'edge-label', owner: { id: edge.id, role: 'relationship' }, text: b.text, block: b, x: q.x, y: q.y, fontSize: b.fontSize, anchor: 'middle', paint: { fill: 'var(--_text)' } }) },
+          { indent: 2, node: marks.text({ id: `label:${edge.id}`, role: 'edge-label', owner: { id: edge.id, role: 'relationship' }, text: b.text, block: b, x: q.x, y: q.y, fontSize: b.fontSize, anchor: 'middle', paint: { fill: p.style.edgeTextColor ?? 'var(--_text)' } }) },
         ],
       }),
     )

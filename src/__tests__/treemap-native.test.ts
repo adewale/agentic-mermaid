@@ -3,8 +3,14 @@ import { readFileSync } from 'node:fs'
 import fc from 'fast-check'
 import { asTreemap, describeMermaidFacts, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { mutateTreemap, renderTreemap } from '../agent/treemap-body.ts'
+import { lowerPositionedFamilyScene } from '../graphical-render.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import type { SceneNode } from '../scene/ir.ts'
+import { visitSceneNodes } from '../scene/walk.ts'
 import { layoutTreemapDiagram, resolveTreemapConfig, squarifyTreemap } from '../treemap/layout.ts'
 import { parseTreemapDiagram } from '../treemap/parser.ts'
+import type { PositionedTreemap } from '../treemap/types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 const inlineRows = JSON.parse(readFileSync(new URL('../../eval/mermaid-treemap-bench/inline-row-regressions.json', import.meta.url), 'utf8')) as {
@@ -111,6 +117,54 @@ describe('native Treemap', () => {
       expect(svg).not.toMatch(/\b(?:NaN|Infinity)\b/)
     }
     expect(renderMermaidASCII(source)).toContain('Engineering: 7,000,000')
+  })
+
+  test('section typography and header paint coexist with bound quantitative bars and authored classes', () => {
+    const source = 'treemap\n"Region A"\n  "Large": 60:::hot\n  "Small": 40\n"Region B"\n  "Other": 100\nclassDef hot fill:#ff9966,stroke:#333333,stroke-width:2px,color:#111111;',
+      style = {
+        roles: {
+          group: { fontFamily: 'Inter', fontSize: 18, fontWeight: 750, textTransform: 'uppercase', letterSpacing: 0.5, paddingX: 14, paddingY: 9, fillColor: '#eef2ff', headerFillColor: '#dbeafe', textColor: '#112233', borderColor: '#334155', lineWidth: 2, cornerRadius: 8 },
+          node: { fontSize: 11, fontWeight: 600, textTransform: 'lowercase', letterSpacing: 0.3, fillColor: '#ccffcc', cornerRadius: 3, paddingX: 7, paddingY: 5 },
+          bar: { borderColor: '#222222' },
+        },
+        semanticSlots: { selected: { fillColor: '#1d4ed8', strokeColor: '#020617', lineWidth: 3 } },
+        bindings: [{ channel: 'category', value: '0', slot: 'selected', role: 'bar' }],
+      } as const,
+      request = resolveRenderRequest(source, { style }, 'svg'),
+      positioned = positionResolvedFamily('treemap', request),
+      chart = positioned.positioned as PositionedTreemap,
+      group = chart.cells.find(cell => cell.node.label === 'Region A')!,
+      otherGroup = chart.cells.find(cell => cell.node.label === 'Region B')!,
+      large = chart.cells.find(cell => cell.node.label === 'Large')!,
+      small = chart.cells.find(cell => cell.node.label === 'Small')!
+    expect(group.label).toMatchObject({ text: 'REGION A', fontSize: 18, fontWeight: 750, fontFamily: 'Inter', letterSpacing: 0.5 })
+    expect(large.label).toMatchObject({ text: 'large', fontSize: 11, fontWeight: 600, letterSpacing: 0.3 })
+    expect(large.labelY).toBe(large.y + 5 + large.label!.height / 2)
+    expect(group.valueLabel).toMatchObject({ text: '100', fontSize: 18, fontWeight: 750 })
+    expect(group.width * group.height).toBeCloseTo(otherGroup.width * otherGroup.height, 8)
+    expect((large.width * large.height) / (small.width * small.height)).toBeCloseTo(1.5, 8)
+    expect(large.x).toBeGreaterThanOrEqual(group.x + 14)
+    expect(large.y).toBeGreaterThanOrEqual(group.y + group.headerHeight! + 9)
+    const nodes: SceneNode[] = []
+    visitSceneNodes(lowerPositionedFamilyScene(request, positioned).parts, node => nodes.push(node))
+    const bar = (id: string) => nodes.find(node => node.kind === 'shape' && node.role === 'bar' && node.owner?.id === id)
+    expect(bar(group.node.id)).toMatchObject({ geometry: { kind: 'rect', rx: 8 }, channels: { category: '0', value: 0.5 }, paint: { fill: '#1d4ed8', stroke: '#020617', strokeWidth: '3' } })
+    expect(bar(large.node.id)).toMatchObject({ channels: { value: 0.3 }, paint: { fill: '#ff9966', stroke: '#333333', strokeWidth: '2px' } })
+    expect(bar(small.node.id)).toMatchObject({ paint: { fill: '#1d4ed8' } })
+    expect(nodes.find(node => node.id === `header:${group.node.id}`)).toMatchObject({ role: 'chrome', owner: { id: group.node.id, role: 'group' }, paint: { fill: '#dbeafe' } })
+    expect(nodes.find(node => node.id === `label:${group.node.id}`)).toMatchObject({ paint: { fill: '#112233' } })
+    expect(nodes.find(node => node.id === `label:${large.node.id}`)).toMatchObject({ owner: { id: large.node.id, role: 'node' }, paint: { fill: '#111111' } })
+    expect(renderMermaidSVG(source, { style }).replace(/<[^>]*>/g, '')).toContain('REGION A')
+    const authoredRequest = resolveRenderRequest(source.replace('"Region A"', '"Region A":::hot'), { style }, 'svg'),
+      authoredScene = lowerPositionedFamilyScene(authoredRequest, positionResolvedFamily('treemap', authoredRequest)),
+      authoredNodes: SceneNode[] = []
+    visitSceneNodes(authoredScene.parts, node => authoredNodes.push(node))
+    expect(authoredNodes.find(node => node.id === `header:${group.node.id}`)).toMatchObject({ paint: { fill: '#ff9966' } })
+    const lowContrast = { ...style, roles: { ...style.roles, group: { ...style.roles.group, textColor: '#ffffff' } } },
+      lowRequest = resolveRenderRequest(source, { style: lowContrast }, 'svg'),
+      lowNodes: SceneNode[] = []
+    visitSceneNodes(lowerPositionedFamilyScene(lowRequest, positionResolvedFamily('treemap', lowRequest)).parts, node => lowNodes.push(node))
+    expect(lowNodes.find(node => node.id === `label:${group.node.id}`)).toMatchObject({ paint: { fill: '#ffffff' } })
   })
 
   test('readable numeric separators retain quantity and disclose pinned portability', () => {

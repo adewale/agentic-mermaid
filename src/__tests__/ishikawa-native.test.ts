@@ -1,9 +1,23 @@
 import { describe, expect, test } from 'bun:test'
 import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
-import { parseRegisteredMermaid, asIshikawa, mutate, serializeMermaid, verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
+import { parseRegisteredMermaid, asIshikawa, layoutMermaidWithReceipt, mutate, serializeMermaid, verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 
 describe('native Ishikawa', () => {
+  test('box padding and corners reserve real space while the spine marker follows edge ink', () => {
+    const source = 'ishikawa\nSlow release\nProcess\n  Manual checks\nTools\n  Slow builds',
+      style = { roles: { node: { paddingX: 31, paddingY: 37, cornerRadius: 11, fontWeight: 400 }, edge: { strokeColor: '#ff00ff' } } },
+      layout = layoutMermaidWithReceipt(source, { style }).layout
+    for (const node of layout.nodes.filter(node => node.role === 'box')) {
+      expect(node.w - node.labelBounds!.w).toBeGreaterThanOrEqual(61)
+      expect(node.h - node.labelBounds!.h).toBeGreaterThanOrEqual(73)
+    }
+    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['cause-1', 'effect'], ['cause-2', 'cause-1'], ['cause-3', 'effect'], ['cause-4', 'cause-3']])
+    const svg = renderMermaidSVG(source, { style })
+    expect(svg).toContain('rx="11"')
+    expect([...svg.matchAll(/<text\b[^>]*font-weight="([^"]+)"/g)].every(match => match[1] === '400')).toBe(true)
+    expect(svg.match(/<marker[\s\S]*?<\/marker>/)?.[0]).toContain('fill="#ff00ff"')
+  })
   test('cause indentation has its own baseline even when the effect is more indented', () => {
     const body = parseIshikawaDiagram('ishikawa\n      Blurry photo\n  Process\n    Focus\n  Equipment\n    Lens\n      Dirt')
     expect(body.nodes.map(node => [node.label, node.parentId])).toEqual([

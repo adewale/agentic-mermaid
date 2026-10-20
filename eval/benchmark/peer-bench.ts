@@ -38,8 +38,8 @@ import { cpus, loadavg, release, tmpdir, totalmem } from 'node:os'
 import { join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
-import type { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { allocationProbe, median } from './bench-stats.ts'
+import type { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { missingSvgLabels } from './release-bench-fidelity.ts'
 import { git, ROOT } from './revision-tree.ts'
 
@@ -156,6 +156,14 @@ const EXPECTED_LABELS: Record<WorkloadId, readonly string[]> = {
   class80: range('C', 80),
   er40: range('E', 40),
   state80: range('S', 81),
+  packet240: range('Field ', 240),
+  kanban240: Array.from({ length: 12 }, (_, stage) => [`Stage ${stage}`, ...Array.from({ length: 20 }, (_, task) => `Task ${stage}.${task}`)]).flat(),
+  requirement100: range('Requirement ', 100),
+  // Leaf labels may be explicitly hidden in small quantitative cells; the
+  // release workload's section labels and title remain visible in SVG.
+  treemap260: ['Product allocation', ...range('Group ', 20)],
+  ishikawa133: ['Delayed delivery', ...Array.from({ length: 12 }, (_, category) => [`Category ${category}`, ...Array.from({ length: 10 }, (_, cause) => `Cause ${category}.${cause}`)]).flat()],
+  block120: range('Component ', 120),
 }
 const WORKLOADS: Record<Output, readonly WorkloadId[]> = {
   svg: ['flow5', 'tree50', 'mesh50', 'seq20', 'c4', 'class80', 'er40', 'state80'],

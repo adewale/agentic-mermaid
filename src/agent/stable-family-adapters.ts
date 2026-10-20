@@ -248,6 +248,7 @@ function sourceMap(body: StableBody, source: string): SourceMap {
         }
       },
       () => parseBlockDiagram(source),
+      { mutations: ['generate-id'] },
     )
     return map
   }
@@ -256,6 +257,7 @@ function sourceMap(body: StableBody, source: string): SourceMap {
   // record is appended. Repeated labels and repeated Kanban source IDs are
   // disambiguated by the identity in that actual append event.
   let statement: ParserObservation | undefined
+  const columns = body.kind === 'kanban' ? new Set(body.columns.map(column => column.id)) : undefined
   withParserObservation(
     body.kind,
     event => {
@@ -271,7 +273,7 @@ function sourceMap(body: StableBody, source: string): SourceMap {
       const raw = lines[line - 1] ?? '',
         indent = raw.length - raw.trimStart().length
       if (body.kind === 'kanban' && (event.kind === 'add-column' || event.kind === 'add-task')) {
-        const group = body.columns.some(column => column.id === id)
+        const group = columns!.has(id)
         ;(group ? map.groups : map.nodes).set(id, lineAt(line, indent))
         // declaredLabel is the native lexical payload, before entity and
         // metadata-label interpretation. Search only its consumed declaration.

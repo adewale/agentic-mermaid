@@ -1,12 +1,11 @@
 import { parserObservationActive, observeParserMutation } from '../shared/parser-observation.ts'
+import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 // Adapted from Pele (458322a5b8abb1ae57ddf127c32017ab9fb14a92), copyright (c) 2026 kepano.
 // MIT license; see pele-license.txt in this directory.
-import { PeleError } from './errors.ts'
 import type { Block, BlockClassDef, BlockModel, Statement } from './types.ts'
 export interface BlockDbOptions {
   warn?: (message: string) => void
 }
-const MAX_SPACES = 100000
 export function typeStr2Type(typeStr: string | undefined): string {
   switch (typeStr) {
     case '[]':
@@ -108,10 +107,16 @@ export class BlockDb implements BlockModel {
   private warn: ((message: string) => void) | undefined
   // Ids that a class or style statement named before any block had them.
   private pending = new Set<string>()
+  private workIds = new Set<string>()
+
+  private admitNode(id: string): void {
+    if (this.workIds.has(id)) return
+    assertDiagramWorkLimit('nodes', this.workIds.size + 1)
+    this.workIds.add(id)
+  }
   private edgeCount = new Map<string, number>()
   private ids = 0
   private colors = 0
-  private spaces = 0
   reservedIds = new Set<string>()
   constructor(options: BlockDbOptions = {}) {
     this.warn = options.warn
@@ -155,6 +160,7 @@ export class BlockDb implements BlockModel {
   private named(id: string): Block {
     let block = this.byId.get(id)
     if (block === undefined) {
+      this.admitNode(id)
       block = { id, type: 'na', children: [] }
       this.byId.set(id, block)
       this.pending.add(id)
@@ -193,6 +199,7 @@ export class BlockDb implements BlockModel {
           if (parserObservationActive('block')) observeParserMutation('block', 'set-columns', { id: f.parent.id, columns: f.parent.columns })
           continue
         case 'edge': {
+          assertDiagramWorkLimit('edges', this.edges.length + 1)
           const count = (this.edgeCount.get(block.id) ?? 0) + 1
           this.edgeCount.set(block.id, count)
           block.id = count + '-' + block.id
@@ -203,6 +210,7 @@ export class BlockDb implements BlockModel {
       }
       // A composite whose header was a link statement has no id of its own.
       block.id ??= this.generateId()
+      if (block.type !== 'space') this.admitNode(block.id)
       if (!block.label) block.label = block.type === 'composite' ? '' : block.id
       const known = this.byId.get(block.id)
       const fresh = known === undefined || this.pending.delete(block.id)
@@ -222,12 +230,10 @@ export class BlockDb implements BlockModel {
       block.children = []
       if (block.type === 'space') {
         const width = block.width ?? 1
-        if (!(width <= MAX_SPACES - this.spaces)) {
-          throw new PeleError(`A block diagram can hold at most ${MAX_SPACES} space blocks.`, 'limit', { type: 'block' })
-        }
-        this.spaces += Math.max(width, 0)
+        assertDiagramWorkLimit('nodes', this.workIds.size + Math.max(width, 0))
         for (let j = 0; j < width; j++) {
           const copy = { ...block, id: block.id + '-' + j, width: 1, children: [] }
+          this.admitNode(copy.id)
           this.byId.set(copy.id, copy)
           f.children.push(copy)
           if (parserObservationActive('block')) observeParserMutation('block', 'attach-space', { parentId: f.parent.id, block: copy })

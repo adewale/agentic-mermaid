@@ -5,18 +5,20 @@ import { FLOWCHART_STYLE_DEFAULTS, resolveRenderStyle, diagramTitleMark } from '
 import { sceneDocument } from '../shared/scene-document.ts'
 import * as marks from '../scene/marks.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
-import { inkOnNodeFill } from '../color-resolver.ts'
+import { createFillInkResolver } from '../color-resolver.ts'
 
 const arrow = tipAnchoredArrow('ishikawa-arrow', { width: 8, height: 8 }, 'end', { fill: 'var(--_line)' }, 'userSpaceOnUse')
 
 export function lowerIshikawaScene({ positioned: diagram, colors, resolved }: RenderContext<PositionedIshikawa>) {
   const style = resolveRenderStyle(resolved.renderOptions, FLOWCHART_STYLE_DEFAULTS, resolved.styleFace)
+  const inkOnFill = createFillInkResolver(colors)
+  const marker = style.edgeStrokeColor ? { ...arrow, paint: { ...arrow.paint, fill: style.edgeStrokeColor } } : arrow
   const parts: SceneNode[] = []
-  parts.push(marks.definitions({ id: 'defs', markerResources: [arrow] }, `<defs>${serializeMarkerResources([arrow])}</defs>`))
+  parts.push(marks.definitions({ id: 'defs', markerResources: [marker] }, `<defs>${serializeMarkerResources([marker])}</defs>`))
   if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
   if (diagram.spine.length)
     parts.push(
-      marks.connector({ id: 'spine', role: 'rail', geometry: { kind: 'polyline', points: diagram.spine }, lineStyle: 'solid', paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) }, relationship: { kind: 'effect-spine', direction: 'forward' }, markers: { end: arrow } }),
+      marks.connector({ id: 'spine', role: 'rail', geometry: { kind: 'polyline', points: diagram.spine }, lineStyle: 'solid', paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) }, relationship: { kind: 'effect-spine', direction: 'forward' }, markers: { end: marker } }),
     )
   for (const branch of diagram.branches)
     parts.push(
@@ -34,14 +36,14 @@ export function lowerIshikawaScene({ positioned: diagram, colors, resolved }: Re
     const owner = { id: item.node.id, role: 'node' as const }
     const children: SceneNode[] = []
     const fill = style.nodeFillColor ?? 'var(--_node-fill)'
-    const ink = style.nodeTextColor ?? (item.depth <= 1 ? inkOnNodeFill(undefined, colors, fill)('var(--_text)') : 'var(--_text)')
+    const ink = style.nodeTextColor ?? (item.depth <= 1 ? inkOnFill('var(--_text)', fill) : 'var(--_text)')
     if (item.depth <= 1)
       children.push(
         marks.shape({
           id: `box:${item.node.id}`,
           role: 'chrome',
           owner,
-          geometry: { kind: 'rect', x: item.x, y: item.y, width: item.width, height: item.height, rx: item.depth === 0 ? 8 : 3 },
+          geometry: { kind: 'rect', x: item.x, y: item.y, width: item.width, height: item.height, rx: style.cornerRadius ?? (item.depth === 0 ? 8 : 3) },
           paint: { fill: style.nodeFillColor ?? 'var(--_node-fill)', stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) },
         }),
       )

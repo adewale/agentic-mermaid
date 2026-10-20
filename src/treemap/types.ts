@@ -1,6 +1,6 @@
-import type { PositionedDiagram, RenderOptions } from '../types.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type { PositionedDiagramTitle } from '../styles.ts'
+import type { PositionedDiagram, RenderOptions } from '../types.ts'
 
 export interface TreemapNode {
   id: string
@@ -53,6 +53,8 @@ export interface TreemapCell {
   valueLabel?: PixelTextBlock
   labelY?: number
   valueY?: number
+  /** Measured section header extent, before its child partition begins. */
+  headerHeight?: number
 }
 export interface PositionedTreemap extends PositionedDiagram {
   body: TreemapBody

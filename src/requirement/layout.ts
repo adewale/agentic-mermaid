@@ -1,6 +1,7 @@
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
-import type { InternalStyleFace } from '../scene/style-registry.ts'
+import { type InternalStyleFace, resolveRoleStyle } from '../scene/style-registry.ts'
+import { assertRequirementDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
@@ -8,12 +9,15 @@ import type { RenderOptions } from '../types.ts'
 import type { PositionedRequirementDiagram, RequirementBody, RequirementCard } from './types.ts'
 
 export function layoutRequirementDiagram(model: RequirementBody, options: RenderOptions = {}, face?: Readonly<InternalStyleFace>, config: Record<string, unknown> = {}): PositionedRequirementDiagram {
-  const style = resolveRenderStyle(options, undefined, face),
+  assertRequirementDiagramWork(model)
+  const relationship = resolveRoleStyle(face, 'relationship', {}, { includeFallback: false }),
+    style = resolveRenderStyle(options, undefined, relationship ? { ...face, edge: { ...face?.edge, ...relationship } } : face),
     pad = options.padding ?? 32
-  if (model.requirements.length + model.elements.length > 10000 || model.relations.length > 20000) throw new Error('Requirement diagram exceeds native work limits')
   const maxWidth = typeof config.maxWidth === 'number' && config.maxWidth > 0 ? config.maxWidth : 320
   const metric = (key: string, fallback: number, minimum = 0): number => (typeof config[key] === 'number' && Number.isFinite(config[key]) && config[key] >= minimum ? Math.min(config[key] as number, 2000) : fallback)
   const inset = metric('rect_padding', 16),
+    insetX = config.rect_padding === undefined ? (face?.node?.paddingX ?? inset) : inset,
+    insetY = config.rect_padding === undefined ? (face?.node?.paddingY ?? inset) : inset,
     minWidth = metric('rect_min_width', 140, 1),
     minHeight = metric('rect_min_height', 0),
     rowStride = metric('line_height', 0)
@@ -33,7 +37,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
     const authoredWeight = props['font-weight']?.trim().toLowerCase(),
       fontWeight = authoredWeight === undefined ? undefined : authoredWeight === 'normal' ? 400 : authoredWeight === 'bold' ? 700 : Number(authoredWeight)
     if (fontWeight !== undefined && (!Number.isFinite(fontWeight) || fontWeight < 1 || fontWeight > 1000)) throw new Error(`style ${record.name}: font-weight must be normal, bold, or a number from 1 to 1000`)
-    const header = preparePixelText(`<<${requirement?.type ?? 'Element'}>>\n${record.name}`, { fontSize, fontWeight: fontWeight ?? style.nodeLabelFontWeight, maxWidth, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing })
+    const header = preparePixelText(`<<${requirement?.type ?? 'Element'}>>\n${record.name}`, { fontSize, fontWeight: fontWeight ?? style.nodeLabelFontWeight, maxWidth, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing, fontFamily: options.font })
     const fields = requirement
       ? [
           ['ID', requirement.requirementId],
@@ -45,20 +49,20 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
           ['Type', element!.type],
           ['Doc Ref', element!.docRef],
         ]
-    const headerHeight = header.height + Math.max(12, inset * 1.5)
+    const headerHeight = header.height + Math.max(12, insetY * 1.5)
     let height = headerHeight + 8,
-      width = Math.max(minWidth, header.width + inset * 2)
+      width = Math.max(minWidth, header.width + insetX * 2)
     const rows = fields
       .filter(([, value]) => value)
       .map(([key, value]) => {
-        const block = preparePixelText(`${key}: ${value}`, { fontSize, fontWeight: fontWeight ?? 400, maxWidth, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing })
+        const block = preparePixelText(`${key}: ${value}`, { fontSize, fontWeight: fontWeight ?? 400, maxWidth, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing, fontFamily: options.font })
         const y = height + block.height / 2
         height += Math.max(block.height, rowStride) + 9
-        width = Math.max(width, block.width + inset * 2)
+        width = Math.max(width, block.width + insetX * 2)
         return { label: key!, block, y }
       })
     height = Math.max(minHeight, height + 8)
-    return { id: record.name, requirement, element, x: 0, y: 0, width, height, header, rows, paddingX: inset, headerHeight, style: props }
+    return { id: record.name, requirement, element, x: 0, y: 0, width, height, header, rows, paddingX: insetX, headerHeight, style: props }
   })
   const byId = new Map(nodes.map(n => [n.id, n])),
     idMap = new Map(nodes.map((n, i) => [n.id, `n${i}`]))

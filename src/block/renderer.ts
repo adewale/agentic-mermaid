@@ -1,8 +1,9 @@
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/families.ts'
-import { toneOnFill } from '../color-resolver.ts'
+import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { canvasOf, f, labelRect, retainedLabelBounds, retainedLabelGeometry } from '../positioned-views/geometry.ts'
 import { DefaultBackend } from '../scene/backend.ts'
+import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import * as marks from '../scene/marks.ts'
@@ -24,19 +25,24 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
   const { positioned: p, colors } = ctx,
     transparent = ctx.resolved.renderOptions.transparent ?? false,
     font = colors.font ?? 'Inter',
-    parts: SceneNode[] = []
+    parts: SceneNode[] = [],
+    markerSet: Record<string, MarkerDescriptor> = p.style.edgeStrokeColor
+      ? Object.fromEntries(Object.entries(markers).map(([key, marker]) => [key, { ...marker, paint: { ...marker.paint, ...(marker.paint?.fill === 'var(--_arrow)' ? { fill: p.style.edgeStrokeColor } : {}), ...(marker.paint?.stroke ? { stroke: p.style.edgeStrokeColor } : {}) } }]))
+      : markers,
+    resources = Object.values(markerSet)
+  const fillInk = createFillInkResolver(colors)
   let open = svgOpenTag(p.width, p.height, colors, transparent)
   if (p.model.accessibilityTitle) open += `<title>${escapeXml(p.model.accessibilityTitle)}</title>`
   if (p.model.accessibilityDescription) open += `<desc>${escapeXml(p.model.accessibilityDescription)}</desc>`
   open += buildStyleBlock(font, false, undefined, colors.embedFontImport)
-  parts.push(marks.documentOpen({ id: 'prelude', width: p.width, height: p.height, colors, transparent, font, hasMonoFont: false }, open), marks.definitions({ id: 'defs', markerResources: Object.values(markers) }, `<defs>${serializeMarkerResources(Object.values(markers))}</defs>`))
-  const lowerNode = (node: (typeof p.nodes)[number]): SceneNode => {
+  parts.push(marks.documentOpen({ id: 'prelude', width: p.width, height: p.height, colors, transparent, font, hasMonoFont: false }, open), marks.definitions({ id: 'defs', markerResources: resources }, `<defs>${serializeMarkerResources(resources)}</defs>`))
+  const lowerNode = (node: (typeof p.nodes)[number], children: SceneNode[]): SceneNode => {
     const composite = node.block.type === 'composite',
       role = composite ? 'group' : 'node',
       fill = node.style.fill ?? (composite ? p.style.groupFillColor : p.style.nodeFillColor) ?? (composite ? 'var(--_group-fill)' : 'var(--_node-fill)'),
-      stroke = node.style.stroke ?? p.style.nodeBorderColor ?? 'var(--_node-stroke)',
-      ink = node.style.color ?? toneOnFill('var(--_text)', fill, colors)
-    const outline = shapeOutline(blockShapeNode(node), { fill, stroke, strokeWidth: node.style['stroke-width'] ?? String(p.style.nodeLineWidth) }, p.style.cornerRadius)
+      stroke = node.style.stroke ?? (composite ? p.style.groupBorderColor : p.style.nodeBorderColor) ?? 'var(--_node-stroke)',
+      ink = node.style.color ?? (composite ? p.style.groupTextColor : p.style.nodeTextColor) ?? fillInk('var(--_text)', composite ? (p.style.groupHeaderFillColor ?? fill) : fill)
+    const outline = shapeOutline(blockShapeNode(node), { fill, stroke, strokeWidth: node.style['stroke-width'] ?? String(composite ? p.style.groupLineWidth : p.style.nodeLineWidth) }, composite ? p.style.groupCornerRadius : p.style.cornerRadius)
     const dash = node.style['stroke-dasharray']
     if (dash !== undefined) {
       outline.paint.strokeDasharray = dash
@@ -46,13 +52,28 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
       arrow = node.block.type === 'block_arrow',
       s = arrow ? arrowSize(mask, node.label.width, node.label.height) : { dx: 0, dy: 0 }
     const geometry = arrow ? { kind: 'polygon' as const, points: blockArrowPoints(mask, node.width, node.height).map(q => ({ x: q.x + node.x + node.width / 2, y: q.y + node.y + node.height / 2 })) } : outline.geometry
+    const classes = [`block-${composite ? 'composite' : 'node'}`, ...(node.block.classes ?? []).filter(name => /^[\w-]+$/.test(name))]
     return marks.group({
       id: `block:${node.id}`,
       role,
-      open: `<g class="block-${composite ? 'composite' : 'node'}" data-id="${escapeAttr(node.id)}">`,
+      open: `<g class="${escapeAttr(classes.join(' '))}" data-id="${escapeAttr(node.id)}"${node.parentId ? ` data-parent="${escapeAttr(node.parentId)}"` : ''}>`,
       close: '</g>',
       children: [
         { indent: 2, node: marks.shape({ id: `frame:${node.id}`, role: 'chrome', owner: { id: node.id, role }, geometry, paint: outline.paint, ...(outline.childPaints ? { childPaints: outline.childPaints } : {}) }) },
+        ...(composite && node.label.text && p.style.groupHeaderFillColor
+          ? [
+              {
+                indent: 2,
+                node: marks.shape({
+                  id: `header:${node.id}`,
+                  role: 'chrome',
+                  owner: { id: node.id, role },
+                  geometry: { kind: 'rect', x: node.x + p.style.groupLineWidth, y: node.y + p.style.groupLineWidth, width: Math.max(0, node.width - p.style.groupLineWidth * 2), height: node.label.height + 16 - p.style.groupLineWidth, rx: Math.max(0, p.style.groupCornerRadius - p.style.groupLineWidth) },
+                  paint: { fill: p.style.groupHeaderFillColor, stroke: 'none' },
+                }),
+              },
+            ]
+          : []),
         ...(node.label.text
           ? [
               {
@@ -72,26 +93,37 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
               },
             ]
           : []),
+        ...children.map(node => ({ node, indent: 2 })),
       ],
     })
   }
-  for (const node of p.nodes) if (node.block.type === 'composite') parts.push(lowerNode(node))
-  for (const node of p.nodes) if (node.block.type !== 'composite' && node.block.type !== 'space') parts.push(lowerNode(node))
+  const childrenByParent = new Map<string | undefined, SceneNode[]>()
+  // Placement is parent-first. Lower in reverse so each semantic container
+  // owns its painted children rather than merely overlapping sibling groups.
+  for (let index = p.nodes.length - 1; index >= 0; index--) {
+    const node = p.nodes[index]!
+    if (node.block.type === 'space') continue
+    const siblings = childrenByParent.get(node.parentId) ?? []
+    siblings.push(lowerNode(node, (childrenByParent.get(node.id) ?? []).reverse()))
+    childrenByParent.set(node.parentId, siblings)
+  }
+  parts.push(...(childrenByParent.get(undefined) ?? []).reverse())
   for (const edge of p.edges) {
-    const start = markers[`${edge.arrowTypeStart}:start`],
-      end = markers[`${edge.arrowTypeEnd}:end`]
+    const start = markerSet[`${edge.arrowTypeStart}:start`],
+      end = markerSet[`${edge.arrowTypeEnd}:end`],
+      projection = p.style.edgeBendRadius > 0 && edge.points.length > 2 ? projectRoundedConnectorPath(edge.points, p.style.edgeBendRadius, { precision: 3 }) : undefined
     parts.push(
       marks.connector({
         id: edge.id,
         role: 'edge',
-        geometry: { kind: 'polyline', points: edge.points },
+        geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
         lineStyle: edge.pattern === 'dotted' ? 'dotted' : 'solid',
         paint: { fill: 'none', stroke: p.style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: edge.thickness === 'thick' ? '3' : String(p.style.lineWidth) },
         endpoints: { from: edge.start, to: edge.end },
         relationship: { kind: 'block-link' },
         markers: { ...(start ? { start } : {}), ...(end ? { end } : {}) },
         labels: edge.label ? [{ text: edge.labelBlock.text, anchor: edge.labelPosition }] : [],
-        route: { ownership: 'layout', labelAnchors: edge.label ? [edge.labelPosition] : [] },
+        route: { ownership: 'layout', bendRadius: p.style.edgeBendRadius, labelAnchors: edge.label ? [edge.labelPosition] : [], ...(projection ? { contours: projection.contours } : {}) },
       }),
     )
   }

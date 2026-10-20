@@ -1,4 +1,5 @@
 import { parserObservationActive, observeParserMutation } from '../shared/parser-observation.ts'
+import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 // Adapted from Pele (458322a5b8abb1ae57ddf127c32017ab9fb14a92), copyright (c) 2026 kepano.
 // MIT license; see pele-license.txt in this directory.
 import { PeleError } from './errors.ts'
@@ -62,6 +63,7 @@ export class RequirementDb implements RequirementModel {
   addRequirement(name: string, type: string): Requirement {
     let requirement = this.requirements.get(name)
     if (requirement === undefined) {
+      assertDiagramWorkLimit('nodes', this.requirements.size + this.elements.size + 1)
       requirement = {
         name,
         type,
@@ -97,6 +99,7 @@ export class RequirementDb implements RequirementModel {
   addElement(name: string): RequirementElement {
     let element = this.elements.get(name)
     if (element === undefined) {
+      assertDiagramWorkLimit('nodes', this.requirements.size + this.elements.size + 1)
       element = { name, type: this.newElementType, docRef: this.newDocRef, cssStyles: [], classes: ['default'] }
       this.elements.set(name, element)
       if (parserObservationActive('requirement')) observeParserMutation('requirement', 'addElement', element)
@@ -113,6 +116,7 @@ export class RequirementDb implements RequirementModel {
     if (parserObservationActive('requirement')) observeParserMutation('requirement', 'setNewElementDocRef', docRef)
   }
   addRelationship(type: string, src: string, dst: string): void {
+    assertDiagramWorkLimit('edges', this.relations.length + 1)
     this.relations.push({ type, src, dst })
     if (parserObservationActive('requirement')) observeParserMutation('requirement', 'addRelationship', { type, src, dst })
   }

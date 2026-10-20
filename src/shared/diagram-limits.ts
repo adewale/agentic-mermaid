@@ -2,6 +2,8 @@ import type { ArchitectureDiagram } from '../architecture/types.ts'
 import type { ClassDiagram, ClassNamespace } from '../class/types.ts'
 import type { C4Body } from '../c4/types.ts'
 import type { ErDiagram } from '../er/types.ts'
+import type { BlockBody, Block } from '../block/types.ts'
+import type { RequirementBody } from '../requirement/types.ts'
 import type { MermaidGraph, MermaidSubgraph } from '../types.ts'
 
 /** Host work budgets. Mermaid source, frontmatter, and Style cannot raise them.
@@ -32,6 +34,29 @@ export class DiagramWorkLimitError extends RangeError {
 
 export function assertDiagramWorkLimit(resource: DiagramWorkResource, requested: number): void {
   if (requested > DIAGRAM_WORK_LIMITS[resource]) throw new DiagramWorkLimitError(resource, requested)
+}
+
+export function assertRequirementDiagramWork(body: RequirementBody): void {
+  assertDiagramWorkLimit('nodes', body.requirements.length + body.elements.length)
+  assertDiagramWorkLimit('edges', body.relations.length)
+}
+
+/** The implicit Block root and leaf cells do not consume container depth. */
+export function assertBlockDiagramWork(body: BlockBody): void {
+  assertDiagramWorkLimit('edges', body.edges.length)
+  assertDiagramWorkLimit('nodes', body.root.children?.length ?? 0)
+  const pending: Array<{ node: Block; depth: number }> = (body.root.children ?? []).map(node => ({ node, depth: 0 }))
+  const seen = new Set<Block>([body.root])
+  let nodes = 0
+  while (pending.length) {
+    const { node, depth } = pending.pop()!
+    if (seen.has(node)) throw new TypeError('Block children must form a tree without repeated objects')
+    seen.add(node)
+    const nesting = depth + (node.type === 'composite' ? 1 : 0)
+    assertDiagramWorkLimit('nesting', nesting)
+    assertDiagramWorkLimit('nodes', ++nodes + pending.length + (node.children?.length ?? 0))
+    for (const child of node.children ?? []) pending.push({ node: child, depth: nesting })
+  }
 }
 
 /** Admit programmatic graphs before recursive conversion, measurement, or layout. */

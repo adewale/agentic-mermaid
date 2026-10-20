@@ -1,8 +1,10 @@
-import type { PositionedTreemap } from './types.ts'
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/families.ts'
-import { f, fSpan, retainedLabelBounds, retainedLabelGeometry, labelRect, canvasOf } from '../positioned-views/geometry.ts'
+import { canvasOf, f, fSpan, labelRect, retainedLabelBounds, retainedLabelGeometry } from '../positioned-views/geometry.ts'
+import { hierarchyChildren } from '../shared/hierarchy-model.ts'
+import type { PositionedTreemap } from './types.ts'
 
 export function projectTreemapPositioned({ positioned: p }: FamilyPositionedProjectionContext<PositionedTreemap>): FamilyPositionedView {
+  const childrenByParent = hierarchyChildren(p.body.nodes)
   return {
     version: 1,
     bounds: { w: f(p.width), h: f(p.height) },
@@ -31,7 +33,7 @@ export function projectTreemapPositioned({ positioned: p }: FamilyPositionedProj
         y: f(cell.y),
         w: fSpan(cell.x, cell.width),
         h: fSpan(cell.y, cell.height),
-        members: p.body.nodes.filter(node => node.parentId === cell.node.id).map(node => node.id),
+        members: (childrenByParent.get(cell.node.id) ?? []).map(node => node.id),
         label: cell.node.label,
         regionKind: 'compartment',
       })),

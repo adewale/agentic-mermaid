@@ -223,6 +223,7 @@ function lowerFixture(id: BuiltinFamilyId, sourceText: string): SceneDoc {
     shadow: true,
     ganttToday: '2026-01-08',
     gantt: { dependencyArrows: true, criticalPath: true },
+    ...(id === 'treemap' ? { style: { roles: { group: { headerFillColor: '#f0f5ff' } } } } : {}),
   }
   const request = resolveRenderRequest(sourceText, options, 'svg')
   const result = positionResolvedFamily(id, request)

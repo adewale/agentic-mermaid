@@ -12,6 +12,8 @@ import { AsciiWidthError } from './width-error.ts'
 export function renderPacketTerminal(context: AsciiContext): TerminalArtifact {
   const body = withFrontmatterTitle(parsePacketDiagram(context.source.familyBody), context.source.frontmatter)
   const visual = (context.familyConfig as { visual?: ReturnType<typeof resolvePacketConfig> } | undefined)?.visual ?? resolvePacketConfig(context.source.frontmatter)
+  const rows = body.fields.length ? Math.floor(body.fields.at(-1)!.end / visual.bitsPerRow) + 1 : 0
+  assertDiagramWorkLimit('nodes', rows + body.fields.length)
   const maxWidth = context.options.targetWidth ?? context.options.maxWidth ?? context.config.maxWidth
   const minimumBitWidth = Math.max(3, String(body.fields.at(-1)?.end ?? 0).length + 2)
   const minimum = visual.bitsPerRow * minimumBitWidth + 1
@@ -23,20 +25,20 @@ export function renderPacketTerminal(context: AsciiContext): TerminalArtifact {
     document.line()
   }
   let y = document.height
-  const rows = body.fields.length ? Math.floor(body.fields.at(-1)!.end / visual.bitsPerRow) + 1 : 0
-  assertDiagramWorkLimit('nodes', rows + body.fields.length)
+  let firstField = 0
   for (let row = 0; row < rows; row++) {
     const start = row * visual.bitsPerRow,
       end = start + visual.bitsPerRow - 1
-    const fields = body.fields
-      .filter(field => field.start <= end && field.end >= start)
-      .map(field => {
-        const low = Math.max(start, field.start),
-          high = Math.min(end, field.end)
-        const left = visual.bitOrder === 'descending' ? visual.bitsPerRow - (high - start + 1) : low - start
-        const width = (high - low + 1) * bitWidth + 1
-        return { field, low, high, x: left * bitWidth, width, block: prepareCellText(field.label, { display: 'formatted', maxWidth: width - 2 }) }
-      })
+    while (firstField < body.fields.length && body.fields[firstField]!.end < start) firstField++
+    const fields = []
+    for (let index = firstField; index < body.fields.length && body.fields[index]!.start <= end; index++) {
+      const field = body.fields[index]!
+      const low = Math.max(start, field.start),
+        high = Math.min(end, field.end)
+      const left = visual.bitOrder === 'descending' ? visual.bitsPerRow - (high - start + 1) : low - start
+      const width = (high - low + 1) * bitWidth + 1
+      fields.push({ field, low, high, x: left * bitWidth, width, block: prepareCellText(field.label, { display: 'formatted', maxWidth: width - 2 }) })
+    }
     const height = Math.max(3, ...fields.map(field => field.block.height + 2))
     if (visual.showBits) y++
     for (const segment of fields) {

@@ -17,7 +17,7 @@ export function lowerPacketScene({ positioned: diagram, colors, resolved }: Rend
   const ink = style.nodeTextColor ?? inkOnNodeFill(undefined, colors, fill)('var(--_text)')
   for (const field of diagram.fields) {
     const children: SceneNode[] = [
-      marks.shape({ id: `${field.id}:box`, role: 'chrome', owner: { id: field.id, role: 'node' }, geometry: { kind: 'rect', x: field.x, y: field.y, width: field.width, height: field.height }, paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) } }),
+      marks.shape({ id: `${field.id}:box`, role: 'chrome', owner: { id: field.id, role: 'node' }, geometry: { kind: 'rect', x: field.x, y: field.y, width: field.width, height: field.height, rx: style.cornerRadius }, paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) } }),
       marks.text({
         id: `${field.id}:label`,
         role: 'label',

@@ -1,16 +1,16 @@
 // Same-input production renders at immutable revisions, for PR review only.
 // bun run scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR [FIXTURE_ID...]
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import type { RenderOptions } from '../../src/types.ts'
-import type { AnyMutationOp, ClassMutationOp } from '../../src/agent/types.ts'
-import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
-import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
 import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
+import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
+import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
+import type { AnyMutationOp, ClassMutationOp } from '../../src/agent/types.ts'
+import type { RenderOptions } from '../../src/types.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const [base, head, destination, ...selectedFixtureIds] = process.argv.slice(2)
@@ -85,6 +85,32 @@ const fixtures: Fixture[] = [
       }),
     ),
   ),
+  ...['default', 'hand-drawn', 'watercolor'].map(
+    (style): Fixture => ({
+      id: `stable-block-parallel-${style}`,
+      title: `Block reciprocal and parallel labeled links: ${style}`,
+      source: 'block\ncolumns 2\nA["API"] B["Database"]\nA -- "Read" --> B\nB -- "Reply" --> A\nA -- "Write" --> B',
+      renderOptions: style === 'default' ? {} : { style },
+      captureLayout: true,
+      cue: "Follow Read, Reply and Write on three distinct orthogonal lanes, with complete labels and visible endpoint arrows. The author's API/Database cells and endpoint identities remain intact. Preserve any actual baseline refusal: the unsupported baseline and a supported revision with occluded labels are different failure states. Inspect route and label coordinates in the layout sidecars; these finite examples do not establish arbitrary multigraph readability.",
+    }),
+  ),
+  {
+    id: 'stable-block-nested-group-style',
+    title: 'Block nested semantic containers honor independent group and node Styles',
+    source: 'block\nblock:outer["Outer"]\nblock:inner["Inner"]\nA["API"]\nend\nend',
+    renderOptions: { style: { roles: { node: { textColor: '#b91c1c' }, group: { textColor: '#174ea6', fontSize: 22, fontWeight: 800, paddingX: 36, paddingY: 28, cornerRadius: 17, lineWidth: 3, borderColor: '#008800', headerFillColor: '#fef3c7' } } } },
+    captureLayout: true,
+    cue: 'Inspect blue 22px group headings on pale header bands, green rounded frames, visible child padding and the separate red API label. Outer must contain Inner, which contains API, in both actual SVG nesting and public layout parents/members. The same source and Style reach both revisions; preserve any unsupported baseline error. Color differences alone do not establish containment.',
+  },
+  {
+    id: 'stable-requirement-relationship-style',
+    title: 'Requirement consumes its true relationship Style while preserving node ink',
+    source: 'requirementDiagram\nrequirement r {\ntext: "Measured card"\n}\nelement proof {\ntype: "test"\n}\nproof - verifies -> r',
+    renderOptions: { style: { roles: { node: { textColor: '#b91c1c' }, relationship: { strokeColor: '#174ea6', textColor: '#166534' } } } },
+    captureLayout: true,
+    cue: 'Inspect red requirement/element compartment text, a blue verifies connector and matching arrow outline, and the separate green relationship label. These are static roles.relationship overrides, not category bindings. Node names, attributes and the proof-to-r relationship remain unchanged; preserve any unsupported baseline error and compare endpoint identities in the sidecars.',
+  },
   {
     id: 'er-nested-group-route',
     title: 'ER ancestor relationships avoid the contained entity',

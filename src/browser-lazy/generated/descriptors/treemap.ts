@@ -48,8 +48,8 @@ const descriptorData = Object.freeze({
   ],
   "semanticRoles": [
     "prelude",
-    "title",
     "chrome",
+    "title",
     "node",
     "group",
     "bar",
@@ -66,8 +66,8 @@ const descriptorData = Object.freeze({
       ]
     },
     {
-      "role": "title",
-      "primitive": "text",
+      "role": "chrome",
+      "primitive": "document",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [
@@ -76,7 +76,16 @@ const descriptorData = Object.freeze({
     },
     {
       "role": "chrome",
-      "primitive": "document",
+      "primitive": "shape",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
+      "role": "title",
+      "primitive": "text",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [

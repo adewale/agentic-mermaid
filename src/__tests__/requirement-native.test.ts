@@ -75,6 +75,7 @@ describe('native requirement', () => {
     const source = 'requirementDiagram\nrequirement A {\ntext: "Card"\n}\nclassDef dashed stroke-dasharray:5 5\nclass A dashed',
       parsed = structured(source)
     expect(renderMermaidSVG(source)).toContain('stroke-dasharray="5 5"')
+    expect(renderMermaidSVG(source)).toMatch(/<g\b[^>]*class="[^"]*\bdashed\b[^"]*"[^>]*data-id="A"/)
     const changed = mutate(parsed, { kind: 'set_node_style', id: 'A', style: 'stroke-dasharray:2 3' })
     expect(changed.ok).toBe(true)
     if (!changed.ok) return
@@ -97,6 +98,20 @@ describe('native requirement', () => {
       expect(renderMermaidSVG(source)).toContain(`font-weight="${expected}"`)
       expect(verifyMermaid(source).ok).toBe(true)
     }
+  })
+  test('semantic Style ink colors reach requirement compartments, relations and their markers', () => {
+    const source = 'requirementDiagram\nrequirement r {\ntext: "Measured card"\n}\nelement proof {\ntype: "test"\n}\nproof - verifies -> r'
+    for (const role of ['edge', 'relationship'] as const) {
+      const options = { style: { roles: { node: { textColor: '#b91c1c' }, [role]: { strokeColor: '#174ea6', textColor: '#166534' } } } },
+        svg = renderMermaidSVG(source, options)
+      expect([...svg.matchAll(/<text\b[^>]*fill="#b91c1c"/g)].length).toBeGreaterThanOrEqual(4)
+      expect(svg).toMatch(/<polyline\b[^>]*stroke="#174ea6"/)
+      expect(svg).toMatch(/<text\b[^>]*fill="#166534"/)
+      expect(svg).toMatch(/<marker\b[^>]*>[\s\S]*?stroke="#174ea6"/)
+      expect(renderMermaidSVG(`${source}\nstyle r color:#661122`, options)).toContain('fill="#661122"')
+      expect(verifyMermaid(source, { renderOptions: options }).ok).toBe(true)
+    }
+    expect(renderMermaidSVG('requirementDiagram\nrequirement r {\ntext: Card\n}\nr - traces -> r', { style: { roles: { relationship: { bendRadius: 12 } } } })).toMatch(/<path\b[^>]*d="[^"]*Q/)
   })
   test('unmodeled source stays opaque, and unresolved relations block partial rendering', () => {
     const unknown = parse('requirementDiagram\nnot a modeled statement')

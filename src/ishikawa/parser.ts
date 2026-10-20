@@ -1,6 +1,7 @@
 import type { IshikawaBody, IshikawaNode } from './types.ts'
 import { scanAccessibilityDirectives, requireClosedAccessibility, accessibilityFields } from '../shared/accessibility-directives.ts'
 import { observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
+import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 
 /** The first cause establishes the indentation baseline, independently of the effect. */
 export function parseIshikawaDiagram(input: string | readonly string[]): IshikawaBody {
@@ -17,7 +18,7 @@ export function parseIshikawaDiagram(input: string | readonly string[]): Ishikaw
     const label = raw.trim()
     if (!label || label.startsWith('%%')) continue
     observeParserStatement('ishikawa', 'node', raw, { line: i + 1, unit: 'normalized' })
-    if (body.nodes.length >= 10000) throw new Error('Ishikawa exceeds the 10000-node limit')
+    assertDiagramWorkLimit('nodes', body.nodes.length + 1)
     const indent = raw.match(/^[\t ]*/)?.[0].length ?? 0
     if (body.nodes.length === 0) {
       const effect: IshikawaNode = { id: 'effect', label }
@@ -29,6 +30,7 @@ export function parseIshikawaDiagram(input: string | readonly string[]): Ishikaw
     base ??= indent
     const level = Math.max(1, indent - base + 1)
     while (stack.length > 1 && stack.at(-1)!.level >= level) stack.pop()
+    assertDiagramWorkLimit('nesting', stack.length)
     const node: IshikawaNode = { id: `cause-${body.nodes.length}`, label, parentId: stack.at(-1)!.node.id }
     body.nodes.push(node)
     stack.push({ level, node })

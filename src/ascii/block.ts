@@ -38,7 +38,6 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
       p.children.push(c)
       all.push(c)
     }
-    if (all.length > 10000) throw new Error('Block terminal exceeds work limit')
   }
   layoutGrid(root, 6)
   const boxes = all
@@ -49,13 +48,19 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
   const relations: BoxRelation[] = model.edges.map(e => ({ id: e.id, from: e.start!, to: e.end!, ...(e.label ? { lines: wrapText(blockDisplayText(e.label), width ? Math.max(1, width - 8) : undefined) } : {}) })),
     routes = allocateBoxRoutes(boxes, relations, 'TB'),
     doc = new TerminalDocument()
+  const members = new Map<string, string[]>(), edges = new Map(model.edges.map(edge => [edge.id, edge]))
+  for (const box of boxes) if (box.parentId) {
+    const siblings = members.get(box.parentId)
+    if (siblings) siblings.push(box.id)
+    else members.set(box.parentId, [box.id])
+  }
   for (const box of boxes.filter(b => b.container)) {
-    const owner: TerminalOwner = { id: box.id, kind: 'cluster', parent: box.parentId ? { id: box.parentId, kind: 'cluster' } : undefined, members: boxes.filter(b => b.parentId === box.id).map(b => b.id) }
+    const owner: TerminalOwner = { id: box.id, kind: 'cluster', parent: box.parentId ? { id: box.parentId, kind: 'cluster' } : undefined, members: members.get(box.id) ?? [] }
     paintTerminalFrame(doc, box, owner, config.useAscii)
     if (box.block.label) doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }
   for (const route of routes) {
-    const edge = model.edges.find(e => e.id === route.relation.id)!,
+    const edge = edges.get(route.relation.id)!,
       owner = doc.element({ id: edge.id, kind: 'edge', from: edge.start!, to: edge.end! })
     paintBoxRoute(doc, route, owner, config.useAscii, edge.pattern === 'dotted')
     for (const [end, port, type] of [
