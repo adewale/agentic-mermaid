@@ -300,21 +300,35 @@ export function layoutLayeredGraph(
     assignBand(index)
   }
   const orderSlots = new Uint32Array(vertices.length)
+  // Rank cardinalities stay fixed throughout ordering. Reuse zeroed score
+  // trees instead of allocating them for every bounded search proposal.
+  const crossingTrees = bands.slice(1).map(band => new Uint32Array(band.length + 1))
+  const refreshOrderSlots = (): void => {
+    for (let rank = 0; rank < bands.length; rank++) {
+      const band = bands[rank]!
+      for (let slot = 0; slot < band.length; slot++) orderSlots[band[slot]!] = slot
+    }
+  }
   const crossingScore = (): number => {
-    for (const band of bands) band.forEach((vertex, index) => { orderSlots[vertex] = index })
+    refreshOrderSlots()
     let score = 0
     for (let rank = 0; rank + 1 < bands.length; rank++) {
-      const tree = new Uint32Array(bands[rank + 1]!.length + 1)
+      const tree = crossingTrees[rank]!
+      tree.fill(0)
       let seen = 0
-      for (const source of bands[rank]!) {
-        const targets = vertices[source]!.outgoing
-        for (const target of targets) {
+      const band = bands[rank]!
+      for (let slot = 0; slot < band.length; slot++) {
+        const targets = vertices[band[slot]!]!.outgoing
+        for (let edge = 0; edge < targets.length; edge++) {
+          const target = targets[edge]!
           let before = 0
           for (let index = orderSlots[target]! + 1; index > 0; index -= index & -index) before += tree[index]!
           score += seen - before
         }
         // A source's own fan is ordered at its ports and does not cross itself.
-        for (const target of targets) for (let index = orderSlots[target]! + 1; index < tree.length; index += index & -index) tree[index] = tree[index]! + 1
+        for (let edge = 0; edge < targets.length; edge++) {
+          for (let index = orderSlots[targets[edge]!]! + 1; index < tree.length; index += index & -index) tree[index] = tree[index]! + 1
+        }
         seen += targets.length
       }
     }
@@ -335,7 +349,7 @@ export function layoutLayeredGraph(
   // Adjacent switching reduces the exact two-layer inversion score. Charge
   // every neighbor comparison; budget exhaustion stops optional refinement.
   const switchAdjacentRanks = (): void => {
-    for (const band of bands) band.forEach((id, slot) => { orderSlots[id] = slot })
+    refreshOrderSlots()
     for (let sweep = 0; sweep < 4; sweep++) {
       let changed = false
       for (let rank = 0; rank < bands.length; rank++) {
@@ -346,9 +360,10 @@ export function layoutLayeredGraph(
           if (cost > routingWork.swaps) continue
           routingWork.swaps -= cost
           let reduction = 0
-          for (const [left, right] of [[a.incoming, b.incoming], [a.outgoing, b.outgoing]]) {
-            for (const x of left!) for (const y of right!) reduction += Math.sign(orderSlots[x]! - orderSlots[y]!)
-          }
+          for (let left = 0; left < a.incoming.length; left++) for (let right = 0; right < b.incoming.length; right++)
+            reduction += Math.sign(orderSlots[a.incoming[left]!]! - orderSlots[b.incoming[right]!]!)
+          for (let left = 0; left < a.outgoing.length; left++) for (let right = 0; right < b.outgoing.length; right++)
+            reduction += Math.sign(orderSlots[a.outgoing[left]!]! - orderSlots[b.outgoing[right]!]!)
           if (reduction > 0) {
             const first = band[index]!, second = band[index + 1]!
             band[index] = second; band[index + 1] = first
@@ -375,10 +390,12 @@ export function layoutLayeredGraph(
         if (trials-- <= 0 || (searchWork.blockPairs ?? 2_000_000) < cost) { exhausted = true; break }
         searchWork.blockPairs = (searchWork.blockPairs ?? 2_000_000) - cost
         for (const id of block) {
-          const rank = vertices[id]!.rank, band = [...saved.get(rank)!]
-          band.splice(band.indexOf(id), 1)
-          band.splice(Math.floor(band.length * fraction), 0, id)
-          bands[rank] = band
+          const rank = vertices[id]!.rank, band = bands[rank]!, original = saved.get(rank)!
+          for (let index = 0; index < band.length; index++) band[index] = original[index]!
+          const from = band.indexOf(id), to = Math.floor((band.length - 1) * fraction)
+          if (from < to) for (let index = from; index < to; index++) band[index] = band[index + 1]!
+          else for (let index = from; index > to; index--) band[index] = band[index - 1]!
+          band[to] = id
         }
         const score = crossingScore()
         if (score < best) {
@@ -414,8 +431,21 @@ export function layoutLayeredGraph(
       const band = bands[forward ? row : bands.length - 1 - row]!
       for (let cursor = 0; cursor < band.length; cursor++) {
         const slot = forward ? cursor : band.length - 1 - cursor, id = band[slot]!, vertex = vertices[id]!
-        const peers = [...vertex.incoming, ...vertex.outgoing].map(peer => cross[peer]!).sort((a,b)=>a-b)
-        if (!peers.length) continue
+        const degree = vertex.incoming.length + vertex.outgoing.length
+        if (!degree) continue
+        let median: number
+        if (degree <= 2) {
+          // Most private chain vertices have two neighbors. Preserve the
+          // directional lower/upper median without allocating or sorting.
+          const firstNeighbor = vertex.incoming[0] ?? vertex.outgoing[0]!
+          const secondNeighbor = degree === 1 ? firstNeighbor : vertex.incoming.length === 2
+            ? vertex.incoming[1]! : vertex.outgoing[vertex.incoming.length === 1 ? 0 : 1]!
+          const first = cross[firstNeighbor]!, second = cross[secondNeighbor]!
+          median = forward ? Math.min(first, second) : Math.max(first, second)
+        } else {
+          const peers = [...vertex.incoming, ...vertex.outgoing].map(peer => cross[peer]!).sort((a,b)=>a-b)
+          median = peers[Math.floor((peers.length - Number(forward)) / 2)]!
+        }
         const before = band[slot - 1], after = band[slot + 1]
         let lo = before === undefined ? vertex.crossSize / 2 : cross[before]! + (vertices[before]!.crossSize + vertex.crossSize) / 2 + coordinateGap
         let hi = after === undefined ? crossExtent - vertex.crossSize / 2 : cross[after]! - (vertices[after]!.crossSize + vertex.crossSize) / 2 - coordinateGap
@@ -424,7 +454,7 @@ export function layoutLayeredGraph(
           if (previous >= 0) lo = Math.max(lo, cross[previous]! + (vertices[previous]!.crossSize + vertex.crossSize) / 2 + nodeSpacing)
           if (next >= 0) hi = Math.min(hi, cross[next]! - (vertices[next]!.crossSize + vertex.crossSize) / 2 - nodeSpacing)
         }
-        if (lo <= hi) cross[id] = Math.max(lo, Math.min(hi, peers[Math.floor((peers.length - Number(forward)) / 2)]!))
+        if (lo <= hi) cross[id] = Math.max(lo, Math.min(hi, median))
       }
     }
   }
