@@ -272,6 +272,43 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
   let properties = 0
   let propertyKeyBytes = 0
   let reservedProjection = false
+  type Reservation = { node: object; depth: number; keys: Array<string | number>; objects: number; text: number; entries: number; properties: number; keyBytes: number }
+  const reservations: Array<Reservation | undefined> = []
+  let nextReservation = 0
+  let reclaiming = false
+  const COUNT_PROJECTION = Symbol('count this projection')
+
+  const materializeProjection = (node: object, depth: number, keys: readonly (string | number)[] = keyPath): void => {
+    const previous = keyPath.splice(0, keyPath.length, ...keys, 'terminalProjection')
+    try { visit((node as Record<string, unknown>).terminalProjection, depth + 1) }
+    finally { keyPath.splice(0, keyPath.length, ...previous) }
+  }
+
+  /** Replace only enough conservative reservations with their actual cached
+   * projections to fit the next field. Reuse this walk's sharing/cycle state;
+   * restarting the whole Scene would materialize every unrelated projection. */
+  const reclaim = (overLimit: () => boolean): boolean => {
+    // One oversized field can exceed every reservation combined. A nested
+    // count must fall back to the bounded exact walk instead of recursively
+    // reclaiming the entire queue on the JavaScript stack.
+    if (reclaiming) return !overLimit()
+    reclaiming = true
+    try {
+      while (overLimit() && nextReservation < reservations.length) {
+        const reservation = reservations[nextReservation]!
+        reservations[nextReservation++] = undefined
+        objects -= reservation.objects
+        textBytes -= reservation.text
+        arrayEntries -= reservation.entries
+        properties -= reservation.properties
+        propertyKeyBytes -= reservation.keyBytes
+        materializeProjection(reservation.node, reservation.depth, reservation.keys)
+      }
+      return !overLimit()
+    } finally {
+      reclaiming = false
+    }
+  }
 
   /** A projection copies selected parts of its normalized input and creates
    * bounded marker placements/loss diagnostics. Count a generous envelope
@@ -284,33 +321,33 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
    * the extra endpoint of a degenerate/closed polyline and projection-only
    * keys/arrays.
    * Text retains factor 32 for copied strings, loss strings and diagnostics.
-   * If ANY bound is close, restart with the actual materialized graph, exactly
-   * as the existing conservative UTF-8 pass does. No cap is weakened. */
+   * Near a bound, count this projection instead. Earlier reservations can be
+   * reclaimed individually if necessary. No cap or admission is weakened. */
   const reserveProjection = (node: object, input: ConnectorTerminalProjectionInput, depth: number): void => {
     let extraObjects = 64, extraText = 4096, extraEntries = 128, extraProperties = 256, extraKeys = 8192
     const check = (): void => {
       if (objects + extraObjects > limits.maxObjects || textBytes + extraText > limits.maxTextBytes
         || arrayEntries + extraEntries > limits.maxAggregateArrayEntries
         || properties + extraProperties > limits.maxAggregateProperties
-        || propertyKeyBytes + extraKeys > limits.maxAggregatePropertyKeyBytes) throw RECOUNT_EXACTLY
+        || propertyKeyBytes + extraKeys > limits.maxAggregatePropertyKeyBytes) throw COUNT_PROJECTION
     }
     const measure = (item: unknown, level: number): void => {
       if (typeof item === 'string') extraText += item.length * 3 * 32
       else if (item !== null && typeof item === 'object') {
-        if (depth + level + 8 > limits.maxDepth) throw RECOUNT_EXACTLY
+        if (depth + level + 8 > limits.maxDepth) throw COUNT_PROJECTION
         extraObjects += 8
         if (Array.isArray(item)) {
-          if (Math.max(18, item.length + 1) > limits.maxArrayEntries) throw RECOUNT_EXACTLY
+          if (Math.max(18, item.length + 1) > limits.maxArrayEntries) throw COUNT_PROJECTION
           extraEntries += item.length * 8
           check()
           for (const entry of item) measure(entry, level + 1)
         } else {
           const keys = Object.keys(item)
-          if (Math.max(24, keys.length) > limits.maxPropertiesPerObject) throw RECOUNT_EXACTLY
+          if (Math.max(24, keys.length) > limits.maxPropertiesPerObject) throw COUNT_PROJECTION
           extraProperties += keys.length * 8
           check()
           for (const key of keys) {
-            if (Math.max(24, key.length) * 3 > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
+            if (Math.max(24, key.length) * 3 > limits.maxPropertyKeyBytes) throw COUNT_PROJECTION
             extraKeys += key.length * 3 * 8
             measure((item as Record<string, unknown>)[key], level + 1)
           }
@@ -318,27 +355,32 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
       }
       check()
     }
-    check()
-    measure(input, 0)
-    if (input.geometry.kind === 'polyline') {
-      const vertices = input.geometry.points.length
-      extraObjects += vertices * 2 // Placement and point copy.
-      extraProperties += vertices * 3 // markerId, point, contourIndex.
-      extraEntries += vertices
-      extraKeys += vertices * 25 * 3 // UTF-8 upper bound for the three keys.
+    try {
       check()
-    }
-    // One repeated mid marker contributes its identifier at every interior
-    // vertex. Unlike object/key counts, this string fan-out is not bounded by
-    // a constant multiple of the input's string bytes.
-    if (input.geometry.kind === 'polyline' && input.markers.mid.length > 0) {
-      let longestId = 0
-      for (const marker of input.markers.mid) {
-        if (typeof marker.id !== 'string') throw RECOUNT_EXACTLY
-        longestId = Math.max(longestId, marker.id.length)
+      measure(input, 0)
+      if (input.geometry.kind === 'polyline') {
+        const vertices = input.geometry.points.length
+        extraObjects += vertices * 2 // Placement and point copy.
+        extraProperties += vertices * 3 // markerId, point, contourIndex.
+        extraEntries += vertices
+        extraKeys += vertices * 25 * 3 // UTF-8 upper bound for the three keys.
+        check()
       }
-      extraText += input.geometry.points.length * longestId * 3
-      check()
+      // One repeated mid marker contributes its identifier at every interior
+      // vertex, not merely a constant multiple of its input string bytes.
+      if (input.geometry.kind === 'polyline' && input.markers.mid.length > 0) {
+        let longestId = 0
+        for (const marker of input.markers.mid) {
+          if (typeof marker.id !== 'string') throw COUNT_PROJECTION
+          longestId = Math.max(longestId, marker.id.length)
+        }
+        extraText += input.geometry.points.length * longestId * 3
+        check()
+      }
+    } catch (error) {
+      if (error !== COUNT_PROJECTION) throw error
+      materializeProjection(node, depth)
+      return
     }
     objects += extraObjects
     textBytes += extraText
@@ -346,6 +388,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     properties += extraProperties
     propertyKeyBytes += extraKeys
     reservedProjection = true
+    reservations.push({ node, depth, keys: [...keyPath], objects: extraObjects, text: extraText, entries: extraEntries, properties: extraProperties, keyBytes: extraKeys })
     reserveDeferredTerminalProjection(node)
   }
 
@@ -353,7 +396,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     if (typeof candidate === 'string') {
       if (!exact) {
         textBytes += candidate.length * 3
-        if (textBytes > limits.maxTextBytes) throw RECOUNT_EXACTLY
+        if (textBytes > limits.maxTextBytes && !reclaim(() => textBytes > limits.maxTextBytes)) throw RECOUNT_EXACTLY
         return
       }
       const remaining = Math.max(0, limits.maxTextBytes - textBytes)
@@ -373,7 +416,8 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     if (depth > limits.maxDepth) {
       throw new Error('External Scene input object graph is too deeply nested')
     }
-    if (++objects > limits.maxObjects) {
+    objects++
+    if (objects > limits.maxObjects && !reclaim(() => objects > limits.maxObjects)) {
       if (!exact && reservedProjection) throw RECOUNT_EXACTLY
       throw new Error('External Scene input object graph is too large')
     }
@@ -389,7 +433,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
         throw new Error(`External Scene ${path()} contains too many entries`)
       }
       arrayEntries += length
-      if (arrayEntries > limits.maxAggregateArrayEntries) {
+      if (arrayEntries > limits.maxAggregateArrayEntries && !reclaim(() => arrayEntries > limits.maxAggregateArrayEntries)) {
         if (!exact && reservedProjection) throw RECOUNT_EXACTLY
         throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
       }
@@ -410,7 +454,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
         throw new Error(`External Scene ${path()} contains too many properties`)
       }
       properties += keys.length
-      if (properties > limits.maxAggregateProperties) {
+      if (properties > limits.maxAggregateProperties && !reclaim(() => properties > limits.maxAggregateProperties)) {
         if (!exact && reservedProjection) throw RECOUNT_EXACTLY
         throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
       }
@@ -420,7 +464,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
           // so the exact pass reports it.
           if (key.length * 3 > limits.maxPropertyKeyBytes && boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes) > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
           propertyKeyBytes += key.length * 3
-          if (propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) throw RECOUNT_EXACTLY
+          if (propertyKeyBytes > limits.maxAggregatePropertyKeyBytes && !reclaim(() => propertyKeyBytes > limits.maxAggregatePropertyKeyBytes)) throw RECOUNT_EXACTLY
           continue
         }
         const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
