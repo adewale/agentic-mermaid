@@ -31,8 +31,9 @@ import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import {
-  readArchitectureStatements, architectureIconError, architectureIdError, architectureTerminalRejections, architectureTitleSource,
+  readArchitectureStatements, architectureIconError, architectureIdError, architectureStatementEnds, architectureTerminalRejections, architectureTitleSource,
 } from '../architecture/parser.ts'
+import { statementText } from '../shared/trailing-comment.ts'
 
 // ---- Parser -----------------------------------------------------------------
 // The statement shapes and Mermaid's id, icon and title terminals are the
@@ -42,6 +43,11 @@ const SIDES = new Set<ArchitectureSide>(['L', 'R', 'T', 'B'])
 
 function normalizeText(value: string): string {
   return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
+}
+
+/** A label read from source keeps the line breaks a quoted title runs across. */
+function sourceLabel(value: string): string {
+  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join('\n')
 }
 
 /**
@@ -88,7 +94,7 @@ export function parseArchitectureBody(
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       groupIds.add(id)
-      const label = normalizeText(declared.title)
+      const label = sourceLabel(declared.title)
       groups.push({ id, label, icon, parentId })
       continue
     }
@@ -99,7 +105,7 @@ export function parseArchitectureBody(
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
-      const label = normalizeText(declared.title)
+      const label = sourceLabel(declared.title)
       services.push({ id, label, icon, parentId })
       continue
     }
@@ -128,7 +134,7 @@ export function parseArchitectureBody(
     if (statement.kind === 'edge') {
       const { edge } = statement
       if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
-      const label = edge.label === undefined ? undefined : normalizeText(edge.label)
+      const label = edge.label === undefined ? undefined : sourceLabel(edge.label)
       if (label && (label.includes('[') || label.includes(']'))) return null
       const endpoint = (value: typeof edge.source): ArchitectureEdge['source'] => ({ id: value.id, side: value.side, ...(value.boundary === 'group' ? { boundary: 'group' as const } : {}) })
       edges.push({ source: endpoint(edge.source), target: endpoint(edge.target), label, hasArrowStart: edge.hasArrowStart, hasArrowEnd: edge.hasArrowEnd })
@@ -654,6 +660,7 @@ export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): 
   const header = lines.findIndex(line => /^architecture(?:-beta)?\b/i.test(line.trim()))
   if (header < 0) return []
   const warnings: LayoutWarning[] = []
+  const ends = architectureStatementEnds(lines)
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
@@ -661,11 +668,13 @@ export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): 
       index = directive.endIndex
       continue
     }
-    for (const { terminal, what } of architectureTerminalRejections(lines[index]!)) {
+    const start = index
+    index = ends[index]!
+    for (const { terminal, what } of architectureTerminalRejections(statementText(lines, start, index))) {
       warnings.push({
         code: 'UNSUPPORTED_SYNTAX',
         syntax: `architecture_${terminal}`,
-        line: index + 1,
+        line: start + 1,
         message: `${what}. Pinned Mermaid rejects this; ${ARCHITECTURE_PORTABLE_FORM[terminal]}.`,
       })
     }

@@ -50,6 +50,16 @@ describe('Class residual elevation (B08/B10)', () => {
     expect(reparsed.body.classes.find(item => item.id === 'B')).toEqual(expect.objectContaining({ className: 'cool', style: { color: '#010203' } }))
   })
 
+  test('a class named like an Object.prototype key is an ordinary class', () => {
+    const parsed = classDiagram('classDiagram\n  class A\n  classDef __proto__ fill:#ff0000\n  cssClass "A" __proto__')
+    const defined = apply(classDiagram('classDiagram\n  class A\n  cssClass "A" __proto__'), { kind: 'define_class', name: '__proto__', style: 'fill:#0000ff' })
+    for (const [diagram, fill] of [[parsed, '#ff0000'], [defined, '#0000ff']] as const) {
+      expect(Object.entries(diagram.body.classDefs ?? {})).toEqual([['__proto__', { fill }]])
+      const reparsed = parseClassDiagram(lines(serializeMermaid(diagram)))
+      expect(reparsed.classDefs.get('__proto__')?.fill).toBe(fill)
+    }
+  })
+
   test('paint mutations reject line breaks that would create classes', () => {
     const diagram = classDiagram('classDiagram\n  class A')
     for (const operation of [

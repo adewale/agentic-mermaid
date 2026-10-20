@@ -60,7 +60,8 @@ const FAMILY_SOURCES: Record<DiagramKind, (label: string) => string> = {
   pie: label => `pie\n  "${label}" : 1`,
   quadrant: label => `quadrantChart\n  title ${label}\n  ${label}: [0.3, 0.7]`,
   gantt: label => `gantt\n  dateFormat YYYY-MM-DD\n  section ${label}\n  ${label} :a, 2026-01-01, 1d`,
-  mindmap: label => `mindmap\n  root[${label}]\n    child[${label}]`,
+  // A Mindmap shape ends at its first `]` outside quotes (`]]>`).
+  mindmap: label => `mindmap\n  root["${label}"]\n    child["${label}"]`,
   gitgraph: label => `gitGraph\n  commit id:"a" msg:"${label}"`,
   radar: label => `radar-beta\n  axis a["${label}"], b, c\n  curve now["${label}"]{1,2,3}\n  max 5`,
   sankey: label => `sankey-beta\n  "${label}",sink,1`,

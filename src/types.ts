@@ -140,6 +140,9 @@ export interface MermaidSubgraph {
   id: string
   label: string
   labelContent?: LabelContent
+  /** State diagrams only: a composite state, whose classes' classDef paint
+   *  is drawn on its body, as Mermaid draws it. */
+  stateComposite?: true
   nodeIds: string[]
   children: MermaidSubgraph[]
   /** Optional direction override for this subgraph's internal layout */
@@ -461,6 +464,9 @@ export interface PositionedGroup {
   /** State diagrams only: this group is a concurrency region (drawn as dashed
    *  separators between siblings instead of its own box). */
   concurrencyRegion?: true
+  /** A State composite's classDef paint (fill, stroke, stroke-width, color),
+   *  drawn on its body and outline, and color on its title. */
+  inlineStyle?: Record<string, string>
 }
 
 // ============================================================================

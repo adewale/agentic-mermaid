@@ -1568,15 +1568,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 3,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
-      "minNodes": 3,
+      "groupCount": 1,
+      "minNodes": 2,
       "labelsContain": [
         "A",
         "B",
-        "end"
+        "WithRL"
       ]
     }
   },
@@ -13558,8 +13557,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"state valid { X }\""
+      "expectStructured": true,
+      "nodeCount": 1,
+      "edgeCount": 0,
+      "groupCount": 1,
+      "labelsContain": [
+        "valid",
+        "X"
+      ]
     }
   },
   {
@@ -13577,7 +13582,11 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
+      "labelsContain": [
+        "Accumulate Enough Data",
+        "Long State Name",
+        "Just a test"
+      ]
     }
   },
   {
@@ -13595,7 +13604,11 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
+      "labelsContain": [
+        "Accumulate Enough Data",
+        "Long State Name",
+        "Just a test"
+      ]
     }
   },
   {

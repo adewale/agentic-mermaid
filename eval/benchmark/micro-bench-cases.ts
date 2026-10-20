@@ -123,6 +123,31 @@ function asciiCase(workload: Workload): MicroCase {
   }
 }
 
+/** Include final string consumption and receipt hashing in the timed call.
+ * These supplement text-only calls so lazy materialization is never mistaken
+ * for a reduction in the cost of a fully consumed artifact. */
+function consumedCase(workload: Workload, output: 'svg' | 'ascii'): MicroCase {
+  return {
+    id: `render:${output}-consumed-${workload}`,
+    description: `Public ${output}, receipt serialized and output UTF-8 encoded, ${workload}`,
+    async setup() {
+      const api = await src.index()
+      const encode = new TextEncoder()
+      return () => {
+        const result = output === 'svg'
+          ? api.renderMermaidSVGWithReceipt(MICRO_WORKLOADS[workload])
+          : api.renderMermaidASCIIWithReceipt(MICRO_WORKLOADS[workload], { colorMode: 'none' })
+        const text = 'svg' in result ? result.svg : result.text
+        return { bytes: encode.encode(text), receipt: JSON.stringify(result.receipt) }
+      }
+    },
+    check: result => {
+      const value = result as { bytes?: Uint8Array; receipt?: string }
+      return (value.bytes?.length ?? 0) > 0 && (value.receipt?.includes('requestDigest') ?? false)
+    },
+  }
+}
+
 function parseCase(workload: Workload, kind: string): MicroCase {
   return {
     id: `parse:registered-${workload}`,
@@ -193,7 +218,7 @@ function sceneCases(workload: Workload): MicroCase[] {
     },
     {
       id: `scene:backend-render-${workload}`,
-      description: `Default backend render: joins node SVG serialized during lowering (cheap by design), ${workload}`,
+      description: `Default backend render: serializes admitted typed Scene marks, ${workload}`,
       async setup() {
         const { scene, backend } = await staged(workload)
         return { call: () => backend.render(scene, { seed: 0 }), input: inputText(scene) }
@@ -344,9 +369,15 @@ export function microCases(): readonly MicroCase[] {
     ...sceneCases('class80'),
     ...svgPassCases('class80'),
     ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(renderCase),
+    ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(workload => consumedCase(workload, 'svg')),
     asciiCase('flow5'),
     asciiCase('mesh50'),
     asciiCase('seq20'),
+    asciiCase('class80'),
+    asciiCase('er40'),
+    asciiCase('state80'),
+    consumedCase('seq20', 'ascii'),
+    consumedCase('class80', 'ascii'),
     {
       id: 'agent:verify-tree50',
       description: 'verifyMermaid on a parsed tree50',

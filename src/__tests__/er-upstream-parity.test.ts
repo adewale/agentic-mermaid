@@ -121,8 +121,8 @@ describe('ER text against pinned Mermaid', () => {
   ])('%j is rejected as Mermaid rejects it', expectParity)
 })
 
-// Mermaid rejects each of these, but what it means is clear, so ours reads it
-// and verify reports it. ER quoted text has no escapes upstream, and a quoted
+// Mermaid rejects each of these, or reads it otherwise, but what it means is
+// clear, so ours reads it and verify reports it. ER quoted text has no escapes upstream, and a quoted
 // name holds no `%` or backslash and is never empty: ours reads `\"` as `"`
 // (BUG-30's writer still writes `#quot;`). Mermaid ER has no trailing
 // comments: ours reads a `%%` after a statement as one. The typed body leaves
@@ -143,6 +143,22 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A %% c', 'er', '>A<', 'er_trailing_comment', 2],
   ['erDiagram\n  A {\n    int x %% c\n  }', 'er', '>x<', 'er_trailing_comment', 3],
   ['erDiagram\n  A\n  style A fill:#f00 %% c', 'er', 'fill="#f00"', 'er_trailing_comment', 3],
+  ['erDiagram\n  A {\n    int x "a\n    b" %% c\n  }', 'er', '>x<', 'er_trailing_comment', 4],
+  ['erDiagram\n  A {\n    int id PK FK\n  }', 'er', '>id<', 'er_attribute_form', 3],
+  ['erDiagram\n  A { int id "c" PK }', 'er', '>c<', 'er_attribute_form', 2],
+  ['erDiagram\n  A\n  end', 'er', '>end<', 'er_keyword_name', 3],
+  ['erDiagram\n  A ||--o{ B : places order', 'er', '>places order<', 'er_label_words', 2],
+  // Mermaid reads the label `x` and declares an entity `y`.
+  ['erDiagram\n  A ||--o{ B : x"y"', 'er', '>x&quot;y&quot;<', 'er_label_words', 2],
+  ['erDiagram\n  A ||--o{ B : x"', 'er', '>x&quot;<', 'er_relation_label', 2],
+  ['erDiagram\n  A ||--o{ B : x "y', 'er', '>x &quot;y<', 'er_relation_label', 2],
+  // A relationship's label is required on its line, and Mermaid's lexer
+  // reads a keyword, a cardinality or a number there before a label.
+  ['erDiagram\n  A ||--o{ B :\n  C D', 'er', '>D<', 'er_relation_label', 2],
+  ['erDiagram\n  "relates to" A ||--o{ 1 :end\n  places', 'er', '>end<', 'er_relation_label', 2],
+  ['erDiagram\n  A ||--o{ B : 1', 'er', '>1<', 'er_relation_label', 2],
+  ['erDiagram\n  A ||--o{ B : x,y', 'er', '>x,y<', 'er_relation_label', 2],
+  ['erDiagram\n  A ||--o{ B : direction LR', 'er', '>direction LR<', 'er_direction_line', 2],
 ]
 
 describe('ER source Mermaid rejects, read generously', () => {
@@ -158,6 +174,20 @@ describe('ER source Mermaid rejects, read generously', () => {
     // statement. The existing public comment policy must account for that loss.
     if (syntax === 'er_trailing_comment') expect(warnings).toContainEqual(expect.objectContaining({ code: 'COMMENT_DROPPED', count: 1, lines: [line] }))
   })
+
+  // Mermaid lexes an attribute comment inside the block, where `.*direction`
+  // does not apply, and a `%%` inside it, on any of its lines, is text.
+  // A label word that only starts like a keyword is a label, and Mermaid
+  // reads an entity code in it as text.
+  test.each([
+    'erDiagram\n  A {\n  int x "direction TB" } B',
+    'erDiagram\n  A {\n  int x "a\n  b %% c"\n  }',
+    'erDiagram\n  A ||--o{ B : oneself',
+    'erDiagram\n  A ||--o{ B : #35;x',
+  ])('%j has nothing to report', async source => {
+    await expectParity(source)
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
 })
 
 describe('ER comments against pinned Mermaid', () => {
@@ -168,10 +198,13 @@ describe('ER comments against pinned Mermaid', () => {
     'erDiagram\n  direction TB %% a direction reads to the end of its line\n  A',
   ])('%j reads as Mermaid reads it', expectParity)
 
-  test('a typed attribute cannot carry a trailing comment Mermaid would reject', () => {
+  // A typed attribute is written on a block line of its own, so it cannot
+  // carry a trailing comment Mermaid would reject, or a `}`, which would end
+  // the block when the line is read back.
+  test.each(['int x %% c', 'int x}'])('a typed attribute cannot carry %j', text => {
     const parsed = parseRegisteredMermaid('erDiagram\n  A')
     if (!parsed.ok) throw new Error('fixture rejected')
-    const result = mutate(parsed.value, { kind: 'add_attribute', entity: 'A', text: 'int x %% c' })
+    const result = mutate(parsed.value, { kind: 'add_attribute', entity: 'A', text })
     expect(result.ok ? 'accepted' : result.error.code).toBe('INVALID_OP')
   })
 })
@@ -199,6 +232,54 @@ describe('typed ER text is written as Mermaid reads it', () => {
     const expected: ErReading = { entities: [['A', text], ['B']], relations: [['A', 'B', text]] }
     expect({ source, mermaid: await mermaidReads(source) }).toEqual({ source, mermaid: expected })
     expect({ source, ours: oursReads(source) }).toEqual({ source, ours: expected })
+  })
+})
+
+describe('typed ER attributes are written as Mermaid reads them', () => {
+  // Keys parted by spaces or after the comment, which Mermaid rejects, are
+  // written as its comma-parted key list before the comment. A comment that
+  // runs across lines is written across them.
+  test.each<[string, unknown[]]>([
+    ['A {\n    int id PK FK\n  }', ['int', 'id', ['PK', 'FK'], '']],
+    ['A { int id "c" PK }', ['int', 'id', ['PK'], 'c']],
+    ['A {\n    int id pk fk "c"\n  }', ['int', 'id', ['PK', 'FK'], 'c']],
+    ['A {\n    int id "line1\n    line2"\n  }', ['int', 'id', [], 'line1\nline2']],
+    ['A { int id PK "a }\n    b" } B', ['int', 'id', ['PK'], 'a }\nb']],
+  ])('%j', async (body, expected) => {
+    const parsed = parseRegisteredMermaid(`erDiagram\n  ${body}`)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const source = serializeMermaid(parsed.value)
+    const json = await upstream.database(source)
+    const attributes = json === undefined ? 'rejected' : (JSON.parse(json) as { getEntities: Array<[string, { attributes: Plain[] }]> }).getEntities
+      .flatMap(([, entity]) => entity.attributes.map(attribute => [attribute.type, attribute.name, attribute.keys, attribute.comment]))
+    expect({ source, attributes }).toEqual({ source, attributes: [expected] })
+  })
+})
+
+describe('typed ER names are written as Mermaid reads them', () => {
+  // Mermaid's lexer reads these bare names as a keyword, a cardinality, a
+  // link marker or a number first; written quoted, each is one name.
+  test.each(['end', 'one', 'u-turn', '2px', '1.2.3', '1.x'])('%j', async id => {
+    const parsed = parseRegisteredMermaid('erDiagram\n  A')
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const added = mutate(parsed.value, { kind: 'add_entity', id })
+    if (!added.ok) throw new Error(`add_entity refused ${JSON.stringify(id)}`)
+    const source = serializeMermaid(added.value)
+    const expected: ErReading = { entities: [['A'], [id]], relations: [] }
+    expect({ source, mermaid: await mermaidReads(source) }).toEqual({ source, mermaid: expected })
+    expect({ source, ours: oursReads(source) }).toEqual({ source, ours: expected })
+  })
+
+  // A `style` line reads its id as style text, where a keyword or number is
+  // bare; a `class` line cannot name one, so the class goes on the entity.
+  test.each(['end', 'one', '2px'])('%j keeps its class and style', async id => {
+    const parsed = parseRegisteredMermaid(`erDiagram\n  "${id}":::foo\n  classDef foo fill:#f00\n  style ${id} stroke:#0f0`)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const source = serializeMermaid(parsed.value)
+    const json = await upstream.database(source)
+    const entities = json === undefined ? 'rejected' : (JSON.parse(json) as { getEntities: Array<[string, { cssClasses: string; cssStyles: string[] }]> }).getEntities
+      .map(([key, entity]) => [key, entity.cssClasses, entity.cssStyles])
+    expect({ source, entities }).toEqual({ source, entities: [[id, 'default foo', ['stroke:#0f0']]] })
   })
 })
 

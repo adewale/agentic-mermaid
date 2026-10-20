@@ -2,7 +2,7 @@ import { diagnoseClassConfig } from '../class/config-diagnostics.ts'
 import { projectClassPositioned } from '../positioned-views/class.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
-import { parseClassDiagram } from '../class/parser.ts'
+import { classStatementEnds, parseClassDiagram } from '../class/parser.ts'
 import { lowerClassScene } from '../class/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 import { normalizeMermaidSource, withFrontmatterTitle } from '../mermaid-source.ts'
@@ -12,6 +12,7 @@ import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const CLASS_SVG_HOOKS = {
   configDiagnostics: diagnoseClassConfig,
+  statementEnds: classStatementEnds,
   normalizeRequest: ctx => ({
     renderOptions: resolveClassRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),

@@ -100,6 +100,19 @@ export function resolveNodeInlineStyle(
 }
 
 /**
+ * Resolve the classDef paint of the classes assigned to `id`, without its
+ * `style` paint: what Mermaid draws on a State composite's body.
+ */
+export function resolveClassInlineStyle(id: string, graph: MermaidGraph): Record<string, string> | undefined {
+  let result: Record<string, string> | undefined
+  for (const className of graphClassNames(graph.classAssignments.get(id))) {
+    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
+    if (classDef) result = { ...result, ...classDef }
+  }
+  return result
+}
+
+/**
  * Resolve inline edge styles from an authored edge-ID class and linkStyle
  * directives. Link styles retain their existing default/index precedence.
  */

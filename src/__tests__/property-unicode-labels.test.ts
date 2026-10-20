@@ -64,7 +64,8 @@ describe('unicode / XML-significant label fuzz (escaping + measurement axis)', (
       fc.property(labelArb, labelArb, labelArb, labelArb, (a, b, c, e) => {
         assertSound(`flowchart TD\n  A["${esc(a)}"] -->|${esc(e)}| B["${esc(b)}"]\n  B --> C["${esc(c)}"]`)
       }),
-      fcParameters({ numRuns: 100, seed: SEED }),
+      // A `&quot;` that decodes to a bare quote inside a label.
+      fcParameters({ numRuns: 100, seed: SEED, examples: [['&', '" &', '&', '&']] }),
     )
   }, 30000)
 })

@@ -590,7 +590,7 @@ const fixtures: Fixture[] = [
     cue: 'Compare the leading note, nested background boundaries and following messages; this earlier sequence repair is a compatibility control.',
   },
   { id: 'timeline', title: 'Timeline milestone', source: 'timeline\n2020 : A\nTimeline redesign : Ship', cue: 'Both the Timeline redesign period and Ship event remain visible.' },
-  { id: 'state', title: 'Unknown State statement', source: 'stateDiagram-v2\nA --> B\nbogus statement', cue: 'Compare how each revision reports the unknown statement, including any explicit diagnostic.' },
+  { id: 'state', title: 'Unknown State statement', source: 'stateDiagram-v2\nA --> B\nbogus -->', cue: 'Compare how each revision reports the unknown statement, including any explicit diagnostic.' },
   { id: 'diamond-lr', title: 'Horizontal decision duplicates', source: 'flowchart LR\nC{Verify} -->|ok| D[View]\nC -->|warnings| D', cue: 'Both labels and distinct arrowheads are visible, without crossing routes.' },
   { id: 'diamond-td', title: 'Vertical decision duplicates', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D', cue: 'Both labels and distinct arrowheads are visible, without crossing routes.' },
   { id: 'diamond-feeder', title: 'Decision duplicates with another feeder', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\nA[Start] --> D', cue: 'The two decision labels remain readable without crossing the extra feeder.' },

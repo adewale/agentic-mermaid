@@ -4,7 +4,7 @@ import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveQuadrantVisualConfig } from '../quadrant/config.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
-import { parseQuadrantChart } from '../quadrant/parser.ts'
+import { parseQuadrantChart, quadrantStatementEnds } from '../quadrant/parser.ts'
 import { lowerQuadrantScene } from '../quadrant/renderer.ts'
 import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
 
@@ -12,6 +12,7 @@ import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const QUADRANT_SVG_HOOKS = {
   configDiagnostics: diagnoseQuadrantConfig,
+  statementEnds: quadrantStatementEnds,
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolveQuadrantVisualConfig(ctx.source.frontmatter) },
   }),

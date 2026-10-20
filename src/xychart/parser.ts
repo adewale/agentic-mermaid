@@ -12,9 +12,11 @@ import type {
   XYChartSeries,
   XYChartTheme,
 } from './types.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { splitCssColorList } from '../shared/css-color.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
+import { quotedTextEnds, statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
@@ -81,8 +83,8 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
   for (let index = headerMatch ? 1 : 0; index < statements.length; index++) {
     const line = statements[index]!
 
-    // Title
-    const titleMatch = line.match(/^title\s+(.+)$/i)
+    // Title (quoted text may hold a line break)
+    const titleMatch = line.match(/^title\s+([\s\S]+)$/i)
     if (titleMatch) {
       if (parserObservationActive('xychart')) observeParserStatement('xychart', 'title', line, { line: index + 1, unit: 'normalized' })
       const parsed = parseDirectiveText(titleMatch[1]!)
@@ -96,7 +98,7 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
     }
 
     // x-axis: optional title with either categories or numeric range
-    const xAxisMatch = line.match(/^x-axis\s+(.+)$/i)
+    const xAxisMatch = line.match(/^x-axis\s+([\s\S]+)$/i)
     if (xAxisMatch) {
       if (parserObservationActive('xychart')) observeParserStatement('xychart', 'x-axis', line, { line: index + 1, unit: 'normalized' })
       if (!applyAxisDirective(xAxis, xAxisMatch[1]!, 'x', index + 1) && options.strict) {
@@ -106,7 +108,7 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
     }
 
     // y-axis: numeric range only, optionally with a title
-    const yAxisMatch = line.match(/^y-axis\s+(.+)$/i)
+    const yAxisMatch = line.match(/^y-axis\s+([\s\S]+)$/i)
     if (yAxisMatch) {
       if (parserObservationActive('xychart')) observeParserStatement('xychart', 'y-axis', line, { line: index + 1, unit: 'normalized' })
       if (!applyAxisDirective(yAxis, yAxisMatch[1]!, 'y', index + 1) && options.strict) {
@@ -218,7 +220,7 @@ export function applyResolvedXYChartConfig(
 }
 
 // splitCommaList removes the quote delimiters while preserving their content.
-const LABELED_POINT_RE = /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))(?:\s+(.+))?$/
+const LABELED_POINT_RE = /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))(?:\s+([\s\S]+))?$/
 
 /** Full recognition prevents `parseFloat('25 typo')` from silently accepting a prefix. */
 function parseNumericPoints(str: string, strict = false, statementLine?: number): { values: number[]; labels: Array<string | undefined> } {
@@ -251,7 +253,22 @@ function parseNumericArray(str: string): number[] {
 const NUMBER_PATTERN = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`
 const RANGE_REGEX = new RegExp(`^(${NUMBER_PATTERN})\\s*-->\\s*(${NUMBER_PATTERN})$`)
 
-function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y', statementLine: number): boolean {
+/** Where Mermaid's xychart lexer rejects unquoted text: what it rejects. */
+type XYChartTextReport = (what: string) => void
+
+// Mermaid's xychart lexer reads an unquoted axis title only from ASCII
+// letters, whitespace and &+=*.#_- (and runs the words together); a digit
+// there starts a range number. Any other character is a lexical or parse
+// error upstream. Ours reads the title as written; verify reports it, and the
+// serializer writes it quoted, as Mermaid reads it.
+const NOT_AXIS_TEXT_RE = /[^A-Za-z&+=*.#_\s-]/
+
+function reportAxisTitle(title: string, axisName: 'x' | 'y', report: XYChartTextReport | undefined): void {
+  const error = NOT_AXIS_TEXT_RE.exec(title)?.[0]
+  if (error !== undefined) report?.(`XY chart ${axisName}-axis title ${JSON.stringify(title)} has ${JSON.stringify(error)} outside a quoted string`)
+}
+
+function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y', statementLine: number, report?: XYChartTextReport): boolean {
   const value = rawValue.trim()
   if (value.length === 0) return false
 
@@ -263,6 +280,7 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y',
     const categories = splitCommaList(categoriesMatch.contents)
     if (categories.length === 0) return false
     if (title !== undefined) {
+      if (!/^["']/.test(prefix)) reportAxisTitle(title, axisName, report)
       axis.title = title
       if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title }, { line: statementLine, unit: 'normalized' })
     }
@@ -277,46 +295,62 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y',
     return true
   }
 
-  const rangeOnly = value.match(RANGE_REGEX)
-  if (rangeOnly) {
-    axis.range = { min: parseFloat(rangeOnly[1]!), max: parseFloat(rangeOnly[2]!) }
+  const parsed = readAxisTitleRange(value)
+  if (!parsed) return false
+  if (parsed.title !== undefined) {
+    if (!/^["']/.test(value)) reportAxisTitle(parsed.title, axisName, report)
+    axis.title = parsed.title
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
+  }
+  if (parsed.range) {
+    axis.range = parsed.range
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRange', { axis: axisName, range: axis.range }, { line: statementLine, unit: 'normalized' })
     axis.rangeAuthored = true
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRangeAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
     delete axis.categories
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisCategories', axisName, { line: statementLine, unit: 'normalized' })
-    axis.authored = true
-    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-    return true
   }
-
-  const titledRange = parseLeadingTextToken(value)
-  if (titledRange) {
-    const rangeMatch = titledRange.rest.match(RANGE_REGEX)
-    if (rangeMatch) {
-      axis.title = titledRange.value
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
-      axis.range = { min: parseFloat(rangeMatch[1]!), max: parseFloat(rangeMatch[2]!) }
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRange', { axis: axisName, range: axis.range }, { line: statementLine, unit: 'normalized' })
-      axis.rangeAuthored = true
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRangeAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-      delete axis.categories
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisCategories', axisName, { line: statementLine, unit: 'normalized' })
-      axis.authored = true
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-      return true
-    }
-
-    if (titledRange.rest.length === 0) {
-      axis.title = titledRange.value
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
-      axis.authored = true
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-      return true
-    }
-  }
-  return false
+  axis.authored = true
+  if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
+  return true
 }
+
+/**
+ * An axis's range, its title, or a title and then a range. The title is one
+ * quoted string or unquoted text, which may be several words (Mermaid runs
+ * those together: `Monthly totals` reads as `Monthlytotals` there). Words
+ * holding a double quote, a bracket or `-->` are not a title.
+ */
+function readAxisTitleRange(value: string): { title?: string; range?: { min: number; max: number }; words: boolean } | null {
+  const range = (match: RegExpMatchArray) => ({ min: parseFloat(match[1]!), max: parseFloat(match[2]!) })
+  const rangeOnly = value.match(RANGE_REGEX)
+  if (rangeOnly) return { range: range(rangeOnly), words: false }
+  const leading = parseLeadingTextToken(value)
+  if (!leading) return null
+  const rangeMatch = leading.rest.match(RANGE_REGEX)
+  if (rangeMatch) return { title: leading.value, range: range(rangeMatch), words: false }
+  if (leading.rest.length === 0) return { title: leading.value, words: false }
+  if (/^["']/.test(value)) return null
+  // Several words, perhaps followed by `min --> max`.
+  let words = value
+  let wordsRange: { min: number; max: number } | undefined
+  const arrow = value.lastIndexOf('-->')
+  if (arrow >= 0) {
+    const before = value.slice(0, arrow).trimEnd()
+    let start = before.length
+    while (start > 0 && !/\s/.test(before[start - 1]!)) start--
+    const tail = `${before.slice(start)} --> ${value.slice(arrow + 3).trim()}`.match(RANGE_REGEX)
+    if (!tail) return null
+    words = before.slice(0, start).trim()
+    wordsRange = range(tail)
+  }
+  return /^[^"[\]]+$/.test(words) && !words.includes('-->') ? { title: words, ...(wordsRange ? { range: wordsRange } : {}), words: true } : null
+}
+
+// Mermaid reads entity codes before its grammar, so a string written
+// `"#quot;"` shows `"`. Its strings have no escapes; ours also read `\"` and
+// `\\`, and the writer below spells `"` and `\` as entity codes instead.
+const ENTITY_REFUSAL = { subject: 'XYChart text entity', example: 'title "Say #quot;hi#quot;"' }
 
 function parseLeadingTextToken(text: string): { value: string; rest: string } | undefined {
   const trimmed = text.trim()
@@ -326,7 +360,7 @@ function parseLeadingTextToken(text: string): { value: string; rest: string } | 
     const quoted = readQuotedText(trimmed)
     if (!quoted) return undefined
     return {
-      value: quoted.value,
+      value: decodeMermaidEntities(quoted.value, ENTITY_REFUSAL),
       rest: trimmed.slice(quoted.endIndex + 1).trim(),
     }
   }
@@ -463,9 +497,12 @@ function readQuotedText(text: string): { value: string; endIndex: number } | nul
   return null
 }
 
-/** Serialize text through the same lexical contract consumed above. */
+/** Serialize text through the same lexical contract consumed above. Quoted,
+ * `"` and `\` are entity codes, which Mermaid and this reader both read as
+ * the character; a backslash escape is ours alone. */
 export function renderXYChartText(value: string, mode: 'free' | 'token' | 'list' | 'quoted'): string {
-  if (mode === 'quoted') return `"${value.replace(/(["\\])/g, '\\$1')}"`
+  const quoted = `"${encodeMermaidEntities(value, '"\\')}"`
+  if (mode === 'quoted') return quoted
   // Mermaid discards whitespace between bare tokens and reserves chart
   // keywords. Quoting preserves labels rather than merely accepting them in
   // our more generous reader (e.g. "Revenue (USD)" and the category "bar").
@@ -473,7 +510,7 @@ export function renderXYChartText(value: string, mode: 'free' | 'token' | 'list'
     // Axis-title mode tokenizes digits as range numbers, unlike category text.
     && (mode !== 'token' || !/\d/.test(value))
     && !/^(?:title|bar|line|xychart|horizontal|vertical|accTitle|accDescr)$/i.test(value)
-  return bare && value.length > 0 ? value : `"${value.replace(/(["\\])/g, '\\$1')}"`
+  return bare && value.length > 0 ? value : quoted
 }
 
 function pushValue(values: string[], rawValue: string): void {
@@ -618,32 +655,156 @@ function getString(root: MermaidFrontmatterMap, path: readonly string[]): string
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 }
 
-function expandXYChartStatements(lines: string[], strict: boolean): string[] {
+/**
+ * What Mermaid's xychart lexer rejects in the unquoted text of a chart's
+ * statements, read by the parser's own statement grammar, with the index in
+ * `lines` (header first) of the line each statement starts on.
+ */
+export function xychartTextRejections(lines: readonly string[]): Array<{ index: number; what: string }> {
+  const rejections: Array<{ index: number; what: string }> = []
+  const read = (statement: string, index: number): void => {
+    const axis = statement.match(/^([xy])-axis\s+([\s\S]+)$/i)
+    if (!axis) return
+    const axisName = axis[1]!.toLowerCase() as 'x' | 'y'
+    applyAxisDirective({}, axis[2]!, axisName, index + 1, what => rejections.push({ index, what }))
+  }
+  const starts: number[] = []
+  const statements = expandXYChartStatements([...lines], false, starts)
+  for (let at = 1; at < statements.length; at++) {
+    const directive = parseAccessibilityDirective(statements, at)
+    if (directive === undefined) break
+    if (directive === null) {
+      read(statements[at]!, starts[at]!)
+      continue
+    }
+    at = directive.endIndex
+    if (directive.suffixLine) {
+      for (const statement of expandXYChartStatements([directive.suffixLine], false)) read(statement, starts[at]!)
+    }
+  }
+  return rejections
+}
+
+/** For each line, the last line of the statement that starts there. Mermaid's
+ * xychart strings have no escapes: `"C:\"` closes at its second quote. An
+ * `accTitle:` or `accDescr:` value is the rest of its line wherever it starts,
+ * and an `accDescr {` block runs to its `}`, so a quote in either opens no
+ * string. */
+export function xychartStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, { escapes: false, restOfLine: /(?<!\w)acc(?:Title|Descr)\s*:/iy, block: ACCESSIBILITY_BLOCK })
+}
+
+/** Each statement on `lines`, with the index of the line it starts on pushed to `starts`. */
+function expandXYChartStatements(lines: string[], strict: boolean, starts?: number[]): string[] {
   const statements: string[] = []
   let inAccDescrBlock = false
+  const ends = xychartStatementEnds(lines)
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const start = lineIndex
+    let line = lines[lineIndex]!.trim()
     if (!line) continue
     if (line.startsWith('%%')) continue
 
     if (inAccDescrBlock) {
       statements.push(line)
+      starts?.push(start)
       if (line.includes('}')) inAccDescrBlock = false
       continue
     }
 
     // Mermaid's XYChart grammar ends a statement at a `%%` comment; only
     // accessibility text reads it as text.
-    const parts = splitSemicolonStatements(/^acc(?:Title|Descr)\b/i.test(line) ? line : stripTrailingComment(line), strict)
+    const accessibility = /^acc(?:Title|Descr)\b/i.test(line)
+    if (!accessibility) {
+      // A double-quoted string runs to its closing quote across line breaks,
+      // which it keeps.
+      const end = ends[lineIndex]!
+      if (end > lineIndex) {
+        line = statementText(lines, lineIndex, end).trim()
+        lineIndex = end
+      }
+    }
+    const parts = accessibility ? splitSemicolonStatements(line, strict) : splitStatementsBeforeComment(line, strict)
     for (const part of parts) {
       statements.push(part)
+      starts?.push(start)
       const block = part.match(/^accDescr\s*:?\s*\{(.*)$/i)
       if (block && !block[1]!.includes('}')) inAccDescrBlock = true
     }
   }
 
   return statements
+}
+
+/** The statements on `line` before a trailing `%%` comment. An `accTitle:` or
+ * `accDescr:` after another statement takes the rest of the line, a `%%`
+ * included, and an `accDescr {` block the text to its `}`, as in Mermaid's
+ * lexer. */
+function splitStatementsBeforeComment(line: string, strict: boolean): string[] {
+  const comment = trailingCommentStart(line, ACCESSIBILITY_BLOCK)
+  if (comment < 0) return splitSemicolonStatements(line, strict)
+  const before = line.slice(0, comment).trimEnd()
+  const parts = splitSemicolonStatements(before, strict)
+  const last = parts.length - 1
+  if (last >= 0 && INLINE_ACCESSIBILITY.test(parts[last]!)) parts[last] = line.slice(before.length - parts[last]!.length).trim()
+  return parts
+}
+
+const INLINE_ACCESSIBILITY = /^acc(?:Title|Descr)\s*:/i
+const ACCESSIBILITY_BLOCK = /(?<!\w)accDescr\s*\{/iy
+
+// Mermaid's lexer reads these as keywords wherever they occur outside a
+// string, so statements may share a line without `;`. An accessibility
+// directive ends the search: `accTitle:` and `accDescr:` run to the end of
+// the line, `;` included, and an `accDescr {` block to its `}`. The source
+// envelope reads one that starts a line.
+const STATEMENT_KEYWORD = /(?:title|[xy]-axis|bar|line)(?!\w)|acc(?:Title\s*:|Descr\s*[:{])/iy
+
+/**
+ * Split one statement's text at the keyword offsets found in it where the
+ * text on both sides reads as a statement. A keyword in a series label before
+ * its data, or between words of an unquoted title, therefore stays text.
+ */
+function pushKeywordStatements(statements: string[], text: string, offsets: readonly number[]): void {
+  let start = 0
+  if (offsets.length > 0) {
+    let before = statementShape(text.slice(0, offsets[0]).trim())
+    for (let index = 0; index < offsets.length; index++) {
+      const after = statementShape(text.slice(offsets[index], offsets[index + 1]).trim())
+      if (before && after && (before !== 'title' || after === 'data')) {
+        const statement = text.slice(start, offsets[index]).trim()
+        if (statement) statements.push(statement)
+        start = offsets[index]!
+        before = after
+      } else if (before !== 'title') {
+        before = after
+      }
+    }
+  }
+  const statement = text.slice(start).trim()
+  if (statement) statements.push(statement)
+}
+
+/**
+ * How text reads as one statement, without recording it: `title` when it is
+ * only unquoted title words, or axis-title words where a keyword may be text,
+ * `text` when it is one unquoted axis-title word, `data` for any other
+ * statement, and undefined when it is no complete statement.
+ */
+function statementShape(text: string): 'title' | 'text' | 'data' | undefined {
+  const directive = text.match(/^(title|x-axis|y-axis)\s+([\s\S]+)$/i)
+  if (!directive) {
+    const series = parseSeriesDirective(text)
+    return series && splitCommaTokens(series.points).every(point => LABELED_POINT_RE.test(point.trim())) ? 'data' : undefined
+  }
+  const value = directive[2]!.trim()
+  const quoted = value.startsWith('"') || value.startsWith("'")
+  if (/^title$/i.test(directive[1]!)) return parseDirectiveText(value) === null ? undefined : quoted ? 'data' : 'title'
+  const list = /^x/i.test(directive[1]!) ? splitTrailingBracketList(value) : null
+  if (list) return list.prefix && parseDirectiveText(list.prefix) === null ? undefined : 'data'
+  const axis = readAxisTitleRange(value)
+  return !axis ? undefined : axis.range || quoted ? 'data' : axis.words ? 'title' : 'text'
 }
 
 function splitSemicolonStatements(text: string, strict: boolean): string[] {
@@ -653,6 +814,10 @@ function splitSemicolonStatements(text: string, strict: boolean): string[] {
   let bracketDepth = 0
   let braceDepth = 0
   let escaped = false
+  // Offsets in `current` where a keyword may start another statement.
+  let keywords: number[] = []
+  let started = false
+  let collecting = true
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i]!
@@ -690,11 +855,43 @@ function splitSemicolonStatements(text: string, strict: boolean): string[] {
       continue
     }
     if (char === ';' && bracketDepth === 0 && braceDepth === 0) {
-      const statement = current.trim()
-      if (statement) statements.push(statement)
+      pushKeywordStatements(statements, current, keywords)
       current = ''
+      keywords = []
+      started = false
+      collecting = true
       continue
     }
+    if (collecting && bracketDepth === 0 && braceDepth === 0 && /[abltxy]/i.test(char) && !/\w/.test(text[i - 1] ?? ' ')) {
+      STATEMENT_KEYWORD.lastIndex = i
+      const keyword = STATEMENT_KEYWORD.exec(text)
+      if (keyword && /^acc/i.test(keyword[0])) {
+        // The directive starts here when the text before it is a statement
+        // or there is none.
+        const before: string[] = []
+        pushKeywordStatements(before, current, keywords)
+        if (before.length === 0 || statementShape(before[before.length - 1]!) !== undefined) {
+          statements.push(...before)
+          current = ''
+          keywords = []
+          if (!keyword[0].endsWith('{')) {
+            statements.push(text.slice(i).trim())
+            return statements
+          }
+          // A block's text runs to its `}`, a quote in it included.
+          const close = text.indexOf('}', i + keyword[0].length)
+          if (close >= 0) {
+            current += text.slice(i, close + 1)
+            i = close
+            started = true
+            collecting = false
+            continue
+          }
+        }
+        collecting = false
+      } else if (keyword && started) keywords.push(current.length)
+    }
+    if (!started && !/\s/.test(char)) started = true
 
     current += char
   }
@@ -703,7 +900,6 @@ function splitSemicolonStatements(text: string, strict: boolean): string[] {
     throw new Error(`Unclosed XYChart delimiter in line: "${text}"`)
   }
 
-  const trailing = current.trim()
-  if (trailing) statements.push(trailing)
+  pushKeywordStatements(statements, current, keywords)
   return statements
 }

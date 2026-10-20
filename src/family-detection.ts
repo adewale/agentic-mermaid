@@ -1,5 +1,5 @@
 import type { FamilyDescriptor } from './agent/families.ts'
-import { detectInstalledFamilyDescriptorFromFirstLine } from './agent/family-router.ts'
+import { detectInstalledFamilyDescriptorFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
 import type {
   FamilyId,
   PreservedDiagramBody,
@@ -13,8 +13,8 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
-import { matchMermaidFrontmatter } from './mermaid-source-wrapper.ts'
-import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
+import { matchMermaidFrontmatter, splitHeaderStatement } from './mermaid-source-wrapper.ts'
+import { parseAccessibilityDirective, statementEndAt } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =
   | { kind: 'registered'; familyId: FamilyId }
@@ -94,6 +94,7 @@ function accessibilityDirectiveSpans(
   source: string,
   bodyStart: number,
   lineStarts = sourceLineStarts(source),
+  header = source.slice(bodyStart).trimStart().split('\n', 1)[0]!,
 ): readonly SourceSpan[] {
   const physicalLines = source.slice(bodyStart).split('\n')
   const lines = physicalLines.map(line => line.endsWith('\r') ? line.slice(0, -1) : line)
@@ -104,12 +105,18 @@ function accessibilityDirectiveSpans(
     offset += line.length + 1
   }
   const spans: SourceSpan[] = []
+  // A line inside a statement's quoted text is the family's, as in source
+  // normalization.
+  const statementEnds = installedFamilyStatementEnds(header, lines)
   for (let index = 0; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     // An unclosed block consumes the remainder of the source. Continuing
     // would rescan that suffix for every later opener (quadratic work).
     if (directive === undefined) break
-    if (directive === null) continue
+    if (directive === null) {
+      index = statementEndAt(statementEnds, index, lines.length)
+      continue
+    }
     const start = offsets[index]!
     let end: number
     if (directive.form === 'block') {
@@ -128,6 +135,7 @@ function accessibilityDirectiveSpans(
 function universalDirectiveSpans(
   source: string,
   bodyStart: number,
+  header: string,
   lineStarts = sourceLineStarts(source),
 ): Pick<
   PreservedSourceSpans,
@@ -145,7 +153,7 @@ function universalDirectiveSpans(
     frontmatterEnd,
     lineStarts,
   )
-  const accessibilityDirectives = accessibilityDirectiveSpans(source, bodyStart, lineStarts)
+  const accessibilityDirectives = accessibilityDirectiveSpans(source, bodyStart, lineStarts, header)
   return {
     ...(frontmatter
       ? { frontmatter: sourceSpan(lineStarts, 0, frontmatterEnd) }
@@ -189,15 +197,18 @@ export function sourcePreservationSpans(
     // String trimming already treats U+FEFF as whitespace. Locate the header
     // in the untouched line instead of adding a second BOM offset.
     const trimmed = raw.trim()
-    if (trimmed === header || (trimmed.startsWith(header) && /^\s*;/.test(trimmed.slice(header.length)))) {
+    // A statement may follow the header on its line, after `;` or, where the
+    // family's grammar reads one there, a space; it belongs to the body.
+    const suffix = trimmed.startsWith(header) ? trimmed.slice(header.length) : ''
+    const semicolon = /^\s*;/.test(suffix)
+    if (trimmed === header || semicolon || (/^\s/.test(suffix) && splitHeaderStatement(trimmed) !== trimmed)) {
       const relativeStart = raw.indexOf(header)
       headerStart = lineStart + relativeStart
       headerEnd = headerStart + header.length
       if (trimmed === header) {
         payloadStart = newline < 0 ? source.length : newline + 1
       } else {
-        const semicolon = raw.indexOf(';', relativeStart + header.length)
-        payloadStart = semicolon + 1
+        payloadStart = semicolon ? source.indexOf(';', headerEnd) + 1 : headerEnd
         while (payloadStart < lineEnd && /[ \t]/.test(source[payloadStart]!)) payloadStart++
       }
       break
@@ -217,7 +228,7 @@ export function sourcePreservationSpans(
   return Object.freeze({
     source: sourceSpan(lineStarts, 0, source.length),
     ...(lineStart > 0 ? { wrapper: sourceSpan(lineStarts, 0, lineStart) } : {}),
-    ...universalDirectiveSpans(source, payloadStart, lineStarts),
+    ...universalDirectiveSpans(source, payloadStart, header, lineStarts),
     header: sourceSpan(lineStarts, headerStart, headerEnd),
     body: sourceSpan(lineStarts, payloadStart, source.length),
   })

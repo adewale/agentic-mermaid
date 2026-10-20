@@ -12,7 +12,7 @@ import type { DiagramActionRecord, DiagramAnalysis, ParseError, Result, ParsedDi
 import { err, ok } from './types.ts'
 import { classifyRoutes } from '../route-contracts.ts'
 import { parseMermaid as parseFlowchartLegacy, splitFlowchartStatements } from '../parser.ts'
-import { scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, scanFlowchart } from '../flowchart-lexer.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
@@ -188,7 +188,11 @@ function collectClassActions(source: string): DiagramActionRecord[] {
 
 function collectFlowchartActions(source: string): DiagramActionRecord[] {
   const out: DiagramActionRecord[] = []
-  for (const sourceLine of actionSourceLines(source, true)) {
+  // A label, string or link may run on across lines: read statements as the
+  // parser does, so text inside one never becomes an action.
+  const sourceLines = actionSourceLines(source, true)
+  for (const group of coalesceFlowchartLines(sourceLines.map(sourceLine => sourceLine.text))) {
+    const sourceLine = { text: group.text, line: sourceLines[group.line]!.line }
     for (const text of splitFlowchartStatements(sourceLine.text)) {
       if (!text || text.startsWith('%%')) continue
       let m = text.match(/^href\s+(\S+)\s+(.+)$/i)

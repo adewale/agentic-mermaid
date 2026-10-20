@@ -22,13 +22,13 @@ import { parseC4Body, renderC4, mutateC4, lintC4, buildC4SourceMap } from './c4-
 
 import { decodeXML } from 'entities'
 import { readClassStatements, type ClassStatementNode } from '../class/parser.ts'
-import { readErStatements, type ParsedErRelationshipSyntax } from '../er/parser.ts'
+import { readErStatements, type ErSourceStatement, type ParsedErRelationshipSyntax } from '../er/parser.ts'
 import { GitGraphDuplicateCommitError } from '../gitgraph/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
-import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
+import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { readArchitectureStatements } from '../architecture/parser.ts'
@@ -51,9 +51,11 @@ import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-bo
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { mutateState, parseStateBody, renderState, verifyState, verifyOpaqueState } from './state-body.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
-import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
+import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceLocation, SourceMap, XyChartBody } from './types.ts'
+import { recordSourceMapEnds } from './source-map-spans.ts'
 import { err, ok } from './types.ts'
 import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart } from './xychart-body.ts'
+import { adoptStatementAccessibility } from './accessibility-envelope.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -310,10 +312,6 @@ function emptySourceMap(): SourceMap {
 function loc(line: number, col: number): { line: number; col: number } {
   return { line, col: Math.max(1, col) }
 }
-function firstIndex(line: string, text: string): number {
-  const i = line.indexOf(text)
-  return i >= 0 ? i + 1 : 1
-}
 
 function nextOccurrence(counts: Map<string, number>, key: string): number {
   const occurrence = counts.get(key) ?? 0
@@ -381,7 +379,7 @@ function locatedSourceLines(lines: readonly string[]): LocatedSourceLine[] {
 }
 
 function pieSliceSourceLocations(lines: readonly string[]): Array<{ label: string; location: { line: number; col: number } }> {
-  return lines.flatMap((line, lineIndex) => {
+  return joinQuotedTextLines(lines, PIE_QUOTED_TEXT).flatMap((line, lineIndex) => {
     const match = line.match(/^\s*"((?:[^"\\]|\\.)*)"\s*:/)
     if (match?.[1] === undefined || match.index === undefined) return []
     const quote = line.indexOf('"', match.index)
@@ -445,6 +443,7 @@ function buildClassSourceMap(body: DiagramBody, canonicalSource: string): Source
       const value = node.value
       if (value.kind === 'class') {
         declare(value.declaration.id, source)
+        if (value.declaration.annotation !== undefined) addMember(value.declaration.id, `<<${value.declaration.annotation}>>`, source)
         if (node.children) frames.push({ nodes: node.children, owner: value.declaration.id, index: 0 })
       } else if (value.kind === 'namespace') frames.push({ nodes: node.children!, owner: undefined, index: 0 })
       else if (value.kind === 'relationship') relationSources.push(source)
@@ -512,15 +511,26 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
   const lines = canonicalSource.split(/\r?\n/)
   const nodeDeclarations = new Map<string, { line: number; col: number }>()
   const attributeSources = new Map<string, Array<{ line: number; col: number }>>()
-  const relationSources: Array<{ source: LocatedSourceLine; relation: ParsedErRelationshipSyntax }> = []
+  const relationSources: Array<{ source: LocatedSourceLine; relation: ParsedErRelationshipSyntax; end: SourceLocation }> = []
   const headerAt = lines.findIndex(line => /^erDiagram\s*$/i.test(line.trim()))
   const tree = readErStatements(lines.slice(headerAt + 1))
+  // Statements may share a line, and an attribute may run across lines, so
+  // each span ends where its statement does, before any space or comment.
+  const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
+  const endOf = (entry: ErSourceStatement): SourceLocation => {
+    const from = entry.endLine === entry.line ? entry.column : 0
+    const text = lines[headerAt + entry.endLine + 1]!.slice(from, entry.endColumn)
+    return loc(headerAt + entry.endLine + 2, from + stripTrailingComment(text).trimEnd().length + 1)
+  }
+  const attributeEnds = new Map<string, SourceLocation[]>()
+  const nodeEnds = new Map<string, SourceLocation>()
   for (const entry of tree.statements) {
+    // A statement may share its line (`Z { string id }`): locate it there.
     const source: LocatedSourceLine = {
-      line: entry.raw,
+      line: lines[headerAt + entry.line + 1]!,
       trimmed: entry.raw.trim(),
       lineIndex: headerAt + entry.line + 1,
-      start: entry.raw.length - entry.raw.trimStart().length,
+      start: entry.column + entry.raw.length - entry.raw.trimStart().length,
     }
     const syntax = entry.syntax
     if (syntax.kind === 'attribute') {
@@ -528,33 +538,44 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
       const entries = attributeSources.get(key) ?? []
       entries.push(loc(source.lineIndex + 1, source.start + 1))
       attributeSources.set(key, entries)
+      attributeEnds.set(key, [...attributeEnds.get(key) ?? [], endOf(entry)])
     } else if (syntax.kind === 'relation') {
-      relationSources.push({ source, relation: syntax.relation })
+      relationSources.push({ source, relation: syntax.relation, end: endOf(entry) })
     } else if (syntax.kind === 'entity' || syntax.kind === 'block-open') {
       nodeDeclarations.set(syntax.reference.id, loc(source.lineIndex + 1, source.start + 1))
+      nodeEnds.set(syntax.reference.id, endOf(entry))
     }
   }
 
   for (const e of b.entities) {
     const declared = nodeDeclarations.get(e.id)
-    if (declared) map.nodes.set(e.id, declared)
+    if (declared) {
+      map.nodes.set(e.id, declared)
+      ends.nodes.set(e.id, nodeEnds.get(e.id)!)
+    }
     const attributeOccurrences = new Map<string, number>()
     e.attributes.forEach((attr, index) => {
       const occurrence = nextOccurrence(attributeOccurrences, attr.text)
       const found = attributeSources.get(`${e.id}\u0000${attr.text}`)?.[occurrence]
-      if (found) map.labels.set(`er:${e.id}:attr#${index}`, found)
+      if (!found) return
+      map.labels.set(`er:${e.id}:attr#${index}`, found)
+      ends.labels.set(`er:${e.id}:attr#${index}`, attributeEnds.get(`${e.id}\u0000${attr.text}`)![occurrence]!)
     })
   }
 
   b.relations.forEach((r, index) => {
     const locatedRelation = relationSources[index]
     if (!locatedRelation) return
-    const { source, relation } = locatedRelation
+    const { source, relation, end } = locatedRelation
     const key = `rel#${index}:${r.from}->${r.to}`
     const relationLocation = loc(source.lineIndex + 1, source.start + 1)
     map.edges.set(key, relationLocation)
-    if (!map.nodes.has(r.from)) map.nodes.set(r.from, relationLocation)
-    if (!map.nodes.has(r.to)) map.nodes.set(r.to, relationLocation)
+    ends.edges.set(key, end)
+    for (const id of [r.from, r.to]) {
+      if (map.nodes.has(id)) continue
+      map.nodes.set(id, relationLocation)
+      ends.nodes.set(id, end)
+    }
     const link = relation.identifying ? '--' : '..'
     const operator = `${relation.leftToken}${link}${relation.rightToken}`
     const operatorStart = source.line.indexOf(operator, source.start)
@@ -565,9 +586,14 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
     if (r.label) {
       const colon = source.line.indexOf(':', Math.max(source.start, operatorStart))
       const labelCol = colon >= 0 ? source.line.indexOf(r.label, colon + 1) : -1
-      if (labelCol >= 0) map.labels.set(key, loc(source.lineIndex + 1, labelCol + 1))
+      if (labelCol >= 0) {
+        // The label is that text, without a quote or comment after it.
+        map.labels.set(key, loc(source.lineIndex + 1, labelCol + 1))
+        ends.labels.set(key, loc(source.lineIndex + 1, labelCol + r.label.length + 1))
+      }
     }
   })
+  recordSourceMapEnds(map, ends)
   return map
 }
 
@@ -681,7 +707,7 @@ function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): Source
         const end = statement.meta.end.kind === 'until' ? `until ${statement.meta.end.refs.join(' ')}` : statement.meta.end.raw
         if (end !== task.end) continue
         if (seen++ !== wanted) continue
-        const location = loc(statement.startLine, firstIndex(statement.raw[0]!, task.label))
+        const location = loc(statement.startLine, statement.valueColumn!)
         map.nodes.set(stableId, location)
         map.labels.set(`gantt:task:${stableId}`, location)
         break
@@ -754,9 +780,9 @@ const ER_AGENT_HOOKS = {
   verify: (body, opts) => (body.kind === 'er' ? verifyErBody(body, opts) : []),
   buildSourceMap: buildErSourceMap,
   ...structuredFamilyHooks('er', {
-    // A header-riding subgraph clause (`erDiagram subgraph X`, repo #103) is
-    // tolerated by the renderer but unmodeled here: keep the body opaque so
-    // the clause round-trips verbatim instead of being dropped on serialize.
+    // Source normalization moves a statement written on the header line
+    // (`erDiagram subgraph X`, repo #103) onto a line of its own
+    // (splitHeaderStatement), so a structured header is bare.
     headerOk: h => /^erdiagram\s*$/i.test(h),
     parseBody: (lines, _accessibility, rawBodyLines) => parseErBody(lines, rawBodyLines),
     serialize: renderEr,
@@ -956,9 +982,16 @@ const XYCHART_AGENT_HOOKS = {
   // Pass the complete family source to the shared XY grammar. Header spelling,
   // orientation, and same-line semicolon statements therefore have one parser
   // authority instead of a second regex in the agent projection.
-  parse: ({ lines, opaqueSource }) => {
+  parse: ({ lines, opaqueSource, meta }) => {
     const body = parseXyChartBody(lines)
-    return ok(body ?? { kind: 'opaque', family: 'xychart', source: opaqueSource })
+    if (!body) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
+    // The family reads an accessibility directive written after a statement
+    // on its line, which the envelope (directives that start a line) misses:
+    // the envelope adopts it. When the envelope holds another value, Mermaid
+    // keeps whichever is written last, which neither reader can tell, so the
+    // source is kept (verify reports xychart_accessibility_order).
+    if (!adoptStatementAccessibility(meta, { title: body.accessibilityTitle, descr: body.accessibilityDescription })) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
+    return ok(body)
   },
   serialize: body => {
     if (body.kind !== 'xychart') throw new Error(`xychart serializer received body kind ${body.kind}`)
@@ -1229,9 +1262,11 @@ const ARCHITECTURE_AGENT_HOOKS = {
 const MINDMAP_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractLabelsGeneric,
-  parse: ({ source }) => {
+  parse: ({ source, opaqueSource, meta }) => {
     try {
-      return ok(parseMindmapBody(source.familyBody))
+      // The opaque source starts at the header, after the wrapper's lines.
+      const line = (meta.wrapperSource?.match(/\n/g)?.length ?? 0) + 1
+      return ok(parseMindmapBody(source.familyBody, { source: opaqueSource, line }))
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
@@ -1326,12 +1361,21 @@ const RADAR_AGENT_HOOKS = {
   // body; opaque fallbacks keep the universal label-extraction path.
   verify: (body, opts) => (body.kind === 'radar' ? verifyRadar(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
-  ...structuredFamilyHooks('radar', {
-    headerOk: h => /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(h)),
-    parseBody: parseRadarBody,
-    serialize: renderRadar,
-    mutate: mutateRadar,
-  }),
+  // The grammar reads an accessibility directive after a statement on its
+  // line, which the envelope adopts, as for XYChart.
+  parse: ({ lines, opaqueSource, meta }) => {
+    const parsed = /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(lines[0]?.trim() ?? '')) ? parseRadarBody(lines.slice(1)) : null
+    if (!parsed || !adoptStatementAccessibility(meta, parsed.accessibility)) return ok({ kind: 'opaque', family: 'radar', source: opaqueSource })
+    return ok(parsed.body)
+  },
+  serialize: body => {
+    if (body.kind !== 'radar') throw new Error(`radar serializer received body kind ${body.kind}`)
+    return renderRadar(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'radar') return err<MutationError>({ code: 'INVALID_OP', message: `radar mutator received body kind ${body.kind}` })
+    return mutateRadar(body, op as never)
+  },
 } satisfies FamilyOperations
 
 // ---- Sankey ----------------------------------------------------------------

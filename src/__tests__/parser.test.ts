@@ -15,7 +15,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
-import { parseRegisteredMermaid, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 // ============================================================================
 // Graph header parsing
@@ -151,6 +151,45 @@ describe('parseMermaid – node shapes (original)', () => {
     const g = parseMermaid('graph TD\n  my-node[My Node]')
     expect(g.nodes.get('my-node')).toBeDefined()
     expect(g.nodes.get('my-node')!.label).toBe('My Node')
+  })
+
+  // Upstream's node string (flow.jison NODE_STRING) holds `!"#$%&'*+.`?\/`,
+  // and its id grammar `:`, besides letters, digits, `_` and `-`; a `"` only
+  // after an id's first character, and a first `&` only before another id
+  // character (`& ` joins a list). An `x` or `o` right after id characters is
+  // the id's, not a link's marker.
+  it.each([
+    ['A.B --> C', ['A.B', 'C']],
+    ['A.-B', ['A.-B']],
+    ['C`"', ['C`"']],
+    ['A"B --> C"', ['A"B', 'C"']],
+    ["A!B & A#B & A$B & A%B & A'B & A*B --> A+B & A?B & A\\B & A/B", ["A!B", 'A#B', 'A$B', 'A%B', "A'B", 'A*B', 'A+B', 'A?B', 'A\\B', 'A/B']],
+    ['A&B --> C & D', ['A&B', 'C', 'D']],
+    ['A:B:::c --> C', ['A:B', 'C']],
+    [':a --> &b & C & &&', [':a', '&b', 'C', '&&']],
+    ['.A --> B. --> 1.5', ['.A', 'B.', '1.5']],
+    ['é.b[label] --> c', ['é.b', 'c']],
+    ['Xo--xY', ['Xo', 'Y']],
+    // Upstream's node string ends before `->`, but its id grammar takes the
+    // `-` in before the `>` that opens shape text.
+    ['A-->odd->Text] --> B-', ['A', 'odd-', 'B-']],
+  ])('reads %j with the node ids upstream reads, and writes them back', (statement, ids) => {
+    const source = `flowchart LR\n  ${statement}\n  style ${ids[0]} fill:#f00\n  class ${ids.at(-1)} c`
+    expect([...parseMermaid(source).nodes.keys()]).toEqual(ids)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const written = parseMermaid(serializeMermaid(parsed.value))
+    expect([...written.nodes.keys()].sort()).toEqual([...ids].sort())
+    expect([...written.nodeStyles.keys()]).toEqual([ids[0]!])
+    expect(written.classAssignments.has(ids.at(-1)!)).toBe(true)
+  })
+
+  // In shape text a `"` is written `#quot;`, which upstream keeps in its raw
+  // label: an orphan labelled by an id that holds one is written bare.
+  it.each(['C`"', 'A"B'])('writes the orphan %s as its bare id', id => {
+    const parsed = parseRegisteredMermaid(`flowchart LR\n  ${id}`)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value)).toBe(`flowchart LR\n  ${id}\n`)
   })
 
   it('first definition wins for shape and label', () => {
@@ -665,6 +704,34 @@ describe('parseMermaid – subgraphs', () => {
     expect(g.subgraphs[0]!.label).toBe('My Group')
   })
 
+  // A subgraph id, written or a title upstream reads as one, follows the node
+  // id rule, so a link to it ends at the subgraph rather than at a new node.
+  // A markdown title's id is its text.
+  it.each([
+    ['a.b', 'a.b', 'a.b'],
+    ['a.b[Title]', 'a.b', 'Title'],
+    ['"a.b"', 'a.b', 'a.b'],
+    ['a&b', 'a&b', 'a&b'],
+    ['**Two**', '**Two**', '**Two**'],
+    ['"`**Two**`"', '**Two**', '<b>Two</b>'],
+  ])('reads `subgraph %s` with the id upstream reads, which a link names', (title, id, label) => {
+    const source = `flowchart TD\n  subgraph ${title}\n    A\n  end\n  X --> ${id}`
+    const parsed = parseRegisteredMermaid(source)
+    for (const g of [parseMermaid(source), ...(parsed.ok && parsed.value.body.kind === 'flowchart' ? [parseMermaid(serializeMermaid(parsed.value))] : [])]) {
+      expect(g.subgraphs.map(s => [s.id, s.label, s.nodeIds])).toEqual([[id, label, ['A']]])
+      expect([...g.nodes.keys()]).toEqual(['A', 'X'])
+      expect(g.edges.map(edge => [edge.source, edge.target])).toEqual([['X', id]])
+    }
+  })
+
+  // A title that runs across lines joins them with `<br>`; neither that nor
+  // an authored tag is id text.
+  it.each(['"a<br>b"', '"a\nb"', '"a<br/>b"'])('slugifies the title %j with its line break as `_`', title => {
+    const g = parseMermaid(`graph TD\n  subgraph ${title}\n    A\n  end`)
+    expect(g.subgraphs[0]!.id).toBe('a_b')
+    expect(g.subgraphs[0]!.label).toBe('a\nb')
+  })
+
   it('parses nested subgraphs', () => {
     const g = parseMermaid(`graph TD
       subgraph Outer
@@ -696,8 +763,58 @@ describe('parseMermaid – subgraphs', () => {
       end`)
     const a = g.subgraphs.find(s => s.id === 'A')
     expect(g.nodes.has('B')).toBe(false)
-    expect(a?.nodeIds).toEqual(['b'])
+    // `a` stands alone in A and no subgraph listed it before. The link to B
+    // does not nest B in A, as upstream's does.
+    expect(a?.nodeIds).toEqual(['b', 'a'])
+    expect(g.subgraphs.map(s => s.id)).toEqual(['B', 'A'])
     expect(g.edges).toContainEqual(expect.objectContaining({ source: 'b', target: 'B' }))
+  })
+
+  // Upstream's subgraph.spec.js "should handle nested subgraphs 2": ids alone
+  // in a body list their nodes and subgraphs there, and the writer keeps it.
+  it('lists the nodes and subgraphs a body names alone, even when known', () => {
+    const source = `flowchart TB
+    b-->B
+    a-->c
+    subgraph B
+      c
+    end
+    subgraph A
+        a
+        b
+        B
+    end`
+    const tree = (subgraphs: ReturnType<typeof parseMermaid>['subgraphs']): unknown[] =>
+      subgraphs.map(s => ({ id: s.id, nodeIds: s.nodeIds, children: tree(s.children) }))
+    const expected = [{ id: 'A', nodeIds: ['a', 'b'], children: [{ id: 'B', nodeIds: ['c'], children: [] }] }]
+    expect(tree(parseMermaid(source).subgraphs)).toEqual(expected)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(tree(parseMermaid(serializeMermaid(parsed.value)).subgraphs)).toEqual(expected)
+  })
+
+  // Mermaid rejects a subgraph with no `end`; ours closes it at the end of
+  // the source, with what it holds (verify reports flowchart_unclosed_subgraph).
+  it('closes the subgraphs still open at the end of the source', () => {
+    const g = parseMermaid('flowchart TB\n  subgraph S\n    A\n    subgraph T\n      B\n    end\n    C --> D')
+    const tree = (subgraphs: typeof g.subgraphs): unknown[] =>
+      subgraphs.map(s => ({ id: s.id, nodeIds: s.nodeIds, children: tree(s.children) }))
+    expect(tree(g.subgraphs)).toEqual([{ id: 'S', nodeIds: ['A', 'C', 'D'], children: [{ id: 'T', nodeIds: ['B'], children: [] }] }])
+  })
+
+  it('nests a listed subgraph once, in the first lister to close, never in itself', () => {
+    const tree = (source: string): unknown[] => {
+      const walk = (subgraphs: ReturnType<typeof parseMermaid>['subgraphs']): unknown[] =>
+        subgraphs.map(s => [s.id, ...walk(s.children)])
+      return walk(parseMermaid(source).subgraphs)
+    }
+    // Listed before it is declared, as upstream nests it.
+    expect(tree('flowchart TB\n  subgraph A\n    B\n  end\n  subgraph B\n    c\n  end')).toEqual([['A', ['B']]])
+    // Two listers: the first to close keeps it.
+    expect(tree('flowchart TB\n  subgraph X\n    x\n  end\n  subgraph P\n    X\n  end\n  subgraph Q\n    X\n  end'))
+      .toEqual([['P', ['X']], ['Q']])
+    // Each lists the other: upstream makes each the other's parent; ours nests once.
+    expect(tree('flowchart TB\n  subgraph A\n    B\n  end\n  subgraph B\n    A\n  end')).toEqual([['A', ['B']]])
   })
 
   it('does NOT track nodes in subgraphs where they are merely referenced (regression)', () => {
@@ -821,16 +938,25 @@ describe('parseMermaid – edge cases', () => {
     expect(ids[1]).toBe('A')
   })
 
-  it('names the construct when rejecting an id holding `--`', () => {
+  it.each([
     // Upstream rejects it too (property-upstream-flowchart.test.ts). Whether
     // `A--a` is an id or a link label is unclear, so ours rejects it.
-    expect(() => parseMermaid('graph TD\n  A--a --> A--a')).toThrow(/"--a" opens a link label that no link closes/)
+    ['an id holding `--`', 'graph TD\n  A--a --> A--a', /"--a" opens a link label that no link closes/],
+    // Upstream's edge text holds no `--` but the link that closes it, and its
+    // lexer rejects one there.
+    ['a link label holding `--`', 'graph TD\n  A -- x -- y --> B', /link label in "-- x -- y --> B" holds a `--` before the link that closes it/],
+    // Upstream's id grammar takes a `,` into the id (`A,B` is one node);
+    // ours reads none, since `style` and `class` read it as a separator.
+    ['an id holding `,`', 'graph TD\n  A --> B,C', /upstream reads the "," before "C" as part of one node id/],
+  ])('names the construct when rejecting %s', (_construct, source, message) => {
+    expect(() => parseMermaid(source)).toThrow(message)
   })
 
   // Mermaid rejects each of these, but what it means is clear, so ours reads
   // it, draws it, and verify reports it: a linkStyle index past the links
-  // above it, a text-arrow label closed by a link of another stroke, and a
-  // space before or inside `@{`.
+  // above it, a text-arrow label closed by a link of another stroke, a
+  // space before or inside `@{`, an `end` with no subgraph open, and a
+  // subgraph no `end` closes, which holds the rest of the source.
   // [construct, source, text the render draws, syntax verify reports, its line]
   const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<readonly [string, string, string, string, number]> = [
     ['a linkStyle index that names no link', 'flowchart TD\n  A --> B\n  linkStyle 99 stroke:#ff0000', '>B<', 'flowchart_link_style_index', 3],
@@ -841,6 +967,9 @@ describe('parseMermaid – edge cases', () => {
     ['a space inside @{', 'flowchart LR\n  A@ {label: "Start"}', '>Start<', 'flowchart_metadata_spacing', 2],
     ['a space before @{', 'flowchart LR\n  A @{label: "Start"} --> B', '>Start<', 'flowchart_metadata_spacing', 2],
     ['a space between a shape and @{', 'flowchart LR\n  A[a] @{ label: b }', '>b<', 'flowchart_metadata_spacing', 2],
+    ['an end with no subgraph open', 'flowchart LR\n  subgraph S\n    A\n  end\n  end', '>A<', 'flowchart_stray_end', 5],
+    ['a statement after an end with no subgraph open', 'flowchart LR\n  end B --> C', '>C<', 'flowchart_stray_end', 2],
+    ['a subgraph no end closes', 'flowchart LR\n  A\n  subgraph S[Stage]\n    B --> C', '>Stage<', 'flowchart_unclosed_subgraph', 3],
   ]
 
   it.each(FLOWCHART_READ_GENEROUSLY)('%s is read, drawn and reported', (_construct, source, drawn, syntax, line) => {

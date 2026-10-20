@@ -15,6 +15,7 @@ import { parseMindmap } from '../../src/mindmap/parser.ts'
 import { parsePacketDiagram } from '../../src/packet/parser.ts'
 import { parseMermaid } from '../../src/parser.ts'
 import { parsePieChart } from '../../src/pie/parser.ts'
+import { pieFamilyLines } from '../../src/pie/source-title.ts'
 import { parseQuadrantChart } from '../../src/quadrant/parser.ts'
 import { parseRadarChart } from '../../src/radar/parser.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf, resolveRenderRequestForExecution } from '../../src/render-contract.ts'
@@ -88,7 +89,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
         case 'mindmap':
           return parseMindmap(normalized.familyBody)
         case 'pie':
-          return parsePieChart(normalized.authoredPieFamilyLines ?? lines)
+          return parsePieChart(pieFamilyLines(normalized))
         case 'quadrant':
           return parseQuadrantChart(lines)
         case 'radar':

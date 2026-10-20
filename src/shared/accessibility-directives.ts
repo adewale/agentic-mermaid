@@ -87,8 +87,13 @@ export function parseAccessibilityDirective(
  * byte-for-byte for the family parser. This is the source-normalization waist:
  * registered families receive its `familyLines` automatically and never need
  * their own accTitle/accDescr grammar.
+ *
+ * `statementEnds` gives, for each line, the last line of the family statement
+ * that starts there (a quoted string may run onto later lines, see
+ * quotedTextEnds). A line inside a statement is the family's text, never a
+ * directive.
  */
-export function scanAccessibilityDirectives(lines: readonly string[]): AccessibilityScan {
+export function scanAccessibilityDirectives(lines: readonly string[], statementEnds?: readonly number[]): AccessibilityScan {
   const accessibility: MermaidAccessibility = {}
   const familyLines: string[] = []
   let unclosedIndex: number | undefined
@@ -101,7 +106,9 @@ export function scanAccessibilityDirectives(lines: readonly string[]): Accessibi
       break
     }
     if (directive === null) {
-      familyLines.push(lines[index]!)
+      const end = statementEndAt(statementEnds, index, lines.length)
+      familyLines.push(...lines.slice(index, end + 1))
+      index = end
       continue
     }
     if (directive.title) accessibility.title = directive.value
@@ -115,6 +122,13 @@ export function scanAccessibilityDirectives(lines: readonly string[]): Accessibi
     familyLines,
     ...(unclosedIndex !== undefined ? { unclosedIndex } : {}),
   }
+}
+
+/** The last line of the statement starting at `index`: the line itself unless
+ * `statementEnds` names a later one. */
+export function statementEndAt(statementEnds: readonly number[] | undefined, index: number, lineCount: number): number {
+  const end = statementEnds?.[index] ?? index
+  return end > index ? Math.min(end, lineCount - 1) : index
 }
 
 /** Apply the common strict-family policy without duplicating parser guards. */
@@ -155,8 +169,9 @@ export function withAccessibilityFields<T extends object>(
 }
 
 /** Project the normalized universal envelope onto the object shape used by
- * XYChart and Quadrant renderer models. */
-export function withAccessibilityObject<T extends object>(
+ * XYChart and Quadrant renderer models, field by field: a field the envelope
+ * lacks keeps the model's own value (XYChart reads one written mid-line). */
+export function withAccessibilityObject<T extends AccessibilityObjectProjection>(
   value: T,
   accessibility: MermaidAccessibility,
 ): T & AccessibilityObjectProjection {
@@ -166,6 +181,7 @@ export function withAccessibilityObject<T extends object>(
   return {
     ...value,
     accessibility: {
+      ...value.accessibility,
       ...(accessibility.title !== undefined ? { title: accessibility.title } : {}),
       ...(accessibility.descr !== undefined ? { description: accessibility.descr } : {}),
     },

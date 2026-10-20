@@ -8,7 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -16,7 +16,7 @@ import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { toEntityMarkers } from '../shared/mermaid-entities.ts'
-import { coalesceFlowchartMetadataLines } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import {
   metadataText,
   quoteMetadataString,
@@ -228,8 +228,15 @@ describe('scanMetadataBlock delimits a block by the family\'s upstream lexer', (
   })
 
   test('a multi-line flowchart block is joined with its line breaks and indentation', () => {
-    expect(coalesceFlowchartMetadataLines(['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B']))
-      .toEqual([{ text: 'A@{\n  shape: rect\n  label: "x"\n}', line: 0 }, { text: 'A --> B', line: 4 }])
+    expect(coalesceFlowchartLines(['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B']))
+      .toEqual([
+        {
+          text: 'A@{\n  shape: rect\n  label: "x"\n}',
+          line: 0,
+          joined: [{ at: 4, line: 1, col: 0 }, { at: 18, line: 2, col: 0 }, { at: 31, line: 3, col: 0 }],
+        },
+        { text: 'A --> B', line: 4 },
+      ])
   })
 })
 
@@ -293,7 +300,7 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
     await fc.assert(fc.asyncProperty(flowchartValueArb, async value => {
       const source = `flowchart TD\n  A@{ label: ${value} }`
       const theirs = upstreamOutcome(await upstream.parse(source), p => p.flowchart?.vertices.find(v => v.id === 'A')?.text)
-      const line = coalesceFlowchartMetadataLines(source.split('\n'))[1]!.text
+      const line = coalesceFlowchartLines(source.split('\n'))[1]!.text
       const ours = ourOutcome(() => parseMermaid(source), line, 'flowchart', 'label')
       expect({ source, ours }).toEqual({ source, ours: theirs })
       if ('accepted' in theirs) accepted++
@@ -435,8 +442,10 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       try { ours = normalizeMermaidSource(source).frontmatter } catch (error) { ours = error instanceof Error ? 'rejected' : error }
       let rendered = true
       try { renderMermaidSVG(source) } catch { rendered = false }
-      expect({ yaml, upstream: parsed.ok, ours, rendered })
-        .toEqual({ yaml, upstream: frontmatter !== undefined, ours: frontmatter ?? 'rejected', rendered: frontmatter !== undefined })
+      // The agent API reports the rejection rather than throwing it.
+      const typed = parseRegisteredMermaid(source)
+      expect({ yaml, upstream: parsed.ok, ours, rendered, typed: typed.ok || typed.error[0]?.code, verified: verifyMermaid(source).ok })
+        .toEqual({ yaml, upstream: frontmatter !== undefined, ours: frontmatter ?? 'rejected', rendered: frontmatter !== undefined, typed: frontmatter !== undefined || 'INVALID_FRONTMATTER', verified: frontmatter !== undefined })
     }
     expect(() => normalizeMermaidSource('---\ntitle: [unclosed\n---\nflowchart TD\n  A')).toThrow('Mermaid frontmatter is not valid YAML')
   })

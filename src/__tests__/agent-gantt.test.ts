@@ -169,6 +169,53 @@ describe('gantt structured parse', () => {
     expect(out.indexOf('dateFormat')).toBeLessThan(out.indexOf('section Build'))
   })
 
+  // Mermaid reads the href only on the line after the task id; ours also
+  // reads it after blank or comment lines, which the renderer never sees.
+  test.each([
+    ['the next line', ['  click a1', '    href "https://x.y"']],
+    ['a line after a blank line', ['  click a1', '', '    href "https://x.y"']],
+    ['a line after a comment', ['  click a1', '  %% note', '    href "https://x.y"']],
+  ])('a click whose href starts %s renders and rides along as one statement', (_where, click) => {
+    const source = `gantt\n  dateFormat YYYY-MM-DD\n  section S\n  Task :a1, 2024-01-01, 3d\n${click.join('\n')}\n  Next :a2, after a1, 1d\n`
+    const d = gantt(source)
+    expect(d.body.sections[0]!.tasks.map(task => task.label)).toEqual(['Task', 'Next'])
+    expect(d.body.statements!.filter(s => s.kind === 'opaque-block').at(-1)).toEqual({ kind: 'opaque-block', lines: click })
+    expect(serializeMermaid(d)).toContain(`${click.join('\n')}\n`)
+    expect(verifyMermaid(d).warnings).toEqual([])
+  })
+
+  // Mermaid ends a task's data, and a date or format value, at `;` and reads
+  // what follows into the next task's label; ours reads the next statement,
+  // reports the `;`, and writes each statement on its own line. Each task's
+  // spans cover its own statement and label.
+  test.each([
+    ['Task :a1, 2024-01-01, 3d; Task2 :a2, after a1, 2d', ['Task', 'Task2'], ['Task :a1, 2024-01-01, 3d', 'Task2 :a2, after a1, 2d'], undefined],
+    ['Task :a1, 2024-01-01, 3d;', ['Task'], ['Task :a1, 2024-01-01, 3d'], undefined],
+    ['dateFormat YYYY-MM-DD; title T\n  Task :a1, 2024-01-01, 3d', ['Task'], ['Task :a1, 2024-01-01, 3d'], 'T'],
+    ['dateFormat YYYY-MM-DD; Task :a1, 2024-01-01, 3d', ['Task'], ['Task :a1, 2024-01-01, 3d'], undefined],
+  ])('%j reads each `;`-separated statement and reports the `;`', async (body, labels, statements, title) => {
+    const source = `gantt\n  dateFormat YYYY-MM-DD\n  ${body}\n`
+    const d = gantt(source)
+    expect(parseGanttModel(normalizeMermaidSource(source).lines).tasks.map(task => task.label)).toEqual(labels)
+    const tasks = d.body.sections.flatMap(section => section.tasks)
+    expect(tasks.map(task => task.label)).toEqual(labels)
+    const text = (span: { start: { offset: number }; end: { offset: number } } | undefined) => span && source.slice(span.start.offset, span.end.offset)
+    expect(tasks.map(task => text(d.source.spans?.labels.get(`gantt:task:${task.taskId}`)))).toEqual(labels)
+    expect(tasks.map(task => text(d.source.spans?.nodes.get(task.taskId!)))).toEqual(statements)
+    expect(d.body.title).toBe(title)
+    expect(verifyMermaid(d).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX').map(w => (w as { syntax: string }).syntax)).toEqual(['gantt_semicolon_separator'])
+    const out = serializeMermaid(d)
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(out), out).toBe(true) } finally { upstream.close() }
+    expect(gantt(out).body).toEqual(d.body)
+  })
+
+  test('a todayMarker keeps the `;` of its CSS', () => {
+    const d = gantt('gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke:#f00;stroke-width:2px\n  Task :a1, 2024-01-01, 3d\n')
+    expect(serializeMermaid(d)).toContain('  todayMarker stroke:#f00;stroke-width:2px\n')
+    expect(verifyMermaid(d).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
+
   test('serialize is idempotent and bodies are equal across cycles', () => {
     const d = gantt()
     const s1 = serializeMermaid(d)

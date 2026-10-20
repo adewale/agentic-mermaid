@@ -24,16 +24,24 @@ Unicode works too: 🤓\`"]
       id3[Rgular labels still works]`
 
 describe('Mindmap grammar, round-trip, and branch geometry', () => {
-  test('anonymous delimiter identities, shaped comments and cloud closing tokens retain their meaning', async () => {
+  test('anonymous delimiter identities, shaped comments, cloud closing tokens and shape text spanning lines retain their meaning', async () => {
     const upstream = startUpstreamMermaid()
     try {
       for (const [source, expected] of [
         ['mindmap\n  (r[oot)', { id: 'r[oot', label: 'r[oot', shape: 'rounded' }],
         ['mindmap\n  (r{{oot)', { id: 'r{{oot', label: 'r{{oot', shape: 'rounded' }],
+        ['mindmap\n  a]b[x]', { id: 'a]b', label: 'x', shape: 'rect' }],
         ['mindmap\n  (Cloud))', { id: 'Cloud', label: 'Cloud', shape: 'cloud' }],
         ['mindmap\n  (Keep %% literal)', { id: 'Keep %% literal', label: 'Keep %% literal', shape: 'rounded' }],
         ['mindmap\n  node[Keep %% literal] %% trailing comment', { id: 'node', label: 'Keep %% literal', shape: 'rect' }],
         ['mindmap\n  id)I am ["quoted(', { id: 'id', label: 'I am ["quoted', shape: 'cloud' }],
+        ['mindmap\n  root((line1\n  line2))', { id: 'root', label: 'line1\nline2', shape: 'circle' }],
+        ['mindmap\n  root["quoted\n    text"]\n    B', { id: 'root', label: 'quoted\ntext', shape: 'rect', children: [{ id: 'B' }] }],
+        ['mindmap\n  root(text\n    more) %% c\n    B', { id: 'root', label: 'text\nmore', shape: 'rounded', children: [{ id: 'B' }] }],
+        ['mindmap\n  r))bang\ntext((', { id: 'r', label: 'bang\ntext', shape: 'bang' }],
+        ['mindmap\n  root(text\n    %% a comment\n    more)', { id: 'root', label: 'text\nmore', shape: 'rounded' }],
+        // The word `mindmap` is the keyword only on its own: here it is text.
+        ['mindmap\n  mindmapper\n    [mindmap child]', { id: 'mindmapper', children: [{ id: 'mindmap child', label: 'mindmap child', shape: 'rect' }] }],
       ] as const) {
         expect(await upstream.accepts(source)).toBe(true)
         const parsed = parseMindmap(source)
@@ -112,6 +120,19 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
     const malformed = [
       '::icon (foo)', '::icon', ':::', ':::   ',
       'accTitle:', 'accDescr:', 'id[unterminated', 'id [unterminated', 'id(unclosed', 'id (unclosed',
+      // A quoted description's shape closes on its quote's line, as upstream.
+      'id["quoted"\n    ]',
+      // A node id or a default node's text holds no `(`, `[`, `)`, `{`, `}`
+      // or line break, as Mermaid's NODE_ID token.
+      'layout s}}es}}election', 'a{b', 'a)b',
+      // Nor does it start with the word `mindmap`, which Mermaid lexes as the keyword.
+      'mindmap child', 'Mindmap(x)',
+      'This String containing []is a comment root((the root))',
+      // A shape whose text runs on closes at `theId(`, leaving `child1)`.
+      'ld)\n      root\n  Argument mapping    theId(child1)',
+      // Shape text past its first close reads only with its delimiters paired
+      // and no quote.
+      'root[The root]ot]', 'a(x)(y)', 'root[a "b" (c)]',
     ]
     for (const line of malformed) {
       expect(() => parseMindmap(`mindmap\n  Root\n    ${line}`), line).toThrow(MindmapParseError)
@@ -208,6 +229,30 @@ describe('GitGraph grammar and identity', () => {
     const svg = renderMermaidSVG(source!, { embedFontImport: false })
     expect(svg).toContain(`data-id="${cherryPick!.id}"`)
     expect(svg).toContain('class="git-commit type-cherry_pick"')
+  })
+
+  // A line inside the string that starts with `%%` is text, as `%%` later on
+  // a line is; Mermaid drops it before lexing (an intentional divergence).
+  test('a quoted string runs to its closing quote across lines, keeping the break, not the indentation', () => {
+    const diagram = parseGitGraph(`gitGraph
+  commit id: "a
+    b" msg: "50 %% off
+    now" tag: "v1
+    rc"
+  commit "bare
+    %% kept
+    msg"
+  branch dev
+  commit
+  checkout main
+  merge dev tag: "x
+    y"`)
+    expect(diagram.commits.map(({ id, message, tags }) => ({ id, message, tags }))).toEqual([
+      { id: 'a\nb', message: '50 %% off\nnow', tags: ['v1\nrc'] },
+      { id: 'c1', message: 'bare\n%% kept\nmsg', tags: [] },
+      { id: 'c2', message: undefined, tags: [] },
+      { id: 'c3', message: 'merged branch dev into main', tags: ['x\ny'] },
+    ])
   })
 
   test('rejects cherry-picking a commit already reachable through inherited branch history', () => {

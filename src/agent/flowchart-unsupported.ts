@@ -1,8 +1,9 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
-import { parseMermaid, splitFlowchartStatements } from '../parser.ts'
-import { coalesceFlowchartMetadataLines, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
+import { coalesceFlowchartLines, commaInNodeId, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
 
@@ -66,14 +67,23 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
 /** Flowchart source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a `@{…}` block with a space before `@` or inside `@{`, a
  * text-arrow label that a link of another stroke closes, a `linkStyle`
- * index past the links defined above it, and quoted text whose boundaries
- * pinned Mermaid's HTML-like preprocessor rewrites. */
+ * index past the links defined above it, an `end` with no subgraph open
+ * (alone or before a statement: `end B`), a subgraph no `end` closes, and
+ * quoted text whose boundaries pinned Mermaid's HTML-like preprocessor
+ * rewrites. */
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
   const rewritten = preprocessorQuoteRewriteWarning(source)
   if (rewritten) warnings.push(rewritten)
+  // The lines of the subgraphs open so far.
+  const openSubgraphs: number[] = []
   for (const { text, line } of statements) {
+    if (/^subgraph(?![\w-])/.test(text)) openSubgraphs.push(line)
+    else if (text === 'end' && openSubgraphs.length > 0) openSubgraphs.pop()
+    else if (text === 'end') {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
+    }
     for (const region of scanFlowchart(text).regions) {
       if (region.kind === 'metadata' && (text.slice(region.start, region.contentStart) !== '@{' || /\s/.test(text[region.start - 1] ?? ''))) {
         warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_metadata_spacing', message: 'A @{…} metadata block with a space before "@" or inside "@{" is read as its node\'s metadata. Pinned Mermaid rejects this; write id@{ … } with no space.' })
@@ -82,6 +92,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
         warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_mixed_link_label', message: 'A link label opened with one stroke and closed by a link of another (A -- b ==> B) is read as one labelled link. Pinned Mermaid rejects this; close the label with a link of its own stroke (A == b ==> B), or use a pipe label (A ==>|b| B).' })
       }
     }
+  }
+  for (const line of openSubgraphs) {
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_unclosed_subgraph', message: 'A subgraph with no `end` holds everything after it, to the end of the diagram. Pinned Mermaid rejects this; close it with `end`.' })
   }
   return [...warnings, ...linkStyleIndexWarnings(source, statements)]
 }
@@ -249,6 +262,14 @@ function hasUnmodeledNodeMetadata(statement: string): boolean {
 // carry no node/edge content that an unclosed delimiter could swallow.
 const FLOWCHART_KEYWORD_STATEMENT = /^(?:subgraph\s|end$|direction\s|classDef\s|class\s|style\s|linkStyle\s|click\s|href\s)/i
 
+/** A statement that ends in a link (with an optional pipe label) after a
+ * node: the link has no target. A `.` right after id characters is the id's
+ * (`B.-` is a node), so a link the node runs straight into begins otherwise. */
+/** The rest of an edge id at a `,`: up to its `@` and the link after it. */
+const EDGE_ID_TAIL_RE = new RegExp(String.raw`^[^\s"@]*@\s*(?:${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s)`)
+
+const DANGLING_LINK_RE = new RegExp(String.raw`[\p{L}\p{N}_\])}](?:\s+|(?!\.))${FLOWCHART_LINK_SOURCE}(?:\s*\|[^|]*\|)?\s*$`, 'u')
+
 /**
  * Detect node/edge statements with an unclosed bracket, quote, or |label|
  * delimiter. The legacy parser recovers by regex-matching whatever prefix it
@@ -264,8 +285,17 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   const scan = scanFlowchart(statement)
   if (scan.regions.some(region => region.kind === 'metadata' || region.kind === 'markdown')) return null
 
-  if (/[A-Za-z0-9_\]\)\}]\s*(?:-->|---|-\.->|==>|~~~|--o|--x)(?:\s*\|[^|]*\|)?\s*$/.test(statement)) {
-    return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target; Mermaid drops the edge during tolerant parsing. Add the endpoint or remove the operator.' }
+  // Upstream's id grammar takes a `,` after id characters into the id (`A,B`
+  // is one node there); ours reads none, and rejects the statement. An edge
+  // id (`e,1@-->`) may hold one.
+  for (let index = 1; index < statement.length; index++) {
+    if (scan.topLevel[index] && commaInNodeId(statement, index) && !EDGE_ID_TAIL_RE.test(statement.slice(index))) {
+      return { syntax: 'flowchart_comma_id', message: 'A "," right after a node id\'s characters is part of the id in Mermaid (`A,B` is one node there). Ours reads no "," in a node id and rejects the statement; rename the node, or write `A & B` to list two nodes.' }
+    }
+  }
+
+  if (DANGLING_LINK_RE.test(statement)) {
+    return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target, so Mermaid rejects the diagram. Add the endpoint or remove the operator.' }
   }
 
   // What the lexer leaves open at the end of the statement (quoted labels
@@ -284,16 +314,26 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
 
 export function flowchartStatements(source: string): FlowchartStatement[] {
   const statements: FlowchartStatement[] = []
-  // A `id@{ ... }` metadata block may span lines (the form Mermaid's docs
-  // use). Join it into ONE statement anchored at the opening line, exactly as
-  // the parser does, so the node-metadata lint sees the same unit the parser
-  // tokenizes — otherwise the multiline form silently misses the
-  // UNSUPPORTED_SYNTAX warning the single-line form gets.
-  for (const { text: raw, line } of coalesceFlowchartMetadataLines(source.split(/\r?\n/).slice(1))) {
-    for (const text of splitFlowchartStatements(raw)) {
+  // A `id@{ ... }` metadata block, a label or a link may span lines (the
+  // form Mermaid's docs use for metadata). Join it into ONE statement anchored
+  // at the opening line, exactly as the parser does, so the lints see the same
+  // unit the parser tokenizes — otherwise the multiline form silently misses
+  // the UNSUPPORTED_SYNTAX warning the single-line form gets, or reports a
+  // delimiter or link the next line closes. The header line joins in too: a
+  // statement after `;` on it (`flowchart TD;A["x`) may run on.
+  // An accTitle/accDescr directive is no flowchart statement; one written
+  // after a block's `}` on its line is.
+  for (const { text: raw, line, directive, joined } of coalesceFlowchartLines(source.split(/\r?\n/))) {
+    if (directive) {
+      const suffix = parseAccessibilityDirective(raw.split('\n'), 0)?.suffixLine ?? ''
+      for (const text of splitFlowchartStatements(suffix)) statements.push({ text, line: (joined?.at(-1)?.line ?? line) + 1 })
+      continue
+    }
+    const texts = line === 0 ? splitInlineHeaderStatements(raw.trim())?.statements ?? [] : splitFlowchartStatements(raw)
+    for (const text of texts) {
       const trimmed = text.trim()
       if (!trimmed || trimmed.startsWith('%%')) continue
-      statements.push({ text: trimmed, line: line + 2 })
+      statements.push({ text: trimmed, line: line + 1 })
     }
   }
   return statements
@@ -305,12 +345,12 @@ function isFlowchartInteractionDirective(statement: string): boolean {
 
 function isUnsupportedFlowchartInteraction(statement: string): boolean {
   if (!isFlowchartInteractionDirective(statement)) return false
-  return !/^(?:click\s+)?[\w-]+\s+(?:href\s+)?(?:"(?:https?:|mailto:)[^"]*"|(?:https?:|mailto:)\S+)\s*$/i.test(statement.trim())
+  return !/^(?:click\s+)?\S+\s+(?:href\s+)?(?:"(?:https?:|mailto:)[^"]*"|(?:https?:|mailto:)\S+)\s*$/i.test(statement.trim())
 }
 
 function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {
   const ids = new Set<string>()
-  const pattern = /(?:^|\s)([A-Za-z_][\w-]*)@(?:-->|---|-\.->|==>|~~~|--o|--x|--)/g
+  const pattern = new RegExp(String.raw`(?:^|\s)(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?:${FLOWCHART_LINK_SOURCE}|--)`, 'gu')
   for (const { text } of statements) {
     let match: RegExpExecArray | null
     while ((match = pattern.exec(text)) !== null) ids.add(match[1]!)
@@ -320,12 +360,14 @@ function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {
 
 function isUnsupportedEdgeMetadataStatement(statement: string, edgeIds: Set<string>): boolean {
   const trimmed = statement.trim()
-  const head = trimmed.match(/^([\w-]+)\s*@\s*\{/)
-  if (!head) return false
-  const block = readMetadataBlock(trimmed, head[0].length - 1, 'flowchart')
+  // The id before `@{` is a node id (flowchartNodeIdLength), as the parser reads it.
+  const idLength = flowchartNodeIdLength(trimmed)
+  const open = idLength > 0 ? /^\s*@\s*\{/.exec(trimmed.slice(idLength)) : null
+  if (!open) return false
+  const block = readMetadataBlock(trimmed, idLength + open[0].length - 1, 'flowchart')
   if (!block.ok || trimmed.slice(block.end + 1).trim() !== '') return false
   const { entries } = block
-  if (edgeIds.has(head[1]!)) return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
+  if (edgeIds.has(trimmed.slice(0, idLength))) return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
   if (isNodeMetadata(entries)) return false
   return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
 }
@@ -347,7 +389,7 @@ function explicitlyDeclaredNodeIds(statements: FlowchartStatement[]): Set<string
 }
 
 function hasLikelyTypoEndpoint(statement: string, explicitNodeIds: Set<string>): boolean {
-  const arrow = String.raw`(?:-->|---|-\.->|==>|~~~|--o|--x)`
+  const arrow = `(?:${FLOWCHART_LINK_SOURCE})`
   const endpoint = String.raw`([A-Za-z_][\w-]*)(\s*(?:\[[^\]]*\]|\([^)]*\)|\{[^}]*\}))?`
   const match = statement.match(new RegExp(`^\\s*${endpoint}\\s*${arrow}\\s*${endpoint}\\s*$`))
   if (!match) return false

@@ -1,12 +1,27 @@
 import { describe, expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from '../scene/serialization.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText } from '../scene/serialization.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 
 // The default backend writes shape, text and connector elements from their
 // typed fields, so paint certification, which reads those fields, describes
 // the bytes. Families add only inert hooks.
 describe('typed Scene SVG writer', () => {
+  test('proves prepared text only when no opaque fragment can introduce fallback text', () => {
+    const block = preparePixelText('Prepared', { fontSize: 12, fontWeight: 400, letterSpacing: 0 })
+    const text = marks.text({ id: 'label', role: 'label', text: block.text, block, x: 10, y: 10, fontSize: 12, anchor: 'start', paint: {} })
+    const doc = { family: 'sequence', width: 100, height: 50, colors: { bg: '#fff', fg: '#111' }, transparent: false, parts: [text] }
+    expect(sceneHasOnlyPreparedText(doc)).toBe(true)
+    const fallback = marks.text({ id: 'fallback', role: 'label', text: 'Fallback', x: 10, y: 10, fontSize: 12, anchor: 'start', paint: {} })
+    expect(sceneHasOnlyPreparedText({ ...doc, parts: [fallback] })).toBe(false)
+    expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.documentContent({ id: 'opaque', role: 'chrome' }, '<text>opaque</text>')] })).toBe(false)
+    expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.documentContent({ id: 'opaque-upper', role: 'chrome' }, '<TEXT>opaque</TEXT>')] })).toBe(false)
+    expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.documentContent({ id: 'opaque-space', role: 'chrome' }, '< text>opaque</text>')] })).toBe(false)
+    expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.documentContent({ id: 'metadata', role: 'chrome' }, '<title>Metadata</title>'), text] })).toBe(true)
+    expect(sceneHasOnlyPreparedText({ ...doc, parts: [marks.group({ id: 'custom-close', role: 'chrome', open: '<g>', close: '</g><text>fallback</text>', children: [] })] })).toBe(false)
+    expect(sceneHasOnlyPreparedText({ ...doc, parts: [{ ...text }] })).toBe(false)
+  })
+
   test('writes hooks, geometry, paint, transform and identity from the fields, escaped', () => {
     const shape = marks.shape({
       id: 'card', role: 'node',

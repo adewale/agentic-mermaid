@@ -17,6 +17,11 @@ describe('radar parser', () => {
     expect(chart.axes[0]).toEqual({ id: 'a', label: 'Alpha' })
     expect(chart.axes[1]).toEqual({ id: 'b', label: 'b' })
     expect(chart.curves[0]).toEqual({ id: 'x', label: 'Series', values: [1, 2] })
+    // A quoted label runs to its closing quote across lines; a `%%` inside it
+    // is text, and one after it a comment.
+    const multiline = parseRadarChart(lines('radar-beta\n  axis a["Alpha\n    long %% kept"], b %% note\n  curve x[\'Series\n    two %% kept\']{1,2}'))
+    expect(multiline.axes).toEqual([{ id: 'a', label: 'Alpha\nlong %% kept' }, { id: 'b', label: 'b' }])
+    expect(multiline.curves[0]!.label).toBe('Series\ntwo %% kept')
   })
 
   test('keyed entries (colon optional) reorder to axis order', () => {

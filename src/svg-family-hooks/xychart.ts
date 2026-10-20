@@ -8,6 +8,7 @@ import {
   parseXYChart,
   resolveXYChartConfig,
   resolveXYChartTheme,
+  xychartStatementEnds,
 } from '../xychart/parser.ts'
 import { lowerXYChartScene } from '../xychart/renderer.ts'
 import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
@@ -16,6 +17,7 @@ import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const XYCHART_SVG_HOOKS = {
   configDiagnostics: diagnoseXyChartConfig,
+  statementEnds: xychartStatementEnds,
   normalizeRequest: ctx => {
     const config = resolveXYChartConfig(ctx.source.frontmatter)
     const theme = resolveXYChartTheme(ctx.source.frontmatter)

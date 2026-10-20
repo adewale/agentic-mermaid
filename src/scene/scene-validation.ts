@@ -28,6 +28,7 @@ import type {
   SceneOwner,
 } from './ir.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
+import { hasReservedDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import {
   connectorContourSemantics,
   connectorEndpointAnchors,
@@ -1167,6 +1168,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       }
     }
   } else add(state.diagnostics, 'SCENE_MARKER', `${path}.markers`, 'must be a typed marker set')
+  // Only our assertions-off built-in lowering can carry this exact registered
+  // getter, and bounded immutable admission has already reserved its payload.
+  // All source connector fields above are still validated normally. External
+  // Scenes and explicit consistency checks always materialize and inspect it.
+  if (!state.external && !state.crossChecks && hasReservedDeferredTerminalProjection(value)) return
   if (record(value.terminalProjection)) {
     if (!['native', 'emulated', 'projected', 'lossy', 'unsupported'].includes(String(value.terminalProjection.realization))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.terminalProjection.realization`, 'has an unknown realization')

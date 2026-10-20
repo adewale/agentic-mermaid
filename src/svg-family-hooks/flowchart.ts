@@ -2,6 +2,7 @@ import { diagnoseFlowchartConfig } from '../flowchart/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../flowchart-config.ts'
+import { flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { lowerGraphScene } from '../renderer.ts'
@@ -17,6 +18,7 @@ import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 // ELK sizing so layout, renderer, and SVG see the same lines.
 export const FLOWCHART_SVG_HOOKS = {
   configDiagnostics: diagnoseFlowchartConfig,
+  statementEnds: flowchartStatementEnds,
   normalizeRequest: ctx => ({
     renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),

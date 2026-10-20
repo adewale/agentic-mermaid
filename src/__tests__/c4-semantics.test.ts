@@ -338,6 +338,23 @@ UpdateElementStyle(g,$borderColor="navy")`
     } finally { upstream.close() }
   })
 
+  // Pinned Mermaid C4 needs a line break after each statement and after `{`
+  // (a closing `}` may share the line before it), and its comments take the
+  // line breaks after them. Ours reads these layouts, reports each, and keeps
+  // the authored source; a comment ending the source or a block is Mermaid's.
+  test.each([
+    ['C4Context\nSystem_Boundary(b, "B") { Person(a, "A") }', true],
+    ['C4Context\nPerson(a, "A") Person(b, "B")', true],
+    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n} Person(c, "C")', true],
+    ['C4Context\nPerson(a, "A") %% note\nPerson(b, "B")', true],
+    ['C4Context\nPerson(a, "A") %% note', false],
+    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") %% note\n}', false],
+  ] as const)('%j is reported as a reader extension: %p', (source, reported) => {
+    const body = parseC4Diagram(source)
+    expect(body.diagnostics.some(record => record.message.includes('Statements sharing a line'))).toBe(reported)
+    expect(renderC4(body)).toBe(source)
+  })
+
   test('source map addresses independent relationships and exact label starts', () => {
     const body = parseC4Diagram(source)
     const map = buildC4SourceMap(body, source)
