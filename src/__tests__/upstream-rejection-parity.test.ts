@@ -615,6 +615,23 @@ describe('accessibility directives without their colon', () => {
   })
 })
 
+// Below frontmatter and an init directive, a warning still names its authored
+// line, whether its rule reads the canonical source, which drops blank and
+// comment lines, or a family's body, which starts at the header.
+// [family, source, syntax, its line in source]
+const WRAPPED_WARNINGS: ReadonlyArray<readonly [BuiltinFamilyId, string, string, number]> = [
+  ['flowchart', 'flowchart LR\n  Server[Server]\n\n  %% the typo\n  Client --> Sevrer', 'flowchart_implicit_endpoint', 5],
+  ['journey', 'journey\n  section S\n\n  Wake: 9: Me', 'journey_invalid_score', 4],
+  ['c4', 'C4Context\n\n  Person(a, "Ann")\n  Unknown(b)', 'c4_unknown_macro', 4],
+]
+
+describe('warnings below the authored wrapper', () => {
+  test.each(WRAPPED_WARNINGS)('%s: names the authored line', (_family, source, syntax, line) => {
+    const wrapper = '---\ntitle: T\n---\n%%{init: {"theme": "base"}}%%\n'
+    expect(verifyMermaid(wrapper + source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax, line: line + 4 }))
+  })
+})
+
 describe('accept what pinned Mermaid accepts', () => {
   test.each(FLOWCHART_ENTITY_READINGS)('flowchart: %s are drawn as Mermaid and the typed body read them', async (_construct, source, text) => {
     const mermaid = await upstream.parse(source)

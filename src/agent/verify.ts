@@ -463,9 +463,14 @@ function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): Lay
   const lines = authored?.split(/\r\n?|\n/)
   // A diagram parsed from source keeps its authored lines with its source map.
   const authoredLine = lines ? (line: number) => lines[authoredLineForCanonical(d.source, line) - 1] : (line: number) => authoredTextForCanonical(d.source, line)
-  return rule(d.canonicalSource, authoredLine).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
-    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
-    : warning)
+  return atAuthoredLines(rule(d.canonicalSource, authoredLine), line => authoredLineForCanonical(d.source, line))
+}
+
+/** Verify names the authored line. A rule that reads the canonical source
+ * reports canonical lines, and a family verify hook lines of its body, which
+ * starts at the header; `authoredLine` maps either to the authored line. */
+function atAuthoredLines(warnings: LayoutWarning[], authoredLine: (line: number) => number): LayoutWarning[] {
+  return warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined ? { ...warning, line: authoredLine(warning.line) } : warning)
 }
 
 function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
@@ -657,11 +662,14 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
 
   const d = parsed as ValidDiagram
   const familySourceWarnings =
-    d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
+    d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored)), colonlessAccessibilityWarnings(d))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
-  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
+  // The header starts the body, on the line after the authored wrapper.
+  const wrapperLines = d.meta.wrapperSource?.match(/\n/g)?.length ?? 0
+  const hookWarnings = atAuthoredLines(dispatchedWarnings, line => line + wrapperLines)
+  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, hookWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
   // Mermaid treats universal accessibility metadata as renderable document
   // furniture. A classDiagram containing only accTitle/accDescr therefore is
   // not an empty source even though its structural layout has zero classes.

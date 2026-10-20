@@ -9,16 +9,15 @@ import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
 /** Parsed bodies whose authored header pinned Mermaid rejects for the space
- * after it, with the header's authored line. The canonical source keeps no
- * blank line or trailing whitespace, so parsing records it for verify. */
-const spaceAfterHeader = new WeakMap<MindmapBody, number>()
+ * after it. The canonical source keeps no blank line or trailing whitespace,
+ * so parsing records it for verify. */
+const spaceAfterHeader = new WeakSet<MindmapBody>()
 
-/** `authored` is the authored source from the header on, which starts on
- * authored line `line`. */
-export function parseMindmapBody(source: string, authored?: { source: string; line: number }): MindmapBody {
+/** `authored` is the authored source from the header on. */
+export function parseMindmapBody(source: string, authored?: string): MindmapBody {
   const diagram = parseMindmap(source)
   const body: MindmapBody = { kind: 'mindmap', ...diagram }
-  if (authored && mermaidRejectsSpaceAfterHeader(authored.source)) spaceAfterHeader.set(body, authored.line)
+  if (authored !== undefined && mermaidRejectsSpaceAfterHeader(authored)) spaceAfterHeader.add(body)
   return body
 }
 
@@ -263,12 +262,12 @@ export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWar
     node.children.forEach(visit)
   }
   visit(body.root)
-  const headerLine = spaceAfterHeader.get(body)
-  if (headerLine !== undefined) {
+  if (spaceAfterHeader.has(body)) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'mindmap_space_after_header',
-      line: headerLine,
+      // The header's line in the body.
+      line: 1,
       message: 'Whitespace at the end of the mindmap header line, or a blank line right after it, is ignored. Pinned Mermaid rejects the diagram; remove it, as the writer does.',
     })
   }
