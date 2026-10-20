@@ -20,6 +20,7 @@
 // ============================================================================
 
 import { findSankeyCycle, parseSankeyDiagram } from '../sankey/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { LayoutWarning, MutationError, Result, SankeyBody, SankeyMutationOp, VerifyOptions } from './types.ts'
@@ -255,6 +256,36 @@ export function verifySankey(body: SankeyBody, opts: VerifyOptions): LayoutWarni
       inflow: received,
       outflow: emitted,
       message: `Sankey node "${label}" receives ${received} but emits ${emitted}; ` + `the unaccounted ${unaccounted} renders as node height with no matching ribbon`,
+    })
+  }
+  return warnings
+}
+
+/** Sankey rows ours reads where pinned Mermaid rejects them, each on its
+ * canonical line. Mermaid's CSV lexer reads only printable ASCII in a row
+ * (RFC 4180 TEXTDATA, plus commas and quotes), quoted or not: a tab or any
+ * non-ASCII character fails, except in the whitespace it trims from the end
+ * of the whole source. Ours reads the text as written. */
+export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => HEADER_RE.test(line.trim()))
+  if (header < 0) return []
+  let last = lines.length - 1
+  while (last > header && !lines[last]!.trim()) last--
+  const warnings: LayoutWarning[] = []
+  for (let index = header + 1; index <= last; index++) {
+    const trimmed = lines[index]!.trim()
+    if (!trimmed || trimmed.startsWith('%%')) continue
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive) { index = directive.endIndex; continue }
+    const raw = authoredLine?.(index + 1) ?? lines[index]!
+    const outside = /[^\x20-\x7E\r]/u.exec(index === last ? raw.trimEnd() : raw)?.[0]
+    if (outside === undefined) continue
+    const what = outside === '\t' ? 'a tab' : `${JSON.stringify(outside)} (U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_unsupported_character', line: index + 1,
+      message: `Pinned Mermaid's Sankey reader takes only printable ASCII characters in a row, quoted or not, and rejects ${what} here. Ours reads the row as written; ${outside === '\t' ? 'use spaces instead' : 'Mermaid has no spelling for this character'}.`,
     })
   }
   return warnings

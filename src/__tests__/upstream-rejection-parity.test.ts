@@ -206,6 +206,14 @@ const TIMELINE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a repeated header with a direction', 'timeline\n  title History\n  timeline TD\n  2002 : LinkedIn', 'LinkedIn', 'timeline_header_in_body', 3],
 ]
 
+// Mermaid's Sankey CSV lexer reads only printable ASCII in a row, quoted or
+// not, apart from the whitespace it trims from the end of the source.
+const SANKEY_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['a tab inside a quoted field', 'sankey\nGrid,"Heating\tcooling",1', 'Heating', 'sankey_unsupported_character', 2],
+  ['a tab indenting a row', 'sankey\nGrid,Homes,1\n\tGrid,Shops,2', 'Shops', 'sankey_unsupported_character', 3],
+  ['a non-ASCII letter in an unquoted field', 'sankey\nÉlectricité,Homes,1', 'Électricité', 'sankey_unsupported_character', 2],
+]
+
 // Mermaid's Sankey CSV lexer reads a quote after unquoted text as the start
 // of a quoted field, which its grammar rejects there. Whether the quote was
 // literal or meant to open a field is unclear, so, like text after a closing
@@ -259,6 +267,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
   // Mermaid removes a `%%` line with the blank lines before it.
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
+  ['sankey', 'spaces around fields, a non-ASCII comment and a tab ending the source', 'sankey\n%% café\n  Grid , Homes , 1\nGrid,"Shops, offices",2\t'],
   ['timeline', '"timelines" starting a period, and "timeline" in a title and an event', 'timeline\n  title timeline view\n  timelines : timeline'],
   ['timeline', 'a section on its own line, and "section" starting period labels', 'timeline\n  section 2020s\n  2021 : Launch\n  section : Beta\n  sections X : Gamma'],
   ['sequence', 'nested activations each deactivated once', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Alice->>+Bob: Again\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Bye'],
@@ -333,6 +342,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
       .toEqual({ typed: 'sequence', refused: true, reported: expect.arrayContaining([`sequence_statement@${line}`]) })
   })
 
+  test.each(SANKEY_READ_GENEROUSLY)('sankey: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'sankey', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
   test.each(SANKEY_UNREAD)('sankey: %s is refused', async (_construct, source) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     const { typed, error } = ours(source)
@@ -374,7 +388,7 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   test.each(C4_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads it otherwise', async (_construct, source, syntax, line) => {
