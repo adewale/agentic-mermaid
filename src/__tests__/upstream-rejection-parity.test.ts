@@ -54,6 +54,10 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a commented relationship before another statement', 'classDiagram\n  Animal <|-- Dog %% note\n  class Cat', 'Dog', 'class_trailing_comment', 2],
   ['a commented note before another statement', 'classDiagram\n  note "Pets" %% note\n  class Cat', 'Pets', 'class_trailing_comment', 2],
   ['a commented link before another statement', 'classDiagram\n  class Animal\n  link Animal "https://example.com" %% note\n  class Cat', 'https://example.com', 'class_trailing_comment', 3],
+  // Mermaid's text after `Class :` is one LABEL token, which ends at a colon or `;`.
+  ['a colon in member text after the class name', 'classDiagram\n  class BankAccount\n  BankAccount : t : +String owner', 't : +String owner', 'class_member_text', 3],
+  ['a colon right after the member colon', 'classDiagram\n  A::B', ':B', 'class_member_text', 2],
+  ['a semicolon in member text', 'classDiagram\n  A : x; y', 'x; y', 'class_member_text', 2],
 ]
 
 // Unquoted quadrant text Mermaid's quadrant lexer does not read as text.
@@ -265,6 +269,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', '%% inside a quoted class label', 'classDiagram\n  class Animal["50 %% off"]\n  class Cat'],
   ['class', '%% inside a member', 'classDiagram\n  class Animal {\n    +name %% note\n  }\n  class Cat'],
   ['class', '%% inside a relationship label', 'classDiagram\n  Animal <|-- Dog : is a %% note\n  class Cat'],
+  ['class', 'an entity code ending in `;` in member text', 'classDiagram\n  Animal : x #59; y'],
   ['quadrant', 'a < in a quoted point label', 'quadrantChart\n  "A < B": [0.3, 0.4]'],
   ['quadrant', 'a < in quoted axis text', 'quadrantChart\n  x-axis "Low < x" --> "High"'],
   ['quadrant', 'a <br/> in a quoted quadrant label', 'quadrantChart\n  quadrant-1 "Grow<br/>fast"'],
@@ -316,7 +321,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
-  test.each(CLASS_READ_GENEROUSLY)('class: %s is read, drawn and reported', (_construct, source, text, syntax, line) => {
+  test.each(CLASS_READ_GENEROUSLY)('class: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'class', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
 
@@ -440,7 +446,8 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey' || family === 'flowchart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    // `empty_layout` says the local layout draws nothing (an accTitle alone), not that Mermaid rejects the source.
+    if (family === 'architecture' || family === 'class' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence' || family === 'timeline' || family === 'sankey' || family === 'flowchart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax !== 'empty_layout')).toEqual([])
   })
 
   test.each(C4_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads it otherwise', async (_construct, source, syntax, line) => {

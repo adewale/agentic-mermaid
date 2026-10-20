@@ -38,6 +38,7 @@ import { classTextLabel, decodeClassText, memberToString, writeClassText } from 
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -842,32 +843,32 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           message: "A :::style class before an inline <<annotation>> is read as the class's style class. Pinned Mermaid rejects this; put the annotation inside the class body or on a line of its own.",
         })
       for (const id of declares(value)) declaredSoFar.add(id)
-      if (value.kind === 'assignment' && value.form === 'cssClass' && value.references.some(ref => declaredAnywhere.has(ref.id) && !declaredSoFar.has(ref.id)))
-        warnings.push({
-          code: 'UNSUPPORTED_SYNTAX',
-          syntax: 'class_css_class_before_class',
-          line: header + 1 + node.source.line,
-          message: 'A cssClass before the class it names is applied to that class. Pinned Mermaid applies a cssClass only to classes declared before it, and draws this one unstyled; put the cssClass after the class.',
+      if (value.kind === 'assignment' && value.form === 'cssClass' && value.references.some(ref => declaredAnywhere.has(ref.id) && !declaredSoFar.has(ref.id))) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_css_class_before_class', line: header + 1 + node.source.line,
+        message: 'A cssClass before the class it names is applied to that class. Pinned Mermaid applies a cssClass only to classes declared before it, and draws this one unstyled; put the cssClass after the class.',
+      })
+      if (value.kind === 'assignment' && value.form !== 'cssClass') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_assignment', line: header + 1 + node.source.line,
+        message: value.form === 'class'
+          ? `\`class A c\` is read as style class c on A. Pinned Mermaid reads it as one class named \`Ac\`; write \`cssClass "A" c\` or \`class A:::c\`.`
+          : value.form === 'shorthand'
+            ? 'A `:::style` class on a line of its own is read as the class\'s style class. Pinned Mermaid rejects it; write `cssClass "A" c` or `class A:::c`.'
+            : 'A cssClass whose class list is not quoted is read as written. Pinned Mermaid rejects it; quote the list: `cssClass "A,B" c`.',
+      })
+      // Mermaid reads `A : text` as a LABEL token, `":"[^:\n;]+`, after it
+      // removes `%%{…}%%` directives and runs its entity prepass: a colon or
+      // `;` in the text ends it.
+      if (value.kind === 'member' && value.reference) {
+        const lexed = mermaidEntityPrepass(node.text.replace(/%%\{\s*\w+(?:(?!\}%%)[\s\S])*(?:\}%%)?/g, '')).replace(/#\w+;/g, '#')
+        if (/[:;]/.test(lexed.slice(lexed.indexOf(':') + 1))) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_text', line: header + 1 + node.source.line,
+          message: 'A colon or `;` in the text after `Class :` is read as part of the member. Pinned Mermaid ends that text at either and rejects the line. The writer writes the member in the class body, `class A { … }`, which Mermaid reads.',
         })
-      if (value.kind === 'assignment' && value.form !== 'cssClass')
-        warnings.push({
-          code: 'UNSUPPORTED_SYNTAX',
-          syntax: 'class_style_assignment',
-          line: header + 1 + node.source.line,
-          message:
-            value.form === 'class'
-              ? `\`class A c\` is read as style class c on A. Pinned Mermaid reads it as one class named \`Ac\`; write \`cssClass "A" c\` or \`class A:::c\`.`
-              : value.form === 'shorthand'
-                ? 'A `:::style` class on a line of its own is read as the class\'s style class. Pinned Mermaid rejects it; write `cssClass "A" c` or `class A:::c`.'
-                : 'A cssClass whose class list is not quoted is read as written. Pinned Mermaid rejects it; quote the list: `cssClass "A,B" c`.',
-        })
-      if (node.value.kind === 'note' && node.value.escapedQuotes)
-        warnings.push({
-          code: 'UNSUPPORTED_SYNTAX',
-          syntax: 'class_escaped_note_quotes',
-          line: header + 1 + node.source.line,
-          message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',
-        })
+      }
+      if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
+        message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',
+      })
       if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
     }
   }
