@@ -424,12 +424,12 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
-  test.each(['native', 'compound', 'self-loop'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
+  test.each(['native', 'compound', 'local-limit'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
     const fallback = mode !== 'native'
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
-    const source = `flowchart TD\n${mode === 'compound' ? 'subgraph G[Group]\n' : ''}A["x#hearts;y"] --> ${mode === 'self-loop' ? 'A' : 'B'}${mode === 'compound' ? '\nend' : ''}`
+    const source = `flowchart TD\n${mode === 'compound' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'compound' ? '\nend' : ''}`
     const options = {
       graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
       security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },
@@ -448,7 +448,7 @@ describe('async family-loaded browser renderer', () => {
       const expected = renderMermaidSVGWithReceipt(source, { ...options, onConfigDiagnostic: value => diagnostics.push(value) })
       expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
       expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(fallback ? 1 : 0)
-      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(mode === 'compound' ? 0 : 1)
+      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(1)
       expect(result.receipt.layoutDecisions[0].selected).toBe(fallback ? 'elk' : 'agentic')
     } finally { await page.close() }
   })

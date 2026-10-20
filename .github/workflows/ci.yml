@@ -70,13 +70,18 @@ jobs:
           mkdir -p "$LAYOUT_REVIEW"
           bun -e '
             import { renderMermaidPNGWithReceipt } from "./src/agent/index.ts";
-            const source = await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text();
+            import { flowchartTree } from "./eval/benchmark/release-bench-cases.ts";
+            const fixtures = [
+              ["fan-in-fan-out", await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text()],
+              ["tree-300", flowchartTree(300)],
+              ["parallel-label-corridor", "flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6"],
+            ];
             const directory = process.env.LAYOUT_REVIEW;
-            for (const backend of ["elk", "agentic"]) {
+            for (const [name, source] of fixtures) for (const backend of ["elk", "agentic"]) {
               const options = { graphLayout: { backend }, security: "strict" };
               const rendered = renderMermaidPNGWithReceipt(source, options);
-              await Bun.write(`${directory}/${backend}.png`, rendered.png);
-              await Bun.write(`${directory}/${backend}.json`, JSON.stringify({ source, options, receipt: rendered.receipt }, null, 2));
+              await Bun.write(`${directory}/${name}-${backend}.png`, rendered.png);
+              await Bun.write(`${directory}/${name}-${backend}.json`, JSON.stringify({ source, options, receipt: rendered.receipt }, null, 2));
             }
           '
       - uses: actions/upload-artifact@v7

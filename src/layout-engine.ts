@@ -41,7 +41,7 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
-import { layoutAgenticGraph } from './layout/agentic-layered.ts'
+import { layoutAgenticGraph, type MeasuredGraph } from './layout/agentic-layered.ts'
 import { DeferredDependencyError, emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -1323,6 +1323,9 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'alignLayerNodes', doc: 'snap same-layer nodes onto a shared flow-axis line',
     after: ['extractEdgesRecursively'], mutates: ['positions', 'edges'], determinism: 'in-place',
+    // Native layered placement owns rank alignment, ports and label channels.
+    // ELK repairs and the shared forest fan preparation retain their passes.
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     mayChangeMetrics: { bends: 'improve-only', straight: 'improve-only' },
     run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction) },
   },
@@ -1331,17 +1334,21 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['alignLayerNodes'], mutates: ['positions', 'dimensions'], determinism: 'in-place',
     // This preparation pass equalizes dimensions and may move peer centers.
     // The following alignment passes own the final barycenter contract.
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
     id: 'alignForkRejoinPeerCenters', doc: 'center fork/rejoin hubs on their peer barycenter',
     after: ['equalizePeerNodeDimensions'], mutates: ['positions'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
   },
   {
     id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)',
     after: ['alignForkRejoinPeerCenters'], mutates: ['positions', 'edges'], determinism: 'in-place',
+    // Moving a native node would invalidate its reserved label channels.
+    enabled: c => Boolean(c.elkResult),
     mayChangeMetrics: { straight: 'improve-only', portRate: 'improve-only', bends: 'improve-only' },
     run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
   },
@@ -1349,6 +1356,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => {
       let rollback: (() => void) | undefined
       centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, () => { rollback ??= checkpointCentering(c) })
@@ -1358,6 +1366,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
     after: ['centerPeerBarycenters'], mutates: ['positions'], determinism: 'in-place',
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
@@ -1367,6 +1376,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'alignLabeledSourcePort', doc: 'slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)',
     after: ['honorLinkRankDistance'], mutates: ['positions', 'edges'], determinism: 'in-place',
     mayChangeMetrics: { portRate: 'improve-only' },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph, c.graph.direction, c.style) },
   },
   {
@@ -1386,6 +1396,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // whether or not the plain bundler ran, so the marker must too.
     id: 'markCorankFanInBundles', doc: 're-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)',
     after: ['bundleEdgePaths'], mutates: ['edges'], determinism: 'in-place',
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
@@ -1409,19 +1420,20 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'applySymmetricFanoutEmissions', doc: 're-route small equivalent fan-outs symmetrically; mark bundle-owned',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { applySymmetricFanoutEmissions(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'applySymmetricParallelEdgeLanes', doc: 'separate parallel edges into symmetric non-crossing lanes',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
-    enabled: context => hasParallelPair(context.edges, true),
+    enabled: context => (Boolean(context.elkResult) || context.mergeEdges) && hasParallelPair(context.edges, true),
     mayChangeMetrics: { symErr: 'improve-only', crossings: 'improve-only' },
     run: c => { applySymmetricParallelEdgeLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'applyParallelDuplicateLanes', doc: 'split exact duplicate edges into separated lanes',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
-    enabled: context => hasParallelPair(context.edges),
+    enabled: context => (Boolean(context.elkResult) || context.mergeEdges) && hasParallelPair(context.edges),
     // Separating genuinely shared duplicate ink preserves authored multiplicity.
     // A local lane proposal may spend at most one crossing per repaired pair.
     mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true }, parallelOverlaps: 'improve-only' },
@@ -1449,7 +1461,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
       portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
     },
-    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
+    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true }) },
   },
   {
     id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
@@ -1969,38 +1981,72 @@ function layoutCandidate(
 
 function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions, style: ResolvedRenderStyle): PositionedGraph {
   if (options.preserveSubgraphChildOrder) throw new GraphLayoutUnsupportedError('family-specific graph geometry')
-  if (graph.subgraphs.length) throw new GraphLayoutUnsupportedError('compound graphs')
   const opts = { ...DEFAULTS, ...options }
+  const groupSources: MermaidSubgraph[] = []
   const measured = measureRenderStage('graph-preparation', () => {
-    const nodes = [...graph.nodes].map(([id, node]) => ({ id, ...estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, options.stateVisual, node.labelBlock) }))
+    const groups: NonNullable<MeasuredGraph['groups']>[number][] = []
+    const groupIndices = new Map<string, number>()
+    const membership = new Map<string, { parent: number; direction: Direction }>()
+    const visit = (source: MermaidSubgraph, parent: number | undefined, inherited: Direction): void => {
+      if (!source.nodeIds.length && !source.children.length) throw new GraphLayoutUnsupportedError('empty compound frames')
+      const index = groups.length, direction = source.direction ?? inherited
+      const block = graphTextBlock(resolveLabelContent(source.label, source.labelContent), style, 'group')
+      const header = source.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + block.height - block.lineHeight
+      const divider = source.concurrencyRegion ? (options.stateVisual?.dividerMargin ?? 0) : 0
+      groupIndices.set(source.id, index); groupSources.push(source)
+      groups.push({ id: source.id, parent, direction, minWidth: groupTitleWidth(source, style), padding: {
+        top: header + style.groupPaddingY + divider, bottom: style.groupPaddingY + divider,
+        left: style.groupPaddingX + divider, right: style.groupPaddingX + divider,
+      } })
+      for (const id of source.nodeIds) membership.set(id, { parent: index, direction })
+      source.children.forEach(child => visit(child, index, direction))
+    }
+    graph.subgraphs.forEach(group => visit(group, undefined, graph.direction))
+    const nodes = [...graph.nodes].map(([id, node]) => {
+      if (groupIndices.has(id)) throw new GraphLayoutUnsupportedError('overlapping node and frame identities')
+      const owner = membership.get(id)
+      return { id, ...(owner ? { parent: owner.parent } : {}), ...estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock) }
+    })
     const indices = new Map(nodes.map((node, index) => [node.id, index]))
+    for (const [id, index] of groupIndices) indices.set(id, nodes.length + index)
     const edges = graph.edges.map(edge => {
       const source = indices.get(edge.source), target = indices.get(edge.target)
       if (source === undefined || target === undefined) throw new GraphLayoutUnsupportedError('unknown endpoint')
       const block = edge.label ? graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') : undefined
       return { source, target, minSpan: edge.length ?? 1, ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING, height: block.height + 2 * LABEL_PILL_PADDING } } : {}) }
     })
-    return { nodes, edges, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing }
+    return { nodes, groups, edges, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4) }
   })
   const geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured))
   // Missing subjects or non-finite geometry are engine defects, not an
   // eligibility refusal that can be concealed by running another producer.
-  if (geometry.nodes.length !== measured.nodes.length || geometry.edges.length !== graph.edges.length || containsNonFiniteNumber(geometry)
+  if (geometry.nodes.length !== measured.nodes.length || (geometry.groups?.length ?? 0) !== measured.groups.length || geometry.edges.length !== graph.edges.length || containsNonFiniteNumber(geometry)
     || geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
     throw new TypeError('Agentic graph producer returned malformed geometry')
   }
   const nodes = measured.nodes.map((node, index): PositionedNode => {
     const authored = graph.nodes.get(node.id)!
     const assigned = graph.classAssignments.get(node.id)
-    return { ...authored, ...node, ...geometry.nodes[index]!, inlineStyle: resolveNodeInlineStyle(node.id, graph), classNames: assigned?.split(/\s+/).filter(Boolean) }
+    return { ...authored, id: node.id, width: node.width, height: node.height, ...geometry.nodes[index]!, inlineStyle: resolveNodeInlineStyle(node.id, graph), classNames: assigned?.split(/\s+/).filter(Boolean) }
   })
   const edges = graph.edges.map((edge, index): PositionedEdge => ({
     ...edge, ...geometry.edges[index]!, edgeIndex: index, inlineStyle: resolveEdgeInlineStyle(index, graph),
     ...(edge.id && graph.classAssignments.has(edge.id) ? { classNames: graph.classAssignments.get(edge.id)!.split(/\s+/).filter(Boolean) } : {}),
   }))
+  const frames = groupSources.map((source, index): PositionedGroup => ({
+    id: source.id, label: source.label, ...(source.labelContent ? { labelContent: source.labelContent } : {}),
+    ...geometry.groups![index]!, children: [], ...(source.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
+    ...(source.stateComposite ? { inlineStyle: resolveClassInlineStyle(source.id, graph) } : {}),
+  }))
+  const groups: PositionedGroup[] = []
+  frames.forEach((frame, index) => {
+    const parent = measured.groups[index]!.parent
+    if (parent === undefined) groups.push(frame)
+    else frames[parent]!.children.push(frame)
+  })
   // Forest fans use shared trunks. Layered placement reserves private label
   // corridors; generic bundling can move foreign routes into those corridors.
-  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups: [] }, graph, geometry.topology === 'forest', opts.padding, style, options.stateVisual?.noteMargin ?? 18).positioned
+  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups }, graph, geometry.topology === 'forest', opts.padding, style, options.stateVisual?.noteMargin ?? 18).positioned
   if (containsNonFiniteNumber(positioned)) throw new TypeError('Agentic graph pipeline returned non-finite geometry')
   return positioned
 }
@@ -2037,7 +2083,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   }
   const decision: GraphLayoutDecision = {
     requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? 'agentic-layered@2' : 'elk-layered@1', ...(reason ? { reason } : {}),
+    implementation: selected === 'agentic' ? 'agentic-layered@3' : 'elk-layered@1', ...(reason ? { reason } : {}),
   }
   positioned.layoutDecision = decision
   emitGraphLayoutDecision(decision)
