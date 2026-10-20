@@ -8,7 +8,8 @@ export const GRAMMAR_FINDER_ISSUE_TITLE = 'Grammar finder: sources Mermaid rejec
 interface SilentRead {
   family: string
   id: string
-  source: string
+  /** The reduced source as a JSON string, blank and invisible characters escaped. */
+  spelled: string
   mermaid: string
   ours: { native: string; envelope: string; read: string }
   verify: string[]
@@ -29,15 +30,15 @@ const block = (text: string, info = ''): string => {
 }
 
 export function grammarFinderReport(summary: GrammarSummary, prior: string, runUrl: string): string {
-  // A source's JSON spelling names it exactly, blanks and line ends included,
-  // and is how the issue lists it, so an earlier listing is found verbatim.
-  const fresh = summary.silentReads.examples.filter(example => !prior.includes(JSON.stringify(example.source)))
+  // A source's spelling names it exactly, blanks and line ends included, and
+  // is how the issue lists it, so an earlier listing is found verbatim.
+  const fresh = summary.silentReads.examples.filter(example => !prior.includes(example.spelled))
   if (!fresh.length) return ''
   const sections = fresh.map(example =>
     [
       `### ${example.family}: \`${example.id}\``,
       `${example.occurrences} reduced input(s) gave this source. As a JSON string:`,
-      block(JSON.stringify(example.source), 'json'),
+      block(example.spelled, 'json'),
       `Ours reads it (${example.ours.native} natively; envelope ${example.ours.envelope}) as:`,
       block(example.ours.read),
       'Mermaid says:',

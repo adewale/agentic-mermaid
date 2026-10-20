@@ -9,7 +9,7 @@ import { curatedFragments } from './grammar-fragments.ts'
 import { projectNativeOperations, projectReferenceOperations } from './grammar-native-operations.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
-import { announces, ourReading, readsAsFamily, reduceSilentRead, SILENT_READ_DEFINITION, type SilentReadExample, verifyCodes } from './grammar-silent-reads.ts'
+import { announces, ourReading, readsAsFamily, reduceSilentRead, SILENT_READ_DEFINITION, type SilentReadExample, spellSource, verifyCodes } from './grammar-silent-reads.ts'
 import type { GrammarObservation, GrammarReferenceReply } from './grammar-types.ts'
 import { admitModernReference } from './reference.ts'
 
@@ -491,7 +491,7 @@ async function worker(): Promise<void> {
           }
           const mermaid = (await oracle.control(family, source)).error ?? ''
           const parent = sample.provenance.find(origin => origin.parent)?.parent
-          reductions.set(source, { family, id: sample.id, ...(parent ? { parent } : {}), seed, source, mermaid: mermaid.slice(0, 400), ours: ourReading(family, source), verify: verifyCodes(source), occurrences: 1, original: sample.source, originalVerify: verify })
+          reductions.set(source, { family, id: sample.id, ...(parent ? { parent } : {}), seed, source, spelled: spellSource(source), mermaid: mermaid.slice(0, 400), ours: ourReading(family, source), verify: verifyCodes(source), occurrences: 1, original: sample.source, originalVerify: verify })
         }
         const silentReads = { corpus: corpusCounts.silentReads, mutations: mutationCounts.silentReads, reduced: silent.length, examples: [...reductions.values()] }
         const row = {
@@ -565,5 +565,5 @@ const summary = {
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
 console.log(`\nSilent reads, seed ${seed}: ${silentReads.total} (${SILENT_READ_DEFINITION})`)
 for (const [family, counts] of Object.entries(silentReads.byFamily)) console.log(`  ${family}: corpus ${counts.corpus}, mutations ${counts.mutations}`)
-for (const example of silentReads.examples) console.log(`  ${example.family} ${example.id} x${example.occurrences}: ${JSON.stringify(example.source)}\n    ours (${example.ours.native} native, ${example.ours.envelope}): ${JSON.stringify(example.ours.read).slice(0, 300)}`)
+for (const example of silentReads.examples) console.log(`  ${example.family} ${example.id} x${example.occurrences}: ${example.spelled}\n    ours (${example.ours.native} native, ${example.ours.envelope}): ${JSON.stringify(example.ours.read).slice(0, 300)}`)
 console.log(`Saved ${join(output, 'summary.json')}`)

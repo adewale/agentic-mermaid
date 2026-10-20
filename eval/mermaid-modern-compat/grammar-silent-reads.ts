@@ -20,6 +20,8 @@ export interface SilentReadExample {
   seed: number
   /** Reduced source; still a silent read. */
   source: string
+  /** `source` as a JSON string with blank and invisible characters escaped. */
+  spelled: string
   /** Mermaid's error on the reduced source. */
   mermaid: string
   ours: ReturnType<typeof ourReading>
@@ -29,6 +31,13 @@ export interface SilentReadExample {
   original: string
   originalVerify: string[]
 }
+
+/**
+ * A source as a JSON string that shows every character: JSON escapes control
+ * characters but leaves NBSP, U+2028 or a BOM raw, and a silent read often
+ * turns on exactly such a character.
+ */
+export const spellSource = (source: string): string => JSON.stringify(source).replace(/[\u007f-\u00a0\u00ad\u2000-\u200f\u2028-\u202f\u205f-\u206f\u3000\ufeff]/g, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)
 
 export function readsAsFamily(family: string, agentic: AgenticGrammarResult): boolean {
   return agentic.native.status === 'accepted' || (agentic.envelope.representation === 'structured' && agentic.envelope.family === family)
