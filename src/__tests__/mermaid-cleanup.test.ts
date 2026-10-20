@@ -182,6 +182,10 @@ describe('cleanup at public source boundaries', () => {
       ['sankey-beta\n"hello\nclassDef c fill:#f00;\nworld",B,1', 3],
       ['C4Context\nSystem(a,"hello\nstyle A fill:#f00;\nworld")', 3],
       ['quadrantChart\n"hello\nstyle A fill:#f00;\nworld": [0.5, 0.5]', 3],
+      ['block-beta\nA["before\nstyle A fill:#f00;\nafter"]', 3],
+      ['block-beta\nA["before\nclassDef c fill:#f00;\nafter"]', 3],
+      ['requirementDiagram\nrequirement A {\nid: 1\ntext: "before\nstyle A fill:#f00;\nafter"\nrisk: high\nverifymethod: test\n}', 5],
+      ['requirementDiagram\nrequirement A {\nid: 1\ntext: "before\nclassDef c fill:#f00;\nafter"\nrisk: high\nverifymethod: test\n}', 5],
       ['quadrantChart\n"hello\nclassDef c fill:#f00;\nworld": [0.5, 0.5]', 3],
       ['---\ntitle: Caption\n---\nsequenceDiagram\nA->>B: <a href="x">text</a>', 5],
     ] as const
@@ -198,6 +202,10 @@ describe('cleanup at public source boundaries', () => {
       'erDiagram\nA\nstyle A fill:#fff;\nclassDef c fill:#fff;',
       'erDiagram\nsubgraph G\nA\nstyle A fill:#fff;\nclassDef c fill:#fff;\nend',
       'quadrantChart\nA:::c: [0.5, 0.5]\nclassDef c color:#fff;',
+      'block-beta\nA["Hello"]\nstyle A fill:#fff;\nclassDef c fill:#fff;',
+      'requirementDiagram\nrequirement A {\nid: 1\ntext: "Hi"\nrisk: high\nverifymethod: test\n}\nstyle A fill:#fff;\nclassDef c fill:#fff;',
+      ...['\n', '\r', '\r\n'].map(ending => '---\ntitle: requirementDiagram\n---\n%% preamble\n%%{init: {}}%%\nrequirement&#68;iagram\nrequirement A {\nid: 1\ntext: "Hi"\nrisk: high\nverifymethod: test\n}\nstyle A fill:#fff;\nclassDef c fill:#fff;'.replaceAll('\n', ending)),
+      'treemap-beta\n"Leaf":1\nclassDef c fill:#fff;',
     ]) {
       expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toEqual([])
     }

@@ -1,14 +1,53 @@
 import type { LayoutWarning } from './types.ts'
-import { cleanupMermaidSource, type MermaidCleanup } from '../shared/mermaid-cleanup.ts'
+import { cleanedMermaidOffset, cleanupMermaidSource, mermaidLineEnd, originalMermaidOffset, type MermaidCleanup } from '../shared/mermaid-cleanup.ts'
 import { INIT_DIRECTIVE_REGEX, matchMermaidFrontmatter, mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 import { detectInstalledFamilyDescriptorFromFirstLine } from './family-router.ts'
 import { parseAccessibilityDirective, statementEndAt } from '../shared/accessibility-directives.ts'
 import { classStyleStatementLines } from '../class/parser.ts'
 import { erStyleStatementLines } from '../er/parser.ts'
 import { flowchartStatementSpans } from '../flowchart-lexer.ts'
+import { tokenize as tokenizeBlock } from '../block/lexer.ts'
+import { T as BlockToken } from '../block/tokens.ts'
+import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
+import { T as RequirementToken } from '../requirement/tokens.ts'
 
-const STYLE_STATEMENT_FAMILIES = new Set(['flowchart', 'state', 'class', 'er'])
-const CLASS_DEF_STATEMENT_FAMILIES = new Set([...STYLE_STATEMENT_FAMILIES, 'quadrant'])
+const STYLE_STATEMENT_FAMILIES = new Set(['flowchart', 'state', 'class', 'er', 'block', 'requirement'])
+const CLASS_DEF_STATEMENT_FAMILIES = new Set([...STYLE_STATEMENT_FAMILIES, 'quadrant', 'treemap'])
+
+/** These grammars consume style declarations through the physical row's end.
+ * Their lexers distinguish declaration tokens from quoted multiline payloads. */
+function styleTokenLines(lines: readonly string[], tokens: { types: readonly number[]; starts: readonly number[] }, style: number, classDef: number): ReadonlySet<number> {
+  const result = new Set<number>()
+  let line = 0, start = 0
+  for (let index = 0; index < tokens.types.length; index++) {
+    if (tokens.types[index] !== style && tokens.types[index] !== classDef) continue
+    const offset = tokens.starts[index]!
+    while (line + 1 < lines.length && start + lines[line]!.length < offset) start += lines[line++]!.length + 1
+    if (!lines[line]!.slice(0, offset - start).trim()) result.add(line + 1)
+  }
+  return result
+}
+
+function requirementStyleLines(lines: readonly string[], cleanup: MermaidCleanup): ReadonlySet<number> {
+  const grammar = [...lines]
+  const headerRow = grammar.findIndex(line => line.trim() && !line.trimStart().startsWith('%%'))
+  if (headerRow >= 0) {
+    let originalStart = 0
+    for (let row = 0; row < headerRow; row++) {
+      const end = mermaidLineEnd(cleanup.originalText, originalStart)
+      originalStart = end + (cleanup.originalText[end] === '\r' && cleanup.originalText[end + 1] === '\n' ? 2 : 1)
+    }
+    const start = cleanedMermaidOffset(cleanup, originalStart)
+    const header = /^[^\S\r\n]*requirement(?:Diagram)?(?=$|[\s;%])/i.exec(cleanup.text.slice(start))
+    if (header) {
+      // Decode only the routing token through the existing receipt. Payload
+      // quotes and physical row positions remain in their authored form.
+      const end = originalMermaidOffset(cleanup, start + header[0].length, 'end')
+      grammar[headerRow] = 'requirementDiagram' + grammar[headerRow]!.slice(end - originalStart)
+    }
+  }
+  return styleTokenLines(grammar, tokenizeRequirement(grammar.join('\n')), RequirementToken.STYLE, RequirementToken.CLASSDEF)
+}
 
 /** Cleanup is universal source syntax. Report its lossy rewrites once per
  * authored line, independently of the selected family or its grammar. Entity
@@ -47,10 +86,13 @@ export function mermaidCleanupWarnings(input: string | MermaidCleanup): LayoutWa
   }
   const ownsWholeStyleRow = (line: number): boolean => {
     if (family?.id === 'flowchart') return flowchartStatementSpans(physicalLines[line - 1] ?? '').length === 1
-    if (family?.id !== 'class' && family?.id !== 'er') return true
+    if (family?.id !== 'class' && family?.id !== 'er' && family?.id !== 'block' && family?.id !== 'requirement') return true
     if (!actualStyleLines) {
       try {
-        actualStyleLines = family.id === 'class' ? classStyleStatementLines(grammarLines!) : erStyleStatementLines(grammarLines!)
+        if (family.id === 'class') actualStyleLines = classStyleStatementLines(grammarLines!)
+        else if (family.id === 'er') actualStyleLines = erStyleStatementLines(grammarLines!)
+        else if (family.id === 'block') actualStyleLines = styleTokenLines(grammarLines!, tokenizeBlock(grammarLines!.join('\n')), BlockToken.STYLE, BlockToken.CLASSDEF)
+        else actualStyleLines = requirementStyleLines(grammarLines!, cleanup)
       } catch { actualStyleLines = new Set() }
     }
     return actualStyleLines.has(line)
