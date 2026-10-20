@@ -347,7 +347,7 @@ function mutate(seeds: readonly Sample[], fragments: readonly string[], rnd: () 
 }
 
 /** Silent reads reduced per family; the rest are counted, not reduced. */
-const SILENT_REDUCTIONS = 12
+const SILENT_REDUCTIONS = 8
 const pending = [...families]
 const results: Array<{ family: string; silentReads: { corpus: number; mutations: number; examples: SilentReadExample[] } }> = []
 async function worker(): Promise<void> {

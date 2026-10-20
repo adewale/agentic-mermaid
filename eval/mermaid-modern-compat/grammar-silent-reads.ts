@@ -57,17 +57,22 @@ export const announces = (codes: readonly string[]): boolean => codes.some(code 
 /**
  * Shrink a silent read while it stays one: first whole lines, then code
  * points, each at halving chunk sizes, until a pass removes nothing or the
- * budget of checks runs out. Deterministic for deterministic engines. A
- * reduction can slip to a different silent read; the caller keeps the original.
+ * budget of distinct checks runs out. Verify lays a diagram out, so a check
+ * can cost a tenth of a second; the cheap conditions go first. Deterministic
+ * for deterministic engines. A reduction can slip to a different silent read;
+ * the caller keeps the original.
  */
-export async function reduceSilentRead(family: string, source: string, referenceAccepts: (source: string) => Promise<boolean>, budget = 300): Promise<string> {
+export async function reduceSilentRead(family: string, source: string, referenceAccepts: (source: string) => Promise<boolean>, budget = 150): Promise<string> {
   let current = source
+  const checked = new Map<string, boolean>()
   const holds = async (candidate: string): Promise<boolean> => {
+    const known = checked.get(candidate)
+    if (known !== undefined) return known
     if (budget <= 0) return false
     budget--
-    if (!readsAsFamily(family, inspectAgenticGrammar(family, candidate, { observe: false }))) return false
-    if (await referenceAccepts(candidate)) return false
-    return !announces(verifyCodes(candidate))
+    const silent = readsAsFamily(family, inspectAgenticGrammar(family, candidate, { observe: false })) && !(await referenceAccepts(candidate)) && !announces(verifyCodes(candidate))
+    checked.set(candidate, silent)
+    return silent
   }
   for (const [split, separator] of [[(text: string) => text.split('\n'), '\n'] as const, [(text: string) => Array.from(text), ''] as const]) {
     for (let changed = true; changed && budget > 0; ) {

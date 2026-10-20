@@ -114,7 +114,7 @@ parser or structured body) while `verifyMermaid` reports neither
 `UNSUPPORTED_SYNTAX` nor a source refusal (`EMPTY_DIAGRAM`,
 `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`). The policy requires a generous read
 to be announced, so these are the bug candidates. Every run counts them per
-family in `summary.json` (`silentReads`), reduces the first twelve of each
+family in `summary.json` (`silentReads`), reduces the first eight of each
 family by line and then code point, and prints each distinct reduction with
 what ours read and Mermaid's error.
 `--native-only` restricts a run to the families ours parses. The nightly finder
