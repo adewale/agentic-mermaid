@@ -23,6 +23,24 @@ function routeWitness(graph: MermaidGraph, positions: Record<string, [number, nu
 }
 
 describe('bounded final layout certification', () => {
+  test.each([false, true])('a rejected conditional solver preserves all four fallbacks with route selection %s', routeSelection => {
+    const graph = parseMermaid('flowchart LR\nA --> B')
+    const clean = layoutGraphSync(graph)
+    const invalid = structuredClone(clean)
+    invalid.edges[0]!.points = []
+    const candidates = [
+      { strategy: 'default', produce: () => invalid },
+      { strategy: 'separate-hierarchy', produce: () => invalid },
+      { strategy: 'without-corank', produce: () => invalid },
+      { strategy: 'separate-without-corank', produce: () => clean },
+    ]
+    const preliminary = { strategy: 'indexed-forest', produce: () => invalid }
+    const selected = routeSelection
+      ? certifyLayoutWithRouteAlternative(graph, resolveRenderStyle({}), candidates, () => undefined, preliminary)
+      : certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates, preliminary)
+    expect(selected.certification).toMatchObject({ strategy: 'separate-without-corank', attempts: 5, hardViolations: 0 })
+  })
+
   test('a failing primary producer is contained inside the public fallback budget', () => {
     const firstPass = LAYOUT_PIPELINE[0]!
     const run = firstPass.run

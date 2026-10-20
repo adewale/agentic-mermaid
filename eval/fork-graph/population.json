@@ -7,7 +7,8 @@
       "every fork in eval/mindmap-gitgraph-content-corpus/fork-snapshot.json (July 2026 star-ranked top 10 of mermaid-js/mermaid, lukilabs/beautiful-mermaid, AlexanderGrooff/mermaid-ascii)",
       "adewale/agentic-mermaid",
       "mermaid-ast (devDependency)",
-      "peers named with repository links in docs/design/families/{c4,gantt}.md and docs/project/prepared-text-geometry-plan.md"
+      "peers named with repository links in docs/design/families/{c4,gantt}.md and docs/project/prepared-text-geometry-plan.md",
+      "user-supplied https://github.com/Gaurav-Gosain/tuios/pull/919 (19 October addition, pinned separately in benchmarkCommit)"
     ],
     "npmSearch": "https://registry.npmjs.org/-/v1/search?text=<query>&size=100 (first page unless noted)",
     "npmQueries": [
@@ -71,6 +72,22 @@
     "outputs": "svg, png, jpeg, pdf, ascii-unicode (includes ANSI-coloured text), ast, diagnostics, mermaid-text, react-flow."
   },
   "nodes": [
+    {
+      "id": "Gaurav-Gosain/tuios",
+      "relation": "port",
+      "repo": "https://github.com/Gaurav-Gosain/tuios",
+      "branch": "main",
+      "head": "5d29009957907e933b563498c44c2aafd2e0e12d",
+      "lastCommit": "2026-10-19T23:08:54+04:00",
+      "benchmarkCommit": "880e652ee56b1607cc454847a359703d7cdc88e6",
+      "checkedAt": "2026-10-19",
+      "path": "sketch",
+      "license": "MIT",
+      "runtime": "Go >=1.25 (pure Go, no cgo)",
+      "outputs": ["svg", "png", "ascii-unicode"],
+      "roles": ["peer", "terminal-peer"],
+      "notes": "tuios.dev/sketch, introduced by merged PR https://github.com/Gaurav-Gosain/tuios/pull/919. benchmarkCommit pins that PR; head records the observed main branch separately. sketch/README.md and sketch/LICENSE credit a port of obsidianmd/pele v1.6.0 at 458322a5b8abb1ae57ddf127c32017ab9fb14a92. Eight SVG/PNG families: flowchart, sequence, state, class, ER, pie, mindmap, gantt; text supports flowchart and sequence. sketch/raster draws its own SVG without a browser. No standalone sketch release or Go proxy version was checked; the parent tuios release is not a sketch version."
+    },
     {
       "id": "akashacms/mermaid-wasm-renderer",
       "relation": "binding",
@@ -1656,6 +1673,12 @@
     }
   ],
   "edges": [
+    {
+      "from": "Gaurav-Gosain/tuios",
+      "to": "obsidianmd/pele",
+      "relation": "port",
+      "evidence": "sketch/README.md: pure Go port of pele v1.6.0, commit 458322a5b8abb1ae57ddf127c32017ab9fb14a92; sketch/LICENSE preserves the Pele MIT notice. Source and scope: https://github.com/Gaurav-Gosain/tuios/pull/919 at 880e652ee56b1607cc454847a359703d7cdc88e6."
+    },
     {
       "from": "akashacms/mermaid-wasm-renderer",
       "to": "1jehuang/mermaid-rs-renderer",

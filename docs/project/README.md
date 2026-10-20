@@ -17,6 +17,8 @@ code/tests, not dated inventories.
 | [Divergences](divergences.md) | Deliberate product boundaries, not feature requests. |
 | [Lessons learned](lessons-learned.md) | Engineering lessons, not mandatory restoration of historical machinery. |
 | [0.5 performance investigation](0.5-performance-investigation.md) | Dated profile of where time, bytes and memory go, as input for the 0.5 refactor; delete once consumed. |
+| [Conditional forest layout](conditional-forest-layout.md) | Opt-in forest eligibility, fallback boundary and reproducible qualification commands. |
+| [Staged replacement of ELK](layered-layout-proposal.md) | Proposed measured-graph adapter, Pele evaluation, staged scope and acceptance boundary for replacing ELK. |
 
 ## Completed and superseded work
 

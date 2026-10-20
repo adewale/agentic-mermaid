@@ -11,6 +11,7 @@ import { gzipSync } from 'node:zlib'
 import { chromium, type Page } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 import type { BaselineLock } from './release-baseline.ts'
+import { PERFORMANCE_EXPERIMENTS } from '../../src/experimental-performance.ts'
 import { workingRevision } from './revision-tree.ts'
 
 interface Engine {
@@ -21,6 +22,7 @@ interface Engine {
   kind: 'agentic' | 'pele' | 'mermaid'
   bundle: string
   global: string
+  experiments?: string
   identity: { integrity: string; tarballSha256?: string }
 }
 export interface BrowserSample {
@@ -90,6 +92,7 @@ async function lazyPayload(page: Page, engine: Engine, origin: string) {
   page.on('request', listener)
   try {
     await page.goto(`${origin}/blank`)
+    await page.evaluate(features => { (globalThis as Record<string, unknown>).AGENTIC_MERMAID_EXPERIMENTS = features }, engine.experiments ?? '')
     const initial = await page.evaluate(async url => {
       const started = performance.now()
       const api = await import(url)
@@ -115,7 +118,10 @@ async function lazyPayload(page: Page, engine: Engine, origin: string) {
 export async function renderPass(page: Page, engine: Engine, origin: string, inputs: Array<{ id: string; source: string }>, round: number, warmupCount: number): Promise<BrowserSample[]> {
   await page.goto(`${origin}/blank`)
   // Repeated renders of one input must time ELK, not a cached result.
-  await page.evaluate(() => { (globalThis as Record<string, unknown>).AGENTIC_MERMAID_ELK_CACHE = '0' })
+  await page.evaluate(features => {
+    (globalThis as Record<string, unknown>).AGENTIC_MERMAID_ELK_CACHE = '0'
+    ;(globalThis as Record<string, unknown>).AGENTIC_MERMAID_EXPERIMENTS = features
+  }, engine.experiments ?? '')
   await page.addScriptTag({ url: `${origin}/${engine.label}/${engine.bundle}` })
   return page.evaluate(async ({ engine, inputs, round, warmupCount }) => {
     type Api = { render(source: string, id?: string): { svg: string } | Promise<{ svg: string }>; renderMermaidSVG(source: string): string; initialize(options: { startOnLoad: boolean }): void }
@@ -146,12 +152,14 @@ export async function renderPass(page: Page, engine: Engine, origin: string, inp
 
 async function main() {
   const options = new Map<string, string>()
-  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup'])
+  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features'])
   for (let i = 2; i < process.argv.length; i += 2) {
     const flag = process.argv[i]!.replace(/^--/, ''), value = process.argv[i + 1]
     if (!allowed.has(flag) || !value || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
     options.set(flag, value)
   }
+  const features = options.get('features')?.split(',') ?? []
+  if (features.some(feature => !PERFORMANCE_EXPERIMENTS.some(name => name === feature)) || new Set(features).size !== features.length) throw new Error('Invalid experimental feature selection')
   if (options.has('baseline-tarball') && options.has('baseline-lock')) throw new Error('Use baseline-tarball or baseline-lock, not both')
   if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both baseline-tarball and baseline-sha256')
   const out = resolve(options.get('out') ?? 'bench-report')
@@ -182,6 +190,7 @@ async function main() {
     // installed and pinned; they are not new library/runtime dependencies.
     const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`)
     candidate.identity.tarballSha256 = expectedSha
+    candidate.experiments = features.join(',')
     const engines = [candidate]
     if (options.has('baseline-tarball')) {
       const baselineBytes = readFileSync(resolve(options.get('baseline-tarball')!))
@@ -253,7 +262,7 @@ async function main() {
       environment: { os: release(), arch: process.arch, cpu: cpus()[0]?.model, logicalCpus: cpus().length,
         cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
         memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined },
-      policy: { rounds, warmup: `${Math.min(warmupCount, inputs.length)} selected-corpus attempts before each engine/round`, warmupRequested: warmup ?? 'all', elkCache: 'disabled before library load; duplicate inputs still measure layout', ordering: 'reverse engine order on alternate rounds; one tab, fresh document per engine pass', viewport: { width: 1440, height: 1000 }, remoteAssets: 'blocked; image/asset errors are environment outcomes, not syntax failures', timing: 'public render call through SVG return; excludes inspection/cleanup/paint', compression: 'gzip level 9 of each shipped/fetched JS file', fullInventory: inventory.occurrenceCount, measured: inputs.length },
+      policy: { features, rounds, warmup: `${Math.min(warmupCount, inputs.length)} selected-corpus attempts before each engine/round`, warmupRequested: warmup ?? 'all', elkCache: 'disabled before library load; duplicate inputs still measure layout', ordering: 'reverse engine order on alternate rounds; one tab, fresh document per engine pass', viewport: { width: 1440, height: 1000 }, remoteAssets: 'blocked; image/asset errors are environment outcomes, not syntax failures', timing: 'public render call through SVG return; excludes inspection/cleanup/paint', compression: 'gzip level 9 of each shipped/fetched JS file', fullInventory: inventory.occurrenceCount, measured: inputs.length },
       payload, ...summary }
     // Keep artifact identity separate from per-engine acceptance summaries.
     const identities = engines.map(({ root, ...engine }) => engine)

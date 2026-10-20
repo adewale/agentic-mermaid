@@ -297,9 +297,11 @@ function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCan
   return { selected: first, reason: 'candidate-order' }
 }
 
-function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[]): CertifiedSelection {
+function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate): CertifiedSelection {
   const attempts: LayoutCertificationAttempt[] = []
-  const bounded = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
+  // A conditional producer must not evict the fourth established fallback.
+  const fallbacks = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
+  const bounded = preliminary ? [preliminary, ...fallbacks] : fallbacks
   let deferred: CertifiedCandidate | undefined
   let probe: 'readability' | 'routing' | undefined
   const compared: CertifiedSelection['compared'] = []
@@ -348,8 +350,8 @@ function retainSelection(graph: MermaidGraph, selection: CertifiedSelection): Po
 /** Hard feasibility gates every candidate. One additional certified alternative
  * may improve a title or a bounded graph with label conflicts or crossings.
  * Stable candidate-order ties never initiate another expensive production. */
-export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[]): PositionedGraph {
-  return retainSelection(graph, selectCertifiedCandidates(graph, style, candidates))
+export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate): PositionedGraph {
+  return retainSelection(graph, selectCertifiedCandidates(graph, style, candidates, preliminary))
 }
 
 /** Select placement, then optionally certify one new route proposal. The baseline
@@ -361,8 +363,9 @@ export function certifyLayoutWithRouteAlternative(
   candidates: readonly LayoutCertificationCandidate[],
   routeFor: (placed: PositionedGraph, score: Readonly<LayoutPreferenceScore>) =>
     (LayoutCertificationCandidate & { strategy: 'without-generic-bundling' }) | undefined,
+  preliminary?: LayoutCertificationCandidate,
 ): PositionedGraph {
-  const placement = selectCertifiedCandidates(graph, style, candidates)
+  const placement = selectCertifiedCandidates(graph, style, candidates, preliminary)
   const placed = retainSelection(graph, placement)
   const alternative = routeFor(placed, placement.selected.score)
   if (!alternative) return placed

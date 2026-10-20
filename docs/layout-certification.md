@@ -92,10 +92,12 @@ contact. The owning regressions record these cases alongside the existing final
 hard checks.
 
 Final graph candidates first pass authored correspondence and hard geometry.
-The bounded preference comparison then orders title readability, crossings,
-bends, preferred endpoint contacts, peer alignment and canvas area. A candidate
-with a better lower-priority score cannot displace one with a better earlier
-score. This final comparison does not excuse a production pass-contract error.
+The bounded preference comparison follows the
+[graph priority order](quality.md#layout-priorities-and-their-limits): readable
+group titles, crossings, padded label conflicts, avoidable bends, preferred
+endpoint contacts, peer alignment and canvas area. A candidate with a better
+lower-priority score cannot displace one with a better earlier score. This final
+comparison does not excuse a production pass-contract error.
 
 A repaired viewport with non-scaling strokes is unverified: keeping the display
 size changes the stroke extent in user units. Endpoint checks allow an arrow’s
