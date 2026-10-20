@@ -224,8 +224,15 @@ wrapper bytes and public source spans authored; rendering also decodes XML
 references once. The upstream quote rewrite is recorded rather than applied to
 our grammar: it can join unrelated labels or break YAML metadata. Verification
 reports `UNSUPPORTED_SYNTAX` / `mermaid_cleanup` once per affected authored line,
-including for parsed diagrams. Ordinary newline/entity protection and a standalone
-style statement's harmless terminator removal do not need portability warnings.
+including for parsed diagrams, when the rewrite changes what is read: our
+reading of the diagram with that kind of rewrite applied differs from our
+reading of the authored text. A dropped `;` that only ends a style statement,
+on its own row or sharing one (`graph TD;style Q fill:#fff;`), changes nothing;
+so do tag attribute quotes inside one Flowchart label, which Mermaid draws as
+HTML unless `htmlLabels` is off. Ordinary newline/entity protection needs no
+portability warning either. A diagram that mixes harmless and reading-changing
+rewrites of one kind reports each line of that kind: one reading per kind keeps
+the cost bounded.
 
 `#name;` / `#123;` remain protected through grammar reading and expand through
 the shared entity codec only at text projection. They must never create new
