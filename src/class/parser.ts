@@ -653,7 +653,21 @@ export function classStatementEnds(lines: readonly string[]): number[] {
   return ends
 }
 
-export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[]): ClassStatementTree {
+/** Whole physical rows owned by style declarations, excluding class members
+ * and compact rows that also carry a body boundary or another statement. */
+export function classStyleStatementLines(lines: readonly string[]): ReadonlySet<number> {
+  const result = new Set<number>()
+  const pending = [...readClassStatements(lines, undefined, false).statements]
+  while (pending.length > 0) {
+    const node = pending.pop()!
+    if ((node.value.kind === 'style' || node.value.kind === 'classDef')
+      && node.raw.trim() === lines[node.source.line - 1]?.trim()) result.add(node.source.line)
+    for (const child of node.children ?? []) pending.push(child)
+  }
+  return result
+}
+
+export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[], observe = true): ClassStatementTree {
   const tree: ClassStatementTree = { source: lines.join('\n'), statements: [], diagnostics: [] }
   const stack: ClassStatementNode[] = []
   let offset = 0
@@ -726,7 +740,7 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         continue
       }
       const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span, value }
-      if (parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
+      if (observe && parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
       if (fragment.followsNamespaceCloseOnSameLine || (closedOnLine === 'namespace' && value.kind !== 'trivia' && value.kind !== 'close')) node.followsNamespaceCloseOnSameLine = true
       else if (closedOnLine === 'class' && value.kind !== 'trivia' && value.kind !== 'close') node.followsClassCloseOnSameLine = true
       if (value.kind === 'close' && owner) closedOnLine = inClass ? 'class' : 'namespace'
