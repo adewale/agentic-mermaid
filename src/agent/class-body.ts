@@ -879,7 +879,18 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
     }
   }
-  extensionWarnings(readClassStatements(bodyLines).statements)
+  // An accTitle or accDescr is Mermaid's own statement, not a member: read
+  // the statements around it, its lines left blank.
+  const statementLines = [...bodyLines]
+  for (let index = 0; index < statementLines.length; index++) {
+    const directive = parseAccessibilityDirective(statementLines, index)
+    if (directive === undefined) break
+    if (directive === null) continue
+    for (let at = index; at <= directive.endIndex; at++) statementLines[at] = ''
+    if (directive.suffixLine) statementLines[directive.endIndex] = directive.suffixLine
+    index = directive.endIndex
+  }
+  extensionWarnings(readClassStatements(statementLines).statements)
   return warnings
 }
 
