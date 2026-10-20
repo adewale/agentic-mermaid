@@ -1,6 +1,7 @@
 import type { Direction, Point } from '../types.ts'
 import { GraphLayoutUnsupportedError } from './backend.ts'
 import { layoutMeasuredForest } from './measured-forest.ts'
+import { feedbackOrder } from './cycle-order.ts'
 
 export interface MeasuredGraph {
   nodes: readonly { id: string; width: number; height: number }[]
@@ -12,6 +13,7 @@ export interface MeasuredGraph {
 }
 
 export interface AgenticLayout {
+  topology: 'forest' | 'layered'
   width: number
   height: number
   nodes: { x: number; y: number }[]
@@ -44,10 +46,11 @@ function finiteSize(value: number, positive: boolean): boolean {
 }
 
 /**
- * Measured DAG layout, independent of ELK's schema and runtime. Longest-path
+ * Measured layered layout, independent of ELK's schema and runtime. Longest-path
  * ranks are expanded into private channel/label vertices. Stable barycenter
  * sweeps order the ranks; orthogonal routes stay inside the reserved channels
- * and inter-rank gaps. Authored arrays and their edge order are never changed.
+ * and inter-rank gaps. Cycles reverse private constraints and restore authored
+ * route directions. Authored arrays and their edge order are never changed.
  */
 export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
@@ -103,7 +106,13 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
       if (indegree[edge.target] === 0) queue.push(edge.target)
     }
   }
-  if (queue.length !== nodes.length) unsupported('directed cycles')
+  if (queue.length !== nodes.length) {
+    const order = feedbackOrder(incoming, outgoing, edges)
+    const reversed = edges.map(edge => order[edge.source]! > order[edge.target]!)
+    const acyclic = edges.map((edge, index) => reversed[index] ? { ...edge, source: edge.target, target: edge.source } : edge)
+    const placed = layoutAgenticGraph({ ...input, edges: acyclic })
+    return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
+  }
   let expandedSize = nodes.length
   for (const edge of edges) {
     expandedSize += rank[edge.target]! - rank[edge.source]! - 1
@@ -111,7 +120,7 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
   }
   if (nodes.length === 0) {
     if (!Number.isFinite(2 * padding)) unsupported('agentic local coordinate-range limit')
-    return { width: 2 * padding, height: 2 * padding, nodes: [], edges: [] }
+    return { topology: 'layered', width: 2 * padding, height: 2 * padding, nodes: [], edges: [] }
   }
 
   const vertices: Vertex[] = nodes.map((node, index) => ({
@@ -254,6 +263,7 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
     return { points, ...(labelPosition ? { labelPosition } : {}) }
   })
   return {
+    topology: 'layered',
     width: 2 * padding + (horizontal ? mainExtent : crossExtent),
     height: 2 * padding + (horizontal ? crossExtent : mainExtent),
     nodes: nodes.map((node, index) => {
