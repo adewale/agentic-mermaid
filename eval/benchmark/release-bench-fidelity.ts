@@ -1,5 +1,14 @@
 import { decodeXML } from 'entities'
-import type { BenchInput, LayoutMode } from './release-bench-types.ts'
+import type { BenchInput, LayoutCache, LayoutMode } from './release-bench-types.ts'
+
+/** Keep text measurement symmetric, and exclude the automatic forest policy
+ * from explicit solver comparisons, including older default-only packages. */
+export function layoutCacheEnvironment(cache: LayoutCache): Record<string, string> {
+  return {
+    AGENTIC_MERMAID_ELK_CACHE: cache === 'normal' ? '1' : '0',
+    AGENTIC_MERMAID_EXPERIMENTS: cache === 'normal' ? 'text-spans,position-cache' : 'text-spans',
+  }
+}
 import type { RenderOptions } from '../../src/types.ts'
 
 /** Omission is the legacy benchmark; explicit arms share diagnostic policy. */

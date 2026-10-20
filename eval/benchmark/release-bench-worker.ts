@@ -11,10 +11,10 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { GCProfiler } from 'node:v8'
-import type { BenchInput, LayoutMode, LayoutObservation, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
+import type { BenchInput, LayoutCache, LayoutMode, LayoutObservation, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 import type { RenderOptions } from '../../src/types.ts'
 import type { RenderRequestReceipt } from '../../src/render-contract.ts'
-import { layoutRenderOptions, missingSvgLabels, renderAgentEdit } from './release-bench-fidelity.ts'
+import { layoutCacheEnvironment, layoutRenderOptions, missingSvgLabels, renderAgentEdit } from './release-bench-fidelity.ts'
 
 interface Job {
   entry: string
@@ -22,6 +22,7 @@ interface Job {
   inputs: BenchInput[]
   reps: number
   layoutMode?: LayoutMode
+  layoutCache?: LayoutCache
   consumeReceipt?: boolean
   collectQuality?: boolean
 }
@@ -33,6 +34,7 @@ interface Renderer {
 }
 const [jobPath, resultPath] = process.argv.slice(2)
 const job = JSON.parse(readFileSync(jobPath!, 'utf8')) as Job
+if (job.consumeReceipt) Object.assign(process.env, layoutCacheEnvironment(job.layoutCache ?? 'off'))
 if (!Number.isSafeInteger(job.reps) || job.reps < 1) throw new Error('reps must be a positive integer')
 
 function attempt(render: () => string): Outcome {
@@ -256,4 +258,5 @@ function memoryMode(): MemoryResult {
   }
 }
 
-writeFileSync(resultPath!, JSON.stringify(job.mode === 'memory' ? memoryMode() : await timeMode()))
+writeFileSync(resultPath!, JSON.stringify({ ...(job.mode === 'memory' ? memoryMode() : await timeMode()),
+  ...(job.consumeReceipt ? { cacheEnvironment: layoutCacheEnvironment(job.layoutCache ?? 'off') } : {}) }))

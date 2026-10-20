@@ -3,6 +3,7 @@
 // family scales. Sizes are chosen so the slowest released version still
 // finishes each case in seconds. Every generator is deterministic.
 
+import { readFileSync } from 'node:fs'
 import type { DiagramKind } from '../../src/agent/types.ts'
 
 export interface BenchCase {
@@ -73,6 +74,8 @@ const WORKLOADS = {
   block: [{ id: '120-grid-blocks', source: lines('block\n  columns 12', 120, i => [`  b${i}["Component ${i}"]`, ...(i ? [`  b${i - 1} --> b${i}`] : [])]) }],
   flowchart: [
     { id: 'tree-300', source: flowchartTree(300), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `Node ${i}`) },
+    { id: 'cyclic-labelled-11', source: readFileSync(new URL('../layout-compare/fixtures/cyclic-labelled-11.mmd', import.meta.url), 'utf8'), expectedSvgLabels: [...Array.from({ length: 11 }, (_, i) => `Node 16-${i}`), 'edge 0 xxx', 'edge 20 xxxxxx'] },
+    { id: 'cyclic-labelled-10', source: readFileSync(new URL('../layout-compare/fixtures/cyclic-labelled-10.mmd', import.meta.url), 'utf8'), expectedSvgLabels: [...Array.from({ length: 10 }, (_, i) => `Node 28-${i}`), 'edge 0 xxx', 'edge 16 xxxxxxxxxxxxxxxxxxx'] },
     { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => `label ${i}`) },
     { id: 'multigraph-24-loops', source: flowchartMultigraph(24), expectedSvgLabels: Array.from({ length: 18 }, (_, i) => `transition ${i * 4}`) },
     { id: 'subgraphs-12x8', source: flowchartSubgraphs(12, 8) },

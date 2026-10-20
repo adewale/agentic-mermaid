@@ -314,10 +314,12 @@ test('agent workload completes a verified edit and renders the original and adde
   expect(() => renderAgentEdit(dropsEdits, agentEditCase.source)).toThrow('requested or preserved facts were lost')
 })
 
-test('consumed layout worker forwards selection, serializes the full receipt and retains typed declines', async () => {
+test.each(['off', 'normal'] as const)('consumed %s-cache worker forwards selection, serializes the full receipt and retains typed declines', async layoutCache => {
   const directory = temp.dir(), entry = join(directory, 'index.js'), job = join(directory, 'job.json'), result = join(directory, 'result.json')
   writeFileSync(join(directory, 'package.json'), JSON.stringify({ type: 'module' }))
   writeFileSync(entry, `
+    if (process.env.AGENTIC_MERMAID_EXPERIMENTS !== process.env.AM_EXPECT_LAYOUT_EXPERIMENTS
+      || process.env.AGENTIC_MERMAID_ELK_CACHE !== process.env.AM_EXPECT_ELK_CACHE) throw new Error('asymmetric startup cache policy')
     const originalFrom = Buffer.from
     let expected, encoded = false, prior
     Buffer.from = function(value, ...args) {
@@ -368,10 +370,12 @@ test('consumed layout worker forwards selection, serializes the full receipt and
     }
     export function measureQuality() { return { edgeCrossings: 0, minimumLabelClearance: Infinity } }
   `)
-  writeFileSync(job, JSON.stringify({ entry, mode: 'time', layoutMode: 'agentic', consumeReceipt: true, collectQuality: true, reps: 1,
+  writeFileSync(job, JSON.stringify({ entry, mode: 'time', layoutMode: 'agentic', layoutCache, consumeReceipt: true, collectQuality: true, reps: 1,
     inputs: [{ id: 'ok', family: 'flowchart', source: 'supported' }, { id: 'declined', family: 'flowchart', source: 'unsupported' }] }))
   const child = Bun.spawn(['node', '--no-warnings', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, result], {
     stdout: 'ignore', stderr: 'pipe', timeout: 15_000, killSignal: 'SIGKILL',
+    env: { ...process.env, AGENTIC_MERMAID_EXPERIMENTS: 'indexed-layout', AGENTIC_MERMAID_ELK_CACHE: 'wrong',
+      AM_EXPECT_LAYOUT_EXPERIMENTS: layoutCache === 'normal' ? 'text-spans,position-cache' : 'text-spans', AM_EXPECT_ELK_CACHE: layoutCache === 'normal' ? '1' : '0' },
   })
   const [status, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()])
   expect(stderr).toBe('')

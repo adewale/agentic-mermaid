@@ -9,7 +9,7 @@ import { join, resolve } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { extractOfficialCorpus, officialCorpusInventory } from '../shared/official-fences.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
-import { agentEditCase } from './release-bench-fidelity.ts'
+import { agentEditCase, layoutCacheEnvironment } from './release-bench-fidelity.ts'
 import { resolveBaseline } from './release-baseline.ts'
 import type { BenchInput, LayoutCache, LayoutMode, LayoutObservation, MemoryResult, Outcome, OutputFingerprint, QualityObservation, TimeResult } from './release-bench-types.ts'
 
@@ -209,12 +209,11 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
       const job = join(out, 'job.json')
       const result = join(out, 'result.json')
       rmSync(result, { force: true })
-      writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps, layoutMode: run.layoutMode, consumeReceipt: run.consumeReceipt,
+      writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps, layoutMode: run.layoutMode, layoutCache: run.layoutCache, consumeReceipt: run.consumeReceipt,
         collectQuality: run.consumeReceipt && mode === 'time' && round === 1 }))
       // Time ELK rather than a cached result, and renders as users get them.
       const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: {
         ...process.env, AGENTIC_MERMAID_ELK_CACHE: run.layoutCache === 'normal' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0',
-        ...(run.consumeReceipt ? { AGENTIC_MERMAID_EXPERIMENTS: '' } : {}),
       } })
       if (child.status === 0) {
         const value = JSON.parse(readFileSync(result, 'utf8')) as TimeResult | MemoryResult
@@ -473,7 +472,7 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
         label: run.label,
         version: run.version,
         identity: run.identity,
-        ...(run.consumeReceipt ? { layoutMode: run.layoutMode ?? 'legacy-default', layoutCache: run.layoutCache ?? 'off', outputConsumption: 'svg-utf8-and-full-receipt-json', layoutCoverage: layoutCoverage(inputs, run) } : {}),
+        ...(run.consumeReceipt ? { layoutMode: run.layoutMode ?? 'legacy-default', layoutCache: run.layoutCache ?? 'off', cacheEnvironment: layoutCacheEnvironment(run.layoutCache ?? 'off'), outputConsumption: 'svg-utf8-and-full-receipt-json', layoutCoverage: layoutCoverage(inputs, run) } : {}),
         node: run.node,
         importMs: run.importMs,
         firstRenderMs: run.firstRenderMs,
@@ -507,7 +506,7 @@ function main() {
   const deadline = Date.now() + budgetMs
   const modes = options.get('layout-modes')?.split(',') as LayoutMode[] | undefined
   const layoutCache = (options.get('layout-cache') ?? 'off') as LayoutCache
-  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, ...(modes ? { layoutModes: modes, layoutCache } : {}) }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
+  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, ...(modes ? { layoutModes: modes, layoutCache, cacheEnvironment: layoutCacheEnvironment(layoutCache) } : {}) }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
     cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
     memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined } }
   writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
