@@ -13,6 +13,7 @@ import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
 import { executeGraphicalRequest, lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
+import { mermaidTagAttributeQuotes } from '../mermaid-source-wrapper.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
@@ -460,10 +461,14 @@ function colonlessAccessibilityWarnings(d: ValidDiagram): LayoutWarning[] {
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
   if (!rule) return []
-  const lines = authored?.split(/\r\n?|\n/)
+  // Each rule reads the text as Mermaid's prepass leaves it.
+  const lines = authored === undefined ? undefined : mermaidTagAttributeQuotes(authored).split(/\r\n?|\n/)
   // A diagram parsed from source keeps its authored lines with its source map.
-  const authoredLine = lines ? (line: number) => lines[authoredLineForCanonical(d.source, line) - 1] : (line: number) => authoredTextForCanonical(d.source, line)
-  return atAuthoredLines(rule(d.canonicalSource, authoredLine), line => authoredLineForCanonical(d.source, line))
+  const authoredLine = lines ? (line: number) => lines[authoredLineForCanonical(d.source, line) - 1] : (line: number) => {
+    const text = authoredTextForCanonical(d.source, line)
+    return text === undefined ? undefined : mermaidTagAttributeQuotes(text)
+  }
+  return atAuthoredLines(rule(mermaidTagAttributeQuotes(d.canonicalSource), authoredLine), line => authoredLineForCanonical(d.source, line))
 }
 
 /** Verify names the authored line. A rule that reads the canonical source

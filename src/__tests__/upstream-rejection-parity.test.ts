@@ -465,6 +465,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
   ['flowchart', 'a `&` list with a blank on each side, and a lone `&` node', 'flowchart LR\n  A & B --> C & &\n  D &\tE'],
   ['flowchart', 'blanks between the pipes of a label', 'flowchart LR\n  A -->| | B ==>|\t| C'],
+  // Mermaid's prepass writes a tag's double-quoted attributes with single quotes.
+  ['flowchart', 'HTML tags with double-quoted attributes in unquoted labels', 'flowchart LR\n  B --> C{Let <span style="background-color:#ddd">me</span> think}\n  SYS([SYSTEMS<br/><span style="font-size:12px">How we function</span>])'],
   // The render path decodes `&quot;` before it reads the lines, so the
   // label begins with a `"` that no later line closes.
   ['flowchart', 'labels beginning with an entity quote that run across lines', 'flowchart LR\n  A[&quot;x\n  y] --> B\n  subgraph S[&quot;t\n  u]\n    C\n  end'],

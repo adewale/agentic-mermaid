@@ -86,6 +86,16 @@ export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init(?:ialize)?\s*:\s*
  *  closed one as a directive. */
 export const MERMAID_DIRECTIVE_REGEX = /%%\{\s*\w+(?:(?!\}%%)[\s\S])*\}%%/g
 
+/** Mermaid's first prepass (preprocess.ts cleanupText) rewrites each
+ * double-quoted attribute inside an HTML tag to single quotes, anywhere in the
+ * source, before any grammar reads it, so `C{Let <span style="x">me</span>}`
+ * holds no `"` to Mermaid. Ours reads the authored text; checks of what
+ * Mermaid rejects read the text as this step leaves it. It keeps every
+ * length, so lines and columns hold. */
+export function mermaidTagAttributeQuotes(text: string): string {
+  return text.replace(/<(\w+)([^>]*)>/g, (_tag, name: string, attributes: string) => `<${name}${attributes.replace(/="([^"]*)"/g, "='$1'")}>`)
+}
+
 export function toMermaidLines(text: string): string[] {
   return text
     .split(/\r\n?|\n/)
