@@ -4,6 +4,9 @@ import { INIT_DIRECTIVE_REGEX, matchMermaidFrontmatter, mermaidFirstLine } from 
 import { detectInstalledFamilyDescriptorFromFirstLine } from './family-router.ts'
 import { parseAccessibilityDirective, statementEndAt } from '../shared/accessibility-directives.ts'
 
+const STYLE_STATEMENT_FAMILIES = new Set(['flowchart', 'state', 'class', 'er'])
+const CLASS_DEF_STATEMENT_FAMILIES = new Set([...STYLE_STATEMENT_FAMILIES, 'quadrant'])
+
 /** Cleanup is universal source syntax. Report its lossy rewrites once per
  * authored line, independently of the selected family or its grammar. Entity
  * protection, transport XML decoding and newline normalization are ordinary
@@ -12,6 +15,8 @@ export function mermaidCleanupWarnings(input: string | MermaidCleanup): LayoutWa
   const source = typeof input === 'string' ? input : input.originalText
   if (!source.includes('<') && !source.includes('style') && !source.includes('classDef')) return []
   const cleanup = typeof input === 'string' ? cleanupMermaidSource(source) : input
+  // Route encoded headers as rendering does; scan authored rows for locations.
+  const family = detectInstalledFamilyDescriptorFromFirstLine(mermaidFirstLine(cleanup.text), 'loose')
   const frontmatterEnd = matchMermaidFrontmatter(source)?.source.length ?? 0
   const directives = [...source.matchAll(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'))]
   const physicalLines = source.split(/\r\n?|\n/)
@@ -21,8 +26,7 @@ export function mermaidCleanupWarnings(input: string | MermaidCleanup): LayoutWa
       continuations = new Set<number>()
       const wrapperLines = source.slice(0, frontmatterEnd).match(/\r\n?|\n/g)?.length ?? 0
       const grammarLines = physicalLines.map((text, index) => index < wrapperLines ? '' : text)
-      // Route encoded headers as rendering does; scan authored rows for locations.
-      const ends = detectInstalledFamilyDescriptorFromFirstLine(mermaidFirstLine(cleanup.text), 'loose')?.statementEnds?.(grammarLines)
+      const ends = family?.statementEnds?.(grammarLines)
       for (let index = 0; index < grammarLines.length; index++) {
         const accessibility = parseAccessibilityDirective(grammarLines, index)
         const end = accessibility === undefined ? grammarLines.length - 1 : accessibility ? accessibility.endIndex : statementEndAt(ends, index, grammarLines.length)
@@ -38,7 +42,9 @@ export function mermaidCleanupWarnings(input: string | MermaidCleanup): LayoutWa
     if (change.reason === 'style-semicolon') {
       if (change.originalStart < frontmatterEnd) continue
       if (/^\s*%%/.test(physicalLines[change.line - 1] ?? '')) continue
-      if (/^\s*(?:style|classDef)\s/.test(physicalLines[change.line - 1] ?? '') && !insideText(change.line)) continue
+      const keyword = /^\s*(style|classDef)\s/.exec(physicalLines[change.line - 1] ?? '')?.[1]
+      const owners = keyword === 'classDef' ? CLASS_DEF_STATEMENT_FAMILIES : STYLE_STATEMENT_FAMILIES
+      if (keyword && family && owners.has(family.id) && !insideText(change.line)) continue
       let low = 0, high = directives.length
       while (low < high) {
         const middle = low + Math.floor((high - low) / 2)

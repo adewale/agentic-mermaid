@@ -168,6 +168,11 @@ describe('cleanup at public source boundaries', () => {
       ['stateDiagram&#45;v2\nstate A\nnote right of A\nstyle A fill:#f00;\nend note', 4],
       ['flowchart TD\nA["hello\nstyle A fill:#f00;\nworld"]', 3],
       ['flowchart&#32;TD\nA["hello\nstyle A fill:#f00;\nworld"]', 3],
+      ['sankey-beta\n"hello\nstyle A fill:#f00;\nworld",B,1', 3],
+      ['sankey-beta\n"hello\nclassDef c fill:#f00;\nworld",B,1', 3],
+      ['C4Context\nSystem(a,"hello\nstyle A fill:#f00;\nworld")', 3],
+      ['quadrantChart\n"hello\nstyle A fill:#f00;\nworld": [0.5, 0.5]', 3],
+      ['quadrantChart\n"hello\nclassDef c fill:#f00;\nworld": [0.5, 0.5]', 3],
       ['---\ntitle: Caption\n---\nsequenceDiagram\nA->>B: <a href="x">text</a>', 5],
     ] as const
     for (const [source, line] of cases) {
@@ -175,8 +180,15 @@ describe('cleanup at public source boundaries', () => {
       expect(warnings).toHaveLength(1)
       if (warnings.length) expect(warnings[0]).toMatchObject({ line, message: expect.stringContaining("Mermaid's cleanup changed this line") })
     }
-    const source = '---\ntitle: style A fill:#fff;\n---\nstateDiagram-v2\n%% style A fill:#fff;\nA --> B\nstyle A fill:#fff;'
-    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toEqual([])
+    for (const source of [
+      '---\ntitle: style A fill:#fff;\n---\nstateDiagram-v2\n%% style A fill:#fff;\nA --> B\nstyle A fill:#fff;',
+      'flowchart LR\nA --> B\nstyle A fill:#fff;\nclassDef c fill:#fff;',
+      'classDiagram\nclass A\nstyle A fill:#fff;\nclassDef c fill:#fff;',
+      'erDiagram\nA\nstyle A fill:#fff;\nclassDef c fill:#fff;',
+      'quadrantChart\nA:::c: [0.5, 0.5]\nclassDef c color:#fff;',
+    ]) {
+      expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toEqual([])
+    }
   })
 })
 
