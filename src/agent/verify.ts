@@ -62,6 +62,7 @@ import { logToolInvocation } from './trace-log.ts'
 import type { ExtensionValidDiagram, LayoutWarning, ParseError, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
 import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
 import type { PositionedC4Diagram } from '../c4/layout.ts'
+import { c4DiagnosticMessage } from '../c4/parser.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -526,7 +527,8 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
         }
       }
       if (diagnostic.code === 'C4_WIDTH_EXCEEDED') return { code: 'LAYOUT_LIMIT_EXCEEDED', constraint: 'c4.maxWidth', message: `${diagnostic.code}: ${diagnostic.message}` }
-      return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: statement?.raw ?? 'C4 layout', message: `${diagnostic.code}: ${diagnostic.message}` }
+      // A stable code (C4_LAYOUT_CONFLICT is c4_layout_conflict); the statement is in the message.
+      return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: diagnostic.code.toLowerCase(), message: `${diagnostic.code}: ${c4DiagnosticMessage(layout.body, diagnostic)}` }
     })
   } catch {
     return []

@@ -9,7 +9,7 @@ import { mermaidLineEnd } from '../shared/mermaid-cleanup.ts'
 import { c4ShapeOverride } from './config.ts'
 import type {
   C4Argument, C4Body, C4Boundary, C4Diagnostic, C4Directive, C4Direction,
-  C4Element, C4Relationship, C4Statement, C4Style, C4SyntaxDiagnostic, C4Variant,
+  C4Element, C4Relationship, C4Statement, C4Style, C4Variant,
 } from './types.ts'
 
 export const C4_VARIANTS: readonly C4Variant[] = ['C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment']
@@ -637,7 +637,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
 }
 
 /** A diagnostic's message with the authored statement it concerns. */
-export function c4DiagnosticMessage(body: C4Body, diagnostic: C4SyntaxDiagnostic): string {
+export function c4DiagnosticMessage(body: C4Body, diagnostic: C4Diagnostic): string {
   const statement = body.statements.find(record => record.id === diagnostic.statementId)
   return statement ? `${diagnostic.message} (in: ${statement.raw.trim()})` : diagnostic.message
 }
