@@ -551,7 +551,12 @@ table here, which would drift. In broad strokes:
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
   advisory, never a gate), `bun run bench:peers` (the built package against
   the pinned browserless and terminal peers in `eval/fork-graph/`, with label
-  checks before timing), `bun run check:output-identity --baseline <ref>`
+  checks before timing; includes the native Go Sketch worker, requiring Go >=1.25).
+  `bench:peers --corpus` attempts every official fence occurrence, including
+  unsupported families, with one warmup and three single-call samples per
+  successful input per round. This mode checks output presence rather than
+  labels or semantic/visual fidelity; the ordinary calibrated workloads keep
+  their label assertions. `bun run check:output-identity --baseline <ref>`
   (byte identity of the distinct corpus inputs across SVG backends, SVG
   post-passes, ASCII, Unicode and verify, for refactors that must not change
   output), the real LLM-as-judge run, and the production freshness check

@@ -126,7 +126,7 @@ test('browser pass warms only the requested prefix and still attempts every meas
   const calls: string[] = []
   const inputs = Array.from({ length: 35 }, (_, i) => ({ id: `case${i}`, source: `source${i}` }))
   const host = globalThis as unknown as Record<string, unknown>
-  const priorDocument = host.document, priorApi = host.benchmarkApi, priorCache = host.AGENTIC_MERMAID_ELK_CACHE
+  const priorDocument = host.document, priorApi = host.benchmarkApi, priorCache = host.AGENTIC_MERMAID_ELK_CACHE, priorExperiments = host.AGENTIC_MERMAID_EXPERIMENTS
   host.document = { querySelectorAll: () => [] }
   host.benchmarkApi = { renderMermaidSVG(source: string) {
     calls.push(source)
@@ -139,13 +139,14 @@ test('browser pass warms only the requested prefix and still attempts every meas
   } as unknown as Page
   try {
     const rows = await renderPass(page, { label: 'candidate', name: 'agentic-mermaid', version: 'test', root: '/unused',
-      kind: 'agentic', bundle: 'test.js', global: 'benchmarkApi', identity: { integrity: 'test' } }, 'http://localhost', inputs, 1, 30)
+      kind: 'agentic', bundle: 'test.js', global: 'benchmarkApi', experiments: 'indexed-layout', identity: { integrity: 'test' } }, 'http://localhost', inputs, 1, 30)
+    expect(host.AGENTIC_MERMAID_EXPERIMENTS).toBe('indexed-layout')
     expect(calls).toEqual([...inputs.slice(0, 30), ...inputs].map(input => input.source))
     expect(rows.map(row => row.id)).toEqual(inputs.map(input => input.id))
     expect(rows[32]?.ok).toBe(false)
     expect(rows.filter(row => row.ok)).toHaveLength(34)
   } finally {
-    for (const [key, value] of [['document', priorDocument], ['benchmarkApi', priorApi], ['AGENTIC_MERMAID_ELK_CACHE', priorCache]] as const) {
+    for (const [key, value] of [['document', priorDocument], ['benchmarkApi', priorApi], ['AGENTIC_MERMAID_ELK_CACHE', priorCache], ['AGENTIC_MERMAID_EXPERIMENTS', priorExperiments]] as const) {
       if (value === undefined) delete host[key]
       else host[key] = value
     }
