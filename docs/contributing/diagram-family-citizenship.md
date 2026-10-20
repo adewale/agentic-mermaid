@@ -10,7 +10,7 @@ The `FamilyDescriptor` registry in `src/agent/families.ts` is the canonical runt
 
 The version-pinned upstream family index, [`src/upstream-mermaid-family-index.json`](../../src/upstream-mermaid-family-index.json), records every public Mermaid family/header separately from native Agentic Mermaid support, including unsupported and inventory-only dialects; an upstream header is never silently treated as Flowchart. On a Mermaid upgrade, update [`upstream-mermaid-policy.json`](../project/upstream-mermaid-policy.json) and rerun `bun run upstream-family-index`, which checks the policy against the installed package and rewrites the index. (The full upstream manifest and its hash inventory are no longer published.)
 
-The citizenship matrix and the fidelity capability report behind its `mermaidSyntaxParity` cells are no longer published. The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
+The citizenship matrix and the fidelity capability report behind its `mermaidSyntaxParity` cells are no longer published. [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) preserves the dated Mermaid 11.16 audit; it is not an audit of the current registry. The six stable families added for Mermaid 12.2 have current implementation, domain, compatibility, and review evidence in [`stable-family-implementation.md`](../design/families/stable-family-implementation.md) and its linked family design pages. Runtime capability claims still come from the descriptor registry and executable tests.
 
 ## Semantic correctness vs. system citizenship
 
@@ -83,7 +83,7 @@ When adding or changing a family:
 1. Add/update the built-in `FamilyDescriptor` seed first; `BUILTIN_FAMILY_METADATA` derives automatically. External families use a validated `family:<owner/name>` id and `registerFamily`. Update the upstream policy and rerun `bun run upstream-family-index` only when the upstream inventory or support classification changes.
 2. Add/update parser, renderer, agent body, mutation ops, verify behavior, and examples.
 3. Map the family to exactly one pinned official Mermaid syntax page in the policy; `src/__tests__/official-fence-corpus.test.ts` exercises every fence on it. Promote every stable construct claimed native to executable fixtures, and do not count parse-only or opaque preservation as support.
-4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, commit a generated PNG/SVG under `docs/design/families/`, and attach captioned renders to the PR (not new files under `docs/pr-assets/`).
+4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, and add an independent invariant. Use reviewed rendering goldens under `src/__tests__/testdata/` for committed visual regression evidence; generate other review renders as CI artifacts or outside the tracked tree and attach captioned renders to the PR. Do not commit derived renders under `docs/design/families/` or `docs/pr-assets/`.
 5. Add the family to `FAMILY_COUNT_FIXTURES` so the behavioural citizenship loop exercises it.
 6. Add the family's `HONESTY_SAMPLES`. Fix a violation with the shared mechanisms in [`chart-honesty.md`](../design/system/chart-honesty.md), not by exempting the family.
 7. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
