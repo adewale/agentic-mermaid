@@ -321,10 +321,12 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
 
 // Flowchart labels Mermaid's lexer reads otherwise than as written: its text
 // joins a leading string to the text after it (`"a" b` is `a b`), and after
-// a blank `x--` opens a link label even before an `@`.
+// a blank `x--` opens a link label even before an `@`; and a `;` ends a style
+// statement before text that names no style property.
 // [construct, source]
 const FLOWCHART_LABELS: ReadonlyArray<readonly [string, string]> = [
   ['marker link labels holding `@`', 'flowchart LR\n  A x--e1@--x B\n  B o--e2@--o C'],
+  ['nodes after a `;` in style and classDef statements', 'flowchart LR\n  style A fill:red;a:b\n  classDef c fill:red; A:b'],
   ['a string then text in shape, pipe, text-arrow and subgraph labels', 'flowchart LR\n  A["a" b] -->|"c" d| B -- "e" f --> C\n  subgraph S["g" h]\n    A\n  end\n  subgraph "i"j\n    B\n  end'],
 ]
 
@@ -354,6 +356,7 @@ const FLOWCHART_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly
   // Mermaid ends the statement at a `;` and reads the next property as a
   // node, or, after a `#` color, joins the two into one declaration.
   ['a `;` between style properties', 'flowchart LR\n  style A fill:red;stroke:blue', ['A', 'stroke:blue'], ['A'], 'fill="red" stroke="blue"', 'flowchart_style_semicolon', 2],
+  ['a `;` after a style color, before text naming no style property', 'flowchart LR\n  style A fill:#f00;a:b', ['A'], ['A'], 'fill="#f00"', 'flowchart_style_semicolon', 2],
   ['a `;` between classDef properties after a color', 'flowchart LR\n  A:::c\n  classDef c fill:#f9f; stroke:#0a0', ['A'], ['A'], 'fill="#f9f" stroke="#0a0"', 'flowchart_style_semicolon', 3],
   ['a `;` between linkStyle properties', 'flowchart LR\n  A --> B\n  linkStyle 0 stroke:red;stroke-width:2px', ['A', 'B', 'stroke-width:2px'], ['A', 'B'], 'stroke="red"', 'flowchart_style_semicolon', 3],
 ]
