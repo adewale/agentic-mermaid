@@ -369,7 +369,7 @@ function accessibilityOrderWarnings(canonicalSource: string): LayoutWarning[] {
   return statementAccessibilityConflicts({ title: read?.title, descr: read?.description }, source.accessibility).map(directive => ({
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'xychart_accessibility_order',
-    message: `XY chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last; this reader cannot tell which that is, so the source is kept as written and the one on its own line is drawn. Keep one ${directive}, on a line of its own.`,
+    message: `XY chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last, and so does the drawing; the typed body cannot hold both, so the source is kept as written. Keep one ${directive}, on a line of its own.`,
   }))
 }
 

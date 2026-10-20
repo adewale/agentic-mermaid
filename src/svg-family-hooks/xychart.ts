@@ -11,7 +11,6 @@ import {
   xychartStatementEnds,
 } from '../xychart/parser.ts'
 import { lowerXYChartScene } from '../xychart/renderer.ts'
-import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
 
 /** The xychart SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
@@ -34,8 +33,11 @@ export const XYCHART_SVG_HOOKS = {
   layout: ctx => {
     const familyConfig = ctx.familyConfig as { config: ReturnType<typeof resolveXYChartConfig> } | undefined
     const familyAppearance = ctx.familyAppearance as { theme: ReturnType<typeof resolveXYChartTheme> } | undefined
+    // The grammar reads the accessibility directives itself, in order, so a
+    // directive after a statement and one on a line of its own resolve as in
+    // Mermaid: the one written last wins.
     const chart = applyResolvedXYChartConfig(
-      withFrontmatterTitle(withAccessibilityObject(parseXYChart(ctx.source.familyLines), ctx.source.accessibility), ctx.source.frontmatter),
+      withFrontmatterTitle(parseXYChart(ctx.source.lines), ctx.source.frontmatter),
       familyConfig?.config ?? resolveXYChartConfig({}),
       familyAppearance?.theme ?? resolveXYChartTheme({}),
     )
