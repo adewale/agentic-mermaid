@@ -1,9 +1,9 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. No clocks, npm registry or browser launch in these tests.
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
 import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from '../../eval/benchmark/browser-memory.ts'
