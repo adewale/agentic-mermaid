@@ -1,0 +1,89 @@
+import { describe, expect, test } from 'bun:test'
+import { resolve } from 'node:path'
+import { createMeasuredLayoutCache, layoutLayeredGraph } from '../layout/agentic-producer-core.ts'
+import { layoutMeasuredForest } from '../layout/measured-forest.ts'
+import type { AgenticLayout, MeasuredGraph } from '../layout/agentic-layered-core.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
+
+const measured = (): MeasuredGraph => ({
+  nodes: ['a', 'b', 'c', 'd'].map(id => ({ id, width: 80, height: 32 })),
+  edges: [{ source: 0, target: 1, minSpan: 1, label: { width: 50, height: 16 } },
+    { source: 1, target: 2, minSpan: 1 }, { source: 2, target: 0, minSpan: 1 }],
+  direction: 'TB', padding: 30, nodeSpacing: 40, layerSpacing: 60,
+})
+const compute = (input: MeasuredGraph): AgenticLayout => layoutLayeredGraph(input, layoutMeasuredForest, reason => { throw new Error(reason) })
+
+describe('native measured geometry reuse', () => {
+  test('reattaches current authored text and execution receipts after an edit of equal-size cards', () => {
+    const options = { graphLayout: { backend: 'agentic' as const } }
+    const first = renderMermaidSVGWithReceipt('flowchart TB\n A[Cat] --> B[Pet]', options)
+    const edited = renderMermaidSVGWithReceipt('flowchart TB\n A[Dog] --> B[Pet]', options)
+    expect(first.svg).toContain('Cat')
+    expect(edited.svg).toContain('Dog')
+    expect(edited.svg).not.toContain('Cat')
+    expect(edited.receipt.layoutDecisions).toEqual(first.receipt.layoutDecisions)
+    expect(edited.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+  })
+
+  test.each(['cycle', 'compound', 'shared fan'])('isolates cached %s geometry from caller mutations', kind => {
+    let calls = 0
+    const cached = createMeasuredLayoutCache(input => { calls++; return compute(input) })
+    let graph = measured()
+    if (kind === 'compound') graph = { ...graph,
+      nodes: graph.nodes.map(node => ({ ...node, parent: 0 })),
+      groups: [{ id: 'scope', minWidth: 200, padding: { top: 40, right: 20, bottom: 20, left: 20 } }],
+    }
+    if (kind === 'shared fan') graph = { ...graph, shareCompleteFans: true,
+      edges: [0, 1].flatMap(source => [2, 3].map(target => ({ source, target, minSpan: 1 }))),
+    }
+    const first = cached(graph), expected = structuredClone(first)
+    first.nodes[0]!.x = 99999
+    first.edges[0]!.points[0]!.y = -99999
+    if (first.edges[0]!.labelPosition) first.edges[0]!.labelPosition!.x = 99999
+    if (first.groups) first.groups[0]!.width = 99999
+    if (first.sharedEdges) (first.sharedEdges as number[]).push(99999)
+    const second = cached(structuredClone(graph))
+    expect(calls).toBe(1)
+    expect(second).toEqual(expected)
+    second.edges[0]!.points.push({ x: -1, y: -1 })
+    expect(cached(graph)).toEqual(expected)
+    expect(calls).toBe(1)
+  })
+
+  test('includes measured constraints and private solver options and never retains failed computations', () => {
+    let calls = 0
+    const cached = createMeasuredLayoutCache(input => { calls++; return compute(input) })
+    const graph = measured()
+    cached(graph)
+    const variants: MeasuredGraph[] = [
+      { ...graph, direction: 'LR' }, { ...graph, nodeSpacing: 41 }, { ...graph, layerSpacing: 61 },
+      { ...graph, compactPrivateRanks: true }, { ...graph, authoredCycleOrder: true },
+      { ...graph, nodes: graph.nodes.map((node, i) => i ? node : { ...node, width: 81 }) },
+      { ...graph, edges: graph.edges.map((edge, i) => i ? edge : { ...edge, label: { width: 51, height: 16 } }) },
+      { ...graph, edges: graph.edges.map((edge, i) => i ? edge : { ...edge, minSpan: 2 }) },
+    ]
+    for (const variant of variants) expect(cached(variant)).toEqual(compute(variant))
+    expect(calls).toBe(1 + variants.length)
+    for (const width of [NaN, Infinity, -Infinity, 0]) {
+      const invalid = { ...graph, nodes: graph.nodes.map((node, i) => i ? node : { ...node, width }) }
+      expect(() => cached(invalid)).toThrow()
+      expect(() => cached(invalid)).toThrow()
+    }
+    expect(calls).toBe(1 + variants.length + 8)
+    expect(cached(graph)).toEqual(compute(graph))
+    expect(calls).toBe(1 + variants.length + 8)
+  })
+
+  test.each(['0', '1'])('honors the common startup cache switch %s', setting => {
+    const child = Bun.spawnSync([process.execPath, '-e', `
+      const { createMeasuredLayoutCache } = await import('./src/layout/agentic-producer-core.ts')
+      let calls = 0
+      const cached = createMeasuredLayoutCache(() => { calls++; return { topology: 'layered', width: 0, height: 0, nodes: [], edges: [] } })
+      const graph = { nodes: [], edges: [], direction: 'TB', padding: 0, nodeSpacing: 0, layerSpacing: 0 }
+      cached(graph); cached(graph)
+      console.log(calls)
+    `], { cwd: resolve(import.meta.dir, '../..'), env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: setting }, stdout: 'pipe', stderr: 'pipe' })
+    expect(child.exitCode).toBe(0)
+    expect(child.stdout.toString().trim()).toBe(setting === '0' ? '2' : '1')
+  })
+})
