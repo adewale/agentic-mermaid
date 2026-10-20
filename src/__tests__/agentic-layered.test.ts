@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layered.ts'
+import { layoutLayeredGraph } from '../layout/agentic-layered-core.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import type { Direction, Point } from '../types.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
@@ -46,7 +47,42 @@ function crossesInterior(a: Point, b: Point, box: Box): boolean {
 }
 
 describe('owned measured layered layout', () => {
+  test('retains feasible loop routes when optional request work is exhausted', () => {
+    const input = measured({ nodes: [{ id: 'loop', width: 120, height: 60 }], edges: [{ source: 0, target: 0, minSpan: 1, label: { width: 80, height: 20 } }] })
+    const work = { attempts: 0, scorePairs: 0, loopPairs: 1, routing: { pairs: 0, arcs: 0, swaps: 0 } }
+    const output = layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) }, undefined, work)
+    expect(work.loopPairs).toBeLessThan(0)
+    expect(output.edges[0]!.points.length).toBeGreaterThanOrEqual(4)
+    const box = { ...output.nodes[0]!, width: 120, height: 60 }
+    expect(onOutline(output.edges[0]!.points[0]!, box)).toBe(true)
+    expect(onOutline(output.edges[0]!.points.at(-1)!, box)).toBe(true)
+    for (let i = 1; i < output.edges[0]!.points.length; i++) expect(crossesInterior(output.edges[0]!.points[i - 1]!, output.edges[0]!.points[i]!, box)).toBe(false)
+  })
   for (const direction of ['TD', 'BT', 'LR', 'RL'] satisfies Direction[]) {
+    test(`compacts an isolated labelled loop without masking its own shaft in ${direction}`, () => {
+      const horizontal = direction === 'LR' || direction === 'RL'
+      const input = measured({ direction, padding: 16, nodeSpacing: 24, layerSpacing: 48,
+        nodes: [{ id: 'loop', width: horizontal ? 60 : 120, height: horizontal ? 120 : 60 }],
+        edges: [{ source: 0, target: 0, minSpan: 1, label: { width: 80, height: 20 } }],
+      })
+      const output = layoutAgenticGraph(input), edge = output.edges[0]!, label = edge.labelPosition!
+      expect(layoutAgenticGraph(input)).toEqual(output)
+      expect(edge.points).toHaveLength(4)
+      const node = { ...output.nodes[0]!, width: input.nodes[0]!.width, height: input.nodes[0]!.height }
+      const pill = { x: label.x - 40, y: label.y - 10, width: 80, height: 20 }
+      expect(intersects(node, pill)).toBe(false)
+      expect(onOutline(edge.points[0]!, node)).toBe(true)
+      expect(onOutline(edge.points.at(-1)!, node)).toBe(true)
+      expect(Math.hypot(edge.points[0]!.x - edge.points.at(-1)!.x, edge.points[0]!.y - edge.points.at(-1)!.y)).toBeGreaterThanOrEqual(8)
+      for (let i = 1; i < edge.points.length; i++) {
+        expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, node)).toBe(false)
+        expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, pill)).toBe(false)
+      }
+      expect(pill.x).toBeGreaterThanOrEqual(input.padding)
+      expect(pill.y).toBeGreaterThanOrEqual(input.padding)
+      expect(pill.x + pill.width).toBeLessThanOrEqual(output.width - input.padding)
+      expect(pill.y + pill.height).toBeLessThanOrEqual(output.height - input.padding)
+    })
     test(`aligns distinct fan-in ports with reserved lanes in ${direction}`, () => {
       const horizontal = direction === 'LR' || direction === 'RL'
       const input = measured({ direction, padding: 16, nodeSpacing: 24, layerSpacing: 48,
