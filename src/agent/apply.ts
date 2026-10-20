@@ -19,7 +19,7 @@
 import { parseRegisteredMermaid } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { createMermaid, type CreateMermaidOptions } from './create.ts'
-import { mutateChecked } from './mutate.ts'
+import { applyMutationBatch } from './mutate.ts'
 import { renderFailureWarning, verifyMermaid } from './verify.ts'
 import { hasOpSchema, type OpFamily, type OpValidationError } from './op-schema.ts'
 import type { MutableValidDiagram, VerifyResult, DiagramKind, LayoutWarning, MutationError, Result } from './types.ts'
@@ -108,16 +108,7 @@ export function buildChecked(kind: DiagramKind, ops: unknown[], opts?: CreateMer
   } catch (e) {
     return err({ code: 'INVALID_OP', message: e instanceof Error ? e.message : String(e), opIndex: -1 })
   }
-  for (let i = 0; i < checkedOps.length; i++) {
-    const r = mutateChecked(d, checkedOps[i])
-    if (!r.ok) {
-      let kindLabel: unknown
-      try { kindLabel = (checkedOps[i] as { kind?: unknown } | null)?.kind } catch {}
-      return err({ ...r.error, opIndex: i, message: `op[${i}]${typeof kindLabel === 'string' ? ` (${kindLabel})` : ''}: ${r.error.message}` })
-    }
-    d = r.value
-  }
-  return ok(d)
+  return applyMutationBatch(d, checkedOps) as Result<MutableValidDiagram, CheckedBuildError>
 }
 
 // ---- Declarative batch entrypoint -----------------------------------------
@@ -204,12 +195,12 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
     return { ok: false, family: null, error: { code: 'INVALID_OP', message: 'applyOps requires either `source` (to edit) or `family` (to build)' } }
   }
 
-  // Edit path: fold ops over the parsed diagram.
-  for (let i = 0; i < checkedOps.length; i++) {
-    const r = mutateChecked(d, checkedOps[i])
-    if (!r.ok) return { ok: false, family: d.kind, opIndex: i, error: r.error }
-    d = r.value
+  const edited = applyMutationBatch(d, checkedOps)
+  if (!edited.ok) {
+    const { opIndex, ...error } = edited.error
+    return { ok: false, family: d.kind, opIndex, error }
   }
+  d = edited.value as MutableValidDiagram
   return verifiedEnvelope(d, before)
 }
 

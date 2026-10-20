@@ -103,3 +103,7 @@ retained at the end rather than discarded. Leading wrapper bytes retain their
 existing verbatim contract. Other families keep their existing segmented/opaque
 policies and report any known loss.
 
+Declarative edits, CLI batches, and builders apply checked operations to private
+intermediate bodies, then serialize and reparse once at commit. A failed operation
+returns its index and emits no edited source; the original diagram stays untouched.
+Single public `mutate` calls retain parser-closure checks at each call boundary.

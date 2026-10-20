@@ -1,3 +1,4 @@
+import { applyMutationBatch } from '../agent/mutate.ts'
 // ============================================================================
 // am — agentic-mermaid CLI (v4).
 // ============================================================================
@@ -1031,24 +1032,6 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
   }
 }
 
-function mutateAny(d: ParsedDiagram, op: AnyMutationOp): Result<MutableValidDiagram, CliMutationError> {
-  // mutate() dispatches to the family's registered mutator by diagram kind,
-  // so the CLI only rules out what the registry cannot handle: opaque bodies
-  // (source-preserved syntax has no structured ops) and families without a
-  // mutate hook. The per-family narrowing cascade this replaces re-encoded
-  // the family list a 13th time.
-  const plugin = getFamily(d.kind)
-  if (d.body.kind !== 'opaque' && d.body.kind !== 'extension' && d.body.kind !== 'preserved' && plugin?.mutate && plugin.serialize) {
-    // `--op`/`--ops` arrive as untyped JSON, so the CLI funnels through the same
-    // mutateChecked choke point the MCP paths use: shape is validated (a wrong/
-    // missing/mistyped field is a prescriptive INVALID_OP) before the mutator.
-    return mutateChecked(d as MutableValidDiagram, op)
-  }
-  return {
-    ok: false,
-    error: { code: 'UNSUPPORTED_FAMILY', message: `mutate supports ${knownFamilies().join(', ')} diagrams; got ${d.kind}${d.body.kind === 'opaque' ? ' (source-level/opaque body — structured mutation is not exposed for this family or syntax)' : ''}` },
-  }
-}
 
 export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunResult {
   const r0 = parseRegisteredMermaid(source)
@@ -1056,16 +1039,15 @@ export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunR
     const env = parseErrorEnvelope(r0.error)
     return { ok: false, error: { code: 'PARSE_FAILED', message: env.error.message, details: env.error.details } }
   }
-  let current: ParsedDiagram = r0.value
-  for (let index = 0; index < ops.length; index++) {
-    const op = ops[index]!
-    const next = mutateAny(current, op)
-    if (!next.ok) {
-      const details = (next.error as { details?: unknown }).details
-      return { ok: false, error: { ...next.error, details: { index, op, ...(typeof details === 'object' && details ? (details as Record<string, unknown>) : {}) } } }
-    }
-    current = next.value
+  if (r0.value.body.kind === 'opaque' || r0.value.body.kind === 'preserved' || r0.value.body.kind === 'extension' || !getFamily(r0.value.kind)?.mutate) {
+    return { ok: false, error: { code: 'UNSUPPORTED_FAMILY', message: `No structured mutation contract for ${r0.value.kind}` } }
   }
+  const batch = applyMutationBatch(r0.value, ops)
+  if (!batch.ok) {
+    const { opIndex, ...error } = batch.error
+    return { ok: false, error: { ...error, details: { index: opIndex, op: ops[opIndex] } } }
+  }
+  const current = batch.value
   const { accepted, verification: verify } = verifyMutationResult(current, r0.value)
   if (!accepted) {
     return {
