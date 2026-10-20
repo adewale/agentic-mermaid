@@ -60,6 +60,11 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a colon right after the member colon', 'classDiagram\n  A::B', ':B', 'class_member_text', 2],
   ['a semicolon in member text', 'classDiagram\n  A : x; y', 'x; y', 'class_member_text', 2],
   ['a second header', 'classDiagram\n  classDiagram\n  class Animal', 'Animal', 'class_repeated_header', 2],
+  // Mermaid reads a link only as `click A href "…"` or `link A "…"`.
+  ['`click` without `href`', 'classDiagram\n  class Shape\n  click Shape "https://example.com" "tip"', 'https://example.com', 'class_link_form', 3],
+  ['`link` with `href`', 'classDiagram\n  class Shape\n  link Shape href "https://example.com"', 'https://example.com', 'class_link_form', 3],
+  ['an unquoted URL', 'classDiagram\n  class Shape\n  link Shape https://example.com', 'https://example.com', 'class_link_form', 3],
+  ['a link keyword in upper case', 'classDiagram\n  class Shape\n  CLICK Shape href "https://example.com"', 'https://example.com', 'class_link_form', 3],
   // Mermaid reads a member holding `)` as a method, and fails on one with no name and `(…)` before it.
   ['a `)` with no `(` in a body member', 'classDiagram\n  class A {\n    +deposimount)\n  }', 'deposimount)', 'class_member_parenthesis', 3],
   ['a method with no name in a member statement', 'classDiagram\n  class A\n  A : (x)', '(x)', 'class_member_parenthesis', 3],

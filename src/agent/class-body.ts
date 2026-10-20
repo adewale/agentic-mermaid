@@ -901,6 +901,15 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           message: 'A member holding a `)` with no name and `(…)` before it is read as written. Pinned Mermaid reads a member holding `)` as a method, and fails on one it cannot split into a name and `(…)`: it draws no diagram. Write the `)` as `#41;`, or the method as `name(…)`.',
         })
       }
+      // Mermaid's class grammar reads a link as `click A href "…"` or
+      // `link A "…"`: its keywords in lower case, the URL quoted.
+      if (value.kind === 'interaction') {
+        const form = /^(click|link)\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+(href\s+)?(")?/.exec(node.text.trim())
+        if (!form || (form[1] === 'click') !== (form[2] !== undefined) || form[3] === undefined) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_link_form', line: header + 1 + node.source.line,
+          message: 'This link is read as a link to its URL. Pinned Mermaid reads a link only as `click A href "…"` or `link A "…"`, its keyword in lower case and its URL quoted, and rejects this line. The writer writes `click A href "…"`.',
+        })
+      }
       if (value.kind === 'header') warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_repeated_header', line: header + 1 + node.source.line,
         message: 'A second `classDiagram` header is read as nothing, and the writer leaves it out. Pinned Mermaid rejects it. Remove it.',
