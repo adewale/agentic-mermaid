@@ -1,0 +1,476 @@
+# Graph layout backends and comparative measurement
+
+Status: proposed implementation contract. ELK remains supported and is the
+default. The Agentic backend is opt-in and may initially support a smaller
+declared input domain. Implementation scheduling remains in root TODO.md.
+
+This design adds an owned graph-layout backend alongside ELK, lets callers
+select either one, and measures both through the same Agentic Mermaid rendering
+pipeline. The deliverable is supported selection, truthful execution evidence
+and reproducible comparisons. It does not require declaring either backend the
+winner or removing ELK.
+
+## Scope and existing foundations
+
+The integration baseline is main
+[ee00f39](https://github.com/adewale/agentic-mermaid/tree/ee00f3943dcee603bf4de4a4c3da73e36f846641).
+At that revision, Flowchart, State, Architecture, Class and ER use ELK Layered.
+Other families retain their own placement algorithms. Requirement becomes an
+additional consumer only when its implementation is integrated; the open
+[six-family PR](https://github.com/adewale/agentic-mermaid/pull/438) is not part
+of this baseline.
+
+The new backend replaces graph geometry production, not parsing, typed editing,
+prepared text, style resolution, Scene, SVG/PNG output, terminal-cell layout or
+security. Family-specific meanings remain with their family adapters. This
+follows [family composition](family-primitive-composition.md) and
+[issue 409](https://github.com/adewale/agentic-mermaid/issues/409).
+
+Build on these existing boundaries:
+
+| Boundary | Responsibility |
+|---|---|
+| src/types.ts and src/render-contract.ts | Checked public options, immutable request resolution, applicability, transport parity and receipts |
+| src/positioning.ts | One resolved request enters the registered family layout hook; the resulting positioned artifact is independently checked |
+| src/layout-engine.ts, src/class/layout.ts, src/er/layout.ts and src/architecture/layout.ts | Family graph preparation, geometry production, routing and repair |
+| src/scene/positioned.ts | Shared retained Scene and final paint evidence |
+| src/render-stages.ts and eval/benchmark/ | Optional stage observation and existing micro, release, browser and peer measurements |
+
+The [layered layout proposal](../../project/layered-layout-proposal.md) and
+[conditional forest contract](../../project/conditional-forest-layout.md)
+already landed through PR 443. This specification supplies their public backend
+selection and comparative measurement contract. The existing default-off forest
+experiment and common final-artifact assessor are foundations, not a general
+replacement. Explicit ELK selection bypasses the forest experiment; omission
+preserves existing behavior, including an explicitly enabled legacy experiment.
+
+## Backend selection
+
+Add one checked, family-scoped render option. The public name distinguishes
+graph layout from the existing Scene rendering backend.
+
+```ts
+interface GraphLayoutOptions {
+  backend: 'elk' | 'agentic'
+  fallback?: 'none' | 'elk'
+}
+
+interface RenderOptions {
+  // Existing fields remain.
+  graphLayout?: GraphLayoutOptions
+}
+```
+
+| Request | Required behavior |
+|---|---|
+| graphLayout omitted | Preserve today's ELK path for participating graph families |
+| backend: 'elk' | Use the existing ELK strategy and downstream family pipeline |
+| backend: 'agentic', fallback omitted or 'none' | Use only Agentic; report unsupported inputs or exhausted feasible candidates explicitly |
+| backend: 'agentic', fallback: 'elk' | Try Agentic when eligible; permit one attributed transition to ELK for the cases defined below |
+| backend: 'elk', fallback: 'elk' | Reject redundant configuration during option validation |
+| Unknown backend, fallback or nested field | Reject during checked option admission |
+
+An empty graphLayout object is invalid. Normalize omitted fallback to 'none'.
+There is no automatic backend race, machine-dependent selector or default
+change in this delivery. Candidate generation within the selected backend
+remains deterministic.
+
+ELK selection means the current Agentic Mermaid pipeline using ELK, including
+existing candidate strategies, repairs and certification. It does not expose
+unprocessed ELK output or promise new ELK algorithms.
+
+Source, parsed-diagram, layout, verify, mutation validation, SVG and PNG adapters
+must consume the same resolved selection. Source and parsed representations of
+the same diagram must not choose different backends. Add CLI options
+--graph-layout elk|agentic and --graph-layout-fallback none|elk, and project the
+same checked option into MCP and browser surfaces through their existing schema
+authority. These names describe new interfaces, not commands available today.
+
+Preserve public return shapes. String-returning render APIs still return strings
+on success and throw a typed owning exception on failure. Convert an internal
+unsupported decline into that API's existing exception or structured diagnostic
+boundary; do not add a success/error union to existing render return types.
+
+Mermaid config.layout and flowchart/state defaultRenderer retain their existing
+preservation and diagnostic behavior. They are not aliases for graphLayout.
+Source syntax, canonical serialization and Mermaid compatibility do not change.
+Family normalizers cannot rewrite the selected backend.
+
+For families without this graph producer, retain their normal layout and emit
+the existing RENDER_OPTION_NOT_APPLICABLE diagnostic for an explicit selector.
+Declare applicability at existing family/option authorities; do not reuse a
+spacing-option family list that also includes C4. Capability listings must
+distinguish family availability from Agentic's input-specific eligibility.
+
+### Terminal output and graphical companions
+
+Pixel and terminal-cell geometry remain distinct. A graphLayout selector does
+not replace Flowchart's grid placer or Class/ER cell placement. Where a terminal
+family consumes pixel placement, the selector must reach that dependency.
+Architecture currently calls layoutArchitectureDiagram directly from
+src/ascii/architecture.ts and quantizes its pixel positions into cells. Forward
+the captured selector through that call and src/render-family-hooks.ts; its
+terminal geometry may therefore change under explicit Agentic selection.
+
+Terminal APIs can also evaluate optional graphical connector evidence, including
+on deferred receipt access. That execution must honor graphLayout too. Explicit
+Agentic without fallback must never initialize ELK through a hidden companion
+path. An unsupported optional graphical projection retains the existing explicit
+projection limitation while native terminal output may still succeed.
+
+Execution evidence must identify whether a graph decision belongs to primary
+pixel placement or a graphical companion. A successful terminal grid is not
+evidence that the Agentic graph backend supports that diagram. Full receipt
+consumption must be included in comparisons that evaluate such companions.
+If primary and companion layouts both execute, record separate decisions rather
+than allowing the later decision to overwrite the earlier one.
+
+## Geometry production contract
+
+Keep the existing FamilyDescriptor registry and positioned-artifact boundary.
+Introduce an internal graph-producer interface for the two implementations;
+do not introduce a second family registry or a public layout plugin framework.
+
+Family adapters prepare their domain model and measured requirements before
+dispatch. The backend-neutral problem must retain:
+
+- Stable authored node, group and edge identities, ordered endpoints, parent
+  membership and deterministic source order. Internal dense indices must map
+  back without collisions between authored and generated identities.
+- Measured node/card compartments and group titles, minimum sizes, padding,
+  group hierarchy and effective direction, including mixed directions.
+- Port sides, fixed-order requirements where used, endpoint semantics and
+  marker/outline clearance requirements supplied by the family.
+- Every edge, including duplicates, reciprocal edges and self-loops; measured
+  labels, their ownership and endpoint labels where used; rank-distance and
+  route requirements actually consumed by the current family pipeline.
+- Prepared text and its measurement context, with dimensions matching the
+  chosen style, font, wrapping and units.
+
+This is a graph contract, not a universal representation for charts, sequence
+messages or weighted Sankey ribbons. Existing positioned and Scene types remain
+the outward authority. An adapter may initially wrap ELK-shaped intermediate
+data, but the owned algorithm must not depend on elkjs at runtime. Backend-
+specific tuning stays inside its adapter; do not reduce the common contract to
+an untyped map of ELK option strings.
+
+Each implementation returns either a geometry candidate or a typed decline.
+A candidate contains positioned nodes/groups, owned label geometry, routes and
+endpoint/port references sufficient for the existing family pipeline. A decline
+names an unsupported requirement or a documented local search limit. Validate
+semantic correspondence before accepting geometry.
+
+Existing family routing, shape clipping and certification remain shared where
+their contracts agree. A backend may provide better routes and avoid a repair
+only when the existing behavioral contract is still checked. No post-placement
+movement may retain stale routes, labels, bounds or certificates. Measurement
+must identify backend-specific adapter and repair costs rather than assuming
+the two implementations perform identical internal work.
+
+## Agentic implementation domain
+
+Extend the forest prototype rather than creating a competing fast path. Its
+first declared domain is flat rectangular forests without edge labels, fan-in,
+cycles, long-rank edges or State-specific visuals. Unsupported shapes or graph
+features must be declined before expensive work; they must not be silently
+flattened, dropped or reinterpreted.
+
+The first broader owned producer targets flat rectangular labelled DAGs,
+including fan-in, parallel edges, disconnected components and extended rank
+spans. The expansion sequence then covers cycles and constrained ports, followed
+by compound graphs and mixed directions. Each expansion needs complete
+behavioral evidence before the capability predicate accepts those inputs.
+Class/ER compartments, Architecture ports and State semantics remain adapter
+responsibilities even when they share a producer.
+
+Use indexed working data and published graph-drawing algorithms where useful.
+Pele's layered and compound code, including its proposed global group-ordering
+improvements, are implementation references. Selective adaptation is permitted
+with the required license notices. Do not depend on private Pele package imports
+or replace Agentic's Scene pipeline with Pele SVG.
+
+This delivery does not claim incremental layout. Prior positions, authored
+rank/order hints and local-edit stability are later extensions of the same
+problem contract. Report edit stability now so later work has a baseline.
+
+## Fallback and failure handling
+
+Fallback is explicit policy, not proof that Agentic completed an input.
+
+| Agentic outcome | With fallback: 'none' | With fallback: 'elk' |
+|---|---|---|
+| Eligible candidate passes mandatory checks | Return Agentic artifact | Return Agentic artifact |
+| Unsupported requirement | Typed unsupported result | Dispatch to ELK without fabricating an Agentic success |
+| Documented local search budget exhausted or all bounded candidates rejected by geometry checks | Explicit bounded failure | Attempt ELK and retain the rejection reason |
+| Parser/admission error, invalid options, global resource limit or security failure | Preserve the owning error | Preserve the owning error; do not retry to bypass the boundary |
+| Unexpected exception, lost identity/edge/label, malformed candidate or internal consistency failure | Engine error | Engine error; do not conceal a defect through fallback |
+
+At most one backend transition is allowed, Agentic to ELK. ELK never falls back
+to Agentic. Existing ELK candidate/degradation bounds remain unchanged for an
+explicit ELK request. The fallback policy declares bounded Agentic attempts and
+reserves work for ELK under an admitted total resource envelope before running;
+it cannot reset global accounting or multiply retries without a declared bound.
+No selection may depend on elapsed time, benchmark history or global success
+rates.
+
+Use a closed reason-code catalog. A complete, finite candidate that fails a
+declared mandatory geometric feasibility check may be candidate-rejected.
+Non-finite coordinates, missing identities/edges/labels, invalid endpoint
+references and contradictory ownership are internal defects, not recoverable
+infeasibility. Crossing counts remain soft quality evidence under the existing
+policy; they are not an automatic fallback trigger.
+
+Support typed outcomes for unsupported, local-work-limit, candidate-rejected,
+global-limit and internal-error without collapsing them into a generic render
+failure. Integrate with existing error-origin and warning catalogs: an explicit
+unsupported backend request is a capability/configuration limitation; an engine
+defect must remain attributable to the engine. Optional terminal companions
+preserve their existing limitation behavior.
+
+## Execution evidence and cache isolation
+
+Add a deterministic layoutDecision to the relevant positioned artifact and
+public receipt projection. Do not overload executionDecision.backend, which
+already identifies the Scene painting backend. Retain the execution evidence
+privately with the admitted artifact, so consumer-provided metadata cannot
+authorize cached geometry or certificates.
+
+The decision must expose the requested backend and fallback policy, the executed
+backend, bounded attempt outcomes and reason codes, implementation/policy
+identity, and whether the result is primary geometry or a companion. A family
+that does not participate reports not-applicable rather than claiming ELK or
+Agentic execution. Fallback must also be visible through the existing diagnostic
+surfaces when the caller does not request a receipt.
+
+Keep observations separate from deterministic evidence. Elapsed times, cache
+hits/misses, heap/RSS samples and machine identity belong in an optional trusted
+diagnostic trace and benchmark records, not request/output digests or secured
+SVG bytes. Cache-hit and cache-miss executions must have the same semantic
+layoutDecision; actual computation/cache activity remains observable in trace.
+On a cache hit, the retained decision describes the artifact's logical
+production path. The trace separately records which kernels actually ran during
+this call, including zero calls and existing singleton bypasses. Reports must
+distinguish selected artifacts from physical solver invocations.
+
+Capture graphLayout during immutable request resolution and include its
+normalized policy in existing request identity. Project the actual decision
+from the retained positioned artifact without rerunning layout. Follow the
+existing render-contract compatibility/versioning policy for receipt additions;
+do not add a new hash of our own source inputs as a provenance system.
+
+Every geometry cache must distinguish backend and implementation/policy identity
+and include all geometry-affecting inputs: hierarchy, order, directions, ports,
+labels, sizes, spacing, style/text measurement and effective family options.
+A successful fallback cannot be cached and later labelled an Agentic result.
+Return immutable private data or isolated copies, retain bounded eviction, and
+avoid cross-request mutation through caches. No persistent reuse across edits
+is assumed.
+
+Add symmetric benchmark controls to disable/reset all relevant geometry caches
+for both implementations. Preserve the existing ELK cache control for backwards
+compatibility. Disabling only ELK's cache is not a valid uncached comparison.
+
+## Correctness and layout quality
+
+Both implementations pass the existing semantic, family geometry, route, Scene,
+paint and output-security contracts on the artifacts they actually return.
+Backend choice cannot weaken a checker, silently remove content or convert a
+hard requirement into a soft score. Equality with ELK does not waive a known
+defect, and ELK pixels are not the correctness oracle.
+
+Extend owning tests with independently specified identities, endpoints, labels,
+membership and marker semantics. Use purposeful combinations: grouped fan-in,
+nested groups with wide titles, labelled feedback cycles, parallel/reciprocal
+edges, self-loops, mixed directions, nonrectangular outlines and fixed-side
+Architecture ports; include namespaces, Class/ER cardinalities and State notes.
+Import reduced upstream failure cases where their semantics apply.
+
+Use the common final-artifact assessor and the policy in
+[quality.md](../../quality.md), [layout-rubric.md](layout-rubric.md) and
+[route-contracts.md](route-contracts.md). Report the quality vector separately:
+readable titles, proper crossings, padded label conflicts, avoidable bends,
+preferred ports, symmetry and area, retaining the applicable priority order.
+Do not introduce a new weighted score that trades hard feasibility for area or
+crossings. Report unavailable evidence explicitly.
+
+Require deterministic geometry and secured bytes for repeated equivalent
+requests within each backend on supported runtimes, regardless of cache state.
+The two backends need not produce identical geometry or bytes. Refactoring the
+existing ELK path must preserve its output; intentional ELK fixes require their
+own behavioral evidence rather than being hidden in backend extraction.
+
+Review a fixed, stratified visual sample of both final outputs, including worst
+metric regressions and compound cases. SVG acceptance, label survival and
+passing certificates do not alone establish equal readability.
+
+## Comparative measurement
+
+Extend existing benchmark commands and report types; do not create a parallel
+benchmark programme. Enroll these three arms from the same built package:
+
+1. Explicit ELK.
+2. Explicit Agentic without fallback.
+3. Agentic with ELK fallback.
+
+Also retain a pre-change ELK package comparison for extraction overhead and a
+true same-artifact A/A control for environmental variation. Keep input, effective
+typography/style, safety/security settings, harness and output consumption equal.
+Backend-specific tuning must be named, pinned and reported; no hidden quality
+reduction may count as a speedup.
+
+Extend bench:release with --layout-modes elk,agentic,agentic-with-elk and
+--layout-cache off|normal. The third mode maps to backend: 'agentic' with
+fallback: 'elk'; these are report arm names, not a third backend. Apply equivalent
+selection to the existing browser, micro and peer runners where applicable.
+The following is a proposed invocation after implementation:
+
+```sh
+bun run bench:release --baseline /path/to/pre-change --candidate /path/to/candidate \
+  --layout-modes elk,agentic,agentic-with-elk --layout-cache off \
+  --rounds 3 --reps 5 --out bench-report/layout-backends
+```
+
+Do not pass new selector fields into the pre-change package; run it as the
+unchanged ELK control. Emit the existing machine-readable report plus a readable
+comparison with per-case outcomes, denominators and metric regressions.
+
+### Populations and attribution
+
+Retain all enrolled inputs, including unsupported families, backend declines,
+timeouts and failures. Derive family/corpus membership from existing sources,
+not a new copied capability roster. Publish distinct-source and occurrence
+counts, predeclared Agentic eligibility, attempted/completed Agentic inputs,
+fallback count and final artifact success separately, per family and workload.
+Corpus eligibility is not production traffic share.
+
+Report paired timing on the same successful inputs, with its denominator beside
+every aggregate. Do not time rejection as fast rendering, compare unrelated
+success populations or count ELK fallback as Agentic completion. Retain all
+unmatched statuses alongside matched-success results. Synthetic deployment mixes
+must be labelled as such when real traffic weights are unavailable.
+
+Each benchmark row records input ID, arm, actual execution/attempt outcomes,
+cache regime, certification status, output consumption, sample population and
+artifact identity. Fallback latency pays the Agentic attempt, conversion,
+certification and ELK work. Optional diagnostic collection cannot be required
+for ordinary rendering.
+
+### Timing and memory boundaries
+
+Release decisions use uninstrumented public calls. Report kernel-only and
+instrumented pipeline measurements as diagnostics, separately from those calls.
+Extend the stage observer to identify Agentic kernel time and graph preparation,
+conversion, routing/repair and certification where the owning boundaries allow.
+Kernel timers are nested inside layout; exclusive totals must count them once.
+Do not infer another renderer's internal stages from its total time.
+
+Keep both text-return cases and fully consumed public cases. The latter include
+renderWithReceipt, UTF-8 encoding of the output and full receipt JSON
+serialization inside the timed operation, including deferred companion work.
+PNG/rasterization and terminal output retain separate cohorts.
+
+Measure these regimes separately:
+
+| Regime | Required observations |
+|---|---|
+| Fresh process | Use a separate fresh process or browser context for each first-use scenario: import, eligible Agentic render, explicit ELK and fallback; include initialization cost |
+| Warm process with geometry caches disabled | Both backends recompute layout; disclose retained text/font caches and warm-up |
+| Exact repeat with normal caches | Render to render, verify to render, bounded cache churn/eviction and fully consumed receipts |
+| Edit sequence | Rename/label growth, add/remove node or edge, introduce a cycle, move membership, change shape/port/direction, undo, and transitions into/out of eligibility |
+
+Use adjacent paired runs with counterbalanced order, at least three fresh
+process pairs per cohort and the existing harness sample/warm-up policy. Retain
+per-round ratios, actual samples and median/tail observations. A small movement
+inside A/A variation is unresolved; do not subtract A/A noise or divide
+independently referenced aggregates to manufacture a causal effect. Run timing
+without concurrent builds, tests or report generation.
+
+Separate allocation churn, settled/retained heap, peak RSS and download cost.
+Use separate memory workers and disclose sampling/GC scope. A lower allocation
+count is not a lower residency or whole-process memory claim. Include bounded
+cache lifetime and post-eviction observations.
+
+### Edit stability
+
+For each edit, identify unchanged subjects by stable authored identity. Report
+unchanged-node displacement both raw and after removing global translation,
+normalized by the original median node diagonal. Also report relative-order
+inversions, port-side changes and route changes for unchanged edges. Predeclare
+the affected neighborhood and report whole-graph movement too, so choosing a
+large affected set cannot hide disruption. Distinguish stability within a fixed
+backend from a discontinuity caused by backend fallback. Stability is a measured
+property in this delivery, not an incremental-layout guarantee.
+
+### Delivery and reproducibility
+
+Measure actual Node import graphs, browser initial/focused/lazy delivery, first
+Agentic use and first ELK/fallback use, with compressed bytes and request counts.
+Retaining runtime selection may retain both implementations in a bundle; no ELK
+download reduction is claimed without measuring the request graph. Preserve
+synchronous APIs and existing Node, Bun, browser worker and workerd support.
+
+Retain source and harness revisions, fetched/shipped package identities, runtime,
+OS/CPU, settings, cache policy, workload references, attempt records and raw
+measurements. Generated reports and visual evidence remain build/CI artifacts,
+not committed derived inventories. Results belong to the measured package and
+protocol, not a later branch head.
+
+## Acceptance and delivery sequence
+
+The initial delivery is complete when all of the following hold:
+
+- ELK remains available and the default for its current graph consumers. The
+  extraction preserves existing default ELK geometry and secured output.
+- Both explicit selections work through the canonical request and positioned
+  artifact boundaries, with equivalent behavior across applicable public
+  adapters. At least the declared forest domain completes through Agentic.
+- Agentic without fallback performs no ELK work or initialization, including
+  during verification and deferred receipt/companion consumption. Unsupported
+  inputs, defects and limits retain their distinct outcomes.
+- Optional fallback is bounded, observable and never counted as an Agentic
+  completion. Cache hits preserve decision provenance and artifact isolation.
+- Both implementations satisfy mandatory contracts on their declared domain;
+  repeated execution is deterministic. Existing defects remain distinguishable
+  from introduced regressions.
+- One generated comparison covers the three arms, all enrolled statuses,
+  uncached/repeat/edit regimes, complete receipts, quality, memory and delivery.
+  No comparative speed claim is required to deliver support for both backends.
+- Existing release gates remain enforced. At the baseline they limit corpus
+  latency to 1.25 times baseline, per-family/scaling latency to 1.5 times,
+  allocation and RSS to 1.25 times, and retained growth to 16 MiB. Read the owning
+  harness for the effective policy rather than creating a second gate table.
+
+Apply full existing coverage and release gates to the default/explicit ELK path
+and the Agentic-with-ELK-fallback arm. Strict Agentic must complete its entire
+predeclared domain with mandatory correctness and resource limits enforced;
+outside-domain inputs remain visible as unsupported, rather than shrinking the
+full-population denominator. Initially report its latency and memory against
+ELK on that domain; establish an accepted Agentic baseline for subsequent
+regression gates. Supporting both backends does not require Agentic to beat
+ELK, and partial support must not weaken ELK or fallback coverage.
+
+Implement in this dependency order: extract selection and the ELK adapter with
+unchanged behavior; integrate the Agentic forest producer and strict selection;
+add bounded fallback and retained execution evidence; extend existing comparative
+measurements; then broaden the owned producer using the same contracts.
+Add owning tests as each behavior lands, not a final standalone testing phase.
+
+Any later default change is a separate decision. It requires complete support
+for the proposed input domain, no new hard failures, reviewable quality
+regressions, and a predeclared meaningful public-workflow improvement repeated
+beyond observed A/A variation. Publish backend-specific comparisons alongside
+whole-product release gates. Changing the default does not remove explicit ELK
+selection or its regression coverage.
+
+## Implementation references
+
+- [Current request and receipt authority](https://github.com/adewale/agentic-mermaid/blob/19873682c786567d2807cad31c5017c0b3f05336/src/render-contract.ts)
+  and [positioning seam](https://github.com/adewale/agentic-mermaid/blob/19873682c786567d2807cad31c5017c0b3f05336/src/positioning.ts).
+- [Existing ELK cache and synchronous adapter](https://github.com/adewale/agentic-mermaid/blob/19873682c786567d2807cad31c5017c0b3f05336/src/elk-instance.ts),
+  [release harness](https://github.com/adewale/agentic-mermaid/blob/19873682c786567d2807cad31c5017c0b3f05336/eval/benchmark/release-bench.ts)
+  and [stage harness](https://github.com/adewale/agentic-mermaid/blob/19873682c786567d2807cad31c5017c0b3f05336/eval/benchmark/render-stage-bench.ts).
+- [Owned forest prototype](https://github.com/adewale/agentic-mermaid/blob/2f591dbcd723f41334877c586f8a7a2c40816f21/src/experimental/indexed-forest.ts).
+- [Pele compound crossing proposal](https://github.com/obsidianmd/pele/pull/4),
+  [Mermaid authored grid proposal](https://github.com/mermaid-js/mermaid/issues/8401)
+  and [Mermaid Dart indexed layout](https://github.com/orestesgaolin/mermaid/tree/f53b343b8fa5c30859223d623acde2da2f175a00/packages/mermaid_core/lib/src/vendor/dagre/src)
+  supply algorithm and failure-case references, not Agentic acceptance oracles.
