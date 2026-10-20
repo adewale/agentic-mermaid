@@ -221,21 +221,29 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
       broken.push([...original]); continue
     }
     const clusters = glyphs(original)
-    const spans = performanceExperimentEnabled('text-spans') && !customTextMeasurementActive() ? asciiAdvanceSpans(original, options) : undefined
-    const fits = (from: number, to: number): boolean => {
+    const textSpans = performanceExperimentEnabled('text-spans')
+    const spans = textSpans && !customTextMeasurementActive() ? asciiAdvanceSpans(original, options) : undefined
+    const fits = textSpans ? (from: number, to: number): boolean => {
       const estimate = spans?.width(from, to)
       // Prefix subtraction can differ by an ulp from a fresh left-fold. Keep
       // the exact predicate near a wrapping boundary, including authored ties.
       if (estimate !== undefined && Math.abs(estimate - maxWidth) > 1e-8 * Math.max(1, Math.abs(estimate), Math.abs(maxWidth))) return estimate < maxWidth
       return advance(clusters.slice(from, to), options) <= maxWidth
-    }
+    } : undefined
     let start = 0
     while (start < clusters.length) {
       let end = start
       let whitespace = -1
-      while (end < clusters.length && fits(start, end + 1)) {
-        if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
-        end++
+      if (fits) {
+        while (end < clusters.length && fits(start, end + 1)) {
+          if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          end++
+        }
+      } else {
+        while (end < clusters.length && advance(clusters.slice(start, end + 1), options) <= maxWidth) {
+          if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          end++
+        }
       }
       if (end === clusters.length) { broken.push(coalesce(clusters.slice(start))); break }
       if (end > start && !/\s/u.test(clusters[end - 1]!.text) && /\s/u.test(clusters[end]?.text ?? '')) {

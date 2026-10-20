@@ -878,10 +878,10 @@ export function directLaneBlockers(
   const overlaps = (lo: number, hi: number, lo2: number, hi2: number) =>
     Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
   const index = laneGraphIndex(ctx)
-  const query = <T>(bounds: StaticBoundsIndex<T>): T[] => axis.main === 'x'
-    ? bounds.query(mainLo, c, mainHi, c) : bounds.query(c, mainLo, c, mainHi)
+  const query = index ? <T>(bounds: StaticBoundsIndex<T>): T[] => axis.main === 'x'
+    ? bounds.query(mainLo, c, mainHi, c) : bounds.query(c, mainLo, c, mainHi) : undefined
 
-  for (const node of index?.nodeBounds ? query(index.nodeBounds) : ctx.nodes) {
+  for (const node of index?.nodeBounds ? query!(index.nodeBounds) : ctx.nodes) {
     if (node.id === edge.source || node.id === edge.target) continue
     const nMainLo = node[axis.main] - CLEARANCE
     const nMainHi = node[axis.main] + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
@@ -892,7 +892,7 @@ export function directLaneBlockers(
     }
   }
 
-  for (const other of index?.edgeBounds ? new Set(query(index.edgeBounds)) : ctx.edges) {
+  for (const other of index?.edgeBounds ? new Set(query!(index.edgeBounds)) : ctx.edges) {
     // Compare by edgeIndex as well as identity: validation proves lanes on a
     // copy of the edge, and the original must not block its own lane.
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue

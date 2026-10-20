@@ -269,8 +269,8 @@ export function transformSvgCssValues(source: string, transform: (css: string) =
   }))
   // Tag-like CDATA/style text can yield overlapping lexical ranges. Even an
   // unchanged enclosing replacement participates in the established fallback.
-  const disjoint = replacements.every((edit, index) => index === 0 || edit.start >= replacements[index - 1]!.end)
-  return applyReplacements(source, performanceExperimentEnabled('svg-passes') && disjoint
+  const disjoint = performanceExperimentEnabled('svg-passes') && replacements.every((edit, index) => index === 0 || edit.start >= replacements[index - 1]!.end)
+  return applyReplacements(source, disjoint
     ? replacements.filter(edit => edit.value !== source.slice(edit.start, edit.end)) : replacements)
 }
 
