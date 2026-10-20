@@ -333,7 +333,6 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   // as an edge id.
   ['an `@` the node text runs on to', 'flowchart LR\n  A[a@b.com]', '>a@b.com<', 'flowchart_node_edge_id', 2],
   ['a link after an `@` in shape text', 'flowchart LR\n  A[x@--> B]', '>x@--&gt; B<', 'flowchart_node_edge_id', 2],
-  ['an edge id beginning with a link opener, glued to shape text', 'flowchart LR\n  A[x]x--e1@-->B', 'data-id="x--e1"', 'flowchart_node_edge_id', 2],
   ['a subgraph id running on to an `@` in its title', 'flowchart LR\n  subgraph This is the id[Some1@ Title]\n    A\n  end', '>Some1@ Title<', 'flowchart_node_edge_id', 2],
   // Its edge-id token is tried before a pipe, so the run may start there.
   ['a link after an `@` in a pipe label glued to a shape', 'flowchart LR\n  A["x"]-->|a@-->b|B', '>a@--&gt;b<', 'flowchart_node_edge_id', 2],

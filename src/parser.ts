@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_ESCAPED_AMP_RE, FLOWCHART_GLUED_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_ESCAPED_AMP_RE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -543,14 +543,14 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * node whose text runs on without a blank to an `@`, or a pipe label whose
  * text does from its pipe, which upstream reads as an edge id (`A[a@b]`,
  * `A -->|a@b| B`); and where ours rejects a statement, a node id
- * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
- * does not, or a link label whose markers make no link type there
- * (mismatchedLinkMarkers). An empty quoted label (`A[""]`), which
- * upstream's string token cannot read, is noted too, as is a pipe label with
+ * (commaIdStop) upstream reads there that ours does not, or a link label
+ * whose markers make no link type there (mismatchedLinkMarkers). An empty
+ * quoted label (`A[""]`), which upstream's string token cannot read, is
+ * noted too, as is a pipe label with
  * nothing between its pipes (`A -->|| B`), which upstream's grammar cannot,
  * and a link whose edge id an earlier link has, which the parser leaves off
  * it, as upstream does. */
-export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'empty-pipe-label' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers' | 'duplicate-edge-id'
+export type FlowchartStatementNote = 'amp-spacing' | 'empty-string' | 'empty-pipe-label' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'link-markers' | 'duplicate-edge-id'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -582,7 +582,6 @@ export function flowchartStatementNotes(statement: string, graph: MermaidGraph =
     const parsed = parseEdgeLine(statement, graph, [], new Set(), notes)
     if (parsed.ok) return notes
     if (commaIdStop(statement, parsed)) return new Set(['comma-id'])
-    if (unreadableEdgeId(statement, parsed) !== undefined) return new Set(['edge-id'])
     return new Set(mismatchedLinkMarkers(parsed) !== undefined ? ['link-markers'] : [])
   } catch {
     return new Set() // Metadata ours rejects fails the parse; verify reports that.
@@ -593,14 +592,6 @@ export function flowchartStatementNotes(statement: string, graph: MermaidGraph =
  * construct upstream rejects there when there is one. */
 function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): Error {
   const where = `Invalid flowchart statement "${line}"`
-  const edgeId = unreadableEdgeId(line, parsed)
-  if (edgeId !== undefined) {
-    return syntaxError({
-      what: `${where}: upstream reads "${edgeId}@" as an edge id (any run without blanks or \`"\` before \`@\` and a link is one there), and ours reads no \`[\`, \`]\`, \`(\`, \`)\`, \`{\`, \`}\`, \`|\`, \`<\`, \`>\`, \`;\` or \`@\` in one`,
-      expectedForm: 'an edge id without those characters',
-      example: 'A e1@--> B',
-    })
-  }
   if (/^<?(?:-{2,}|-\.+|={2,})/.test(parsed.remaining)) {
     const found = findTextArrow(parsed.remaining, 0)
     if (found && 'stray' in found) {
@@ -620,9 +611,9 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
   const markers = mismatchedLinkMarkers(parsed)
   if (markers !== undefined) {
     return syntaxError({
-      what: `${where}: the link "${markers}" starts with an \`${markers[0]}\` marker and ends otherwise; upstream ${matchFlowchartLink(markers, 1)?.end === markers.length ? 'drops the marker and reads the link one longer' : 'reads it as a link of no type'}, and ours reads an \`x\` or \`o\` start only before the same end`,
-      expectedForm: 'the same marker at both ends of a link or link label, or none',
-      example: 'A x--x B, A x-- label --x B or A -- label --> B',
+      what: `${where}: the link "${markers}" starts with an \`${markers[0]}\` marker and ends otherwise; upstream reads it as a link of no type, and ours reads an \`x\` or \`o\` start only before the same end`,
+      expectedForm: 'the same marker at both ends of a link label, or none',
+      example: 'A x-- label --x B or A -- label --> B',
     })
   }
   if (commaIdStop(line, parsed)) {
@@ -1358,50 +1349,15 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
 }
 
 const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
-/** An edge id with no blank between it and the shape before it, which may
- * begin with a link opener (`A["a"]x--e1@-->B` is the edge id `x--e1`). */
-const GLUED_EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_GLUED_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
-/** An edge id as upstream's LINK_ID token reads one (`[^\s"]+@`), before a
- * link or a link label's opener. */
-const UPSTREAM_EDGE_ID_REGEX = new RegExp(String.raw`^(?![xo]?(?:-{2,}|-\.|={2,}))([^\s"]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'u')
-/** The same, glued to the shape before it, where it may begin with a link. */
-const GLUED_UPSTREAM_EDGE_ID_REGEX = new RegExp(String.raw`^([^\s"]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'u')
-const NODE_ID_CHARACTER_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/:-]/u
 
-/** Where a statement's parse stopped expecting a link after a node, the
- * edge id (before its `@`) upstream's lexer reads there and ours does not
- * (FLOWCHART_EDGE_ID_SOURCE leaves out region delimiters, `;` and `@`), or
- * undefined. Upstream's token begins there only after a blank or a shape,
- * not inside the node id before it (`A -->e[1@-->`). */
-function unreadableEdgeId(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): string | undefined {
-  if (parsed.reason !== 'expected edge operator' || EDGE_ID_PREFIX_REGEX.test(parsed.remaining)) return undefined
-  const statement = line.trim().replace(/;\s*$/, '').trim()
-  const before = statement[statement.length - parsed.remaining.length - 1]
-  if (!statement.endsWith(parsed.remaining) || before === undefined || NODE_ID_CHARACTER_RE.test(before)) return undefined
-  return (/[\])}]/.test(before) ? GLUED_UPSTREAM_EDGE_ID_REGEX : UPSTREAM_EDGE_ID_REGEX).exec(parsed.remaining)?.[1]
-}
-
-/** Where a statement's parse stopped expecting a link, a link or link label
- * with an `x` or `o` start marker and another end, or undefined: upstream
- * drops the marker from a link, which it reads one longer (`x-->`), and
- * reads such a label (`x-- a -->`) as a link of no type. */
+/** Where a statement's parse stopped expecting a link, a link label opened
+ * with an `x` or `o` start marker and closed by a link with another end
+ * (`x-- a -->`), which upstream reads as a link of no type, or undefined. */
 function mismatchedLinkMarkers(parsed: Extract<EdgeLineParseResult, { ok: false }>): string | undefined {
   if (parsed.reason !== 'expected edge operator') return undefined
-  const link = /^[xo][-=.]/.test(parsed.remaining) ? matchFlowchartLink(parsed.remaining, 1) : null
-  if (link && !link.hasArrowStart && parsed.remaining.slice(link.end).trim() !== '') return parsed.remaining.slice(0, link.end)
   const arrow = matchTextArrow(parsed.remaining, 0)
   if (arrow?.startMark !== 'x' && arrow?.startMark !== 'o') return undefined
   return endMarkerForOp(arrow.closeOp) === (arrow.startMark === 'x' ? 'cross' : 'circle') ? undefined : parsed.remaining.slice(0, arrow.end)
-}
-
-/** The `:::class` right after a node, unless upstream's edge id token
- * begins there: after a shape's closing delimiter, with no blank, a run to
- * an `@` before a link is one (`A["x"]:::cx--e1@-->B` is the edge id
- * `:::cx--e1`, and A takes no class). */
-function consumeNodeClass(text: string, remaining: string): { className: string; length: number } | null {
-  const closer = text[text.length - remaining.length - 1]
-  if (closer !== undefined && /[\])}]/.test(closer) && GLUED_EDGE_ID_PREFIX_REGEX.test(remaining)) return null
-  return consumeClassShorthand(remaining)
 }
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
@@ -1448,13 +1404,6 @@ function parseEdgeLine(
   remaining = firstGroup.remaining.trim()
   if (remaining.length === 0) return { ok: true, listed: firstGroup.ids }
   let prevGroupIds = firstGroup.ids
-  let glued = firstGroup.glued
-  // Where upstream's edge id token, glued to a shape, takes what ours reads
-  // in no edge id (`A["x"]-->e1@-->B` is the edge id `-->e1` there): a parse
-  // that fails later stops there, so its rejection names that edge id.
-  let gluedIdStop: string | undefined
-  const failure = (at: string, reason: Extract<EdgeLineParseResult, { ok: false }>['reason']): EdgeLineParseResult =>
-    gluedIdStop === undefined ? { ok: false, remaining: at, reason } : { ok: false, remaining: gluedIdStop, reason: 'expected edge operator' }
 
   // Parse arrow + node-group pairs until the line is exhausted.
   while (remaining.length > 0) {
@@ -1470,9 +1419,7 @@ function parseEdgeLine(
     // v11.6 edge IDs (`e1@-->`): the authored ID is modeled as stable edge
     // identity (plan §Flowchart 7) — carried on MermaidEdge.id, re-emitted
     // verbatim by the serializer, and accepted as an op target selector.
-    // Upstream's edge id token begins a link opener only glued to a shape.
-    const edgeIdMatch = remaining.match(glued ? GLUED_EDGE_ID_PREFIX_REGEX : EDGE_ID_PREFIX_REGEX)
-    if (glued && !edgeIdMatch && gluedIdStop === undefined && GLUED_UPSTREAM_EDGE_ID_REGEX.test(remaining)) gluedIdStop = remaining
+    const edgeIdMatch = remaining.match(EDGE_ID_PREFIX_REGEX)
     const edgeId = edgeIdMatch?.[1]
     if (edgeIdMatch) {
       if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'edge-id', edgeIdMatch[0])
@@ -1489,7 +1436,7 @@ function parseEdgeLine(
       const labelSuffix = remaining.slice(consumed + gap)
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
-        if (!pipeLabel) return failure(labelSuffix, 'expected edge target')
+        if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
         if (labelTextHoldsDelimiter(pipeLabel.rawLabel, 'text')) notes?.add('label-delimiter')
         if (EMPTY_STRING_LABEL_RE.test(pipeLabel.rawLabel)) notes?.add('empty-string')
         // Upstream's pipe label needs text, a blank at least (`| |`).
@@ -1513,7 +1460,7 @@ function parseEdgeLine(
     } else {
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
       const textArrow = consumeTextArrow(remaining)
-      if (!textArrow) return failure(remaining, 'expected edge operator')
+      if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
       if (labelTextHoldsDelimiter(textArrow.rawLabel, 'edge-text')) notes?.add('label-delimiter')
       if (EMPTY_STRING_LABEL_RE.test(textArrow.rawLabel)) notes?.add('empty-string')
       const parsedLabel = parseFlowchartLabel(textArrow.rawLabel)
@@ -1531,10 +1478,11 @@ function parseEdgeLine(
 
     // Parse the next node group
     const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, notes)
-    if (!nextGroup || nextGroup.ids.length === 0) return failure(remaining, 'expected edge target')
+    if (!nextGroup || nextGroup.ids.length === 0) {
+      return { ok: false, remaining, reason: 'expected edge target' }
+    }
 
     remaining = nextGroup.remaining.trim()
-    glued = nextGroup.glued
 
     // Admit the expansion before allocating any of its edges.
     assertDiagramWorkLimit('edges', graph.edges.length + prevGroupIds.length * nextGroup.ids.length)
@@ -1575,9 +1523,6 @@ function parseEdgeLine(
 interface ConsumedNodeGroup {
   ids: string[]
   remaining: string
-  /** Whether the remaining text follows the last node's closing shape
-   * delimiter with no blank (`A["a"]x--e1@-->B`). */
-  glued: boolean
 }
 
 /**
@@ -1595,7 +1540,6 @@ function consumeNodeGroup(
 
   const ids = [first.id]
   let remaining = first.remaining
-  let lastText = text
 
   // Check for & separators, plain or HTML-escaped (`&amp;`), which the lexer
   // leaves in the statement after a node. One that no node follows
@@ -1607,7 +1551,6 @@ function consumeNodeGroup(
     const after = remaining.trimStart().slice(escaped?.length ?? 1)
     const next = consumeNode(after.trim(), graph, subgraphStack, declaredSubgraphIds, notes)
     if (!next) break
-    lastText = after.trim()
     // Upstream lists nodes only with a plain `&`, and a blank on each side.
     if (escaped) notes?.add('escaped-amp')
     else if (!/^\s/.test(remaining) || !/^\s/.test(after)) notes?.add('amp-spacing')
@@ -1615,8 +1558,7 @@ function consumeNodeGroup(
     remaining = next.remaining
   }
 
-  const closer = lastText[lastText.length - remaining.length - 1]
-  return { ids, remaining: remaining.trim(), glued: closer !== undefined && /[\])}]/.test(closer) && !/^\s/.test(remaining) }
+  return { ids, remaining: remaining.trim() }
 }
 
 interface ConsumedNode {
@@ -1765,7 +1707,7 @@ function consumeNode(
   const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
   if (metadataNode) {
     let remaining = metadataNode.remaining
-    const classMatch = consumeNodeClass(text, remaining)
+    const classMatch = consumeClassShorthand(remaining)
     if (classMatch) {
       appendGraphClass(graph.classAssignments, metadataNode.id, classMatch.className)
       if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'append-class', { id: metadataNode.id, name: classMatch.className, classes: graph.classAssignments.get(metadataNode.id) })
@@ -1779,7 +1721,7 @@ function consumeNode(
   if (quotedShapeNode) {
     let remaining = consumeNodeMetadataSuffix(quotedShapeNode.id, quotedShapeNode.remaining, graph, subgraphStack)
       ?? quotedShapeNode.remaining
-    const classMatch = consumeNodeClass(text, remaining)
+    const classMatch = consumeClassShorthand(remaining)
     if (classMatch) {
       appendGraphClass(graph.classAssignments, quotedShapeNode.id, classMatch.className)
       if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'append-class', { id: quotedShapeNode.id, name: classMatch.className, classes: graph.classAssignments.get(quotedShapeNode.id) })
@@ -1829,7 +1771,7 @@ function consumeNode(
   remaining = consumeNodeMetadataSuffix(id, remaining, graph, subgraphStack) ?? remaining
 
   // Check for ::: class shorthand suffix immediately after the node
-  const classMatch = consumeNodeClass(text, remaining)
+  const classMatch = consumeClassShorthand(remaining)
   if (classMatch) {
     appendGraphClass(graph.classAssignments, id, classMatch.className)
     if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'append-class', { id, name: classMatch.className, classes: graph.classAssignments.get(id) })

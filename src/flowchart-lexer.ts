@@ -88,14 +88,6 @@ export const FLOWCHART_LINK_SOURCE = `<?(?:${FLOWCHART_LINK_BODY})`
  * blank (`x--e1@--x` is the label `e1@` between `x--` and `--x` there).
  */
 export const FLOWCHART_EDGE_ID_SOURCE = String.raw`(?!${FLOWCHART_LINK_SOURCE}|[xo]?(?:-{2,}|-\.|={2,}))[^\s"@[\](){}|<>;]+`
-/** An edge id glued to the shape before it (`A["a"]x--e1@-->B`), where
- * upstream's LINK_ID token begins with no blank before it and takes in a
- * leading link opener (`x--e1`, `--e1`, `==e1`). */
-export const FLOWCHART_GLUED_EDGE_ID_SOURCE = String.raw`[^\s"@[\](){}|<>;]+`
-/** An edge id as upstream's LINK_ID token reads one after a blank: a run
- * without blanks or `"` before an `@` and a link or link label opener. */
-const EDGE_ID_TOKEN_RE = new RegExp(String.raw`(?![xo]?(?:-{2,}|-\.|={2,}))([^\s"]+)@\s*(?:${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})`, 'y')
-
 /** A text-arrow label's opening link, with its start marker (`<`, or `x` or
  * `o` in upstream's `x-- a --x`). */
 const TEXT_ARROW_OPEN_RE = /([<xo])?(-{2,}|-\.+|={2,})/y
@@ -417,18 +409,6 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
   // A single region needs no statement-level map, and must not pay for one.
   const topLevel = single ? [] : Array<boolean>(text.length).fill(false)
   const separators: number[] = []
-  // The run without blanks or `"` the current character is in, and where
-  // the edge id upstream reads at its start ends, if it reads one there.
-  let runStart = from
-  let runEdgeIdEnd: number | undefined
-  const inEdgeId = (at: number): boolean => {
-    if (runEdgeIdEnd === undefined) {
-      const before = text[runStart - 1]
-      const match = before !== undefined && before !== '"' ? stickyMatch(EDGE_ID_TOKEN_RE, text, runStart) : null
-      runEdgeIdEnd = match ? runStart + match[1]!.length : -1
-    }
-    return at < runEdgeIdEnd
-  }
   const links: FlowchartTextRange[] = []
   // Open regions, innermost last (indices into `regions`).
   const stack: number[] = []
@@ -463,7 +443,6 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
     if (single && regions.length > 0 && stack.length === 0) break
     const char = text[index]!
     const inner = stack.length > 0 ? regions[stack.at(-1)!]! : undefined
-    if (char === '"' || char <= ' ' || (char > '~' && /\s/.test(char))) { runStart = index + 1; runEdgeIdEnd = undefined }
 
     if (inner?.kind === 'string') {
       if (char === '"') close(index, index + 1)
@@ -556,9 +535,8 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
     // A `>` that no link consumed opens asymmetric shape text (`A>x]`).
     if (char === '>') { open('shape', index, index + 1); continue }
     if (!single) topLevel[index] = true
-    // Upstream's edge id after a blank takes in a `;` (`A e;1@--> B`), and
-    // an escaped `&` after a node ends no statement.
-    if (char === ';' && !inEdgeId(index) && !endsEscapedListAmp(index)) {
+    // An escaped `&` after a node ends no statement.
+    if (char === ';' && !endsEscapedListAmp(index)) {
       separators.push(index)
       statementStart = index + 1
     }
