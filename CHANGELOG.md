@@ -22,6 +22,21 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- `verify` on a source string checks the request `render` makes from that
+  string, including its `%%{init}%%` and frontmatter config. It used to check
+  a canonical copy that drops that config, so it measured a different layout
+  (for example ignoring `flowchart.rankSpacing`) and passed sources `render`
+  refuses: raw `themeCSS`, an unsafe `themeVariables.fontFamily`, or spacing
+  so large the canvas exceeds its cap. These are now `RENDER_FAILED`.
+- Refused config no longer makes `parseMermaid` and `verify` throw: config
+  the admission refuses (a reserved key such as `__proto__`, nesting or size
+  past its bounds) is a new `CONFIG_REJECTED` parse error, which `verify`
+  reports as `RENDER_FAILED` with origin `config`. `verify` reports any
+  non-empty source that fails to parse (a syntax error, frontmatter that is
+  not valid YAML, a diagram over a work limit) as `RENDER_FAILED` with the
+  parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
+  longer makes such a source verify `ok`. A work limit only the render path
+  enforces (state nesting) no longer escapes `verify` as an exception.
 - A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
   ER, Journey, Architecture, any source-preserved body, and extension families
   that render canonically) renders, lays out and verifies under its authored
