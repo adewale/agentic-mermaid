@@ -103,11 +103,11 @@ describe('deferred terminal projection', () => {
     const svg = sceneNodeSerialization(group)
     freezeBoundedFirstPartyData(group, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, [field]: bound })
     const pending = nodes.filter(node => deferredTerminalProjectionInput(node) !== undefined)
+    const materialized = nodes.filter(node => deferredTerminalProjectionInput(node) === undefined)
     expect(pending.length).toBeGreaterThan(0)
-    expect(deferredTerminalProjectionInput(nodes[0]!)).toBeUndefined()
-    expect(deferredTerminalProjectionInput(nodes.at(-1)!)).toBeUndefined()
+    expect(materialized.length).toBeGreaterThan(0)
     expect(sceneNodeSerialization(group)).toBe(svg)
-    for (const node of [nodes[0]!, pending.at(-1)!, nodes.at(-1)!]) {
+    for (const node of [materialized[0]!, pending.at(-1)!]) {
       const projection = node.terminalProjection
       expect(projection.endpoints).toEqual(node.endpoints)
       expect(projection.geometry).toBe(node.route.geometry)
@@ -135,6 +135,33 @@ describe('deferred terminal projection', () => {
     expect(Object.isFrozen(value.tail)).toBe(true)
   })
 
+  test('materializes one oversized projection envelope without consuming unrelated projections', () => {
+    const label = 'Kept label '.repeat(300)
+    const nodes = withDeferredTerminalProjections(() => [
+      ...Array.from({ length: 3 }, (_, index) => edge(`before:${index}`)),
+      marks.connector({
+        id: 'long-label', role: 'message',
+        geometry: { kind: 'line', x1: 10, y1: 20, x2: 90, y2: 20 },
+        lineStyle: 'solid', paint: {}, labels: [{ text: label }],
+      }),
+      ...Array.from({ length: 3 }, (_, index) => edge(`after:${index}`)),
+    ])
+    const oversized = nodes[3]!
+    const unrelated = nodes.filter(node => node !== oversized)
+    expect(nodes.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
+
+    freezeBoundedFirstPartyData({ nodes }, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 100_000 })
+
+    expect(deferredTerminalProjectionInput(oversized)).toBeUndefined()
+    expect(unrelated.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
+    const projection = oversized.terminalProjection
+    expect(projection.labels[0]!.text).toBe(label)
+    expect(Object.isFrozen(oversized)).toBe(true)
+    expect(Object.isFrozen(projection)).toBe(true)
+    expect(Object.isFrozen(projection.labels)).toBe(true)
+    expect(oversized.terminalProjection).toBe(projection)
+  })
+
   test('preserves eager depth rejection when later projections reach their original property position', () => {
     const make = (defer: boolean) => {
       const lower = () => {
@@ -151,11 +178,15 @@ describe('deferred terminal projection', () => {
       }
       return defer ? withDeferredTerminalProjections(lower) : lower()
     }
-    const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxObjects: 1500, maxDepth: 20 }
     // The retained nested value reaches depth 21 through the projection,
     // before the shallower public transform can mark it as already visited.
-    for (const defer of [false, true]) {
-      expect(() => freezeBoundedFirstPartyData(make(defer), limits)).toThrow('External Scene input object graph is too deeply nested')
+    for (const limits of [
+      { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxObjects: 1500, maxDepth: 20 },
+      { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxArrayEntries: 10, maxDepth: 20 },
+    ]) {
+      for (const defer of [false, true]) {
+        expect(() => freezeBoundedFirstPartyData(make(defer), limits)).toThrow('External Scene input object graph is too deeply nested')
+      }
     }
   })
 
