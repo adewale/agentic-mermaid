@@ -297,7 +297,7 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
     return { syntax: 'flowchart_link_markers', message: 'A link label opened with an `x` or `o` marker and closed by a link with another end (A x-- a --> B) is a link of no type in Mermaid. Ours rejects it; put the same marker at both ends (A x-- a --x B), or none (A -- a --> B).' }
   }
   if (rejected?.has('edge-id')) {
-    return { syntax: 'flowchart_edge_id', message: 'An edge id holding `[`, `]`, `(`, `)`, `{`, `}`, `|`, `<`, `>` or `@` (e[1@-->) is one edge id in Mermaid, which reads any run without blanks or `"` before `@` as one. Ours reads none of those characters in an edge id and rejects the statement; rename the edge id (e1@-->).' }
+    return { syntax: 'flowchart_edge_id', message: 'An edge id holding `[`, `]`, `(`, `)`, `{`, `}`, `|`, `<`, `>`, `;` or `@` (e[1@-->) is one edge id in Mermaid, which reads any run without blanks or `"` before `@` as one. Ours reads none of those characters in an edge id and rejects the statement; rename the edge id (e1@-->).' }
   }
 
   if (DANGLING_LINK_RE.test(statement)) {

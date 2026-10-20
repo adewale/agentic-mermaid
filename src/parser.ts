@@ -567,7 +567,7 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
   const edgeId = unreadableEdgeId(line, parsed)
   if (edgeId !== undefined) {
     return syntaxError({
-      what: `${where}: upstream reads "${edgeId}@" as an edge id (any run without blanks or \`"\` before \`@\` and a link is one there), and ours reads no \`[\`, \`]\`, \`(\`, \`)\`, \`{\`, \`}\`, \`|\`, \`<\`, \`>\` or \`@\` in one`,
+      what: `${where}: upstream reads "${edgeId}@" as an edge id (any run without blanks or \`"\` before \`@\` and a link is one there), and ours reads no \`[\`, \`]\`, \`(\`, \`)\`, \`{\`, \`}\`, \`|\`, \`<\`, \`>\`, \`;\` or \`@\` in one`,
       expectedForm: 'an edge id without those characters',
       example: 'A e1@--> B',
     })
