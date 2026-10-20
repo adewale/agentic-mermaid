@@ -175,6 +175,13 @@ const C4_READ_OTHERWISE: ReadonlyArray<readonly [string, string, string, number]
   ['text glued to a closing quote before another statement', 'C4Context\n  Person(a, "Ann"x)\n  Person(b, "Bob")', 'c4_argument_quoting', 2],
 ]
 
+// Mermaid's database throws when a participant that is not active is
+// deactivated; ours ignores that deactivation.
+const SEQUENCE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['a message deactivating its inactive sender', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Again', 'Again', 'sequence_inactive_deactivation', 4],
+  ['deactivating a participant never activated', 'sequenceDiagram\n  Alice->>Bob: Hi\n  deactivate Bob', 'Hi', 'sequence_inactive_deactivation', 3],
+]
+
 // Mermaid's lexer reads a message's sender and receiver as one ID each. Where
 // that ID ends inside ours, arrow tokens follow where Mermaid wants message
 // text; what was meant is unclear, so, like any statement ours cannot read,
@@ -231,6 +238,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
   // Mermaid removes a `%%` line with the blank lines before it.
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
+  ['sequence', 'nested activations each deactivated once', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Alice->>+Bob: Again\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Bye'],
   ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
   ['c4', 'an unquoted argument before a comma', 'C4Context\n  Person(a, Ann Lee, "A customer")'],
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
@@ -282,6 +290,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(C4_READ_GENEROUSLY)('c4: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  test.each(SEQUENCE_READ_GENEROUSLY)('sequence: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'sequence', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
 
   test.each(SEQUENCE_UNREAD)('sequence: %s is kept as source and not drawn', async (_construct, source, line) => {
