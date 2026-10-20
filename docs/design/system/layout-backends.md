@@ -1056,3 +1056,22 @@ Bypassing order reuse makes that contract fail;8 cache/edit contracts /53
 assertions pass with it. Broader combined and rebased verification remains
 required. This reduces repeated search work without changing the cold policy,
 its quality limitations, or the known seed228 gap.
+
+
+The follow-up is rebased onto mainff33700d (#451). Conflict resolution retains
+empty Class/ER title canvases under both backend selections and preserves all303
+main geometry records exactly; the branch has316 records including its13 added
+fixtures. Explicit native/ELK empty-title checks protect that combined behavior.
+Both rebased typechecks and changed-file lint pass. The combined369-test run has
+289 passes and80 sandbox pipe-write errors from the upstream grammar worker;
+rerunning its104 owning State contracts with local process/network access passes
+104/104 (687 assertions), resolving those80 errors without changing source or
+timeouts. Those two run populations overlap; do not add their counts.
+
+The completed145809d6 dense workload data also remains adverse: cache-off
+cyclic15 allocates195.2MiB natively versus51.2MiB with ELK, and cyclic19 allocates
+275.1MiB versus104.4MiB. Native peak RSS is lower (172.4versus180.9MiB and
+179.8versus192.9MiB), but lower peak memory does not imply lower allocation.
+These workload failures of the broader memory goal cannot be replaced by the
+six-official-input allocation aggregate0.81×. The25-repetition/reuse protocol
+still needs fresh exact-head execution and does not retroactively qualify them.
