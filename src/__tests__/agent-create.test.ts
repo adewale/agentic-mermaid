@@ -81,10 +81,8 @@ function renders(source: string): boolean {
 // A saved blank must read back the way pinned Mermaid reads it: typed and
 // renderable where Mermaid accepts the bare header, and rejected through the
 // family's opaque fallback where Mermaid rejects it (a Sankey needs a link).
-// Registered deviation, not a bug: a Gantt with no tasks has no time range to
-// draw, so ours diagnoses it where Mermaid draws an empty chart (the same
-// deviation official-fence-corpus.test.ts records for gantt.md#6).
-const BLANK_RENDER_DEVIATIONS: ReadonlySet<BuiltinFamilyId> = new Set(['gantt'])
+// A Gantt with no tasks draws an empty chart while verify retains the
+// EMPTY_DIAGRAM diagnostic checked above; it needs no invented time range.
 // Read generously: Mermaid rejects bare class and C4 headers, but their meaning
 // (an empty diagram) is clear, so ours reads them typed and draws them, and
 // verify says Mermaid rejects it (upstream-rejection-parity.test.ts).
@@ -96,7 +94,7 @@ describe('a blank diagram survives a save wherever Mermaid accepts it', () => {
       const source = serializeMermaid(createMermaid(kind))
       const read = (await upstream.parse(source)).ok || BLANK_GENEROUS_READS.has(kind)
       const reparsed = parseMermaid(source)
-      expect({ source, reparsed: reparsed.ok && reparsed.value.body.kind, renders: renders(source) }).toEqual({ source, reparsed: read ? kind : 'opaque', renders: read && !BLANK_RENDER_DEVIATIONS.has(kind) })
+      expect({ source, reparsed: reparsed.ok && reparsed.value.body.kind, renders: renders(source) }).toEqual({ source, reparsed: read ? kind : 'opaque', renders: read })
     })
   }
 
