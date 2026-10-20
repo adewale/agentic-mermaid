@@ -5,6 +5,7 @@ import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
+import { withPerformanceExperiments, type PerformanceExperiment } from '../experimental-performance.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
@@ -41,7 +42,10 @@ describe('bounded final layout certification', () => {
     expect(selected.certification).toMatchObject({ strategy: 'separate-without-corank', attempts: 5, hardViolations: 0 })
   })
 
-  test('a failing primary producer is contained inside the public fallback budget', () => {
+  test.each([
+    { flags: [] as PerformanceExperiment[], strategy: 'separate-hierarchy' },
+    { flags: ['indexed-layout'] as PerformanceExperiment[], strategy: 'default' },
+  ])('a failing primary producer is contained before $strategy within the public fallback budget', ({ flags, strategy }) => {
     const firstPass = LAYOUT_PIPELINE[0]!
     const run = firstPass.run
     let calls = 0
@@ -50,9 +54,9 @@ describe('bounded final layout certification', () => {
       run(context)
     }
     try {
-      const positioned = layoutGraphSync(parseMermaid('flowchart LR\nA --> B'))
+      const positioned = withPerformanceExperiments(flags, () => layoutGraphSync(parseMermaid('flowchart LR\nA --> B')))
       expect(calls).toBe(2)
-      expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'separate-hierarchy', attempts: 2, hardViolations: 0 })
+      expect(positioned.certification).toMatchObject({ status: 'passed', strategy, attempts: 2, hardViolations: 0 })
       expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B'])
     } finally {
       firstPass.run = run
