@@ -50,13 +50,6 @@ const MERMAID_ARROW_FOR_LOCAL = new Map([...LOCAL_ARROW_ALIASES].map(local => {
   return [local, mermaid]
 }))
 
-// Mermaid's own arrow tokens, longest first, after optional whitespace.
-const MERMAID_MESSAGE_ARROW_RE = new RegExp(String.raw`\s*(${[...SEQUENCE_ARROW_HEADS.keys()]
-  .filter(token => !LOCAL_ARROW_ALIASES.has(token))
-  .sort((a, b) => b.length - a.length)
-  .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  .join('|')})`, 'y')
-
 const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
   .sort((a, b) => b.length - a.length)
   .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
@@ -77,15 +70,10 @@ const SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS = new Set([
 // `+`, `<`, `>`, `:`, `,`, `;` and at a dash that starts an arrow.
 const MERMAID_SEQUENCE_ACTOR_RE = /[^\/\\\+\()\+<\->\->:\n,;]+((?!(\-x|\-\-x|\-\)|\-\-\)|\-\|\\|\-\\|\-\/|\-\/\/|\-\|\/|\/\|\-|\\\|\-|\/\/\-|\\\\\-|\/\|\-|\-\-\|\\|\-\-|\(\)))[\-]*[^\+<\->\->:\n,;]+)*/iy
 
-/** The text of the participant ID token Mermaid's lexer reads at `index` in
- * `line` (untrimmed; the ID is its trimmed text), or ''. */
-function mermaidSequenceActorToken(line: string, index: number): string {
-  MERMAID_SEQUENCE_ACTOR_RE.lastIndex = index
-  return MERMAID_SEQUENCE_ACTOR_RE.exec(line)?.[0] ?? ''
-}
-
+/** The participant ID Mermaid's lexer reads at `index` in `line`, or ''. */
 function mermaidSequenceActorAt(line: string, index: number): string {
-  return mermaidSequenceActorToken(line, index).trim()
+  MERMAID_SEQUENCE_ACTOR_RE.lastIndex = index
+  return MERMAID_SEQUENCE_ACTOR_RE.exec(line)?.[0].trim() ?? ''
 }
 
 export interface ParsedSequenceMessageLine {
@@ -148,46 +136,17 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
     || /^(?:[0-9]+(?:\.[0-9]{1,2})?|\.[0-9]{1,2})$/.test(match[1]!)
     || SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(match[1]!.toLowerCase())
   )) return null
-  const tail = sequenceMessageTail(line, match[0].length)
-  if (!tail) return null
-  // The sender-spaced central grammar does not combine with an activation
-  // marker. Mermaid rejects this shape, so do not silently promote it to a
-  // verified native message.
-  if (spacedMatch && (
-    tail.activationMark
-    || /[+<>]/.test(tail.to)
-    || tail.to.includes('()')
-    || SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS.has(tail.to.toLowerCase())
-  )) return null
-  const arrow = match[3]!
-  const ours: ParsedSequenceMessageLine = {
-    from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark: tail.activationMark,
-    to: tail.to, label: tail.label, centralStart: Boolean(match[2]), centralEnd: tail.centralEnd,
-    ...(LOCAL_ARROW_ALIASES.has(arrow) ? { localArrow: arrow } : {}),
-  }
-  // Mermaid reads each participant ID as one lexer token. Where that token
-  // ends inside our sender or receiver (`A->>B->>C`, `-xA->B`, `A--->>B`),
-  // arrow tokens follow it where Mermaid expects text, so it rejects the
-  // line, and what was meant is unclear: leave the statement unread.
-  const receiverIsToken = mermaidSequenceActorAt(line, tail.toStart) === tail.to
-  const sender = mermaidSequenceActorToken(line, 0)
-  if (sender.trim().length <= ours.from.length) return sender.trim() === ours.from && receiverIsToken ? ours : null
-  // Mermaid's sender runs on past our arrow, a local spelling Mermaid's lexer
-  // reads as ID text (`|-` in `A|-B->>C`). Where a Mermaid arrow follows it,
-  // the line is Mermaid's message from that sender, as its database holds;
-  // otherwise keep ours, unless our receiver holds an arrow.
-  return mermaidSenderMessage(line, sender) ?? (receiverIsToken ? ours : null)
-}
-
-/** What follows a message's arrow: an optional central-connection and
- * activation marker, the receiver, and the text after its colon. A single
- * scan admits optional spaces around the markers; adjacent optional \s*
- * regex groups can backtrack quadratically on a long malformed line. */
-function sequenceMessageTail(line: string, start: number): { centralEnd: boolean; activationMark?: string; to: string; toStart: number; label: string } | null {
-  let tail = line.slice(start).trimStart()
+  // A single scan after the arrow admits optional spaces around Mermaid's
+  // central-connection and activation markers. Avoid adjacent optional \s*
+  // regex groups, which can backtrack quadratically on a long malformed line.
+  let tail = line.slice(match[0].length).trimStart()
   const centralEnd = tail.startsWith('()')
   if (centralEnd) tail = tail.slice(2).trimStart()
   const activationMark = tail[0] === '+' || tail[0] === '-' ? tail[0] : undefined
+  // The sender-spaced central grammar does not combine with an activation
+  // marker. Mermaid rejects this shape, so do not silently promote it to a
+  // verified native message.
+  if (spacedMatch && activationMark) return null
   if (activationMark) tail = tail.slice(1).trimStart()
   const colon = tail.indexOf(':')
   if (colon < 1) return null
@@ -196,19 +155,24 @@ function sequenceMessageTail(line: string, start: number): { centralEnd: boolean
   // comment follows the colon (`A->>B: #a#`).
   const label = tail.slice(colon + 1).trimStart()
   if (!to || /\s/.test(to)) return null
-  return { centralEnd, ...(activationMark ? { activationMark } : {}), to, toStart: line.length - tail.length, label }
-}
-
-/** The message Mermaid reads from the sender token `sender` at the start of
- * `line`, when one of its own arrows and a receiver token follow. */
-function mermaidSenderMessage(line: string, sender: string): ParsedSequenceMessageLine | null {
-  const from = sender.trim()
-  if (/\s/.test(from)) return null
-  MERMAID_MESSAGE_ARROW_RE.lastIndex = sender.length
-  const arrow = MERMAID_MESSAGE_ARROW_RE.exec(line)
-  const tail = arrow && sequenceMessageTail(line, sender.length + arrow[0].length)
-  if (!arrow || !tail || mermaidSequenceActorAt(line, tail.toStart) !== tail.to) return null
-  return { from, arrow: arrow[1]!, activationMark: tail.activationMark, to: tail.to, label: tail.label, centralStart: false, centralEnd: tail.centralEnd }
+  if (spacedMatch && (
+    /[+<>]/.test(to)
+    || to.includes('()')
+    || SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS.has(to.toLowerCase())
+  )) return null
+  // Mermaid reads each participant ID as one lexer token. Where that token
+  // ends inside our sender or receiver (`A->>B->>C`, `-xA->B`, `A--->>B`),
+  // arrow tokens follow it where Mermaid expects text, so it rejects the
+  // line, and what was meant is unclear: leave the statement unread. Where
+  // Mermaid's sender runs on past our arrow, it reads another message.
+  const sender = mermaidSequenceActorAt(line, 0)
+  if (sender.length <= match[1]!.length && (sender !== match[1] || mermaidSequenceActorAt(line, line.length - tail.length) !== to)) return null
+  const arrow = match[3]!
+  return {
+    from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark,
+    to, label, centralStart: Boolean(match[2]), centralEnd,
+    ...(LOCAL_ARROW_ALIASES.has(arrow) ? { localArrow: arrow } : {}),
+  }
 }
 
 // ============================================================================

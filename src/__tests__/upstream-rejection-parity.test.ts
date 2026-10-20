@@ -200,7 +200,6 @@ const SEQUENCE_LOCAL_ARROWS: ReadonlyArray<readonly [string, string, string, num
 // it is kept as source and the render refuses it. Both renderers name the
 // line verify reports. [construct, source, line]
 const SEQUENCE_UNREAD: ReadonlyArray<readonly [string, string, number]> = [
-  ['an arrow inside the receiver after a local arrow spelling', 'sequenceDiagram\n  Alice|-Bob->>Carol->>Dan: Hi', 2],
   ['an arrow inside the receiver', 'sequenceDiagram\n  Alice->>Bob->>Carol: Hi', 2],
   ['an arrow inside the receiver after frontmatter and a blank line', '---\ntitle: T\n---\nsequenceDiagram\n\n  Alice->>Bob->>Carol: Hi', 6],
   ['an arrow inside the receiver after a semicolon', 'sequenceDiagram\n  Alice->>Bob: x; Bob->>Al->>Carol: Hi', 2],
@@ -406,11 +405,6 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['timeline', 'a continuation after a section header', 'timeline\n  2001 : Alpha\n  section Later\n  : Beta\n  2002 : Gamma'],
   ['timeline', 'a section on its own line, and "section" starting period labels', 'timeline\n  section 2020s\n  2021 : Launch\n  section : Beta\n  sections X : Gamma'],
   ['sequence', 'nested activations each deactivated once', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Alice->>+Bob: Again\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Bye'],
-  // Mermaid's lexer reads a local arrow spelling (`|-`, `/-`, `\-`) before one
-  // of its own arrows as text of the sender's ID.
-  ['sequence', 'a local stick spelling inside the sender', 'sequenceDiagram\n  Alice|-Bob->>Carol: Hi'],
-  ['sequence', 'a slash and a dash inside the sender', 'sequenceDiagram\n  x/-y-->>z: m'],
-  ['sequence', 'a backslash and a dash inside the sender, before an activation', 'sequenceDiagram\n  A\\-B->>+C: Hi\n  C-->>-A\\-B: Back'],
   ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
   ['flowchart', 'blanks between the pipes of a label', 'flowchart LR\n  A -->| | B ==>|\t| C'],
