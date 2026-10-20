@@ -236,6 +236,8 @@ export type ClassRelationKind =
   | 'lollipop' // ()-- / --()
 
 export interface ClassNode {
+  /** A source lollipop occurrence, drawn as an interface endpoint rather than a class compartment. */
+  isInterface?: boolean
   /** Stable bare class identity (e.g., `Box` for authored `Box~T~`). */
   id: string
   /** Generic parameter text from Mermaid's `~...~` syntax. */
@@ -730,6 +732,10 @@ export interface StateNote {
 }
 
 export interface StateBody {
+  /** Class assignments awaiting an actual state declaration; they never create a state. */
+  unresolvedClasses?: Array<{ id: string; className: string }>
+  /** Inline styles awaiting an actual state declaration. */
+  unresolvedStyles?: Array<{ id: string; style: Record<string, string> }>
   kind: 'state'
   states: StateNode[]
   transitions: StateTransition[]
@@ -818,6 +824,8 @@ export interface SourceMapSpans {
   groups: Map<string, SourceSpan>
   /** Exact authored sub-statement spans (labels, members, values, cardinalities). */
   labels: Map<string, SourceSpan>
+  /** Authored metadata key/value tokens, keyed by canonical item occurrence identity and property. */
+  metadata?: Map<string, Map<string, { key: SourceSpan; value: SourceSpan }>>
 }
 
 export interface SourceMap {

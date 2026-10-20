@@ -550,6 +550,11 @@ export interface RenderOptions {
     /** Nest namespace compounds (default true); false lays them out compactly as siblings. */
     hierarchicalNamespaces?: boolean
   }
+  /** Opt-in graphical Kanban layout controls; source order and card membership remain unchanged. */
+  kanban?: {
+    /** Wrap whole columns into rows within this best-effort pixel width, retaining readable column widths. */
+    maxWidth?: number
+  }
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {
     visual?: ArchitectureVisualOverrides

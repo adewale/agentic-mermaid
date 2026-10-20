@@ -17,7 +17,7 @@ export const SDK_CORE_DECLARATION = `type DiagramKind = ${DIAGRAM_KIND.replaceAl
 type MutationOp = { kind: string; [field: string]: unknown }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
 interface SourceLocation { readonly line: number; readonly col: number }
-interface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan> }
+interface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan>; readonly metadata?: ReadonlyMap<string, ReadonlyMap<string, { readonly key: SourceSpan; readonly value: SourceSpan }>> }
 interface SourceMap { readonly nodes: ReadonlyMap<string, SourceLocation>; readonly edges: ReadonlyMap<string, SourceLocation>; readonly groups: ReadonlyMap<string, SourceLocation>; readonly labels: ReadonlyMap<string, SourceLocation>; readonly spans?: SourceMapSpans }
 interface ValidDiagram { readonly kind: DiagramKind; readonly source: SourceMap }
 type ExternalFamilyId = \`family:\${string}\`
