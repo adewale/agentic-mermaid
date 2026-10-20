@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -497,9 +497,10 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
 
 /** A spelling ours reads in a statement where pinned Mermaid's lexer reads
  * otherwise, which verify reports: a `&` list without a blank on each side
- * of the `&` (`A &B`), and label text holding a character upstream's lexer
- * reads as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter). */
-export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter'
+ * of the `&` (`A &B`), label text holding a character upstream's lexer reads
+ * as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter), and a
+ * subgraph title it cannot read without quotes (subgraphTitleUnreadable). */
+export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -511,8 +512,9 @@ export function flowchartStatementNotes(statement: string): ReadonlySet<Flowchar
   const notes = new Set<FlowchartStatementNote>()
   const subgraph = statement.match(/^subgraph\s+(.+)$/)
   if (subgraph) {
-    const titled = subgraphBracketTitle(subgraph[1]!.trim())
-    if (titled && labelTextHoldsDelimiter(titled.title, 'text')) notes.add('label-delimiter')
+    const title = subgraph[1]!.trim()
+    const titled = subgraphBracketTitle(title)
+    if (titled ? labelTextHoldsDelimiter(titled.title, 'text') : subgraphTitleUnreadable(title)) notes.add(titled ? 'label-delimiter' : 'subgraph-title')
     return notes
   }
   if (NON_NODE_STATEMENT_RE.test(statement)) return notes

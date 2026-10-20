@@ -240,6 +240,14 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a `[` in a pipe label', 'flowchart LR\n  A -->|a [b| B', '>a [b<', 'flowchart_label_delimiter', 2],
   ['a `"` inside a text-arrow label', 'flowchart LR\n  A -- a "b" --> B', '>a &quot;b&quot;<', 'flowchart_label_delimiter', 2],
   ['parentheses in a subgraph bracket title', 'flowchart LR\n  subgraph S[x (y) z]\n    A\n  end', '>x (y) z<', 'flowchart_label_delimiter', 2],
+  // Without quotes or brackets, Mermaid's subgraph title holds letters,
+  // digits, blanks and !#$%&'*+-./:?\^_` alone, with no link or inner string.
+  ['parentheses in a subgraph title', 'flowchart LR\n  subgraph a(b)\n    A\n  end', '>a(b)<', 'flowchart_subgraph_title', 2],
+  ['brackets in a subgraph title with blanks', 'flowchart LR\n  subgraph old styl]]e that is broken\n    c --> d\n  end', '>old styl]]e that is broken<', 'flowchart_subgraph_title', 2],
+  ['a bracket title no `]` closes', 'flowchart LR\n  subgraph S[Stage one\n    A\n  end', '>S[Stage one<', 'flowchart_subgraph_title', 2],
+  ['a `,` in a subgraph title', 'flowchart LR\n  subgraph a,b\n    A\n  end', '>a,b<', 'flowchart_subgraph_title', 2],
+  ['a link in a subgraph title', 'flowchart LR\n  subgraph a-->b\n    A\n  end', '>a--&gt;b<', 'flowchart_subgraph_title', 2],
+  ['a string after subgraph title text', 'flowchart LR\n  subgraph a "b"\n    A\n  end', '>a &quot;b&quot;<', 'flowchart_subgraph_title', 2],
 ]
 
 // [family, construct, source]
@@ -294,7 +302,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
   ['flowchart', 'a `&` list with a blank on each side, and a lone `&` node', 'flowchart LR\n  A & B --> C & &\n  D &\tE'],
-  ['flowchart', 'delimiters inside quoted labels and trapezoid text, and parentheses in a text-arrow label', 'flowchart LR\n  A["a (b) c"] -->|"x [y]"| B[/a | b "c"/]\n  A -- a (b) --> C["a" ]\n  subgraph S["x (y)"]\n    C\n  end'],
+  ['flowchart', 'subgraph titles of letters, digits and the punctuation Mermaid reads unquoted, and a quoted one', "flowchart LR\n  subgraph a.-b!#$%&'*+/:?^_`x\n    A\n  end\n  subgraph \"a(b)\"\n    B\n  end\n  subgraph 東京 Ελλάδα\n    C\n  end"],
+  ['flowchart', 'delimiters inside quoted labels and trapezoid text, and parentheses in a text-arrow label','flowchart LR\n  A["a (b) c"] -->|"x [y]"| B[/a | b "c"/]\n  A -- a (b) --> C["a" ]\n  subgraph S["x (y)"]\n    C\n  end'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {

@@ -199,6 +199,31 @@ export function labelTextHoldsDelimiter(raw: string, context: FlowchartLabelCont
   return LABEL_TEXT_DELIMITER_RE[context].test(rest)
 }
 
+/** The characters pinned Mermaid's lexer reads in a subgraph title written
+ * without quotes or brackets (its textNoTags): letters, ASCII digits,
+ * blanks and `!"#$%&'*+-./:?\^_` and the backtick. */
+const TITLE_TEXT_RE = /^[\p{L}0-9\s!"#$%&'*+\-./:?\\^_`]*$/u
+/** What ends such a title there: a string opened inside it (a `"` that
+ * begins a word), a link or link-label opener, and a class (`:::`). */
+const TITLE_TOKEN_RE = /(?:^|\s)(?:"|\.+-)|--|-\.|->|:::/
+
+/**
+ * Whether a subgraph title written without a bracket title (`id[…]`) holds
+ * what pinned Mermaid's lexer cannot read there, where upstream rejects the
+ * statement: a leading quoted (or markdown) string it leaves unclosed, or,
+ * after that string, text TITLE_TEXT_RE leaves out or TITLE_TOKEN_RE finds.
+ */
+export function subgraphTitleUnreadable(title: string): boolean {
+  let rest = title
+  if (title.startsWith('"')) {
+    const markdown = title.startsWith('"`')
+    const close = markdown ? title.indexOf('`"', 2) : title.indexOf('"', 1)
+    if (close < 0) return true
+    rest = title.slice(close + (markdown ? 2 : 1))
+  }
+  return !TITLE_TEXT_RE.test(rest) || TITLE_TOKEN_RE.test(rest)
+}
+
 /** Whether the `,` at `at` comes right after node id characters, where
  * upstream's id grammar takes it into the id (`A,B` is one node there).
  * Ours reads no `,` in a node id, since `style` and `class` read it as a
