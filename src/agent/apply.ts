@@ -35,6 +35,7 @@ import { isPlainRecord } from '../shared/plain-data.ts'
 export interface VerifySummary {
   ok: boolean
   warnings: VerifyResult['warnings']
+  checks?: VerifyResult['checks']
 }
 
 /** A mutation failure annotated with which op in the list failed. */
@@ -65,7 +66,7 @@ export type OpEnvelope =
 /** Drop the layout proxy graph; keep the model-actionable verdict. The JSON
  *  round-trip guarantees no residual Map / prototype leaks through. */
 export function verifySummary(v: VerifyResult): VerifySummary {
-  return JSON.parse(JSON.stringify({ ok: v.ok, warnings: v.warnings }))
+  return JSON.parse(JSON.stringify({ ok: v.ok, warnings: v.warnings, checks: v.checks }))
 }
 
 // ---- Blank-slate build through the checked core ---------------------------
@@ -214,6 +215,7 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
  * edit is accepted and its verification keeps reporting the defect. */
 export function verifyMutationResult(diagram: ParsedDiagram, before?: ParsedDiagram): { accepted: boolean; verification: VerifyResult } {
   const verification = verifyMermaid(diagram)
+  if (verification.checks?.sourceLoss === 'detected') return { accepted: false, verification }
   if (verification.ok) return { accepted: true, verification }
   const blocking = verification.warnings.filter(warning => WARNING_SEVERITY[warning.code] === 'error')
   if (before && blocking.length > 0 && blocking.every(warning => warning.code === 'INTERNAL_ERROR')) {

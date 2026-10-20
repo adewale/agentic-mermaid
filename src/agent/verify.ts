@@ -129,7 +129,19 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
   }
 }
 
+/** The legacy ok flag is an error gate, never a task-correctness certificate. */
 export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions = {}): VerifyResult {
+  const result = verifyMermaidInternal(input, opts)
+  const suppressedErrors = (opts.suppress ?? []).some(code => WARNING_SEVERITY[code] === 'error')
+  const renderFailed = result.warnings.some(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
+  return { ...result, checks: {
+    renderability: renderFailed ? 'failed' : result.ok && !suppressedErrors ? 'passed' : 'not-checked',
+    sourceLoss: result.checks?.sourceLoss ?? 'not-detected',
+    taskCorrectness: 'not-checked',
+  } }
+}
+
+function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions): VerifyResult {
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
   if (!parsed.ok) {
@@ -1197,6 +1209,11 @@ function isPositionedGraph(positioned: import('../types.ts').PositionedDiagram):
 }
 
 function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: VerifyOptions, guardEmptyLayout = true): VerifyResult {
+  const checks: NonNullable<VerifyResult['checks']> = {
+    renderability: 'not-checked',
+    sourceLoss: warnings.some(warning => warning.code === 'COMMENT_DROPPED' || warning.code === 'CONTENT_DROPPED_ON_ROUNDTRIP') ? 'detected' : 'not-detected',
+    taskCorrectness: 'not-checked',
+  }
   const suppress = new Set<WarningCode>(opts.suppress ?? [])
   const kept = warnings.filter(w => !suppress.has(w.code))
   const ok = !kept.some(w => WARNING_SEVERITY[w.code] === 'error')
@@ -1228,11 +1245,12 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   ) {
     return {
       ok,
+      checks,
       warnings: [...kept, { code: 'UNSUPPORTED_SYNTAX', syntax: 'empty_layout', message: 'The source carries content, but the local layout renders nothing (0x0 canvas with no nodes, edges, or groups).' }],
       layout,
     }
   }
-  return { ok, warnings: kept, layout }
+  return { ok, warnings: kept, layout, checks }
 }
 
 function rectIntersection(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): number {

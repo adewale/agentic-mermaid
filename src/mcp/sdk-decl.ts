@@ -1055,6 +1055,7 @@ type WarningCode =
   | 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
 
 interface VerifyResult {
+  checks?: { renderability: 'passed' | 'failed' | 'not-checked'; sourceLoss: 'detected' | 'not-detected'; taskCorrectness: 'not-checked' }
   ok: boolean
   warnings: { code: WarningCode; [field: string]: unknown }[]
   layout: RenderedLayout

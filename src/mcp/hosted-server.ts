@@ -165,7 +165,7 @@ targetWidth sets a hard terminal display-cell bound; impossible bounds return a 
   {
     name: 'verify',
     title: 'Verify Mermaid diagram',
-    description: `Parse and verify a Mermaid diagram without rendering it. Returns
+    description: `Parse and verify source, structure, and renderability. This runs the graphical pipeline. Returns
 { ok, family, summary, warnings, layout: { bounds, nodes, edges } } for valid
 diagrams and { ok: false, errors } for parse failures. \`family\` is the detected
 diagram family and \`summary\` a one-line description — check them: ok:true only
@@ -338,7 +338,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       // architecture diagram and reads `family:"flowchart"` here sees the
       // mismatch in the same result it was already going to read, without
       // having to know to call `describe` separately.
-      return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+      return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, checks: v.checks, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
     })
     case 'describe': return sourceTool(id, args, source => mcpDescribePayload(source, args))
     case 'mutate': return handleApplyOps(id, args, 'source')

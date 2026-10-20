@@ -56,3 +56,16 @@ describe('CONTENT_DROPPED_ON_ROUNDTRIP verify lint', () => {
     expect(drops).toEqual([])
   })
 })
+
+
+test('verification reports its scope rather than certifying the requested task', () => {
+  expect(verifyMermaid('flowchart TD\n A --> B').checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+  expect(verifyMermaid('flowchart TD\n A --> B', { suppress: ['INTERNAL_ERROR'] }).checks?.renderability).toBe('not-checked')
+})
+
+
+test('suppressing a source-loss warning cannot erase the source-loss report', () => {
+  const result = verifyMermaid('pie\n "Dogs": 3 %% rationale', { suppress: ['COMMENT_DROPPED'] })
+  expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+  expect(result.checks?.sourceLoss).toBe('detected')
+})

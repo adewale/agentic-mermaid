@@ -1886,7 +1886,16 @@ export interface RenderedLayout {
   bounds: { w: Finite; h: Finite }
 }
 
+export interface VerificationChecks {
+  renderability: 'passed' | 'failed' | 'not-checked'
+  /** No detected loss is not a general losslessness proof. */
+  sourceLoss: 'detected' | 'not-detected'
+  taskCorrectness: 'not-checked'
+}
+
 export interface VerifyResult {
+  /** Explicit check scope; ok remains the backward-compatible error gate. */
+  checks?: VerificationChecks
   /** Final graphical proof or its explicit coverage limitations. */
   layoutCertification?: import('../scene/paint-certification.ts').PaintLayoutCertification
   ok: boolean
