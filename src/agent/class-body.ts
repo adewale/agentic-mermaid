@@ -33,7 +33,7 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 
 import { decodeXML } from 'entities'
 import type { ClassStatementNode } from '../class/parser.ts'
-import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
 import { classTextLabel, decodeClassText, memberToString, writeClassText } from '../class/text.ts'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
@@ -433,7 +433,9 @@ export function renderClass(body: ClassBody): string {
   // Notes can introduce a class on read. Emit them after declarations so a
   // reload cannot move their target ahead of the authored class identities.
   for (const n of body.notes) {
-    const text = n.textContent || /#\w+;/.test(n.text) ? writeClassText(n.text, n.textContent, '"&\\') : n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;')
+    const text = n.textContent || /#\w+;/.test(n.text)
+      ? writeClassText(n.text, n.textContent, '"&\\')
+      : n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;').replace(/%%\{/g, '%%#123;')
     if (n.for) lines.push(`  note for ${quoteIfNeeded(n.for)} "${text}"`)
     else lines.push(`  note "${text}"`)
   }
@@ -522,6 +524,9 @@ function validateClassMembers(members: readonly string[]): MutationError | undef
     }
     if (parseAccessibilityDirective([decoded], 0) !== null) {
       return { code: 'INVALID_OP', message: 'Class members cannot be accessibility directives' }
+    }
+    if (new RegExp(MERMAID_DIRECTIVE_RE.source, 'i').test(decoded)) {
+      return { code: 'INVALID_OP', message: 'Class members cannot hold a %%{…}%% directive, which Mermaid removes from the source' }
     }
   }
 }
@@ -778,6 +783,19 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: 'A "classDiagram" header with no statement after it draws an empty class diagram. Pinned Mermaid rejects this; add a class, relationship, note or other statement.',
     })
   }
+  // Mermaid applies an init directive wherever it stands; ours applies one
+  // on a line of its own, and reads one inside a statement as Mermaid's
+  // preprocessing leaves the statement, without it.
+  bodyLines.forEach((line, index) => {
+    for (const directive of line.matchAll(MERMAID_DIRECTIVE_RE)) {
+      if (!/^init(?:ialize)?$/i.test(directive[1] ?? directive[2] ?? '')) continue
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_inline_init', line: header + 2 + index,
+        message: 'An `%%{init: …}%%` directive inside a statement is removed from it, as Mermaid removes it, and its configuration is not applied. Pinned Mermaid applies it wherever it stands. Put it on a line of its own, where both apply it.',
+      })
+      break
+    }
+  })
   for (const { index, what } of classCommentRejections(bodyLines)) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',

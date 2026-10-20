@@ -653,6 +653,11 @@ export function classStatementEnds(lines: readonly string[]): number[] {
   return ends
 }
 
+/** Mermaid's directive (`%%{…}%%`, `diagram-api/regexes.ts`), which its
+ * preprocessing removes from the source wherever it stands, before any
+ * grammar reads it; its `init` and `wrap` configure the diagram. */
+export const MERMAID_DIRECTIVE_RE = /%{2}\{\s*(?:(\w+)\s*:|(\w+))\s*(?:(\w+)|((?:(?!\}%{2}).|\r?\n)*))?\s*(?:\}%{2})?/gi
+
 /** Whole physical rows owned by style declarations, excluding class members
  * and compact rows that also carry a body boundary or another statement. */
 export function classStyleStatementLines(lines: readonly string[]): ReadonlySet<number> {
@@ -672,10 +677,12 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
   const stack: ClassStatementNode[] = []
   let offset = 0
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    let raw = lines[lineIndex]!
-    const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + raw.length }
-    offset += raw.length + 1
-    const authored = authoredLines ? authoredLines[lineIndex] : raw
+    const line = lines[lineIndex]!
+    const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + line.length }
+    offset += line.length + 1
+    // Read the line as Mermaid's grammar meets it, without its directives.
+    let raw = line.replace(MERMAID_DIRECTIVE_RE, '')
+    const authored = authoredLines ? authoredLines[lineIndex]?.replace(MERMAID_DIRECTIVE_RE, '') : raw
     const scanned = scanInlineNamespaceStatement(raw.trim())
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
     let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))

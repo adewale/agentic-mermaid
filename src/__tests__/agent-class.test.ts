@@ -195,6 +195,10 @@ describe('class — mutate', () => {
       text,
       message: 'Class members cannot be accessibility directives',
     })),
+    // Mermaid removes a directive wherever it stands, before it reads a member.
+    ...['+literal(%%{init: {}}%%)', '+x %%{wrap}%%'].map(text => ({
+      text, message: 'Class members cannot hold a %%{…}%% directive, which Mermaid removes from the source',
+    })),
   ])('refuses member text that source preprocessing would remove: $text', ({ text, message }) => {
     const source = 'classDiagram\nclass A'
     const original = asClass(parse(source))!
@@ -215,7 +219,7 @@ describe('class — mutate', () => {
     }
   })
 
-  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()', '+value: 50%%', '+literal(%%{init: {}}%%)', String.raw`\%% literal`, '+accTitle: String', '+accDescr { kept }', 'accTitle() lost', 'accTitle:'])('keeps single-line member text through either authoring op and reload: %j', text => {
+  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()', '+value: 50%%', '+literal(%%{ }%%)', String.raw`\%% literal`, '+accTitle: String', '+accDescr { kept }', 'accTitle() lost', 'accTitle:'])('keeps single-line member text through either authoring op and reload: %j', text => {
     const original = asClass(parse('classDiagram\nclass A'))!
     for (const op of [
       { kind: 'add_member', class: 'A', text },
