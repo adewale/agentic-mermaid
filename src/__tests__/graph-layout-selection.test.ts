@@ -73,6 +73,23 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
+  test.each(['TD', 'LR', 'BT', 'RL'])('routes a complete rectangular fan net without extra crossings in %s', direction => {
+    const source = `---\ntitle: Complete fan\n---\nflowchart ${direction}\nA & B --> C & D`
+    const svg = renderMermaidSVGWithReceipt(source, AGENTIC)
+    const layout = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    expect(layout.layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D'])
+    expect(layout.layout.edges.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual(['A->C', 'A->D', 'B->C', 'B->D'])
+    const quality = measureQuality(layout.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    JSON.stringify(svg.receipt)
+    JSON.stringify(layout.receipt)
+  })
+
   test.each(['TD', 'LR'] as const)('certifies mixed shape outlines, labelled branches and markers natively in %s', direction => {
     const source = `flowchart ${direction}\nA([Start]) --> B{Choose}\nB -->|yes| C[(Database)]\nB -->|no| D((End))\nD --> E[[Audit]]`
     const stages: string[] = []
