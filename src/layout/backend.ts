@@ -59,6 +59,13 @@ export function graphLayoutDecisionsOf(request: object): readonly GraphLayoutDec
   return decisions.get(request) ?? Object.freeze([])
 }
 
+/** Cache copies retain immutable producer evidence without attaching fields
+ * to family geometry or changing its per-request primary/companion role. */
+export function transferGraphLayoutDecisions(source: object, target: object): void {
+  const retained = decisions.get(source)
+  if (retained) decisions.set(target, retained)
+}
+
 /** Families whose specialized geometry has not joined the owned producer yet. */
 export function selectElkForGraphFamily(options: Pick<RenderOptions, 'graphLayout'>, family: string): GraphLayoutDecision {
   const requested = options.graphLayout?.backend ?? 'elk'
