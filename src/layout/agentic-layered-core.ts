@@ -347,8 +347,39 @@ export function layoutLayeredGraph(
   }
   for (let index = 0; index < bands.length; index++) assignBand(index)
 
+  // Median coordinate descent reduces adjacent-rank L1 span within the
+  // existing band order. Real boxes retain their requested spacing even
+  // when private channel or label vertices occur between them.
+  const previousReal = new Int32Array(vertices.length).fill(-1), nextReal = new Int32Array(vertices.length).fill(-1)
+  for (const band of bands) {
+    let prior = -1
+    for (const id of band) { previousReal[id] = prior; if (id < nodes.length) prior = id }
+    prior = -1
+    for (let cursor = band.length - 1; cursor >= 0; cursor--) { const id = band[cursor]!; nextReal[id] = prior; if (id < nodes.length) prior = id }
+  }
+  const coordinateGap = Math.min(4, nodeSpacing)
+  for (let sweep = 0; sweep < 4; sweep++) for (const forward of [true, false]) {
+    for (let row = 0; row < bands.length; row++) {
+      const band = bands[forward ? row : bands.length - 1 - row]!
+      for (let cursor = 0; cursor < band.length; cursor++) {
+        const slot = forward ? cursor : band.length - 1 - cursor, id = band[slot]!, vertex = vertices[id]!
+        const peers = [...vertex.incoming, ...vertex.outgoing].map(peer => cross[peer]!).sort((a,b)=>a-b)
+        if (!peers.length) continue
+        const before = band[slot - 1], after = band[slot + 1]
+        let lo = before === undefined ? vertex.crossSize / 2 : cross[before]! + (vertices[before]!.crossSize + vertex.crossSize) / 2 + coordinateGap
+        let hi = after === undefined ? crossExtent - vertex.crossSize / 2 : cross[after]! - (vertices[after]!.crossSize + vertex.crossSize) / 2 - coordinateGap
+        if (id < nodes.length) {
+          const previous = previousReal[id]!, next = nextReal[id]!
+          if (previous >= 0) lo = Math.max(lo, cross[previous]! + (vertices[previous]!.crossSize + vertex.crossSize) / 2 + nodeSpacing)
+          if (next >= 0) hi = Math.min(hi, cross[next]! - (vertices[next]!.crossSize + vertex.crossSize) / 2 - nodeSpacing)
+        }
+        if (lo <= hi) cross[id] = Math.max(lo, Math.min(hi, peers[Math.floor((peers.length - Number(forward)) / 2)]!))
+      }
+    }
+  }
+
   // Compact long private channels into constant lanes where their ordered
-  // free intervals intersect. Real boxes and rank order never move. Without
+  // free intervals intersect. This pass keeps boxes and band order fixed. Without
   // this, unequal band widths make a long edge zigzag at every private rank.
   const slots = new Uint32Array(vertices.length)
   for (const band of bands) band.forEach((vertex, index) => { slots[vertex] = index })

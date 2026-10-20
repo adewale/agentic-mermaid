@@ -9,7 +9,7 @@ import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
-import { LABEL_PILL_PADDING, labelHaloExtension, labelRect, pillRect } from './shared/edge-label-geometry.ts'
+import { LABEL_PILL_PADDING, labelHaloExtension, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
 import { bundleRouteBeforeRewrite, hasConstructedBundleRoute, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import {
   EPS,
@@ -773,10 +773,8 @@ export function recertifyReroutedEdge(edge: PositionedEdge, saved: RouteCertific
   }
 }
 
-// ============================================================================
-// Validation (consumed by verifyMermaid as ROUTE_HITCH)
-// ============================================================================
-
+// =====================================================================// Validation (consumed by verifyMermaid as ROUTE_HITCH)
+// =====================================================================
 export interface RouteHitch {
   edge: string
   deviationPx: number
@@ -909,13 +907,11 @@ function tryRepairContainerEdge(edge: PositionedEdge, groupMap: Map<string, Posi
   return tryStraighten(edge, src, tgt, ctx, best.axis).applied
 }
 
-// ============================================================================
-// Route audit — the remaining issue #25 Phase 1 warning codes. Each check is
+// =====================================================================// Route audit — the remaining issue #25 Phase 1 warning codes. Each check is
 // a tripwire: the pipeline upholds these invariants itself, so any finding
 // means a later pass broke geometry after certification. All definitions are
 // chosen to be zero-noise on the corpus.
-// ============================================================================
-
+// =====================================================================
 export type RouteAuditFinding =
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: string }
   | { code: 'ROUTE_LABEL_ON_SHARED_TRUNK'; edge: string; sharedWith: string }
@@ -1138,7 +1134,13 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
  * Fires only on measured pill or marker intersection, so clear layouts are
  * byte-identical.
  */
-export function separateEdgeLabelPills(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle = resolveRenderStyle({})): void {
+export function separateEdgeLabelPills(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle = resolveRenderStyle({}),
+  options?: { preserveRouteClearance?: boolean },
+): void {
+  let routeWork = 1_000_000
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
   if (labeled.length === 0) return
   // Match renderEdgeLabel's halo beyond each measured pill, including thick
@@ -1171,6 +1173,7 @@ export function separateEdgeLabelPills(positioned: { nodes: PositionedNode[]; ed
       ph = m.height + 2 * LABEL_PILL_PADDING
     const halo = haloOf(edge)
     const clearAt = (x: number, y: number): boolean => {
+      if (options?.preserveRouteClearance && routeWork <= 0) return false
       const inner = pillRect(x, y, m)
       if (haloOverAnyNode(inner, halo)) return false
       const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
@@ -1182,6 +1185,12 @@ export function separateEdgeLabelPills(positioned: { nodes: PositionedNode[]; ed
       // Separating opaque label halos must not move a label onto a shared
       // route and undo the earlier ownership repair.
       if (sharedTrunkConflict(edge, positioned.edges, style, { x, y })) return false
+      if (options?.preserveRouteClearance) for (const other of positioned.edges) {
+        if (other === edge || other.style === 'invisible') continue
+        for (let index = 1; index < other.points.length; index++) {
+          if (--routeWork < 0 || segmentEntersLabelRect(other.points[index - 1]!, other.points[index]!, pill)) return false
+        }
+      }
       return true
     }
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
@@ -1213,6 +1222,7 @@ export function separateEdgeLabelPills(positioned: { nodes: PositionedNode[]; ed
         for (const t of ts) {
           const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
           const cy = seg.a.y + (seg.b.y - seg.a.y) * t + ny * d
+          if (options?.preserveRouteClearance && routeWork <= 0) return
           if (clearAt(cx, cy)) yield { x: cx, y: cy }
         }
       }
@@ -1259,6 +1269,7 @@ export function separateEdgeLabelPills(positioned: { nodes: PositionedNode[]; ed
   // slide target is always a fully-clear slot, so sweeps strictly reduce the
   // conflict set and the cap is a defensive bound, not an expected exit.
   for (let sweep = 0; sweep < 3; sweep++) {
+    if (options?.preserveRouteClearance && routeWork <= 0) return
     let conflicts = 0
     // Initial ELK labels can hide terminal symbols without touching another
     // pill. Repair those with the same route slots and painted clearances.
