@@ -12,6 +12,7 @@ import type { Page } from 'playwright'
 import { browserPerformanceOptions, configureAgenticEngines } from '../../eval/benchmark/browser-config.ts'
 import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
 import { layoutRenderOptions, missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
+import { releaseBenchCases } from '../../eval/benchmark/release-bench-cases.ts'
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -328,6 +329,14 @@ test('agent workload completes a verified edit and renders the original and adde
   const dropsEdits = Object.create(api) as typeof api
   Object.defineProperty(dropsEdits, 'mutate', { value: (diagram: unknown) => ({ ok: true, value: diagram }) })
   expect(() => renderAgentEdit(dropsEdits, agentEditCase.source)).toThrow('requested or preserved facts were lost')
+})
+
+test.each(['elk', 'agentic'] as const)('frozen Requirement workload retains exact renderer-owned labels with %s', backend => {
+  const input = releaseBenchCases().find(input => input.id === 'requirement:cyclic-labelled-relations')!
+  expect(input.expectedSvgLabels!.length).toBeGreaterThan(0)
+  const svg = api.renderMermaidSVG(input.source, { graphLayout: { backend } })
+  expect(missingSvgLabels(svg, input.expectedSvgLabels)).toEqual([])
+  expect(missingSvgLabels(svg.replace('bench suite', ''), input.expectedSvgLabels)).toContain('Doc Ref: bench suite')
 })
 
 test.each(['off', 'normal'] as const)('consumed %s-cache worker forwards selection, serializes the full receipt and retains typed declines', async layoutCache => {

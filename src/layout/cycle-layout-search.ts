@@ -8,6 +8,7 @@ import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 export interface LayoutSearchWork {
   attempts: number
   scorePairs: number
+  loopPairs: number
   routing: ChannelWork
 }
 
