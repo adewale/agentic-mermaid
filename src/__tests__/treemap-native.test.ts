@@ -119,6 +119,23 @@ describe('native Treemap', () => {
     expect(renderMermaidASCII(source)).toContain('Engineering: 7,000,000')
   })
 
+  test('verify names omitted quantitative-cell labels from the actual render and clears the finding when they fit', () => {
+    const source = 'treemap\n"Portfolio"\n  "Delivery": 199\n  "Compliance evidence": 1'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error('fixture did not parse')
+    for (const input of [source, parsed.value]) {
+      expect(renderMermaidSVG(input)).not.toContain('Compliance')
+      expect(verifyMermaid(input).warnings).toContainEqual(expect.objectContaining({
+        code: 'LABELS_HIDDEN', target: 'data-labels', labels: ['Compliance evidence'],
+      }))
+      const renderOptions = { mermaidConfig: { treemap: { nodeWidth: 2000, nodeHeight: 600 } } }
+      expect(renderMermaidSVG(input, renderOptions)).toContain('Compliance')
+      expect(renderMermaidSVG(input, renderOptions)).toContain('evidence')
+      expect(verifyMermaid(input, { renderOptions }).warnings.filter(warning => warning.code === 'LABELS_HIDDEN')).toEqual([])
+    }
+    expect(renderMermaidASCII(source)).toContain('Compliance evidence: 1')
+  })
+
   test('section typography and header paint coexist with bound quantitative bars and authored classes', () => {
     const source = 'treemap\n"Region A"\n  "Large": 60:::hot\n  "Small": 40\n"Region B"\n  "Other": 100\nclassDef hot fill:#ff9966,stroke:#333333,stroke-width:2px,color:#111111;',
       style = {

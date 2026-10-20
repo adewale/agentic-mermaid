@@ -5,7 +5,7 @@ import { asBlock, layoutMermaid, mutate, parseRegisteredMermaid as parse, render
 import { blockShapeNode, layoutBlockDiagram } from '../block/layout.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
 import { blockDisplayText } from '../block/text.ts'
-import type { Block, BlockBody } from '../block/types.ts'
+import type { Block, BlockBody, PositionedBlockDiagram } from '../block/types.ts'
 import { lowerPositionedFamilyScene } from '../graphical-render.ts'
 import { onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { positionResolvedFamily } from '../positioning.ts'
@@ -251,6 +251,32 @@ describe('native block', () => {
       expect(verifyMermaid(source).ok).toBe(true)
       expect(renderMermaidSVG(source)).toContain('Write')
     }
+  })
+  test('diagonal cross-container input uses its near face instead of opposing a downstream output', () => {
+    const source = readFileSync(new URL('../../eval/stable-families/fixtures/block.mmd', import.meta.url), 'utf8'),
+      diagram = layoutBlockDiagram(structured(source).body),
+      ingress = diagram.nodes.find(node => node.id === 'ingress')!,
+      incoming = diagram.edges.find(edge => edge.start === 'sdk' && edge.end === 'ingress')!,
+      outgoing = diagram.edges.find(edge => edge.start === 'ingress' && edge.end === 'queue')!
+    expect(incoming.points.at(-1)).toEqual({ x: ingress.x, y: ingress.y + ingress.height / 2 })
+    expect(outgoing.points[0]).toEqual({ x: ingress.x + ingress.width / 2, y: ingress.y + ingress.height })
+    expect(incoming.points.at(-1)).not.toEqual(outgoing.points[0])
+    const styled = positionResolvedFamily('block', resolveRenderRequestForExecution(source, { style: 'publication-figure' }, 'svg')).positioned as PositionedBlockDiagram
+    for (const positioned of [diagram, styled]) for (const arrived of positioned.edges) for (const departing of positioned.edges) {
+      if (arrived.end === departing.start && arrived.start !== arrived.end && departing.start !== departing.end) {
+        expect(arrived.points.at(-1), `${arrived.id} and ${departing.id}: separate input/output contacts`).not.toEqual(departing.points[0])
+      }
+    }
+    for (const edge of [incoming, outgoing]) {
+      for (const node of diagram.nodes.filter(node => node.id !== edge.start && node.id !== edge.end && node.block.type !== 'composite' && node.block.type !== 'space')) {
+        for (let index = 1; index < edge.points.length; index++) expect(segmentThroughShape(edge.points[index - 1]!, edge.points[index]!, blockShapeNode(node))).toBe(false)
+      }
+    }
+    expect(verifyMermaid(source).ok).toBe(true)
+    expect(renderMermaidSVG(source)).toContain('Batch')
+    // The larger publication typography formerly placed Persist's opaque
+    // label halo over the neighboring Audit input arrowhead.
+    expect(() => renderMermaidSVG(source, { style: 'publication-figure', seed: 17, layoutSafety: 'strict' })).not.toThrow()
   })
   test('nested composites retain actual Scene containment and independent semantic Style roles', () => {
     const source = 'block\nblock:outer["Outer"]\nblock:inner["Inner"]\nA["API"]\nend\nend',

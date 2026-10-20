@@ -201,3 +201,23 @@ canonical writes are accepted by the pin. The stronger six-family retained
 corpora independently compare 156 accepted sources' semantic models and ordered
 parser writes. Each comparison declares its field scope, so admission counts
 alone are never presented as complete feature parity.
+
+The same independent operation/semantic gate also checks the six representative
+sources in `eval/stable-families/fixtures/`, both as authored and after canonical
+serialization. These combine cross-word fields, board metadata, seven kinds of
+traceability relationship, nested conserved budgets, causal subtrees and nested
+service grids. The shared [citizenship contract](../../contributing/diagram-family-citizenship.md#representative-examples-are-mandatory)
+requires a domain-rich editing/export/rendering witness for every registered
+family, beyond the former minimal smoke input. The six reviewed PNG goldens
+protect the same representative sources; the CI gallery retains the real
+unsupported baseline and current production renders.
+
+That richer review exposed three integration defects: Treemap verification
+inspected the lazy artifact wrapper instead of its omitted-label list; Kanban
+layout JSON omitted task parent IDs; and diagonal Block input/output contacts
+could coincide, with a neighboring label halo subsequently hiding a marker.
+The repairs use the existing positioned artifact, column membership and shared
+on-route label allocator. Independent parent/contact expectations and strict
+paint certification protect the repaired behavior. Narrow Packet fields and
+deep Treemap labels use explicit authored canvas/bit-width settings in the
+gallery; the renderer preserves their quantitative ratios and full labels.

@@ -1,5 +1,5 @@
 import { rerouteEdgesThroughNodes } from '../layout/passes/index.ts'
-import { simplifyPolyline } from '../route-contracts.ts'
+import { findLabelSlot, simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { pointOnRoutingBoundary, shapeCardinalPorts } from '../shape-outline.ts'
 import { assertBlockDiagramWork } from '../shared/diagram-limits.ts'
@@ -148,6 +148,8 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
       height = Math.max(...siblings.map(index => edgeLabels[index]!.height))
     siblings.forEach((index, slot) => pairSlots.set(index, { slot, count: siblings.length, width, height }))
   }
+  const incomingContacts = new Set<string>(), outgoingContacts = new Set<string>()
+  const contactKey = (id: string, point: Point) => `${id}\0${point.x}\0${point.y}`
   const edges = model.edges.map((edge, index) => {
     const source = byId.get(edge.start!),
       target = byId.get(edge.end!)
@@ -160,13 +162,19 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     let points: Point[]
     const sc = { x: source.x + source.width / 2, y: source.y + source.height / 2 },
       tc = { x: target.x + target.width / 2, y: target.y + target.height / 2 }
+    let horizontal = Math.abs(tc.x - sc.x) >= Math.abs(tc.y - sc.y)
+    const horizontalPorts = [tc.x >= sc.x ? s.E : s.W, tc.x >= sc.x ? t.W : t.E] as const,
+      verticalPorts = [tc.y >= sc.y ? s.S : s.N, tc.y >= sc.y ? t.N : t.S] as const,
+      opposing = (contacts: readonly Point[]) => incomingContacts.has(contactKey(source.id, contacts[0]!)) || outgoingContacts.has(contactKey(target.id, contacts[1]!))
+    // Keep an arriving and departing route from counterflowing through one
+    // physical contact when the other axis has a free pair of ports.
+    if (count === 1 && source !== target && opposing(horizontal ? horizontalPorts : verticalPorts) && !opposing(horizontal ? verticalPorts : horizontalPorts)) horizontal = !horizontal
     if (source === target) {
       const r = 28 + occurrence * (Math.max(labelWidth, labelHeight) + 24)
       points = [s.E, { x: s.E.x + r, y: s.E.y }, { x: s.E.x + r, y: source.y - r }, { x: s.N.x, y: source.y - r }, s.N]
     } else if (count > 1 && lane !== 0) {
       // Reciprocal and duplicate links share one allocation. Outer corridors
       // keep labels readable without changing the author's grid or shapes.
-      const horizontal = Math.abs(tc.x - sc.x) >= Math.abs(tc.y - sc.y)
       const separation = (horizontal ? labelHeight : labelWidth) + 24
       if (horizontal) {
         const y = lane < 0 ? Math.min(source.y, target.y) + lane * separation : Math.max(source.y + source.height, target.y + target.height) + lane * separation
@@ -179,12 +187,10 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
           to = lane < 0 ? t.W : t.E
         points = [from, { x, y: from.y }, { x, y: to.y }, to]
       }
-    } else if (source.y + source.height <= target.y || target.y + target.height <= source.y) {
-      const from = tc.y >= sc.y ? s.S : s.N,
-        to = tc.y >= sc.y ? t.N : t.S,
-        mid = (from.y + to.y) / 2 + occurrence * 4
-      points = [from, { x: from.x, y: mid }, { x: to.x, y: mid }, to]
-    } else if (Math.abs(tc.x - sc.x) >= Math.abs(tc.y - sc.y)) {
+    } else if (horizontal) {
+      // Diagonal cells still use their nearer cardinal faces. Preferring a
+      // vertical port merely because rows are disjoint can make an input share
+      // the opposite direction of an outgoing edge at the same contact.
       const from = tc.x >= sc.x ? s.E : s.W,
         to = tc.x >= sc.x ? t.W : t.E,
         mid = (from.x + to.x) / 2 + occurrence * 12
@@ -195,11 +201,13 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
         mid = (from.y + to.y) / 2 + occurrence * 12
       points = [from, { x: from.x, y: mid }, { x: to.x, y: mid }, to]
     }
+    outgoingContacts.add(contactKey(source.id, points[0]!))
+    incomingContacts.add(contactKey(target.id, points.at(-1)!))
     const route: PositionedEdge = { id: edge.id, source: source.id, target: target.id, style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: simplifyPolyline(points.map(point => ({ ...point }))) }
     // Authored grid cells remain fixed. Shared shape-aware repair owns only the
     // connector interior, including skip links across an occupied grid cell.
     const obstacles = source.block.type === 'composite' || target.block.type === 'composite' ? shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite' || node.id === source.id || node.id === target.id) : ordinaryObstacles
-    rerouteEdgesThroughNodes(obstacles, [route], { direction: source.y + source.height <= target.y || target.y + target.height <= source.y ? 'TB' : 'LR' })
+    rerouteEdgesThroughNodes(obstacles, [route], { direction: horizontal ? 'LR' : 'TB' })
     points = route.points
     // Conservative box repair owns the corridor. Pull only an arrow's final
     // terminal run onto its painted polygon; the run stays axis-aligned and
@@ -226,6 +234,24 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
       labelPosition = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
     return { ...edge, points, labelBlock, labelPosition }
   })
+  // Reuse the graph route allocator's bounded on-route label candidates. Its
+  // final clearance protects actual opaque halos, nearby cards and terminal
+  // markers; the longest segment alone can put text over a neighboring input.
+  if (edges.some(edge => edge.label)) {
+    const labelRoutes: PositionedEdge[] = edges.map(edge => ({ ...edge, source: edge.start!, target: edge.end!, style: 'solid', hasArrowStart: false, hasArrowEnd: false }))
+    for (let index = 0; index < edges.length; index++) {
+      const edge = edges[index]!, route = labelRoutes[index]!
+      if (!edge.label) continue
+      const segments = edge.points.slice(1).map((end, index) => ({ start: edge.points[index]!, end }))
+        .sort((a, b) => Math.hypot(b.end.x - b.start.x, b.end.y - b.start.y) - Math.hypot(a.end.x - a.start.x, a.end.y - a.start.y))
+      for (const { start, end } of segments) {
+        const position = findLabelSlot(route, start, end, { nodes: ordinaryObstacles, edges: labelRoutes, axis: { main: 'x', cross: 'y', sign: 1 }, style, finalLabelClearance: true })
+        if (!position) continue
+        edge.labelPosition = route.labelPosition = position
+        break
+      }
+    }
+  }
   const minX = Math.min(pad, ...edges.flatMap(e => e.points.map(q => q.x))),
     minY = Math.min(pad + titleHeight, ...edges.flatMap(e => e.points.map(q => q.y))),
     dx = Math.max(0, pad - minX),

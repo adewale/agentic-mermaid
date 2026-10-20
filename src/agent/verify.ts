@@ -27,6 +27,7 @@ import type { PositionedGraph } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
+import type { PositionedTreemap } from '../treemap/types.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import { renderErrorOrigin } from './error-origin.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
@@ -477,6 +478,16 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
   } // The render-parity gate owns layout failures.
 }
 
+function treemapHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const chart = positioned()?.positioned as PositionedTreemap | undefined
+    if (!chart?.hiddenLabels.length) return []
+    return [{ code: 'LABELS_HIDDEN', target: 'data-labels', labels: chart.hiddenLabels, message: 'Treemap labels do not fit their value-proportional cells; enlarge the canvas or reduce the hierarchy.' }]
+  } catch {
+    return [] // The render-parity gate owns layout failures.
+  }
+}
+
 /** Chart text the XY layout left out because it did not fit (LABELS_HIDDEN).
  * The layout records what it omitted, so this reports it without re-deriving
  * the fitting rules. */
@@ -676,8 +687,8 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
             ? quadrantHiddenLabelWarnings(positioned)
             : d.body.kind === 'c4'
               ? c4LayoutWarnings(positioned)
-              : d.body.kind === 'treemap' && positioned && 'hiddenLabels' in positioned && Array.isArray(positioned.hiddenLabels) && positioned.hiddenLabels.length
-                ? [{ code: 'LABELS_HIDDEN' as const, target: 'data-labels' as const, labels: positioned.hiddenLabels as string[], message: 'Treemap labels do not fit their value-proportional cells; enlarge the canvas or reduce the hierarchy.' }]
+              : d.body.kind === 'treemap'
+                ? treemapHiddenLabelWarnings(positioned)
                 : []
     return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
   }

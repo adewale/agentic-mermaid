@@ -109,12 +109,18 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
         }
         case 'kanban':
           return parseKanbanDiagram(normalized.familyBody, normalized.accessibility)
-        case 'requirement':
-          return parseRequirementDiagram(normalized.familyBody)
+        case 'requirement': {
+          const body = parseRequirementDiagram(normalized.familyBody)
+          body.title ??= frontmatterTitle(normalized.frontmatter)
+          return body
+        }
         case 'block':
           return parseBlockDiagram(normalized.familyBody)
-        case 'treemap':
-          return parseTreemapDiagram(normalized.familyBody)
+        case 'treemap': {
+          const body = parseTreemapDiagram(normalized.familyBody)
+          body.title ??= frontmatterTitle(normalized.frontmatter)
+          return body
+        }
         case 'ishikawa':
           return parseIshikawaDiagram(normalized.familyBody)
         default:

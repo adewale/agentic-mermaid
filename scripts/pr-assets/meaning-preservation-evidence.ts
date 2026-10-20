@@ -72,8 +72,18 @@ const c4OfficialFixtures: Fixture[] = extractOfficialCorpus()
     cue: 'Inspect halos clear of cards, boundary headers and other relationship routes; visible arrowheads; and retained authored offsets. Compare complete labels, endpoint identities and layout sidecars alongside the pixels. Measured corridors grow rather than shrinking text or removing markers; these official examples do not establish arbitrary dense graph readability.',
   }))
 const corpusSamples = collectSamples()
+const stableReviewFamilies = ['packet', 'kanban', 'requirement', 'treemap', 'ishikawa', 'block'] as const
+const stableRepresentativeCues = {
+  packet: 'Thirteen authored fields retain inclusive bit addresses across eight descending-numbered word rows. Follow Sequence across the 64-bit boundary and both 64-bit spans; field widths remain proportional. The authored 40px bit width gives Flags room without changing any address or ratio.',
+  kanban: 'Four ordered workflow columns contain nine cards with named owners, tickets and all five priority levels. Inspect card membership, complete labels and metadata, especially the GW-210 failure rehearsal in Validation. No network ticket or icon fetch is required.',
+  requirement: 'Five requirements and three evidence elements retain eight relationships covering all seven relation kinds. Follow delivery/replay containment and derivation, contract/legacy copying, and both evidence verification links; compartment fields and relationship endpoints remain inspectable.',
+  treemap: 'Three root allocations each total 100 engineer days. Build contains the nested Platform allocation, whose Authentication 24 and Event delivery 16 areas retain their exact ratio. All ten leaf labels and values must be visible; the authored landscape canvas provides room without changing quantities.',
+  ishikawa: 'One release-delay effect retains four category bones and eleven contributing causes. Follow the third-level approval deadline and both Slow CI causes; branch ancestry and complete labels matter alongside the recognizable causal spine.',
+  block:
+    'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
+} as const
 const fixtures: Fixture[] = [
-  ...['packet', 'kanban', 'requirement', 'treemap', 'ishikawa', 'block'].flatMap(family =>
+  ...stableReviewFamilies.flatMap(family =>
     ['default', 'hand-drawn', 'excalidraw', 'watercolor'].map(
       (style): Fixture => ({
         id: `stable-${family}-${style}`,
@@ -84,6 +94,17 @@ const fixtures: Fixture[] = [
         cue: 'Before: preserve the actual unsupported-family error. After: inspect complete labels, domain geometry, identities and parent/endpoint correspondence in the layout sidecar. The same input uses Agentic typography and the selected existing style backend. Terminal hierarchy projections do not claim SVG geometry.',
       }),
     ),
+  ),
+  ...stableReviewFamilies.map(
+    (family): Fixture => ({
+      id: `stable-${family}-representative`,
+      title: `${getFamily(family)!.label}: representative gateway example`,
+      source: readFileSync(join(ROOT, 'eval/stable-families/fixtures', `${family}.mmd`), 'utf8'),
+      renderOptions: { style: 'publication-figure', seed: 17, security: 'strict', embedFontImport: false },
+      pngScale: 1,
+      captureLayout: true,
+      cue: `${stableRepresentativeCues[family]} The common publication-figure style uses Agentic typography and palette. These authored examples are independent of the retained official demos; inspect the semantic/layout sidecars with the pixels. Preserve any actual baseline unsupported-family error.`,
+    }),
   ),
   ...['default', 'hand-drawn', 'watercolor'].map(
     (style): Fixture => ({

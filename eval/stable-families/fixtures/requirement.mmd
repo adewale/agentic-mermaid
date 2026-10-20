@@ -1,36 +1,55 @@
 ---
-title: Native family traceability
+title: Gateway acceptance evidence
 ---
 requirementDiagram
-  direction LR
-  requirement faithful {
-    id: "R-1"
-    text: Preserve every authored identity and relation
+  direction TB
+  requirement delivery {
+    id: "G-1"
+    text: Deliver accepted events
     risk: high
-    verifymethod: inspection
-  }
-  functionalRequirement editable {
-    id: "R-2"
-    text: Typed operations preserve valid canonical source
-    risk: medium
     verifymethod: test
   }
-  interfaceRequirement measured {
-    id: "R-3"
-    text: Every painted label owns measured geometry
-    risk: high
+  performanceRequirement latency {
+    id: "G-2"
+    text: Publish within 200 ms
+    risk: medium
     verifymethod: analysis
   }
-  element parser_suite {
-    type: conformance suite
-    docref: exact pinned parser fixtures
+  functionalRequirement replay {
+    id: "G-3"
+    text: Reject duplicate events
+    risk: high
+    verifymethod: test
   }
-  element scene_suite {
-    type: geometric certification
-    docref: native Scene and positioned JSON
+  interfaceRequirement contract {
+    id: "G-4"
+    text: Keep wire compatibility
+    risk: medium
+    verifymethod: inspection
   }
-  faithful - contains -> editable
-  faithful - contains -> measured
-  parser_suite - verifies -> editable
-  scene_suite - verifies -> measured
-  editable - traces -> measured
+  interfaceRequirement legacy {
+    id: "G-0"
+    text: Version 1 framing
+    risk: low
+    verifymethod: inspection
+  }
+  element gateway {
+    type: gateway service
+    docref: release v2
+  }
+  element replay_suite {
+    type: "test suite"
+    docref: replay tests
+  }
+  element latency_bench {
+    type: benchmark
+    docref: p95 under load
+  }
+  delivery - contains -> replay
+  replay - derives -> delivery
+  latency - refines -> delivery
+  contract - traces -> delivery
+  contract - copies -> legacy
+  gateway - satisfies -> delivery
+  replay_suite - verifies -> replay
+  latency_bench - verifies -> latency

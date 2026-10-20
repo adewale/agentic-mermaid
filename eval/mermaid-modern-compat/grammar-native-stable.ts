@@ -14,6 +14,10 @@ const pairs = (value: unknown): Row[] => list(value).map(pair => row(list(pair)[
 const projection = (value: Record<string, Json>): NativeSemanticProjection => ({ fields: Object.keys(value), value })
 const commonNative = (model: Row) => ({ title: text(model.title), accTitle: text(model.accessibilityTitle), accDescription: text(model.accessibilityDescription) })
 const commonReference = (data: Row) => ({ title: text(data.getDiagramTitle), accTitle: text(data.getAccTitle), accDescription: text(data.getAccDescription) })
+// Requirement DB maps are keyed collections; snapshot serialization sorts the
+// reference keys. Compare their final values by identity. Actual author order
+// remains independently asserted by the ordered builder-operation projection.
+const byName = (nodes: Row[]): Row[] => nodes.sort((a, b) => text(a.name) < text(b.name) ? -1 : text(a.name) > text(b.name) ? 1 : 0)
 const classes = (value: unknown): string[] => strings(value).filter(name => name !== 'default')
 const requirement = (node: Row): Json => ({ name: text(node.name), type: text(node.type), id: text(node.requirementId), text: text(node.text), risk: text(node.risk), verifyMethod: text(node.verifyMethod), classes: classes(node.classes) })
 const element = (node: Row): Json => ({ name: text(node.name), type: text(node.type), docRef: text(node.docRef), classes: classes(node.classes) })
@@ -107,7 +111,7 @@ export function projectNativeStable(family: string, model: unknown, events: read
     case 'kanban':
       return projection({ nodes: rows(body.columns).flatMap(column => [kanbanNode(column, null, true, row(column.metadata)), ...rows(column.tasks).map(task => kanbanNode(task, text(column.sourceId), false, row(task.metadata)))]) })
     case 'requirement':
-      return projection({ ...commonNative(body), direction: text(body.direction), requirements: rows(body.requirements).map(requirement), elements: rows(body.elements).map(element), relationships: rows(body.relations).map(relation) })
+      return projection({ ...commonNative(body), direction: text(body.direction), requirements: byName(rows(body.requirements)).map(requirement), elements: byName(rows(body.elements)).map(element), relationships: rows(body.relations).map(relation) })
     case 'treemap':
       return projection({ ...commonNative(body), nodes: hierarchy(rows(body.nodes)) })
     case 'ishikawa':
@@ -147,7 +151,7 @@ export function projectReferenceStable(family: string, reply: GrammarReferenceRe
       return projection({ nodes: rows(row(data.getData).nodes).map((node, index) => kanbanNode({ ...node, ...decorations[index] }, node.isGroup === true ? null : text(node.parentId), node.isGroup === true, node.isGroup === true ? (sections[sectionIndex++] ?? {}) : node)) })
     }
     case 'requirement':
-      return projection({ ...commonReference(data), direction: text(data.getDirection), requirements: pairs(data.getRequirements).map(requirement), elements: pairs(data.getElements).map(element), relationships: rows(data.getRelationships).map(relation) })
+      return projection({ ...commonReference(data), direction: text(data.getDirection), requirements: byName(pairs(data.getRequirements)).map(requirement), elements: byName(pairs(data.getElements)).map(element), relationships: rows(data.getRelationships).map(relation) })
     case 'treemap':
       return projection({ ...commonReference(data), nodes: referenceHierarchy(data.getRoot, 'name', true) })
     case 'ishikawa':

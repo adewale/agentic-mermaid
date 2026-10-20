@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { getFamily, knownBuiltinFamilies } from '../../src/agent/core.ts'
+import { getFamily, knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
 import blockCases from '../mermaid-block-bench/cases.json'
 import ishikawaCases from '../mermaid-ishikawa-bench/cases.json'
 import kanbanCases from '../mermaid-kanban-bench/cases.json'
@@ -59,7 +59,7 @@ describe('actual native builder operations agree with the pinned modern referenc
     ishikawa: ishikawaCases,
   }
   for (const [family, fixtures] of Object.entries(stableCorpora))
-    test(`${family}: every accepted pinned corpus source retains semantic values and ordered writes`, async () => {
+    test(`${family}: accepted pinned corpus and representative citizenship sources retain semantic values and ordered writes`, async () => {
       for (const fixture of fixtures) {
         // Valid header-only diagrams intentionally write nothing. The canonical
         // all-family loop above separately proves each family's observation path
@@ -67,6 +67,19 @@ describe('actual native builder operations agree with the pinned modern referenc
         const parsed = await assertOperations(family, fixture.source, false)
         expect(parsed.nativeSemantic?.value, fixture.id).toEqual(projectReferenceSemantic(family, parsed.referenceReply)?.value)
       }
+
+      // The same domain-rich source drives citizenship, reviewed renders and
+      // this independent syntax/DB oracle. Check the canonical writer too:
+      // local parse/serialize agreement alone cannot establish Mermaid validity.
+      const source = readFileSync(join(here, '../stable-families/fixtures', `${family}.mmd`), 'utf8')
+      const expected = await assertOperations(family, source)
+      expect(expected.nativeSemantic?.value, `${family}: representative`).toEqual(projectReferenceSemantic(family, expected.referenceReply)?.value)
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const written = await assertOperations(family, serializeMermaid(parsed.value))
+      expect(written.nativeSemantic?.value, `${family}: representative writer`).toEqual(projectReferenceSemantic(family, written.referenceReply)?.value)
+      expect(written.nativeSemantic?.value, `${family}: representative round trip`).toEqual(expected.nativeSemantic?.value)
     })
 
   test.each([
