@@ -60,7 +60,7 @@
       "requests": 33,
       "raw": 654000,
       "gzip": 210000,
-      "brotli": 184000
+      "brotli": 185000
     },
     "pie": {
       "requests": 35,
@@ -120,7 +120,7 @@
       "requests": 34,
       "raw": 591000,
       "gzip": 194000,
-      "brotli": 171000
+      "brotli": 172000
     },
     "requirement": {
       "requests": 30,
@@ -138,12 +138,12 @@
       "requests": 31,
       "raw": 583000,
       "gzip": 190000,
-      "brotli": 168000
+      "brotli": 169000
     },
     "block": {
       "requests": 30,
       "raw": 729000,
-      "gzip": 240000,
+      "gzip": 241000,
       "brotli": 213000
     }
   }
