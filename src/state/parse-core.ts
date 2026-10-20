@@ -639,7 +639,11 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
         declaration = null
       }
     }
-    const read = declaration ?? (keyword === null || named ? readIdStatement() : null)
+    // `state` that a `:::`, a description or a transition follows (`state :::c
+    // --> A`) declares nothing either, and is the name `state`, as `State`
+    // is; Mermaid reads a declaration there, which it drops.
+    const nameBefore = keyword !== null && declaration === null && /^(?::|-->)/.test(text.slice(column + keyword.length))
+    const read = declaration ?? (keyword === null || named || nameBefore ? readIdStatement() : null)
     if (read !== null) {
       emit(read.text, line, read.opens ?? false)
       const emitted = statements.at(-1)!

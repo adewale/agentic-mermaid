@@ -889,6 +889,13 @@ describe('State statements across and within lines', () => {
     expect(accepted.map(unsupportedSyntax)).toEqual([[], [], []])
     expect(await upstream.projectAll(accepted, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)))
       .toEqual([['state', 'A'], ['note'], ['note']])
+    // `state` and a blank before `:::`: Mermaid reads a declaration it drops,
+    // ours the name `state`, as `X :::hot --> A` reads X, and reports it.
+    const dropped = 'stateDiagram-v2\nstate :::hot --> A'
+    expect(readingOf(parseRenderGraph(dropped))).toEqual(['A:rounded:A', 'state:rounded:state', 'state->A', 'state:::hot'].sort())
+    expect(state(dropped).body.transitions).toEqual([{ from: 'state', to: 'A' }])
+    expect(unsupportedSyntax(dropped)).toEqual(['state_endpoint_name@2'])
+    expect(await upstream.project(dropped, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id))).toEqual({ ok: true, value: [] })
   })
 
   test('a note position Mermaid reads only with one space is read, and reported', async () => {
