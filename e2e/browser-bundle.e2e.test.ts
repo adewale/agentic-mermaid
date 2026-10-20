@@ -412,6 +412,7 @@ describe('async family-loaded browser renderer', () => {
         const api = await import(entryUrl)
         return Promise.all([
           api.renderMermaidSVGAsync('flowchart LR\n  A --> B', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('erDiagram\nCUSTOMER ||--o{ ORDER : places', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('requirementDiagram\nrequirement fast {\ntext: Respond quickly\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> fast', { graphLayout: { backend } }),
         ])
@@ -506,12 +507,13 @@ describe('async family-loaded browser renderer', () => {
       } finally { await page.close() }
     })
   }
-  test.each(['native', 'compound', 'local-limit'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
-    const fallback = mode !== 'native'
+  test.each(['native', 'compound', 'local-limit', 'refined-cycle'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
+    const fallback = mode === 'compound' || mode === 'local-limit'
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
-    const source = `flowchart TD\n${mode === 'compound' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'compound' ? '\nend' : ''}`
+    const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
+      : `flowchart TD\n${mode === 'compound' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'compound' ? '\nend' : ''}`
     const options = {
       graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
       security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },

@@ -3,8 +3,9 @@
 Status: implementation and qualification contract for an opt-in owned backend.
 Native measured Flowchart/State placement includes cycles, loops and independent
 nested scopes. Requirement cards and relationship labels also use measured
-native placement. Cross-hierarchy leaf routes and specialized Class/ER/Architecture
-geometry still require ELK. Quality and cost qualification remains
+native placement. Flat ER cards and relations also use this kernel; ER groups,
+cross-hierarchy leaf routes and specialized Class/Architecture geometry still
+require ELK. Quality and cost qualification remains
 in progress; admission is not proof of parity. Implementation scheduling remains
 in root TODO.md.
 
@@ -719,7 +720,7 @@ allocation and peak RSS, and requires identical artifacts, outputs and complete
 receipt fingerprints. A control that is suspiciously faster also fails. Normal
 cache measurements enable the position cache before import; disabled-cache
 measurements disable both layout caches while preserving shared text spans.
-The CI canary enrolls three official corpus inputs and seven frozen/scaling
+The CI canary enrolls four official corpus inputs and nine frozen/scaling
 workloads in both regimes. Its corpus aggregate covers only the official inputs,
 with the workloads reported separately; it is not full-domain qualification.
 
@@ -780,3 +781,13 @@ painting. The [BPMN/swimlane work](https://github.com/mermaid-js/mermaid/issues/
 also depends on docking, anchored nodes, pools and lanes; generic layered boxes
 do not replace those constraints. This informs future fixed-port and hierarchy
 support without claiming those upstream features are implemented here.
+
+Flat ER placement retains the ER adapter's attribute, key and comment measurement,
+cardinalities, identifying/non-identifying shafts, relationship-label allocation,
+styles and title rules. Its neutral placement carries entity bounds and owned
+routes; only the ELK callback constructs ELK objects. Grouped ER diagrams decline
+with a typed reason and can use the explicitly requested ELK fallback. The initial
+26-case official/scaling diagnostic renders 20 natively and declines six grouped
+cases; all 20 native paints pass, with no additional proper crossings. This does
+not establish bend, area or full family parity. Terminal ER cell placement remains
+owned by its existing adapter.
