@@ -194,7 +194,7 @@ export function lowerSequenceScene(
     const pairKey = `${message.from}->${message.to}`
     const k = messageOccurrence.get(pairKey) ?? 0
     messageOccurrence.set(pairKey, k + 1)
-    parts.push(renderMessage(message, style, `message:${pairKey}#${k}`, inkAt))
+    parts.push(renderMessage(message, style, `message:${pairKey}#${k}`, inkAt, markerResources))
   }
 
   // 5. Notes
@@ -318,7 +318,7 @@ function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDes
   ] satisfies readonly MarkerDescriptor[]
 }
 
-function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
+function sequenceMarkerFor(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
   if (head === 'none') return undefined
   const id = head === 'filled' ? 'seq-arrow'
     : head === 'cross' ? 'seq-arrow-cross'
@@ -327,7 +327,7 @@ function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['
           : head === 'stick-top' ? 'seq-arrow-stick-top'
             : head === 'stick-bottom' ? 'seq-arrow-stick-bottom'
           : 'seq-arrow-open'
-  return sequenceMarkerResources(style).find(marker => marker.id === id)
+  return markerResources.find(marker => marker.id === id)
 }
 
 // ============================================================================
@@ -604,10 +604,16 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
  * Wrapped in <g class="message"> with presentation metadata. The child
  * ConnectorMark is the sole authority for relation endpoints.
  */
-function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, sceneId: string, inkAt: SurfaceInk): SceneNode {
+function renderMessage(
+  msg: PositionedMessage,
+  style: ResolvedRenderStyle,
+  sceneId: string,
+  inkAt: SurfaceInk,
+  markerResources: readonly MarkerDescriptor[],
+): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const startMarker = sequenceMarkerFor(style, msg.startHead)
-  const endMarker = sequenceMarkerFor(style, msg.endHead)
+  const startMarker = sequenceMarkerFor(markerResources, msg.startHead)
+  const endMarker = sequenceMarkerFor(markerResources, msg.endHead)
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
   const { text: displayLabel, x: labelX, y: labelY, bounds: labelBounds } = msg.labelPosition
