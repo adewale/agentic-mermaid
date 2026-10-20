@@ -960,6 +960,8 @@ describe('parseMermaid – edge cases', () => {
     // Upstream's LINK_ID takes any run without blanks or `"` before `@`.
     ['an edge id holding `[`', 'graph TD\n  A e[1@--> B', /upstream reads "e\[1@" as an edge id/],
     ['an edge id holding `[` after a link opener, glued to a shape', 'graph TD\n  A["x"]x--[e1]@-->B', /upstream reads "x--\[e1\]@" as an edge id/],
+    ['an edge id beginning with a whole link, glued to a shape', 'graph TD\n  A["x"]-->e1@-->B', /upstream reads "-->e1@" as an edge id/],
+    ['a link with an `x` start and an arrow end', 'graph TD\n  A x--> B', /the link "x-->" starts with an `x` marker and ends otherwise; upstream drops the marker/],
     // A `;` in it ends no statement there.
     ['an edge id holding `;`', 'graph TD\n  A e;1@--> B;C', /upstream reads "e;1@" as an edge id/],
     ['an edge id holding `@`, after a shape', 'graph TD\n  A[a] e1@x@-- b --> B', /upstream reads "e1@x@" as an edge id/],
