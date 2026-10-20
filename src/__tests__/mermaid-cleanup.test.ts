@@ -61,17 +61,15 @@ describe('shared Mermaid cleanup receipt', () => {
     const receipt = cleanupMermaidSource(source)
     expect(receipt.text).toBe(source)
     expect(receipt.prepassedText).toBe('style A fill:#f00;; classDef c fill:#fff\nA["#quot; #59; #35;"]')
-    expect(receipt.upstreamText).toBe('style A fill:ﬂ°f00¶ß; classDef c fill:#fff\nA["ﬂ°quot¶ß ﬂ°°59¶ß ﬂ°°35¶ß"]')
+    expect(receipt.upstreamText).toBe(source)
     const deletedAt = receipt.prepassedText.indexOf('\n')
     expect(authoredMermaidSlice(receipt, deletedAt, deletedAt, 'prepassedText')).toBe(';;')
-    const markerAt = receipt.upstreamText.indexOf('ﬂ°quot¶ß')
-    expect(authoredMermaidSlice(receipt, markerAt, markerAt + 8, 'upstreamText')).toBe('#quot;')
   })
 
-  test('unknown XML names stay authored and named Mermaid codes stay protected', () => {
+  test('unknown XML names and Mermaid codes retain their authored spelling', () => {
     const receipt = cleanupMermaidSource('&hearts; &unknown; #quot; #59; #notit; #x41;')
     expect(receipt.text).toBe('&hearts; &unknown; #quot; #59; #notit; #x41;')
-    expect(receipt.upstreamText).toBe('&hearts; &unknown; ﬂ°quot¶ß ﬂ°°59¶ß ﬂ°notit¶ß ﬂ°x41¶ß')
+    expect(receipt.upstreamText).toBe('&hearts; &unknown; #quot; #59; #notit; #x41;')
     expect(receipt.changes.filter(change => change.reason === 'xml-entity')).toHaveLength(0)
   })
 
@@ -103,26 +101,74 @@ describe('cleanup at public source boundaries', () => {
     const start = receipt.text.indexOf('<literal>')
     expect(authoredMermaidSlice(receipt, start, start + '<literal> 😀'.length)).toBe('&lt;literal&gt; &#x1F600;')
     expect(request.source.authoredFamilyLines?.[1]).toContain('&lt;literal&gt;')
-    expect(renderMermaidSVG('flowchart LR\rA --> B')).toBe(renderMermaidSVG('flowchart LR\nA --> B'))
+    const { parseRegisteredMermaid } = await import('../agent/parse.ts')
+    const { serializeMermaid } = await import('../agent/serialize.ts')
+    const { readC4Source } = await import('../c4/parser.ts')
+    for (const ending of ['\r', '\r\n', '\n']) {
+      expect(readC4Source(['C4Context', 'accDescr {', 'one', 'two', '}', 'Person(a, "A")'].join(ending)).accessibilityDescription).toBe('one\ntwo')
+    }
+    for (const body of ['flowchart LR\nA["literal"] --> B', 'pie\n"A" : 1', 'sequenceDiagram\nA->>B: text', 'C4Context\nPerson(a, "A")']) {
+      for (const ending of ['\r', '\r\n']) {
+        const source = `---\ntitle: Map\n---\n${body}`.replaceAll('\n', ending)
+        const parsed = parseRegisteredMermaid(source)
+        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+        expect(serializeMermaid(parsed.value)).toStartWith(`---${ending}title: Map${ending}---${ending}`)
+        expect(parsed.value.source.spans?.preserved.header.start.line).toBe(4)
+        // C4's source-preserving model participates in its CSS scope digest.
+        const svg = (text: string) => renderMermaidSVG(text).replace(/am-[a-z0-9]+/g, 'am-scope')
+        expect(svg(source)).toBe(svg(`---\ntitle: Map\n---\n${body}`))
+        if (parsed.value.kind === 'flowchart') {
+          const label = parsed.value.source.spans!.labels.get('node:A')!
+          expect(source.slice(label.start.offset, label.end.offset)).toBe('literal')
+          expect(label.start.line).toBe(5)
+        }
+      }
+    }
   })
 
-  test('all families report cleanup once per authored line and retain payload meaning', async () => {
+  test('init directive provenance cannot be captured by matching text in YAML', async () => {
+    const { normalizeMermaidSource } = await import('../mermaid-source.ts')
+    const directive = '  %%{init: {theme: base}}%%'
+    const source = `\uFEFF---\r\nnote: |\r\n${directive}\r\n---\r\n${directive}\rflowchart LR\rA-->B`
+    const normalized = normalizeMermaidSource(source)
+    expect(normalized.initDirectives[0]!.raw).toBe(directive + '\r')
+    expect(normalized.wrapperSource).toBe(source.slice(0, source.indexOf('flowchart')))
+  })
+
+  test('families report cleanup once per authored line', async () => {
     const { verifyMermaid } = await import('../agent/verify.ts')
     const cases = [
       ['flowchart TD\nA -->|"<a="| B["b"] --> C', 2],
       ['sequenceDiagram\nA->>B: <a href="x" title="y">text</a>', 2],
-      ['pie\n"<a href=\\"x\\">text</a>" : 1', 2],
+      ['pie\ntitle <a href="x">text</a>\n"Slice" : 1', 2],
       ['stateDiagram-v2\nA : style:#f00; x', 2],
+      ['stateDiagram-v2\nstate A\nnote right of A\nstyle A fill:#f00;\nend note', 4],
+      ['flowchart TD\nA["hello\nstyle A fill:#f00;\nworld"]', 3],
       ['---\ntitle: Caption\n---\nsequenceDiagram\nA->>B: <a href="x">text</a>', 5],
     ] as const
     for (const [source, line] of cases) {
       const warnings = verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')
-      // Pie's escaped quotes remain escaped through cleanup, so the upstream
-      // attribute rule does not read them as a quoted attribute pair.
-      expect(warnings).toHaveLength(source.startsWith('pie') ? 0 : 1)
+      expect(warnings).toHaveLength(1)
       if (warnings.length) expect(warnings[0]).toMatchObject({ line, message: expect.stringContaining("Mermaid's cleanup changed this line") })
     }
     const source = '---\ntitle: style A fill:#fff;\n---\nstateDiagram-v2\n%% style A fill:#fff;\nA --> B\nstyle A fill:#fff;'
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toEqual([])
   })
+})
+
+test('shared cleanup and protected entities agree with pinned Mermaid grammar text', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    const cases = [
+      ['sequenceDiagram\rA->>B: <a href="x">text</a>', "sequenceDiagram\nA->>B: <a href='x'>text</a>\n"],
+      ['sequenceDiagram\r\nA->>B: <a href = "x">text</a>', 'sequenceDiagram\nA->>B: <a href = "x">text</a>\n'],
+      ['flowchart LR\nstyle A fill:#fff;', 'flowchart LR\nstyle A fill:#fff\n'],
+      ['sequenceDiagram\nA->>B: #quot; #59; #9829;', 'sequenceDiagram\nA->>B: ﬂ°quot¶ß ﬂ°°59¶ß ﬂ°°9829¶ß\n'],
+    ] as const
+    expect(await upstream.projectAll(cases.map(([source]) => source), diagram => diagram.text)).toEqual(cases.map(([, expected]) => expected))
+    expect(cleanupMermaidSource(cases[0][0]).upstreamText + '\n').toBe(cases[0][1])
+    expect(cleanupMermaidSource(cases[1][0]).upstreamText + '\n').toBe(cases[1][1])
+    expect(cleanupMermaidSource(cases[2][0]).prepassedText + '\n').toBe(cases[2][1])
+  } finally { upstream.close() }
 })

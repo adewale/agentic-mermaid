@@ -51,9 +51,9 @@ function physicalLines(source: string): PhysicalLine[] {
   const lines: PhysicalLine[] = []
   let start = 0
   for (let index = 0; index <= source.length; index++) {
-    if (index !== source.length && source.charCodeAt(index) !== 10) continue
-    const physicalEnd = index > start && source.charCodeAt(index - 1) === 13 ? index - 1 : index
-    lines.push({ text: source.slice(start, physicalEnd), start })
+    if (index !== source.length && source.charCodeAt(index) !== 10 && source.charCodeAt(index) !== 13) continue
+    lines.push({ text: source.slice(start, index), start })
+    if (source.charCodeAt(index) === 13 && source.charCodeAt(index + 1) === 10) index++
     start = index + 1
   }
   return lines
@@ -62,7 +62,10 @@ function physicalLines(source: string): PhysicalLine[] {
 function sourceLineStarts(source: string): readonly number[] {
   const starts = [0]
   for (let index = 0; index < source.length; index++) {
-    if (source.charCodeAt(index) === 10) starts.push(index + 1)
+    if (source.charCodeAt(index) === 13) {
+      if (source.charCodeAt(index + 1) === 10) index++
+      starts.push(index + 1)
+    } else if (source.charCodeAt(index) === 10) starts.push(index + 1)
   }
   return starts
 }

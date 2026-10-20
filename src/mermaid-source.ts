@@ -27,7 +27,7 @@ import {
 import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
-import { cleanupMermaidSource, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
+import { authoredMermaidSlice, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
 import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
@@ -443,6 +443,8 @@ export interface NormalizedMermaidSource {
   cleanup?: MermaidCleanup
   /** Authored grammar view retained when transport decoding changes source. */
   authoredFamilyLines?: string[]
+  authoredHeader?: string
+  authoredWrapperLength?: number
   text: string
   body: string
   lines: string[]
@@ -532,8 +534,16 @@ export function normalizeMermaidSource(
   baseConfig: MermaidRuntimeConfig = {},
   view: 'authored' | 'render' = 'authored',
 ): NormalizedMermaidSource {
-  const cleanup = cleanupMermaidSource(text)
-  const semanticText = view === 'render' ? cleanup.text : text
+  return normalizeSource(text, baseConfig, view, cleanupMermaidSource(text))
+}
+
+function normalizeSource(
+  text: string,
+  baseConfig: MermaidRuntimeConfig,
+  view: 'authored' | 'render',
+  cleanup: MermaidCleanup,
+): NormalizedMermaidSource {
+  const semanticText = view === 'render' ? cleanup.text : cleanup.lineText
   const processed = preprocessMermaidSource(semanticText, runtimeConfigToFrontmatterMap(baseConfig))
   const physicalLines = processed.body.split(/\r?\n/)
   const sequence = /^sequenceDiagram\b/i.test(processed.lines[0] ?? '')
@@ -546,16 +556,33 @@ export function normalizeMermaidSource(
     installedFamilyStatementEnds(processed.lines[0] ?? '', accessibilityLines),
   )
   const envelope = sourceEnvelopeMetadata(semanticText, accessibilityScan.accessibility)
+  if (view === 'authored' && semanticText !== text) {
+    if (envelope.wrapperSource !== undefined) {
+      envelope.wrapperSource = text.slice(0, originalMermaidOffset(cleanup, envelope.wrapperSource.length, 'end', 'lineText'))
+    }
+    const frontmatterEnd = matchMermaidFrontmatter(semanticText)?.source.length ?? (semanticText.startsWith('\uFEFF') ? 1 : 0)
+    const matches = semanticText.slice(frontmatterEnd).matchAll(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'))
+    for (const directive of envelope.initDirectives) {
+      const start = frontmatterEnd + matches.next().value!.index
+      const end = start + directive.raw.length
+      directive.raw = authoredMermaidSlice(cleanup, start, end, 'lineText')
+    }
+  }
   const familyBody = accessibilityScan.familyLines.join('\n')
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(processed.lines[0] ?? '')
   const familyLines = state
     ? scanStateComments(accessibilityScan.familyLines).filter(line => line.noteBody || line.text.length > 0).map(line => line.text)
     : toMermaidLines(familyBody)
+  const authored = view !== 'render' || semanticText === text ? undefined : normalizeSource(text, baseConfig, 'authored', cleanup)
 
   return {
     originalText: text,
     cleanup,
-    ...(semanticText !== text ? { authoredFamilyLines: normalizeMermaidSource(text).familyLines } : {}),
+    ...(authored ? {
+      authoredFamilyLines: authored.familyLines,
+      authoredHeader: authored.lines[0] ?? '',
+      authoredWrapperLength: authored.wrapperSource?.length ?? 0,
+    } : {}),
     text: processed.lines.join('\n'),
     body: processed.body,
     lines: processed.lines,

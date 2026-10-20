@@ -36,7 +36,6 @@ import { renderSequenceTerminal } from './ascii/sequence.ts'
 import { renderStateTerminal } from './ascii/state.ts'
 import { renderTimelineTerminal } from './ascii/timeline.ts'
 import { renderXYChartTerminal } from './ascii/xychart.ts'
-import { normalizeMermaidSource } from './mermaid-source.ts'
 import { resolveGanttFrontmatterConfig } from './gantt/parser.ts'
 import { parseGitGraph } from './gitgraph/parser.ts'
 import { resolveGitGraphPositionConfig } from './gitgraph/position.ts'
@@ -134,7 +133,10 @@ const SEQUENCE_RENDER_HOOKS = {
 
 const CLASS_RENDER_HOOKS = {
   ...CLASS_SVG_HOOKS,
-  renderAscii: nativeTerminalRenderer(ctx => renderClassTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, normalizeMermaidSource(ctx.source.originalText).familyText)),
+  renderAscii: nativeTerminalRenderer(ctx => renderClassTerminal(
+    ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth,
+    (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'),
+  )),
 } satisfies BuiltinRenderHooks
 
 const ER_RENDER_HOOKS = {

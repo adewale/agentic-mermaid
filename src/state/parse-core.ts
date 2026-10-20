@@ -79,18 +79,10 @@ export function matchStateClassAssignment(line: string): { ids: string[]; classN
   return { ids, className: match[2]! }
 }
 
-/** Pinned Mermaid's entity prepass (encodeEntities) first drops the `;`
- *  ending a line's `style…:…#…;` run, then its `classDef…:…#…;` run, in
- *  that case only. Its greedy regexes backtrack catastrophically, so this
- *  reads them with the shared linear equivalent. */
-export function prepassedStateText(text: string): string {
-  return mermaidEntityPrepass(text)
-}
-
 /** State text as pinned Mermaid's lexer meets it: after its prepass, it
  *  reads an entity code (`#59;`), so the code's `;` ends no text. */
 export function lexedStateText(text: string): string {
-  return prepassedStateText(text).replace(/#\w+;/g, '#')
+  return mermaidEntityPrepass(text).replace(/#\w+;/g, '#')
 }
 
 /** `note left|right of X : text` — single-line note. */

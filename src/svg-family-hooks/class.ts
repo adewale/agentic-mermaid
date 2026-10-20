@@ -5,7 +5,7 @@ import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.t
 import { classStatementEnds, parseClassDiagram } from '../class/parser.ts'
 import { lowerClassScene } from '../class/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
-import { normalizeMermaidSource, withFrontmatterTitle } from '../mermaid-source.ts'
+import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 
 /** The class SVG hooks: one definition for the complete renderer
@@ -19,7 +19,7 @@ export const CLASS_SVG_HOOKS = {
   layout: ctx => {
     const diagram = withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(
       ctx.source.familyLines,
-      normalizeMermaidSource(ctx.source.originalText).familyLines,
+      ctx.source.authoredFamilyLines ?? ctx.source.familyLines,
     ), ctx.source.accessibility), ctx.source.frontmatter)
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
     return layoutResult(layoutClassDiagram(diagram, ctx.renderOptions, ctx.styleFace))

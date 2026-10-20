@@ -1,9 +1,17 @@
 import { decodeXML } from 'entities'
-import { mermaidEntityPrepass, toEntityMarkers } from './mermaid-entities.ts'
+import { mermaidEntityPrepass } from './mermaid-entities.ts'
 
 export type MermaidCleanupView = 'text' | 'lineText' | 'upstreamText' | 'prepassedText'
-export type MermaidCleanupReason = 'line-ending' | 'xml-entity' | 'html-attribute-quotes' | 'style-semicolon' | 'entity-marker'
+export type MermaidCleanupReason = 'line-ending' | 'xml-entity' | 'html-attribute-quotes' | 'style-semicolon'
 export type MermaidCleanupBias = 'start' | 'end'
+
+/** Locate a physical terminator while a source-preserving grammar scans the
+ * authored view. CRLF and lone CR have the same boundary as normalized LF. */
+export function mermaidLineEnd(source: string, start: number): number {
+  const ending = /[\r\n]/g
+  ending.lastIndex = start
+  return ending.exec(source)?.index ?? -1
+}
 
 /** Offsets are UTF-16 boundaries, matching String.slice and public source spans. */
 export interface MermaidCleanupEdit {
@@ -32,8 +40,8 @@ export interface MermaidCleanup {
   readonly text: string
   /** Authored grammar spelling with CRLF and lone CR normalized. */
   readonly lineText: string
-  /** Upstream cleanup plus entity protection, for inspection. Metadata removal
-   * belongs between these operations upstream; this is not a parser input. */
+  /** Mermaid's cleanupText result: normalized line endings and tag quotes.
+   * The generous grammar preserves authored quotes instead. */
   readonly upstreamText: string
   /** Authored spelling after line endings and the style/classDef semicolon pass. */
   readonly prepassedText: string
@@ -46,7 +54,17 @@ export interface MermaidCleanup {
 
 interface Replacement { start: number; end: number; text: string }
 interface PendingChange { reason: MermaidCleanupReason; stage: number; edit: MermaidCleanupEdit }
-interface MappedText { text: string; mappings: MermaidCleanupMapping[]; changes: PendingChange[] }
+interface MappedText { text: string; mappings: readonly MermaidCleanupMapping[]; changes: readonly PendingChange[] }
+
+const NO_MAPPINGS: readonly MermaidCleanupMapping[] = Object.freeze([])
+const NO_CHANGES: readonly MermaidCleanupChange[] = Object.freeze([])
+const NO_PENDING_CHANGES: readonly PendingChange[] = Object.freeze([])
+
+function identityCleanup(originalText: string): MermaidCleanup {
+  return Object.freeze({ originalText, text: originalText, lineText: originalText, upstreamText: originalText, prepassedText: originalText,
+    changes: NO_CHANGES, mappings: NO_MAPPINGS, lineMappings: NO_MAPPINGS,
+    upstreamMappings: NO_MAPPINGS, prepassedMappings: NO_MAPPINGS })
+}
 
 function transform(value: MappedText, replacements: readonly Replacement[], reason: MermaidCleanupReason): MappedText {
   if (replacements.length === 0) return value
@@ -104,6 +122,7 @@ function semicolonCleanup(value: MappedText): MappedText {
   if (!value.text.includes(';') || (!value.text.includes('style') && !value.text.includes('classDef'))) return value
   const replacements: Replacement[] = []
   for (const segment of value.text.matchAll(/[^\r\n\u2028\u2029]+/g)) {
+    if (!segment[0].includes(';') || (!segment[0].includes('style') && !segment[0].includes('classDef'))) continue
     const cleaned = mermaidEntityPrepass(segment[0])
     // Each keyword removes the current last semicolon, at most twice.
     let before = segment[0].length
@@ -148,8 +167,8 @@ function mapOffset(mapping: MermaidCleanupMapping, offset: number, bias: Mermaid
   return bias === 'start' ? targetStart : targetEnd
 }
 
-function backwards(mappings: readonly MermaidCleanupMapping[], offset: number, bias: MermaidCleanupBias): number {
-  for (let index = mappings.length - 1; index >= 0; index--) offset = mapOffset(mappings[index]!, offset, bias)
+function backwards(mappings: readonly MermaidCleanupMapping[], offset: number, bias: MermaidCleanupBias, through = mappings.length): number {
+  for (let index = through - 1; index >= 0; index--) offset = mapOffset(mappings[index]!, offset, bias)
   return offset
 }
 
@@ -163,6 +182,8 @@ export function originalMermaidOffset(receipt: MermaidCleanup, offset: number, b
   return backwards(mappingsFor(receipt, view), offset, bias)
 }
 
+/** Inclusive provenance: a range boundary at a removed semicolon includes that
+ * semicolon. Use originalMermaidOffset with an explicit bias for token bounds. */
 export function originalMermaidRange(receipt: MermaidCleanup, start: number, end: number, view: MermaidCleanupView = 'text'): { start: number; end: number } {
   if (end < start) throw new RangeError('Cleanup range ends before it starts')
   return { start: originalMermaidOffset(receipt, start, 'start', view), end: originalMermaidOffset(receipt, end, 'end', view) }
@@ -173,10 +194,12 @@ export function authoredMermaidSlice(receipt: MermaidCleanup, start: number, end
   return receipt.originalText.slice(range.start, range.end)
 }
 
-function changeRecords(value: MappedText, view: MermaidCleanupView, lineStarts: readonly number[]): MermaidCleanupChange[] {
-  return value.changes.map(({ reason, stage, edit }) => {
-    const originalStart = backwards(value.mappings.slice(0, stage), edit.originalStart, 'start')
-    const originalEnd = backwards(value.mappings.slice(0, stage), edit.originalEnd, 'end')
+function changeRecords(value: MappedText, view: MermaidCleanupView, lineStarts: readonly number[], only?: MermaidCleanupReason): MermaidCleanupChange[] {
+  const changes: MermaidCleanupChange[] = []
+  for (const { reason, stage, edit } of value.changes) {
+    if (only !== undefined && reason !== only) continue
+    const originalStart = backwards(value.mappings, edit.originalStart, 'start', stage)
+    const originalEnd = backwards(value.mappings, edit.originalEnd, 'end', stage)
     let cleanedStart = edit.cleanedStart
     let cleanedEnd = edit.cleanedEnd
     for (let index = stage + 1; index < value.mappings.length; index++) {
@@ -191,36 +214,41 @@ function changeRecords(value: MappedText, view: MermaidCleanupView, lineStarts: 
       else high = middle
     }
     const line = Math.max(1, low)
-    return Object.freeze({ reason, view, originalStart, originalEnd, cleanedStart, cleanedEnd,
-      line, col: originalStart - lineStarts[line - 1]! + 1 })
-  })
+    changes.push(Object.freeze({ reason, view, originalStart, originalEnd, cleanedStart, cleanedEnd,
+      line, col: originalStart - lineStarts[line - 1]! + 1 }))
+  }
+  return changes
 }
 
 /** One shared receipt retains both authored provenance and Mermaid's cleanup
  * quirks. It does not eagerly decode #entity; codes into grammar delimiters. */
 export function cleanupMermaidSource(originalText: string): MermaidCleanup {
-  const initial: MappedText = { text: originalText, mappings: [], changes: [] }
+  const hasCarriageReturn = originalText.includes('\r')
+  const hasXmlEntity = originalText.includes('&')
+  const hasQuotedTag = originalText.includes('<') && originalText.includes('="') && originalText.includes('>')
+  const hasStyleSemicolon = originalText.includes(';') && (originalText.includes('style') || originalText.includes('classDef'))
+  if (!hasCarriageReturn && !hasXmlEntity && !hasQuotedTag && !hasStyleSemicolon) return identityCleanup(originalText)
+  const initial: MappedText = { text: originalText, mappings: NO_MAPPINGS, changes: NO_PENDING_CHANGES }
   const normalized = normalizeLineEndings(initial)
-  const xmlDecoded = originalText.includes('&')
+  const xmlDecoded = hasXmlEntity
     ? transform(normalized, matchedReplacements(normalized.text, /&(?:#[xX][0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g, decodeXML), 'xml-entity')
     : normalized
   const semantic = normalizeLineEndings(xmlDecoded)
-  const prepassed = semicolonCleanup(normalized)
-  const quoted = quoteCleanup(normalized)
-  const upstreamPrepassed = quoted === normalized ? prepassed : semicolonCleanup(quoted)
-  const upstream = upstreamPrepassed.text.includes('#')
-    ? transform(upstreamPrepassed, matchedReplacements(upstreamPrepassed.text, /#\w+;/g, toEntityMarkers), 'entity-marker')
-    : upstreamPrepassed
+  const prepassed = hasStyleSemicolon ? semicolonCleanup(normalized) : normalized
+  const upstream = hasQuotedTag ? quoteCleanup(normalized) : normalized
+  if (semantic === initial && prepassed === initial && upstream === initial) return identityCleanup(originalText)
   const lineStarts = [0]
-  if (semantic.changes.length || prepassed.changes.length || upstream.changes.length) {
-    for (let index = 0; index < originalText.length; index++) {
-      if (originalText[index] === '\r') {
-        if (originalText[index + 1] === '\n') index++
-        lineStarts.push(index + 1)
-      } else if (originalText[index] === '\n') lineStarts.push(index + 1)
-    }
+  for (let index = 0; index < originalText.length; index++) {
+    if (originalText[index] === '\r') {
+      if (originalText[index + 1] === '\n') index++
+      lineStarts.push(index + 1)
+    } else if (originalText[index] === '\n') lineStarts.push(index + 1)
   }
-  const changes = [...changeRecords(semantic, 'text', lineStarts), ...changeRecords(prepassed, 'prepassedText', lineStarts), ...changeRecords(upstream, 'upstreamText', lineStarts)]
+  // Line endings have one diagnostic record, in the semantic view. Other views
+  // retain their mappings without copying the same change record three times.
+  const changes = [...changeRecords(semantic, 'text', lineStarts),
+    ...changeRecords(prepassed, 'prepassedText', lineStarts, 'style-semicolon'),
+    ...changeRecords(upstream, 'upstreamText', lineStarts, 'html-attribute-quotes')]
   return Object.freeze({ originalText, text: semantic.text, lineText: normalized.text, upstreamText: upstream.text, prepassedText: prepassed.text,
     changes: Object.freeze(changes), mappings: Object.freeze(semantic.mappings),
     lineMappings: Object.freeze(normalized.mappings),

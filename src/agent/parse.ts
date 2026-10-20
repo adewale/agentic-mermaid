@@ -112,8 +112,9 @@ function semanticFamilyLineSource(
   familyLineBoundary: number,
 ): { readonly source: string; readonly authoredHeader: string } {
   const lineStart = Math.max(0, Math.min(source.length, familyLineBoundary))
-  const newline = source.indexOf('\n', lineStart)
-  const physicalEnd = newline < 0 ? source.length : newline
+  const lineBreak = /[\r\n]/g
+  lineBreak.lastIndex = lineStart
+  const physicalEnd = lineBreak.exec(source)?.index ?? source.length
   const lineEnd = source.charCodeAt(physicalEnd - 1) === 13 ? physicalEnd - 1 : physicalEnd
   const rawLine = source.slice(lineStart, lineEnd)
   const stateHeader = /^\s*stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(rawLine)

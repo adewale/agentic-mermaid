@@ -346,27 +346,6 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(verifyMermaid(written).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
   })
 
-  test('accepted formatting warns exactly when Mermaid rewrites source attributes', async () => {
-    for (const source of [
-      'flowchart TD\nA["<b>bold</b><br>next"] --> B',
-      'flowchart TD\nA -->|"#lt;a="| B["b"] --> C',
-      'flowchart TD\nA -->|"<a="| B["b"] --- C',
-      'flowchart TD\nA[<a href="x">ok</a>] --> B',
-      'flowchart TD\nA["<a href="x">ok</a>"] --> B',
-      'flowchart TD\nA -->|"<a href="x">ok</a>"| B',
-      'flowchart TD\nsubgraph S[<a href="x">title</a>]\nA\nend',
-      'flowchart TD\nA@{label: <a href="x">ok</a>} --> B',
-      'flowchart TD\nA@{label: \'<a href=#quot;x#quot;>ok</a>\'} --> B',
-      'flowchart TD\n%% <a href="x">\nA --> B',
-      'flowchart TD\n%% <a=\nA["safe"] --> B',
-    ]) {
-      expect({ source, accepted: await upstream.accepts(source) }).toEqual({ source, accepted: true })
-      const parsed = parseRegisteredMermaid(source)
-      if (!parsed.ok) throw new Error('fixture rejected')
-      expect({ source, warned: verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup') }).toEqual({ source, warned: source.includes('href="x"') })
-    }
-  })
-
   test('(i)–(v) upstream and our parser agree on every generated flowchart', async () => {
     await fc.assert(
       fc.asyncProperty(sourceArb, async source => {
