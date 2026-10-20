@@ -858,8 +858,9 @@ const XML_REFERENCE_RE = /&(?:(quot|amp|lt|gt|apos)|#(\d+)|#[xX]([0-9a-fA-F]+));
  * `&#x22;` as `#34;`), which the label shows as that character and the lexer
  * reads as text. A reference elsewhere stays as written, where Mermaid's
  * parser reads it as text and `;` (`subgraph &quot;x` is the title `&quot`).
- * A code point no label may show (a control) is decoded, as the render path
- * decodes it, for the terminal and SVG writers to report and replace.
+ * A code point no label may show (a control), and any reference in a
+ * `click` or `href` statement, is decoded, as the render path decodes it;
+ * the writers report and replace a control.
  */
 export function labelReferencesAsEntityCodes(text: string): string {
   if (!text.includes('&')) return text
@@ -868,12 +869,16 @@ export function labelReferencesAsEntityCodes(text: string): string {
   const edits = new Map<number, Array<{ col: number; length: number; code: string }>>()
   for (const group of coalesceFlowchartLines(lines)) {
     if (group.directive || !group.text.includes('&')) continue
-    const { regions } = scanFlowchart(group.text)
+    const scan = scanFlowchart(group.text)
+    // A `click` or `href` statement holds a link and a tooltip, no label: it
+    // reads its references decoded, as the render path decodes them.
+    const interactions = flowchartStatementSpans(group.text, scan).filter(statement => /^(?:click|href)\s/i.test(statement.text))
     for (const match of group.text.matchAll(XML_REFERENCE_RE)) {
       const at = match.index
-      if (!regions.some(region => at >= region.contentStart && at + match[0].length <= region.contentEnd)) continue
+      const interaction = interactions.some(statement => at >= statement.start && at < statement.start + statement.text.length)
+      if (!interaction && !scan.regions.some(region => at >= region.contentStart && at + match[0].length <= region.contentEnd)) continue
       const point = match[1] === undefined ? (match[2] !== undefined ? Number(match[2]) : Number.parseInt(match[3]!, 16)) : undefined
-      const shown = point === undefined || (point > 0 && point <= 0x10ffff && (point < 0xd800 || point > 0xdfff) && !TERMINAL_CONTROL_RE.test(String.fromCodePoint(point)))
+      const shown = !interaction && (point === undefined || (point > 0 && point <= 0x10ffff && (point < 0xd800 || point > 0xdfff) && !TERMINAL_CONTROL_RE.test(String.fromCodePoint(point))))
       const { line, col } = flowchartGroupPosition(group, at)
       const list = edits.get(line) ?? []
       list.unshift({ col, length: match[0].length, code: shown ? `#${match[1] ?? point};` : decodeXML(match[0]) })

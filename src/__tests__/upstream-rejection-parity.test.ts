@@ -341,6 +341,8 @@ const FLOWCHART_GROUPS: ReadonlyArray<readonly [string, string]> = [
 const FLOWCHART_ENTITY_READINGS: ReadonlyArray<readonly [string, string, string]> = [
   ['entity quotes around a shape label', 'flowchart LR\n  A[&quot;x&quot;] --> B', '>&quot;x&quot;<'],
   ['entity quotes in a subgraph title, which `;` ends', 'flowchart LR\n  subgraph &quot;x\n  y&quot;\n    A\n  end', '>&amp;quot<'],
+  // A link holds no label: its `&amp;` is the `&` of the URL.
+  ['entities in a click link', 'flowchart LR\n  A --> B\n  click A "https://example.com/?a=1&amp;b=2"', 'data-href="https://example.com/?a=1&amp;b=2"'],
 ]
 
 // Flowchart source Mermaid accepts but reads otherwise than its author meant.
