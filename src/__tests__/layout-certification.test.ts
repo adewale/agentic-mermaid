@@ -1,9 +1,9 @@
 import '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyOwnedLayoutCandidate, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyOwnedLayoutCandidate, refineOwnedLayoutCandidate, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
-import { DeferredDependencyError } from '../layout/backend.ts'
+import { DeferredDependencyError, GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { withPerformanceExperiments, type PerformanceExperiment } from '../experimental-performance.ts'
@@ -25,6 +25,37 @@ function routeWitness(graph: MermaidGraph, positions: Record<string, [number, nu
 }
 
 describe('bounded final layout certification', () => {
+  const crossingWitness = () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const positions: Record<string, [number, number]> = { A: [0, 120], B: [300, 120], C: [100, 0], D: [100, 240] }
+    const first = routeWitness(graph, positions, [[[40, 140], [300, 140]], [[120, 40], [120, 240]]], 360, 340)
+    const other = routeWitness(graph, positions, [[[40, 140], [80, 140], [80, 300], [280, 300], [280, 140], [300, 140]], [[120, 40], [120, 240]]], 360, 340)
+    return { graph, first, other, style: resolveRenderStyle() }
+  }
+
+  test('certifies both owned candidates before preferring fewer final crossings', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => other)).toBe(other)
+    expect(other.certification?.status).toBe('passed')
+  })
+
+  test('preserves the owned primary after typed decline or invalid alternative geometry', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => { throw new GraphLayoutUnsupportedError('optional channel limit') })).toBe(first)
+    other.edges[0]!.points = []
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => other)).toBe(first)
+  })
+
+  test.each([new TypeError('unexpected refinement defect'), new DiagramWorkLimitError('nodes', 5_001), new DeferredDependencyError('native', async () => {})])('propagates owned refinement failure %s', failure => {
+    const { graph, first, style } = crossingWitness()
+    expect(() => refineOwnedLayoutCandidate(graph, style, first, () => { throw failure })).toThrow(failure)
+  })
+
+  test('never hides changed meaning in an owned alternative', () => {
+    const { graph, first, other, style } = crossingWitness()
+    other.nodes[0]!.label = 'lost authored identity'
+    expect(() => refineOwnedLayoutCandidate(graph, style, first, () => other)).toThrow(TypeError)
+  })
   test('owned candidate correspondence failures are engine defects, not recoverable geometry', () => {
     const graph = parseMermaid('flowchart TD\nA --> B')
     const changed = layoutGraphSync(graph)

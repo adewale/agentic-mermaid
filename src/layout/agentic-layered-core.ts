@@ -1,3 +1,4 @@
+import { minimumSpanRanks } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
 import type { Direction, Point } from '../types.ts'
 import { layoutSharedFan } from './shared-fan-core.ts'
@@ -25,6 +26,8 @@ export interface MeasuredGraph {
   loopPorts?: readonly (readonly [number, number])[]
   /** Adapter permits confluent routing only for compatible plain fans. */
   shareCompleteFans?: boolean
+  /** Private single-candidate refinement; authored arrow direction is restored. */
+  authoredCycleOrder?: boolean
 }
 
 export interface AgenticLayout {
@@ -75,7 +78,7 @@ export function layoutLayeredGraph(
   forestLayout: (input: MeasuredGraph) => AgenticLayout | undefined,
   unsupported: (reason: string) => never,
   routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 },
-  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
+  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
 ): AgenticLayout {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
@@ -210,6 +213,8 @@ export function layoutLayeredGraph(
     }
     if (!changed) break
   }
+  const optimalRanks = minimumSpanRanks(input, searchWork)
+  if (optimalRanks) rank.set(optimalRanks)
   maxRank = rank.reduce((maximum, value) => Math.max(maximum, value), 0)
   let expandedSize = nodes.length
   for (const edge of edges) {
