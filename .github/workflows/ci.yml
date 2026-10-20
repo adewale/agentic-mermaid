@@ -56,6 +56,42 @@ jobs:
       - name: Run test shard
         run: bun run test -- --shard=${{ matrix.shard }} --parallel=2
 
+  layout-evidence:
+    name: Layout backend review evidence
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Render graph backend comparison
+        env:
+          LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
+        run: |
+          mkdir -p "$LAYOUT_REVIEW"
+          bun -e '
+            import { renderMermaidPNGWithReceipt } from "./src/agent/index.ts";
+            const source = await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text();
+            const directory = process.env.LAYOUT_REVIEW;
+            for (const backend of ["elk", "agentic"]) {
+              const options = { graphLayout: { backend }, security: "strict" };
+              const rendered = renderMermaidPNGWithReceipt(source, options);
+              await Bun.write(`${directory}/${backend}.png`, rendered.png);
+              await Bun.write(`${directory}/${backend}.json`, JSON.stringify({ source, options, receipt: rendered.receipt }, null, 2));
+            }
+          '
+      - uses: actions/upload-artifact@v7
+        with:
+          name: layout-backends-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/layout-backends/
+          retention-days: 14
+
   quality:
     name: Quality gates
     runs-on: ubuntu-latest

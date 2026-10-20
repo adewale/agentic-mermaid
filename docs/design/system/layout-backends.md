@@ -1,14 +1,23 @@
 # Graph layout backends and comparative measurement
 
-Status: proposed implementation contract. ELK remains supported and is the
-default. The Agentic backend is opt-in and may initially support a smaller
-declared input domain. Implementation scheduling remains in root TODO.md.
+Status: implementation contract with an initial opt-in DAG backend. ELK remains
+supported and is the default. The initial Agentic domain is flat rectangular
+labelled DAGs; cycles, compound groups and specialized family geometry still
+require ELK. Implementation scheduling remains in root TODO.md.
 
 This design adds an owned graph-layout backend alongside ELK, lets callers
 select either one, and measures both through the same Agentic Mermaid rendering
 pipeline. The deliverable is supported selection, truthful execution evidence
 and reproducible comparisons. It does not require declaring either backend the
 winner or removing ELK.
+
+The initial implementation provides checked selection, attributed fallback,
+shared final-artifact certification, and release-runner comparisons of strict
+Agentic, Agentic with ELK fallback, and an ELK A/A control. The broader protocol
+below also specifies subsequent work: dedicated edit-stability measurements,
+browser backend comparisons, cache-churn cohorts and the complete aesthetic
+preference vector. Unsupported or unavailable evidence must remain explicit;
+the initial implementation does not establish a performance or quality winner.
 
 ## Scope and existing foundations
 
@@ -84,7 +93,7 @@ must consume the same resolved selection. Source and parsed representations of
 the same diagram must not choose different backends. Add CLI options
 --graph-layout elk|agentic and --graph-layout-fallback none|elk, and project the
 same checked option into MCP and browser surfaces through their existing schema
-authority. These names describe new interfaces, not commands available today.
+authority.
 
 Preserve public return shapes. String-returning render APIs still return strings
 on success and throw a typed owning exception on failure. Convert an internal
@@ -322,7 +331,7 @@ Extend bench:release with --layout-modes elk,agentic,agentic-with-elk and
 --layout-cache off|normal. The third mode maps to backend: 'agentic' with
 fallback: 'elk'; these are report arm names, not a third backend. Apply equivalent
 selection to the existing browser, micro and peer runners where applicable.
-The following is a proposed invocation after implementation:
+For example:
 
 ```sh
 bun run bench:release --baseline /path/to/pre-change --candidate /path/to/candidate \
