@@ -66,6 +66,12 @@ const QUADRANT_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a second arrow in axis text', 'quadrantChart\n  x-axis Low --> Mid --> High', 'Mid --&gt; High', 'quadrant_unquoted_text', 2],
   ['a colon in an unquoted quadrant label', 'quadrantChart\n  quadrant-1 Grow: fast', 'Grow: fast', 'quadrant_unquoted_text', 2],
   ['a string after unquoted text', 'quadrantChart\n  title Growth\n  quadrant-1 Grow "fast"', 'Grow', 'quadrant_unquoted_text', 3],
+  // A keyword where a word can start is a token of its own upstream.
+  ['a keyword in an unquoted quadrant label', 'quadrantChart\n  quadrant-1 Grow x-axis fast', 'Grow x-axis fast', 'quadrant_unquoted_text', 2],
+  ['a quadrant keyword glued to a digit', 'quadrantChart\n  quadrant-1 a quadrant-12', 'a quadrant-12', 'quadrant_unquoted_text', 2],
+  ['a keyword after non-ASCII text', 'quadrantChart\n  quadrant-1 拡張 QuaDrant-1 要', '拡張 QuaDrant-1 要', 'quadrant_unquoted_text', 2],
+  ['title after an underscore in a point label', 'quadrantChart\n  Low_title: [0.3, 0.4]', 'Low_title', 'quadrant_unquoted_text', 2],
+  ['the header keyword in axis text', 'quadrantChart\n  y-axis quadrantChart low --> high', 'quadrantChart low', 'quadrant_unquoted_text', 2],
 ]
 
 // Unquoted XYChart text (a title, an axis title, a series label or a
@@ -139,6 +145,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['quadrant', 'a <br/> in a quoted quadrant label', 'quadrantChart\n  quadrant-1 "Grow<br/>fast"'],
   ['quadrant', 'text after a leading string', 'quadrantChart\n  quadrant-1 "Grow" fast'],
   ['quadrant', 'a < in a title, which runs to the end of its line', 'quadrantChart\n  title Cost < Value'],
+  ['quadrant', 'keywords inside longer words, and quoted', 'quadrantChart\n  x-axis Titles --> "Low x-axis"\n  quadrant-1 classDefinitely\n  quadrant-2 subtitle'],
   ['quadrant', 'unquoted punctuation the lexer reads as text', "quadrantChart\n  Q&A #1 isn't 50% off?: [0.3, 0.4]\n  a/b = c+d*e, f.g_h\\i `j` !k: [0.5, 0.5]"],
   ['architecture', 'a <br/> in a double-quoted title', 'architecture-beta\n  service api(server)["Public<br/>API"]'],
   ['architecture', 'a <br/> in a single-quoted title', "architecture-beta\n  service api(server)['Public<br/>API']"],

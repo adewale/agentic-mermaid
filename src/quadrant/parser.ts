@@ -68,15 +68,20 @@ export function quadrantStatementEnds(lines: readonly string[]): number[] {
 // statement). Any other character is a lexical error there (`<>()[]{}|@^~`,
 // control characters) or starts another token (`:`, or a `"` string once the
 // text has begun). A "…" string may open the text and holds anything but `"`.
-// A title runs to the end of its line and is not text in this sense. Ours
-// reads such text as written (`x-axis Low < High`); verify reports it, and the
-// serializer writes it quoted, as Mermaid reads it.
+// A keyword where a word can start (`x-axis`, `quadrant-1`, `quadrantChart`,
+// and `classDef` or `title` as a whole word; any case) is a token of its own,
+// which ends the text. A title runs to the end
+// of its line and is not text in this sense. Ours reads such text as written
+// (`x-axis Low < High`); verify reports it, and the serializer writes it
+// quoted, as Mermaid reads it.
 const QUADRANT_STRING_RE = /^"[^"]*"/
 const NOT_QUADRANT_TEXT_RE = /[<>()[\]{}|@^~:"\n\r\x00-\x08\x0e-\x1f\x7f]/
+const QUADRANT_KEYWORD_RE = /(?<![A-Za-z])(?:[xy]-axis|quadrant-[1-4]|quadrantChart|(?:classDef|title)(?![A-Za-z0-9_]))/i
 
-/** The first character that keeps `text` from being quadrant text Mermaid reads, if any. */
+/** The first character or keyword that keeps `text` from being quadrant text Mermaid reads, if any. */
 function quadrantTextError(text: string): string | undefined {
-  return text.replace(QUADRANT_STRING_RE, '').match(NOT_QUADRANT_TEXT_RE)?.[0]
+  const unquoted = text.replace(QUADRANT_STRING_RE, '')
+  return unquoted.match(NOT_QUADRANT_TEXT_RE)?.[0] ?? unquoted.match(QUADRANT_KEYWORD_RE)?.[0]
 }
 
 /** Quadrant text as source: bare where Mermaid reads it so, else one "…" string. */
