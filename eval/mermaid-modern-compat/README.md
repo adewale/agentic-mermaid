@@ -117,7 +117,9 @@ to be announced, so these are the bug candidates. Every run counts them per
 family in `summary.json` (`silentReads`), reduces the first twelve of each
 family by line and then code point, and prints each distinct reduction with
 what ours read and Mermaid's error.
-`--native-only` restricts a run to the families ours parses.
+`--native-only` restricts a run to the families ours parses. The nightly finder
+(`.github/workflows/nightly-finder.yml`) runs those at a fresh seed and files
+new silent reads in one issue; the PR gate and weekly run keep seed 7.
 
 Canonical CI calls the reusable semantic workflow for every PR/main revision,
 and its success is required by `CI complete` and exact-commit release attestation.

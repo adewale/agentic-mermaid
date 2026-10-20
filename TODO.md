@@ -270,13 +270,17 @@ queues. Retired IDs are not reused.
   BUG-20 on existing corpus cases, and would have flagged the untrimmed labels
   fixed in #359; image contact sheets would not, because most of these defects
   render identically before and after a change.
-- [ ] **TEST-9 — Widen the upstream differentials** (`todo`). The flowchart and
-  sequence generators still omit characters and constructs where defects live:
-  entity codes other than `#quot;`, `\n`, markdown strings, `@{}`, `style` lines
-  and subgraph membership (flowchart); `* # \ < >`, `activate`, `box`,
-  `properties` and `links` (sequence). Add ER, class and state DBs to the upstream
-  worker, and compare what upstream displays (the Pie browser oracle's
-  approach), not only its DB.
+- [ ] **TEST-9 — Widen the upstream differentials** (`todo`). The seeded
+  grammar comparison now also mutates with fixed lexer-boundary fragments
+  (`eval/mermaid-modern-compat/grammar-fragments.ts`: entity codes, directives,
+  keyword and digit-led names, `@`, `||`, `:::`, Unicode blanks), reports silent
+  reads per family with reduced examples, and a nightly rolling-seed lane files
+  them in one issue. Left: the fast-check flowchart and sequence generators still
+  omit those spellings, `\n`, markdown strings, `@{}`, `style` lines and subgraph
+  membership (flowchart); `* # \ < >`, `activate`, `box`, `properties` and
+  `links` (sequence). Add ER, class and state DBs to the upstream worker, and
+  compare what upstream displays (the Pie browser oracle's approach), not only
+  its DB.
 - [ ] **TEST-10 — Random-order, fresh-process finder lane** (`todo`). Two
   order-dependent failures (resvg initialization, the Bun `node:vm` timer)
   surfaced only by accident. Run the suite nightly in shuffled file order and
