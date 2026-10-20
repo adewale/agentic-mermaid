@@ -12,13 +12,13 @@
       "requests": 36,
       "raw": 2304000,
       "gzip": 706000,
-      "brotli": 569000
+      "brotli": 570000
     },
     "state": {
       "requests": 35,
       "raw": 2302000,
       "gzip": 706000,
-      "brotli": 569000
+      "brotli": 570000
     },
     "sequence": {
       "requests": 34,
