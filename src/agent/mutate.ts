@@ -1,3 +1,4 @@
+import { restoreBodyComments } from './body-comments.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
@@ -105,11 +106,14 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDia
   if (plugin?.mutate && plugin.serialize) {
     const r = plugin.mutate(d.body, op)
     if (!r.ok) return r
+    if ((op.kind === 'rename_node' || op.kind === 'rename_state') && d.meta.bodyComments) {
+      d = { ...d, meta: { ...d.meta, bodyComments: d.meta.bodyComments.map(comment => comment.anchor?.collection === 'nodes' && comment.anchor.id === op.from ? { ...comment, anchor: { ...comment.anchor, id: op.to } } : comment) } } as ParsedDiagram
+    }
     // 1C wrapper policy: a mutated diagram keeps its leading wrapper
     // (frontmatter/directives/comments) byte-verbatim; only the body changes.
     const bodyAccessibility = accessibilityFromBody(r.value)
     const meta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
-    const bodySource = ensureAccessibilityLines(plugin.serialize(r.value), meta.accessibility)
+    const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize(r.value), meta.accessibility), d.kind, r.value, meta)
     const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource) + bodySource
     // Source locations, exact authored spans, and wrapper ownership describe a
     // particular source artifact. Rebuild all three from the mutated

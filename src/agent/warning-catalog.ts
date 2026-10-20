@@ -219,12 +219,12 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   COMMENT_DROPPED: {
-    summary: "The source contains in-body `%%` comments that this diagram's structured serialization does not preserve (reported with `count` and `lines`). The leading wrapper — frontmatter, `%%{init}%%` directives, comments before the header — always round-trips byte-verbatim; in-body comments survive only in opaque bodies or preserved opaque segments. Re-home load-bearing comments into the wrapper, or accept the loss as canonicalization.",
-    guideNote: 'in-body `%%` comments will not survive structured serialization; the leading wrapper (frontmatter, `%%{init}%%` directives, comments before the header) always round-trips byte-verbatim',
-    what: 'in-body %% comments will not survive structured serialization; the loss is announced, not silent.',
-    triggers: 'Comments between statements in a structurally-modeled body: the typed tree does not model them, so <code>serializeMermaid</code> writes the body back without them. The warning carries the count and line numbers.',
-    fix: 'Move essential comment content into a label or title before mutating, keep a source-level edit instead of a typed mutation when comments must survive, or accept the loss knowingly.',
-    example: 'flowchart LR\n  %% review note that structured serialization drops\n  A[Start] --> B[Done]',
+    summary: 'This family cannot retain one or more body comments in its structured serialization. Flowchart and State keep anchored body comments; wrappers, opaque bodies, and preserved segments retain their existing policies.',
+    guideNote: 'inspect the named comment occurrences before committing an edit; Flowchart and State body comments are retained',
+    what: 'known comment loss in a family without anchored comment retention.',
+    triggers: 'A body comment is absent from the family serializer output. The warning carries occurrence count and original line numbers.',
+    fix: 'Use a source-level edit when this family cannot preserve a required comment. Do not treat an ok flag as a losslessness certificate.',
+    example: 'pie\n  "Dogs": 3 %% review rationale',
     origins: ['source'],
   },
   UNSUPPORTED_SYNTAX: {

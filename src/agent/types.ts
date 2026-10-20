@@ -812,6 +812,8 @@ export interface ValidDiagramMeta {
    * `canonicalSource`.
    */
   droppedComments?: SourceComment[]
+  /** Body comments retained beside a stable semantic statement across edits. */
+  bodyComments?: Array<{ raw: string; anchor?: { collection: 'nodes' | 'edges' | 'groups'; id: string }; placement: 'before' | 'after' }>
 }
 
 export interface SourceLocation {

@@ -21,6 +21,7 @@ import {
   maskAccessibilityDirectivesForSourceMap,
   sourcePreservationSpans,
 } from '../family-detection.ts'
+import { retainBodyComments } from './body-comments.ts'
 import { serializeMermaid } from './serialize.ts'
 import { attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
@@ -355,6 +356,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     )
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     markDroppedComments(diagram, source, plugin.statementEnds)
+    retainBodyComments(diagram, source)
     return ok(diagram)
   }
 
