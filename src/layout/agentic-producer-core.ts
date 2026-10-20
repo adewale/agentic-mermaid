@@ -2,7 +2,12 @@ import type { Direction, MermaidGraph, MermaidSubgraph, PositionedGraph, Positio
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
-export { layoutLayeredGraph } from './agentic-layered-core.ts'
+import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
+import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
+
+export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: MeasuredGraph) => AgenticLayout | undefined, unsupported: (reason: string) => never): AgenticLayout {
+  return shortenMeasuredRoutes(input, layoutRawGraph(input, forest, unsupported))
+}
 
 /** Native-only preparation and projection are fetched with the selected solver.
  * Shared sizing and final certification remain owned by the graph pipeline. */

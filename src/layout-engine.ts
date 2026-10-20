@@ -2010,7 +2010,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   }
   const decision: GraphLayoutDecision = {
     requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? 'agentic-layered@6' : 'elk-layered@1', ...(reason ? { reason } : {}),
+    implementation: selected === 'agentic' ? 'agentic-layered@7' : 'elk-layered@1', ...(reason ? { reason } : {}),
   }
   positioned.layoutDecision = decision
   emitGraphLayoutDecision(decision)
