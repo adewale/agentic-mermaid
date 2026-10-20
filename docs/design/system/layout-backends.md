@@ -410,6 +410,14 @@ Add symmetric benchmark controls to disable/reset all relevant geometry caches
 for both implementations. Preserve the existing ELK cache control for backwards
 compatibility. Disabling only ELK's cache is not a valid uncached comparison.
 
+Consumed Node comparisons keep text-span measurement enabled on both sides.
+The off regime disables positioned-result and ELK geometry caches; normal
+enables both. Workers record these startup environment values before importing
+the measured package. Automatic forest selection is disabled in these solver
+comparisons, including the external default-only ELK baseline. Measure the
+product's automatic policy separately. Earlier experiments that disabled all
+performance features use a different protocol and retain that provenance.
+
 ## Correctness and layout quality
 
 Both implementations pass the existing semantic, family geometry, route, Scene,

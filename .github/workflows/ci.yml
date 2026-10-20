@@ -81,6 +81,8 @@ jobs:
             const fixtures = [
               ["fan-in-fan-out", await Bun.file("eval/layout-compare/fixtures/fan-in-fan-out.mmd").text()],
               ["nested-wide-titles", await Bun.file("eval/layout-compare/fixtures/nested-wide-titles.mmd").text()],
+              ["cyclic-labelled-11", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-11.mmd").text()],
+              ["cyclic-labelled-10", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-10.mmd").text()],
               ["tree-300", flowchartTree(300)],
               ["parallel-label-corridor", "flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6"],
             ];
