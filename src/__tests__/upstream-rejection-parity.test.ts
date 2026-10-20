@@ -11,6 +11,7 @@ import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMerma
 import type { BuiltinFamilyId } from '../agent/families.ts'
 import { renderMermaidASCII } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -702,5 +703,46 @@ describe('accept what pinned Mermaid accepts', () => {
       services: mermaid.getServices?.map(service => [service.id, service.title]),
       edges: mermaid.getEdges?.map(edge => edge.title),
     })
+  })
+})
+
+// The typed C4 serializer writes each reader extension in a spelling pinned
+// Mermaid reads as ours reads the source: one statement per line, quoted and
+// named arguments. An empty boundary, a standalone direction and the legend
+// and tag directives have no such spelling, and text glued to a quote has no
+// clear meaning to keep: those are written as authored.
+// [construct, source, kept as written]
+const C4_NO_MERMAID_SPELLING = new Set(['c4_empty_boundary', 'c4_direction', 'c4_directive_extension'])
+const C4_WRITTEN: ReadonlyArray<readonly [string, string, boolean]> = [
+  ...C4_READ_GENEROUSLY.map(([construct, source, , syntax]) => [construct, source, C4_NO_MERMAID_SPELLING.has(syntax)] as const),
+  ...C4_READ_OTHERWISE.map(([construct, source, syntax]) => [construct, source, syntax === 'c4_argument_quoting'] as const),
+  ...C4_ARGUMENTS_READ_OTHERWISE.map(([construct, source]) => [construct, source, false] as const),
+  ...C4_UNREADABLE.map(([construct, source]) => [construct, source, true] as const),
+  ['a semicolon, statements on one line and a comment taking the line break', 'C4Context\n  Person(a, "A"); Person(b, "B") Person(c, "C") %% note\n  Rel(a, b, "uses");Rel(b, c, "calls")', false],
+  ['positional RelIndex metadata', 'C4Dynamic\n  Person(a, "A")\n  Person(b, "B")\n  RelIndex(1, a, b, "uses", "tag1", "https://example.com")', false],
+  ['a single-quoted argument', 'C4Context\n  Person(a, \'Ann\', "A customer")', false],
+]
+
+describe('write a Mermaid spelling of what ours reads', () => {
+  test.each(C4_WRITTEN)('c4: %s', async (_construct, source, kept) => {
+    const parsed = parseRegisteredMermaid(source)
+    const body = parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body : undefined
+    const written = parsed.ok ? serializeMermaid(parsed.value) : ''
+    if (kept) {
+      expect(written).toBe(source)
+      return
+    }
+    const mermaid = await upstream.project(written, diagram => ({
+      elements: diagram.db.getC4ShapeArray().map((shape: { alias: string; label?: { text: string }; descr?: { text: string }; techn?: { text: string } }) => [shape.alias, shape.label?.text, shape.descr?.text ?? '', shape.techn?.text ?? '']),
+      boundaries: diagram.db.getBoundaries().filter((boundary: { alias: string }) => boundary.alias !== 'global').map((boundary: { alias: string; label?: { text: string } }) => [boundary.alias, boundary.label?.text]),
+      relationships: diagram.db.getRels().map((relation: { from: string; to: string; label?: { text: string }; techn?: { text: string } }) => [relation.from, relation.to, relation.label?.text, relation.techn?.text ?? '']),
+    }))
+    const read: Record<string, unknown> = mermaid.ok ? JSON.parse(JSON.stringify(mermaid.value), (_key, value) => typeof value === 'string' ? projectEntityMarkers(value) : value) : { rejected: mermaid.error }
+    const ours: Record<string, unknown> = {
+      elements: body?.elements.map(element => [element.id, element.label, element.description ?? '', element.technology ?? '']),
+      boundaries: body?.boundaries.map(boundary => [boundary.id, boundary.label]),
+      relationships: body?.relationships.map(relation => [relation.from, relation.to, relation.label, relation.technology ?? '']),
+    }
+    expect(read).toEqual(ours)
   })
 })

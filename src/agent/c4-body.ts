@@ -106,16 +106,33 @@ function canonicalStatements(body: C4Body): C4Statement[] {
   return result
 }
 
+// Reader extensions with a spelling pinned Mermaid reads as ours reads them:
+// the statement's canonical rendering (one line, quoted and named arguments).
+const RESPELLED_C4_EXTENSIONS = new Set([
+  'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_unquoted_argument', 'c4_space_before_arguments',
+  'c4_quoted_string_extension', 'c4_relindex_positional_metadata', 'c4_argument_reading',
+])
+
 /** Unchanged statements retain exact raw bytes. A typed edit rewrites only its
  * declaration; comments, unknown balanced blocks and surrounding trivia keep
- * their original place. Header and dynamic variant are independent of layout. */
-function renderC4Unchecked(body: C4Body): string {
+ * their original place. Header and dynamic variant are independent of layout.
+ * `portable` writes each reader extension with a Mermaid spelling instead
+ * (RESPELLED_C4_EXTENSIONS, `;` as a line break, a line break after a
+ * statement that shares its line), unless a statement has no native
+ * interpretation: Mermaid cannot read that source anyway, so it is kept. */
+function renderC4Unchecked(body: C4Body, portable = false): string {
+  const respell = portable && !body.diagnostics.some(item => item.severity === 'error')
+  const flagged = (syntax: (code: string) => boolean): Set<string | undefined> =>
+    new Set(respell ? body.diagnostics.filter(item => syntax(item.syntax)).map(item => item.statementId) : [])
+  const canonical = flagged(code => RESPELLED_C4_EXTENSIONS.has(code))
+  const semicolons = flagged(code => code === 'c4_semicolon_separator')
+  const breaks = flagged(code => code === 'c4_statements_on_one_line')
+  const parts: Array<{ trivia: boolean; text: string }> = []
   const elements = new Map(body.elements.map(record => [record.id, record]))
   const boundaries = new Map(body.boundaries.map(record => [record.id, record]))
   const relationships = new Map(body.relationships.map(record => [record.id, record]))
   const directives = new Map(body.directives.map(record => [record.id, record]))
   const sourceStatements = body.statements.length ? body.statements : canonicalStatements(body)
-  let output = ''
   for (const statement of sourceStatements) {
     let current: string | undefined, signature: string | undefined
     if (statement.kind === 'header') { current = body.variant; signature = body.variant }
@@ -140,15 +157,35 @@ function renderC4Unchecked(body: C4Body): string {
         : statement.kind === 'boundary-open' ? renderC4Boundary(record as C4Boundary)
           : statement.kind === 'relationship' ? renderC4Relationship(record as C4Relationship) : renderDirective(record as C4Directive)
     }
-    output += current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) ? statement.raw : current
+    let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) ? statement.raw : current
+    if (semicolons.has(statement.id)) text = text.replace(/;/g, '')
+    if (breaks.has(statement.id)) lineBreakBefore(parts)
+    parts.push({ trivia: statement.kind === 'trivia', text })
+    if (semicolons.has(statement.id) && !text.includes('\n')) lineBreakBefore(parts)
   }
-  return output
+  return parts.map(part => part.text).join('')
+}
+
+/** End the line of the statement before the next one. Mermaid's comment
+ * takes the line breaks after it, so a comment sharing that line moves to a
+ * line of its own. The new line keeps that statement's indentation. */
+function lineBreakBefore(parts: Array<{ trivia: boolean; text: string }>): void {
+  let at = parts.length
+  for (let index = parts.length - 1; index >= 0 && parts[index]!.trivia; index--) {
+    if (parts[index]!.text.includes('\n')) at = index
+    else if (parts[index]!.text.startsWith('%%')) at = index
+  }
+  // Spaces ending the statement's line give way to the line break.
+  const spaces = at > 0 && parts[at - 1]!.trivia && /^[ \t]*$/.test(parts[at - 1]!.text) ? 1 : 0
+  const before = parts.slice(0, at - spaces).map(part => part.text).join('')
+  const indent = /^[ \t]*/.exec(before.slice(before.lastIndexOf('\n') + 1))![0]
+  parts.splice(at - spaces, spaces, { trivia: true, text: `\n${indent}` })
 }
 
 export function renderC4(body: C4Body): string {
   const problem = c4BodyProblem(body)
   if (problem) throw new Error(problem)
-  return renderC4Unchecked(body)
+  return renderC4Unchecked(body, true)
 }
 
 function validText(value: unknown, name: string, required = false): string | null {

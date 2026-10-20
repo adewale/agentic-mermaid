@@ -55,12 +55,13 @@ describe('C4 authored semantics', () => {
     for (const alias of ['constructor', 'rounded', 'component']) expect(c4ShapeOverride(alias)).toBeUndefined()
   })
   test('public routing decodes only encoded headers and preserves leading comments and case', () => {
-    for (const source of ['C4&#67;ontext\nSystem(a,"Visible")', '%% leading\nc4context\nSystem(a,"Visible")', 'C4&#67;ontext; System(a,"Visible")']) {
+    // A `;` separator is written as the line break Mermaid reads.
+    for (const [source, written] of [['C4&#67;ontext\nSystem(a,"Visible")'], ['%% leading\nc4context\nSystem(a,"Visible")'], ['C4&#67;ontext; System(a,"Visible")', 'C4&#67;ontext\nSystem(a,"Visible")']] as const) {
       const parsed = parseRegisteredMermaid(source)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) throw new Error(parsed.error[0]?.message)
       expect(parsed.value.body.kind).toBe('c4')
-      expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(serializeMermaid(parsed.value)).toBe(written ?? source)
       expect(renderMermaidSVG(source)).toContain('Visible')
       expect(renderMermaidASCII(source, { colorMode: 'none' })).toContain('Visible')
     }
@@ -340,19 +341,20 @@ UpdateElementStyle(g,$borderColor="navy")`
 
   // Pinned Mermaid C4 needs a line break after each statement and after `{`
   // (a closing `}` may share the line before it), and its comments take the
-  // line breaks after them. Ours reads these layouts, reports each, and keeps
-  // the authored source; a comment ending the source or a block is Mermaid's.
+  // line breaks after them. Ours reads these layouts, reports each, and writes
+  // the line break Mermaid needs (a comment sharing the line moves to a line
+  // of its own); a comment ending the source or a block is Mermaid's.
   test.each([
-    ['C4Context\nSystem_Boundary(b, "B") { Person(a, "A") }', true],
-    ['C4Context\nPerson(a, "A") Person(b, "B")', true],
-    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n} Person(c, "C")', true],
-    ['C4Context\nPerson(a, "A") %% note\nPerson(b, "B")', true],
-    ['C4Context\nPerson(a, "A") %% note', false],
-    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") %% note\n}', false],
-  ] as const)('%j is reported as a reader extension: %p', (source, reported) => {
+    ['C4Context\nSystem_Boundary(b, "B") { Person(a, "A") }', true, 'C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") }'],
+    ['C4Context\nPerson(a, "A") Person(b, "B")', true, 'C4Context\nPerson(a, "A")\nPerson(b, "B")'],
+    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n} Person(c, "C")', true, 'C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A")\n}\nPerson(c, "C")'],
+    ['C4Context\nPerson(a, "A") %% note\nPerson(b, "B")', true, 'C4Context\nPerson(a, "A")\n%% note\nPerson(b, "B")'],
+    ['C4Context\nPerson(a, "A") %% note', false, 'C4Context\nPerson(a, "A") %% note'],
+    ['C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") %% note\n}', false, 'C4Context\nSystem_Boundary(b, "B") {\nPerson(a, "A") %% note\n}'],
+  ] as const)('%j is reported as a reader extension: %p', (source, reported, written) => {
     const body = parseC4Diagram(source)
     expect(body.diagnostics.some(record => record.message.includes('Statements sharing a line'))).toBe(reported)
-    expect(renderC4(body)).toBe(source)
+    expect(renderC4(body)).toBe(written)
   })
 
   test('source map addresses independent relationships and exact label starts', () => {
