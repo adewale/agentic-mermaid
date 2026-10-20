@@ -1,5 +1,6 @@
 import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
+import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/backend.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
 import { observeCache } from '../performance-observations.ts'
@@ -43,7 +44,10 @@ export function isRetainedPositionedSnapshot(result: object): boolean { return r
 export function cachedPositioned(family: object, key: string, alreadyObserved = false): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
-  return value ? clonePositioned(value.result) : undefined
+  if (!value) return undefined
+  const copy = clonePositioned(value.result)
+  transferGraphLayoutDecisions(value.result, copy)
+  return copy
 }
 /** Only the private native renderer may borrow this certified snapshot. */
 export function borrowedPositioned(family: object, key: string, nativeSvgRequest?: object): PositionedSnapshot | undefined {
@@ -69,7 +73,7 @@ export function retainOwnedNativeSvgPositioned(family: object, key: string, valu
 }
 function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean): void {
   const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}), ...(!copy ? { ownedNative: true as const } : {}) }
-  const weight = key.length * 2 + estimatedResidency(snapshot, MAX_WEIGHT) + 1024
+  const weight = key.length * 2 + estimatedResidency([snapshot, graphLayoutDecisionsOf(value)], MAX_WEIGHT) + 1024
   if (weight > MAX_WEIGHT) { observeCache('positioned-layout', 'store-skipped', 'weight-limit'); return }
   let retained = snapshot
   if (copy) {
@@ -79,6 +83,7 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
       if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
       throw error
     }
+    transferGraphLayoutDecisions(value, retained.result)
   }
   results.set(isolatedKey(family, key), retained, weight)
   retainedResults.add(retained.result)
