@@ -1,5 +1,6 @@
 import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
+import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/backend.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
 const familyIds = new WeakMap<object, number>()
@@ -13,7 +14,7 @@ function isolatedKey(family: object, key: string): string {
   return `${id}:${key}`
 }
 /** Copies remain private until provenance needed by prepared text is restored. */
-function clonePositioned<T>(source: T): T {
+function clonePositioned<T extends object>(source: T): T {
   const copy = structuredClone(source)
   const seen = new WeakSet<object>()
   const visit = (a: unknown, b: unknown): void => {
@@ -35,7 +36,10 @@ function clonePositioned<T>(source: T): T {
 }
 export function cachedPositioned(family: object, key: string): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
-  return value ? clonePositioned(value.result) : undefined
+  if (!value) return undefined
+  const copy = clonePositioned(value.result)
+  transferGraphLayoutDecisions(value.result, copy)
+  return copy
 }
 /** Only the private native renderer may borrow this certified snapshot. */
 export function borrowedPositioned(family: object, key: string): PositionedSnapshot | undefined {
@@ -50,7 +54,7 @@ export function retainOwnedSequencePositioned(family: object, key: string, value
 }
 function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean): void {
   const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}) }
-  const weight = key.length * 2 + estimatedResidency(snapshot, MAX_WEIGHT) + 1024
+  const weight = key.length * 2 + estimatedResidency([snapshot, graphLayoutDecisionsOf(value)], MAX_WEIGHT) + 1024
   if (weight > MAX_WEIGHT) return
   let retained = snapshot
   if (copy) {
@@ -60,6 +64,7 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
       if (error instanceof Error && error.name === 'DataCloneError') return
       throw error
     }
+    transferGraphLayoutDecisions(value, retained.result)
   }
   results.set(isolatedKey(family, key), retained, weight)
 }
