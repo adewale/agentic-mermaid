@@ -11,7 +11,7 @@ export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: Measure
 
 /** Native-only preparation and projection are fetched with the selected solver.
  * Shared sizing and final certification remain owned by the graph pipeline. */
-export function layoutNativeGraphCandidate(
+function placeNativeGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout,
   bindings: AgenticGraphBindings,
@@ -93,4 +93,16 @@ export function layoutNativeGraphCandidate(
   const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups }, graph, geometry.topology === 'forest', opts.padding, style, options.stateVisual?.noteMargin ?? 18, undefined, geometry.sharedEdges).positioned
   if (containsNonFiniteNumber(positioned)) throw new TypeError('Agentic graph pipeline returned non-finite geometry')
   return positioned
+}
+
+/** Compare one additional orientation after shared cleanup, so early routing
+ * scores cannot conceal final label conflicts or lost terminal clearance. */
+export function layoutNativeGraphCandidate(
+  graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
+  layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
+): PositionedGraph {
+  const first = placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
+  if (options.stateVisual || graph.subgraphs.length || graph.nodes.size > 20 || graph.edges.length > 64) return first
+  return bindings.refineOwnedLayoutCandidate(graph, style, first,
+    () => placeNativeGraphCandidate(graph, options, style, input => layoutAgenticGraph({ ...input, authoredCycleOrder: true }), bindings))
 }

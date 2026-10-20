@@ -1,10 +1,12 @@
-import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, type RubricMetrics } from '../layout-rubric.ts'
+import { measureLabelConflicts } from './label-conflicts.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup } from '../types.ts'
 import { LayoutPassContractError } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
+import { GraphLayoutUnsupportedError } from './backend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
@@ -372,6 +374,37 @@ export function certifyOwnedLayoutCandidate(graph: MermaidGraph, style: Resolved
     selected: result.certified, reason: 'first-certified', attempts: 1,
     compared: [{ strategy: result.certified.strategy, score: result.certified.score }],
   })
+}
+
+/** A bounded owned refinement preserves the feasible primary result. Producer
+ * defects, meaning changes, deferred dependencies and global limits propagate. */
+export function refineOwnedLayoutCandidate(
+  graph: MermaidGraph, style: ResolvedRenderStyle, first: PositionedGraph, produce: () => PositionedGraph,
+): PositionedGraph {
+  const points = (placed: PositionedGraph) => placed.edges.reduce((sum, edge) => sum + edge.points.length, 0)
+  if (graph.subgraphs.length || graph.nodes.size > 20 || graph.edges.length > 64
+    || graph.edges.reduce((sum, edge) => sum + (edge.length ?? 1), 0) > 128 || points(first) > 2048
+    || countEdgeCrossings(first.edges) === 0) return first
+  certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => first })
+  let other: PositionedGraph
+  try {
+    other = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-authored-order', produce })
+  } catch (error) {
+    if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
+    return first
+  }
+  if (points(other) > 2048) return first
+  const score = (placed: PositionedGraph) => [
+    measureLabelConflicts(placed, style).total, countOpposingRouteOverlaps(placed.edges), countParallelRouteOverlaps(placed.edges),
+    countEdgeCrossings(placed.edges), placed.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : Math.max(0, edge.points.length - 2)), 0),
+    placed.width * placed.height,
+  ]
+  const before = score(first), after = score(other)
+  for (let index = 0; index < before.length; index++) {
+    if (after[index]! < before[index]!) return other
+    if (after[index]! > before[index]!) break
+  }
+  return first
 }
 
 /** Select placement, then optionally certify one new route proposal. The baseline

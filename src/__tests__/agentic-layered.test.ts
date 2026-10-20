@@ -49,7 +49,7 @@ function crossesInterior(a: Point, b: Point, box: Box): boolean {
 describe('owned measured layered layout', () => {
   test('retains feasible loop routes when optional request work is exhausted', () => {
     const input = measured({ nodes: [{ id: 'loop', width: 120, height: 60 }], edges: [{ source: 0, target: 0, minSpan: 1, label: { width: 80, height: 20 } }] })
-    const work = { attempts: 0, scorePairs: 0, loopPairs: 1, routing: { pairs: 0, arcs: 0, swaps: 0 } }
+    const work = { attempts: 0, scorePairs: 0, loopPairs: 1, rankPairs: 0, routing: { pairs: 0, arcs: 0, swaps: 0 } }
     const output = layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) }, undefined, work)
     expect(work.loopPairs).toBeLessThan(0)
     expect(output.edges[0]!.points.length).toBeGreaterThanOrEqual(4)

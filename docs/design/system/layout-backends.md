@@ -719,9 +719,9 @@ allocation and peak RSS, and requires identical artifacts, outputs and complete
 receipt fingerprints. A control that is suspiciously faster also fails. Normal
 cache measurements enable the position cache before import; disabled-cache
 measurements disable both layout caches while preserving shared text spans.
-The CI canary enrolls two official corpus inputs and two frozen cyclic workloads
-in both regimes. Its corpus aggregate covers only the official inputs, with the
-frozen workloads reported separately; it is not full-domain qualification.
+The CI canary enrolls three official corpus inputs and seven frozen/scaling
+workloads in both regimes. Its corpus aggregate covers only the official inputs,
+with the workloads reported separately; it is not full-domain qualification.
 
 Requirement's adapter owns its card/header/field measurements, relationship
 stereotypes, title translation and Scene markers. It passes neutral measured
@@ -744,3 +744,39 @@ independent ownership. The optional refinement shares two million comparisons
 across scopes, examines at most 32 turn lanes per loop, and skips scopes above
 256 nodes, 128 edges or 2,048 route points. Exhaustion keeps feasible geometry
 without invoking fallback.
+
+Small acyclic constraint graphs may replace feasible heuristic ranks with a
+minimum-total-span assignment. The implementation cancels positive residual
+cycles in the unit-edge-flow dual and accepts recovered rank potentials only
+when primal and dual objectives agree. It is an owned bounded flow method, not
+an implementation of ELK's network simplex. The [hierarchical-drawing handbook's
+layer-assignment chapter](https://cs.brown.edu/people/rtamassi/gdhandbook/chapters/hierarchical.pdf)
+describes why minimum height, minimum span and minimum drawing width are
+different objectives. The refinement shares 200,000 residual-arc checks across
+scopes, allows at most 128 augmentations per invocation, and skips more than
+64 nodes, 128 edges or total minimum span 128. Exhaustion retains the previous
+feasible ranks; it does not decline a previously supported input. Tiny weighted
+DAG tests compare its objective against exhaustive feasible rank assignments.
+
+A small flat Flowchart with remaining crossings may also try one authored-order
+cycle orientation after the normal bounded search. Both complete drawings pass
+owned correspondence and geometry certification after shared cleanup. Final
+padded-label conflicts, opposing/parallel shared spans, proper crossings, raw
+bends and area are compared in that order; exact ties retain the first drawing.
+Only typed local decline or geometric rejection preserves the first candidate;
+unexpected defects, changed meaning, dependency suspension and global limits
+propagate. The extra candidate is limited to 20 nodes, 64 edges, total minimum
+span 128 and 2,048 final route points. It never compares with ELK during rendering.
+The frozen nine-node case remains adverse evidence: seven native crossings
+versus five with ELK at the preceding checkpoint. The improved 15-/19-node cases
+are retained beside it, rather than enrolling only successful comparisons.
+
+Recent Mermaid community reports reinforce separate engine contracts:
+[connector-shape and color changes](https://github.com/mermaid-js/mermaid/issues/8496)
+concern final appearance beyond placement, and [fractional-DPI label wrapping](https://github.com/mermaid-js/mermaid/issues/7794)
+describes why a headless browser result alone does not establish every display's
+text measurement. Both backends retain the same owned prepared text and Scene
+painting. The [BPMN/swimlane work](https://github.com/mermaid-js/mermaid/issues/8160)
+also depends on docking, anchored nodes, pools and lanes; generic layered boxes
+do not replace those constraints. This informs future fixed-port and hierarchy
+support without claiming those upstream features are implemented here.

@@ -85,6 +85,9 @@ jobs:
               ["nested-wide-titles", await Bun.file("eval/layout-compare/fixtures/nested-wide-titles.mmd").text()],
               ["cyclic-labelled-11", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-11.mmd").text()],
               ["cyclic-labelled-10", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-10.mmd").text()],
+              ["cyclic-labelled-15", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-15.mmd").text()],
+              ["cyclic-labelled-19", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-19.mmd").text()],
+              ["cyclic-labelled-9", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-9.mmd").text()],
               ["requirement-backends", await Bun.file("eval/layout-compare/fixtures/requirement-backends.mmd").text()],
               ["tree-300", flowchartTree(300)],
               ["parallel-label-corridor", "flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6"],
@@ -119,7 +122,7 @@ jobs:
             if ! GITHUB_SHA="$HEAD_SHA" bun run eval/benchmark/release-bench.ts \
               --candidate . --layout-modes elk,agentic --layout-cache "$cache" \
               --rounds 3 --reps 5 --budget-ms 480000 \
-              --case 'flowchart:official-syntax/flowchart.md#82,state:official-syntax/stateDiagram.md#16,requirement:official-syntax/requirementDiagram.md#4,flowchart:cyclic-labelled-11,flowchart:cyclic-labelled-10,requirement:cyclic-labelled-relations,requirement:100-requirements-99-relations' \
+              --case 'flowchart:official-syntax/flowchart.md#82,state:official-syntax/stateDiagram.md#16,requirement:official-syntax/requirementDiagram.md#4,flowchart:cyclic-labelled-11,flowchart:cyclic-labelled-10,flowchart:cyclic-labelled-15,flowchart:cyclic-labelled-19,flowchart:cyclic-labelled-9,requirement:cyclic-labelled-relations,requirement:100-requirements-99-relations' \
               --out "$LAYOUT_REVIEW/performance-$cache"; then
               failed=1
             fi
