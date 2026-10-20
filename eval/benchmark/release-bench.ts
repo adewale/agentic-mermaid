@@ -289,7 +289,10 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
   return runs
 }
 
-export function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: number) {
+export function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: number, control = false) {
+  const limits = control ? { ...GATES, corpusSlowdown: 1.1, familySlowdown: 1.1, caseSlowdown: 1.1, allocationGrowth: 1.1, rssGrowth: 1.1 } : GATES
+  const outside = (value: number, limit: number): boolean => value > limit || (control && value < 1 / limit)
+  const bound = (subject: string, limit: number): string => control ? `${subject} within reciprocal ${limit}×` : `${subject} ≤ ${limit}× baseline`
   const candidate = runs.at(-1)!
   const baseline = runs.length > 1 ? runs[0]! : undefined
   const measured = (list: Input[]) => list.filter(input => runs.every(run => run.results.get(input.id)?.mediansMs.length === rounds))
@@ -305,7 +308,7 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   const corpus = inputs.filter(input => input.kind === 'corpus')
   const scaling = inputs.filter(input => input.kind !== 'corpus')
   const checks: Check[] = []
-  const addRatio = (name: string, value: number | undefined, limit: number) => checks.push({ name, ok: value === undefined ? null : value <= limit, detail: value === undefined ? 'not compared: no matched measurement' : times(value) })
+  const addRatio = (name: string, value: number | undefined, limit: number) => checks.push({ name, ok: value === undefined ? null : !outside(value, limit), detail: value === undefined ? 'not compared: no matched measurement' : times(value) })
   const incomplete = inputs.filter(input => candidate.results.get(input.id)?.mediansMs.length !== rounds)
   checks.push({ name: 'Every candidate measurement completes', ok: candidate.failures.size === 0 && !incomplete.length, detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds` })
   checks.push({ name: 'Cold SVG render succeeds', ok: candidate.firstRender?.ok === true, detail: candidate.firstRender?.error ?? (candidate.firstRender?.ok ? 'flowchart rendered' : 'not measured') })
@@ -325,20 +328,32 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
       const lost = measured(inputs).filter(input => baseline.results.get(input.id)![format].ok && !candidate.results.get(input.id)![format].ok)
       checks.push({ name: `No lost ${format.toUpperCase()} renders`, ok: !lost.length, detail: lost.map(input => input.id).join(', ') || 'none' })
     }
-    addRatio(`Corpus render time ≤ ${GATES.corpusSlowdown}× baseline`, timeRatio(shared(corpus)), GATES.corpusSlowdown)
+    addRatio(bound('Corpus render time', limits.corpusSlowdown), timeRatio(shared(corpus)), limits.corpusSlowdown)
     const slowFamilies = [...new Set(corpus.map(input => input.family))].filter(family => {
       const list = shared(corpus.filter(input => input.family === family))
-      return list.length && timeRatio(list)! > GATES.familySlowdown
+      return list.length && outside(timeRatio(list)!, limits.familySlowdown)
     })
-    checks.push({ name: `Each compared family ≤ ${GATES.familySlowdown}× baseline`, ok: !slowFamilies.length, detail: slowFamilies.join(', ') || 'no family regression on shared successes' })
+    checks.push({ name: bound('Each compared family', limits.familySlowdown), ok: !slowFamilies.length, detail: slowFamilies.join(', ') || 'no family regression on shared successes' })
     const comparable = shared(scaling)
-    const slow = comparable.filter(input => timeRatio([input])! > GATES.caseSlowdown)
-    checks.push({ name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`, ok: comparable.length ? !slow.length : null, detail: `${comparable.length}/${scaling.length} compared${slow.length ? `; slow: ${slow.map(input => input.id).join(', ')}` : ''}` })
+    const slow = comparable.filter(input => outside(timeRatio([input])!, limits.caseSlowdown))
+    checks.push({ name: bound('Each large case', limits.caseSlowdown), ok: comparable.length ? !slow.length : null, detail: `${comparable.length}/${scaling.length} compared${slow.length ? `; slow: ${slow.map(input => input.id).join(', ')}` : ''}` })
     const before = baseline.memory.get('corpus')
     const after = candidate.memory.get('corpus')
     if (shared(corpus).length) checks.push({ name: 'Required matched corpus memory measurements complete', ok: !!before && !!after, detail: before && after ? `${before.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate memory observations' })
-    addRatio(`Corpus allocation ≤ ${GATES.allocationGrowth}× baseline`, ratio(after?.passAllocatedBytes, before?.passAllocatedBytes), GATES.allocationGrowth)
-    addRatio(`Corpus peak RSS ≤ ${GATES.rssGrowth}× baseline`, ratio(after?.peakRssBytes, before?.peakRssBytes), GATES.rssGrowth)
+    addRatio(bound('Corpus allocation', limits.allocationGrowth), ratio(after?.passAllocatedBytes, before?.passAllocatedBytes), limits.allocationGrowth)
+    addRatio(bound('Corpus peak RSS', limits.rssGrowth), ratio(after?.peakRssBytes, before?.peakRssBytes), limits.rssGrowth)
+  }
+  if (control) {
+    const sameOutput = (a: Outcome, b: Outcome): boolean => a.ok ? b.ok && a.output === b.output : !b.ok && a.error === b.error && a.code === b.code
+    const sameReceipt = (a?: LayoutObservation, b?: LayoutObservation): boolean => a && b ? same(a.receipt, b.receipt) : a === b
+    const different = inputs.filter(input => {
+      const a = baseline?.results.get(input.id), b = candidate.results.get(input.id)
+      return !a || !b || !sameOutput(a.svg, b.svg) || !same(a.ascii, b.ascii)
+        || !sameReceipt(a.layout, b.layout) || !sameReceipt(a.asciiLayout, b.asciiLayout)
+    }).map(input => input.id)
+    checks.push({ name: 'ELK A/A uses one artifact with identical output and receipts',
+      ok: runs.length === 2 && baseline?.entry === candidate.entry && Boolean(baseline?.firstRender && candidate.firstRender && same(baseline.firstRender, candidate.firstRender)) && !different.length,
+      detail: different.join(', ') || 'same entry, cold output, SVG/ASCII and complete receipt fingerprints' })
   }
   const memory = candidate.memory.get('candidate-corpus') ?? candidate.memory.get('corpus')
   checks.push({
@@ -555,10 +570,10 @@ function main() {
         mkdirSync(directory, { recursive: true })
         writeFileSync(join(directory, 'samples.jsonl'), `${JSON.stringify({ ...metadata, comparison: plan.name, engines: plan.engines })}\n`)
         const runs = measure(directory, plan.engines, groups, rounds, reps, deadline)
-        const result = report(inputs, groups, runs, rounds)
+        const result = report(inputs, groups, runs, rounds, plan.name === 'elk-aa')
         const healthy = plan.advisory ? strictLayoutHealthy(inputs, runs, rounds) : result.ok
         const markdown = plan.advisory ? `Strict Agentic support is partial: full-coverage and performance gates below are advisory. Measurement, content, determinism and unexpected-error checks ${healthy ? 'pass' : 'FAIL'}.\n\n${result.markdown}` : result.markdown
-        const summary = { ...metadata, ...result.summary, comparison: plan.name, gatePolicy: plan.advisory ? 'partial-support-advisory' : 'existing-release-gates', requiredChecksPass: healthy }
+        const summary = { ...metadata, ...result.summary, comparison: plan.name, ...(plan.name === 'elk-aa' ? { control: { symmetric: true, ratioLimit: 1.1 } } : {}), gatePolicy: plan.name === 'elk-aa' ? 'symmetric-elk-aa-control' : plan.advisory ? 'partial-support-advisory' : 'existing-release-gates', requiredChecksPass: healthy }
         writeFileSync(join(directory, 'report.json'), JSON.stringify(summary, null, 2))
         writeFileSync(join(directory, 'report.md'), markdown)
         return { name: plan.name, advisory: plan.advisory, ok: healthy, summary, markdown }

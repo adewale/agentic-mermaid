@@ -90,6 +90,22 @@ describe('release publication decisions', () => {
     expect(result.summary.checks.find(check => check.name === 'Every required baseline measurement completes')?.ok).toBe(false)
   })
 
+  test.each([0.5, 2])('ELK A/A rejects a %s× timing difference in either direction', factor => {
+    const inputs = [input('flow'), input('cyclic', 'scaling')]
+    const before = run('elk-reference', inputs), after = run('elk-aa', inputs)
+    for (const row of after.results.values()) { row.samplesMs = [[factor, factor, factor]]; row.mediansMs = [factor] }
+    const groups: Group[] = [{ name: 'corpus', inputs: [inputs[0]!], budgetMs: 1000 }]
+    expect(report(inputs, groups, [before, after], 1, true).ok).toBe(false)
+    if (factor < 1) expect(report(inputs, groups, [before, after], 1).ok).toBe(true)
+  })
+
+  test('ELK A/A cannot pass when the two workers draw different output', () => {
+    const inputs = [input('flow')], before = run('elk-reference', inputs), after = run('elk-aa', inputs)
+    expect(report(inputs, [], [before, after], 1, true).ok).toBe(true)
+    after.results.get('flow')!.svg = { ok: true, output: '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>' }
+    expect(report(inputs, [], [before, after], 1, true).ok).toBe(false)
+  })
+
   test('a missing baseline memory observation is incomplete even when timings succeeded', () => {
     const inputs = [input('flow')], before = run('baseline', inputs), after = run('candidate', inputs)
     before.memory.clear()
