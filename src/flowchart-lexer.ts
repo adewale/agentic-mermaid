@@ -34,7 +34,7 @@
 import { decodeXML } from 'entities'
 import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 import { scanMetadataBlock } from './shared/metadata-block-scan.ts'
-import { mermaidEntityPrepass, TERMINAL_CONTROL_RE } from './shared/mermaid-entities.ts'
+import { TERMINAL_CONTROL_RE } from './shared/mermaid-entities.ts'
 
 export interface FlowchartTextRange { start: number; end: number }
 
@@ -525,45 +525,17 @@ const STYLE_STATEMENT_RE = /^(?:style|classDef|linkStyle)\s/
 /** Text that is style properties alone (`stroke:#0a0, stroke-width:2px`):
  * a property name and `:` first, and no link, class, `&` list, metadata,
  * shape text or string. */
-const STYLE_PROPERTIES_RE = new RegExp(String.raw`^([a-zA-Z][\w-]*)\s*:(?!:)(?:(?!${FLOWCHART_LINK_SOURCE}|:::)[^&@"[\]{}|])*$`)
-/** The CSS and SVG property names a style statement takes (`fill`,
- * `stroke-width`, `font-weight`, `opacity`). Other text with a colon (`a:b`)
- * is a node, as upstream reads it. */
-const STYLE_PROPERTY_NAME_RE = /^(?:(?:fill|stroke|font|border|background|outline|padding|margin|marker)(?:-[a-z]+)*|(?:text|letter|word|line|white)(?:-[a-z]+)+|color|opacity|rx|ry|width|height|display|visibility|cursor|filter|transform)$/i
-
-/** The offsets in `line` of the `;`s pinned Mermaid's entity prepass takes:
- * each that ends an entity code after its `style`/`classDef` strip, and each
- * it strips with more than blanks after it on the line. */
-export function entityPrepassSemicolons(line: string): number[] {
-  if (!line.includes(';')) return []
-  const prepassed = mermaidEntityPrepass(line)
-  // The prepass only deletes `;`s, the last ones of the line: pair the rest.
-  const origin: number[] = []
-  const taken: number[] = []
-  for (let at = 0, kept = 0; at < line.length; at++) {
-    if (kept < prepassed.length && line[at] === prepassed[kept]) origin[kept++] = at
-    else if (line.slice(at + 1).trim() !== '') taken.push(at)
-  }
-  for (const code of prepassed.matchAll(/#\w+;/g)) taken.push(origin[code.index + code[0].length - 1]!)
-  return taken
-}
+const STYLE_PROPERTIES_RE = new RegExp(String.raw`^[a-zA-Z][\w-]*\s*:(?!:)(?:(?!${FLOWCHART_LINK_SOURCE}|:::)[^&@"[\]{}|])*$`)
 
 /** The statements of one line: the text between statement-level `;`, with
  * each statement's trimmed offset. Empty statements are dropped. Upstream's
  * `end` token takes the whitespace after it, so a statement may follow it on
  * its line (`end B`). A `;` between style properties (`style A fill:#f9f;
  * stroke:#0a0`) separates them, as in CSS, and ends no statement; upstream
- * ends the statement there, and reads what follows as a node, or, where its
- * entity prepass takes the `;` (after a `#` color), as more of the style.
- * Text after the `;` that names no style property (`a:b`) is its own
- * statement, as upstream reads it, unless its prepass takes the `;`. */
+ * ends the statement there, and reads what follows as a node, or, after a
+ * `#` color, as more of that color. */
 export function flowchartStatementSpans(text: string, scan: FlowchartScan = scanFlowchart(text)): Array<{ text: string; start: number }> {
   const out: Array<{ text: string; start: number }> = []
-  let prepassTaken: ReadonlySet<number> | undefined
-  const continuesStyle = (properties: string, separator: number): boolean => {
-    const name = STYLE_PROPERTIES_RE.exec(properties)?.[1]
-    return name !== undefined && (STYLE_PROPERTY_NAME_RE.test(name) || (prepassTaken ??= new Set(entityPrepassSemicolons(text))).has(separator))
-  }
   let start = 0
   for (const end of [...scan.separators, text.length]) {
     const raw = text.slice(start, end)
@@ -572,7 +544,7 @@ export function flowchartStatementSpans(text: string, scan: FlowchartScan = scan
     const keyword = /^end\s+/.exec(trimmed)
     const last = out.at(-1)
     if (keyword) out.push({ text: 'end', start: at }, { text: trimmed.slice(keyword[0].length), start: at + keyword[0].length })
-    else if (trimmed && last && STYLE_STATEMENT_RE.test(last.text) && continuesStyle(trimmed, start - 1)) last.text = text.slice(last.start, at + trimmed.length)
+    else if (trimmed && last && STYLE_STATEMENT_RE.test(last.text) && STYLE_PROPERTIES_RE.test(trimmed)) last.text = text.slice(last.start, at + trimmed.length)
     else if (trimmed) out.push({ text: trimmed, start: at })
     start = end + 1
   }

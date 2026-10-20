@@ -1,9 +1,10 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { emptyFlowchartGraph, flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
-import { coalesceFlowchartLines, entityPrepassSemicolons, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
 
@@ -146,12 +147,29 @@ function entitySemicolonWarnings(source: string): LayoutWarning[] {
     const separators = new Set(scan.separators.filter(at => !statements.some(statement => at > statement.start && at < statement.start + statement.text.length)))
     // Where each physical line's text begins in the group, and at which column.
     for (const piece of [{ at: 0, line: group.line, col: 0 }, ...(group.joined ?? [])]) {
-      if (entityPrepassSemicolons(lines[piece.line]!).some(at => at >= piece.col && separators.has(piece.at + at - piece.col))) {
+      if (prepassSemicolons(lines[piece.line]!).some(at => at >= piece.col && separators.has(piece.at + at - piece.col))) {
         warnings.push({ code: 'UNSUPPORTED_SYNTAX', line: piece.line + 1, syntax: 'flowchart_entity_semicolon', message: 'Ours ends a statement at a `;` here. Pinned Mermaid reads `#name;` as an entity code, and drops the last `;` of a line where `style` or `classDef` comes before `:…#`, so there the `;` ends nothing: it rejects the line, or reads the text after the `;` into the statement. Drop the `;`, and put any statement after it on its own line.' })
       }
     }
   }
   return warnings
+}
+
+/** The offsets in `line` of the `;`s pinned Mermaid's entity prepass takes:
+ * each that ends an entity code after its `style`/`classDef` strip, and each
+ * it strips with more than blanks after it on the line. */
+function prepassSemicolons(line: string): number[] {
+  if (!line.includes(';')) return []
+  const prepassed = mermaidEntityPrepass(line)
+  // The prepass only deletes `;`s, the last ones of the line: pair the rest.
+  const origin: number[] = []
+  const taken: number[] = []
+  for (let at = 0, kept = 0; at < line.length; at++) {
+    if (kept < prepassed.length && line[at] === prepassed[kept]) origin[kept++] = at
+    else if (line.slice(at + 1).trim() !== '') taken.push(at)
+  }
+  for (const code of prepassed.matchAll(/#\w+;/g)) taken.push(origin[code.index + code[0].length - 1]!)
+  return taken
 }
 
 const NUMBERED_LINK_STYLE_RE = /^linkStyle\s+([\d,\s]+)\s+(.+)$/
