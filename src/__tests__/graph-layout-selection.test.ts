@@ -94,16 +94,23 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
-  test('retains separate label corridors beside a disconnected fan-out', () => {
-    // Reduced from the labelled mesh: generic trunk bundling moved a foreign
-    // fan-out route through label 37 despite initially clear native channels.
-    const source = 'flowchart TD\nn58 --> n66\nn58 --> n70\nn29 -->|label 37| n16\nn113 -->|label 38| n16'
+  test.each([
+    { name: 'disconnected fan-out', source: 'flowchart TD\nn58 --> n66\nn58 --> n70\nn29 -->|label 37| n16\nn113 -->|label 38| n16', nodes: 6, edges: 4, parallel: undefined },
+    { name: 'duplicate lanes', source: 'flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6', nodes: 3, edges: 3, parallel: ['n0', 'n6'] },
+  ])('retains separate label corridors beside $name', ({ source, nodes, edges, parallel }) => {
+    // Reduced public counterexamples: a shared routing proposal must not
+    // replace clear native corridors with crossings through a foreign pill.
     const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
     const quality = measureQuality(result.layout)
-    expect(quality.nodeCount).toBe(6)
-    expect(quality.edgeCount).toBe(4)
+    expect(quality.nodeCount).toBe(nodes)
+    expect(quality.edgeCount).toBe(edges)
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.labelConflicts?.total).toBe(0)
+    if (parallel) {
+      const routes = result.layout.edges.filter(edge => edge.from === parallel[0] && edge.to === parallel[1])
+      expect(routes).toHaveLength(2)
+      expect(routes[0]!.path).not.toEqual(routes[1]!.path)
+    }
     JSON.stringify(result.receipt)
   })
 
