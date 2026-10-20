@@ -98,6 +98,14 @@ not-applicable evidence; they never repaint or relayout. Transparent output has
 no known host backdrop, so contrast reports unmeasurable rather than inventing
 a ratio.
 
+Treemap preserves explicit text ink when deriving automatic category fills. Its
+shared palette chooses readable, page-visible and distinguishable colors
+together, before brand constraints inspect the Scene. Authored fills stay exact.
+If concrete ink/page choices leave no suitable palette, choose another text
+color or an explicit readable fill; the renderer reports that configuration
+limit. Unresolved and translucent inks retain their authored values without a
+contrast guarantee.
+
 ### Export and edit a built-in
 
 Built-ins dogfood this same record format. Export one with `getStyle`, validate

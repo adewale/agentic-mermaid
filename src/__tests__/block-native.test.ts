@@ -300,6 +300,26 @@ describe('native block', () => {
     const headerInk = darkHeader.match(/<text\b[^>]*fill="([^"]*)"[^>]*>Outer<\/text>/)?.[1]
     expect(headerInk).toBeDefined()
     expect(wcagContrastRatio(headerInk!, '#000000')).toBeGreaterThanOrEqual(4.5)
+    for (const [authored, styledInk, expectedInk] of [
+      ['classDef chosen fill:#ffffff\nclass outer chosen', undefined, undefined],
+      ['style outer fill:#ffffff', undefined, undefined],
+      ['classDef chosen fill:#ffffff,color:#661122\nclass outer chosen', '#174ea6', '#661122'],
+      ['style outer fill:#ffffff', '#174ea6', '#174ea6'],
+    ] as const) {
+      const authoredSource = `${source}\n${authored}`,
+        renderOptions = { style: { colors: { bg: '#ffffff', fg: '#000000' }, roles: { group: { headerFillColor: '#000000', ...(styledInk ? { textColor: styledInk } : {}) } } } },
+        authoredRequest = resolveRenderRequestForExecution(authoredSource, renderOptions, 'svg'),
+        authoredScene = lowerPositionedFamilyScene(authoredRequest, positionResolvedFamily('block', authoredRequest)),
+        authoredOuter = authoredScene.parts.find(node => node.kind === 'group' && node.id === 'block:outer') as GroupMark
+      expect(authoredOuter.children.find(({ node }) => node.id === 'frame:outer')!.node).toMatchObject({ paint: { fill: '#ffffff' } })
+      expect(authoredOuter.children.find(({ node }) => node.id === 'header:outer')!.node).toMatchObject({ paint: { fill: '#ffffff' } })
+      if (expectedInk) expect(authoredOuter.children.find(({ node }) => node.id === 'label:outer')!.node).toMatchObject({ paint: { fill: expectedInk } })
+      else {
+        const actualInk = renderMermaidSVG(authoredSource, renderOptions).match(/<text\b[^>]*fill="([^"]*)"[^>]*>Outer<\/text>/)?.[1]
+        expect(actualInk).toBe('#000000')
+        expect(wcagContrastRatio(actualInk!, '#ffffff')).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
   test('independently generated labels retain order, spans and explicit gaps', () => {
     fc.assert(

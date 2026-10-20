@@ -6,8 +6,10 @@ import { mutateTreemap, renderTreemap } from '../agent/treemap-body.ts'
 import { lowerPositionedFamilyScene } from '../graphical-render.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
-import type { SceneNode } from '../scene/ir.ts'
+import type { SceneNode, ShapeMark } from '../scene/ir.ts'
+import { getStyle } from '../scene/style-registry.ts'
 import { visitSceneNodes } from '../scene/walk.ts'
+import { contrastRatio } from '../shared/color-math.ts'
 import { layoutTreemapDiagram, resolveTreemapConfig, squarifyTreemap } from '../treemap/layout.ts'
 import { parseTreemapDiagram } from '../treemap/parser.ts'
 import type { PositionedTreemap } from '../treemap/types.ts'
@@ -242,6 +244,49 @@ describe('native Treemap', () => {
       lowNodes: SceneNode[] = []
     visitSceneNodes(lowerPositionedFamilyScene(lowRequest, positionResolvedFamily('treemap', lowRequest)).parts, node => lowNodes.push(node))
     expect(lowNodes.find(node => node.id === `label:${group.node.id}`)).toMatchObject({ paint: { fill: '#ffffff' } })
+
+    // A caller's ink remains authoritative even when the family derives the
+    // categorical surface instead of receiving a matching authored fill.
+    for (const role of ['node', 'group', 'label'] as const) {
+      const input = role === 'node' ? 'treemap\n"Only": 100' : 'treemap\n"Root"\n  "Only": 100',
+        options = { style: { roles: { [role]: { textColor: '#ffffff' } } } },
+        inkRequest = resolveRenderRequest(input, options, 'svg'),
+        inkPositioned = positionResolvedFamily('treemap', inkRequest),
+        inkNodes: SceneNode[] = []
+      visitSceneNodes(lowerPositionedFamilyScene(inkRequest, inkPositioned).parts, node => inkNodes.push(node))
+      expect(inkNodes.find(node => node.id === 'label:treemap-0'), `${role}: caller-selected ink`).toMatchObject({ paint: { fill: '#ffffff' } })
+      expect(inkNodes.find(node => node.id === 'value:treemap-0'), `${role}: caller-selected value ink`).toMatchObject({ paint: { fill: '#ffffff' } })
+      const surface = inkNodes.find((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar' && node.owner?.id === 'treemap-0')!
+      expect(contrastRatio('#ffffff', surface.paint!.fill!)).toBeGreaterThanOrEqual(4.5)
+      const defaultRequest = resolveRenderRequest(input, {}, 'svg'),
+        defaultPositioned = positionResolvedFamily('treemap', defaultRequest).positioned as PositionedTreemap
+      expect((inkPositioned.positioned as PositionedTreemap).cells.map(cell => [cell.node.id, cell.x, cell.y, cell.width, cell.height, cell.total])).toEqual(defaultPositioned.cells.map(cell => [cell.node.id, cell.x, cell.y, cell.width, cell.height, cell.total]))
+      const authoredInput = input.replace(role === 'node' ? '"Only": 100' : '"Root"', role === 'node' ? '"Only": 100:::ink' : '"Root":::ink') + '\nclassDef ink color:#123456;',
+        classRequest = resolveRenderRequest(authoredInput, options, 'svg'),
+        classNodes: SceneNode[] = []
+      visitSceneNodes(lowerPositionedFamilyScene(classRequest, positionResolvedFamily('treemap', classRequest)).parts, node => classNodes.push(node))
+      expect(classNodes.find(node => node.id === 'label:treemap-0'), `${role}: authored class ink wins`).toMatchObject({ paint: { fill: '#123456' } })
+    }
+
+    for (const name of ['accessible-high-contrast', 'status-dashboard', 'publication-figure']) {
+      const request = resolveRenderRequest('treemap\n"Only": 100', { style: name }, 'svg'),
+        nodes: SceneNode[] = []
+      visitSceneNodes(lowerPositionedFamilyScene(request, positionResolvedFamily('treemap', request)).parts, node => nodes.push(node))
+      const surface = nodes.find((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar')!
+      expect(nodes.find(node => node.id === 'label:treemap-0'), name).toMatchObject({ paint: { fill: 'var(--fg)' } })
+      expect(contrastRatio(getStyle(name)!.colors!.fg!, surface.paint!.fill!), name).toBeGreaterThanOrEqual(4.5)
+    }
+    for (const ink of ['rgba(255,255,255,0.5)', 'currentColor']) {
+      const input = 'treemap\n"Only": 100',
+        request = resolveRenderRequest(input, { style: { roles: { node: { textColor: ink } } } }, 'svg'),
+        defaultRequest = resolveRenderRequest(input, {}, 'svg'),
+        nodes: SceneNode[] = [],
+        defaultNodes: SceneNode[] = []
+      visitSceneNodes(lowerPositionedFamilyScene(request, positionResolvedFamily('treemap', request)).parts, node => nodes.push(node))
+      visitSceneNodes(lowerPositionedFamilyScene(defaultRequest, positionResolvedFamily('treemap', defaultRequest)).parts, node => defaultNodes.push(node))
+      expect(nodes.find(node => node.id === 'label:treemap-0')).toMatchObject({ paint: { fill: ink } })
+      expect(nodes.find((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar')!.paint).toEqual(defaultNodes.find((node): node is ShapeMark => node.kind === 'shape' && node.role === 'bar')!.paint)
+    }
   })
 
   test('readable numeric separators retain quantity and disclose pinned portability', () => {

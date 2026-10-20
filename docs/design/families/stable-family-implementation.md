@@ -222,13 +222,16 @@ paint certification protect the repaired behavior. Narrow Packet fields and
 deep Treemap labels use explicit authored canvas/bit-width settings in the
 gallery; the renderer preserves their quantitative ratios and full labels.
 
-## Comparative follow-up (2026-10-20)
+## Comparative follow-up (historical revision, 2026-10-20)
 
 The follow-up inspected Mermaid `develop` at
 [`6d8921f94f9a12b76586eddcf45a566080d4767e`](https://github.com/mermaid-js/mermaid/tree/6d8921f94f9a12b76586eddcf45a566080d4767e)
 and PR438 at `6e54b9dad8396d865cce8bbe1344f92ee244e281`; the two bounded
 repairs below follow that inspection. The language/reference pin remains 12.2.0.
 Open branches are design evidence, not additions to the accepted language.
+The table records that inspection's status. The later
+“Completing the community follow-up” section describes the implemented
+Kanban and Packet work; current measurements belong to the final PR receipts.
 
 Pele already accepts the same 55 six-family documentation inputs in the table
 above. Agentic's additional proposition is the connected typed-edit, fact,
@@ -288,3 +291,47 @@ Kanban's opt-in host option `kanban.maxWidth` wraps whole columns, retaining mea
 Packet's existing fragment identity and inclusive range attributes gain an escaped semantic field label. The Editor exposes one selection per authored field, keyboard interaction, cross-row highlighting, bit ranges and zero-based byte offsets. Inspection changes the preview only; canonical exports retain their original styles and geometry. The production browser cases capture reviewer images and verify receipt correspondence with terminal output.
 
 The complete 56-candidate getter audit classifies 50 as normalization, three as the documented Flowchart group-ownership policy, and three as actual semantic defects (two Class lollipop cases and one State paint-assignment case). Class interfaces now retain independent occurrence identities, including repeated labels and ordinary classes with the same spelling. State class/style directives preserve undeclared targets without inventing states. Empty Gantt plans and repeated GitGraph commit labels are separate successful-render fixes. Raw CSS remains rejected under strict security; the excluded experimental families and the `info` utility do not become new diagram implementations.
+
+## Applying the shared aesthetic rules
+
+The review follows the current [quality priorities](../../quality.md),
+[chart-honesty principles](../system/chart-honesty.md) and shared Scene role
+contracts. Meaning, readable ownership and finite geometry precede crossings,
+bends, symmetry and compactness. Packet bit widths and Treemap areas remain
+quantitative constraints, not space that a style may redistribute.
+
+The audit found that five families assigned their primary surfaces the `chrome`
+role. An explicit node/group owner preserves meaning but does not dispatch the
+shared sketch backend or enroll that surface in role-specific brand checks.
+Packet fields, Kanban cards/columns, Requirement compartments, Block outlines
+and the boxed Ishikawa effect/categories now use the existing `node`/`group`
+roles. Their enclosing semantic containers keep the authored public identities;
+owned shape artwork does not create a second primary DOM identity. The Scene
+boundary rejects identity-free artwork outside its matching semantic container.
+Treemap already uses `bar` for its quantitative rectangles. Separators, label
+knockouts and decorative header fills keep their deliberately quiet roles.
+Treemap's explicit node/group/label text colors bypass automatic contrast
+re-inking, with authored class ink taking precedence. Block's authored group
+fill also takes precedence over a Style's header fill, and automatic header ink
+is selected against that final fill. These repairs preserve caller choices
+rather than repainting them to improve an aesthetic score.
+Where a Style fixes opaque text ink but leaves Treemap fills automatic, the
+shared categorical palette evaluates ink contrast, page visibility and peer
+separation jointly. Independent per-cell lightness clamping was rejected
+because it collapsed distinct peers. Palette work remains request-local and
+bounded to the default plus two role-ink variants; source-class colors do not
+multiply palette generation. Unresolved/translucent ink has no invented
+contrast guarantee. The hard peer-separation floor applies through 24 categories;
+larger palettes retain best-effort linear behavior. If bounded search cannot
+satisfy concrete constraints, it reports a prescriptive configuration error
+rather than return a known violation. Search failure does not prove mathematical
+infeasibility.
+
+The existing review gallery includes all six complex gateway examples in
+publication-figure, hand-drawn, Excalidraw, watercolor and hand-drawn/Dracula
+compositions at a fixed seed. Same-input before/after SVG, PNG and layout
+sidecars accompany each case. Existing raster text checks cover actual contrast,
+canvas containment and text preservation across registered styles; domain tests
+protect proportions, ancestry, membership and endpoints. These checks and agent
+visual review do not establish arbitrary-density readability, human approval,
+universal diagnosis of authored low-contrast ink or a periodic LLM-judge result.

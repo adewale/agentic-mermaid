@@ -4,11 +4,11 @@ import { KANBAN_CONFIG_KEYS } from '../kanban/config.ts'
 // These seeds are composed into the canonical FamilyDescriptor registry.
 const documentRoles = [
   { role: 'prelude', primitives: ['document'] },
-  { role: 'chrome', primitives: ['document', 'shape'] },
+  { role: 'chrome', primitives: ['document'] },
   { role: 'title', primitives: ['text'] },
 ] as const
 const boxes = [
-  { role: 'node', primitives: ['container'] },
+  { role: 'node', primitives: ['container', 'shape'] },
   { role: 'label', primitives: ['text'] },
 ] as const
 export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
@@ -45,7 +45,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     editorGlyph: 'KB',
     config: { section: 'kanban', keys: KANBAN_CONFIG_KEYS, noopKeys: ['useMaxWidth'] },
     semanticChannels: [],
-    sceneRoles: [...documentRoles, ...boxes, { role: 'group', primitives: ['container'] }, { role: 'group-header', primitives: ['shape'] }],
+    sceneRoles: [...documentRoles, ...boxes, { role: 'group', primitives: ['container', 'shape'] }, { role: 'group-header', primitives: ['shape'] }],
     detect: (line: string) => /^kanban\s*$/.test(line),
     example: 'kanban\n  todo[To do]\n    parser[Build parser]\n  done[Done]\n    research[Research]',
     editorExample: 'kanban\n  todo[To do]\n    packet[Packet family]@{ assigned: "Maya", priority: "High" }\n  doing[In progress]\n    kanban[Kanban family]@{ assigned: "Alex", ticket: "AM-409" }\n  done[Done]\n    research[Community research]',
@@ -92,7 +92,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
     editorGlyph: 'TM',
     config: { section: 'treemap', keys: ['useMaxWidth', 'padding', 'diagramPadding', 'showValues', 'nodeWidth', 'nodeHeight', 'borderWidth', 'valueFontSize', 'labelFontSize', 'valueFormat'], noopKeys: ['useMaxWidth'] },
     semanticChannels: ['value', 'category'],
-    sceneRoles: [...documentRoles, { role: 'node', primitives: ['container'] }, { role: 'group', primitives: ['container'] }, { role: 'bar', primitives: ['shape', 'data-mark'] }, { role: 'label', primitives: ['text'] }],
+    sceneRoles: [...documentRoles.filter(role => role.role !== 'chrome'), { role: 'chrome', primitives: ['document', 'shape'] }, { role: 'node', primitives: ['container'] }, { role: 'group', primitives: ['container'] }, { role: 'bar', primitives: ['shape', 'data-mark'] }, { role: 'label', primitives: ['text'] }],
     detect: (line: string) => /^treemap(?:-beta)?\s*$/.test(line),
     example: 'treemap\n"Product"\n  "Engineering": 60\n  "Design": 40',
     editorExample: 'treemap\ntitle Product investment\n"Build"\n  "Engineering": 60\n  "Design": 25\n"Learn"\n  "Research": 30\n  "Analytics": 15',
@@ -134,7 +134,7 @@ export const STABLE_FAMILY_DESCRIPTOR_SEEDS = [
       ...documentRoles.filter(role => role.role !== 'chrome'),
       { role: 'chrome', primitives: ['document', 'shape'] },
       ...boxes,
-      { role: 'group', primitives: ['container'] },
+      { role: 'group', primitives: ['container', 'shape'] },
       { role: 'edge', primitives: ['connector'] },
       { role: 'edge-label', primitives: ['text', 'container'] },
       { role: 'defs', primitives: ['document', 'marker'] },

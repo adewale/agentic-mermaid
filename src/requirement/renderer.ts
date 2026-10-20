@@ -53,7 +53,8 @@ export function lowerRequirementScene(ctx: RenderContext<PositionedRequirementDi
         indent: 2,
         node: marks.shape({
           id: `frame:${node.id}`,
-          role: 'chrome',
+          role: 'node',
+          identity: false,
           owner: { id: node.id, role: 'node' },
           geometry: { kind: 'rect', x: node.x, y: node.y, width: node.width, height: node.height, rx: p.style.cornerRadius },
           paint: { fill, stroke, strokeWidth: node.style['stroke-width'] ?? String(p.style.nodeLineWidth), ...(node.style['stroke-dasharray'] !== undefined ? { strokeDasharray: node.style['stroke-dasharray'] } : {}) },

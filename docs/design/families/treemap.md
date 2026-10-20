@@ -17,6 +17,15 @@ Leading wrappers are preserved by the shared source envelope.
 A dedicated hierarchical tiler computes area partitions. Shared prepared text, owned Scene rectangles/groups, palettes and numeric formatters compose the output. Terminal output keeps the hierarchy and values in a family-owned cell projection. Small values and dense labels remain visible or explicitly reported; the model never loses them.
 
 The family uses Agentic Mermaid typography, theme tokens, readable padding and deterministic styling.
+Explicit class and Style text colors remain authoritative. When a Style chooses
+opaque text ink but leaves categorical fills automatic, the shared palette
+chooses fills for readable text, page visibility and distinct peers together;
+it does not repair each rectangle independently. The search is deterministic
+and bounded. Peer separation is enforced through 24 categories; larger palettes
+retain the existing best-effort linear behavior. If bounded search cannot
+satisfy concrete choices, it reports a prescriptive error: choose a different
+text color or an explicit fill. Authored fills remain exact,
+and unresolved or translucent ink does not receive a fabricated contrast guarantee.
 Mermaid is the syntax and semantic oracle; its pixels and layout are not rendering targets.
 
 ## Executable evidence

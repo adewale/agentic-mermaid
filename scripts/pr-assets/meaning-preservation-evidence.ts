@@ -122,6 +122,19 @@ const fixtures: Fixture[] = [
       cue: `${stableRepresentativeCues[family]} The common publication-figure style uses Agentic typography and palette. These authored examples are independent of the retained official demos; inspect the semantic/layout sidecars with the pixels. Preserve any actual baseline unsupported-family error.`,
     }),
   ),
+  ...stableReviewFamilies.flatMap(family =>
+    ['hand-drawn', 'excalidraw', 'watercolor', 'hand-drawn-dark'].map(
+      (look): Fixture => ({
+        id: `stable-${family}-representative-${look}`,
+        title: `${getFamily(family)!.label}: representative gateway example in ${look}`,
+        source: readFileSync(join(ROOT, 'eval/stable-families/fixtures', `${family}.mmd`), 'utf8'),
+        renderOptions: { style: look === 'hand-drawn-dark' ? ['hand-drawn', 'dracula'] : look, seed: 17, security: 'strict', embedFontImport: false },
+        pngScale: 1,
+        captureLayout: true,
+        cue: `${stableRepresentativeCues[family]} Compare the same complex source at both revisions: primary node and group surfaces must receive the shared sketch treatment while separators and label knockouts remain quiet. Inspect complete labels, readable ink on light/dark surfaces, exact bit/area proportions and unchanged identities, membership and endpoints in the layout sidecars. The finite bundled-font example does not certify arbitrary density or an authored low-contrast palette.`,
+      }),
+    ),
+  ),
   ...['default', 'hand-drawn', 'watercolor'].map(
     (style): Fixture => ({
       id: `stable-block-parallel-${style}`,

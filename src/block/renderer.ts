@@ -41,7 +41,8 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
       role = composite ? 'group' : 'node',
       fill = node.style.fill ?? (composite ? p.style.groupFillColor : p.style.nodeFillColor) ?? (composite ? 'var(--_group-fill)' : 'var(--_node-fill)'),
       stroke = node.style.stroke ?? (composite ? p.style.groupBorderColor : p.style.nodeBorderColor) ?? 'var(--_node-stroke)',
-      ink = node.style.color ?? (composite ? p.style.groupTextColor : p.style.nodeTextColor) ?? fillInk('var(--_text)', composite ? (p.style.groupHeaderFillColor ?? fill) : fill)
+      headerFill = node.style.fill ?? p.style.groupHeaderFillColor,
+      ink = node.style.color ?? (composite ? p.style.groupTextColor : p.style.nodeTextColor) ?? fillInk('var(--_text)', composite ? (headerFill ?? fill) : fill)
     const outline = shapeOutline(blockShapeNode(node), { fill, stroke, strokeWidth: node.style['stroke-width'] ?? String(composite ? p.style.groupLineWidth : p.style.nodeLineWidth) }, composite ? p.style.groupCornerRadius : p.style.cornerRadius)
     const dash = node.style['stroke-dasharray']
     if (dash !== undefined) {
@@ -59,7 +60,7 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
       open: `<g class="${escapeAttr(classes.join(' '))}" data-id="${escapeAttr(node.id)}"${node.parentId ? ` data-parent="${escapeAttr(node.parentId)}"` : ''}>`,
       close: '</g>',
       children: [
-        { indent: 2, node: marks.shape({ id: `frame:${node.id}`, role: 'chrome', owner: { id: node.id, role }, geometry, paint: outline.paint, ...(outline.childPaints ? { childPaints: outline.childPaints } : {}) }) },
+        { indent: 2, node: marks.shape({ id: `frame:${node.id}`, role, identity: false, owner: { id: node.id, role }, geometry, paint: outline.paint, ...(outline.childPaints ? { childPaints: outline.childPaints } : {}) }) },
         ...(composite && node.label.text && p.style.groupHeaderFillColor
           ? [
               {
@@ -69,7 +70,7 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
                   role: 'chrome',
                   owner: { id: node.id, role },
                   geometry: { kind: 'rect', x: node.x + p.style.groupLineWidth, y: node.y + p.style.groupLineWidth, width: Math.max(0, node.width - p.style.groupLineWidth * 2), height: node.label.height + 16 - p.style.groupLineWidth, rx: Math.max(0, p.style.groupCornerRadius - p.style.groupLineWidth) },
-                  paint: { fill: p.style.groupHeaderFillColor, stroke: 'none' },
+                  paint: { fill: headerFill, stroke: 'none' },
                 }),
               },
             ]

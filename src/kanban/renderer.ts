@@ -22,7 +22,8 @@ export function lowerKanbanScene({ positioned: diagram, colors, resolved }: Rend
     const children: SceneNode[] = [
       marks.shape({
         id: `${column.id}:surface`,
-        role: 'chrome',
+        role: 'group',
+        identity: false,
         owner: { id: column.id, role: 'group' },
         geometry: { kind: 'rect', x: column.x, y: column.y, width: column.width, height: column.height, rx: style.groupCornerRadius },
         paint: { fill: columnFill, stroke: style.groupBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.groupLineWidth) },
@@ -37,7 +38,8 @@ export function lowerKanbanScene({ positioned: diagram, colors, resolved }: Rend
       const nodes: SceneNode[] = [
         marks.shape({
           id: `${task.id}:surface`,
-          role: 'chrome',
+          role: 'node',
+          identity: false,
           owner: { id: task.id, role: 'node' },
           geometry: { kind: 'rect', x: task.x, y: task.y, width: task.width, height: task.height, rx: style.cornerRadius ?? 5 },
           paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) },

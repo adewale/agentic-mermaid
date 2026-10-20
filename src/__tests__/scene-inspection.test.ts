@@ -6,8 +6,28 @@ import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { sceneDocument } from '../shared/scene-document.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', transparent: false, width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, parts })
+
+test('owned surface artwork suppresses only its enclosing semantic identity, never a primary or unrelated subject', () => {
+  const surface = () => marks.shape({ id: 'frame:A', role: 'node', identity: false, owner: { id: 'A', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 40 }, paint: { fill: '#fff', stroke: '#111' } }),
+    wrap = (node: SceneNode, id = 'A', role: 'node' | 'group' = 'node') => marks.group({ id: `wrapper:${id}`, role, open: `<g data-id="${id}">`, close: '</g>', children: [{ node, indent: 2 }] }),
+    document = (parts: SceneNode[]) => sceneDocument('flowchart', { width: 200, height: 100 }, { bg: '#fff', fg: '#111', embedFontImport: false }, false, parts),
+    artwork = surface(),
+    valid = document([wrap(artwork)])
+  expect(artwork.identity).toBeUndefined()
+  expect(validateSceneDoc(valid, { mode: 'internal' }).diagnostics).toEqual([])
+  expect(sceneFidelityProblems(valid)).toEqual([])
+  expect(() => marks.shape({ id: 'orphan', role: 'node', identity: false, geometry: artwork.geometry, paint: artwork.paint })).toThrow(/owner/)
+  for (const invalid of [document([surface()]), document([wrap(surface(), 'B')]), document([wrap(surface(), 'A', 'group')]), document([wrap(marks.shape({ id: 'sibling', role: 'chrome', geometry: artwork.geometry, paint: {} })), wrap(surface(), 'B')])]) {
+    expect(validateSceneDoc(invalid, { mode: 'internal' }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: expect.stringContaining('.identity') }))
+    expect(sceneFidelityProblems(invalid)).toContainEqual(expect.stringContaining('missing typed identity'))
+  }
+  const primary = marks.shape({ id: 'primary', role: 'node', geometry: artwork.geometry, paint: artwork.paint })
+  delete primary.identity
+  expect(sceneFidelityProblems(scene([primary]))).toContainEqual(expect.stringContaining('missing typed identity'))
+})
 
 test('inspection preserves semantic subjects, paint order and exact layout text under affine artwork', () => {
   const block = preparePixelText('Hello', { fontSize: 12, fontWeight: 400 })

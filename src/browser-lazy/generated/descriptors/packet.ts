@@ -68,8 +68,8 @@ const descriptorData = Object.freeze({
       ]
     },
     {
-      "role": "chrome",
-      "primitive": "shape",
+      "role": "title",
+      "primitive": "text",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [
@@ -77,8 +77,8 @@ const descriptorData = Object.freeze({
       ]
     },
     {
-      "role": "title",
-      "primitive": "text",
+      "role": "node",
+      "primitive": "shape",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [

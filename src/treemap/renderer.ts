@@ -4,18 +4,34 @@ import type { SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
+import { toHex, tryParseCssColor } from '../shared/color-math.ts'
 import { hierarchyChildren } from '../shared/hierarchy-model.ts'
 import { sceneDocument } from '../shared/scene-document.ts'
 import { diagramTitleMark, FLOWCHART_STYLE_DEFAULTS, resolveRenderStyle } from '../styles.ts'
 import type { RenderContext } from '../types.ts'
+import { resolvedColorValue } from '../theme.ts'
 import type { PositionedTreemap } from './types.ts'
 
 export function lowerTreemapScene({ positioned: chart, colors, resolved }: RenderContext<PositionedTreemap>) {
   const style = resolveRenderStyle(resolved.renderOptions, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: chart.config.labelFontSize }, resolved.styleFace)
-  const palette = categoricalPalette(chart.body.nodes.filter(node => !node.parentId).length, { accent: colors.accent, bg: colors.bg })
+  const categoryCount = chart.body.nodes.filter(node => !node.parentId).length,
+    paletteInputs = { accent: colors.accent, bg: colors.bg },
+    palette = categoricalPalette(categoryCount, paletteInputs)
   const parts: SceneNode[] = []
   const contents = new Map<string, SceneNode[]>()
   const inkForFill = createFillInkResolver(colors)
+  // At most the two Style role inks add a palette. Source-class inks never
+  // multiply palette work and retain their authored-paint limitations.
+  const inkPalettes = new Map<string, string[]>()
+  const paletteForInk = (ink: string | undefined): string[] => {
+    if (ink === undefined) return palette
+    const retained = inkPalettes.get(ink)
+    if (retained) return retained
+    const parsed = tryParseCssColor(resolvedColorValue(ink, colors) ?? ink)
+    const derived = parsed?.[3] === 1 ? categoricalPalette(categoryCount, { ...paletteInputs, labelInk: toHex(parsed[0], parsed[1], parsed[2]) }) : palette
+    inkPalettes.set(ink, derived)
+    return derived
+  }
   const childrenByParent = hierarchyChildren(chart.body.nodes)
   const total = chart.cells.filter(cell => !cell.node.parentId).reduce((sum, cell) => sum + cell.total, 0)
   if (chart.title) parts.push(diagramTitleMark(chart.title, style))
@@ -29,17 +45,19 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
       roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels, { includeFallback: false })
     const authored = cell.node.className ? chart.body.classDefs[cell.node.className] : undefined
     const roleFill = section ? style.groupFillColor : style.nodeFillColor,
-      fill = authored?.fill ?? roleStyle?.fillColor ?? roleFill ?? palette[cell.category] ?? 'var(--_node-fill)',
+      roleInk = section ? style.groupTextColor : style.nodeTextColor,
+      explicitInk = authored?.color ?? roleInk,
+      headerFill = section && cell.headerHeight ? (authored?.fill ?? style.groupHeaderFillColor) : undefined,
+      declaredFill = authored?.fill ?? roleStyle?.fillColor ?? roleFill,
+      derivedPalette = declaredFill === undefined && headerFill === undefined && authored?.color === undefined ? paletteForInk(roleInk) : palette,
+      fill = declaredFill ?? derivedPalette[cell.category] ?? 'var(--_node-fill)',
       stroke = authored?.stroke ?? roleStyle?.strokeColor ?? roleStyle?.borderColor ?? (section ? style.groupBorderColor : style.nodeBorderColor) ?? 'var(--bg)',
       strokeWidth = authored?.['stroke-width'] ?? String(roleStyle?.lineWidth ?? (section ? resolved.styleFace?.group?.lineWidth : resolved.styleFace?.node?.lineWidth) ?? chart.config.borderWidth),
-      headerFill = section && cell.headerHeight ? (authored?.fill ?? style.groupHeaderFillColor) : undefined,
       radius = Math.min((section ? style.groupCornerRadius : style.cornerRadius) ?? 0, cell.width / 2, cell.height / 2, headerFill ? cell.headerHeight! / 2 : Infinity)
-    // Categorical fills need their own contrast adaptation; a Style's text
-    // color was chosen for its own fill. Explicit authored ink still wins.
-    const preferredInk = (section ? style.groupTextColor : style.nodeTextColor) ?? 'var(--_text)',
-      textFill = headerFill ?? fill,
-      headerInk = headerFill && authored?.fill === undefined && style.groupHeaderFillColor !== undefined ? style.groupTextColor : undefined
-    const ink = authored?.color ?? headerInk ?? inkForFill(preferredInk, textFill, Boolean(authored?.fill || roleStyle?.fillColor || headerFill || !roleFill))
+    // Authored class and Style ink are authoritative on categorical surfaces
+    // too. Only the family's derived text tone is contrast-adapted.
+    const textFill = headerFill ?? fill
+    const ink = explicitInk ?? inkForFill('var(--_text)', textFill, Boolean(authored?.fill || roleStyle?.fillColor || headerFill || !roleFill))
     const owner = { id: cell.node.id, role: section ? ('group' as const) : ('node' as const) }
     const children: SceneNode[] = []
     if (cell.width > 0 && cell.height > 0)

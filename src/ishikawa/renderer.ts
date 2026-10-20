@@ -41,7 +41,8 @@ export function lowerIshikawaScene({ positioned: diagram, colors, resolved }: Re
       children.push(
         marks.shape({
           id: `box:${item.node.id}`,
-          role: 'chrome',
+          role: 'node',
+          identity: false,
           owner,
           geometry: { kind: 'rect', x: item.x, y: item.y, width: item.width, height: item.height, rx: style.cornerRadius ?? (item.depth === 0 ? 8 : 3) },
           paint: { fill: style.nodeFillColor ?? 'var(--_node-fill)', stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) },

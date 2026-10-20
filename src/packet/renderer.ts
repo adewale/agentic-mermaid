@@ -20,7 +20,8 @@ export function lowerPacketScene({ positioned: diagram, colors, resolved }: Rend
     const children: SceneNode[] = [
       marks.shape({
         id: `${field.id}:box`,
-        role: 'chrome',
+        role: 'node',
+        identity: false,
         owner: { id: field.id, role: 'node' },
         geometry: { kind: 'rect', x: field.x, y: field.y, width: field.width, height: field.height, rx: style.cornerRadius },
         paint: { fill, stroke: style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: String(style.nodeLineWidth) },
