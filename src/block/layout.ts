@@ -1,13 +1,13 @@
 import { rerouteEdgesThroughNodes } from '../layout/passes/index.ts'
 import { simplifyPolyline } from '../route-contracts.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { shapeCardinalPorts } from '../shape-outline.ts'
+import { pointOnRoutingBoundary, shapeCardinalPorts } from '../shape-outline.ts'
 import { assertBlockDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import type { NodeShape, Point, PositionedEdge, PositionedNode, RenderOptions } from '../types.ts'
-import { arrowMask, arrowSize } from './arrows.ts'
+import { arrowMask, arrowSize, blockArrowPoints } from './arrows.ts'
 import { type Cell, layout as layoutGrid } from './grid.ts'
 import { blockTextPlan } from './text.ts'
 import type { Block, BlockBody, PositionedBlock, PositionedBlockDiagram } from './types.ts'
@@ -130,6 +130,9 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
   const byId = new Map(nodes.map(n => [n.id, n])),
     shapeNodes = nodes.filter(node => node.block.type !== 'space').map(blockShapeNode),
     ports = new Map(shapeNodes.map(node => [node.id, shapeCardinalPorts(node)])),
+    arrowBoundaries = new Map(
+      nodes.filter(node => node.block.type === 'block_arrow').map(node => [node.id, { kind: 'polygon' as const, points: blockArrowPoints(arrowMask(node.block.directions), node.width, node.height).map(point => ({ x: point.x + node.x + node.width / 2, y: point.y + node.y + node.height / 2 })) }]),
+    ),
     ordinaryObstacles = shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite'),
     pairs = new Map<string, number[]>()
   const pairKey = (edge: Block) => (edge.start! < edge.end! ? `${edge.start}\0${edge.end}` : `${edge.end}\0${edge.start}`)
@@ -198,6 +201,24 @@ export function layoutBlockDiagram(model: BlockBody, options: RenderOptions = {}
     const obstacles = source.block.type === 'composite' || target.block.type === 'composite' ? shapeNodes.filter(node => byId.get(node.id)!.block.type !== 'composite' || node.id === source.id || node.id === target.id) : ordinaryObstacles
     rerouteEdgesThroughNodes(obstacles, [route], { direction: source.y + source.height <= target.y || target.y + target.height <= source.y ? 'TB' : 'LR' })
     points = route.points
+    // Conservative box repair owns the corridor. Pull only an arrow's final
+    // terminal run onto its painted polygon; the run stays axis-aligned and
+    // extends inside its own envelope, so foreign-obstacle clearance is kept.
+    for (const [node, at, adjacent] of [
+      [source, 0, 1],
+      [target, points.length - 1, points.length - 2],
+    ] as const) {
+      const boundary = arrowBoundaries.get(node.id)
+      if (!boundary) continue
+      const point = points[at]!,
+        next = points[adjacent]!,
+        dx = next.x - point.x,
+        dy = next.y - point.y,
+        horizontal = Math.abs(dx) > Math.abs(dy),
+        side = horizontal ? (dx > 0 ? 'E' : 'W') : dy > 0 ? 'S' : 'N',
+        contact = pointOnRoutingBoundary(boundary, side, horizontal ? point.y : point.x)
+      if (contact) points[at] = contact
+    }
     let best = 0
     for (let i = 1; i < points.length - 1; i++) if (Math.hypot(points[i + 1]!.x - points[i]!.x, points[i + 1]!.y - points[i]!.y) > Math.hypot(points[best + 1]!.x - points[best]!.x, points[best + 1]!.y - points[best]!.y)) best = i
     const a = points[best]!,

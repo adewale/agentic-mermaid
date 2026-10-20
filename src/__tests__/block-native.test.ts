@@ -109,8 +109,10 @@ describe('native block', () => {
     // even though it contributes no obstacle or painted node.
     const spacer = model.root.children!.find(node => node.type === 'space')!
     model.edges.push({ id: 'spacer-route', type: 'edge', start: spacer.id, end: 'd' })
-    const routed = layoutBlockDiagram(model), edge = routed.edges.find(edge => edge.id === 'spacer-route')!,
-      cell = routed.nodes.find(node => node.id === spacer.id)!, port = edge.points[0]!
+    const routed = layoutBlockDiagram(model),
+      edge = routed.edges.find(edge => edge.id === 'spacer-route')!,
+      cell = routed.nodes.find(node => node.id === spacer.id)!,
+      port = edge.points[0]!
     expect(edge.points.length).toBeGreaterThanOrEqual(2)
     expect(port.x === cell.x || port.x === cell.x + cell.width || port.y === cell.y || port.y === cell.y + cell.height).toBe(true)
   })
@@ -189,6 +191,42 @@ describe('native block', () => {
     }
     expect(verifyMermaid('block\ncolumns 3\nA B C\nA --> C').ok).toBe(true)
     expect(renderMermaidSVG('block\ncolumns 3\nA B C\nA --> C', { style: { roles: { edge: { bendRadius: 12 } } } })).toMatch(/<path\b[^>]*d="[^"]*Q/)
+    for (const columns of [1, 3])
+      for (const directions of ['up', 'down', 'left', 'right', 'x', 'y', 'up,right', 'down,left']) {
+        const source = `block\ncolumns ${columns}\nA<["Source"]>(${directions}) M["Obstacle"] B<["Target"]>(${directions})\nA <--> B`,
+          p = layoutBlockDiagram(structured(source).body),
+          edge = p.edges[0]!,
+          svg = renderMermaidSVG(source)
+        for (const [id, at, adjacent] of [
+          ['A', 0, 1],
+          ['B', edge.points.length - 1, edge.points.length - 2],
+        ] as const) {
+          const group = svg.match(new RegExp(`<g\\b[^>]*data-id="${id}"[^>]*>([\\s\\S]*?)<\\/g>`))![1]!,
+            points = group
+              .match(/<polygon\b[^>]*points="([^"]*)"/)![1]!
+              .trim()
+              .split(/\s+/)
+              .map(pair => pair.split(',').map(Number)),
+            point = edge.points[at]!,
+            next = edge.points[adjacent]!
+          // Contact is proved against the actual emitted polygon, independent
+          // of the rectangular envelope used for conservative obstacle repair.
+          expect(
+            points.some(([x, y], index) => {
+              const [nx, ny] = points[(index + 1) % points.length]!,
+                dx = nx! - x!,
+                dy = ny! - y!,
+                t = Math.max(0, Math.min(1, ((point.x - x!) * dx + (point.y - y!) * dy) / (dx * dx + dy * dy)))
+              return Math.hypot(point.x - x! - t * dx, point.y - y! - t * dy) < 1e-6
+            }),
+          ).toBe(true)
+          expect(Math.abs(point.x - next.x) < 1e-6 !== Math.abs(point.y - next.y) < 1e-6).toBe(true)
+        }
+        const obstacle = blockShapeNode(p.nodes.find(node => node.id === 'M')!)
+        for (let i = 1; i < edge.points.length; i++) expect(segmentThroughShape(edge.points[i - 1]!, edge.points[i]!, obstacle)).toBe(false)
+        expect(svg).toContain('marker-start="url(#block-arrow-start)"')
+        expect(svg).toContain('marker-end="url(#block-arrow-end)"')
+      }
   })
   test('reciprocal and parallel labeled links occupy distinct clear routes without moving authored cells', () => {
     for (const columns of [1, 2]) {
