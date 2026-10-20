@@ -28,7 +28,7 @@ import type {
   SourceMap, SourceComment,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { assertJsonConfigAdmission } from '../shared/json-config-admission.ts'
+import { assertJsonConfigAdmission, JsonConfigAdmissionError } from '../shared/json-config-admission.ts'
 import { isBuiltinFamilyId } from './families.ts'
 import { attachSourceMapSpans, type SourceSpanGrammar } from './source-map-spans.ts'
 
@@ -169,9 +169,12 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   try {
     authoredEnvelope = normalizeMermaidSource(source)
   } catch (error) {
-    // Source Mermaid rejects is a parse error, not a thrown one; a refused
-    // config stays a thrown admission error.
+    // Frontmatter Mermaid rejects is a parse error, not a thrown one. So is
+    // config the admission refuses (a reserved key, nesting or size past its
+    // bounds): a fault in the diagram's configuration, which verify reports
+    // with origin config.
     if (error instanceof MermaidFrontmatterError) return err([{ code: 'INVALID_FRONTMATTER', message: error.message }])
+    if (error instanceof JsonConfigAdmissionError) return err([{ code: 'CONFIG_REJECTED', message: error.message }])
     throw error
   }
   const familyLineBoundary = authoredEnvelope.wrapperSource?.length ?? 0

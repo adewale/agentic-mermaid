@@ -1926,11 +1926,14 @@ export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppear
   const styled = style !== undefined && isStyledSpec(style)
   if (styled) effective = applyStyleDefaults(effective, style, source.config.themeVariables)
 
-  const font = options.font
+  const authoredFont = options.font
     ?? source.config.fontFamily
     ?? readThemeValue(source.config.themeVariables, 'fontFamily')
     ?? effective.font
     ?? 'Inter'
+  // Carry the safe spelling (double-quoted names requoted) into every sink; an
+  // unsafe value stays as authored for the option validator to name.
+  const font = safeCssFontFamily(authoredFont) ?? authoredFont
   // `style` is a public entry format (name, record, or stack), not family input.
   // Replace it with the already-resolved canonical record before any family
   // hook runs so a family can never branch on string-vs-record syntax. Keep the

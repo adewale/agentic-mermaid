@@ -14,6 +14,7 @@ import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/
 import { executeGraphicalRequest, lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
 import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
@@ -52,7 +53,7 @@ import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
 import { radarUnsupportedSyntaxWarnings } from './radar-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { logToolInvocation } from './trace-log.ts'
-import type { ExtensionValidDiagram, LayoutWarning, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
+import type { ExtensionValidDiagram, LayoutWarning, ParseError, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
 import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
 import type { PositionedC4Diagram } from '../c4/layout.ts'
 
@@ -134,19 +135,21 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     // still valuable (and were historically part of verify's contract).
     // Report them alongside the hard failure instead of making malformed
     // delimiters and dangling edges disappear merely because admission failed.
-    // These are flowchart lints: another family's text is not read by them.
-    const flowchart = typeof input === 'string' && parsed.error[0]?.code !== 'INVALID_FRONTMATTER' && detectsFlowchartFamily(normalizeMermaidSource(input).firstLine)
+    // These are flowchart lints: another family's text is not read by them,
+    // and a wrapper that does not normalize leaves no body to read.
+    // Suppressing the finding cannot make a source that does not parse verify.
+    const code = parsed.error[0]?.code
+    const flowchart = typeof input === 'string' && code !== 'INVALID_FRONTMATTER' && code !== 'CONFIG_REJECTED' && detectsFlowchartFamily(normalizeMermaidSource(input).firstLine)
     const sourceWarnings = flowchart ? flowchartUnsupportedSyntaxWarnings(input) : []
-    return finalize([{ code: 'EMPTY_DIAGRAM' }, ...sourceWarnings], emptyRenderedLayout('flowchart'), opts)
+    return { ...finalize([parseFailureWarning(parsed.error), ...sourceWarnings], emptyRenderedLayout('flowchart'), opts), ok: false }
   }
   if (parsed.value.body.kind === 'preserved') {
     const { diagnostic } = parsed.value.body
     return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}`, origin: 'source' }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
   const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
-  // Flowchart's canonical body omits the authored config envelope, so the
-  // positioned render-parity artifact alone cannot detect bad theme colors.
-  // Check the same merged source/options config before all verification tiers.
+  // Check the merged source/options theme and family config colors before all
+  // verification tiers, so a refused color is the whole finding.
   try {
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
@@ -163,7 +166,9 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
     return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
-    if (!(error instanceof PaintLayoutCertificationError || error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError)) throw error
+    // Family layouts, color admission and a work limit only a render-path
+    // parser enforces (state nesting) are findings, not verify failures.
+    if (!(error instanceof PaintLayoutCertificationError || error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError || error instanceof DiagramWorkLimitError)) throw error
     const certification = error instanceof PaintLayoutCertificationError ? { layoutCertification: error.certification } : {}
     return { ...finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false), ...certification }
   }
@@ -208,6 +213,18 @@ type VerificationArtifact = (() => ProjectedFamilyArtifact | null) & {
   failure(error: unknown, prefix?: string): LayoutWarning
 }
 
+/** A source that does not parse. Only an empty one is EMPTY_DIAGRAM; any other
+ * parse failure carries the parser's message, and is the source's unless its
+ * config was refused or a registered family broke its descriptor contract. */
+function parseFailureWarning(errors: readonly ParseError[]): LayoutWarning {
+  if (errors.every(error => error.code === 'EMPTY')) return { code: 'EMPTY_DIAGRAM' }
+  return {
+    code: 'RENDER_FAILED',
+    reason: errors.map(error => error.message).join('; '),
+    origin: errors.some(error => error.code === 'CONFIG_REJECTED' || error.code === 'FAMILY_DESCRIPTOR_CONTRACT') ? 'config' : 'source',
+  }
+}
+
 function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
   if (!result.ok) return result
   try {
@@ -248,7 +265,10 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
       // result for geometric verification. The renderability gate consumes
       // this same request + result and therefore cannot parse or lay out again.
       // Verify is where a built-in lowering bug should surface, so every Scene
-      // lowered for this artifact is cross-checked.
+      // lowered for this artifact is cross-checked. A source string and its
+      // parsed diagram position from one render source: the diagram's body
+      // under its config wrapper (init directives, frontmatter, themeCSS),
+      // which is also what every structural tier reads.
       artifact = positionFamilyArtifact(d, {
         renderOptions: opts.renderOptions,
         output: 'svg',

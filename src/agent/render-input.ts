@@ -1,7 +1,7 @@
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import { getFamily } from './families.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
-import { serializeMermaid } from './serialize.ts'
+import { serializeMermaid, wrapperPrefix } from './serialize.ts'
 import type { FamilyId, ParsedDiagram } from './types.ts'
 
 /**
@@ -28,7 +28,14 @@ export function renderSourceForParsedDiagram(input: ParsedDiagram): string {
   const policy = current ? family?.renderSource : undefined
   const source = policy ? policy(input.body) : (input.body.kind === 'extension' ? 'serialized' : 'canonical')
   if (source !== 'canonical' && source !== 'serialized') throw new TypeError(`Family ${input.kind} returned an invalid render source policy`)
-  return source === 'serialized' ? serializeMermaid(input) : input.canonicalSource
+  if (source === 'serialized') return serializeMermaid(input)
+  // A parsed body has no config envelope; a mutated one is serialized with
+  // it. Render either under the wrapper serialization emits (frontmatter title
+  // and config, init directives), so a parsed diagram draws what its saved
+  // source draws.
+  const body = input.canonicalSource
+  const wrapper = wrapperPrefix(input.meta, 'verbatim', body)
+  return body.startsWith(wrapper) ? body : wrapper + body
 }
 
 export function prepareRenderInput(input: ParsedDiagram | string): PreparedRenderInput {
