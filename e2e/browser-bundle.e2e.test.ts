@@ -71,12 +71,12 @@ function ensureBrowserBundle() {
   }
 }
 
-function lazyElkChunk(): string {
+function lazyImplementationChunk(input = 'node_modules/elkjs/'): string {
   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
     outputs: Record<string, { inputs: Record<string, unknown> }>
   }
   const matches = Object.entries(metafile.outputs).filter(([, output]) =>
-    Object.keys(output.inputs).some(input => input.includes('node_modules/elkjs/')))
+    Object.keys(output.inputs).some(path => path.includes(input)))
   expect(matches.length).toBe(1)
   return matches[0]![0].replace(/^dist\//, '')
 }
@@ -358,26 +358,27 @@ describe('async family-loaded browser renderer', () => {
         const api = await import(entryUrl)
         await api.renderMermaidSVGAsync('timeline\n  title Small\n  2026 : Ship')
       }, `${base}/dist/browser-lazy/index.js`)
-      expect(requests).not.toContain(lazyElkChunk())
+      expect(requests).not.toContain(lazyImplementationChunk())
     } finally {
       await page.close()
     }
   })
 
-  test('ELK-backed families fetch and reuse one shared ELK chunk', async () => {
+  test.each(['elk', 'agentic'] as const)('%s-backed families fetch and reuse only the selected solver', async backend => {
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     try {
       await page.goto(`${base}/blank.html`)
-      await page.evaluate(async entryUrl => {
+      await page.evaluate(async ({ entryUrl, backend }) => {
         const api = await import(entryUrl)
         await Promise.all([
-          api.renderMermaidSVGAsync('flowchart LR\n  A --> B'),
-          api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready'),
+          api.renderMermaidSVGAsync('flowchart LR\n  A --> B', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
         ])
-      }, `${base}/dist/browser-lazy/index.js`)
-      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
+      }, { entryUrl: `${base}/dist/browser-lazy/index.js`, backend })
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(backend === 'elk' ? 1 : 0)
+      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(backend === 'agentic' ? 1 : 0)
     } finally {
       await page.close()
     }
@@ -423,11 +424,12 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
-  test.each([false, true])('native graph placement fetches ELK only for an actual fallback (%s)', async fallback => {
+  test.each(['native', 'compound', 'self-loop'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
+    const fallback = mode !== 'native'
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
-    const source = `flowchart TD\n${fallback ? 'subgraph G[Group]\n' : ''}A["x#hearts;y"] --> B${fallback ? '\nend' : ''}`
+    const source = `flowchart TD\n${mode === 'compound' ? 'subgraph G[Group]\n' : ''}A["x#hearts;y"] --> ${mode === 'self-loop' ? 'A' : 'B'}${mode === 'compound' ? '\nend' : ''}`
     const options = {
       graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
       security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },
@@ -445,7 +447,8 @@ describe('async family-loaded browser renderer', () => {
       const diagnostics: unknown[] = []
       const expected = renderMermaidSVGWithReceipt(source, { ...options, onConfigDiagnostic: value => diagnostics.push(value) })
       expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
-      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(fallback ? 1 : 0)
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(fallback ? 1 : 0)
+      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(mode === 'compound' ? 0 : 1)
       expect(result.receipt.layoutDecisions[0].selected).toBe(fallback ? 'elk' : 'agentic')
     } finally { await page.close() }
   })
@@ -528,7 +531,7 @@ describe('demo page', () => {
   test('fetches Timeline but neither ELK nor the classic all-family bundle', () => {
     expect(demoRequests).toContainEqual(expect.stringMatching(/^\/demo\/browser-lazy\/index-[a-f0-9]{12}\.js$/))
     expect(demoRequests).toContainEqual(expect.stringMatching(/^\/demo\/browser-lazy\/chunks\/timeline-[A-Z0-9]{8}\.js$/))
-    expect(demoRequests).not.toContain(`/demo/${lazyElkChunk()}`)
+    expect(demoRequests).not.toContain(`/demo/${lazyImplementationChunk()}`)
     expect(demoRequests).not.toContainEqual(expect.stringMatching(/^\/demo\/browser-[a-f0-9]{12}\.js$/))
 
     const requestedFamilyChunks = demoRequests.filter(path =>

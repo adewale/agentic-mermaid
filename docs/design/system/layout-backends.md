@@ -75,6 +75,23 @@ Research and community inputs checked during the continuation:
 - [Mermaid's bundle-size discussion](https://github.com/orgs/mermaid-js/discussions/4314)
   illustrates the practical cost of carrying multiple engines. Keep ELK as an
   on-demand alternative rather than charging every native render for it.
+- [Mermaid issue 8302](https://github.com/mermaid-js/mermaid/issues/8302)
+  records a compound graph that becomes cyclic only after groups collapse,
+  causing avoidable detours. It was closed as completed in September 2026;
+  retain its graph as a design challenge, not an assertion of a current bug.
+- [Mermaid's layout-maker guide](https://mermaid.js.org/community/layout-makers-guide.html)
+  also separates measured placement from painting, and reserves edge-label
+  geometry before layout. Its lazy registration model supports fetching only
+  the selected engine. Documentation pages disagree about the current default;
+  our behavior and compatibility pin remain owned by this repository.
+- [Stately's native layout project](https://github.com/statelyai/layout)
+  demonstrates that a TypeScript ELK alternative is not unprecedented. Its
+  own documentation distinguishes phase-level differential coverage from
+  incomplete broad geometry parity. Neither API compatibility nor many local
+  comparisons establishes a complete replacement.
+- [ARCOL](https://doi.org/10.1111/cgf.70437) extends orthogonal layout with
+  aspect-ratio objectives. Compactness and usable proportions remain separate
+  quality dimensions; matching crossings alone cannot establish parity.
 
 ## Scope and existing foundations
 

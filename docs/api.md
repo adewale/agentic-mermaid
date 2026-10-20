@@ -99,6 +99,8 @@ are not hidden by fallback.
 The async `agentic-mermaid/browser/lazy` entry downloads ELK only when the
 selected layout actually needs it. A successful strict Agentic render does not
 fetch ELK; requested fallback still loads it when native placement declines.
+ELK selection likewise leaves the native solver unfetched. Backend payload
+reports include the selected solver's dynamic dependencies.
 The synchronous `agentic-mermaid/browser` entry remains an all-in-one bundle.
 
 The CLI accepts `am render diagram.mmd --graph-layout agentic
