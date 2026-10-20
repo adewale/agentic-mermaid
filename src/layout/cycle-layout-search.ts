@@ -64,6 +64,7 @@ export function layoutCyclicGraph(
   let bestBends = bendCount(best), bestArea = best.width * best.height
   const key = (order: ArrayLike<number>, reverseNodes: boolean, reverseEdges: boolean): string =>
     edges.map(edge => order[edge.source]! > order[edge.target]! ? 1 : 0).join('') + ':' + reverseNodes + ':' + reverseEdges
+  let localAttempts = 12
   const seen = new Set([key(primary, false, false)])
   const starts = nodes.length <= 12 ? nodes.map((_, index) => index)
     : nodes.length <= 20 ? [0, Math.floor(nodes.length / 4), Math.floor(nodes.length / 2), Math.floor(3 * nodes.length / 4), nodes.length - 1] : []
@@ -79,7 +80,7 @@ export function layoutCyclicGraph(
       const candidateKey = key(order, reverseNodes, reverseEdges)
       if (seen.has(candidateKey)) continue
       seen.add(candidateKey)
-      if (search.attempts-- <= 0 || search.routing.pairs < 0 || search.routing.arcs < 0 || search.routing.swaps < 0) return best
+      if (localAttempts-- <= 0 || search.attempts-- <= 0 || search.routing.pairs < 0 || search.routing.arcs < 0 || search.routing.swaps < 0) return best
       try {
         const alternative = place(order, reason => { throw new OptionalOrderDecline(reason) }, search.routing, reverseNodes, reverseEdges)
         const value = score(alternative)

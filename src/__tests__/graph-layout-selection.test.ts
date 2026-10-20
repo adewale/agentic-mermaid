@@ -173,6 +173,31 @@ n2 --> n8` },
     JSON.stringify(native.receipt)
   })
 
+  test.each(['elk', 'agentic'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
+    const source = await Bun.file(new URL('../../eval/layout-compare/fixtures/nested-wide-titles.mmd', import.meta.url)).text()
+    const options = { graphLayout: { backend } }
+    const rendered = renderMermaidSVGWithReceipt(source, options)
+    const { layout, receipt } = layoutMermaidWithReceipt(source, { ...options, debug: true })
+    expect(layout.groups).toHaveLength(3)
+    expect(layout.nodes).toHaveLength(4)
+    expect(layout.edges).toHaveLength(3)
+    for (const group of layout.groups.filter(group => group.parentId)) {
+      const parent = layout.groups.find(parent => parent.id === group.parentId)!
+      expect(group.x).toBeGreaterThanOrEqual(parent.x)
+      expect(group.y).toBeGreaterThanOrEqual(parent.y)
+      expect(group.x + group.w).toBeLessThanOrEqual(parent.x + parent.w)
+      expect(group.y + group.h).toBeLessThanOrEqual(parent.y + parent.h)
+    }
+    expect(layout.edges.some(edge => edge.from === 'entry' && edge.to === 'Inner')).toBe(true)
+    expect(layout.edges.some(edge => edge.from === 'Inner' && edge.to === 'done')).toBe(true)
+    expect(rendered.svg).toContain('A nested heading much wider than its leaf nodes')
+    expect(rendered.svg).toContain('Another heading wider than a and b')
+    expect(measureQuality(layout).labelConflicts?.total).toBe(0)
+    expect(receipt.layoutDecisions?.[0]?.selected).toBe(backend)
+    JSON.stringify(rendered.receipt)
+    JSON.stringify(receipt)
+  })
+
   test.each(['TD', 'LR'] as const)('certifies mixed shape outlines, labelled branches and markers natively in %s', direction => {
     const source = `flowchart ${direction}\nA([Start]) --> B{Choose}\nB -->|yes| C[(Database)]\nB -->|no| D((End))\nD --> E[[Audit]]`
     const stages: string[] = []
