@@ -500,10 +500,12 @@ describe('accept what pinned Mermaid accepts', () => {
     const mermaid = await upstream.parse(source)
     const parsed = parseRegisteredMermaid(source)
     const body = parsed.ok && parsed.value.body.kind === 'sequence' ? parsed.value.body : undefined
-    expect({ participants: body?.participants.map(participant => participant.id), messages: body?.messages.map(message => [message.from, message.to, message.text]) }).toEqual({
+    const expected: Record<string, unknown> = {
       participants: mermaid.ok ? mermaid.sequence?.actors.map(actor => actor.name) : [],
       messages: mermaid.ok ? mermaid.sequence?.messages.filter(message => message.to !== undefined).map(message => [message.from, message.to, message.message]) : [],
-    })
+    }
+    const actual: Record<string, unknown> = { participants: body?.participants.map(participant => participant.id), messages: body?.messages.map(message => [message.from, message.to, message.text]) }
+    expect(actual).toEqual(expected)
   })
 
   test.each(C4_ARGUMENTS_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads other arguments', async (_construct, source, fields) => {
