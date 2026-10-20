@@ -48,6 +48,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   `renderMermaidWithActions` takes its target regions from that layout, so
   under a frontmatter title they sat a title band above the targets the
   output draws, for a source string too; they now cover them.
+- A state diagram that reopens a composite state (a second `state A { … }`
+  block, one-line or not) draws one state A holding both blocks' states, as
+  Mermaid does. Each block used to add its own container with the same id,
+  which the layout engine could not resolve, so the render failed. A stays
+  where its first block is, a block reopening a `--`-split composite
+  continues its last region, and the first block's `direction` holds. A
+  later block's label labels A, joined with any other label or description
+  as one composite's are (`state_composite_description` where Mermaid
+  rejects them). The readings that differ from Mermaid's are recorded in
+  `docs/project/divergences.md`.
 - Font families may be double-quoted, as Mermaid's own default
   `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
   `fontFamily` config, theme variables, Journey font config, style-role fonts

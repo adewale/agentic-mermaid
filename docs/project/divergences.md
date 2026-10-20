@@ -21,6 +21,16 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 Repeated `subgraph` IDs merge their members into one group, retaining the first authored title. A declaration nested inside an ancestor with the same ID extends that ancestor without adding another containment edge, so `S → S` and `S → T → S` retain all node bodies in an acyclic tree. Mermaid 12.1 can instead select the first completed declaration's title or produce cyclic parent references. Serialization and both renderers consume our normalized ownership tree; work budgets still count the full syntactic nesting before flattening.
 
+### Reopened State composites continue one composite
+
+A later `state A { … }` block adds its states to the one composite A, as Mermaid 12.2 does; the body stays source-preserved. Three readings differ from Mermaid's, each chosen so the drawing keeps what the author wrote, as repeated Flowchart groups keep their first declaration:
+
+- **Placement.** A stays where its first block is. Mermaid moves A into the composite holding its last nested block, and a block at the top level never moves it back: `state A {…}` followed by `state P { state A {…} }` draws A inside P there and at the top level here.
+- **Regions.** A block reopening a composite split by `--` continues its last region. Mermaid draws the reopened states directly in A, beside its regions.
+- **Direction.** The first block that sets a `direction` sets A's. Mermaid also keeps the first block's, but ignores a direction set only in a later block, which ours draws. In a composite split by `--`, the later block's direction sets the region it continues, as a direction written after the last `--` does.
+
+Labels follow the rule for a composite mentioned outside its block: a label in a later block, or a description or alias between blocks, labels A, and several are joined into its label and reported (`state_composite_description`), where Mermaid rejects them. A state reopened inside itself is still the author's duplicate identity, which layout refuses.
+
 ### Mutation surface is intentionally narrower than Mermaid syntax
 
 Structured mutation is exposed for every built-in renderable family, but only when that body's parser/IR/serializer/verifier can preserve the modeled semantics. The family roster, edit policies, and mutation operations are generated from `FamilyDescriptor`: read `am capabilities --json` rather than a copied list here. Two family-specific notes:

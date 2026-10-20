@@ -104,6 +104,12 @@ const MINDMAP_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['an accDescr block before the root', 'mindmap\n  accDescr {\n    About\n  }\n  root', 'root', 'mindmap_accessibility', 2],
 ]
 
+// A composite Mermaid's state DB refuses a second label for ("Group nodes can
+// only have label"); ours continues the one composite, its labels as lines.
+const STATE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['a composite labelled in two blocks', 'stateDiagram-v2\n  state "First" as A {\n    x\n  }\n  state "Second" as A {\n    y\n  }', 'Second', 'state_composite_description', 5],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -167,6 +173,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(MINDMAP_READ_GENEROUSLY)('mindmap: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'mindmap', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  test.each(STATE_READ_GENEROUSLY)('state: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'opaque', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
 })
 

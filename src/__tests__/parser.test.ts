@@ -15,6 +15,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
+import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 // ============================================================================
@@ -1086,6 +1087,37 @@ describe('parseMermaid – state diagrams', () => {
     expect(g.subgraphs[0]!.nodeIds).toContain('parse')
     expect(g.subgraphs[0]!.nodeIds).toContain('validate')
     expect(g.subgraphs[0]!.nodeIds).toContain('execute')
+  })
+
+  it('a reopened composite state continues the one state and renders', () => {
+    const members = (source: string) => {
+      type Group = { id: string; nodeIds: string[]; children: Group[] }
+      const tree = (group: Group): unknown => ({ id: group.id, nodeIds: group.nodeIds, children: group.children.map(tree) })
+      expect(() => renderMermaidSVG(source)).not.toThrow()
+      return parseMermaid(source).subgraphs.map(tree)
+    }
+    expect(members('stateDiagram-v2\n  [*] --> A\n  state A {\n    x --> y\n  }\n  state "Again" as A {\n    y --> z\n  }\n  A --> [*]'))
+      .toEqual([{ id: 'A', nodeIds: ['x', 'y', 'z'], children: [] }])
+    // Reopened inside another reopened parent, and continuing a region split.
+    expect(members('stateDiagram-v2\n  state P {\n    state A {\n      x\n    }\n  }\n  state P {\n    state A {\n      w\n    }\n  }'))
+      .toEqual([{ id: 'P', nodeIds: [], children: [{ id: 'A', nodeIds: ['x', 'w'], children: [] }] }])
+    expect(members('stateDiagram-v2\n  state A {\n    a1 --> a2\n    --\n    b1\n  }\n  state A {\n    b2\n  }'))
+      .toEqual([{ id: 'A', nodeIds: [], children: [{ id: 'A__r1', nodeIds: ['a1', 'a2'], children: [] }, { id: 'A__r2', nodeIds: ['b1', 'b2'], children: [] }] }])
+    // One-line blocks reopen the same way.
+    expect(members('stateDiagram-v2\n  state A { x }\n  state A { y }')).toEqual([{ id: 'A', nodeIds: ['x', 'y'], children: [] }])
+    // A label in a later block, or a description or alias between blocks,
+    // labels the one composite; a second label is another line of it, as a
+    // description under a label is. The first block to set a direction keeps it.
+    for (const between of ['A : Described', 'state "Described" as A']) {
+      expect(parseMermaid(`stateDiagram-v2\n  state A {\n    x\n  }\n  ${between}\n  state A {\n    y\n  }`).subgraphs[0]!.label).toBe('Described')
+    }
+    expect(parseMermaid('stateDiagram-v2\n  state "Again" as A {\n    x\n  }\n  state "Later" as A {\n    y\n  }').subgraphs[0]!.label).toBe('Again\nLater')
+    expect(parseMermaid('stateDiagram-v2\n  state A {\n    direction LR\n    x\n  }\n  state A {\n    direction TB\n    y\n  }').subgraphs[0]!.direction).toBe('LR')
+    // Reopening continues a state at its depth in the tree, which the nesting
+    // limit measures, however shallow each written block is.
+    let chain = 'stateDiagram-v2\n  state S0 {\n    x\n  }'
+    for (let i = 1; i <= DIAGRAM_WORK_LIMITS.nesting; i++) chain += `\n  state S${i - 1} {\n    state S${i} {\n      x${i}\n    }\n  }`
+    expect(() => parseMermaid(chain)).toThrow(/nesting/)
   })
 
   it('parses composite states with alias', () => {

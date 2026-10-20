@@ -646,6 +646,24 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   let endCount = 0
   // Per-composite region counter (for stable region ids `X__r1`, `X__r2`, …).
   const regionCounts = new Map<string, number>()
+  // The parent each composite was attached under, and each open group's depth
+  // in the tree. A later `state X {` block for the same id continues X where
+  // it first appeared, as Mermaid draws every block's states inside the one
+  // state X; its depth, not the open-block count, is what the nesting limit
+  // measures.
+  const compositeParents = new Map<MermaidSubgraph, string | undefined>()
+  const groupDepths = new Map<MermaidSubgraph, number>()
+  // Composites whose direction an earlier block set; a later block keeps it.
+  const directionSet = new Set<MermaidSubgraph>()
+  const depthOfTop = (): number => {
+    const top = compositeStack.at(-1)
+    return top ? groupDepths.get(top) ?? compositeStack.length : 0
+  }
+  const pushGroup = (group: MermaidSubgraph, depth = depthOfTop() + 1): void => {
+    assertDiagramWorkLimit('nesting', depth)
+    groupDepths.set(group, depth)
+    compositeStack.push(group)
+  }
   // Open block note (`note left of X` … `end note`), collecting body lines.
   let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
 
@@ -727,8 +745,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- direction override ---
     const dirMatch = line.match(STATE_DIRECTION_RE)
     if (dirMatch) {
-      if (compositeStack.length > 0) {
-        compositeStack[compositeStack.length - 1]!.direction = dirMatch[1]!.toUpperCase() as Direction
+      const top = compositeStack.at(-1)
+      if (top) {
+        // The first block to set a reopened composite's direction keeps it.
+        if (!directionSet.has(top)) top.direction = dirMatch[1]!.toUpperCase() as Direction
       } else {
         graph.direction = dirMatch[1]!.toUpperCase() as Direction
       }
@@ -833,6 +853,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
           concurrencyRegion: true,
         }
         composite.children.push(first)
+        groupDepths.set(first, depthOfTop() + 1)
         if (parserObservationActive('state')) observeParserMutation('state', 'add-region', { id: first.id, parent: composite.id, members: first.nodeIds, children: first.children.map(child => child.id) })
       }
       assertDiagramWorkLimit('nodes', graph.nodes.size + ++stateGroupCount)
@@ -845,8 +866,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         concurrencyRegion: true,
       }
       composite.children.push(next)
-      assertDiagramWorkLimit('nesting', compositeStack.length + 1)
-      compositeStack.push(next)
+      pushGroup(next)
       if (parserObservationActive('state')) observeParserMutation('state', 'add-region', { id: next.id, parent: composite.id, members: next.nodeIds })
       continue
     }
@@ -855,6 +875,21 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const compositeMatch = line.match(STATE_COMPOSITE_OPEN_RE)
     if (compositeMatch) {
       const id = compositeMatch[2]!
+      const reopened = composites.get(id)
+      // A state reopened inside itself is a duplicate identity, left for the
+      // layout to refuse; anywhere else, a reopened block continues the state,
+      // and its label is one more line of the composite's label.
+      if (reopened && !compositeStack.includes(reopened)) {
+        if (compositeMatch[1] !== undefined) labelComposite(id, compositeMatch[1], true)
+        if (reopened.direction !== undefined) directionSet.add(reopened)
+        graph.nodes.delete(id)
+        pushGroup(reopened, groupDepths.get(reopened))
+        // A state already split by `--` continues in its last region.
+        const lastRegion = reopened.children.at(-1)
+        if (lastRegion?.concurrencyRegion) pushGroup(lastRegion, groupDepths.get(lastRegion))
+        if (parserObservationActive('state')) observeParserMutation('state', 'open-group', { id, label: reopened.label, parent: compositeParents.get(reopened) })
+        continue
+      }
       if (compositeMatch[1] !== undefined) {
         labelPieces.set(id, [compositeMatch[1]])
         labeledStateIds.add(id)
@@ -865,8 +900,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       const label = sg.label
       assertDiagramWorkLimit('nodes', graph.nodes.size - Number(graph.nodes.has(id)) + ++stateGroupCount)
       graphContainerCounts.set(graph, stateGroupCount)
-      assertDiagramWorkLimit('nesting', compositeStack.length + 1)
-      compositeStack.push(sg)
+      pushGroup(sg)
       composites.set(id, sg)
       // A pseudostate declared with this id is the composite now.
       graph.nodes.delete(id)
@@ -882,12 +916,14 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       }
       const completed = compositeStack.pop()
       if (completed) {
-        if (compositeStack.length > 0) {
-          compositeStack[compositeStack.length - 1]!.children.push(completed)
-        } else {
-          graph.subgraphs.push(completed)
+        // A reopened state is already in place, under its first parent.
+        if (!compositeParents.has(completed)) {
+          const parent = compositeStack.at(-1)
+          if (parent) parent.children.push(completed)
+          else graph.subgraphs.push(completed)
+          compositeParents.set(completed, parent?.id)
         }
-        if (parserObservationActive('state')) observeParserMutation('state', 'close-group', { id: completed.id, label: completed.label, members: completed.nodeIds, children: completed.children.map(child => child.id), parent: compositeStack.at(-1)?.id })
+        if (parserObservationActive('state')) observeParserMutation('state', 'close-group', { id: completed.id, label: completed.label, members: completed.nodeIds, children: completed.children.map(child => child.id), parent: compositeParents.get(completed) })
       }
       continue
     }
