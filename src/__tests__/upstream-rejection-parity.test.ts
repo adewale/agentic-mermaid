@@ -276,6 +276,14 @@ const SANKEY_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['an indented row starting with a quoted field', 'sankey\nGrid,Homes,1\n  "Grid",Shops,2', 'Shops', 'sankey_quoted_field_spacing', 3],
 ]
 
+// Mermaid's entity prepass strips the last `;` of a line where `style` or
+// `classDef` comes before a `:` and a `#` ahead of it, labels included; ours
+// keeps the label as written. [construct, source, Mermaid's nodes, ours, syntax, line]
+const SANKEY_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly string[], readonly string[], string, number]> = [
+  ['a `style` label whose `#` run ends at a semicolon', 'sankey\nstyle:x#a;,B,1', ['style:x#a', 'B'], ['style:x#a;', 'B'], 'sankey_style_semicolon', 2],
+  ['a quoted `classDef` label with a semicolon inside it', 'sankey\nGrid,Homes,1\nGrid,"classDef:#a;b",2', ['Grid', 'Homes', 'classDef:#ab'], ['Grid', 'Homes', 'classDef:#a;b'], 'sankey_style_semicolon', 3],
+]
+
 // Mermaid's Sankey CSV lexer reads a quote after unquoted text as the start
 // of a quoted field, which its grammar rejects there. Whether the quote was
 // literal or meant to open a field is unclear, so, like text after a closing
@@ -536,6 +544,14 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(SANKEY_READ_GENEROUSLY)('sankey: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'sankey', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  test.each(SANKEY_READ_OTHERWISE)('sankey: %s is read as written, drawn and reported', async (_construct, source, mermaidNodes, ourNodes, syntax, line) => {
+    const mermaid = await upstream.project(source, diagram => diagram.db.getGraph().nodes.map((node: { id: string }) => node.id))
+    const parsed = parseRegisteredMermaid(source)
+    const links = parsed.ok && parsed.value.body.kind === 'sankey' ? parsed.value.body.links : []
+    const actual: Record<string, unknown> = { mermaid, ours: [...new Set(links.flatMap(link => [link.source, link.target]))], ...readGenerously(source, ourNodes.at(-1)!) }
+    expect(actual).toEqual({ mermaid: { ok: true, value: mermaidNodes }, ours: ourNodes, typed: 'sankey', draws: true, reported: [`${syntax}@${line}`] })
   })
 
   test.each(SANKEY_UNREAD)('sankey: %s is refused', async (_construct, source) => {
