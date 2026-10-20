@@ -45,9 +45,11 @@ jobs:
         run: bunx --no-install tsup
 
       # Coverage is a scheduled diagnostic, not a condition for passing tests.
-      # Keep two isolated workers: subprocess-heavy suites contend at four.
+      # Keep per-file isolation without the parallel coordinator. Two successive
+      # heads stalled after file output on different parallel shards (Bun 1.4.2).
+      # Preserve all three shards, the test population and the 20-minute bound.
       - name: Run test shard
-        run: bun run test -- --shard=${{ matrix.shard }} --parallel=2
+        run: bun run test -- --shard=${{ matrix.shard }} --isolate
 
   layout-evidence:
     name: Layout backend review evidence
