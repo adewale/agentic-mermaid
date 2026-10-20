@@ -863,18 +863,19 @@ describe('State statements across and within lines', () => {
     // bare `state X`; it reads `direction` as a name, and the name after
     // `state "…" as` to the line's end. A name alone declares a state: Mermaid
     // rejects a hyphen or `default` there, and reads `state` as starting a
-    // declaration of the next line's name, which it drops.
-    const sources = ['in-flight : x', 'note : x', 'class : x', 'State : x', 'direction : x', 'state "x" as in-flight : y', 'A --> B\nin-flight', 'default', 'state\nA'].map(body => `stateDiagram-v2\n${body}`)
+    // declaration of the next line's name, which it drops. Inside a
+    // composite it reads `default`, `scale` and `stateDiagram` as names.
+    const sources = ['in-flight : x', 'note : x', 'class : x', 'State : x', 'direction : x', 'state "x" as in-flight : y', 'A --> B\nin-flight', 'default', 'state\nA', 'state X {\ndefault : x\nstateDiagram\nscale --> href\n}'].map(body => `stateDiagram-v2\n${body}`)
     expect(sources.map(source => readingOf(parseRenderGraph(source))))
-      .toEqual([['in-flight:rounded:x'], ['note:rounded:x'], ['class:rounded:x'], ['State:rounded:x'], ['direction:rounded:x'], ['in-flight:rounded:x\ny'], ['A->B', 'A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight'], ['default:rounded:default'], ['A:rounded:A', 'state:rounded:state']])
-    expect(sources.map(unsupportedSyntax)).toEqual([['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], [], [], ['state_declaration_name@3'], ['state_declaration_name@2'], ['state_declaration_name@2']])
+      .toEqual([['in-flight:rounded:x'], ['note:rounded:x'], ['class:rounded:x'], ['State:rounded:x'], ['direction:rounded:x'], ['in-flight:rounded:x\ny'], ['A->B', 'A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight'], ['default:rounded:default'], ['A:rounded:A', 'state:rounded:state'], ['X:X{default href scale stateDiagram}', 'default:rounded:x', 'href:rounded:href', 'scale->href', 'scale:rounded:scale', 'stateDiagram:rounded:stateDiagram']])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], [], [], ['state_declaration_name@3'], ['state_declaration_name@2'], ['state_declaration_name@2'], []])
     const drawn = (mermaid: UpstreamDiagram): string[] => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)
     expect((await upstream.projectEach(sources, drawn)).map(read => read.ok ? read.value : 'rejected'))
-      .toEqual(['rejected', 'rejected', 'rejected', [], ['direction'], ['in-flight'], 'rejected', 'rejected', []])
+      .toEqual(['rejected', 'rejected', 'rejected', [], ['direction'], ['in-flight'], 'rejected', 'rejected', [], ['X', 'default', 'stateDiagram', 'scale', 'href']])
     // The writer names each state after `state "…" as`, which Mermaid reads.
     const written = sources.map(source => serializeMermaid(state(source)))
     expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
-    expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight'], ['A', 'B', 'in-flight'], ['default'], ['state', 'A']])
+    expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight'], ['A', 'B', 'in-flight'], ['default'], ['state', 'A'], ['X', 'default', 'stateDiagram', 'scale', 'href']])
   })
 
   test('a note on a state Mermaid cannot name as a note target is read, and reported', async () => {
