@@ -69,6 +69,17 @@ bar [1]`)
     expect(getFrontmatterScalar<string>(processed.frontmatter, ['themeVariables', 'primaryTextColor'])).toBe('#111111')
   })
 
+  it('applies and removes an init directive inside a statement, leaving the rest of its line', () => {
+    // Mermaid's preprocessing removes a directive wherever it stands and
+    // applies an init's config.
+    const processed = preprocessMermaidSource('classDiagram\n  A : +x %%{init: {"theme": "dark"}}%% y\n  class B\n  "pie %%{initialize: {"fontFamily": "Fira"}}%%"')
+    expect(processed.lines).toEqual(['classDiagram', 'A : +x  y', 'class B', '"pie "'])
+    expect(getFrontmatterScalar<string>(processed.frontmatter, ['theme'])).toBe('dark')
+    expect(getFrontmatterScalar<string>(processed.frontmatter, ['fontFamily'])).toBe('Fira')
+    expect(stripMermaidInitDirectives('family\n  A %%{init:{"theme":"dark"}}%%\n  B\n')).toBe('family\n  A \n  B\n')
+    expect(mermaidInitDirectives('family\n  A %%{init:{"theme":"dark"}}%%\n').map(directive => directive.parsed)).toEqual([{ theme: 'dark' }])
+  })
+
   it('strips only directive lines and preserves adjacent LF/CRLF indentation and blank bytes', () => {
     expect(stripMermaidInitDirectives(`family
 

@@ -73,7 +73,11 @@ export function matchMermaidFrontmatter(text: string): { source: string; yaml: s
 // Outer whitespace is horizontal-only. Using `\s*` at either line boundary
 // consumes preceding blank lines or the next family's indentation because
 // `\s` includes CR/LF. The directive payload itself remains multiline.
-export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*init(?:ialize)?\s*:\s*([\s\S]*?)\}\s*%%[^\S\r\n]*(?:\r?\n)?/gm
+// Mermaid's preprocessing removes an init directive wherever it stands and
+// applies its configuration: one on a line of its own takes that line with
+// it (payload in group 1); one inside a statement leaves the rest of the
+// statement in place (payload in group 2).
+export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*init(?:ialize)?\s*:\s*([\s\S]*?)\}\s*%%[^\S\r\n]*(?:\r?\n)?|%%\{\s*init(?:ialize)?\s*:\s*([\s\S]*?)\}\s*%%/gm
 
 export function toMermaidLines(text: string): string[] {
   return text

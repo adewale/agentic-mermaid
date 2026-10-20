@@ -507,7 +507,7 @@ export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[
   while ((match = regex.exec(text)) !== null) {
     directives.push({
       raw: match[0],
-      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
+      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? match[2] ?? '').trim()) ?? {}),
     })
   }
   return directives
@@ -966,8 +966,8 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
 function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
   let merged: MermaidFrontmatterMap = {}
 
-  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, payload: string) => {
-    const parsed = parseDirectiveMap(payload)
+  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, onItsLine: string | undefined, inStatement: string | undefined) => {
+    const parsed = parseDirectiveMap(onItsLine ?? inStatement ?? '')
     if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
     return ''
   })

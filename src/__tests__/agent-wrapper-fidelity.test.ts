@@ -21,6 +21,7 @@ import { join } from 'node:path'
 import {
   parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidSVG,
 } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const FM_NESTED = '---\nconfig:\n  layout: elk\n  look: handDrawn\n---\nflowchart TD\n  A --> B'
 const FM_DAGRE = '---\nconfig:\n  layout: dagre\n---\nflowchart TD\n  A --> B'
@@ -108,6 +109,32 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
     if (!reparsed.ok) return
     expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
     expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  })
+
+  // Mermaid applies an init directive inside a statement too, and reads the
+  // statement without it: ours does, and writes the directive before the header.
+  test.each([
+    ['classDiagram\n  class A\n  A : +x %%{init: {"theme": "dark"}}%%', 'A : +x'],
+    ['stateDiagram-v2\n  A --> B : go %%{init: {"theme": "dark"}}%%', 'A --> B : go'],
+    ['pie\n  "a" : 1 %%{init: {"theme": "dark"}}%%', '"a" : 1'],
+  ])('an init directive inside a statement is applied, and written before the header: %j', async (source, statement) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).not.toBe('opaque')
+    expect(parsed.value.canonicalSource.split('\n')).toContain(statement)
+    expect(parsed.value.meta.initDirectives.map(directive => directive.parsed)).toEqual([{ theme: 'dark' }])
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toStartWith('%%{init: {"theme": "dark"}}%%\n')
+    expect(serialized.match(/%%\{init:/g)).toHaveLength(1)
+    const reparsed = parseMermaid(serialized)
+    if (!reparsed.ok) throw new Error(JSON.stringify(reparsed.error))
+    expect(reparsed.value.body).toEqual(parsed.value.body)
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally { upstream.close() }
   })
 
   test('post-header init removal preserves indentation-sensitive family structure', () => {

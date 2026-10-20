@@ -1,5 +1,5 @@
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
-import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import { INIT_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
 import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
 
@@ -117,7 +117,9 @@ function authoredLineMap(canonicalSource: string, authoredSource: string, preser
     if (!wanted) continue
     let found = -1
     for (let authoredIndex = cursor; authoredIndex < authored.length; authoredIndex++) {
-      if (authored[authoredIndex]!.text.trim() === wanted) {
+      // Normalization removes an init directive inside a statement.
+      const text = authored[authoredIndex]!.text
+      if (text.trim() === wanted || (text.includes('%%{') && text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'g'), '').trim() === wanted)) {
         found = authoredIndex
         break
       }

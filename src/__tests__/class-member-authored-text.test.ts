@@ -161,7 +161,10 @@ test('a %%{…}%% directive in a member is removed before the member is read, as
   expect(sources.map(members)).toEqual([['+literal()'], ['+x'], ['+x']])
   expect(sources.map(source => drawnTexts(source).slice(1))).toEqual([['+ literal()'], ['+x'], ['+x']])
   expect(sources.map(source => verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])))
-    .toEqual([['class_inline_init@3'], [], ['class_inline_init@3']])
+    .toEqual([[], [], []])
+  // A warning on such a line names its authored line, though the line is read without the directive.
+  expect(verifyMermaid('---\ntitle: t\n---\nclassDiagram\n  class A\n  A : a:b %%{init: {"theme": "dark"}}%%').warnings
+    .flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])).toEqual(['class_member_text@6'])
   const upstream = startUpstreamMermaid()
   try {
     expect(await upstream.projectAll(sources, diagram => {

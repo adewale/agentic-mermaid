@@ -795,19 +795,6 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: 'A "classDiagram" header with no statement after it draws an empty class diagram. Pinned Mermaid rejects this; add a class, relationship, note or other statement.',
     })
   }
-  // Mermaid applies an init directive wherever it stands; ours applies one
-  // on a line of its own, and reads one inside a statement as Mermaid's
-  // preprocessing leaves the statement, without it.
-  bodyLines.forEach((line, index) => {
-    for (const directive of line.matchAll(MERMAID_DIRECTIVE_RE)) {
-      if (!/^init(?:ialize)?$/i.test(directive[1] ?? directive[2] ?? '')) continue
-      warnings.push({
-        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_inline_init', line: header + 2 + index,
-        message: 'An `%%{init: …}%%` directive inside a statement is removed from it, as Mermaid removes it, and its configuration is not applied. Pinned Mermaid applies it wherever it stands. Put it on a line of its own, where both apply it.',
-      })
-      break
-    }
-  })
   for (const { index, what } of classCommentRejections(bodyLines)) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
