@@ -61,6 +61,11 @@ describe('Class layout backends', () => {
     const grouped = 'classDiagram\nnamespace Zone {\nclass A\n}'
     expect(() => renderMermaidSVGWithReceipt(grouped, native)).toThrow(GraphLayoutUnsupportedError)
     expect(renderMermaidSVGWithReceipt(grouped, { graphLayout: { backend: 'agentic', fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', reason: 'Class compound namespaces', attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'unsupported' }), { backend: 'elk', outcome: 'selected' }] })])
-    expect(renderMermaidSVGWithReceipt('classDiagram', native).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    for (const source of ['classDiagram', '---\ntitle: Empty Class title\n---\nclassDiagram']) {
+      const result = renderMermaidSVGWithReceipt(source, native)
+      expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+      expect(result.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
+      if (source.includes('title:')) expect(result.svg).toContain('Empty Class title')
+    }
   })
 })
