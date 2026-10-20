@@ -26,6 +26,7 @@ export { memberToString } from './text.ts'
  */
 
 import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs'
+import { emitGraphLayoutDecision, selectElkForGraphFamily } from '../layout/backend.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout/direction.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
@@ -576,6 +577,7 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
 export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
+  if (options.graphLayout) emitGraphLayoutDecision(selectElkForGraphFamily(options, 'class'))
   if (diagram.classes.length === 0) {
     return withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
   }

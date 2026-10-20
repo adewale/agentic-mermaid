@@ -200,6 +200,21 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       return EXIT_ARG_ERROR
     }
   }
+  const graphLayout = flagValue(args, 'graph-layout')
+  const graphLayoutFallback = flagValue(args, 'graph-layout-fallback')
+  if (graphLayout !== undefined || graphLayoutFallback !== undefined) {
+    const candidate = {
+      backend: graphLayout ?? advancedOptions.graphLayout?.backend ?? 'elk',
+      ...(graphLayoutFallback !== undefined || advancedOptions.graphLayout?.fallback !== undefined
+        ? { fallback: graphLayoutFallback ?? advancedOptions.graphLayout?.fallback } : {}),
+    }
+    const problems = validateSerializableRenderOptions({ graphLayout: candidate })
+    if (problems.length) {
+      process.stderr.write(`am render: ${problems.join('; ')}\n`)
+      return EXIT_ARG_ERROR
+    }
+    advancedOptions = { ...advancedOptions, graphLayout: candidate as NonNullable<RenderOptions['graphLayout']> }
+  }
   if (targetWidth !== undefined && (!Number.isInteger(targetWidth) || targetWidth <= 0)) {
     process.stderr.write('am render --target-width expects a positive integer number of terminal cells\n')
     return EXIT_ARG_ERROR

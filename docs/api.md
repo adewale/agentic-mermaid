@@ -72,6 +72,34 @@ const svg = renderMermaidSVG(`flowchart TD
 `ParsedDiagram` envelope returned by `parseRegisteredMermaid` and returns an SVG
 string.
 
+### Graph layout selection
+
+ELK remains the default graph producer. Select it explicitly with
+`graphLayout: { backend: 'elk' }`, or opt into the owned producer:
+
+```ts
+const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
+  graphLayout: { backend: 'agentic', fallback: 'elk' },
+})
+console.log(receipt.layoutDecisions)
+```
+
+Agentic currently supports flat rectangular flowchart DAGs, including measured
+edge labels, fan-in, parallel edges, disconnected components and long links.
+Cycles, self-loops, groups, other shapes and other graph families retain ELK
+support. Omitting fallback makes an unsupported Agentic request throw
+`GraphLayoutUnsupportedError`; requesting `fallback: 'elk'` records the actual
+selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
+is not an Agentic completion. Unexpected engine defects and global work limits
+are not hidden by fallback.
+
+The CLI accepts `am render diagram.mmd --graph-layout agentic
+--graph-layout-fallback elk`. Mermaid source configuration is preserved and is
+not an alias for these options. Terminal-cell placement retains its family
+rules; optional graphical companions and Architecture's pixel placement honor
+the selector. See the [backend design](design/system/layout-backends.md) for
+qualification and comparative measurement.
+
 ### PNG
 
 ```ts
@@ -158,7 +186,7 @@ rasterization.
 
 #### Trusted host-selected graphical backends
 
-Executable backends are bound by the host, never selected by `RenderOptions` or
+Executable Scene painting backends are bound by the host, never selected by `RenderOptions` or
 serialized Style data. These factories apply the same canonical request,
 Scene-admission, SVG-security, receipt, PNG-output-policy, and color-profile
 contracts as their default counterparts:

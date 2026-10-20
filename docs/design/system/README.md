@@ -44,6 +44,7 @@ produced *by* the system.
 
 ## Read next
 
+- [`layout-backends.md`](./layout-backends.md) — explicit ELK and Agentic graph producers, fallback evidence, and comparable measurements.
 - [`route-contracts.md`](./route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
 - [`layout-rubric.md`](./layout-rubric.md) — the deterministic layout-quality rubric.
 - [`chart-honesty.md`](./chart-honesty.md) — what every family owes its reader (legible, contained, drawn-or-reported, style-invariant text; distinguishable peers; proportional quantities), measured on the rasterized output and bound to the registry.

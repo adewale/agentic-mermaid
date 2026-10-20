@@ -1,5 +1,5 @@
 /** Internal diagnostic observation. No clock reads occur in normal renders. */
-export type RenderStage = 'request' | 'layout' | 'elk' | 'scene' | 'drawing' | 'paint-certification' | 'backend' | 'svg-security'
+export type RenderStage = 'request' | 'layout' | 'graph-preparation' | 'agentic' | 'elk' | 'scene' | 'drawing' | 'paint-certification' | 'backend' | 'svg-security'
 export interface RenderStageSample { readonly stage: RenderStage; readonly ms: number }
 let observer: ((sample: RenderStageSample) => void) | undefined
 
