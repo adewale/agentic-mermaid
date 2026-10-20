@@ -3,16 +3,19 @@ import { parseBlockDiagram } from '../block/parser.ts'
 import { T as BlockToken } from '../block/tokens.ts'
 import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
 import { T as RequirementToken, TOKEN_NAMES as requirementTokenNames } from '../requirement/tokens.ts'
+import { normalizeMermaidSource, preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
+import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
+import { maskAccessibilityDirectivesForSourceMap } from '../family-detection.ts'
 import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 import { blockEntries, mutateBlock, parseBlockBody, renderBlock, verifyBlock } from './block-body.ts'
-import type { ExtractedLabel, FamilyOperations } from './families.ts'
+import type { ExtractedLabel, FamilyOperations, FamilySourceMapContext } from './families.ts'
 import { mutateIshikawa, parseIshikawaBody, renderIshikawa, verifyIshikawa } from './ishikawa-body.ts'
 import { mutateKanban, parseKanbanBody, renderKanban, verifyKanban } from './kanban-body.ts'
 import { mutatePacket, parsePacketBody, renderPacket, verifyPacket } from './packet-body.ts'
 import { mutateRequirement, parseRequirementBody, renderRequirement, verifyRequirement } from './requirement-body.ts'
 import { recordSourceMapEnds, recordSourceMapMetadata } from './source-map-spans.ts'
 import { mutateTreemap, parseTreemapBody, renderTreemap, verifyTreemap } from './treemap-body.ts'
-import type { DiagramBody, FamilyParsedBody, LayoutWarning, MutationError, Result, SourceLocation, SourceMap, VerifyOptions } from './types.ts'
+import type { Accessibility, DiagramBody, FamilyParsedBody, LayoutWarning, MutationError, Result, SourceLocation, SourceMap, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 
 export type StableBody = Extract<DiagramBody, { kind: 'packet' | 'kanban' | 'requirement' | 'block' | 'treemap' | 'ishikawa' }>
@@ -145,7 +148,7 @@ export function stableFamilyLabels(body: StableBody): ExtractedLabel[] {
 
 /** Locate native declarations and mutations, rather than searching every line
  * for display labels (which need not be unique or appear verbatim in source). */
-function sourceMap(body: StableBody, source: string): SourceMap {
+function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapContext): SourceMap {
   const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const lines = source.split(/\r?\n/)
   const lineStarts = (text: string): number[] => {
@@ -173,10 +176,46 @@ function sourceMap(body: StableBody, source: string): SourceMap {
   if (body.kind === 'requirement') {
     // The same lexer that owns the parser supplies declaration/field/relation
     // boundaries. Its quoted-string tokens already start inside the quotes.
-    const lexerSource = ['requirementDiagram', ...lines.slice(1)].join('\n')
-    const positions = lineStarts(lexerSource),
-      tokens = tokenizeRequirement(lexerSource)
-    const location = (index: number): SourceLocation => at(tokens.starts[index]!, positions)
+    const authored = origin ? preservedMermaidFamilyText(origin, 'authored') : source
+    const lexerSource = authored.replace(/^[^\r\n]*/, 'requirementDiagram')
+    // The payload view has normalized CRLF once. Every remaining CR is a
+    // separate authored break, including a retained CR immediately before LF.
+    const payloadRows = lexerSource.split(/[\r\n]/), positions = [0]
+    for (let i = 0; i < lexerSource.length; i++) if (lexerSource[i] === '\r' || lexerSource[i] === '\n') positions.push(i + 1)
+    const mappingRows = maskAccessibilityDirectivesForSourceMap(lexerSource).split(/[\r\n]/)
+    const candidates = new Map<string, { rows: number[]; next: number }>()
+    for (let row = 0; row < lines.length; row++) {
+      const text = lines[row]!.trim(), entry = candidates.get(text)
+      if (entry) entry.rows.push(row)
+      else candidates.set(text, { rows: [row], next: 0 })
+    }
+    const canonicalRows = new Map<number, number>()
+    let cursor = 0
+    for (let row = 0; row < payloadRows.length; row++) {
+      const wanted = mappingRows[row]!.trim()
+      if (!wanted) continue
+      const entry = candidates.get(wanted)
+      if (!entry) continue
+      while (entry.next < entry.rows.length && entry.rows[entry.next]! < cursor) entry.next++
+      const found = entry.rows[entry.next++]
+      if (found === undefined) continue
+      canonicalRows.set(row + 1, found + 1)
+      cursor = found + 1
+    }
+    const tokens = tokenizeRequirement(lexerSource)
+    const locationAt = (offset: number): SourceLocation => {
+      const raw = at(offset, positions), canonical = canonicalRows.get(raw.line)
+      if (canonical === undefined) return raw
+      const indent = (text: string) => text.length - text.trimStart().length
+      return { line: canonical, col: raw.col - indent(payloadRows[raw.line - 1]!) + indent(lines[canonical - 1]!) }
+    }
+    const labelEnds = new Map<string, SourceLocation>()
+    const tokenLabel = (key: string, index: number): void => {
+      if (map.labels.has(key)) return
+      label(key, locationAt(tokens.starts[index]!))
+      labelEnds.set(key, locationAt(tokens.starts[index]! + tokens.texts[index]!.length))
+    }
+    const location = (index: number): SourceLocation => locationAt(tokens.starts[index]!)
     let owner: string | undefined,
       edgeIndex = 0
     const ids = new Set([...body.requirements.map(n => n.name), ...body.elements.map(n => n.name)])
@@ -185,18 +224,19 @@ function sourceMap(body: StableBody, source: string): SourceMap {
       if (((type >= RequirementToken.REQUIREMENT && type <= RequirementToken.DESIGN_CONSTRAINT) || type === RequirementToken.ELEMENT) && ids.has(tokens.texts[i + 1]!)) {
         owner = tokens.texts[i + 1]!
         if (!map.nodes.has(owner)) map.nodes.set(owner, location(i + 1))
-        label(`node:${owner}`, location(i + 1))
+        tokenLabel(`node:${owner}`, i + 1)
       } else if (type === RequirementToken.STRUCT_STOP) owner = undefined
       else if ((owner && type >= RequirementToken.ID && type <= RequirementToken.VERIFYMTHD) || (owner && (type === RequirementToken.TYPE || type === RequirementToken.DOCREF))) {
-        if (tokens.types[i + 1] === RequirementToken.COLONSEP) label(`node:${owner}:${requirementTokenNames[type]!.toLowerCase()}`, location(i + 2))
+        if (tokens.types[i + 1] === RequirementToken.COLONSEP) tokenLabel(`node:${owner}:${requirementTokenNames[type]!.toLowerCase()}`, i + 2)
       } else if (type >= RequirementToken.CONTAINS && type <= RequirementToken.TRACES) {
         const edge = body.relations[edgeIndex]
         if (!edge) continue
         map.edges.set(edge.id, location(i - 2))
-        label(`edge#${edgeIndex}:${edge.src}->${edge.dst}`, location(i))
+        tokenLabel(`edge#${edgeIndex}:${edge.src}->${edge.dst}`, i)
         edgeIndex++
       }
     }
+    recordSourceMapEnds(map, { labels: labelEnds })
     return map
   }
 
@@ -261,8 +301,11 @@ function sourceMap(body: StableBody, source: string): SourceMap {
   let statement: ParserObservation | undefined
   const nodeEnds = new Map<string, SourceLocation>(),
     groupEnds = new Map<string, SourceLocation>(),
+    labelEnds = new Map<string, SourceLocation>(),
     metadataLocations: Parameters<typeof recordSourceMapMetadata>[1] = new Map()
-  const columns = body.kind === 'kanban' ? new Set(body.columns.map(column => column.id)) : undefined
+  const kanbanItems = body.kind === 'kanban' ? body.columns.flatMap(column => [column, ...column.tasks]) : undefined
+  const kanbanColumns = body.kind === 'kanban' ? new Set(body.columns.map(column => column.id)) : undefined
+  let kanbanIndex = 0
   withParserObservation(
     body.kind,
     event => {
@@ -273,12 +316,12 @@ function sourceMap(body: StableBody, source: string): SourceMap {
       if (event.unit !== 'mutation' || !statement?.source?.line || !event.value || typeof event.value !== 'object' || Array.isArray(event.value)) return
       const value = event.value as Record<string, unknown>
       if (typeof value.id !== 'string') return
-      const id = value.id,
+      const id = body.kind === 'kanban' && (event.kind === 'add-column' || event.kind === 'add-task') ? kanbanItems?.[kanbanIndex++]?.id ?? value.id : value.id,
         line = event.source?.line ?? statement.source.line
       const raw = lines[line - 1] ?? '',
         indent = raw.length - raw.trimStart().length
       if (body.kind === 'kanban' && (event.kind === 'add-column' || event.kind === 'add-task')) {
-        const group = columns!.has(id)
+        const group = kanbanColumns!.has(id)
         ;(group ? map.groups : map.nodes).set(id, lineAt(line, indent))
         // declaredLabel is the native lexical payload, before entity and
         // metadata-label interpretation. Search only its consumed declaration.
@@ -299,8 +342,12 @@ function sourceMap(body: StableBody, source: string): SourceMap {
         const firstLine = local.split('\n')[0]!
         const metadata = firstLine.indexOf('@{')
         const declaration = metadata >= 0 ? firstLine.slice(0, metadata) : firstLine
-        const start = declaration.lastIndexOf(declaredLabel)
-        if (declaredLabel && start >= 0) label(`${group ? 'group' : 'node'}:${id}`, lineAt(line, start))
+        const firstPiece = declaredLabel.split('\n')[0]!, start = typeof value.declaredLabelStart === 'number' ? value.declaredLabelStart : declaration.lastIndexOf(firstPiece)
+        if (declaredLabel && start >= 0) {
+          const key = `${group ? 'group' : 'node'}:${id}`
+          label(key, lineAt(line, start))
+          labelEnds.set(key, at(starts[line - 1]! + start + declaredLabel.length))
+        }
       } else if (body.kind === 'packet' && event.kind === 'add-field') {
         map.nodes.set(id, lineAt(line, indent))
         const colon = raw.indexOf(':', indent),
@@ -328,7 +375,7 @@ function sourceMap(body: StableBody, source: string): SourceMap {
     },
   )
   if (body.kind === 'kanban') {
-    recordSourceMapEnds(map, { nodes: nodeEnds, groups: groupEnds })
+    recordSourceMapEnds(map, { nodes: nodeEnds, groups: groupEnds, labels: labelEnds })
     recordSourceMapMetadata(map, metadataLocations)
   }
   return map
@@ -340,9 +387,11 @@ function hooks<K extends StableBody['kind']>(
   serialize: (body: Extract<StableBody, { kind: K }>) => string,
   mutate: (body: Extract<StableBody, { kind: K }>, op: never) => Result<Extract<StableBody, { kind: K }>, MutationError>,
   verify: (body: Extract<StableBody, { kind: K }>, opts: VerifyOptions) => LayoutWarning[],
+  parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
 ): FamilyOperations {
+  const readSource = (source: string) => parseSource ? parseSource(source) : parse(source.split(/\r?\n/))
   return {
-    parse: ctx => ok(parse(ctx.source.familyBody.split(/\r?\n/)) ?? { kind: 'opaque', family: kind, source: ctx.opaqueSource }),
+    parse: ctx => ok((parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(ctx.source.familyBody.split(/\r?\n/))) ?? { kind: 'opaque', family: kind, source: ctx.opaqueSource }),
     serialize: body => {
       if (body.kind !== kind) throw new Error(`Expected ${kind} body`)
       return serialize(body as Extract<StableBody, { kind: K }>)
@@ -353,23 +402,23 @@ function hooks<K extends StableBody['kind']>(
       if (!changed.ok) return changed
       // Generated occurrence IDs belong to the resulting source artifact.
       // Publish the same identities/order that its renderer and source map see.
-      const normalized = parse(serialize(changed.value).split(/\r?\n/))
+      const normalized = readSource(serialize(changed.value))
       return normalized ? ok(normalized) : err({ code: 'INVALID_OP', message: `${kind} edit could not preserve its structured representation` })
     },
     verify: (body, opts) => (body.kind === kind ? verify(body as Extract<StableBody, { kind: K }>, opts) : []),
     renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
     extractLabels: source => {
-      const body = parse(source.split(/\r?\n/))
+      const body = readSource(source)
       return body ? stableFamilyLabels(body) : []
     },
-    buildSourceMap: (body, source) => (body.kind === kind ? sourceMap(body as StableBody, source) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
+    buildSourceMap: (body, source, origin) => (body.kind === kind ? sourceMap(body as StableBody, source, origin) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
   }
 }
 
 export const STABLE_FAMILY_AGENT_HOOKS = {
   packet: hooks('packet', parsePacketBody, renderPacket, mutatePacket, verifyPacket),
-  kanban: hooks('kanban', parseKanbanBody, renderKanban, mutateKanban, verifyKanban),
-  requirement: hooks('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, mutateRequirement, verifyRequirement),
+  kanban: hooks('kanban', parseKanbanBody, renderKanban, mutateKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text))),
+  requirement: hooks('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, mutateRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility)),
   block: hooks('block', lines => parseBlockBody(lines.slice(1)), renderBlock, mutateBlock, verifyBlock),
   treemap: hooks('treemap', lines => parseTreemapBody(lines.slice(1)), renderTreemap, mutateTreemap, verifyTreemap),
   ishikawa: hooks('ishikawa', lines => parseIshikawaBody(lines.slice(1)), renderIshikawa, mutateIshikawa, verifyIshikawa),

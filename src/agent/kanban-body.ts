@@ -1,6 +1,7 @@
 import { KANBAN_OP_KINDS } from '../kanban/ops.ts'
 import { formatUnknownOpMessage } from './unknown-op.ts'
 import YAML from 'yaml'
+import { preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import { parseKanbanDiagram } from '../kanban/parser.ts'
 import type { KanbanBody, KanbanItem, KanbanMutationOp } from '../kanban/types.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
@@ -11,9 +12,10 @@ import { labelOverflowCollector } from './body-utils.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 
-export function parseKanbanBody(lines: readonly string[] | string): KanbanBody | null {
+export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource): KanbanBody | null {
   try {
-    return parseKanbanDiagram(lines)
+    const input = source ? preservedMermaidFamilyText(source, 'authored').replace(/^[^\r\n]*/, 'kanban') : lines
+    return parseKanbanDiagram(input, source?.accessibility, source)
   } catch {
     return null
   }
@@ -24,10 +26,13 @@ export function renderKanban(body: KanbanBody): string {
   const emit = (item: KanbanItem, indent: string): void => {
     // A quoted node label cannot contain a physical quote in Mermaid's Jison
     // lexer. Use its entity spelling; IDs retain the original authored text.
-    const label = encodeMermaidEntities(item.label, '"').replace(/\r?\n/g, '<br/>')
-    const identifier = item.implicitId && item.sourceId === item.label ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@')
+    const label = encodeMermaidEntities(item.implicitId ? item.sourceId : item.label, '"').replace(/\r\n/g, '\r\r\n')
+    const identifier = item.implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@')
     lines.push(`${indent}${identifier}["${label}"]`)
     const metadata = { ...item.metadata }
+    // An implicit identity comes from the declaration, independently of a
+    // later display-label edit. Keep both through the public writer.
+    if (item.implicitId && item.sourceId !== item.label) metadata.label = item.label
     if (item.icon !== undefined) metadata.icon = item.icon
     if (Object.keys(metadata).length) {
       // Block YAML also represents metadata whose values contain commas or

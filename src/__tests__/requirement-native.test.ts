@@ -8,6 +8,8 @@ import { parseRequirementDiagram } from '../requirement/parser.ts'
 import type { RequirementBody } from '../requirement/types.ts'
 import type { RenderOptions } from '../types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
 const cases = JSON.parse(readFileSync(new URL('../../eval/mermaid-requirement-bench/cases.json', import.meta.url), 'utf8')) as { id: string; source: string; expect: ReturnType<typeof semantic> }[]
 function semantic(body: RequirementBody) {
@@ -28,6 +30,90 @@ function structured(source: string) {
   return narrowed
 }
 describe('native requirement', () => {
+  test('quoted lone CR identities survive structural line endings across native surfaces', () => {
+    const names = ['A\rB', 'A\nB', 'C\nD']
+    for (const ending of ['\n', '\r', '\r\n']) {
+      const wrapper = ['---', 'title: Requirement identities', '---', '%%{init: {}}%%', ''].join(ending)
+      const source = wrapper + [
+        'requirementDiagram', 'accTitle: Distinct records',
+        'requirement "A\rB" {', 'id: one', 'text: "First\rfield"', '}',
+        'requirement "A\nB" {', 'id: two', 'text: second', '}',
+        'requirement "C\r\nD" {', 'id: three', 'text: third', '}',
+        '"A\rB" - traces -> "A\nB"',
+      ].join(ending)
+      const parsed = structured(source)
+      expect(parsed.body.requirements.map(node => node.name)).toEqual(names)
+      expect(parsed.body.requirements.map(node => node.requirementId)).toEqual(['one', 'two', 'three'])
+      expect(parsed.body.requirements[0]?.text).toBe('First\rfield')
+      expect(parsed.body.accessibilityTitle).toBe('Distinct records')
+      expect(parsed.meta.wrapperSource).toBe(wrapper)
+      expect(structured(serializeMermaid(parsed)).body).toEqual(parsed.body)
+      expect(layoutMermaid(parsed).nodes.map(node => node.id)).toEqual(names)
+      const authoredNames = ['A\rB', 'A\nB', 'C\r\nD']
+      for (const [index, name] of names.entries()) {
+        const span = parsed.source.spans?.labels.get(`node:${name}`)
+        expect(span).toBeDefined()
+        expect(source.slice(span!.start.offset, span!.end.offset)).toBe(authoredNames[index]!)
+      }
+      for (const renderedSource of [source, source.replace('requirementDiagram', 'requirement&#68;iagram'), source.replace(/^---/, '&#45;&#45;&#45;')]) {
+        const tags = scanSvgStartTags(renderMermaidSVG(renderedSource, { embedFontImport: false }))
+        const ids = tags.filter(tag => decodedSvgAttributeValue(tag, 'class')?.split(/\s+/).includes('requirement-node')).map(tag => decodedSvgAttributeValue(tag, 'data-id'))
+        expect(ids).toEqual(names)
+        for (const input of [renderedSource, parsed]) {
+          const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+          expect(terminal.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+          expect(terminal.regions.filter(region => region.kind === 'node').map(region => region.id).sort()).toEqual([...names].sort())
+        }
+      }
+    }
+  })
+  test('raw requirement strings retain CRLF payloads while structural CR delimits tokens', () => {
+    const body = parseRequirementDiagram('requirementDiagram\rrequirement "A\r\r\nB" {\rid: "ID\r\n1"\rtext: "Text\rfield"\r}\relement proof {\rtype: suite\r}\rproof - traces -> "A\r\r\nB"')
+    expect(body.requirements[0]).toMatchObject({ name: 'A\r\r\nB', requirementId: 'ID\r\n1', text: 'Text\rfield' })
+    expect(body.relations[0]).toMatchObject({ src: 'proof', dst: 'A\r\r\nB' })
+  })
+  test('rendered requirement identities decode XML once beside preserved CR payloads', () => {
+    const source = 'requirementDiagram\nrequirement "A&amp;amp;\rB" {\ntext: first\n}\nrequirement "A&amp;\nB" {\ntext: second\n}'
+    const names = ['A&amp;\rB', 'A&\nB']
+    const tags = scanSvgStartTags(renderMermaidSVG(source, { embedFontImport: false }))
+    expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'class')?.split(/\s+/).includes('requirement-node')).map(tag => decodedSvgAttributeValue(tag, 'data-id'))).toEqual(names)
+    expect(renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(names)
+  })
+  test('a retained CR next to normalized CRLF survives serialization and typed edits', () => {
+    const source = 'requirementDiagram\nrequirement "A\r\r\nB" {\nid: "ID\r\r\n1"\ntext: "Text\r\r\nfield"\n}\nelement proof {\ntype: suite\n}\nproof - traces -> "A\r\r\nB"'
+    const parsed = structured(source), name = 'A\r\nB'
+    expect(parsed.body.requirements[0]).toMatchObject({ name, requirementId: 'ID\r\n1', text: 'Text\r\nfield' })
+    const canonical = serializeMermaid(parsed)
+    expect(structured(canonical).body).toEqual(parsed.body)
+    expect(serializeMermaid(structured(canonical))).toBe(canonical)
+    const changed = mutate(parsed, { kind: 'update_requirement', id: name, changes: { risk: 'High' } })
+    expect(changed.ok).toBe(true)
+    if (!changed.ok) return
+    expect(asRequirement(changed.value)?.body.requirements[0]).toMatchObject({ name, requirementId: 'ID\r\n1', text: 'Text\r\nfield', risk: 'High' })
+    expect(layoutMermaid(parsed).nodes.map(node => node.id)).toContain(name)
+    for (const input of [source, parsed, changed.value]) {
+      const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+      expect(terminal.regions.filter(region => region.kind === 'node').map(region => region.id)).toContain(name)
+    }
+  })
+  test('accessibility-looking physical rows in quoted Requirement payloads remain text', () => {
+    const name = 'A\raccTitle: hidden\rB', field = 'Before\raccDescr: hidden\rafter'
+    const source = `requirementDiagram\nrequirement "${name}" {\ntext: "${field}"\n}`
+    const parsed = structured(source)
+    expect(parsed.body.requirements[0]).toMatchObject({ name, text: field })
+    expect(parsed.meta.accessibility).toEqual({})
+    expect(parsed.body.accessibilityTitle).toBeUndefined()
+    expect(parsed.body.accessibilityDescription).toBeUndefined()
+    expect(structured(serializeMermaid(parsed)).body).toEqual(parsed.body)
+  })
+  test('Requirement-like accessibility text cannot capture a later declaration label span', () => {
+    const source = '---\ntitle: T\n---\nrequirementDiagram\naccDescr {\n  requirement "A" {\n}\n  requirement "A" {\n    text: hello\n  }'
+    const parsed = structured(source), span = parsed.source.spans?.labels.get('node:A')
+    expect(span).toBeDefined()
+    expect(source.slice(span!.start.offset, span!.end.offset)).toBe('A')
+    expect(span!.start.line).toBe(8)
+    expect(span!.start.col).toBe(16)
+  })
   for (const c of cases)
     test(c.id + ' retains pinned domain data through native surfaces', () => {
       const parsed = structured(c.source)

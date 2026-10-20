@@ -1,12 +1,12 @@
 import { isMap, isScalar, parseDocument } from 'yaml'
 import type { Accessibility } from '../agent/types.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { fromEntityMarkers, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { readMetadataBlock } from '../shared/metadata-yaml.ts'
-import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
+import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservation } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { stripTrailingComment } from '../shared/trailing-comment.ts'
 import type { KanbanBody, KanbanColumn, KanbanItem } from './types.ts'
@@ -49,17 +49,23 @@ function metadataRanges(block: string, end: number, offset: number): Array<{ nam
 /** The first node's indentation defines the column level. All deeper levels
  * belong to the most recent column, including levels deeper than one card. */
 export function parseKanbanDiagram(input: readonly string[] | string, accessibility: Accessibility = {}, origin?: Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource'>): KanbanBody {
-  const scanned = scanAccessibilityDirectives(typeof input === 'string' ? input.split(/\r?\n/) : [...input])
-  const lines = [...scanned.familyLines]
+  const source = typeof input === 'string' ? input : input.join('\n')
+  // Shared payload views have normalized CRLF already. A remaining CR beside
+  // LF is payload, so never combine those characters a second time.
+  const breaks = origin ? /\r|\n/g : /\r\n?|\n/g
+  const lines = source.split(breaks)
+  const endings = source.match(breaks) ?? []
   let bodyLine = 2
   while (lines.length && (!lines[0]!.trim() || lines[0]!.trim().startsWith('%%'))) {
     lines.shift()
+    endings.shift()
     bodyLine++
   }
   const header = lines.shift() ?? ''
+  endings.shift()
   observeParserStatement('kanban', 'header', header, { line: bodyLine - 1, unit: 'normalized' })
   if (!/^kanban\s*$/i.test(stripTrailingComment(header).trim())) throw syntaxError({ what: 'Invalid Kanban header', expectedForm: 'kanban', example: 'kanban\nTodo\n  task[Write documentation]' })
-  const body: KanbanBody = { kind: 'kanban', columns: [], accessibilityTitle: accessibility.title ?? scanned.accessibility.title, accessibilityDescription: accessibility.descr ?? scanned.accessibility.descr }
+  const body: KanbanBody = { kind: 'kanban', columns: [], accessibilityTitle: accessibility.title, accessibilityDescription: accessibility.descr }
   const used = new Set<string>(),
     counters = new Map<string, number>()
   let baseIndent: number | undefined, column: KanbanColumn | undefined, previous: KanbanItem | undefined
@@ -67,8 +73,8 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
   // anchors the search after any Mermaid-looking text in YAML or directives.
   const position = (index: number, column: number): string => {
     if (!origin) return `line ${bodyLine + index}, column ${column + 1}`
-    const authored = origin.originalText.split(/\r?\n/)
-    let cursor = (origin.wrapperSource?.match(/\n/g)?.length ?? 0) + 1
+    const authored = origin.originalText.split(/\r\n?|\n/)
+    let cursor = (origin.wrapperSource?.match(/\r\n?|\n/g)?.length ?? 0) + 1
     for (let line = 0; line <= index; line++) {
       const wanted = lines[line]!.trim()
       while (cursor < authored.length && authored[cursor]!.trim() !== wanted) cursor++
@@ -86,6 +92,15 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     let line = lines[index]!,
       text = line.trim()
     if (!text || text.startsWith('%%')) continue
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive) {
+      if (directive.title && accessibility.title === undefined) body.accessibilityTitle = directive.value
+      else if (!directive.title && accessibility.descr === undefined) body.accessibilityDescription = directive.value
+      index = directive.endIndex
+      if (!directive.suffixLine) continue
+      line = directive.suffixLine
+      text = line.trim()
+    }
     const startIndex = index
     const indent = line.length - line.trimStart().length
     const fail = (what: string, column: number, expectedForm: string, atIndex = startIndex): Error => syntaxError({ what: `Kanban syntax at ${position(atIndex, column)}: ${what}`, expectedForm, example: 'task[Work]@{ assigned: Alice }' })
@@ -104,6 +119,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     let rawId = '',
       label = '',
       implicitId = false,
+      declaredLabelStart = indent,
       suffix = ''
     const metadataAt = text.indexOf('@{'),
       opener = OPEN.exec(metadataAt < 0 ? text : text.slice(0, metadataAt))
@@ -118,7 +134,8 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
         const markdown = rest.startsWith('"`'),
           delimiter = markdown ? '`"' : '"'
         const start = markdown ? 2 : 1
-        while (rest.indexOf(delimiter, start) < 0 && index + 1 < lines.length) rest += '\n' + lines[++index]!
+        declaredLabelStart = indent + opener.index + opening.length + start
+        while (rest.indexOf(delimiter, start) < 0 && index + 1 < lines.length) rest += (endings[index] === '\r' ? '\r' : '\n') + lines[++index]!
         const end = rest.indexOf(delimiter, start)
         if (end < 0) throw fail('Unclosed Kanban quoted label', indent + opener.index + opening.length, `closing ${delimiter}${closing}`)
         label = rest.slice(start, end)
@@ -126,7 +143,8 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
         if (!rest.slice(consumed).startsWith(closing)) throw fail('Unclosed Kanban label', indent + opener.index, `closing ${closing}`)
         consumed += closing.length
       } else {
-        while (!rest.includes(closing) && index + 1 < lines.length) rest += '\n' + lines[++index]!
+        declaredLabelStart = indent + opener.index + opening.length
+        while (!rest.includes(closing) && index + 1 < lines.length) rest += (endings[index] === '\r' ? '\r' : '\n') + lines[++index]!
         const end = rest.indexOf(closing)
         if (end < 0) throw fail('Unclosed Kanban label', indent + opener.index, `closing ${closing}`)
         label = rest.slice(0, end)
@@ -180,14 +198,31 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
       column = { ...item, tasks: [] }
       body.columns.push(column)
       previous = column
-      if (parserObservationActive('kanban')) observeParserMutation('kanban', 'add-column', { ...item, indent, declaredLabel, ...(ranges ? { metadataSpans: ranges } : {}) })
+      if (parserObservationActive('kanban')) observeParserMutation('kanban', 'add-column', { ...item, indent, declaredLabel, declaredLabelStart, ...(ranges ? { metadataSpans: ranges } : {}) })
     } else {
       if (!column) throw new Error('Kanban card has no column')
       column.tasks.push(item)
       previous = item
-      if (parserObservationActive('kanban')) observeParserMutation('kanban', 'add-task', { ...item, indent, declaredLabel, parentId: column.sourceId, ...(ranges ? { metadataSpans: ranges } : {}) })
+      if (parserObservationActive('kanban')) observeParserMutation('kanban', 'add-task', { ...item, indent, declaredLabel, declaredLabelStart, parentId: column.sourceId, ...(ranges ? { metadataSpans: ranges } : {}) })
     }
     assertDiagramWorkLimit('nodes', used.size)
   }
   return body
+}
+
+
+/** Let universal accessibility removal reuse consumed native records rather
+ * than treating directive-looking lines inside a label as envelope metadata. */
+export function kanbanStatementEnds(lines: readonly string[]): number[] {
+  const ends = lines.map((_, index) => index)
+  try {
+    withParserObservation('kanban', event => {
+      if (event.unit !== 'statement' || event.kind !== 'node' || !event.source?.line || event.text === undefined) return
+      const start = event.source.line - 1
+      ends[start] = Math.min(lines.length - 1, start + event.text.split('\n').length - 1)
+    }, () => parseKanbanDiagram(lines), { mutations: [] })
+  } catch {
+    // Invalid records remain family-visible; retain bounds of completed ones.
+  }
+  return ends
 }

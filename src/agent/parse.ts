@@ -335,7 +335,12 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     }
     attachUniversalAccessibility(parsed.value, meta)
     const sourceMap = tracedSourceMap(
-      plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource) ?? emptySourceMap(),
+      plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource, Object.freeze({
+        originalText: authoredEnvelope.originalText,
+        wrapperSource: authoredEnvelope.wrapperSource,
+        authoredWrapperLength: authoredEnvelope.authoredWrapperLength,
+        cleanup: authoredEnvelope.cleanup,
+      })) ?? emptySourceMap(),
       kind === 'flowchart' ? 'flowchart' : 'generic',
     )
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }

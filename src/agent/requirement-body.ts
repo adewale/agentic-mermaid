@@ -7,10 +7,14 @@ import { err, ok } from './types.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { parseMutableStyleProps, serializeStyleProps } from '../shared/style-props.ts'
+import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
 
-export function parseRequirementBody(lines: string[], accessibility: Accessibility = {}): RequirementBody | null {
+export function parseRequirementBody(input: string[] | string, accessibility: Accessibility = {}): RequirementBody | null {
   try {
-    const body = parseRequirementDiagram(['requirementDiagram', ...lines])
+    const source = typeof input === 'string'
+      ? input.replace(/^[^\r\n]*/, 'requirementDiagram')
+      : ['requirementDiagram', ...input]
+    const body = parseRequirementDiagram(source)
     body.accessibilityTitle = accessibility.title ?? body.accessibilityTitle
     body.accessibilityDescription = accessibility.descr ?? body.accessibilityDescription
     return body
@@ -21,7 +25,9 @@ export function parseRequirementBody(lines: string[], accessibility: Accessibili
 const TYPE_NAMES: Record<string, string> = { Requirement: 'requirement', 'Functional Requirement': 'functionalRequirement', 'Interface Requirement': 'interfaceRequirement', 'Performance Requirement': 'performanceRequirement', 'Physical Requirement': 'physicalRequirement', 'Design Constraint': 'designConstraint' }
 function quoted(value: string): string {
   if (typeof value !== 'string' || value.includes('"') || value.includes('\u0000')) throw new Error('Requirement strings cannot contain a literal quote or NUL')
-  return `"${value}"`
+  // A public read normalizes CRLF once. Double the payload CR so a stored
+  // CR followed by LF survives that read without changing either character.
+  return `"${value.replace(/\r\n/g, '\r\r\n')}"`
 }
 export function renderRequirement(body: RequirementBody): string {
   const lines = ['requirementDiagram', `  direction ${body.direction}`]
@@ -171,7 +177,7 @@ export function mutateRequirement(body: RequirementBody, op: RequirementMutation
       default:
         throw new Error(formatUnknownOpMessage('requirement', op, REQUIREMENT_OP_KINDS.join(', ')))
     }
-    const reparsed = parseRequirementDiagram(renderRequirement(next))
+    const reparsed = parseRequirementDiagram(cleanupMermaidSource(renderRequirement(next)).authoredPayloadText)
     reparsed.relations.forEach((edge, i) => {
       edge.id = next.relations[i]!.id
     })

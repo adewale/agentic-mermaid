@@ -481,7 +481,7 @@ export function stripMermaidInitDirectives(text: string): string {
 /** Read the shared post-wrapper source without normalizing payload line endings.
  * Rendering uses the once-decoded view; authored parsing keeps entity spelling.
  * The family grammar still owns quoted payloads and accessibility directives. */
-export function preservedMermaidFamilyText(source: NormalizedMermaidSource, view: 'authored' | 'render' = 'render'): string {
+export function preservedMermaidFamilyText(source: Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'>>, view: 'authored' | 'render' = 'render'): string {
   const cleanup = source.cleanup
   const wrapperLength = source.wrapperSource?.length ?? 0
   const authoredStart = cleanup && source.authoredWrapperLength !== undefined

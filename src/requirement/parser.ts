@@ -35,7 +35,7 @@ function isStylePart(t: number): boolean {
   return t === T.ALPHA || t === T.COLON || t === T.BRKT || t === T.MINUS || t === T.SEMICOLON
 }
 export function parseRequirementDiagram(input: string | string[]): RequirementBody {
-  const source = (Array.isArray(input) ? input.join('\n') : input).replace(/^\s*requirement\s*(?=\r?\n|$)/i, 'requirementDiagram')
+  const source = (Array.isArray(input) ? input.join('\n') : input).replace(/^[^\S\r\n]*requirement[^\S\r\n]*(?=\r\n?|\n|$)/i, 'requirementDiagram')
   const db = new Database()
   parseRequirement(source.endsWith('\n') ? source : source + '\n', db)
   return {

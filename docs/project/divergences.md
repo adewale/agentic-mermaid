@@ -221,9 +221,15 @@ the shared entity codec only at text projection. They must never create new
 quotes, statement delimiters, markup or terminal controls. Pie's authored-key
 identity and Class's quote provenance still require grammar-specific views;
 those readers consume the shared authored view rather than normalizing the
-original document again. Sankey consumes the shared XML-decoded view before
-newline normalization: its CSV reader preserves lone CR inside quoted node
-identities while recognizing structural CR and CRLF outside those fields.
+original document again. Sankey, Requirement and Kanban consume shared payload
+views that normalize CRLF once while retaining lone CR for grammar-owned
+identities. Their grammars distinguish structural line endings from quoted
+names, CSV fields and implicit card IDs; the same view feeds graphical and
+terminal rendering. Requirement and Kanban writers protect a stored CR/LF
+adjacency from a second normalization when their output is read again. Source
+spans still address the complete authored payload, including its original line
+endings. Grammar-owned continuation boundaries also keep accessibility-looking
+text inside a label from becoming universal metadata.
 
 `serializeMermaid` also returns source-preserved opaque bodies and segments.
 That operation is lossless preservation, not a promise to repair an upstream-
