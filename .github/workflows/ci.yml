@@ -164,6 +164,12 @@ jobs:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
           mkdir -p "$EVIDENCE_DIR"
+          mkdir -p "$EVIDENCE_DIR/corpus"
+          for backend in elk agentic; do
+            bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+              --families flowchart,state,class,er,requirement,architecture --workloads --label "$backend" \
+              --out "$EVIDENCE_DIR/corpus/$backend.json"
+          done
           for start in 0 256 320; do
             count=256
             directory="$EVIDENCE_DIR"
@@ -181,7 +187,7 @@ jobs:
                 --out "$directory/$backend.json"
             done
           done
-          for start in 0 64; do
+          for start in 0 64 128 192; do
             end=$((start + 63))
             directory="$EVIDENCE_DIR/independent-sha256-counter-v1-$start-$end"
             mkdir -p "$directory"
@@ -191,12 +197,22 @@ jobs:
                 --out "$directory/$backend.json"
             done
           done
+          for cache in off normal; do
+            cache_flag=0
+            features=text-spans
+            if [ "$cache" = normal ]; then
+              cache_flag=1
+              features=text-spans,position-cache
+            fi
+            AGENTIC_MERMAID_ELK_CACHE="$cache_flag" AGENTIC_MERMAID_EXPERIMENTS="$features" \
+              bun run eval/layout-compare/edit-run.ts --out "$EVIDENCE_DIR/edits-$cache.json"
+          done
       - name: Compare final quality without declaring a performance winner
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
           failed=0
-          for directory in "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127"; do
+          for directory in "$EVIDENCE_DIR/corpus" "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127" "$EVIDENCE_DIR/independent-sha256-counter-v1-128-191" "$EVIDENCE_DIR/independent-sha256-counter-v1-192-255"; do
             if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
               --after "$directory/agentic.json" --out "$directory/report.html"; then
               failed=1

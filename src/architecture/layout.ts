@@ -4,7 +4,8 @@ import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { GraphLayoutUnsupportedError, withGraphLayoutDecisionObserver } from '../layout/backend.ts'
+import { withGraphLayoutDecisionObserver } from '../layout/backend.ts'
+import { layoutAgenticCompoundPlacement } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -138,23 +139,11 @@ export function layoutArchitectureDiagram(
       },
     } : undefined,
   }))
-  const positioned = runMeasuredGraphBackend(options, () => {
-    try { return place('agentic') } catch (error) {
-      if (!(error instanceof GraphLayoutUnsupportedError) || !graph.subgraphs.length) throw error
-      // Cross-container paths in this graph are temporary placement scaffolds;
-      // the Architecture adapter below routes EVERY original relationship from
-      // its authored side/boundary after alignment and sibling constraints.
-      // A second bounded placement keeps in-scope ranks without asking the
-      // generic router to certify cross-scope paths that will never be painted.
-      const owner = new Map<string, string>()
-      const visit = (group: typeof graph.subgraphs[number]): void => {
-        for (const id of group.nodeIds) owner.set(id, group.id)
-        group.children.forEach(visit)
-      }
-      graph.subgraphs.forEach(visit)
-      return place('agentic', { ...graph, edges: graph.edges.filter(edge => owner.get(edge.source) === owner.get(edge.target)) })
-    }
-  }, () => place('elk'))
+  // The adapter below routes every original side-constrained relationship.
+  // Keep the optional native scaffolding retry inside its on-demand module.
+  const positioned = runMeasuredGraphBackend(options,
+    () => layoutAgenticCompoundPlacement(graph, input => place('agentic', input)),
+    () => place('elk'))
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
