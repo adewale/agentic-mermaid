@@ -571,10 +571,11 @@ PNG is single-input and requires `--output` so binary bytes are never accidental
 The published package exposes Node-runnable bins: `am`, the package-runner
 alias `agentic-mermaid`, and `agentic-mermaid-mcp`.
 
-Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
+Local `agentic-mermaid-mcp` supports declarative editing and custom Code Mode:
 
 <!-- complete: local-mcp-tools -->
-- `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
+- `mutate({ source, ops })` and `build({ family, ops })` — atomic JSON edits, verified before source is emitted.
+- `execute(code)` — custom synchronous logic with global `mermaid.*` SDK.
 - `describe_sdk({ family, detail })` — version-matched compact signatures or exact mutation fields for one family.
 - `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`; accepts portable `scale`/`background`/`fitTo`/`minLabelPx`, plus local-only `fontDirs`/`loadSystemFonts`, and returns configuration, glyph-coverage, and raster-legibility warnings with every output mode.
 - `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
@@ -591,7 +592,6 @@ object distinguishes `renderability` (`passed`, `failed`, or `not-checked`),
 `not-checked`). No detected loss is not a general losslessness proof. Read warnings
 and compare semantic facts to the requested edit before publishing a diagram.
 Suppressing error codes makes renderability `not-checked`.
-
 
 ## Graph layout hints
 

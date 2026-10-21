@@ -545,7 +545,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
     expect(tools).toBe(LOCAL_TOOLS)
-    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'describe_sdk', 'render_png', 'describe'])
+    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'describe_sdk', 'render_png', 'describe', 'mutate', 'build'])
     for (const token of [...BUILTIN_FAMILY_METADATA.map(f => f.narrower), 'MutationOp']) {
       expect(tools[0].description).toContain(token)
     }
@@ -554,7 +554,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
       expect(tools[0].description).toContain(signature)
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
-    expect(tools[0].description).toContain('interface RenderRequestReceipt { version: 2;')
+    expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
     // Includes the compact strict StyleSpec contract; remain bounded.
     expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_000)
   })
@@ -1034,5 +1034,22 @@ describe('CLI — sad paths via runCli', () => {
     const r3 = capture(() => runCli(['format', tmp]))
     expect(r2.out).toEqual(r1.out)
     expect(r3.out).toEqual(r1.out)
+  })
+})
+
+
+describe('declarative local editing and script results', () => {
+  test('local build and mutate work without generated JavaScript', async () => {
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })
+      return JSON.parse((response!.result as any).content[0].text)
+    }
+    const built = await call('build', { family: 'flowchart', ops: [{ kind: 'add_node', id: 'A', label: 'Start' }] })
+    expect(built.ok).toBe(true)
+    const edited = await call('mutate', { source: built.source, ops: [{ kind: 'add_node', id: 'B', label: 'Finish' }, { kind: 'add_edge', from: 'A', to: 'B' }] })
+    expect(edited.ok).toBe(true)
+    expect(edited.source).toContain('Finish')
+    const rejected = await call('mutate', { source: built.source, ops: [{ kind: 'remove_node', id: 'missing' }] })
+    expect(rejected).toMatchObject({ ok: false, opIndex: 0 })
   })
 })

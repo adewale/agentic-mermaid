@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { URL } from 'node:url'
+import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
 import { executeInSandbox } from './sandbox.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, reply, rpcError as error, stringifyJsonRpc, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
@@ -110,13 +111,14 @@ export const LOCAL_TOOLS = [
   withClosedMcpInputSchema(createDescribeSdkTool()),
   createRenderPngTool('local'),
   createDescribeTool(),
+  ...EDIT_TOOLS,
 ]
 
 let defaultArtifactStore: ArtifactStore | undefined
 let defaultArtifactStoreExitHook = false
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
@@ -168,6 +170,8 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     const r = await executeInSandbox(code, { timeoutMs })
     return reply(id, { content: [{ type: 'text', text: JSON.stringify(r) }], isError: !r.ok })
   }
+  if (name === 'mutate') return handleEditTool(id, args, 'source')
+  if (name === 'build') return handleEditTool(id, args, 'family')
   if (name === 'render_png') return handleRenderPng(id, args, context)
   if (name === 'describe') {
     const source = (args as { source?: string }).source

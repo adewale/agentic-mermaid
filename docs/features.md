@@ -110,7 +110,8 @@ Exit codes 0/2/3/4; parse and verify-failure errors include structured `error.de
 ## MCP server
 
 <!-- complete: local-mcp-tools -->
-Local `agentic-mermaid-mcp` is Code Mode-first: `execute(code)` runs synchronous
+Local `agentic-mermaid-mcp` exposes declarative `mutate` and `build` for JSON edit
+batches. For custom logic, `execute(code)` runs synchronous
 JavaScript in a local `node:vm` sandbox with a typed `mermaid.*` SDK declaration,
 plus narrow `describe_sdk`, `render_png`, and `describe` helpers. The initial
 Code Mode declaration carries only the core SDK; `describe_sdk` returns one

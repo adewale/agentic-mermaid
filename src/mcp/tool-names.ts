@@ -2,7 +2,7 @@
 // digest needs these names without importing the servers themselves, so they
 // live here; a test checks them against LOCAL_TOOLS and HOSTED_TOOLS.
 
-export const LOCAL_MCP_TOOL_NAMES = ['execute', 'describe_sdk', 'render_png', 'describe'] as const
+export const LOCAL_MCP_TOOL_NAMES = ['execute', 'describe_sdk', 'render_png', 'describe', 'mutate', 'build'] as const
 
 export const HOSTED_MCP_TOOL_NAMES = ['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'] as const
 
