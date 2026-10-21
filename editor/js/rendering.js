@@ -1,7 +1,7 @@
 var renderTimer = null;
 var renderSpinnerTimer = null;
 var renderRequestVersion = 0;
-var lastSuccessfulRenderMs = null;
+var lastSuccessfulUiMs = null;
 var autoFitPending = true;
 // Exact canonical artifact inserted into the preview. Export adapters derive
 // from this record/source, never from a host-mutated preview DOM.
@@ -55,7 +55,7 @@ function scheduleRender(delay) {
   // never leave stale export buttons or receipts live during the debounce.
   invalidateRenderedArtifacts();
   clearRenderSpinner();
-  var nextDelay = delay == null ? EditorMotion.adaptiveRenderDelay(lastSuccessfulRenderMs) : delay;
+  var nextDelay = delay == null ? EditorMotion.adaptiveRenderDelay(lastSuccessfulUiMs) : delay;
   renderTimer = setTimeout(function() {
     renderTimer = null;
     doRender(version);
@@ -479,6 +479,7 @@ async function doRender(version) {
   try {
     var renderOptions = buildOptions();
     var rendered = await Promise.resolve(renderMermaidWithReceipt(source, renderOptions));
+    var commitStarted = performance.now();
     var svg = rendered.svg;
     if (!isCurrentRender(version, source)) return;
     var svgSafety = verifyNoExternalRefs(svg);
@@ -489,7 +490,9 @@ async function doRender(version) {
     setEditorErrorLine(0);
     var verification = updateVerifyPanel(source, renderOptions, rendered.verification);
     var renderMs = performance.now() - t0;
-    lastSuccessfulRenderMs = renderMs;
+    // Worker, queue and startup time do not block input. The bounded worker
+    // queue limits background work; debounce follows the remaining UI cost.
+    lastSuccessfulUiMs = Number.isFinite(rendered.computeMs) ? performance.now() - commitStarted : renderMs;
     renderTime.textContent = "Rendered and verified in " + renderMs.toFixed(0) + "ms";
     markTextOutputsDirty();
     if (verification && verification.ok) {

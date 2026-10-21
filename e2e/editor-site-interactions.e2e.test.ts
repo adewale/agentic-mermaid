@@ -108,7 +108,7 @@ describe('editor and site interactions in a real browser', () => {
     await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
       return async function(source, options) {
         var artifact = await original(source, options);
-        if (source.indexOf('Earlier') >= 0) await new Promise(function(done) { setTimeout(done, 500); });
+        if (source.indexOf('Earlier') >= 0 || source.indexOf('Slow') >= 0) await new Promise(function(done) { setTimeout(done, 500); });
         return artifact;
       };
     }`)
@@ -123,6 +123,26 @@ describe('editor and site interactions in a real browser', () => {
     expect(await page.locator('#preview-inner svg').textContent()).not.toContain('Earlier')
     expect(await page.locator('#render-time').textContent()).toContain('Rendered and verified')
     expect(page.workers()).toHaveLength(1)
+    await page.locator('#code-editor').fill('flowchart LR\nSlow --> Verified')
+    await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Slow'))
+    // Inspect the requested debounce, rather than a flaky wall-clock bound.
+    // The delayed background response must not force a 300 ms pause on input.
+    const delays = await page.evaluate(() => {
+      const captured: number[] = [], original = window.setTimeout
+      ;(window as any).setTimeout = (callback: TimerHandler, delay?: number, ...args: unknown[]) => {
+        captured.push(delay ?? 0)
+        return original(callback, delay, ...args)
+      }
+      try {
+        const input = document.getElementById('code-editor') as HTMLTextAreaElement
+        input.value = 'flowchart LR\nPrompt --> Verified'
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      } finally { window.setTimeout = original }
+      return captured
+    })
+    expect(delays[0]).toBeGreaterThanOrEqual(60)
+    expect(delays[0]).toBeLessThan(300)
+    await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Prompt'))
     await page.close()
   }, 60_000)
 
