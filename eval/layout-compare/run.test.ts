@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import { snapshotSample, compareSample, buildReportHtml, buildSnapshot } from './run.ts'
 import { generatedFlowchartSamples } from './generated.ts'
+import { parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
 
 test('generated quality snapshots replay an explicit population and retain fully consumed backend evidence', () => {
@@ -22,6 +23,29 @@ test('generated quality comparisons reject unbounded, empty or implicit-policy p
     expect(() => generatedFlowchartSamples(range)).toThrow(RangeError)
   }
   expect(() => buildSnapshot('implicit', { generated: { start: 0, count: 1 } })).toThrow('explicit graphLayout.backend')
+})
+
+test('the independent generator preserves graph meaning and admits both source parities', () => {
+  const range = { start: 1000, count: 26 }
+  const samples = generatedFlowchartSamples(range, 'sha256-counter-v1')
+  expect(samples).toEqual(generatedFlowchartSamples(range, 'sha256-counter-v1'))
+  for (const [offset, sample] of samples.entries()) {
+    const seed = range.start + offset, nodes = 8 + seed % 13, edges = 2 * nodes + seed % 7
+    expect(sample.id).toBe(`generated-sha256-counter-v1:${seed}`)
+    const parsed = parseRegisteredMermaid(sample.source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw new Error('Invalid generated flowchart')
+    const graph = parsed.value.body.graph
+    expect(graph.nodes.size).toBe(nodes)
+    expect(graph.edges).toHaveLength(edges)
+    expect(graph.edges.filter(edge => edge.label)).toHaveLength(Math.ceil(edges / 4))
+    for (const edge of graph.edges) {
+      expect(graph.nodes.has(edge.source) && graph.nodes.has(edge.target)).toBe(true)
+      expect(edge.source).not.toBe(edge.target)
+    }
+    if (nodes % 2 === 0) expect(new Set(graph.edges.map(edge => Number(edge.source.slice(1)) % 2)).size).toBe(2)
+  }
+  expect(() => generatedFlowchartSamples(range, 'unknown' as never)).toThrow(RangeError)
 })
 
 test('visual snapshots apply the same backend to source rendering and parsed quality, retaining both receipts', () => {
