@@ -185,42 +185,62 @@ export function edgeId(e: { source: string; target: string }): string {
  * Prove a straight lane at cross-coordinate `c`, spanning [mainLo, mainHi] on
  * the flow axis, clear for `edge`. Returns the blockers ([] = proof succeeded).
  */
-export function directLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis = ctx.axis): RouteBlocker[] {
-  const blockers: RouteBlocker[] = []
-  hasDirectLaneBlocker(edge, c, mainLo, mainHi, ctx, axis, blockers)
-  return dedupeBlockers(blockers)
+export function directLaneBlockers(
+  edge: PositionedEdge,
+  c: number,
+  mainLo: number,
+  mainHi: number,
+  ctx: LaneContext,
+  axis: Axis = ctx.axis,
+): RouteBlocker[] {
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, false)
 }
 
-/** Repair probes stop at the first blocker without constructing evidence.
- * Supplying a collector retains the complete ordered certificate evidence. */
-export function hasDirectLaneBlocker(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, blockers?: RouteBlocker[]): boolean {
-  const overlaps = (lo: number, hi: number, lo2: number, hi2: number) => Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
+/** Repair candidates only need an existence proof. Stop at the first blocker;
+ * certificate-producing callers still collect the complete ordered evidence. */
+export function hasDirectLaneBlocker(
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis,
+): boolean {
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true)
+}
 
-  for (const node of ctx.nodes) {
+function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: true): boolean
+function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: false): RouteBlocker[]
+function collectLaneBlockers(
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: boolean,
+): RouteBlocker[] | boolean {
+  const blockers: RouteBlocker[] | undefined = firstOnly ? undefined : []
+
+  for (let nodeIndex = 0; nodeIndex < ctx.nodes.length; nodeIndex++) {
+    const node = ctx.nodes[nodeIndex]!
     if (node.id === edge.source || node.id === edge.target) continue
     const nMainLo = node[axis.main] - CLEARANCE
     const nMainHi = node[axis.main] + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
     const nCrossLo = node[axis.cross] - CLEARANCE
     const nCrossHi = node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
-    if (c > nCrossLo && c < nCrossHi && overlaps(mainLo, mainHi, nMainLo, nMainHi)) {
-      if (!blockers) return true
-      blockers.push({ kind: 'node', id: node.id })
+    if (c > nCrossLo && c < nCrossHi && Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
+      if (firstOnly) return true
+      blockers!.push({ kind: 'node', id: node.id })
     }
   }
 
-  for (const other of ctx.edges) {
+  for (let edgeIndex = 0; edgeIndex < ctx.edges.length; edgeIndex++) {
+    const other = ctx.edges[edgeIndex]!
     // Compare by edgeIndex as well as identity: validation proves lanes on a
     // copy of the edge, and the original must not block its own lane.
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-    const rect = isMovableReciprocalLabel(edge, other, ctx) ? null : labelRect(other, ctx.style)
-    if (rect) {
-      const rMainLo = (axis.main === 'x' ? rect.x : rect.y) - CLEARANCE
-      const rMainHi = rMainLo + (axis.main === 'x' ? rect.w : rect.h) + 2 * CLEARANCE
-      const rCrossLo = (axis.cross === 'y' ? rect.y : rect.x) - CLEARANCE
-      const rCrossHi = rCrossLo + (axis.cross === 'y' ? rect.h : rect.w) + 2 * CLEARANCE
-      if (c > rCrossLo && c < rCrossHi && overlaps(mainLo, mainHi, rMainLo, rMainHi)) {
-        if (!blockers) return true
-        blockers.push({ kind: 'label', id: edgeId(other) })
+    const block = !isMovableReciprocalLabel(edge, other, ctx) && other.label && other.labelPosition
+      ? other.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(other.label, other.labelContent), ctx.style) : undefined
+    if (block) {
+      const width = block.width + 2 * LABEL_PILL_PADDING, height = block.height + 2 * LABEL_PILL_PADDING
+      const x = other.labelPosition!.x - width / 2, y = other.labelPosition!.y - height / 2
+      const rMainLo = (axis.main === 'x' ? x : y) - CLEARANCE
+      const rMainHi = rMainLo + (axis.main === 'x' ? width : height) + 2 * CLEARANCE
+      const rCrossLo = (axis.cross === 'y' ? y : x) - CLEARANCE
+      const rCrossHi = rCrossLo + (axis.cross === 'y' ? height : width) + 2 * CLEARANCE
+      if (c > rCrossLo && c < rCrossHi && Math.min(mainHi, rMainHi) - Math.max(mainLo, rMainLo) > EPS) {
+        if (firstOnly) return true
+        blockers!.push({ kind: 'label', id: edgeId(other) })
       }
     }
     // Collinear overlap with another edge's flow-axis segment would merge the
@@ -229,33 +249,33 @@ export function hasDirectLaneBlocker(edge: PositionedEdge, c: number, mainLo: nu
     // collinearly at the shared target port — the classic flowchart fan-in
     // merge, where the final approaches draw as one line into one arrowhead.
     for (let i = 1; i < other.points.length; i++) {
-      const a = other.points[i - 1]!,
-        b = other.points[i]!
+      const a = other.points[i - 1]!, b = other.points[i]!
       if (Math.abs(a[axis.cross] - b[axis.cross]) > EPS) continue
       if (Math.abs(a[axis.cross] - c) >= CLEARANCE) continue
       const sLo = Math.min(a[axis.main], b[axis.main])
       const sHi = Math.max(a[axis.main], b[axis.main])
-      if (overlaps(mainLo, mainHi, sLo, sHi)) {
-        if (other.target === edge.target && other.source !== edge.source && Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
+      if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
+        if (other.target === edge.target && other.source !== edge.source &&
+          Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
           continue
         }
-        if (!blockers) return true
-        blockers.push({ kind: 'channel', id: edgeId(other) })
+        if (firstOnly) return true
+        blockers!.push({ kind: 'channel', id: edgeId(other) })
         break
       }
     }
   }
 
   if (edge.label) {
-    const m = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style)
+    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
     const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {
-      if (!blockers) return true
-      blockers.push({ kind: 'label', id: edgeId(edge) })
+      if (firstOnly) return true
+      blockers!.push({ kind: 'label', id: edgeId(edge) })
     }
   }
 
-  return blockers !== undefined && blockers.length > 0
+  return firstOnly ? false : dedupeBlockers(blockers!)
 }
 
 /**
