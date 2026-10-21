@@ -3,7 +3,6 @@ import type { PositionedDiagram, RenderContext } from '../types.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
 import { indentLines } from './serialization.ts'
-import { semanticChildId } from './identity.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
 import { inspectNativePaintGeometry, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
@@ -37,7 +36,6 @@ export function drawNative(
   }
   const leaf = (node: Exclude<SceneNode, { kind: 'group' }>): Fragment => {
     const svg = validator.node(node)
-    assertFinalSvgByteBudget(svg, 'native drawing fragment')
     return { svg, entries: [{ node }], nodeCount: 1, depth: 0,
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined }
@@ -78,20 +76,9 @@ export function drawNative(
       }))
       const svg = [shell.open, ...fields.children.map(child => indentLines(child.node.svg, child.indent)), shell.close].join(shell.join)
       validator.serialization(svg)
-      assertFinalSvgByteBudget(svg, 'native drawing group')
       return { svg, entries, nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && fields.children.every(child => child.node.prepared) }
     },
-    pathArtwork(fields) {
-      return factory.group({ id: fields.id, role: 'icon', open: fields.open, close: '</g>',
-        ...(fields.transform ? { transform: fields.transform } : {}),
-        ...(fields.owner ? { owner: fields.owner } : {}),
-        ...(fields.channels ? { channels: fields.channels } : {}), join: fields.join ?? '',
-        children: fields.paths.map((path, index) => ({ indent: fields.indent ?? 0,
-          node: factory.shape({ id: semanticChildId(fields.id, 'path', index), role: 'icon', geometry: { kind: 'path', d: path }, paint: fields.paint,
-            ...(fields.owner ? { owner: fields.owner } : {}) }),
-        })),
-      })
-    },
+    pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }
   const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
   checked()
