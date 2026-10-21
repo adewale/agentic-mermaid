@@ -48,17 +48,16 @@ family docs, and `TODO.md`.
 10. **Configuration is wire-or-warn.** A recognized value must affect output or
     produce a deterministic, fully qualified diagnostic. Unknown, invalid, and
     no-op values need the same policy across wrappers and explicit options.
-11. **Generated freshness is delivery evidence, not semantic truth.** Receipts
-    must hash complete inputs and deterministic ordering, while independent tests
-    validate the generated artifact’s meaning. Local↔production byte equality
-    proves deployment parity, not current provenance. Every deployable file needs
-    an owner—authored input, generated output with a freshness oracle, or versioned
-    external asset—and blind copies of unowned renderer snapshots are forbidden.
-    Gitignored deploy builds are not committed product inputs.
-12. **Citizenship is default-by-default.** A family is not shipped until library,
-    CLI, MCP, editor, website, terminal, accessibility, security, configuration,
-    eval, package, and documentation surfaces derive from the same registry with
-    no silent exceptions.
+11. **Generate derived views at their delivery boundary.** Keep authored input
+    once; generate discovery, documentation and build artifacts from it. Use
+    behavioral checks for the output contract rather than a committed copy and
+    its freshness test. Hash bytes fetched or shipped when integrity requires
+    it; do not add hashes of our own inputs or receipt-maintenance gates.
+12. **Advertise capabilities independently.** A native family shares meaning
+    across its implemented outputs and editing surfaces. A read-only renderer
+    may support SVG without native mutation, layout, terminal geometry or paint
+    certification. Make those limits explicit rather than requiring every new
+    rendered family to implement the full product surface first.
 13. **Safe static rendering stays non-executable.** Escape attributes, sanitize
     links, reject external fetches under strict mode, keep icon assets offline and
     bounded, and do not expose unrestricted SVG attribute bags.
@@ -129,11 +128,11 @@ family docs, and `TODO.md`.
     proposals through production schemas/cores where possible, calibrate
     semantic judges separately, and report both all-graded-assertions success
     and partial assertion scores, with deferred semantic rows counted explicitly.
-    A receipt must hash the full model input and workspace contents—not merely
-    path-shaped metadata—and each downstream receipt must bind the exact tasks,
-    runner command, traces, outputs, and reports it claims. Grade the complete
-    final answer from immutable traces, not a bounded event summary; preserve
-    and hash any deterministic evidence materialization. Verify that the
+    Record the tasks, runner command, revision and raw traces needed to reproduce
+    the comparison. Use existing revision identities and preserve immutable
+    outputs; do not add a chain of input hashes or receipt-only completion work.
+    Grade the complete final answer from those traces rather than a bounded
+    event summary. Verify that the
     declared runner version matches the installed package behind the bound
     binary, and treat an aggregate exit code as insufficient until every
     expected provider result, trace, and output is complete. Reserve
@@ -206,7 +205,7 @@ family docs, and `TODO.md`.
     review dimensions.** Prefer one dimension per PR so its failure mode,
     rollback boundary, and evidence remain legible. Combine dimensions only
     when a named dependency makes every smaller sequence invalid; record that
-    dependency, give each dimension its own red test and receipt, and keep the
+    dependency, protect each changed behavior at its owning boundary, and keep the
     implementation in separable commits.
 36. **Computational aesthetics should name a bounded perceptual failure, not
     claim a universal beauty score.** Put each threshold in explicit policy,

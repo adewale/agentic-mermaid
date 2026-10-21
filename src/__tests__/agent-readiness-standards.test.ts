@@ -3,8 +3,6 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
-import { QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 ensureWebsiteBuilt()
@@ -277,10 +275,7 @@ describe('agent-readiness standards syntax', () => {
     expect(mcpEntry.capabilities).toEqual(card.tools.map((tool: any) => tool.name))
   })
 
-  test('the committed llms.txt names the published package version', () => {
-    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
-    expect(readFileSync(join(REPO, 'llms.txt'), 'utf8')).toContain(`\nVersion: ${packageJson.version}\n`)
-  })
+
 
   test('official MCP Registry metadata matches the npm package and hosted server', () => {
     const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
