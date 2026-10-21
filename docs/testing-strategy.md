@@ -43,6 +43,16 @@ a second full package build. Generic PR render evidence is generated on demand
 with `scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`;
 automatic rendering of the same fixtures is no longer appended to every PR.
 
+Both tarball-consumer lanes also execute the Getting Started commands from the
+built website's shell blocks and `docs/getting-started.md`'s bash fences in fresh
+consumer directories. Only the registry package spec is replaced with the packed
+tarball; the guide's separate repository-development alternative is excluded.
+The gate checks verification JSON, parsed SVG and PNG files, terminal output,
+style discovery, and stdio MCP initialization/tool discovery for both the CLI
+command and the version-pinned config card. Failures name the page, step, and
+copied command. Run it locally with
+`cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000`.
+
 Committed galleries and before/after sheets are dated review snapshots, not
 gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit

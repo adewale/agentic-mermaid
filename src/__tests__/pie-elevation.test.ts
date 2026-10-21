@@ -47,6 +47,15 @@ import { toMermaidLines } from '../mermaid-source.ts'
 const LEGEND_FONT = { size: 13, weight: 500 }
 const LEGEND_LINE_HEIGHT = LEGEND_FONT.size * 1.3
 
+it('fractional legend typography preserves the accumulated absolute row origin', () => {
+  const svg = renderMermaidSVG('---\nconfig:\n  pie:\n    legendPosition: bottom\n  themeVariables:\n    pieLegendTextSize: 13.05\n    pieTitleTextSize: 13.15\n---\npie title Title\n"A": 1\n"B": 2\n"C": 3')
+  const swatches = [...svg.matchAll(/<rect\b[^>]*\bclass="pie-legend-swatch"[^>]*>/g)]
+  expect(swatches).toHaveLength(3)
+  // Reviewed pre-refactor geometry: adding a relative stack offset changes
+  // this rounding boundary to 325.03 despite identical text and row heights.
+  expect(swatches[2]![0].match(/\by="([^"]*)"/)?.[1]).toBe('325.02')
+})
+
 function layout(src: string, visual?: Partial<PieVisualConfig>): PositionedPieChart {
   return layoutPieChart(
     parsePieChart(toMermaidLines(src)),

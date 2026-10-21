@@ -1,6 +1,7 @@
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { layoutTextRows } from '../shared/text-rows.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import type { RenderOptions } from '../types.ts'
 import { kanbanTicketUrl, resolveKanbanConfig } from './config.ts'
@@ -49,32 +50,26 @@ export function layoutKanbanDiagram(body: KanbanBody, options: Readonly<RenderOp
       })
       return { text, kind, block, x: 0, y: 0 }
     })
-  const headers = body.columns.map(column => textBlocks(column, true))
-  const headerHeight = Math.max(32, ...headers.map(texts => texts.reduce((height, text) => height + text.block.height + 6, 2 * headerPadY)))
+  const headers = body.columns.map(column => layoutTextRows(textBlocks(column, true), { top: pad + (band?.height ?? 0) + headerPadY, gap: 6, trailingGap: true }))
+  const headerHeight = Math.max(32, ...headers.map(stack => stack.height + 2 * headerPadY))
   const columns: PositionedKanbanColumn[] = []
   body.columns.forEach((column, index) => {
     const x = pad + index * (width + gap),
       y = pad + (band?.height ?? 0)
-    const texts = headers[index]!
-    let textY = y + headerPadY
-    for (const text of texts) {
+    const texts = headers[index]!.rows.map(({ item: text, textY }) => {
       text.x = x + headerPadX
-      text.y = textY + text.block.height / 2
-      textY += text.block.height + 6
-    }
+      text.y = textY
+      return text
+    })
     let cardY = y + headerHeight + groupPadY
     const tasks = column.tasks.map(task => {
-      const texts = textBlocks(task, false),
-        height = Math.max(
-          40,
-          texts.reduce((sum, text) => sum + text.block.height + 6, 2 * cardPadY - 6),
-        )
-      let top = cardY + cardPadY
-      for (const text of texts) {
+      const stack = layoutTextRows(textBlocks(task, false), { top: cardY + cardPadY, gap: 6 }),
+        height = Math.max(40, stack.height + 2 * cardPadY)
+      const texts = stack.rows.map(({ item: text, textY }) => {
         text.x = x + groupPadX + cardPadX
-        text.y = top + text.block.height / 2
-        top += text.block.height + 6
-      }
+        text.y = textY
+        return text
+      })
       const positioned = { ...task, parentId: column.id, x: x + groupPadX, y: cardY, width: width - groupPadX * 2, height, texts, ...(task.metadata.ticket ? { ticketUrl: kanbanTicketUrl(visual.ticketBaseUrl, String(task.metadata.ticket)) } : {}) }
       cardY += height + inset
       return positioned

@@ -95,7 +95,7 @@
       "requests": 35,
       "raw": 632000,
       "gzip": 205000,
-      "brotli": 180500
+      "brotli": 181000
     },
     "sankey": {
       "requests": 33,
@@ -118,7 +118,7 @@
     "kanban": {
       "requests": 34,
       "raw": 595000,
-      "gzip": 195000,
+      "gzip": 195500,
       "brotli": 173000
     },
     "requirement": {
