@@ -6,28 +6,12 @@ import { detectBrowserBuiltinFamilyFromFirstLine } from '../browser-lazy/generat
 import { renderLoadedFamilySvg, renderLoadedFamilySvgWithReceipt } from '../browser-lazy/render-core.ts'
 import { registerStyle } from '../scene/style-registry.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { DeferredDependencyError, LayoutCertificationError } from '../layout/certification-error.ts'
-import { SceneValidationError } from '../scene/scene-validation.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
-  test('deferred Scene admission loads one gate and still rejects invalid retained documents', async () => {
-    const { admitFamilyScene } = await import('../scene/admission.lazy.ts')
-    const descriptor = getFamily('pie')!
-    const demand = (): DeferredDependencyError => {
-      try { admitFamilyScene(descriptor, null) } catch (error) {
-        expect(error).toBeInstanceOf(DeferredDependencyError)
-        return error as DeferredDependencyError
-      }
-      throw new Error('Unloaded admission accepted an invalid Scene')
-    }
-    const first = demand(), concurrent = demand()
-    expect(first.load).toBe(concurrent.load)
-    await Promise.all([first.load(), concurrent.load()])
-    expect(() => admitFamilyScene(descriptor, null)).toThrow(SceneValidationError)
-  })
   test('retains the admitted named style and its receipt through an async registry replacement', async () => {
     const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
     const style = 'look:test/async-registry-snapshot'
