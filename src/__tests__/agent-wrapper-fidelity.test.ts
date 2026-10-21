@@ -401,12 +401,25 @@ test('State comments stay before their authored state through serialization and 
   expect(serializeMermaid(renamed.value)).toMatch(/%% state rationale\n\s*state "Start" as Renamed/)
 })
 
-test('State inline comments start outside quoted aliases', () => {
-  const parsed = parseMermaid('stateDiagram-v2\n  state "A %% quoted" as A %% real comment\n  A --> B')
+test.each([
+  ['stateDiagram-v2\n  state "A %% quoted" as A %% real comment\n  A --> B', 'state "A %% quoted" as A'],
+  ['stateDiagram-v2\n  state "A\nB" as A %% real comment\n  A --> C', 'state "A<br/>B" as A'],
+])('State inline comments follow their complete quoted alias: %s', (authored, alias) => {
+  const parsed = parseMermaid(authored)
   if (!parsed.ok) throw new Error('parse failed')
   const source = serializeMermaid(parsed.value)
-  expect(source).toContain('state "A %% quoted" as A\n%% real comment\n')
+  expect(source).toContain(`${alias}\n%% real comment\n`)
   const reparsed = parseMermaid(source)
   if (!reparsed.ok) throw new Error('reload failed')
   expect(serializeMermaid(reparsed.value)).toBe(source)
+})
+
+test.each([
+  ['stateDiagram-v2\n%% rationale\nstate "Actual" as stateDiagram-v2', 'state "Actual" as stateDiagram-v2'],
+  ['stateDiagram-v2\nnote left of A\nB\nend note\n%% rationale\nstate "Actual" as B', 'state "Actual" as B'],
+  ['---\ntitle: B\n---\nstateDiagram-v2\naccTitle: Heading\n%% rationale\nstate "Actual" as B', 'state "Actual" as B'],
+])('State comments anchor to declarations rather than document or note text: %s', (authored, declaration) => {
+  const parsed = parseMermaid(authored)
+  if (!parsed.ok) throw new Error('parse failed')
+  expect(serializeMermaid(parsed.value)).toContain(`%% rationale\n  ${declaration}`)
 })
