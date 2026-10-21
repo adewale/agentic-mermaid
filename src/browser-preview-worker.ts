@@ -14,7 +14,7 @@ async function execute(request: PreviewWorkerRequest): Promise<EditorWorkerArtif
       const started = performance.now()
       const result = renderAndVerifyMermaid(source, { ...options, security: 'strict', embedFontImport: false })
       return { svg: result.svg, receipt: result.receipt,
-        verification: { ok: result.verification.ok, warnings: result.verification.warnings }, computeMs: performance.now() - started }
+        verification: { ok: result.verification.ok, warnings: result.verification.warnings, checks: result.verification.checks }, computeMs: performance.now() - started }
     }
     case 'ascii': case 'unicode': {
       const { renderMermaidASCIIWithReceipt } = await import('./ascii/index.ts')

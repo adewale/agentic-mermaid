@@ -302,6 +302,11 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
     expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
     expect(worker.url()).toStartWith('blob:')
+    const checks = await standalone.evaluate(async () => {
+      const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt('flowchart LR\nStandalone --> Verified')
+      return artifact.verification.checks
+    })
+    expect(checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
     await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
     await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
     expect(standalone.workers()).toEqual([worker])

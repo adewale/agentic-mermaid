@@ -8,7 +8,7 @@ import type { VerifyResult } from './agent/types.ts'
 export interface PreviewArtifact {
   svg: string
   receipt: RenderRequestReceipt
-  verification: Pick<VerifyResult, 'ok' | 'warnings'>
+  verification: Pick<VerifyResult, 'ok' | 'warnings' | 'checks'>
   computeMs: number
 }
 export type EditorWorkerOperation =
