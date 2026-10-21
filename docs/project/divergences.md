@@ -408,32 +408,13 @@ exports and the empty-Class spelling remain explicit limits. BUG-57 is a
 consistent local reading, not a remaining defect. No new issues or parity-only
 work are implied by these decisions.
 
-### Preexisting Sequence terminal limit
+### Sequence participant boxes with fragments
 
-This combined box/fragment witness omits `Header` and `Divider` from terminal
-ink, while SVG contains them. The terminal output was byte-identical at local
-base `594b26cd` and during the text-codec work. Entity-encoded literal tags of
-the same widths also trigger it; shorter box/fragment examples may work.
-
-```text
-sequenceDiagram
-title [b]Title[/b]
-box transparent [b]Box[/b]
-participant A@{ "type": "boundary" } as [b]Alias[/b]
-participant B
-end
-autonumber
-alt [b]Header[/b]
-A->>B: [b]Message[/b]
-Note over A: [b]Note[/b]
-else [b]Divider[/b]
-B->>A: done
-end
-```
-
-This is a known terminal geometry limitation under CONS-45 and qualifies release
-claims. Separate box and fragment codec tests establish their text handling,
-not the geometry of their composition. CONS-46 does not claim to fix it.
+The historical `Header`/`Divider` omission no longer reproduces on current source.
+`ascii-sequence-blocks.test.ts` retains the original combined participant-box,
+fragment, note, and wide-label witness in both ASCII and Unicode. The shared
+Flowchart lexer likewise already owns the parser and source-map quote rules;
+its apostrophe/backslash counterexample remains in `agent-source-map.test.ts`.
 
 ## Important fixed issues worth remembering
 
