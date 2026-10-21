@@ -1,4 +1,6 @@
 import { normalizeBrTags } from '../multiline-utils.ts'
+import type { NormalizedMermaidSource } from '../mermaid-source.ts'
+import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
@@ -8,7 +10,7 @@ import { readSequenceLabel } from './text.ts'
 import { concatDisplayText, prepareDisplayText, resolveLabelContent, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
 import { isCssColorToken, sequenceRectColor } from './colors.ts'
 import { type ParticipantEvent, SequenceParticipantFold } from './participants.ts'
-import { isSequenceCommentLine, type SequenceSourceSpan, scanSequenceStatementLines, splitSequenceStatementLines } from './statements.ts'
+import { isSequenceCommentLine, type SequenceSourceSpan, scanSequenceStatementLines } from './statements.ts'
 import type { Actor, Block, Message, Note, SequenceActorType, SequenceBoxGroup, SequenceDiagram, SequenceMessageHead } from './types.ts'
 
 // Mermaid's half-arrow heads have multi-character spellings. Keep complete
@@ -28,7 +30,8 @@ const SEQUENCE_ARROW_HEADS = new Map<string, readonly [SequenceMessageHead, Sequ
   ['\\|--', ['half-top', 'none']], ['\\|-', ['half-top', 'none']],
   ['//--', ['stick-bottom', 'none']], ['//-', ['stick-bottom', 'none']],
   ['\\\\--', ['stick-top', 'none']], ['\\\\-', ['stick-top', 'none']],
-  // Preserve shorter pre-existing local spellings as compatibility aliases.
+  // Preserve shorter pre-existing local spellings as compatibility aliases
+  // (LOCAL_ARROW_ALIASES); Mermaid's lexer has none of these.
   ['--|', ['none', 'stick-top']], ['-|', ['none', 'stick-top']],
   ['--/', ['none', 'stick-bottom']], ['-/', ['none', 'stick-bottom']],
   ['--\\', ['none', 'stick-top']], ['-\\', ['none', 'stick-top']],
@@ -36,6 +39,16 @@ const SEQUENCE_ARROW_HEADS = new Map<string, readonly [SequenceMessageHead, Sequ
   ['/--', ['stick-bottom', 'none']], ['/-', ['stick-bottom', 'none']],
   ['\\--', ['stick-top', 'none']], ['\\-', ['stick-top', 'none']],
 ])
+
+const LOCAL_ARROW_ALIASES = new Set(['--|', '-|', '--/', '-/', '--\\', '-\\', '|--', '|-', '/--', '/-', '\\--', '\\-'])
+// The Mermaid arrow drawing what each local spelling draws: the same heads
+// and line style.
+const MERMAID_ARROW_FOR_LOCAL = new Map([...LOCAL_ARROW_ALIASES].map(local => {
+  const [start, end] = SEQUENCE_ARROW_HEADS.get(local)!
+  const mermaid = [...SEQUENCE_ARROW_HEADS].find(([token, heads]) => !LOCAL_ARROW_ALIASES.has(token)
+    && heads[0] === start && heads[1] === end && token.includes('--') === local.includes('--'))![0]
+  return [local, mermaid]
+}))
 
 const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
   .sort((a, b) => b.length - a.length)
@@ -53,10 +66,23 @@ const SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS = new Set([
 const SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS = new Set([
   ...SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS, 'acctitle', 'accdescr'])
 
+// Mermaid's ACTOR token (sequenceDiagram.jison, "final_4.11"): it stops at
+// `+`, `<`, `>`, `:`, `,`, `;` and at a dash that starts an arrow.
+const MERMAID_SEQUENCE_ACTOR_RE = /[^\/\\\+\()\+<\->\->:\n,;]+((?!(\-x|\-\-x|\-\)|\-\-\)|\-\|\\|\-\\|\-\/|\-\/\/|\-\|\/|\/\|\-|\\\|\-|\/\/\-|\\\\\-|\/\|\-|\-\-\|\\|\-\-|\(\)))[\-]*[^\+<\->\->:\n,;]+)*/iy
+
+/** The participant ID Mermaid's lexer reads at `index` in `line`, or ''. */
+function mermaidSequenceActorAt(line: string, index: number): string {
+  MERMAID_SEQUENCE_ACTOR_RE.lastIndex = index
+  return MERMAID_SEQUENCE_ACTOR_RE.exec(line)?.[0].trim() ?? ''
+}
+
 export interface ParsedSequenceMessageLine {
   from: string
   to: string
+  /** Mermaid's spelling of the arrow (see `localArrow`). */
   arrow: string
+  /** A local arrow spelling Mermaid rejects, as authored; `arrow` draws the same. */
+  localArrow?: string
   activationMark?: string
   label: string
   centralStart: boolean
@@ -134,9 +160,18 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
     || to.includes('()')
     || SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS.has(to.toLowerCase())
   )) return null
+  // Mermaid reads each participant ID as one lexer token. Where that token
+  // ends inside our sender or receiver (`A->>B->>C`, `-xA->B`, `A--->>B`),
+  // arrow tokens follow it where Mermaid expects text, so it rejects the
+  // line, and what was meant is unclear: leave the statement unread. Where
+  // Mermaid's sender runs on past our arrow, it reads another message.
+  const sender = mermaidSequenceActorAt(line, 0)
+  if (sender.length <= match[1]!.length && (sender !== match[1] || mermaidSequenceActorAt(line, line.length - tail.length) !== to)) return null
+  const arrow = match[3]!
   return {
-    from: match[1]!, arrow: match[3]!, activationMark,
+    from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark,
     to, label, centralStart: Boolean(match[2]), centralEnd,
+    ...(LOCAL_ARROW_ALIASES.has(arrow) ? { localArrow: arrow } : {}),
   }
 }
 
@@ -176,10 +211,21 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
  * an `autonumber` directive — so numbering config reaches every surface that
  * parses through here (SVG layout and ASCII alike). An explicit `autonumber`
  * directive in the body still takes precedence from its own line on.
+ *
+ * Errors name a statement's line: `opts.authoredLine(i)` for `lines[i]` when
+ * the caller knows where its lines were authored (see authoredSequenceLine),
+ * else its position in `lines`.
  */
-export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean } = {}): SequenceDiagram {
-  const accessibility = scanAccessibilityDirectives(splitSequenceStatementLines(lines))
-  lines = accessibility.familyLines.map(line => line.trim()).filter(Boolean)
+export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean; authoredLine?: (index: number) => number | undefined } = {}): SequenceDiagram {
+  const spans = scanSequenceStatementLines(lines)
+  const accessibility = scanAccessibilityDirectives(spans.map(span => span.raw))
+  const kept = accessibility.familyLines.flatMap((line, index) => line.trim() ? [{ text: line.trim(), origin: spans[accessibility.familyOrigins[index]!]!.line }] : [])
+  lines = kept.map(line => line.text)
+  // The statement at `index` of `lines` (the header is 0) on its authored line.
+  const lineOf = (index: number): number => {
+    const origin = kept[index]?.origin ?? index
+    return opts.authoredLine?.(origin) ?? origin + 1
+  }
   if (parserObservationActive('sequence') && lines[0] !== undefined) observeParserStatement('sequence', 'header', lines[0], { line: 1, unit: 'normalized' })
   const diagram: SequenceDiagram = {
     actors: [],
@@ -203,7 +249,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   const destroyedAt = new Map<string, number>()
   const source = readSequenceStatements(lines.slice(1))
   const boundaryIssue = source.issues.find(issue => issue.syntax === 'sequence_block_boundary')
-  if (boundaryIssue) throw new Error(`SEQUENCE_BLOCK_BOUNDARY: line ${boundaryIssue.line + 2}: ${boundaryIssue.message}`)
+  if (boundaryIssue) throw new Error(`SEQUENCE_BLOCK_BOUNDARY: line ${lineOf(boundaryIssue.line + 1)}: ${boundaryIssue.message}`)
   // Render data is keyed by shared statement identity, not another scope parser.
   const blocks = new Map<number, { type: Block['type']; label: string; labelContent?: LabelContent; color?: string; startIndex: number; dividers: Block['dividers']; dividerNoteIndices: number[]; parent?: number; parentSection: number; noteIndices: number[]; childBlockIndices: number[]; childSectionIndices: number[] }>()
   const boundaries: Array<Omit<SequenceBlockBoundary, 'blockIndex'> & { blockId: number }> = []
@@ -266,7 +312,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // messages after an unclosed accDescr opener; verify diagnoses the
       // preserved opener rather than treating it as family syntax.
       if (accessibility.unclosedIndex !== undefined && line === accessibility.familyLines[accessibility.unclosedIndex]?.trim()) continue
-      if (line && !isSequenceCommentLine(line)) throw new Error(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${line}`)
+      if (line && !isSequenceCommentLine(line)) throw new Error(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${lineOf(entry.line + 1)}: ${line}`)
       continue
     }
     for (const event of participantEventsOf(statement)) {
@@ -479,6 +525,35 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   return diagram
 }
 
+/** The authored line of `source.familyLines[index]`, matched in order from
+ * the family header as verify matches canonical lines to authored ones, so a
+ * renderer's error names the line verify reports. Computed on first use. */
+export function authoredSequenceLine(source: Pick<NormalizedMermaidSource, 'familyLines' | 'originalText' | 'wrapperSource'>): (index: number) => number | undefined {
+  let lines: (number | undefined)[] | undefined
+  return index => {
+    if (!lines) {
+      const physical = source.originalText.split(/\r?\n/)
+      const header = source.wrapperSource ? source.wrapperSource.split(/\r?\n/).length - 1 : 0
+      // A statement on the header line is a family line of its own.
+      const authored = physical.slice(header).flatMap((text, offset) =>
+        (offset === 0 ? splitHeaderStatement(text).split('\n') : [text]).map(part => ({ text: part.trim(), line: header + offset + 1 })))
+      let cursor = 0
+      lines = source.familyLines.map(line => {
+        const wanted = line.trim()
+        for (let at = cursor; at < authored.length; at++) {
+          // Text after an accDescr block's `}` is a family line of its own.
+          const candidate = authored[at]!.text
+          if (candidate !== wanted && candidate.slice(candidate.indexOf('}') + 1).trim() !== wanted) continue
+          cursor = at + 1
+          return authored[at]!.line
+        }
+        return undefined
+      })
+    }
+    return lines[index]
+  }
+}
+
 /** One sequence statement, classified by the grammar the renderer parser and
  * the typed body both read. Context (which block is open) is the caller's. */
 export type SequenceStatementSyntax =
@@ -546,6 +621,9 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
       }
     } else if (syntax.kind === 'declaration' && syntax.declaration.unmodeledMetadata?.length) {
       issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
+    } else if (syntax.kind === 'message' && syntax.message.localArrow) {
+      const { localArrow, arrow } = syntax.message
+      issue(entry, 'sequence_local_arrow', `The arrow ${localArrow} is a local spelling pinned Mermaid does not read, so it rejects this line. Ours draws it as Mermaid's ${arrow} and writes ${arrow}`)
     } else if (syntax.kind === 'declaration' && syntax.declaration.unspacedAlias) {
       issue(entry, 'sequence_unspaced_alias', 'Participant text immediately following as is read as its alias. Pinned Mermaid can reject this or read it as part of the ID; write as <label> with a separating space')
     }

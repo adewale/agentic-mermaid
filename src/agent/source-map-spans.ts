@@ -1,5 +1,5 @@
 import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
-import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
 import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
 
@@ -8,7 +8,7 @@ interface PhysicalLine {
   start: number
 }
 
-const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, number>>()
+const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, { line: number; text: string }>>()
 const cleanupBySourceMap = new WeakMap<SourceMap, MermaidCleanup>()
 
 export function recordSourceCleanup(sourceMap: SourceMap, cleanup: MermaidCleanup): void {
@@ -44,7 +44,14 @@ export function recordSourceMapMetadata(sourceMap: SourceMap, metadata: Metadata
 
 /** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
 export function authoredLineForCanonical(sourceMap: SourceMap, canonicalLine: number): number {
-  return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine) ?? canonicalLine
+  return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine)?.line ?? canonicalLine
+}
+
+/** The authored text of a canonical line, as the parse read it, which
+ *  canonical lines may not keep (trailing blanks); undefined where the
+ *  diagram was not parsed from source. */
+export function authoredTextForCanonical(sourceMap: SourceMap, canonicalLine: number): string | undefined {
+  return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine)?.text
 }
 
 function physicalLines(source: string): PhysicalLine[] {
@@ -110,7 +117,9 @@ function authoredLineMap(canonicalSource: string, authoredSource: string, preser
     if (!wanted) continue
     let found = -1
     for (let authoredIndex = cursor; authoredIndex < authored.length; authoredIndex++) {
-      if (authored[authoredIndex]!.text.trim() === wanted) {
+      // Normalization removes a directive inside a statement.
+      const text = authored[authoredIndex]!.text
+      if (text.trim() === wanted || (text.includes('%%{') && text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'g'), '').replace(MERMAID_DIRECTIVE_REGEX, '').trim() === wanted)) {
         found = authoredIndex
         break
       }
@@ -562,6 +571,9 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
     }
   }
   sourceMap.spans = spans
-  authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [canonicalLine, point(lineStarts, authoredLine.start).line])))
+  authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [
+    canonicalLine,
+    { line: point(lineStarts, authoredLine.start).line, text: authoredLine.text },
+  ])))
   return sourceMap
 }

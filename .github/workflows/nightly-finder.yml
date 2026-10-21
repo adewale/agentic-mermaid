@@ -4,7 +4,8 @@ name: Nightly finder
 # "Seed policy: pinned gates, rolling finders"). Every property suite rolls fresh
 # fast-check seeds with a raised minimum run count. A failure never blocks a pull
 # request; it files (or comments on) one issue with the seed and counterexample so
-# it can be fixed and kept as a permanent fast-check `examples` entry.
+# it can be fixed and kept as a permanent fast-check `examples` entry. The
+# grammar lane does the same for the seeded Mermaid grammar comparison.
 
 on:
   schedule:
@@ -77,6 +78,115 @@ jobs:
         run: |
           title='Nightly finder: the random-seed sweep did not run to completion'
           body="The random-seed property sweep ended as \`${SWEEP_OUTCOME:-not started}\` (\`skipped\` means an earlier step failed; \`cancelled\` usually means the 60-minute timeout), so it searched nothing. Run: $RUN_URL"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+
+  # The Mermaid grammar comparison keeps seed 7 in the PR gate and the weekly
+  # deep run (modern-mermaid.yml). This lane draws a fresh seed each night for
+  # the families ours parses natively, and files the silent reads it finds:
+  # sources pinned Mermaid rejects that ours reads without verify saying so.
+  rolling-seed-grammar:
+    name: Rolling-seed Mermaid grammar finder
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+
+      - name: Setup Node for the reference parser
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install the independent pinned reference
+        env:
+          MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
+          MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
+        run: bash scripts/setup-mermaid-reference.sh
+
+      # The weekly seed-7 run compares 5,000 mutations of all 32 families in
+      # about ten minutes; 15,000 of the 17 native families leaves room within
+      # the step timeout for verify and the reductions.
+      - name: Search a fresh seed for silent reads
+        id: search
+        timeout-minutes: 75
+        env:
+          MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
+          MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
+        run: |
+          seed=$(( $(od -An -N4 -tu4 /dev/urandom) % 2147483647 + 1 ))
+          echo "Grammar finder seed: $seed"
+          bun run eval:mermaid-grammar --native-only --fuzz 15000 --seed "$seed" --workers 4 --output grammar-finder
+
+      - name: File or update the grammar finder issue
+        if: ${{ steps.search.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title=$(bun -e "import { GRAMMAR_FINDER_ISSUE_TITLE } from './scripts/ci/grammar-finder-report.ts'; console.log(GRAMMAR_FINDER_ISSUE_TITLE)")
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          : > prior.md
+          if [ -n "$existing" ]; then
+            gh issue view "$existing" --json body,comments --jq '.body, .comments[].body' > prior.md
+          fi
+          bun run scripts/ci/grammar-finder-report.ts grammar-finder/summary.json prior.md > finder-body.md
+          if [ ! -s finder-body.md ]; then
+            echo 'No silent read the issue does not already list.'
+          elif [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file finder-body.md
+          else
+            gh issue create --title "$title" --body-file finder-body.md
+          fi
+
+      # summary.json holds the seed, the counts and each reduced read's
+      # unreduced input, and in-progress.json, left only by a run that did not
+      # finish, the input it was in; the per-input JSONL files are too large.
+      - name: Retain the finder summary
+        if: ${{ always() && steps.search.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: grammar-finder-summary
+          path: |
+            grammar-finder/summary.json
+            grammar-finder/in-progress.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Silent reads are findings and never fail the search. It fails only when
+      # the comparison's own instrumentation throws, or on its step timeout, so
+      # here a failure, like a skip or a cancel, means nothing was reported. A
+      # hang in ours shows up as the timeout; the run names the input it was in.
+      - name: Report a search that did not run to completion
+        if: ${{ always() && steps.search.outcome != 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SEARCH_OUTCOME: ${{ steps.search.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='Nightly finder: the rolling-seed grammar search did not run to completion'
+          body="The rolling-seed Mermaid grammar search ended as \`${SEARCH_OUTCOME:-not started}\` (\`skipped\` means an earlier step failed, such as the reference install; \`failure\` means an instrumentation assertion threw or the 75-minute step timeout hit; \`cancelled\` usually means the 100-minute job timeout), so it reported nothing. The log names the seed. Run: $RUN_URL"
+          if [ -s grammar-finder/in-progress.json ]; then
+            body="$body"$'\n\nIt was last in this input, which may be what stalled it:\n\n`````json\n'"$(cat grammar-finder/in-progress.json)"$'\n`````'
+          fi
           existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "$body"

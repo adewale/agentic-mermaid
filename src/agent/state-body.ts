@@ -482,6 +482,12 @@ function hasBareSpelling(id: string): boolean {
   return !/-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram)$/i.test(id)
 }
 
+/** Whether `id` is a keyword Mermaid's lexer reads as one only before a blank
+ *  or a line break, so it names a state with no blank after it (`note-->`). */
+function namesStateGlued(id: string): boolean {
+  return /^(?:state|note|scale|classDef|class|style|stateDiagram)$/i.test(id)
+}
+
 /** Whether a label is written as `X: label` beside the declaration, as one
  *  holding a `"` is where `X` reads alone; elsewhere the quoted label spells
  *  its `"` as `#quot;`. */
@@ -576,11 +582,14 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const step of scopeWriteOrder(states, transitions).steps) {
     if ('transition' in step) {
       const t = step.transition
-      // `state` followed by whitespace enters Mermaid's declaration lexer.
-      const separator = /^state$/i.test(t.to) ? ':' : ' :'
+      // `state`, `note` and the like that a blank follows start a statement
+      // of their own in Mermaid's lexer, so no blank follows them here:
+      // `note--> A`, `A --> note: label`, or a comment, `A --> note%%`.
+      const keyword = (id: string, className: string | undefined): boolean => className === undefined && namesStateGlued(id)
       const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
-      const arrow = `${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}`
-      out.push(t.label !== undefined ? describe(`${arrow}${separator} `, t.label, t.labelContent) : arrow)
+      const glued = keyword(t.to, t.toClass)
+      const arrow = `${indent}${endpoint(t.from, t.fromClass)}${keyword(t.from, t.fromClass) ? '' : ' '}--> ${endpoint(t.to, t.toClass)}`
+      out.push(t.label !== undefined ? describe(`${arrow}${glued ? ':' : ' :'} `, t.label, t.labelContent) : glued ? `${arrow}%%` : arrow)
       continue
     }
     const s = step.state
@@ -627,9 +636,10 @@ export function renderState(body: StateBody): string {
     const text = writeStateText(n.text, n.textContent)
     if (/[\n:;]/.test(n.text)) {
       out.push(`  note ${n.side} of ${n.target}`)
-      // Mermaid reads a block whose text starts with a colon as a one-line
-      // note, and then rejects its `end note`; `#58;` reads as the colon.
-      for (const line of text.replace(/^:/, '#58;').split('\n')) out.push(`    ${keepStateTextFromPrepass(line)}`)
+      // Mermaid reads a block whose text starts with a colon, after any
+      // blank lines, as a one-line note, and then rejects its `end note`;
+      // `#58;` reads as the colon.
+      for (const line of text.replace(/^(\s*):/, '$1#58;').split('\n')) out.push(`    ${keepStateTextFromPrepass(line)}`)
       out.push('  end note')
     } else {
       out.push(`  note ${n.side} of ${n.target} : ${text}`)
@@ -1382,39 +1392,43 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
       message: 'This composite state is never closed by `}`, so where it ends cannot be told and the diagram is not drawn; pinned Mermaid rejects it too. Add a `}` where the composite ends.',
     })),
   ]
-  // The line a statement's text ends on, with any `}` the scan cuts off it:
-  // as authored where verify has the source, since canonical lines end trimmed.
-  const lastLine = (line: number): string => {
-    const end = statementEndAt(statementEnds, line, body.length)
-    const canonical = body[end] ?? ''
-    const authored = authoredLine?.(header + end + 2)
+  // A body line as authored, which verify has from the source it was given
+  // or the parse of the diagram it was given, since canonical lines end
+  // trimmed; as canonical for a diagram not parsed from source.
+  const physicalLine = (index: number): string => {
+    const canonical = body[index] ?? ''
+    const authored = authoredLine?.(header + index + 2)
     return authored?.trim() === canonical.trim() ? authored : canonical
   }
-  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, lastLine))
+  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, physicalLine))
   return warnings.sort((left, right) => left.line - right.line)
 }
 
 /** Statements ours reads that pinned Mermaid reads otherwise, by statement:
- *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition,
- *  note or description naming a state it cannot name there; a description,
+ *  `cssClass` and `linkStyle`, which its State grammar lacks; a declaration,
+ *  transition, note or description naming a state it cannot name there; a description,
  *  transition label or one-line note it ends early; text whose `;` its
  *  entity prepass drops; and a composite given more than one label or
  *  description, which it rejects. Each at its authored line. */
-function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, lastLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
+function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, physicalLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
   const warnings: Array<LayoutWarning & { line: number }> = []
-  const warn = (statement: StateStatement, syntax: string, message: string): void => {
-    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: header + statement.line + 2, message })
+  // At the line holding the construct: inside a composite a statement may
+  // run across lines (`A⏎--> B : text`).
+  const warn = (statement: StateStatement, syntax: string, message: string, line = statement.line): void => {
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: header + line + 2, message })
   }
+  // The line holding a statement's text, which runs to that line's end.
+  const textLine = (statement: StateStatement): number => statement.textSpan?.start.line ?? statement.line
   // Mermaid's State lexer reads entity codes first, then ends a description
   // or transition label (DESCR, `":"(?:[^:\n;]|":"[^:\n;])+`) at a `;`, at
   // `::` and before a colon its line ends with. Ours reads the text to the
-  // line's end, as both read the text after `state "…" as X`. Verify given
-  // only a parsed diagram reads its canonical lines, which end trimmed: there
-  // a colon only blanks follow, which Mermaid reads as text, is reported too.
+  // line's end, as both read the text after `state "…" as X`. A colon that
+  // only blanks follow on the authored line is text to Mermaid.
   const cutText = (statement: StateStatement, value: string): void => {
     const text = lexedStateText(value)
-    if (!/;|::/.test(text) && !(text.endsWith(':') && lastLine(statement.line).endsWith(':'))) return
-    warn(statement, 'state_text_cut', 'A `;`, a `::` or a colon ending the line in a description or transition label is read as part of the text. Pinned Mermaid ends the text there: it reads the rest of the line from a `;` as further statements, the `;` starting a state name, and rejects a `::` or a colon ending the line. The writer writes them as `#59;` and `#58;`, which Mermaid reads as the text.')
+    const line = textLine(statement)
+    if (!/;|::/.test(text) && !(text.endsWith(':') && physicalLine(line).endsWith(':'))) return
+    warn(statement, 'state_text_cut', 'A `;`, a `::` or a colon ending the line in a description or transition label is read as part of the text. Pinned Mermaid ends the text there: it reads the rest of the line from a `;` as further statements, the `;` starting a state name, and rejects a `::` or a colon ending the line. The writer writes them as `#59;` and `#58;`, which Mermaid reads as the text.', line)
   }
   const composites = new Set(statements.flatMap(statement => {
     const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
@@ -1426,12 +1440,26 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     const count = (compositeLabels.get(id) ?? 0) + 1
     compositeLabels.set(id, count)
     if (count === 2) {
-      warn(statement, 'state_composite_description', `Composite state '${id}' has more than one label or description, which are read as the lines of its label. Pinned Mermaid rejects a composite with more than one (\`Group nodes can only have label\`). Give it one \`state "…" as ${id}\` label.`)
+      warn(statement, 'state_composite_description', `Composite state '${id}' has more than one label or description, which are read as the lines of its label. Pinned Mermaid rejects a composite with more than one (\`Group nodes can only have label\`). Give it one \`state "…" as ${id}\` label.`, textLine(statement))
     }
   }
+  // After a block note's opener, until its first line of text.
+  let noteTextAwaited = false
   for (const statement of statements) {
     const text = statement.text
-    if (statement.noteBody) continue
+    if (statement.noteBody) {
+      // Mermaid's one-line note text, `\s*":"[^:\n;]+`, starts after any
+      // blank lines and indentation after the note's state: a block note
+      // whose text starts with a colon is a one-line note there.
+      if (noteTextAwaited && text) {
+        noteTextAwaited = false
+        if (/^\s*:[^:;\n]/.test(lexedStateText(physicalLine(statement.line)))) {
+          warn(statement, 'state_note_block_colon', 'A block note whose text starts with a colon is read as a block note, the colon its text. Pinned Mermaid reads a colon starting the text after `note … of X` as starting a one-line note\'s text, and then rejects `end note`. The writer writes the colon as `#58;`, which Mermaid reads as the colon.')
+        }
+      }
+      continue
+    }
+    noteTextAwaited = false
     const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
     if (keyword === 'cssClass') {
       warn(statement, 'state_css_class', '`cssClass` is read as `class`, and written so. Pinned Mermaid\'s State grammar has no `cssClass`: it reads the words of the line as states. Write `class A name`.')
@@ -1444,6 +1472,12 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     const noteLine = matchNoteLine(text)
     const note = noteLine ?? matchNoteOpen(text)
     if (note) {
+      noteTextAwaited = noteLine === null
+      // Mermaid's NOTE state reads `left of` and `right of` as literals.
+      const position = /note\s+(?:left|right)(\s+)of\s/i.exec(physicalLine(statement.line))
+      if (position && position[1] !== ' ') {
+        warn(statement, 'state_note_position', `The note is read as a note ${note.side} of '${note.target}'. Pinned Mermaid reads \`left of\` and \`right of\` only with one space between the words, and rejects this line. The writer writes one space.`)
+      }
       if (note.target.includes('-')) {
         warn(statement, 'state_note_target', `The note is on '${note.target}', which pinned Mermaid cannot read as a note's state: there a state name ends at a hyphen. Mermaid rejects a note whose text follows a colon, and puts a block note on the state named before the hyphen, reading the rest as note text, here and in the output. Rename the state to keep it portable.`)
       }
@@ -1458,7 +1492,14 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     if (transition) {
       for (const endpoint of new Set([transition.from, transition.to])) {
         if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || hasBareSpelling(endpoint)) continue
-        warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition, here and in the output. Rename the state to keep it portable.`)
+        const line = endpoint === transition.from ? statement.line : statement.toLine
+        if (namesStateGlued(endpoint)) {
+          // With no blank after the name, as the writer writes it, Mermaid reads it.
+          if (statement.nameBlanks?.[endpoint === transition.from ? 0 : 1] === false) continue
+          warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: before a blank, \`note\`, \`class\`, \`classDef\`, \`style\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition. The writer writes no blank after the name (\`${endpoint}--> …\`, \`… --> ${endpoint}%%\`), which Mermaid reads.`, line)
+        } else {
+          warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`click\` and \`href\` start statements of their own. Mermaid rejects the transition, here and in the output. Rename the state to keep it portable.`, line)
+        }
       }
       if (transition.label !== undefined) cutText(statement, transition.label)
       continue
@@ -1471,6 +1512,13 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     const alias = text.match(STATE_ALIAS_RE)
     if (alias) {
       labelComposite(statement, alias[2]!)
+      continue
+    }
+    // A name alone declares the state, as `A` does.
+    if (isStateNodeId(text) && !isConcurrencySeparator(text)) {
+      if (!hasBareSpelling(text)) {
+        warn(statement, 'state_declaration_name', `The line declares '${text}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`href\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration of the name after it, which Mermaid drops. Mermaid rejects the line, or reads it otherwise. The writer declares it as \`state "…" as ${text}\` (a composite as \`state ${text} {\`), which Mermaid reads.`)
+      }
       continue
     }
     if (parseClassShorthandStatement(text)) continue

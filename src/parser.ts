@@ -1,7 +1,7 @@
 import { scanStateComments } from './state/comment.ts'
 import { readStateLabel, readStateText } from './state/text.ts'
 import type { LabelContent } from './shared/display-text.ts'
-import { parseFlowchartLabel } from './flowchart-labels.ts'
+import { parseFlowchartLabel, unquoteFlowchartLabel } from './flowchart-labels.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
 import { assertDiagramWorkLimit } from './shared/diagram-limits.ts'
@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -49,6 +49,24 @@ import { syntaxError } from './shared/syntax-error.ts'
  * Auto-detects diagram type (flowchart or state diagram).
  * Throws on invalid/unsupported input.
  */
+/**
+ * The flowchart a renderer draws, given its source as authored and as the
+ * render path entity-decodes it (render-contract.ts): the authored text, as
+ * Mermaid's parser and the typed body read it, with each XML reference in
+ * label text read as the Mermaid code for its character, so the label shows
+ * it (flowchart-lexer.ts labelReferencesAsEntityCodes); where ours cannot
+ * read the authored text, the decoded one, as a page hands HTML-escaped
+ * Mermaid (`A --&gt; B`) to Mermaid's browser runner.
+ */
+export function parseFlowchartRenderSource(authoredFamilyText: string, decodedFamilyText: string): MermaidGraph {
+  if (authoredFamilyText === decodedFamilyText) return parseMermaid(decodedFamilyText)
+  try {
+    return parseMermaid(labelReferencesAsEntityCodes(authoredFamilyText))
+  } catch {
+    return parseMermaid(decodedFamilyText)
+  }
+}
+
 export function parseMermaid(text: string): MermaidGraph {
   const rawLines = text.split('\n')
   const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
@@ -128,37 +146,58 @@ function coalesceStatementLines(lines: string[]): Array<{ text: string; breaks?:
   })
 }
 
-function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string } {
+/** A subgraph title `id[title]`: the id and the title's text as authored. */
+function subgraphBracketTitle(rest: string): { id: string; title: string } | undefined {
   // Delimiter scanning is deliberately linear. A lazy `(.+?)` matcher followed
   // by a bracketed label backtracked quadratically over long unterminated runs
   // of `[` — an input shape that fits the hosted 64 KiB source limit.
   const labelStart = rest.indexOf('[')
-  if (labelStart > 0 && labelStart < rest.length - 1 && rest.endsWith(']')) {
-    const id = rest.slice(0, labelStart).trim()
-    if (!isFlowchartNodeId(id)) {
-      throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
+  return labelStart > 0 && labelStart < rest.length - 1 && rest.endsWith(']')
+    ? { id: rest.slice(0, labelStart).trim(), title: rest.slice(labelStart + 1, -1) }
+    : undefined
+}
+
+/** A subgraph declaration: `titled` when it has a bracket title, whose id
+ * part names the group, repeats included, whatever it holds. */
+type SubgraphDeclaration = Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string; titled: boolean }
+
+function parseFlowchartSubgraphDeclaration(rest: string): SubgraphDeclaration {
+  const titled = subgraphBracketTitle(rest)
+  if (titled) {
+    const parsed = parseFlowchartLabel(titled.title)
+    const label = { label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}) }
+    if (isFlowchartNodeId(titled.id)) return { id: titled.id, ...label, generated: false, identity: titled.id, titled: true }
+    // Upstream's id there is any title it reads without brackets (`a b`,
+    // `"a b"`); one that is no node id cannot be named in a link, so ours
+    // derives one, as for a title alone.
+    if (subgraphTitleUnreadable(titled.id)) {
+      throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(titled.id)}`)
     }
-    const parsed = parseFlowchartLabel(rest.slice(labelStart + 1, -1))
-    return { id, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity: id }
+    const identity = unquoteFlowchartLabel(titled.id).trim()
+    if (isFlowchartNodeId(identity)) return { id: identity, ...label, generated: false, identity, titled: true }
+    return { id: derivedSubgraphId(identity), ...label, generated: true, identity, titled: true }
   }
   const parsed = parseFlowchartLabel(rest)
   // Identity comes from the logical source spelling, before display decoding.
   // Two titles can paint identically without naming the same container. A
   // markdown string's identity is its text, as upstream's id is.
-  const unquoted = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
+  const unquoted = unquoteFlowchartLabel(rest).trim()
   const identity = unquoted !== rest && /^`[\s\S]*`$/.test(unquoted) ? unquoted.slice(1, -1).trim() : unquoted
   // A title that is one node id (`a.b`, `**Two**`) is the subgraph's id, as
   // upstream reads it there, so a link to that id ends at the subgraph.
   if (isFlowchartNodeId(identity)) {
-    return { id: identity, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity }
+    return { id: identity, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity, titled: false }
   }
-  // Mermaid identifiers are Unicode-aware everywhere else in this parser.
-  // Preserve non-Latin letters/numbers when deriving the implicit container id
-  // instead of silently collapsing a CJK title to an empty string. A markup
-  // tag separates words like a space: a line break the title runs across is
-  // `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`.
-  const id = identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
-  return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: true, identity }
+  return { id: derivedSubgraphId(identity), label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: true, identity, titled: false }
+}
+
+/** A container id derived from a subgraph's identity. Mermaid identifiers
+ * are Unicode-aware everywhere else in this parser: non-Latin letters and
+ * numbers stay, so a CJK title does not collapse to an empty string. A markup
+ * tag separates words like a space: a line break the title runs across is
+ * `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`. */
+function derivedSubgraphId(identity: string): string {
+  return identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_') || 'group'
 }
 
 /** Whether `text` is one whole node id (flowchartNodeIdLength). */
@@ -417,6 +456,15 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
       }
 
       // --- subgraph start: `subgraph Label` or `subgraph id [Label]` ---
+      // Upstream's grammar has a subgraph with neither, which its DB then
+      // fails to read; ours names neither a group nor a node `subgraph`.
+      if (line === 'subgraph') {
+        throw syntaxError({
+          what: `Invalid flowchart statement "${line}": a subgraph needs an id or a title (upstream fails on one with neither)`,
+          expectedForm: 'subgraph id, subgraph id[Title] or subgraph "Title"',
+          example: 'subgraph S["Stage one"]',
+        })
+      }
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (subgraphMatch) {
         const { id, label, labelContent } = declarations[nextDeclaration++]!
@@ -487,6 +535,58 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
   }
 }
 
+/** A spelling ours reads in a statement where pinned Mermaid's lexer reads
+ * otherwise, which verify reports: label text holding a character
+ * upstream's lexer reads as a delimiter there (flowchart-lexer.ts
+ * labelTextHoldsDelimiter), and a subgraph title it cannot read without
+ * quotes (subgraphTitleUnreadable), a node whose text runs on without a
+ * blank to an `@`, or a pipe label whose text does from its pipe, which
+ * upstream reads as an edge id (`A[a@b]`, `A -->|a@b| B`); and where ours
+ * rejects a statement, a node id (commaIdStop) upstream reads there that
+ * ours does not, or a link label whose markers make no link type there
+ * (mismatchedLinkMarkers). An empty quoted label (`A[""]`), which
+ * upstream's string token cannot read, is noted too, as is a pipe label
+ * with nothing between its pipes (`A -->|| B`), which upstream's grammar
+ * cannot, and a link whose edge id an earlier link has, which the parser
+ * leaves off it, as upstream does. */
+export type FlowchartStatementNote = 'empty-string' | 'empty-pipe-label' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'link-markers' | 'duplicate-edge-id'
+
+/** Statements the parser reads before its node and link grammar, other than
+ * `subgraph`. */
+const NON_NODE_STATEMENT_RE = /^(?:end$|(?:direction|classDef|class|style|linkStyle|click|href)\s)/i
+
+/** A flowchart with nothing read into it yet. */
+export function emptyFlowchartGraph(): MermaidGraph {
+  return { direction: 'TD', nodes: new Map(), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map() }
+}
+
+/** The notes on one statement, as the parser reads it into `graph`; when
+ * ours rejects it, only the reason it does. Reading a diagram's statements
+ * in order into one graph notes a link repeating an earlier link's edge id. */
+export function flowchartStatementNotes(statement: string, graph: MermaidGraph = emptyFlowchartGraph()): ReadonlySet<FlowchartStatementNote> {
+  const notes = new Set<FlowchartStatementNote>()
+  const subgraph = statement.match(/^subgraph\s+(.+)$/)
+  if (subgraph) {
+    const title = subgraph[1]!.trim()
+    const titled = subgraphBracketTitle(title)
+    if (titled ? labelTextHoldsDelimiter(titled.title, 'text') : subgraphTitleUnreadable(title)) notes.add(titled ? 'label-delimiter' : 'subgraph-title')
+    if (EMPTY_STRING_LABEL_RE.test(titled ? titled.title : title)) notes.add('empty-string')
+    // A run of the id part reaching an `@` (`S[a@b]`) is an edge id upstream.
+    const bracket = titled ? title.length - titled.title.length - 2 : -1
+    if ([...title.matchAll(/(?:^|\s)[^\s"]+@(?![{"])/g)].some(run => run.index < bracket)) notes.add('node-edge-id')
+    return notes
+  }
+  if (NON_NODE_STATEMENT_RE.test(statement)) return notes
+  try {
+    const parsed = parseEdgeLine(statement, graph, [], new Set(), notes)
+    if (parsed.ok) return notes
+    if (commaIdStop(statement, parsed)) return new Set(['comma-id'])
+    return new Set(mismatchedLinkMarkers(parsed) !== undefined ? ['link-markers'] : [])
+  } catch {
+    return new Set() // Metadata ours rejects fails the parse; verify reports that.
+  }
+}
+
 /** The error for a statement the edge grammar could not consume, naming the
  * construct upstream rejects there when there is one. */
 function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): Error {
@@ -507,8 +607,15 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
       example: 'A -- label --> B, A == label ==> B or A -. label .-> B',
     })
   }
-  const statement = line.trim().replace(/;\s*$/, '').trim()
-  if (statement.endsWith(parsed.remaining) && commaInNodeId(statement, statement.length - parsed.remaining.length)) {
+  const markers = mismatchedLinkMarkers(parsed)
+  if (markers !== undefined) {
+    return syntaxError({
+      what: `${where}: the link "${markers}" starts with an \`${markers[0]}\` marker and ends otherwise; upstream reads it as a link of no type, and ours reads an \`x\` or \`o\` start only before the same end`,
+      expectedForm: 'the same marker at both ends of a link label, or none',
+      example: 'A x-- label --x B or A -- label --> B',
+    })
+  }
+  if (commaIdStop(line, parsed)) {
     return syntaxError({
       what: `${where}: upstream reads the "," before "${parsed.remaining.slice(1)}" as part of one node id (\`A,B\` is one node there), and ours reads no "," in a node id`,
       expectedForm: 'a node id without ",", or `&` between nodes',
@@ -518,6 +625,15 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
   return new Error(`${where}: could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
 }
 
+/** Whether a statement's parse stopped at a `,` upstream's id grammar reads
+ * into a node id: one right after id characters (`A,B`), or one where a node
+ * begins (`,A`, `A --> ,B`). Ours reads no `,` in a node id. */
+function commaIdStop(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): boolean {
+  const statement = line.trim().replace(/;\s*$/, '').trim()
+  return parsed.remaining.startsWith(',') && statement.endsWith(parsed.remaining)
+    && (parsed.reason !== 'expected edge operator' || commaInNodeId(statement, statement.length - parsed.remaining.length))
+}
+
 /** Each `subgraph` statement's declaration, in source order. Derived names are
  * allocated after reserving authored identities, including names declared
  * later in the source. A title with no whitespace is its group's identity, so
@@ -525,9 +641,9 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
  * One holding whitespace, or a line break (`breaks`: for each line, the
  * offsets where a line joined on, coalesceFlowchartLines), names no group:
  * each such block is a group of its own, as upstream's `subGraphN`. */
-function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> {
-  const declarations: Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> = []
-  const distinct = new Set<ReturnType<typeof parseFlowchartSubgraphDeclaration>>()
+function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): SubgraphDeclaration[] {
+  const declarations: SubgraphDeclaration[] = []
+  const distinct = new Set<SubgraphDeclaration>()
   const reserved = new Set<string>()
   for (const [lineIndex, raw] of lines.entries()) {
     for (const { text: line, start } of flowchartStatementSpans(raw)) {
@@ -537,7 +653,7 @@ function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyA
         const declaration = parseFlowchartSubgraphDeclaration(rest)
         declarations.push(declaration)
         if (!declaration.generated) reserved.add(declaration.id)
-        else if (/\s/.test(declaration.identity) || breaks[lineIndex]?.some(at => at > start && at < start + line.length)) distinct.add(declaration)
+        else if (!declaration.titled && (/\s/.test(declaration.identity) || breaks[lineIndex]?.some(at => at > start && at < start + line.length))) distinct.add(declaration)
       } else {
         // Reserving every node id the line could hold also covers
         // declarations inside compound chains and metadata without executing
@@ -1220,6 +1336,9 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   { regex: flowchartNodeRegex(String.raw`\{(.+?)\}`), shape: 'diamond' },
 ]
 
+/** The shapes upstream lexes in its trapezoid text state. */
+const TRAPEZOID_SHAPES: ReadonlySet<NodeShape> = new Set(['trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l'])
+
 /** The node id at the start of `text`, as upstream's lexer reads one
  * (flowchartNodeIdLength): `--` and `-.` always open a link, so
  * `A--a --> B` is A, a text-arrow label, B. */
@@ -1229,6 +1348,16 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
 }
 
 const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
+
+/** Where a statement's parse stopped expecting a link, a link label opened
+ * with an `x` or `o` start marker and closed by a link with another end
+ * (`x-- a -->`), which upstream reads as a link of no type, or undefined. */
+function mismatchedLinkMarkers(parsed: Extract<EdgeLineParseResult, { ok: false }>): string | undefined {
+  if (parsed.reason !== 'expected edge operator') return undefined
+  const arrow = matchTextArrow(parsed.remaining, 0)
+  if (arrow?.startMark !== 'x' && arrow?.startMark !== 'o') return undefined
+  return endMarkerForOp(arrow.closeOp) === (arrow.startMark === 'x' ? 'cross' : 'circle') ? undefined : parsed.remaining.slice(0, arrow.end)
+}
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
   const parsed = consumeClassShorthandPrefix(text)
@@ -1255,7 +1384,8 @@ function parseEdgeLine(
   line: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  declaredSubgraphIds: Set<string> = new Set()): EdgeLineParseResult {
+  declaredSubgraphIds: Set<string> = new Set(),
+  notes?: Set<FlowchartStatementNote>): EdgeLineParseResult {
   // A terminal semicolon is a Mermaid statement delimiter, not authored
   // edge/node content. The top-level splitter normally removes it; trim it
   // here as well for labels containing unmatched quote-like characters, where
@@ -1265,7 +1395,7 @@ function parseEdgeLine(
   // Parse the first node group (possibly with & separators). A structured
   // statement is admitted only when every non-whitespace token is consumed;
   // publishing a parsed prefix would silently invent/drop authored content.
-  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
+  const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, notes)
   if (!firstGroup || firstGroup.ids.length === 0) {
     return { ok: false, remaining, reason: 'expected node' }
   }
@@ -1306,6 +1436,13 @@ function parseEdgeLine(
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
+        if (labelTextHoldsDelimiter(pipeLabel.rawLabel, 'text')) notes?.add('label-delimiter')
+        if (EMPTY_STRING_LABEL_RE.test(pipeLabel.rawLabel)) notes?.add('empty-string')
+        // Upstream's pipe label needs text, a blank at least (`| |`).
+        if (pipeLabel.rawLabel === '') notes?.add('empty-pipe-label')
+        // Its edge-id token is tried before its pipe, so a run from the pipe
+        // to an `@` is an edge id there (`A -->|a@b| B` is the id `|a`).
+        if (PIPE_LABEL_EDGE_ID_RE.test(pipeLabel.rawLabel)) notes?.add('node-edge-id')
         const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
         edgeLabel = parsedLabel.text || undefined
         labelContent = parsedLabel.labelContent
@@ -1323,6 +1460,8 @@ function parseEdgeLine(
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
+      if (labelTextHoldsDelimiter(textArrow.rawLabel, 'edge-text')) notes?.add('label-delimiter')
+      if (EMPTY_STRING_LABEL_RE.test(textArrow.rawLabel)) notes?.add('empty-string')
       const parsedLabel = parseFlowchartLabel(textArrow.rawLabel)
       edgeLabel = parsedLabel.text || undefined
       labelContent = parsedLabel.labelContent
@@ -1337,7 +1476,7 @@ function parseEdgeLine(
     }
 
     // Parse the next node group
-    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds)
+    const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack, declaredSubgraphIds, notes)
     if (!nextGroup || nextGroup.ids.length === 0) {
       return { ok: false, remaining, reason: 'expected edge target' }
     }
@@ -1346,13 +1485,22 @@ function parseEdgeLine(
 
     // Admit the expansion before allocating any of its edges.
     assertDiagramWorkLimit('edges', graph.edges.length + prevGroupIds.length * nextGroup.ids.length)
-    // Emit Cartesian product of edges: every source × every target
+    // Emit Cartesian product of edges: every source × every target. Its edge
+    // id names one edge, as upstream's: the first from the last source to
+    // the first target (`A & B e1@--> C & D` names B→C). An id an earlier
+    // link has names none: upstream's `addSingleLink` leaves it off, and
+    // edge ids stay unique.
+    const repeated = edgeId !== undefined && graph.edges.some(edge => edge.id === edgeId)
+    if (repeated) notes?.add('duplicate-edge-id')
+    let pendingId = repeated ? undefined : edgeId
     for (const sourceId of prevGroupIds) {
       for (const targetId of nextGroup.ids) {
+        const id = sourceId === prevGroupIds.at(-1) && targetId === nextGroup.ids[0] ? pendingId : undefined
+        if (id !== undefined) pendingId = undefined
         graph.edges.push({
           source: sourceId,
           target: targetId,
-          ...(edgeId !== undefined ? { id: edgeId } : {}),
+          ...(id !== undefined ? { id } : {}),
           label: edgeLabel,
           ...(labelContent ? { labelContent } : {}),
           style,
@@ -1384,8 +1532,9 @@ function consumeNodeGroup(
   text: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  declaredSubgraphIds: Set<string>): ConsumedNodeGroup | null {
-  const first = consumeNode(text, graph, subgraphStack, declaredSubgraphIds)
+  declaredSubgraphIds: Set<string>,
+  notes?: Set<FlowchartStatementNote>): ConsumedNodeGroup | null {
+  const first = consumeNode(text, graph, subgraphStack, declaredSubgraphIds, notes)
   if (!first) return null
 
   const ids = [first.id]
@@ -1395,7 +1544,7 @@ function consumeNodeGroup(
   // its line only) stays unconsumed, so the statement fails.
   while (remaining.startsWith('&')) {
     if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'parallel-separator', '&')
-    const next = consumeNode(remaining.slice(1).trim(), graph, subgraphStack, declaredSubgraphIds)
+    const next = consumeNode(remaining.slice(1).trim(), graph, subgraphStack, declaredSubgraphIds, notes)
     if (!next) break
     ids.push(next.id)
     remaining = next.remaining.trim()
@@ -1503,10 +1652,15 @@ const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeS
 
 /** Quote-aware shape consumption: delimiters inside an authored quoted label
  * are text, not the end of the node. One scanner covers every legacy shape. */
+/** A label that is an empty string (`A[""]`, `|""|`): upstream's string
+ * token needs a character, and it rejects the label. */
+const EMPTY_STRING_LABEL_RE = /^\s*""\s*$/
+
 function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
-  subgraphStack: MermaidSubgraph[]): ConsumedNode | null {
+  subgraphStack: MermaidSubgraph[],
+  notes?: Set<FlowchartStatementNote>): ConsumedNode | null {
   const identifier = consumeBareNodeId(text)
   if (!identifier) return null
   const suffix = text.slice(identifier.length)
@@ -1515,6 +1669,7 @@ function consumeQuotedShapeNode(
     const quoteStart = spec.open.length
     const quoteEnd = suffix.indexOf('"', quoteStart + 1)
     if (quoteEnd < 0 || !suffix.startsWith(spec.close, quoteEnd + 1)) continue
+    if (quoteEnd === quoteStart + 1) notes?.add('empty-string')
     const parsed = parseFlowchartLabel(suffix.slice(quoteStart + 1, quoteEnd), true)
     defineNode(graph, subgraphStack, {
       id: identifier.id,
@@ -1539,7 +1694,8 @@ function consumeNode(
   text: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  declaredSubgraphIds: Set<string>): ConsumedNode | null {
+  declaredSubgraphIds: Set<string>,
+  notes?: Set<FlowchartStatementNote>): ConsumedNode | null {
   const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
   if (metadataNode) {
     let remaining = metadataNode.remaining
@@ -1553,7 +1709,7 @@ function consumeNode(
     return { id: metadataNode.id, remaining }
   }
 
-  const quotedShapeNode = consumeQuotedShapeNode(text, graph, subgraphStack)
+  const quotedShapeNode = consumeQuotedShapeNode(text, graph, subgraphStack, notes)
   if (quotedShapeNode) {
     let remaining = consumeNodeMetadataSuffix(quotedShapeNode.id, quotedShapeNode.remaining, graph, subgraphStack)
       ?? quotedShapeNode.remaining
@@ -1577,6 +1733,8 @@ function consumeNode(
     const match = shapeText.match(regex)
     if (match) {
       id = identifier!.id
+      if (labelTextHoldsDelimiter(match[1]!, TRAPEZOID_SHAPES.has(shape) ? 'trapezoid' : 'text')) notes?.add('label-delimiter')
+      if (EMPTY_STRING_LABEL_RE.test(match[1]!)) notes?.add('empty-string')
       const { text: label, markdown, labelContent } = parseFlowchartLabel(match[1]!)
       defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
       remaining = shapeText.slice(match[0].length)
@@ -1617,9 +1775,17 @@ function consumeNode(
   // fails.
   if (continuesNodeId(text, text.length - remaining.length)) return null
 
+  // Upstream's lexer reads a run without blanks or `"` from a node's start to
+  // an `@` (not `@{`) as an edge id (`A[a@b]` is the edge id `A[a` there).
+  if (NODE_RUN_EDGE_ID_RE.test(text)) notes?.add('node-edge-id')
   if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'node', text.slice(0, text.length - remaining.length))
   return { id, remaining }
 }
+
+const NODE_RUN_EDGE_ID_RE = /^[^\s"]+@(?![{"])/
+/** A pipe label's text from its opening pipe to an `@` without a blank or
+ * `"`, which upstream's lexer reads, with the pipe, as an edge id. */
+const PIPE_LABEL_EDGE_ID_RE = /^[^\s"]*@(?![{"])/
 
 /** Register a node from a shaped definition (`b[Label]`, `b(("Label"))`). A
  * node already referenced takes the definition's label and shape, as Mermaid

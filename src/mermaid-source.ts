@@ -28,7 +28,7 @@ import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
-import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
 
@@ -507,7 +507,7 @@ export function mermaidInitDirectives(text: string): MermaidSourceInitDirective[
   while ((match = regex.exec(text)) !== null) {
     directives.push({
       raw: match[0],
-      parsed: canonicalizeFrontmatterMap(parseDirectiveMap((match[1] ?? '').trim()) ?? {}),
+      parsed: canonicalizeFrontmatterMap(directiveConfig(match[1] ?? match[2]) ?? {}),
     })
   }
   return directives
@@ -966,13 +966,19 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
 function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
   let merged: MermaidFrontmatterMap = {}
 
-  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, payload: string) => {
-    const parsed = parseDirectiveMap(payload)
+  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, onItsLine: string | undefined, inStatement: string | undefined) => {
+    const parsed = directiveConfig(onItsLine ?? inStatement)
     if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
     return ''
-  })
+  }).replace(MERMAID_DIRECTIVE_REGEX, '')
 
   return { body, frontmatter: merged }
+}
+
+/** The configuration an init directive's payload sets, or a wrap
+ *  directive's (which has none): `wrap: true`, as Mermaid applies it. */
+function directiveConfig(payload: string | undefined): MermaidFrontmatterMap | undefined {
+  return payload === undefined ? { wrap: true } : parseDirectiveMap(payload.trim())
 }
 
 function parseDirectiveMap(text: string): MermaidFrontmatterMap | undefined {

@@ -31,8 +31,10 @@
  *   - A `;` at statement level ends a statement.
  */
 
+import { decodeXML } from 'entities'
 import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 import { scanMetadataBlock } from './shared/metadata-block-scan.ts'
+import { TERMINAL_CONTROL_RE } from './shared/mermaid-entities.ts'
 
 export interface FlowchartTextRange { start: number; end: number }
 
@@ -81,9 +83,11 @@ export const FLOWCHART_LINK_SOURCE = `<?(?:${FLOWCHART_LINK_BODY})`
  * a run of anything but whitespace and `"`. Ours leaves out the characters
  * that open or close a region here (`[](){}|<>`), `;`, which ends a
  * statement, and `@`, which upstream reads out of the id (`e1@x@` is
- * `e1x@` there), and an id that begins with a link or a text-arrow opener.
+ * `e1x@` there), and an id that begins with a link or a text-arrow opener,
+ * an `x` or `o` start marker included, which upstream reads as one after a
+ * blank (`x--e1@--x` is the label `e1@` between `x--` and `--x` there).
  */
-export const FLOWCHART_EDGE_ID_SOURCE = String.raw`(?!${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})[^\s"@[\](){}|<>;]+`
+export const FLOWCHART_EDGE_ID_SOURCE = String.raw`(?!${FLOWCHART_LINK_SOURCE}|[xo]?(?:-{2,}|-\.|={2,}))[^\s"@[\](){}|<>;]+`
 /** A text-arrow label's opening link, with its start marker (`<`, or `x` or
  * `o` in upstream's `x-- a --x`). */
 const TEXT_ARROW_OPEN_RE = /([<xo])?(-{2,}|-\.+|={2,})/y
@@ -138,8 +142,8 @@ const NODE_STRING_CHAR_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/]/u
  * node-string characters, and `:`, which its id grammar also takes in, where
  *   - `"` belongs to the id only after its first character (where an id
  *     would begin, it opens a string);
- *   - `&` begins an id only before another id character (`&a`); otherwise
- *     it joins a `&` list;
+ *   - `&` begins an id (`&a`, and a lone `&`, as upstream's AMP token is an
+ *     id token); a `&` after a node is read first as joining a `&` list;
  *   - `:` belongs to it unless `:::`, a class, begins there;
  *   - `-` belongs to it unless `-` or `.` follows (a link begins), so `A--x`
  *     and `A-.->` end the id before it, `A.-B` is one id, and so is the
@@ -158,7 +162,7 @@ export function flowchartNodeIdLength(text: string, at = 0): number {
       if (next === '-' || next === '.') break
       continue
     }
-    if (end === at && (char === '"' || (char === '&' && !NODE_STRING_CHAR_RE.test(text[end + 1] ?? ' ')))) break
+    if (end === at && char === '"') break
     if (char === ':') {
       if (text.startsWith(':::', end)) break
       continue
@@ -166,6 +170,62 @@ export function flowchartNodeIdLength(text: string, at = 0): number {
     if (!NODE_STRING_CHAR_RE.test(char)) break
   }
   return end - at
+}
+
+/** What pinned Mermaid's lexer reads as a delimiter in unquoted label text,
+ * per context: its `text` state (shape text, a pipe label, a subgraph's
+ * bracket title) ends text at any of `[](){}|"`; its trapezoid text, whose
+ * runs take in `|` and a `"`, at a bracket; and its edge text (a text-arrow
+ * label), lexed a character at a time, at a `"`, which opens a string. */
+const LABEL_TEXT_DELIMITER_RE = {
+  text: /[[\](){}|"]/,
+  trapezoid: /[[\](){}]/,
+  'edge-text': /"/,
+} as const
+
+export type FlowchartLabelContext = keyof typeof LABEL_TEXT_DELIMITER_RE
+
+/**
+ * Whether label text, as authored between its delimiters, holds a character
+ * pinned Mermaid's lexer reads as a delimiter in that context, where upstream
+ * rejects the label. Upstream's label may begin with a quoted (or markdown)
+ * string, and then holds none of them; a string it leaves unclosed is
+ * reported as an unclosed quote instead.
+ */
+export function labelTextHoldsDelimiter(raw: string, context: FlowchartLabelContext): boolean {
+  let rest = raw
+  if (raw.startsWith('"')) {
+    const markdown = raw.startsWith('"`')
+    const close = markdown ? raw.indexOf('`"', 2) : raw.indexOf('"', 1)
+    if (close < 0) return false
+    rest = raw.slice(close + (markdown ? 2 : 1))
+  }
+  return LABEL_TEXT_DELIMITER_RE[context].test(rest)
+}
+
+/** The characters pinned Mermaid's lexer reads in a subgraph title written
+ * without quotes or brackets (its textNoTags): letters, ASCII digits,
+ * blanks and `!"#$%&'*+-./:?\^_` and the backtick. */
+const TITLE_TEXT_RE = /^[\p{L}0-9\s!"#$%&'*+\-./:?\\^_`]*$/u
+/** What ends such a title there: a string opened inside it (a `"` that
+ * begins a word), a link or link-label opener, and a class (`:::`). */
+const TITLE_TOKEN_RE = /(?:^|\s)(?:"|\.+-)|--|-\.|->|:::/
+
+/**
+ * Whether a subgraph title written without a bracket title (`id[…]`) holds
+ * what pinned Mermaid's lexer cannot read there, where upstream rejects the
+ * statement: a leading quoted (or markdown) string it leaves unclosed, or,
+ * after that string, text TITLE_TEXT_RE leaves out or TITLE_TOKEN_RE finds.
+ */
+export function subgraphTitleUnreadable(title: string): boolean {
+  let rest = title
+  if (title.startsWith('"')) {
+    const markdown = title.startsWith('"`')
+    const close = markdown ? title.indexOf('`"', 2) : title.indexOf('"', 1)
+    if (close < 0) return true
+    rest = title.slice(close + (markdown ? 2 : 1))
+  }
+  return !TITLE_TEXT_RE.test(rest) || TITLE_TOKEN_RE.test(rest)
 }
 
 /** Whether the `,` at `at` comes right after node id characters, where
@@ -336,8 +396,9 @@ export function flowchartRegionAt(text: string, at: number): FlowchartRegion | u
 }
 
 /** `labelStrings`: a `"` in shape text opens a string only where the text
- * begins; elsewhere it is text, as the parser's shape patterns read it. */
-function lex(text: string, from: number, single: boolean, labelStrings: boolean): FlowchartScan {
+ * begins; elsewhere it is text, as the parser's shape patterns read it. A
+ * `"` at `textQuote` is text wherever it is. */
+function lex(text: string, from: number, single: boolean, labelStrings: boolean, textQuote = -1): FlowchartScan {
   const regions: MutableRegion[] = []
   // A single region needs no statement-level map, and must not pay for one.
   const topLevel = single ? [] : Array<boolean>(text.length).fill(false)
@@ -371,7 +432,7 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
       else if (char === '"') open('string', index, index + 1)
       continue
     }
-    if (char === '"' && !(labelStrings && inner?.kind === 'shape' && index !== inner.contentStart) && !(inner === undefined && continuesNodeId(text, index))) {
+    if (char === '"' && index !== textQuote && !(labelStrings && inner?.kind === 'shape' && index !== inner.contentStart) && !(inner === undefined && continuesNodeId(text, index))) {
       if (text[index + 1] === '`') { open('markdown', index, index + 2); index++ }
       else open('string', index, index + 1)
       continue
@@ -459,10 +520,20 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
   return { regions, topLevel, separators, links, openAtEnd: stack.map(region => regions[region]!.kind) }
 }
 
+/** A statement whose operand is style properties. */
+const STYLE_STATEMENT_RE = /^(?:style|classDef|linkStyle)\s/
+/** Text that is style properties alone (`stroke:#0a0, stroke-width:2px`):
+ * a property name and `:` first, and no link, class, `&` list, metadata,
+ * shape text or string. */
+const STYLE_PROPERTIES_RE = new RegExp(String.raw`^[a-zA-Z][\w-]*\s*:(?!:)(?:(?!${FLOWCHART_LINK_SOURCE}|:::)[^&@"[\]{}|])*$`)
+
 /** The statements of one line: the text between statement-level `;`, with
  * each statement's trimmed offset. Empty statements are dropped. Upstream's
  * `end` token takes the whitespace after it, so a statement may follow it on
- * its line (`end B`). */
+ * its line (`end B`). A `;` between style properties (`style A fill:#f9f;
+ * stroke:#0a0`) separates them, as in CSS, and ends no statement; upstream
+ * ends the statement there, and reads what follows as a node, or, after a
+ * `#` color, as more of that color. */
 export function flowchartStatementSpans(text: string, scan: FlowchartScan = scanFlowchart(text)): Array<{ text: string; start: number }> {
   const out: Array<{ text: string; start: number }> = []
   let start = 0
@@ -471,7 +542,9 @@ export function flowchartStatementSpans(text: string, scan: FlowchartScan = scan
     const trimmed = raw.trim()
     const at = start + raw.length - raw.trimStart().length
     const keyword = /^end\s+/.exec(trimmed)
+    const last = out.at(-1)
     if (keyword) out.push({ text: 'end', start: at }, { text: trimmed.slice(keyword[0].length), start: at + keyword[0].length })
+    else if (trimmed && last && STYLE_STATEMENT_RE.test(last.text) && STYLE_PROPERTIES_RE.test(trimmed)) last.text = text.slice(last.start, at + trimmed.length)
     else if (trimmed) out.push({ text: trimmed, start: at })
     start = end + 1
   }
@@ -578,6 +651,24 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
     }
     return closes[index] === 1
   }
+  // Upstream reads a string where shape text begins (`A["a⏎b"]`) across
+  // lines to the next `"`. Ours carries one on only when the first later line
+  // holding a `"` closes it there, before a shape closer; otherwise its `"`
+  // is text, as a `"` later in the label is, and the label runs on to the
+  // shape's closer. So a `&quot;` the render path decodes where a label
+  // begins joins lines as the authored entity does.
+  let labelStringCloses: Uint8Array | undefined
+  const labelStringClosesFrom = (index: number): boolean => {
+    if (!labelStringCloses) {
+      labelStringCloses = new Uint8Array(lines.length + 1)
+      for (let at = lines.length - 1; at >= 0; at--) {
+        const line = lines[at]!
+        const found = line.indexOf('"')
+        labelStringCloses[at] = found < 0 ? labelStringCloses[at + 1]! : Number(/^\s*[\])}]/.test(line.slice(found + 1)))
+      }
+    }
+    return labelStringCloses[index] === 1
+  }
   // The last line of the accessibility directive starting at `index`. Once
   // one `accDescr {` is unclosed, no later line holds a `}`: a later opener
   // is not scanned to the end again.
@@ -643,6 +734,8 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
       const endsWithLink = open.length === 0 && scan.links.at(-1)?.end === scanned.trimEnd().length
       if (group && !keyword && ((endsWithLink && !KEYWORD_STATEMENT_RE.test(trimmed)) || lineScan.links[0]?.start === 0)) joint = ' '
     }
+    const leading = leadingLabelString(lineScan)
+    if (leading !== undefined && !labelStringClosesFrom(index + 1)) lineScan = lex(text, 0, false, true, leading)
     if (joint === undefined) {
       group = { text: raw, line: index }
       out.push(group)
@@ -683,6 +776,14 @@ export function flowchartStatementEnds(lines: readonly string[]): number[] {
     if (last !== undefined) ends[read[group.line]!] = read[last]!
   }
   return ends
+}
+
+/** The offset of a string left open at the end of `scan` where its shape
+ * text begins (`A["a`), or undefined. */
+function leadingLabelString(scan: FlowchartScan): number | undefined {
+  const inner = scan.regions.filter(region => !region.closed).at(-1)
+  const shape = inner && inner.parent >= 0 ? scan.regions[inner.parent] : undefined
+  return inner?.kind === 'string' && shape?.kind === 'shape' && inner.start === shape.contentStart ? inner.start : undefined
 }
 
 /** An open subgraph title: `id[…`, `"…` where the title begins, or `id["…`. */
@@ -728,6 +829,51 @@ function continuationPrefix(text: string, scan: FlowchartScan): { prefix: string
 }
 
 const TEXT_ARROW_OPENER: Readonly<Record<TextArrowStroke, string>> = { solid: '--', thick: '==', dotted: '-.' }
+
+/** An XML character reference, as the render path decodes one. */
+const XML_REFERENCE_RE = /&(?:(quot|amp|lt|gt|apos)|#(\d+)|#[xX]([0-9a-fA-F]+));/g
+
+/**
+ * A flowchart's lines with each XML character reference in label text (a
+ * string, shape text, a pipe or text-arrow label, a metadata block) written
+ * as the Mermaid entity code for its character (`&quot;` as `#quot;`,
+ * `&#x22;` as `#34;`), which the label shows as that character and the lexer
+ * reads as text. A reference elsewhere stays as written, where Mermaid's
+ * parser reads it as text and `;` (`subgraph &quot;x` is the title `&quot`).
+ * A code point no label may show (a control), and any reference in a
+ * `click` or `href` statement, is decoded, as the render path decodes it;
+ * the writers report and replace a control.
+ */
+export function labelReferencesAsEntityCodes(text: string): string {
+  if (!text.includes('&')) return text
+  const lines = text.split('\n')
+  // Per line, the references to rewrite, last first.
+  const edits = new Map<number, Array<{ col: number; length: number; code: string }>>()
+  for (const group of coalesceFlowchartLines(lines)) {
+    if (group.directive || !group.text.includes('&')) continue
+    const scan = scanFlowchart(group.text)
+    // A `click` or `href` statement holds a link and a tooltip, no label: it
+    // reads its references decoded, as the render path decodes them.
+    const interactions = flowchartStatementSpans(group.text, scan).filter(statement => /^(?:click|href)\s/i.test(statement.text))
+    for (const match of group.text.matchAll(XML_REFERENCE_RE)) {
+      const at = match.index
+      const interaction = interactions.some(statement => at >= statement.start && at < statement.start + statement.text.length)
+      if (!interaction && !scan.regions.some(region => at >= region.contentStart && at + match[0].length <= region.contentEnd)) continue
+      const point = match[1] === undefined ? (match[2] !== undefined ? Number(match[2]) : Number.parseInt(match[3]!, 16)) : undefined
+      const shown = !interaction && (point === undefined || (point > 0 && point <= 0x10ffff && (point < 0xd800 || point > 0xdfff) && !TERMINAL_CONTROL_RE.test(String.fromCodePoint(point))))
+      const { line, col } = flowchartGroupPosition(group, at)
+      const list = edits.get(line) ?? []
+      list.unshift({ col, length: match[0].length, code: shown ? `#${match[1] ?? point};` : decodeXML(match[0]) })
+      edits.set(line, list)
+    }
+  }
+  for (const [line, list] of edits) {
+    let written = lines[line]!
+    for (const { col, length, code } of list) written = written.slice(0, col) + code + written.slice(col + length)
+    lines[line] = written
+  }
+  return lines.join('\n')
+}
 
 /** The trimmed text-arrow labels of a line. */
 export function flowchartTextArrowLabelRanges(text: string, scan: FlowchartScan = scanFlowchart(text)): FlowchartTextRange[] {

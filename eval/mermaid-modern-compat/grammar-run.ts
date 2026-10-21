@@ -1,12 +1,15 @@
 import { execFileSync } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, writeFileSync, writeSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, rmSync, writeFileSync, writeSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { knownBuiltinFamilies } from '../../src/agent/core.ts'
 import { canonical, harvestModernCorpus, type Sample } from './corpus.ts'
 import { type AgenticGrammarResult, inspectAgenticGrammar } from './grammar-agentic.ts'
+import { curatedFragments } from './grammar-fragments.ts'
 import { projectNativeOperations, projectReferenceOperations } from './grammar-native-operations.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
+import { announces, ourReading, readsAsFamily, reduceSilentRead, SILENT_READ_DEFINITION, type SilentReadExample, spellSource, verifyCodes } from './grammar-silent-reads.ts'
 import type { GrammarObservation, GrammarReferenceReply } from './grammar-types.ts'
 import { admitModernReference } from './reference.ts'
 
@@ -23,7 +26,7 @@ function option(name: string, fallback: string): string {
   return value
 }
 if (args.includes('--help')) {
-  console.log('bun run eval/mermaid-modern-compat/grammar-run.ts [--mermaid-dir PATH] [--reference-dir PATH] [--fuzz 5000] [--seed 7] [--workers 4] [--families flowchart,sequence] [--docs-only] [--output PATH]')
+  console.log('bun run eval/mermaid-modern-compat/grammar-run.ts [--mermaid-dir PATH] [--reference-dir PATH] [--fuzz 5000] [--seed 7] [--workers 4] [--families flowchart,sequence | --native-only] [--docs-only] [--output PATH]')
   process.exit(0)
 }
 const upstream = resolve(option('--mermaid-dir', process.env.MERMAID_UPSTREAM_DIR ?? join(HERE, '../../../mermaid')))
@@ -38,7 +41,10 @@ if (!Number.isSafeInteger(workers) || workers < 1 || workers > 8) throw new Erro
 const reference = admitModernReference(upstream, referenceDir)
 const harvested = harvestModernCorpus(upstream, !args.includes('--docs-only'))
 const allFamilies = [...harvested.expectedFamilies].sort()
-const families = option('--families', allFamilies.join(',')).split(',').filter(Boolean)
+const native = new Set<string>(knownBuiltinFamilies())
+const families = option('--families', allFamilies.filter(family => !args.includes('--native-only') || native.has(family)).join(','))
+  .split(',')
+  .filter(Boolean)
 for (const family of families) if (!harvested.expectedFamilies.has(family)) throw new Error(`Unknown core family: ${family}`)
 mkdirSync(output, { recursive: true })
 
@@ -87,6 +93,9 @@ interface Counters {
   nativeOperationsUnavailable: number
   nativeOperationItemsCompared: number
   referenceOperationItemsCompared: number
+  /** Pinned Mermaid rejects and ours reads the family; verify was asked. */
+  readsMermaidRejects: number
+  silentReads: number
 }
 const counters = (): Counters => ({
   inputs: 0,
@@ -133,6 +142,8 @@ const counters = (): Counters => ({
   nativeOperationsUnavailable: 0,
   nativeOperationItemsCompared: 0,
   referenceOperationItemsCompared: 0,
+  readsMermaidRejects: 0,
+  silentReads: 0,
 })
 const equal = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 function assertReferenceInstrumentation(reply: GrammarReferenceReply, context: string): void {
@@ -335,8 +346,15 @@ function mutate(seeds: readonly Sample[], fragments: readonly string[], rnd: () 
   return { source, parent: parent.id }
 }
 
+// Ours runs on this one thread, so a hang in it blocks every worker and no
+// error ever names the input. Each call into ours first records its input;
+// a run that never finishes leaves the last one behind.
+const inProgress = join(output, 'in-progress.json')
+const entering = (family: string, id: string, stage: string, source: string): void => writeFileSync(inProgress, JSON.stringify({ family, id, stage, source }) + '\n')
+/** Silent reads reduced per family; the rest are counted, not reduced. */
+const SILENT_REDUCTIONS = 8
 const pending = [...families]
-const results: unknown[] = []
+const results: Array<{ family: string; silentReads: { corpus: number; mutations: number; examples: SilentReadExample[] } }> = []
 async function worker(): Promise<void> {
   const oracle = startGrammarReference(referenceDir, upstream)
   try {
@@ -359,8 +377,11 @@ async function worker(): Promise<void> {
       }
       const corpusCounts = counters(),
         mutationCounts = counters()
-      const vocabulary = new Set([' ', '\n', '\r\n', '\t', ';', ':', ',', '"', "'", '{', '}', '[', ']', '(', ')', '%%', 'é', '-->', 'end'])
+      // Token images Mermaid's lexer produced on this family's corpus; the
+      // fixed fragments of grammar-fragments.ts join them before mutation.
+      const vocabulary = new Set<string>()
       const examples: unknown[] = []
+      const silent: Array<{ sample: Sample; verify: string[] }> = []
       const stream = openSync(join(output, `${family}.jsonl`), 'w')
       let details = 0
       const detailCounts = new Map<string, number>()
@@ -369,7 +390,10 @@ async function worker(): Promise<void> {
         async function assess(batch: readonly Sample[], c: Counters): Promise<void> {
           const originals = await oracle.parseMany(batch.map(sample => ({ family: family!, source: sample.source })))
           originals.forEach((reply, i) => assertReferenceInstrumentation(reply, `${family}/${batch[i]!.id}/original`))
-          const local = batch.map(sample => inspectAgenticGrammar(family!, sample.source))
+          const local = batch.map(sample => {
+            entering(family!, sample.id, 'inspect', sample.source)
+            return inspectAgenticGrammar(family!, sample.source)
+          })
           local.forEach((result, i) => assertNativeInstrumentation(result, `${family}/${batch[i]!.id}`))
           const extraRequests: Array<{ family: string; source: string }> = []
           const indices = batch.map((sample, i) => {
@@ -395,6 +419,16 @@ async function worker(): Promise<void> {
             const result = compareCase(before, agentic, after, control)
             count(c, before, agentic, result, index?.unchanged === true)
             if (before.tokens.status === 'available' && vocabulary.size < 240) for (const [, image] of before.tokens.value) if (image && image.length <= 40) vocabulary.add(image)
+            let verify: string[] | undefined
+            if (!before.accepted && readsAsFamily(family!, agentic)) {
+              c.readsMermaidRejects++
+              entering(family!, sample.id, 'verify', sample.source)
+              verify = verifyCodes(sample.source)
+              if (!announces(verify)) {
+                c.silentReads++
+                if (silent.length < SILENT_REDUCTIONS) silent.push({ sample, verify })
+              }
+            }
             const compact = {
               id: sample.id,
               source: sample.source,
@@ -402,6 +436,7 @@ async function worker(): Promise<void> {
               reference: { accepted: before.accepted, type: before.type, error: before.error, engine: before.engine, tokens: before.tokens.status, actions: before.actions.status, ast: before.ast.status, instrumentationErrors: before.instrumentationErrors },
               agentic,
               comparison: result,
+              ...(verify ? { verify, silentRead: !announces(verify) } : {}),
             }
             writeSync(stream, JSON.stringify(compact) + '\n')
             const reason =
@@ -434,7 +469,8 @@ async function worker(): Promise<void> {
         const seeds = samples.filter(sample => sample.source.length <= 4000)
         if (!seeds.length) throw new Error(`No bounded mutation seeds for ${family}`)
         const rnd = random(seed)
-        const fragments = [...vocabulary]
+        const curated = curatedFragments(family)
+        const fragments = [...new Set([...curated, ...vocabulary])]
         let attempts = 0,
           tooLong = 0
         for (let at = 0; at < fuzz; ) {
@@ -452,6 +488,22 @@ async function worker(): Promise<void> {
           at += batch.length
           if (at % 1024 === 0) console.log(`${family}: corpus ${samples.length}, mutations ${at}/${fuzz}`)
         }
+        // Reduce the first silent reads, corpus before mutations, and list
+        // each distinct reduction once with the input it came from.
+        const reductions = new Map<string, SilentReadExample>()
+        for (const { sample, verify } of silent) {
+          entering(family, sample.id, 'reduce', sample.source)
+          const source = await reduceSilentRead(family, sample.source, async candidate => (await oracle.control(family!, candidate)).accepted)
+          const seen = reductions.get(source)
+          if (seen) {
+            seen.occurrences++
+            continue
+          }
+          const mermaid = (await oracle.control(family, source)).error ?? ''
+          const parent = sample.provenance.find(origin => origin.parent)?.parent
+          reductions.set(source, { family, id: sample.id, ...(parent ? { parent } : {}), seed, source, spelled: spellSource(source), mermaid: mermaid.slice(0, 400), ours: ourReading(family, source), verify: verifyCodes(source), occurrences: 1, original: sample.source, originalVerify: verify })
+        }
+        const silentReads = { corpus: corpusCounts.silentReads, mutations: mutationCounts.silentReads, reduced: silent.length, examples: [...reductions.values()] }
         const row = {
           family,
           nativeAdmissionProfile: 'canonical-renderer-request',
@@ -459,12 +511,15 @@ async function worker(): Promise<void> {
           observationControl,
           corpus: corpusCounts,
           mutations: mutationCounts,
-          mutationGeneration: { requested: fuzz, executed: mutationCounts.inputs, attempts, skippedOver4000: tooLong, seed, fragmentCount: fragments.length },
+          mutationGeneration: { requested: fuzz, executed: mutationCounts.inputs, attempts, skippedOver4000: tooLong, seed, fragmentCount: fragments.length, curatedFragmentCount: curated.length },
+          silentReads,
           examples,
         }
         results.push(row)
         writeFileSync(join(output, `${family}-summary.json`), JSON.stringify(row, null, 2) + '\n')
-        console.log(`${family}: complete; reference-only ${corpusCounts.referenceOnly + mutationCounts.referenceOnly}, agentic-only ${corpusCounts.agenticOnly + mutationCounts.agenticOnly}, model drift candidates ${corpusCounts.modelDriftCandidates + mutationCounts.modelDriftCandidates}`)
+        console.log(
+          `${family}: complete; reference-only ${corpusCounts.referenceOnly + mutationCounts.referenceOnly}, agentic-only ${corpusCounts.agenticOnly + mutationCounts.agenticOnly}, model drift candidates ${corpusCounts.modelDriftCandidates + mutationCounts.modelDriftCandidates}, silent reads ${silentReads.corpus + silentReads.mutations}`,
+        )
       } finally {
         closeSync(stream)
         closeSync(detailStream)
@@ -477,7 +532,13 @@ async function worker(): Promise<void> {
 
 console.log(`Mermaid ${reference.version}: ${families.length} core families, ${fuzz} mutations EACH, seed ${seed}, ${workers} workers`)
 await Promise.all(Array.from({ length: Math.min(workers, families.length) }, worker))
-results.sort((a, b) => (a as { family: string }).family.localeCompare((b as { family: string }).family))
+results.sort((a, b) => a.family.localeCompare(b.family))
+const silentReads = {
+  definition: SILENT_READ_DEFINITION,
+  total: results.reduce((sum, row) => sum + row.silentReads.corpus + row.silentReads.mutations, 0),
+  byFamily: Object.fromEntries(results.filter(row => row.silentReads.corpus + row.silentReads.mutations).map(row => [row.family, { corpus: row.silentReads.corpus, mutations: row.silentReads.mutations }])),
+  examples: results.flatMap(row => row.silentReads.examples),
+}
 const summary = {
   generatedAt: new Date().toISOString(),
   reference,
@@ -501,13 +562,19 @@ const summary = {
       'Raw stream differences are diagnostics. Whitespace, declaration ordering, normalization and intentional generous input policies may differ. Round-trip model snapshots compare normalized values from stable getters and retain parent fields, with explicit normalization of non-JSON values/cycles; they cannot alone prove full fidelity. Selected-field native semantics have explicit per-family scope. Drift candidates require semantic review.',
     corpus: 'Official documentation plus static upstream spec literals; extracted literals do not port upstream assertions.',
     unsupported: 'Source-preserved or opaque success is never counted as native grammar or semantic fidelity.',
+    silentReads: `${SILENT_READ_DEFINITION} The first ${SILENT_REDUCTIONS} per family, corpus before mutations, are reduced by line and then code point while they stay silent reads; each distinct reduction is listed once.`,
   },
   coreFamiliesAvailable: allFamilies.length,
   familiesAssessed: families.length,
   mutationsPerFamily: fuzz,
   seed,
   skippedInterpolatedTemplates: harvested.skippedInterpolatedTemplates,
+  silentReads,
   families: results,
 }
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
+rmSync(inProgress, { force: true })
+console.log(`\nSilent reads, seed ${seed}: ${silentReads.total} (${SILENT_READ_DEFINITION})`)
+for (const [family, counts] of Object.entries(silentReads.byFamily)) console.log(`  ${family}: corpus ${counts.corpus}, mutations ${counts.mutations}`)
+for (const example of silentReads.examples) console.log(`  ${example.family} ${example.id} x${example.occurrences}: ${example.spelled}\n    ours (${example.ours.native} native, ${example.ours.envelope}): ${JSON.stringify(example.ours.read).slice(0, 300)}`)
 console.log(`Saved ${join(output, 'summary.json')}`)

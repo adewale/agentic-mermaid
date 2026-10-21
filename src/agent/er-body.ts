@@ -25,6 +25,7 @@ import { labelOverflowCollector } from './body-utils.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import {
   erNameNeedsQuotes,
+  writeErStyleText,
   isErKeywordName,
   parseErAttribute,
   portableErAttributeText,
@@ -115,6 +116,12 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
     }
   }
   return warnings
+}
+
+/** An edit's style that no ER style text Mermaid reads can spell. */
+function erStyleUnwritable(subject: string, style: Readonly<Record<string, string>>): Result<never, MutationError> | undefined {
+  if (writeErStyleText(style) !== undefined) return undefined
+  return err({ code: 'INVALID_OP', message: `${subject}: ER style ${serializeStyleProps(style)} holds a character Mermaid's ER style lexer cannot read and no entity code spells there ({, |, } or ~); remove it` })
 }
 
 /** Whether the serializer can write `id` as a Mermaid ER name: bare, or one
@@ -484,7 +491,8 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
         declareBefore(firstCreatedWithin(index))
         const group = groupById.get(statement.id)
         if (group) {
-          const id = /\s/.test(group.id) ? `"${group.id}"` : group.id
+          // Quoted where Mermaid cannot read it bare, as an entity name is.
+          const id = parseErEntityId(group.id) !== null && !erNameNeedsQuotes(group.id) ? group.id : `"${group.id}"`
           lines.push(`  subgraph ${id}${group.label !== decodeErText(group.id) ? ` [${writeErTitle(group.label, group.labelContent)}]` : ''}`)
           fold.open(statement.id)
         }
@@ -514,7 +522,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     for (const relation of body.relations) pushRelation(relation)
   }
 
-  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${writeErStyleText(style) ?? serializeStyleProps(style)}`)
   for (const entity of body.entities) {
     const reference = renderErEntityReference({ ...entity, label: undefined })
     const classes = entity.className?.trim().split(/[ \t]+/).join(',')
@@ -523,7 +531,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     // goes on the entity itself (`"one":::foo`).
     const classLine = classes === undefined ? undefined
       : erNameNeedsQuotes(entity.id) ? `  ${reference}:::${classes}` : `  class ${reference} ${classes}`
-    const styleLine = entity.style ? `  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference} ${serializeStyleProps(entity.style)}` : undefined
+    const styleLine = entity.style ? `  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference} ${writeErStyleText(entity.style) ?? serializeStyleProps(entity.style)}` : undefined
     if (styleLine) fold.style(entity.id)
     // `class` applies only to an entity that exists, so it follows the `style`
     // line that creates one.
@@ -706,6 +714,8 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
             ? unsafeStylePaintError(`define_class ${op.name}`, style.paint).message
             : 'ER classDef style must contain at least one property:value pair',
       })
+      const unwritable = erStyleUnwritable(`define_class ${op.name}`, style.value)
+      if (unwritable) return unwritable
       if (!b.classDefs) b.classDefs = {}
       b.classDefs[op.name] = style.value
       return ok(b)
@@ -734,6 +744,8 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
               ? unsafeStylePaintError(`set_entity_style ${op.entity}`, style.paint).message
               : 'ER entity style must contain at least one property:value pair',
         })
+        const unwritable = erStyleUnwritable(`set_entity_style ${op.entity}`, style.value)
+        if (unwritable) return unwritable
         entity.style = style.value
       }
       return ok(b)

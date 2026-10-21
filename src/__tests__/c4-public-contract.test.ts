@@ -62,7 +62,9 @@ BiRel(client,store,"Synchronizes")`)
   test('verification reports rejected conflicting placement hints without losing interactions', () => {
     const source = 'C4Context\nSystem(a,"A")\nSystem(b,"B")\nRel_L(a,b,"Left")\nRel_R(a,b,"Right")'
     const verified = verifyMermaid(source)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', message: expect.stringContaining('C4_LAYOUT_CONFLICT') }))
+    expect(verified.warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([
+      { code: 'UNSUPPORTED_SYNTAX', syntax: 'c4_layout_conflict', line: 5, message: expect.stringMatching(/^C4_LAYOUT_CONFLICT: .*\(in: Rel_R\(a,b,"Right"\)\)$/) },
+    ])
     expect(verified.layout.edges).toHaveLength(2)
   })
 
