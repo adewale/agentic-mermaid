@@ -143,7 +143,17 @@ async function readHtmlPartials(
   leftPanel: string
   rightPanel: string
 }> {
-  const [topbar, leftPanel, rightPanel] = await Promise.all([readFile('html/topbar.html'), readFile('html/left-panel.html'), readFile('html/right-panel.html')])
+  // Compact static markup before inserting catalogs or runtime code. Preserve
+  // preformatted and raw-text elements, including any literal comment text.
+  const readPartial = async (path: string): Promise<string> => (await readFile(path)).replace(
+    /<(pre|textarea|script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|^[\t ]+(?=<)/gim,
+    (markup, rawTag) => rawTag ? markup : '',
+  )
+  const [topbar, leftPanel, rightPanel] = await Promise.all([
+    readPartial('html/topbar.html'),
+    readPartial('html/left-panel.html'),
+    readPartial('html/right-panel.html'),
+  ])
   return {
     topbar: topbar.replace('{{THEME_ITEMS}}', themeItems).replace('{{STYLE_ITEMS}}', styleItemsHtml()).replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE)).replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
     leftPanel,

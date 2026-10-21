@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
+import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
@@ -11,14 +11,15 @@ import { withRenderStageObserver } from '../render-stages.ts'
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/architecture-backends.mmd', import.meta.url), 'utf8')
 const faces = 'architecture-beta\nservice left(disk)[Left]\nservice top(disk)[Top]\nservice bottom(disk)[Bottom]\nservice right(server)[Right]\njunction center\nleft:R --> L:center\ntop:B --> T:center\nbottom:T --> B:center\ncenter:R --> L:right'
+const literalIcons = 'architecture-beta\nservice a "<b>日本 API</b>\\nSecond line" [Backend]\nservice b(database)[Storage]\na:R-->L:b'
 
 describe('Architecture layout backends', () => {
-  test.each([['alignment', fixture], ['four faces', faces]])('retains authored ports, junctions, alignments and complete routes: %s', (_name, source) => {
+  test.each([['alignment', fixture], ['four faces', faces], ['literal icons', literalIcons]])('retains authored ports, junctions, alignments and complete routes: %s', (_name, source) => {
     const model = parseArchitectureDiagram(toMermaidLines(source)), original = structuredClone(model)
     const placed = layoutArchitectureDiagram(model, native)
     expect(model).toEqual(original)
     expect(layoutArchitectureDiagram(model, native)).toEqual(placed)
-    expect(placed.services.map(service => [service.id, service.label, service.icon, service.parentId])).toEqual(model.services.map(service => [service.id, service.label, service.icon, service.parentId]))
+    expect(placed.services.map(service => [service.id, service.label, service.icon, service.iconText, service.parentId])).toEqual(model.services.map(service => [service.id, service.label, service.icon, service.iconText, service.parentId]))
     expect(placed.junctions.map(junction => junction.id)).toEqual(model.junctions.map(junction => junction.id))
     expect(placed.edges.map(edge => [edge.source, edge.target, edge.hasArrowStart, edge.hasArrowEnd, edge.label])).toEqual(model.edges.map(edge => [edge.source, edge.target, edge.hasArrowStart, edge.hasArrowEnd, edge.label]))
     const boxes = new Map([...placed.services, ...placed.junctions].map(node => [node.id, node]))
@@ -35,6 +36,21 @@ describe('Architecture layout backends', () => {
     const rendered = renderMermaidSVGWithReceipt(source, native)
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'primary' })])
+    if (source === literalIcons) {
+      expect(rendered.svg).toContain('&lt;b&gt;日本 API&lt;/b&gt;')
+      expect(rendered.svg).not.toContain('<b>日本 API</b>')
+      expect(rendered.svg).toContain('Second line')
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error('literal icon fixture must parse')
+      const text = renderMermaidASCIIWithReceipt(parsed.value, { ...native, colorMode: 'none' })
+      expect(text.text).toContain('Second line')
+      // Architecture projects pixel placement into cells, then independently
+      // builds graphical companion evidence. Attribute both real placements.
+      expect(text.receipt.layoutDecisions).toEqual([
+        expect.objectContaining({ selected: 'agentic', role: 'primary' }),
+        expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+      ])
+    }
   })
 
   test('uses native placement across public surfaces and retains explicit ELK bytes', () => {

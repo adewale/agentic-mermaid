@@ -2507,3 +2507,71 @@ and unhealthy normal A/A prevent a time/memory claim. The latest workflow
 job's success status is artifact collection, not proof of qualification.
 The prior complete normal-cache result at `f008a304` remains recorded; it is
 not combined with these partial observations or divided by a control ratio.
+
+
+### October 21 practical-compatibility integration and rejected allocation trials
+
+The branch was rebased onto main `1133266f` (practical Mermaid compatibility).
+Targeted coverage now exercises the new ellipse syntax with both backends and
+Architecture literal icon text through native SVG and parsed-source terminal
+rendering. The latter preserves both primary and graphical companion backend
+attribution. The 238-input production audit retains 232 native renders and six
+identical declines; all 232 native SVGs and complete receipts match the frozen
+pre-rebase reference. New syntax is covered by the targeted tests, rather than
+being presumed covered by that older corpus.
+
+Core/repository types, canonical build, lazy payload budgets, and 102 preview,
+hint and hosted tests pass. An independent diagnostic matches all 319 legacy
+geometry records (303 shared plus 16 added). This uses the baseline encoder,
+including its integer-pixel Flow/State coordinates, and is not a fresh
+full-precision SVG baseline. The unchanged local 30-second default-geometry
+gate fails at 46.869 seconds; the diagnostic does not turn that failure into a
+pass. No baseline, timeout or budget is relaxed.
+
+The standalone editor retains the limited SWC settings and additionally removes
+comments and tag indentation from static partials before catalog/runtime data
+insertion, preserving raw-text and preformatted elements. Complete HTML is
+4,095,126 raw /1,228,096 gzip bytes, below the original 4,100,000 /1,260,000
+limits. The emitted worker and size checks pass (2 tests /19 assertions).
+The pointer test times out when run alongside heavy diagnostics, then passes
+serially in 28.239 seconds under its unchanged 60-second limit; the competing
+run remains a failure. These are integration checks, not solver speed claims.
+
+Three allocation prototypes are rejected. Each preserves full 750-outcome
+SVG/receipt/error behavior (744 renders, six declines), and each completes all
+18 prospectively declared memory workers. The gate requires at least a 5%
+allocation reduction on BOTH retained dense inputs before timing is allowed:
+
+| Private prototype | 15-node allocation ratio | 19-node allocation ratio | Outcome |
+| --- | ---: | ---: | --- |
+| Immutable phase segment preparation | 0.977226 | 0.966711 | Reject; no timing stage |
+| Identical per-edge proposal score memo | 0.981721 | 0.960381 | Reject; no timing stage |
+| Packed numeric crossing sweep | 1.003246 | 0.986981 | Reject; no timing stage |
+
+The packed prototype also matches 90,014 direct crossing queries, including
+sparse, capped and numerical edge cases, and passes 104 owner tests /3,774
+assertions on the practical-compatibility rebase. Its exactness does not excuse
+its allocation result. None of these implementations is shipped; engine ID
+remains `agentic-layered@20`. The fresh canonical Node allocation profile shows
+substantial work outside crossing counting, including repeated layered-core
+and chain-order allocations, which guides subsequent experiments.
+
+Published `1516ebbd` CI passes every required lane, including the full browser
+suite and unchanged payload caps. Generated paint remains advisory failure.
+Its cost artifact [12340329214](https://github.com/adewale/agentic-mermaid/actions/runs/39587214812/artifacts/12340329214)
+retains all 27 inputs, three rounds, 25 repetitions and the shared 480-second
+per-cache-regime deadline. Off A/A completes 126 timing and 42 memory workers
+and is healthy (1.010344), but the native comparison completes only 20 timing
+workers, zero paired official-corpus inputs and no paired memory. Its first
+failure is an ELK-reference 15-chain timing deadline in round one (2617 ms
+allowed, 2637.636 ms observed).
+
+Normal A/A also completes, with corpus ratio 1.004367, but its cyclic-labelled
+15-chain per-case control is unhealthy. The native comparison completes 124
+timing workers and a partial seven-input corpus ratio of 0.977620, with no
+paired memory. Its first failure is ELK-reference edit-flowchart ASCII
+correctness in round three (670 ms allowed, 680.938 ms observed). Neither cache
+regime qualifies a time or memory win. Workflow job success means evidence
+collection, not qualification; partial ratios are not normalized by A/A or
+combined with earlier complete results. The overall replacement goal remains
+open, and ELK remains the default and supported fallback.
