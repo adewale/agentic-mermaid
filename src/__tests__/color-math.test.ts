@@ -11,6 +11,15 @@ const channel = fc.integer({ min: 0, max: 255 })
 const hexColor = fc.tuple(channel, channel, channel).map(([r, g, b]) => toHex(r, g, b))
 
 describe('shared color math', () => {
+  test('parsed CSS colors stay independent after caller mutation and palette churn', () => {
+    const first = tryParseCssColor('rgba(12, 34, 56, 0.5)')!
+    first[0] = 250
+    expect(tryParseCssColor('rgba(12, 34, 56, 0.5)')).toEqual([12, 34, 56, 0.5])
+    for (let i = 0; i < 1000; i++) tryParseCssColor(`rgb(${i % 256}, ${Math.floor(i / 256)}, 99)`)
+    expect(tryParseCssColor('rgba(12, 34, 56, 0.5)')).toEqual([12, 34, 56, 0.5])
+    expect(tryParseCssColor('url(https://example.com/paint)')).toBeNull()
+    expect(tryParseCssColor('var(--dynamic-color)')).toBeNull()
+  })
   test('parseHex ∘ toHex is the identity on channels', () => {
     fc.assert(fc.property(channel, channel, channel, (r, g, b) => {
       const [r2, g2, b2] = parseHex(toHex(r, g, b))

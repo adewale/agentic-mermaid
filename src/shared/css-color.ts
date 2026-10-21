@@ -1,6 +1,7 @@
 // ============================================================================
 
 import { tryParseCssColor } from './color-math.ts'
+import { memoizeColorToken } from './color-token-cache.ts'
 // Runtime-neutral CSS color token validation.
 //
 // Color values are interpolated into SVG presentation attributes and, for a
@@ -59,6 +60,11 @@ export function splitCssColorList(value: string): string[] {
  */
 export function safeCssColor(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
+  return cachedCssColor(value)
+}
+
+const cachedCssColor = memoizeColorToken(readSafeCssColor)
+function readSafeCssColor(value: string): string | undefined {
   const color = value.trim()
   if (color.length === 0 || color.length > 256) return undefined
   if (SIMPLE_COLOR_RE.test(color)) return color
@@ -113,6 +119,11 @@ export function drawableAuthoredCssPaint(value: unknown, allowNone = false): str
  * style/XML injection or URL-fetching channel.
  */
 export function safeCssPaint(value: unknown): string | undefined {
+  return typeof value === 'string' ? cachedCssPaint(value) : undefined
+}
+
+const cachedCssPaint = memoizeColorToken(readSafeCssPaint)
+function readSafeCssPaint(value: string): string | undefined {
   const direct = safeCssColor(value)
   if (direct !== undefined) return direct
   if (typeof value !== 'string') return undefined
