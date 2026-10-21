@@ -235,6 +235,12 @@ function estimateNodeSize(id: string, label: DisplayTextInput, shape: string, st
     height = width
   }
 
+  if (shape === 'ellipse') {
+    // Enclose the padded label rectangle inside the curved boundary.
+    width = Math.ceil(width * Math.SQRT2)
+    height = Math.ceil(height * Math.SQRT2)
+  }
+
   if (shape === 'hexagon') {
     width += style.nodePaddingX
   }

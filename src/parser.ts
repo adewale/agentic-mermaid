@@ -1319,6 +1319,7 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
 
   // Double delimiters with mixed brackets
   { regex: flowchartNodeRegex(String.raw`\(\[(.+?)\]\)`), shape: 'stadium' },
+  { regex: flowchartNodeRegex(String.raw`\(-(.+?)-\)`), shape: 'ellipse' },
   { regex: flowchartNodeRegex(String.raw`\(\((.+?)\)\)`), shape: 'circle' },
   { regex: flowchartNodeRegex(String.raw`\[\[(.+?)\]\]`), shape: 'subroutine' },
   { regex: flowchartNodeRegex(String.raw`\[\((.+?)\)\]`), shape: 'cylinder' },
@@ -1636,6 +1637,7 @@ function consumeNodeMetadataSuffix(
 const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeShape }> = [
   { open: '(((', close: ')))', shape: 'doublecircle' },
   { open: '([', close: '])', shape: 'stadium' },
+  { open: '(-', close: '-)', shape: 'ellipse' },
   { open: '((', close: '))', shape: 'circle' },
   { open: '[[', close: ']]', shape: 'subroutine' },
   { open: '[(', close: ')]', shape: 'cylinder' },

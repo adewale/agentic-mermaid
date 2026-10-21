@@ -549,6 +549,7 @@ function renderShape(node: MermaidNode): string {
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
+    case 'ellipse': return `(-${lbl}-)`
     case 'stadium': return `([${lbl}])`
     case 'subroutine': return `[[${lbl}]]`
     case 'cylinder': return `[(${lbl})]`
@@ -871,7 +872,7 @@ function edgeLabelInput(label: string | undefined): string | undefined {
 /** Runtime NodeShape vocabulary for set_shape/add_node — mirrors the
  *  NodeShape type (the op-schema enum is transcribed from the same list). */
 const GEOMETRY_SHAPES: readonly NodeShape[] = [
-  'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine',
+  'rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine',
   'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt',
   'lean-r', 'lean-l', 'state-start', 'state-end',
 ]

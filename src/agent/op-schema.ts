@@ -71,7 +71,7 @@ interface OpSpec {
 }
 
 // Enum value lists, kept in sync with the type aliases they mirror.
-const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
+const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
 const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisible']
 const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'async', 'async-dashed', 'lost', 'lost-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const

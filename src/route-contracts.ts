@@ -69,7 +69,7 @@ const RECT_LIKE = new Set(['rectangle', 'service', 'rounded', 'subroutine', 'sta
  */
 export const PORT_EXACT = new Set([
   ...RECT_LIKE, 'diamond',
-  'circle', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
+  'circle', 'ellipse', 'doublecircle', 'stadium', 'hexagon', 'cylinder', 'state-start', 'state-end',
   // State pseudostates: choice is an inscribed diamond, history an inscribed
   // circle — their bbox side midpoints lie exactly on the outline.
   'state-choice', 'state-history',

@@ -113,6 +113,7 @@ export function shapeOutline(
         routing: { kind: 'stadium', cx, cy, halfWidth: w / 2, radius: r },
       }
     }
+    case 'ellipse': return { geometry: { kind: 'ellipse', cx, cy, rx: w / 2, ry: h / 2 }, paint: surface(paint), routing: { kind: 'ellipse', cx, cy, rx: w / 2, ry: h / 2 } }
     case 'circle':
     case 'state-history': return circle(cx, cy, Math.min(w, h) / 2, paint)
     case 'doublecircle': return doubleCircle(cx, cy, Math.min(w, h) / 2, paint)
