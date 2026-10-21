@@ -1,5 +1,5 @@
 import { tryParseCssColor } from '../shared/color-math.ts'
-import type { MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark } from './ir.ts'
+import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
 import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { sceneNodeSerialization } from './serialization.ts'
@@ -50,7 +50,16 @@ export type ScenePaintGeometryInspection = Omit<ScenePaintInspection, 'primitive
   readonly primitives: readonly ScenePaintGeometry[]
 }
 
-const sources = new WeakMap<ScenePaintGeometry, SceneNode>()
+const sources = new WeakMap<ScenePaintGeometry, Exclude<SceneNode, { kind: 'group' }>>()
+/** Only fields consumed by final paint certification, never a retained Scene tree. */
+export type NativeConnectorPaintSource = Pick<ConnectorMark, 'kind' | 'lineStyle' | 'endpoints' | 'route' | 'stroke' | 'markers' | 'transform'>
+export type NativePaintSource = Pick<ShapeMark, 'kind' | 'geometry' | 'paint' | 'childPaints'>
+  | NativeConnectorPaintSource | Pick<TextMark, 'kind' | 'paint'> | { readonly kind: 'document' }
+const nativeSources = new WeakMap<ScenePaintGeometry, NativePaintSource>()
+export function paintPrimitiveSource(primitive: ScenePaintGeometry): NativePaintSource | undefined {
+  return nativeSources.get(primitive) ?? sources.get(primitive)
+}
+
 const worldMatrices = new WeakMap<ScenePaintGeometry, AffineMatrix>()
 export function scenePrimitiveMatrix(primitive: ScenePaintGeometry): AffineMatrix | undefined { return worldMatrices.get(primitive) }
 
@@ -71,7 +80,7 @@ function textPaints(hasText: boolean, paint: MarkPaint): boolean {
 
 /** The paint a shape's surface shows: a compound shape with per-piece paints
  * fills wherever any piece fills, so the first filled piece stands for it. */
-export function shapeSurfacePaint(node: ShapeMark): MarkPaint {
+export function shapeSurfacePaint(node: Pick<ShapeMark, 'paint' | 'childPaints'>): MarkPaint {
   return node.childPaints?.find(paint => !absentPaint(paint.fill) && Number(paint.opacity ?? 1) !== 0) ?? node.paint
 }
 
@@ -110,75 +119,123 @@ function hasDisplayedText(block: Extract<SceneNode, { kind: 'text' }>['block'], 
 
 type TextDetails = (text: string, block: Extract<SceneNode, { kind: 'text' }>['block'], includeFont?: true) => Omit<NonNullable<ScenePaintPrimitive['text']>, 'measurement'>
 
-function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeometryInspection {
+/** A native drawing supplies leaves and the inherited group context explicitly.
+ * Leaves must already pass the drawing factory's bounded admission. No group
+ * or SceneDoc is built or retained by this API. */
+export interface NativePaintEntry {
+  readonly node: Exclude<SceneNode, { kind: 'group' }>
+  readonly key?: string
+  readonly parentMatrix?: AffineMatrix
+  readonly ancestors?: readonly SceneOwner[]
+  readonly owner?: SceneOwner
+  readonly conditional?: boolean
+  readonly groupOpacity?: number
+}
+export type PaintInspectionHeader = Pick<SceneDoc, 'family' | 'width' | 'height'>
+
+export function inspectNativePaintGeometry(header: PaintInspectionHeader, entries: Iterable<NativePaintEntry>): ScenePaintGeometryInspection {
+  const recorder = createPaintRecorder(header, undefined, true)
+  let index = 0
+  for (const entry of entries) {
+    const ancestors = Object.freeze((entry.ancestors ?? []).map(owner => Object.freeze({ id: owner.id, role: owner.role })))
+    recorder.leaf(entry.node, entry.key ?? `native.${index}`, entry.parentMatrix ?? IDENTITY_MATRIX, ancestors, entry.conditional ?? false, entry.groupOpacity ?? 1, entry.owner)
+    index++
+  }
+  return recorder.finish()
+}
+
+function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativePaintSource {
+  switch (node.kind) {
+    case 'shape': return Object.freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}) })
+    case 'connector': return Object.freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
+    case 'text': return Object.freeze({ kind: node.kind, paint: node.paint })
+    case 'document': return Object.freeze({ kind: node.kind })
+  }
+}
+
+function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false) {
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
+  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void => {
+    const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
+    const source = native ? nativePaintSource(node) : undefined
+    const retainSource = (primitive: ScenePaintGeometry): void => {
+      if (source) nativeSources.set(primitive, source)
+      else sources.set(primitive, node)
+    }
+    const hidden = groupOpacity === 0 || nonPainting(node)
+    const [a, b, c, d, e, f] = parent
+    const parentTransform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
+    const measured = !!bounds && finite(bounds)
+    const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
+    const primitive: ScenePaintGeometry = Object.freeze({
+      key, id: node.id, kind: node.kind, role: node.role,
+      owner: Object.freeze({ id: owner.id, role: owner.role }),
+      ancestors,
+      order: primitives.length, coverage: status,
+      ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
+      ...(groupOpacity < 1 ? { groupOpacity } : {}),
+      ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
+      ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
+      ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
+    })
+    retainSource(primitive)
+    worldMatrices.set(primitive, composeMatrices(parent, transformMatrix(node.transform)))
+    primitives.push(primitive)
+    if (hidden) coverage.nonPainting++
+    else if (measured) coverage.measured++
+    else coverage.unmeasured++
+    if (node.kind === 'text' && !hidden) {
+      if (node.measurement === 'prepared') coverage.preparedText++
+      else coverage.fallbackText++
+    }
+    if (node.kind === 'connector') node.labels.forEach((label, labelIndex) => {
+      if (label.visual?.kind !== 'inline') return
+      const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
+      const hidden = groupOpacity === 0 || !textPaints(hasDisplayedText(label.block, label.text), paint)
+      const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
+      const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
+      const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
+      const measured = !!bounds && finite(bounds)
+      const inline: ScenePaintGeometry = Object.freeze({
+        key: `${key}.label.${labelIndex}`, id: label.id ?? `${node.id}:label:${labelIndex}`, kind: 'text', role: 'label',
+        owner: primitive.owner, ancestors: primitive.ancestors, order: primitives.length,
+        coverage: hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured',
+        ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
+        ...(groupOpacity < 1 ? { groupOpacity } : {}),
+        ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
+        text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
+      })
+      retainSource(inline)
+      worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
+      primitives.push(inline)
+      if (hidden) coverage.nonPainting++
+      else {
+        if (measured) coverage.measured++
+        else coverage.unmeasured++
+        if (label.block) coverage.preparedText++
+        else coverage.fallbackText++
+      }
+    })
+  }
+  return {
+    leaf,
+    finish: (): ScenePaintGeometryInspection => Object.freeze({ version: 1, family: header.family, bounds: Object.freeze({ width: header.width, height: header.height }), primitives: Object.freeze(primitives), coverage: Object.freeze(coverage) }),
+  }
+}
+
+function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeometryInspection {
+  const recorder = createPaintRecorder(scene, retainText)
   const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
     nodes.forEach((node, index) => {
       const key = `${prefix}.${index}`
-      const owner = node.owner ?? (ancestors.at(-1) || node.identity || { id: node.id, role: node.role })
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
         walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, Object.freeze({ id: own.id, role: own.role })]), conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
-        return
-      }
-      const hidden = groupOpacity === 0 || nonPainting(node)
-      const [a, b, c, d, e, f] = parent
-      const parentTransform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
-      const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
-      const measured = !!bounds && finite(bounds)
-      const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
-      const primitive: ScenePaintGeometry = Object.freeze({
-        key, id: node.id, kind: node.kind, role: node.role,
-        owner: Object.freeze({ id: owner.id, role: owner.role }),
-        ancestors,
-        order: primitives.length, coverage: status,
-        ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
-        ...(groupOpacity < 1 ? { groupOpacity } : {}),
-        ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
-        ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
-        ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
-      })
-      sources.set(primitive, node)
-      worldMatrices.set(primitive, composeMatrices(parent, transformMatrix(node.transform)))
-      primitives.push(primitive)
-      if (hidden) coverage.nonPainting++
-      else if (measured) coverage.measured++
-      else coverage.unmeasured++
-      if (node.kind === 'text' && !hidden) {
-        if (node.measurement === 'prepared') coverage.preparedText++
-        else coverage.fallbackText++
-      }
-      if (node.kind === 'connector') node.labels.forEach((label, labelIndex) => {
-        if (label.visual?.kind !== 'inline') return
-        const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
-        const hidden = groupOpacity === 0 || !textPaints(hasDisplayedText(label.block, label.text), paint)
-        const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
-        const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
-        const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
-        const measured = !!bounds && finite(bounds)
-        const inline: ScenePaintGeometry = Object.freeze({
-          key: `${key}.label.${labelIndex}`, id: label.id ?? `${node.id}:label:${labelIndex}`, kind: 'text', role: 'label',
-          owner: primitive.owner, ancestors: primitive.ancestors, order: primitives.length,
-          coverage: hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured',
-          ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
-          ...(groupOpacity < 1 ? { groupOpacity } : {}),
-          ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
-          text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
-        })
-        sources.set(inline, node)
-        worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
-        primitives.push(inline)
-        if (hidden) coverage.nonPainting++
-        else {
-          if (measured) coverage.measured++
-          else coverage.unmeasured++
-          if (label.block) coverage.preparedText++
-          else coverage.fallbackText++
-        }
-      })
+      } else recorder.leaf(node, key, parent, ancestors, conditional, groupOpacity)
     })
   }
   walk(scene.parts, 'scene', IDENTITY_MATRIX, Object.freeze([]))
-  return Object.freeze({ version: 1, family: scene.family, bounds: Object.freeze({ width: scene.width, height: scene.height }), primitives: Object.freeze(primitives), coverage: Object.freeze(coverage) })
+  return recorder.finish()
 }
