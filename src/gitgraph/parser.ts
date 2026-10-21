@@ -299,7 +299,10 @@ function reachableFrom(head: string, target: string, commits: Map<string, GitGra
     if (id === target) return true
     if (seen.has(id)) continue
     seen.add(id)
-    pending.push(...(commits.get(id)?.parents ?? []))
+    const commit = commits.get(id)
+    // A cherry-pick's second edge records the copied source for drawing;
+    // it does not make that source an ancestor of the receiving branch.
+    if (commit) pending.push(...(commit.source === 'cherry-pick' ? commit.parents.slice(0, 1) : commit.parents))
   }
   return false
 }

@@ -86,7 +86,7 @@ describe('pinned Mermaid Mindmap/GitGraph upstream oracle', () => {
       else runGit(b.source!, b.assertions!)
     })
 
-  test('executes every documented GitGraph divergence', () => {
+  test('replays historical GitGraph divergences under the current policy', () => {
     const divergences = oracle.blocks.filter(x => x.classification === 'divergence')
     expect(divergences.map(block => block.reason)).toEqual(['reachable-cherry-pick-policy', 'duplicate-id-policy'])
     for (const b of divergences) {
@@ -95,6 +95,13 @@ describe('pinned Mermaid Mindmap/GitGraph upstream oracle', () => {
         expect(graph.commits).toHaveLength(b.assertions!.commits)
         expect(new Set(graph.commits.map(commit => commit.id)).size).toBe(graph.commits.length)
         expect(graph.commits.filter(commit => (commit.sourceId ?? commit.id) === b.assertions!.duplicateSourceId)).toHaveLength(2)
+        expect(parseGitGraph(serializeGitGraph(graph))).toEqual(graph)
+      } else if (b.reason === 'reachable-cherry-pick-policy') {
+        const graph = parseGitGraph(b.source!)
+        const picked = graph.commits.filter(commit => commit.source === 'cherry-pick')
+        expect(picked.map(commit => [commit.cherrySource, commit.cherryParent, commit.tags])).toEqual([
+          ['M', 'ZERO', ['']], ['M', 'B', ['']],
+        ])
         expect(parseGitGraph(serializeGitGraph(graph))).toEqual(graph)
       } else expect(() => parseGitGraph(b.source!)).toThrow(b.assertions!.errorMessage)
     }
