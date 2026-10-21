@@ -322,8 +322,8 @@ A new defect needs a current reproduction at its owning boundary.
 - [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement and Architecture adapters, Class cards and independent namespaces, plus ER frames and boundary relations.
 - [x] Close the retained seed228 crossing gap in the256-case development population (11 versus12 crossings;75 versus74 bends).
 - [x] Preserve the valid native straight contact that triggered seed319’s pass-contract error; do not loosen metric allowances.
-- [ ] Close the remaining seed296 gap (31 versus22 crossings). All320 seeds are development data; retain all five ELK paint/geometry rejections.
-- [ ] Declare another committed holdout after those fixes; review bends/area and unverified dimensions.
+- [x] Close the retained seed296 crossing gap with bounded small-cut diversity (19 versus22 crossings,90 versus94 raw bends). All320 seeds remain development data, with all five ELK rejections retained.
+- [ ] Execute the predeclared320–383 holdout only after the small-cut implementation is committed; retain every outcome and review bends/area and unverified dimensions.
 - [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
 - [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
 - [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence.
