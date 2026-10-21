@@ -2584,3 +2584,70 @@ shared `config-spacing.ts` helper, so the branch's equivalent
 All 92 affected family/shape/backend tests pass (6,275 assertions). Main's
 payload budget changes remain inherited upstream changes; the branch budget
 file still matches main exactly. Fresh combined CI is required for this base.
+
+
+The combined `32cbf8ce` rebase passes canonical Node/declaration/IIFE/lazy builds,
+core/repository types, changed-file lint and every required
+[CI lane](https://github.com/adewale/agentic-mermaid/actions/runs/39603529676),
+including all three unit shards, both browser lanes, payload, package consumers,
+Node 22, quickstarts, red/green and semantic conformance. This includes the
+unchanged default-geometry gate in CI; the recorded local timeout remains a
+failure. The fresh generated
+[paired artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39603529676/artifacts/12347991099)
+retains 512 native /506 ELK successes across 512 enrolled sources. On the 506
+shared successes there are no additional proper crossings, label conflicts or
+opposing/parallel spans. All 506 shared paint certificates remain unverified,
+with 7,004 native issues versus 6,556 ELK issues. No broader parity conclusion
+follows. The PR's review images/reports are now pinned to this actual rebased
+artifact, with both backend selections identified at the same immutable SHA.
+The generic visual linter still objects to a downloadable report without an
+embedded image and to a same-revision solver comparison rather than distinct
+merge-base/head images; those mechanical failures remain recorded, rather than
+mislabeling provenance to satisfy the heuristic.
+
+
+The deferred private-chain row-copy prototype is also rejected. It delays
+filtered row construction until the exact insertion DP accepts an improvement,
+retaining dimensions, tie-breaking and work debits. All 750 development outcomes
+match (744 native renders, six identical declines), including complete SVGs,
+receipts and errors; 58 owner tests pass 4,724 assertions. All 18 declared memory
+workers finish, with healthy allocation A/A ratios 0.994853 /0.975732. Candidate
+allocation ratios are 1.000717 /0.964109 on the retained 15/19-node dense inputs,
+and RSS ratios 1.010597 /1.023688. The unchanged 5%-on-both gate fails, so timing
+is skipped without a retry. Exactness and a 3.6% reduction on one input do not
+qualify this implementation for adoption. Engine remains `agentic-layered@20`.
+
+
+A separate scalar private-channel adjacency prototype is rejected at its
+prospectively declared six-worker screen. Real vertices retain ordered arrays;
+private channel vertices store scalar predecessor/successor identities, with
+matching traversals and debits. The 58 existing owner tests pass 4,724
+assertions, and all six screening SVG/receipt fingerprints match. With healthy
+allocation A/A 0.983197 /0.999032, candidate allocation ratios are
+1.039174 /1.009618 and RSS ratios 1.103030 /1.045299 on the 15/19-node inputs.
+Thus removing the source-level arrays does not reduce measured memory in this
+implementation. The screen fails; no 750-outcome or formal timing campaign is
+attempted, as declared, and no production representation changes. This is a
+single-round rejection screen, not a qualified general performance comparison.
+
+
+The complete `32cbf8ce` CI
+[cost artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39603529676/artifacts/12347588617)
+also fails qualification, retaining all 27 inputs, three rounds, 25 repetitions
+and 480 seconds per cache regime. In cache-off, ELK A/A completes 126 timing
+workers (444.744 seconds) but only 24 memory workers (34.919 seconds). Its corpus
+time ratio 1.013857 is within limits, but the incomplete control is not healthy.
+The first failure is ELK-reference compound-Class memory import with only 132 ms
+remaining (140.553 ms wall). No native-comparison timing or memory worker runs;
+there are zero paired corpus inputs. The whole shared budget is already spent.
+
+Normal-cache A/A completes 126 timing and 42 memory workers (276.620 and
+41.724 seconds), with corpus ratio 1.001899, but the aligned Architecture case
+fails the reciprocal 1.10 per-case control. The native comparison completes 78
+timing workers, zero complete paired corpus inputs and no paired memory. Its
+first failure is native aligned-Architecture timing in round two, during import
+(267 ms allowed, 275.266 ms wall). These are budget-limited incomplete campaigns,
+not evidence of a solver exception or a new time/memory win. Metadata records
+Node 26.3.0 in this CI controller; separate local prototype screens use Node
+24.19.0 and are not pooled with it. The earlier complete normal-cache result
+remains historical evidence, without substitution, retries or normalization.
