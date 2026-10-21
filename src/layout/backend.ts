@@ -108,7 +108,6 @@ export function runMeasuredGraphBackend<T>(
   if (policy.backend === 'agentic') {
     try {
       result = native()
-      attempts.push({ backend: 'agentic', outcome: 'selected' })
     } catch (error) {
       const unsupported = error instanceof GraphLayoutUnsupportedError
       if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || policy.fallback !== 'elk') throw error
@@ -116,12 +115,11 @@ export function runMeasuredGraphBackend<T>(
       attempts.push({ backend: 'agentic', outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
       result = elk()
       selected = 'elk'
-      attempts.push({ backend: 'elk', outcome: 'selected' })
     }
   } else {
     result = elk()
-    attempts.push({ backend: 'elk', outcome: 'selected' })
   }
+  attempts.push({ backend: selected, outcome: 'selected' })
   const decision: GraphLayoutDecision = { requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
     implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) }
   retainDecision?.(result, decision)
