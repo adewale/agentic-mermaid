@@ -65,8 +65,8 @@ function finite(box: AxisAlignedBox): boolean {
 function absentPaint(value: string | undefined): boolean {
   return value === 'none' || value === 'transparent' || !!value && tryParseCssColor(value)?.[3] === 0
 }
-function textPaints(text: string, paint: MarkPaint): boolean {
-  return /\S/u.test(text) && Number(paint.opacity ?? 1) !== 0 && (!absentPaint(paint.fill) || paint.stroke !== undefined && !absentPaint(paint.stroke) && Number.parseFloat(paint.strokeWidth ?? '1') !== 0)
+function textPaints(hasText: boolean, paint: MarkPaint): boolean {
+  return hasText && Number(paint.opacity ?? 1) !== 0 && (!absentPaint(paint.fill) || paint.stroke !== undefined && !absentPaint(paint.stroke) && Number.parseFloat(paint.strokeWidth ?? '1') !== 0)
 }
 
 /** The paint a shape's surface shows: a compound shape with per-piece paints
@@ -77,7 +77,7 @@ export function shapeSurfacePaint(node: ShapeMark): MarkPaint {
 
 function nonPainting(node: SceneNode): boolean {
   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
-  if (node.kind === 'text') return !textPaints(hasDisplayedText(node.block, node.text) ? 'x' : '', node.paint)
+  if (node.kind === 'text') return !textPaints(hasDisplayedText(node.block, node.text), node.paint)
   if (node.kind === 'connector') return node.lineStyle === 'invisible'
   if (node.kind === 'shape') {
     if (node.conditionalPaint) return false
@@ -152,7 +152,7 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeom
       if (node.kind === 'connector') node.labels.forEach((label, labelIndex) => {
         if (label.visual?.kind !== 'inline') return
         const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
-        const hidden = groupOpacity === 0 || !textPaints(hasDisplayedText(label.block, label.text) ? 'x' : '', paint)
+        const hidden = groupOpacity === 0 || !textPaints(hasDisplayedText(label.block, label.text), paint)
         const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
         const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
         const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
