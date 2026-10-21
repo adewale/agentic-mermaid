@@ -296,3 +296,10 @@ test('reports truncated radar baselines and clipped authored values', () => {
   expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'VALUES_OUTSIDE_RANGE', series: 'sample', values: [85, 150], range: { min: 90, max: 100 } }))
   expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'SCALE_RANGE_EXCLUDES_ZERO', range: { min: 90, max: 100 } }))
 })
+
+test('radar baseline warnings use the rendered auto-range below one', () => {
+  const source = 'radar-beta\n axis a,b,c\n curve sample{0.2,0.4,0.6}\n min 0.1'
+  expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+    code: 'SCALE_RANGE_EXCLUDES_ZERO', range: { min: 0.1, max: 0.6 },
+  }))
+})
