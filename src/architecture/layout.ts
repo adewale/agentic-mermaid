@@ -814,6 +814,14 @@ function routeArchitectureEdge(
   const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups)
   const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
+  // Only the anchor-to-exit lead may touch its incident card. The middle
+  // route must remain outside both endpoints so it cannot reverse through
+  // the target and hide an arrowhead under the card's paint.
+  for (const endpoint of [edge.source, edge.target]) {
+    const group = endpoint.boundary === 'group' ? groups.get(servicesById.get(endpoint.id)!.parentId!) : undefined
+    const bounds = group ?? serviceBounds.get(endpoint.id) ?? junctionBounds.get(endpoint.id)!
+    obstacles.push({ ...bounds, id: group?.id ?? endpoint.id, kind: group ? 'group' : serviceBounds.has(endpoint.id) ? 'service' : 'junction' })
+  }
   // A fixed exit can land inside the clearance envelope of a neighboring
   // card. Stop at that envelope so the visibility search has a reachable
   // start/end, while retaining the authored attachment side.

@@ -174,9 +174,18 @@ describe('layoutArchitectureDiagram', () => {
       const id = `${edge.source.id}->${edge.target.id}`
       if (!edge.obstacleFree) violations.push(`router reports obstacle: ${id}`)
       for (const service of result.services) {
-        if (service.id !== edge.source.id && service.id !== edge.target.id && routeCrossesBoxInterior(edge.points, service)) {
+        if (routeCrossesBoxInterior(edge.points, service)) {
           violations.push(`route through card: ${id} crosses ${service.id}`)
         }
+      }
+      for (const [endpoint, contact, adjacent] of [
+        [edge.source, edge.points[0]!, edge.points[1]!],
+        [edge.target, edge.points.at(-1)!, edge.points.at(-2)!],
+      ] as const) {
+        const outward = endpoint.side === 'L' ? adjacent.x < contact.x
+          : endpoint.side === 'R' ? adjacent.x > contact.x
+            : endpoint.side === 'T' ? adjacent.y < contact.y : adjacent.y > contact.y
+        if (!outward) violations.push(`inward endpoint approach: ${id} at ${endpoint.id}:${endpoint.side}`)
       }
     }
     return violations
