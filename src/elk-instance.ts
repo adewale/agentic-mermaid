@@ -1,3 +1,4 @@
+import { WeightedLru } from './experimental/weighted-lru.ts'
 /**
  * Shared ELK instance singleton.
  *
@@ -105,28 +106,17 @@ const host = globalThis as { process?: { env?: Record<string, string | undefined
 const ELK_CACHE_ENABLED = (host.process?.env?.AGENTIC_MERMAID_ELK_CACHE ?? host.AGENTIC_MERMAID_ELK_CACHE) !== '0'
 const ELK_CACHE_MAX_ENTRIES = 64
 const ELK_CACHE_MAX_KEY_UNITS = 1024 * 1024
-const elkResults = new Map<string, ElkNode>()
-let elkResultKeyUnits = 0
+const elkResults = new WeightedLru<string, ElkNode>(ELK_CACHE_MAX_ENTRIES, ELK_CACHE_MAX_KEY_UNITS)
 
 function cachedElkLayout(graph: ElkNode): ElkNode {
   assertLayoutGraphWork(graph)
   if (!ELK_CACHE_ENABLED) return layoutElkGraph(graph)
   const key = elkGraphKey(graph)
   const cached = elkResults.get(key)
-  if (cached) {
-    elkResults.delete(key)
-    elkResults.set(key, cached)
-    return structuredClone(cached)
-  }
+  if (cached) return structuredClone(cached)
   const result = layoutElkGraph(graph)
   if (key.length <= ELK_CACHE_MAX_KEY_UNITS) {
-    elkResults.set(key, structuredClone(result))
-    elkResultKeyUnits += key.length
-    for (const oldest of elkResults.keys()) {
-      if (elkResults.size <= ELK_CACHE_MAX_ENTRIES && elkResultKeyUnits <= ELK_CACHE_MAX_KEY_UNITS) break
-      elkResults.delete(oldest)
-      elkResultKeyUnits -= oldest.length
-    }
+    elkResults.set(key, structuredClone(result), key.length)
   }
   return result
 }
@@ -144,7 +134,6 @@ function elkGraphKey(graph: ElkNode): string {
 /** Forget cached ELK results, so a test or diagnostic can time or compare a cold layout. */
 export function clearElkLayoutCache(): void {
   elkResults.clear()
-  elkResultKeyUnits = 0
 }
 
 function layoutElkGraph(graph: ElkNode): ElkNode {

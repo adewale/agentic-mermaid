@@ -126,9 +126,9 @@ export function diamondFacetPorts(node: PositionedNode): Record<DiamondFacet, Po
 function portAt(node: PositionedNode, pt: Point): AnyPort | undefined {
   const profile = shapeRoutingProfile(node)
   if (profile.boundary.kind === 'envelope' || profile.boundary.kind === 'none') return undefined
-  const ports = shapePorts(node)
   for (const side of ['N', 'E', 'S', 'W'] as const) {
-    if (Math.abs(ports[side].x - pt.x) <= PORT_TOLERANCE && Math.abs(ports[side].y - pt.y) <= PORT_TOLERANCE) return side
+    const preferred = profile.sides[side].preferred
+    if (Math.abs(preferred.x - pt.x) <= PORT_TOLERANCE && Math.abs(preferred.y - pt.y) <= PORT_TOLERANCE) return side
   }
   if (hasFacetAttachments(node)) {
     const facets = diamondFacetPorts(node)
@@ -264,12 +264,16 @@ interface Axis {
 }
 
 function axisFor(direction: Direction): Axis {
-  switch (direction) {
-    case 'LR': return { main: 'x', cross: 'y', sign: 1 }
-    case 'RL': return { main: 'x', cross: 'y', sign: -1 }
-    case 'BT': return { main: 'y', cross: 'x', sign: -1 }
-    default: return { main: 'y', cross: 'x', sign: 1 } // TD / TB
-  }
+  const horizontal = direction === 'LR' || direction === 'RL'
+  return { main: horizontal ? 'x' : 'y', cross: horizontal ? 'y' : 'x', sign: direction === 'RL' || direction === 'BT' ? -1 : 1 }
+}
+
+function axisPoint(axis: Pick<Axis, 'main'>, main: number, cross: number): Point {
+  return axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
+}
+
+function perpendicularAxis(axis: Axis, from: number, to: number): Axis {
+  return { main: axis.cross, cross: axis.main, sign: from < to ? 1 : -1 }
 }
 
 /**
@@ -437,53 +441,16 @@ export interface RoutePortAllocation {
   sideUse: Map<string, number>
 }
 
-function facetSides(port: DiamondFacet): [PortSide, PortSide] {
-  switch (port) {
-    case 'NE': return ['N', 'E']
-    case 'SE': return ['S', 'E']
-    case 'SW': return ['S', 'W']
-    case 'NW': return ['N', 'W']
-  }
-}
-
 function sideForPort(port: AnyPort | undefined, semanticSide: PortSide): PortSide {
   if (!port) return semanticSide
   if (port === 'N' || port === 'E' || port === 'S' || port === 'W') return port
-  const sides = facetSides(port)
-  return sides.includes(semanticSide) ? semanticSide : sides[0]
+  return port.includes(semanticSide) ? semanticSide : port[0] as PortSide
 }
 
 function roleAndSide(routeClass: RouteClass, endpoint: 'source' | 'target', axis: Axis): { role: PortSemanticRole; side: PortSide } {
-  const source = endpoint === 'source'
-  switch (routeClass) {
-    case 'feedback': {
-      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
-      return {
-        role: source ? 'feedback-source' : 'feedback-target',
-        side: facingSide(flipped, source ? 1 : -1),
-      }
-    }
-    case 'self-loop':
-      return {
-        role: source ? 'self-loop-source' : 'self-loop-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    case 'container':
-      return {
-        role: source ? 'container-source' : 'container-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    case 'cross-hierarchy':
-      return {
-        role: source ? 'cross-hierarchy-source' : 'cross-hierarchy-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    default:
-      return {
-        role: source ? 'flow-source' : 'flow-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-  }
+  const category = routeClass === 'feedback' || routeClass === 'self-loop' || routeClass === 'container' || routeClass === 'cross-hierarchy' ? routeClass : 'flow'
+  const facing = (endpoint === 'source') !== (routeClass === 'feedback') ? 1 : -1
+  return { role: `${category}-${endpoint}` as PortSemanticRole, side: facingSide(axis, facing) }
 }
 
 function sideOrderCoordinate(side: PortSide, node: PositionedNode, point: Point | undefined): number {
@@ -652,27 +619,17 @@ function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNo
 }
 
 function diamondSpreadPortSet(axis: Axis, count: number): Array<PortSide | DiamondFacet> | null {
-  if (axis.main === 'x') {
-    if (axis.sign > 0) {
-      if (count === 2) return ['NE', 'SE']
-      if (count === 3) return ['NE', 'E', 'SE']
-    } else {
-      if (count === 2) return ['NW', 'SW']
-      if (count === 3) return ['NW', 'W', 'SW']
-    }
-  } else if (axis.sign > 0) {
-    if (count === 2) return ['SW', 'SE']
-    if (count === 3) return ['SW', 'S', 'SE']
-  } else {
-    if (count === 2) return ['NW', 'NE']
-    if (count === 3) return ['NW', 'N', 'NE']
-  }
-  return null
+  if (count !== 2 && count !== 3) return null
+  const side = facingSide(axis, 1)
+  const first = side === 'E' ? 'NE' : side === 'S' ? 'SW' : 'NW'
+  const last = side === 'W' ? 'SW' : side === 'N' ? 'NE' : 'SE'
+  return count === 2 ? [first, last] : [first, side, last]
 }
 
 interface DiamondSpreadAssignment {
   sourcePort: PortSide | DiamondFacet
   sourceLane: number
+  targetsShareRank: boolean
 }
 
 function diamondSpreadAssignment(
@@ -702,7 +659,11 @@ function diamondSpreadAssignment(
   const index = siblings.indexOf(edge)
   if (index < 0) return null
   const sourcePort = ports[index]!
-  return { sourcePort, sourceLane: portPoint(source, sourcePort)[axis.cross] }
+  const targetMains = siblings.map(candidate => {
+    const target = nodeMap.get(candidate.target)!
+    return target[axis.main] + (axis.main === 'x' ? target.width : target.height) / 2
+  })
+  return { sourcePort, sourceLane: portPoint(source, sourcePort)[axis.cross], targetsShareRank: Math.max(...targetMains) - Math.min(...targetMains) <= 1 }
 }
 
 function diamondSpreadLane(
@@ -712,28 +673,6 @@ function diamondSpreadLane(
   axis: Axis,
 ): number | undefined {
   return diamondSpreadAssignment(edge, source, ctx, axis)?.sourceLane
-}
-
-function diamondSpreadTargetsShareRank(
-  edge: PositionedEdge,
-  source: PositionedNode,
-  ctx: LaneContext,
-  axis: Axis,
-): boolean {
-  if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
-    return false
-  }
-  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
-  const siblings = ctx.edges.filter(candidate => candidate.source === edge.source &&
-    candidate.edgeIndex !== undefined &&
-    ctx.classes?.[candidate.edgeIndex] === 'primary-forward' &&
-    nodeMap.has(candidate.target))
-  if (!diamondSpreadPortSet(axis, siblings.length)) return false
-  const targetMains = siblings.map(candidate => {
-    const target = nodeMap.get(candidate.target)!
-    return target[axis.main] + (axis.main === 'x' ? target.width : target.height) / 2
-  })
-  return Math.max(...targetMains) - Math.min(...targetMains) <= 1
 }
 
 interface DiamondSpreadTargetPortConstraint {
@@ -751,11 +690,11 @@ function diamondSpreadTargetPortConstraint(
   axis: Axis,
 ): DiamondSpreadTargetPortConstraint | null {
   const spread = diamondSpreadAssignment(edge, source, ctx, axis)
-  if (!spread || !diamondSpreadTargetsShareRank(edge, source, ctx, axis)) return null
+  if (!spread || !spread.targetsShareRank) return null
   const targetPort = facingSide(axis, -1)
   const targetLane = shapePorts(target)[targetPort][axis.cross]
   if (Math.abs(spread.sourceLane - targetLane) <= PORT_TOLERANCE) return null
-  return { ...spread, targetPort, targetLane }
+  return { sourcePort: spread.sourcePort, sourceLane: spread.sourceLane, targetPort, targetLane }
 }
 
 function satisfiesDiamondSpreadTargetPortConstraint(
@@ -828,10 +767,10 @@ function collectLaneBlockers(
   for (let nodeIndex = 0; nodeIndex < ctx.nodes.length; nodeIndex++) {
     const node = ctx.nodes[nodeIndex]!
     if (node.id === edge.source || node.id === edge.target) continue
-    const nMainLo = node[axis.main] - CLEARANCE
-    const nMainHi = node[axis.main] + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
-    const nCrossLo = node[axis.cross] - CLEARANCE
-    const nCrossHi = node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
+    const nMainLo = (axis.main === 'x' ? node.x : node.y) - CLEARANCE
+    const nMainHi = (axis.main === 'x' ? node.x : node.y) + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
+    const nCrossLo = (axis.cross === 'x' ? node.x : node.y) - CLEARANCE
+    const nCrossHi = (axis.cross === 'x' ? node.x : node.y) + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
     if (c > nCrossLo && c < nCrossHi && Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
       if (firstOnly) return true
       blockers!.push({ kind: 'node', id: node.id })
@@ -864,13 +803,13 @@ function collectLaneBlockers(
     // merge, where the final approaches draw as one line into one arrowhead.
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
-      if (Math.abs(a[axis.cross] - b[axis.cross]) > EPS) continue
-      if (Math.abs(a[axis.cross] - c) >= CLEARANCE) continue
-      const sLo = Math.min(a[axis.main], b[axis.main])
-      const sHi = Math.max(a[axis.main], b[axis.main])
+      if (Math.abs((axis.cross === 'x' ? a.x : a.y) - (axis.cross === 'x' ? b.x : b.y)) > EPS) continue
+      if (Math.abs((axis.cross === 'x' ? a.x : a.y) - c) >= CLEARANCE) continue
+      const sLo = Math.min((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
+      const sHi = Math.max((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
         if (other.target === edge.target && other.source !== edge.source &&
-          Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
+          Math.abs((axis.cross === 'x' ? a.x : a.y) - c) < EPS && i === other.points.length - 1) {
           continue
         }
         if (firstOnly) return true
@@ -1194,8 +1133,8 @@ function proveLane(
   const mainHi = Math.max(srcMain, tgtMain)
   const found = directLaneBlockers(edge, c, mainLo, mainHi, ctx, axis)
   if (found.length > 0) return { blockers: found }
-  const start: Point = axis.main === 'x' ? { x: srcMain, y: c } : { x: c, y: srcMain }
-  const end: Point = axis.main === 'x' ? { x: tgtMain, y: c } : { x: c, y: tgtMain }
+  const start: Point = axisPoint(axis, srcMain, c)
+  const end: Point = axisPoint(axis, tgtMain, c)
   // A repair may never increase edge crossings: a perpendicular crossing is
   // legal when the router chose it, but the straightener must not create
   // one that the original route avoided.
@@ -1606,14 +1545,10 @@ export function applyRouteContracts(
           // capacity check applies exactly once, where the pill will live.
           const longFirst = Math.abs(jog - srcMain) >= Math.abs(tgtMain - jog)
           if (hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)) continue
-          const hopAxis: Axis = axis.main === 'x'
-            ? { main: 'y', cross: 'x', sign: c1 < c2 ? 1 : -1 }
-            : { main: 'x', cross: 'y', sign: c1 < c2 ? 1 : -1 }
+          const hopAxis = perpendicularAxis(axis, c1, c2)
           if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
           if (hasDirectLaneBlocker(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
-          const pt = (main: number, cross: number): Point =>
-            axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
-          const route = [pt(srcMain, c1), pt(jog, c1), pt(jog, c2), pt(tgtMain, c2)]
+          const route = [axisPoint(axis, srcMain, c1), axisPoint(axis, jog, c1), axisPoint(axis, jog, c2), axisPoint(axis, tgtMain, c2)]
           const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
           const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
           priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
@@ -1749,11 +1684,6 @@ export function applyRouteContracts(
     }
     escCandidates.sort((a, b) => Math.abs(a - spCross) - Math.abs(b - spCross))
 
-    const pt = (main: number, cross: number): Point =>
-      axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
-    const perpAxis = (from: number, to: number): Axis => axis.main === 'x'
-      ? { main: 'y', cross: 'x', sign: from < to ? 1 : -1 }
-      : { main: 'x', cross: 'y', sign: from < to ? 1 : -1 }
 
     let fallback: { route: Point[]; labelMid: Point } | null = null
     for (const escCross of escCandidates) {
@@ -1761,20 +1691,20 @@ export function applyRouteContracts(
       // A: short riser off the source flow port, in the pre-obstacle gap.
       if (hasDirectLaneBlocker(unlabeled, spCross, Math.min(srcMain, gapMain), Math.max(srcMain, gapMain), ctx, axis)) continue
       // B: sidestep along the gap to the escape lane.
-      if (hasDirectLaneBlocker(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpAxis(spCross, escCross))) continue
+      if (hasDirectLaneBlocker(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpendicularAxis(axis, spCross, escCross))) continue
       // C: full riser along the escape lane, up to the hop.
       if (hasDirectLaneBlocker(unlabeled, escCross, Math.min(gapMain, hopMain), Math.max(gapMain, hopMain), ctx, axis)) continue
       // D: hop across to the target's flow-port lane.
-      if (hasDirectLaneBlocker(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpAxis(escCross, tpCross))) continue
+      if (hasDirectLaneBlocker(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpendicularAxis(axis, escCross, tpCross))) continue
       // E: drop into the target flow port.
       if (hasDirectLaneBlocker(unlabeled, tpCross, Math.min(hopMain, tgtMain), Math.max(hopMain, tgtMain), ctx, axis)) continue
       const route = simplifyPolyline([
-        pt(srcMain, spCross), pt(gapMain, spCross), pt(gapMain, escCross),
-        pt(hopMain, escCross), pt(hopMain, tpCross), pt(tgtMain, tpCross),
+        axisPoint(axis, srcMain, spCross), axisPoint(axis, gapMain, spCross), axisPoint(axis, gapMain, escCross),
+        axisPoint(axis, hopMain, escCross), axisPoint(axis, hopMain, tpCross), axisPoint(axis, tgtMain, tpCross),
       ])
       // The escape riser (segment C) is the longest lane and the only one that
       // reliably clears the obstacle band — seat the label there.
-      const labelLane: [Point, Point] = [pt(gapMain, escCross), pt(hopMain, escCross)]
+      const labelLane: [Point, Point] = [axisPoint(axis, gapMain, escCross), axisPoint(axis, hopMain, escCross)]
       if (edge.label) {
         const slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
         if (slot) { edge.labelPosition = slot; edge.points = route; return true }
@@ -1847,13 +1777,9 @@ export function applyRouteContracts(
     // (own-label capacity applies exactly once, where the pill lives).
     const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
     if (hasDirectLaneBlocker(edge, lane, Math.min(srcMain, portMain), Math.max(srcMain, portMain), ctx, axis)) return false
-    const stubAxis: Axis = axis.main === 'x'
-      ? { main: 'y', cross: 'x', sign: lane < entryCross ? 1 : -1 }
-      : { main: 'x', cross: 'y', sign: lane < entryCross ? 1 : -1 }
+    const stubAxis = perpendicularAxis(axis, lane, entryCross)
     if (hasDirectLaneBlocker(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis)) return false
-    const pt = (main: number, cross: number): Point =>
-      axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
-    const route = [pt(srcMain, lane), pt(portMain, lane), pt(portMain, entryCross)]
+    const route = [axisPoint(axis, srcMain, lane), axisPoint(axis, portMain, lane), axisPoint(axis, portMain, entryCross)]
     if (!routeThroughNodeBBox(edge, ctx) &&
       countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
     if (edge.label) {
@@ -1915,7 +1841,7 @@ export function applyRouteContracts(
         Math.min(fromCross, extreme), Math.max(fromCross, extreme), ctx, hopAxis).length === 0
     }
     const buildRoute = (mainCoord: number, fromCross: number, startOnBoundary: Point): Point[] => {
-      const hopPoint: Point = graphAxis.main === 'x' ? { x: mainCoord, y: extreme } : { x: extreme, y: mainCoord }
+      const hopPoint: Point = axisPoint(graphAxis, mainCoord, extreme)
       return Math.abs(fromCross - extreme) < EPS
         ? [hopPoint, ...points.slice(runStart + 1)]
         : [startOnBoundary, hopPoint, ...points.slice(runStart + 1)]
@@ -1950,7 +1876,7 @@ export function applyRouteContracts(
       if (attachment.kind === 'dynamic' && span && extreme >= span.lo - EPS && extreme <= span.hi + EPS) {
         const anchorM = anchorMain(source, extreme, graphAxis, facingRun)
         if (anchorM !== null && inRunRange(anchorM) && hopClear(anchorM, extreme)) {
-          const boundary: Point = graphAxis.main === 'x' ? { x: anchorM, y: extreme } : { x: extreme, y: anchorM }
+          const boundary: Point = axisPoint(graphAxis, anchorM, extreme)
           tightened = buildRoute(anchorM, extreme, boundary)
         }
       }
@@ -1988,7 +1914,7 @@ export function applyRouteContracts(
           ? portMain > mainOf(runA) + EPS && portMain <= mainOf(runB) + EPS
           : portMain < mainOf(runA) - EPS && portMain >= mainOf(runB) - EPS
         if (within && hopClear(portMain, portCross)) {
-          const runEndAtPort: Point = graphAxis.main === 'x' ? { x: portMain, y: extreme } : { x: extreme, y: portMain }
+          const runEndAtPort: Point = axisPoint(graphAxis, portMain, extreme)
           tightened = [...base.slice(0, rs + 1), runEndAtPort, port]
           tailApplied = true
         }
@@ -2690,6 +2616,25 @@ function sharedTrunkConflict(
   return null
 }
 
+/** Label repairs share the same stable longest-segment and center-out order. */
+function orderedLabelSegments(edge: PositionedEdge): Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> {
+  const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
+  for (let i = 1; i < edge.points.length; i++) {
+    const a = edge.points[i - 1]!, b = edge.points[i]!
+    const vertical = Math.abs(a.x - b.x) < EPS
+    if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
+  }
+  segs.sort((p, q) => q.len - p.len || p.i - q.i)
+  return segs
+}
+
+function centerOutLabelSamples(tMargin: number): number[] {
+  const ts: number[] = []
+  const N = 11
+  for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
+  return ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+}
+
 /**
  * Post-freeze label repair for ROUTE_LABEL_ON_SHARED_TRUNK. A labeled edge whose
  * pill sits on a trunk shared with another edge is illegible — the reader cannot
@@ -2724,13 +2669,7 @@ export function repairLabelsOnSharedTrunks(
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
 
-    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
-    for (let i = 1; i < edge.points.length; i++) {
-      const a = edge.points[i - 1]!, b = edge.points[i]!
-      const vertical = Math.abs(a.x - b.x) < EPS
-      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
-    }
-    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+    const segs = orderedLabelSegments(edge)
 
     const saved = edge.labelPosition
     let fixed = false
@@ -2811,13 +2750,7 @@ export function repairLabelsOffOwnRoute(
       !pillOverNode(pillRect(x, y, m), edge) &&
       !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
 
-    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
-    for (let i = 1; i < edge.points.length; i++) {
-      const a = edge.points[i - 1]!, b = edge.points[i]!
-      const vertical = Math.abs(a.x - b.x) < EPS
-      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
-    }
-    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+    const segs = orderedLabelSegments(edge)
 
     // (1) Prefer a slot ON the route: sample each segment center-out (midpoint
     // reads best) and take the first clear one.
@@ -2827,10 +2760,7 @@ export function repairLabelsOffOwnRoute(
       const half = (seg.vertical ? ph : pw) / 2
       if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
       const tMargin = half / seg.len
-      const N = 11
-      const ts: number[] = []
-      for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
-      ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+      const ts = centerOutLabelSamples(tMargin)
       for (const t of ts) {
         const cx = seg.a.x + (seg.b.x - seg.a.x) * t
         const cy = seg.a.y + (seg.b.y - seg.a.y) * t
@@ -2944,13 +2874,7 @@ export function separateEdgeLabelPills(
       }
       return true
     }
-    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
-    for (let i = 1; i < edge.points.length; i++) {
-      const a = edge.points[i - 1]!, b = edge.points[i]!
-      const vertical = Math.abs(a.x - b.x) < EPS
-      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
-    }
-    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+    const segs = orderedLabelSegments(edge)
     // Offset ladder: on-route first, then perpendicular offsets up to the
     // rubric's labelOffRoute allowance (ph/2 + 4, the same formula
     // repairLabelsOffOwnRoute enforces) — a labeled reciprocal pair whose
@@ -2964,10 +2888,7 @@ export function separateEdgeLabelPills(
         if (!overhang && seg.len <= 2 * half) continue
         const nx = seg.vertical ? 1 : 0, ny = seg.vertical ? 0 : 1 // unit perpendicular
         const tMargin = overhang ? 0 : half / seg.len
-        const ts: number[] = []
-        const N = 11
-        for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
-        ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+        const ts = centerOutLabelSamples(tMargin)
         for (const t of ts) {
           const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
           const cy = seg.a.y + (seg.b.y - seg.a.y) * t + ny * d
