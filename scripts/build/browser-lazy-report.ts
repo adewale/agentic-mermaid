@@ -136,6 +136,21 @@ const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 
+// A family can still demand ELK after its initial static download. Preserve
+// that transfer in the existing ceilings, deriving consumers from the emitted
+// constructor seam rather than maintaining a second family roster. The older
+// non-lazy constructor also identifies consumers when measuring a baseline.
+const elkConstructorOutputs = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => /^src\/elk-constructor(?:\.lazy)?\.ts$/.test(input)))
+if (elkConstructorOutputs.length === 0) throw new Error('ELK implementation has no emitted constructor seam')
+const elkFamilies = MEASURED_FAMILY_IDS.filter(id =>
+  elkConstructorOutputs.some(path => familyFiles[id].includes(path)))
+const elkFiles = staticClosure([elkOutput])
+const budgetedFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
+  id,
+  staticClosure([...familyFiles[id], ...(elkFamilies.includes(id) ? elkFiles : [])]),
+])) as Record<BrowserBuiltinFamilyId, string[]>
+
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (!MEASURE_ONLY) {
   // The complete HTML5 named-reference table (~23 KB gzip) is fetched on
@@ -178,13 +193,19 @@ const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
   familyClosure: 'static imports only; on-demand ELK and HTML entity downloads are additional when a diagram requires them',
+  budgetedFamilyClosure: 'static imports plus the complete ELK transfer for families that can demand its constructor',
   elkChunk: elkOutput,
-  elkTransfer: fileSize(elkOutput),
+  elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
   families: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
     requests: familyFiles[id].length,
     elk: familyFiles[id].includes(elkOutput),
     ...transferSize(familyFiles[id]),
+  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
+  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
+    requests: budgetedFamilyFiles[id].length,
+    elk: elkFamilies.includes(id),
+    ...transferSize(budgetedFamilyFiles[id]),
   }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
 }
 
@@ -201,13 +222,13 @@ function checkBudget(label: string, actual: TransferSize & { requests: number },
 }
 if (!MEASURE_ONLY) {
   checkBudget('initial', report.initial, budgets.initial)
-  for (const id of BROWSER_BUILTIN_FAMILY_IDS) checkBudget(id, report.families[id], budgets.families[id])
+  for (const id of BROWSER_BUILTIN_FAMILY_IDS) checkBudget(id, report.budgetedFamilies[id], budgets.families[id])
 }
 if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\n${problems.join('\n')}`)
 
 if (process.argv.includes('--json')) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
 else {
   process.stdout.write(`browser lazy build verified: ${report.initial.gzip} B initial gzip; `
-    + `${observedElkFamilies.length} families share one ELK chunk; `
-    + `${BROWSER_BUILTIN_FAMILY_IDS.length - observedElkFamilies.length} non-ELK graphs exclude it\n`)
+    + `${elkFamilies.length} families budget the shared on-demand ELK transfer; `
+    + `${MEASURED_FAMILY_IDS.length - elkFamilies.length} family graphs exclude it\n`)
 }
