@@ -28,7 +28,7 @@ export type ExecutionTraceCall =
 type TraceMutationBody = Extract<ExecutionTraceCall, { verb: 'mutate' }>['body']
 type TraceNarrowFamily = Extract<ExecutionTraceCall, { verb: 'narrow' }>['family']
 
-export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (message: string) => Error, isClosed?: () => boolean, hostPolicy?: CodeModeHostPolicy, beforeSdkCall?: () => string | undefined): typeof mermaid {
+export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxError?: (message: string) => Error, isClosed?: () => boolean, hostPolicy?: CodeModeHostPolicy, beforeSdkCall?: () => string | undefined, onTraceCall?: (call: ExecutionTraceCall) => void): typeof mermaid {
   const diagramIds = new WeakMap<object, number>()
   const trusted = new WeakSet<object>()
   const hardened = new WeakMap<object, unknown>()
@@ -344,6 +344,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
   }
   const push = (call: ExecutionTraceCall) => {
     trace?.push(call)
+    onTraceCall?.(call)
   }
   const sdkTarget = {
     parseRegisteredMermaid: mermaid.parseRegisteredMermaid,
@@ -706,10 +707,18 @@ function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
 /** Preserve statement semantics and capture the final meaningful top-level expression. */
 export function codeModeStatementBody(code: string): string {
   try {
-    const ast = parseJavaScript(code, { ecmaVersion: 'latest', sourceType: 'script', allowReturnOutsideFunction: true })
-    const last = ast.body.findLast(statement => statement.type !== 'EmptyStatement')
+    // Parse in the function context we execute: new.target and return are
+    // legal here, while strict-mode syntax restrictions apply in both hosts.
+    const prefix = 'function __agent_code__(){"use strict";\n'
+    const ast = parseJavaScript(`${prefix}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script' })
+    const fn = ast.body[0]
+    if (fn?.type !== 'FunctionDeclaration') return code
+    const last = fn.body.body.findLast(statement => statement.type !== 'EmptyStatement')
     if (last?.type === 'ExpressionStatement') {
-      return `${code.slice(0, last.start)}return (\n${code.slice(last.expression.start, last.expression.end)}\n);${code.slice(last.end)}`
+      const offset = prefix.length
+      // The injected directive belongs to the wrapper, never to user output.
+      if (last.start < offset) return code
+      return `${code.slice(0, last.start - offset)}return (\n${code.slice(last.expression.start - offset, last.expression.end - offset)}\n);${code.slice(last.end - offset)}`
     }
   } catch {
     // The execution boundary owns syntax errors; do not repair invalid code.
@@ -728,14 +737,14 @@ export function codeModeStatementBody(code: string): string {
 export function expressionFirstWraps(code: string): string[] {
   const t = code.trim()
   const stripped = t.replace(/;\s*$/, '') // drop a single trailing semicolon
-  const expressionWrapped = `(() => { return (\n${stripped}\n) })()`
-  const statementWrapped = `(() => {\n${codeModeStatementBody(code)}\n})()`
+  const expressionWrapped = `(function (mermaid, console) { "use strict"; return (\n${stripped}\n) })(mermaid, console)`
+  const statementWrapped = `(function (mermaid, console) { "use strict";\n${codeModeStatementBody(code)}\n})(mermaid, console)`
   // Expression form handles bare expressions including objects/arrows/templates.
   // Pick it only if host parsing succeeds; never retry based on sandbox-thrown
   // values, because their getters/proxy traps are attacker-controlled.
   try {
     // eslint-disable-next-line no-new-func
-    new Function(`return (\n${stripped}\n)`)
+    new Function(`"use strict"; return (\n${stripped}\n)`)
     return [expressionWrapped]
   } catch {
     return [statementWrapped]
@@ -744,7 +753,7 @@ export function expressionFirstWraps(code: string): string[] {
 
 export function unsupportedCodeReason(code: string): string | undefined {
   const ast = parseCodeModeAst(code)
-  if (!ast) return undefined // Let the selected runtime return the syntax error.
+  if (!ast) return 'Code Mode syntax must be a strict JavaScript expression or function body'
   let usesAsync = false
   let usesRealm = false
   walkJavaScriptAst(ast, (node, parent, parentKey) => {
@@ -778,11 +787,11 @@ const REALM_UNSUPPORTED_IDENTIFIERS = new Set(['Atomics', 'SharedArrayBuffer', '
 function parseCodeModeAst(code: string): AcornNode | undefined {
   const stripped = code.trim().replace(/;\s*$/, '')
   const candidates = [
-    `(${stripped})`,
-    `function __agent_code__(){\n${code}\n}`,
+    `function __agent_code__(){"use strict"; return (\n${stripped}\n)}`,
+    `function __agent_code__(){"use strict";\n${code}\n}`,
     // Parse otherwise-invalid top-level await so it is rejected before an
     // isolate/CPU budget is allocated and telemetry remains truthful.
-    `async function __agent_code__(){\n${code}\n}`,
+    `async function __agent_code__(){"use strict";\n${code}\n}`,
   ]
   for (const candidate of candidates) {
     try {

@@ -154,13 +154,31 @@ doc-bearing surface fixes it. At equal outcome the homepage/start.md surface was
 the cheapest doc-bearing surface. Single-model harness, n=3: direction, not magnitudes.
 
 Known blind spots of this stored Code Mode case set: it measures task success
-and response shape on fully specified tasks, but still does not measure
+and response shape on fully specified tasks, but its historical captures do not measure
 discovery cost (turns/tokens spent before the first productive call). The
 companion `skill-evals/shared-benchmark.json` now carries adversarial
 underspecified-task and repository-grounded MCP scope cases, so those axes can
 be measured in multi-turn coding-agent runs rather than forced into this
 single-response JavaScript harness. A variant comparison cannot support a
 discovery-cost claim until its runner records that pre-productive-call metric.
+
+The API-backed `live.ts` runner now records provider-reported input/output token
+counts, generation/execution elapsed time, and the timestamp of the first
+successful parse/create observed in sandbox execution. Missing usage or the
+absence of a successful diagram call produces an unavailable observation, never
+zero cost. This is a one-response generation followed by execution: its turn
+count is one, and it does not measure an autonomous agent's discovery/retry loop.
+
+Run `bun run eval:agent-live -- --compare-skill --provider anthropic --model <model>
+--out-dir /tmp/agent-skill-comparison` for paired no-skill/skill requests over the
+same tasks and model. Request order alternates between pairs; task correctness
+comes from the existing independent task oracle, while trace discipline and
+cost remain separate measurements in each captured transcript. The common
+system prompt supplies the Code Mode contract and SDK in both conditions; this
+comparison measures the additional workflow skill, not completely unaided use.
+`comparison.json` retains each result and its measurements. One sample does not
+establish a statistically reliable improvement. Model credentials and an
+explicit model are required; stored-script replay is not live evidence.
 
 Run deterministic layers: `bun run eval/agent-usage/harness.ts`
 Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`

@@ -577,6 +577,15 @@ Local `agentic-mermaid-mcp` supports declarative editing and custom Code Mode:
 <!-- complete: local-mcp-tools -->
 - `mutate({ source, ops })` and `build({ family, ops })` — atomic JSON edits, verified before source is emitted.
 - `execute(code)` — custom synchronous logic with global `mermaid.*` SDK.
+
+Local and hosted Code Mode execute a strict JavaScript function body with
+`mermaid` and `console` parameters. Bare expressions return their value; a
+statement body captures its final top-level expression, ignoring trailing empty
+statements and comments. An explicit `return` follows normal JavaScript rules.
+At the outer body, `this` and `new.target` are undefined; undeclared variable
+writes fail. Async work, dynamic imports, blocking/realm-creating globals and
+runtime code generation are unsupported. Host timeouts and hosted strict render
+security remain environment-specific.
 - `describe_sdk({ family, detail })` — version-matched compact signatures or exact mutation fields for one family.
 - `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`; accepts portable `scale`/`background`/`fitTo`/`minLabelPx`, plus local-only `fontDirs`/`loadSystemFonts`, and returns configuration, glyph-coverage, and raster-legibility warnings with every output mode.
 - `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
