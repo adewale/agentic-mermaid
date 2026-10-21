@@ -3,8 +3,6 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import { BROWSER_CONTRACT_FILES } from '../../e2e/browser-contract-files.ts'
-import { QUALITY_CHECKS } from '../../scripts/ci/quality-gates.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 ensureWebsiteBuilt()

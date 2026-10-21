@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { denseDag } from '../../eval/degenerate-etn/generators.ts'
+import { denseDag, diamondFan } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
@@ -117,6 +117,16 @@ const fixtures: Fixture[] = [
     source: 'pie showData\n"Actual": 0.0001\n"Forecast": 0.0002',
     cue: 'Inspect the values in legend brackets: the baseline prints zero for both nonzero entries. Slice ratios stay one to two. Source/value roundtrip and numeric-boundary tests check the corresponding data contract.',
   },
+  ...[1000].map(seed => ({
+    id: `feasible-dense-dag-${seed}`, title: `Keep feasible dense DAG geometry: ${seed}`,
+    source: denseDag(seed), captureLayout: true as const,
+    cue: 'Before: preserve the real port-rate contract refusal. After: inspect all original nodes and directed connections. The losing straightening proposal keeps the existing feasible route; the owning public-render regression checks hard geometry and certificates.',
+  })),
+  ...[111, 431].map(seed => ({
+    id: `feasible-diamond-fan-${seed}`, title: `Keep feasible diamond fan geometry: ${seed}`,
+    source: diamondFan(seed), captureLayout: true as const,
+    cue: 'Before: preserve the real symmetry contract refusal. After: inspect all nodes, labels and arrows. A losing cosmetic centering proposal restores its owned geometry; independent contract tests reject incomplete restoration. This witness does not establish arbitrary layout readability.',
+  })),
   ...['Z', 'AC', 'AL'].map((letter): Fixture => ({
     id: `performance-${letter.toLowerCase()}`,
     title: `Default forest: ${letter} geometry golden`,

@@ -8,7 +8,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   TimelineBody, TimelineSection, TimelinePeriod, TimelineEvent,
-  TimelineMutationOp, MutationError, Result, Accessibility,
+  TimelineMutationOp, MutationError, Result, Accessibility, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import {
@@ -18,10 +18,11 @@ import {
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
   normalizeTimelineBreaks,
+  parseTimelineHeader,
   splitTimelineEvents,
 } from '../timeline/parse-core.ts'
 import { indexedIdAllocator, resolveInsertIndex, setOptionalField } from './body-utils.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -102,7 +103,7 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
       if (!validTimelineText(label, { allowColon: true })) return null
       currentSection = { id: `section-${sIdx++}`, label, periods: [] }
       body.sections.push(currentSection)
-      currentPeriod = undefined
+      // A continuation after it still extends the latest period (native parser).
       continue
     }
 
@@ -150,6 +151,36 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
   }
 
   return body
+}
+
+// ---- Verifier ---------------------------------------------------------------
+
+/** Timeline lines ours reads where pinned Mermaid's lexer reads a keyword,
+ * each on its canonical line. Mermaid reads the word `timeline` starting a
+ * line as the header, and rejects it there; ours reads a period. */
+export function timelineUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => parseTimelineHeader(line) !== null)
+  if (header < 0) return []
+  const warnings: LayoutWarning[] = []
+  for (let index = header + 1; index < lines.length; index++) {
+    let line = lines[index]!.trim()
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive) {
+      index = directive.endIndex
+      if (!directive.suffixLine) continue
+      line = directive.suffixLine.trim()
+    }
+    if (isTimelineCommentLine(line) || TIMELINE_TITLE_RE.test(line)) continue
+    const period = line.match(TIMELINE_PERIOD_RE)
+    const label = period ? period[1]!.trim() : line.includes(':') ? undefined : line
+    if (label !== undefined && /^timeline\b/i.test(line)) warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_header_in_body', line: index + 1,
+      message: `Pinned Mermaid reads "timeline" starting a line as the diagram header, and rejects it after the header. Ours reads this line as the period ${JSON.stringify(label)}; remove a repeated header, or start the period with another word.`,
+    })
+  }
+  return warnings
 }
 
 // ---- Serializer -------------------------------------------------------------

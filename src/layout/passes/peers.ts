@@ -135,6 +135,7 @@ export function centerPeerBarycenters(
   groups: PositionedGroup[],
   graph: MermaidGraph,
   style: LabelMetricsStyle,
+  beforeMove?: () => void,
 ): void {
   const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -246,6 +247,7 @@ export function centerPeerBarycenters(
         const hubDelta = inBary - nodeCrossCenter(hub, graph.direction)
         if (crossShiftSafe(outIds, nodes, edges, graph.direction, outDelta, style)
           && crossShiftSafe(hubIds, nodes, edges, graph.direction, hubDelta, style)) {
+          beforeMove?.()
           shiftNodeSetCross(outIds, nodes, edges, graph.direction, outDelta)
           if (Math.abs(hubDelta) > 0.5) shiftNodeSetCross(hubIds, nodes, edges, graph.direction, hubDelta)
           layoutDebug('[peer-barycenter] trunk-shift', hub.id, 'outs by', outDelta.toFixed(1))
@@ -270,6 +272,7 @@ export function centerPeerBarycenters(
       const movedIds = new Set([hub.id])
       if (!crossShiftSafe(movedIds, nodes, edges, graph.direction, delta, style)) return
       layoutDebug('[peer-barycenter] center', hub.id, 'by', delta.toFixed(1), anchored.length === 2 ? '(mixed)' : '')
+      beforeMove?.()
       shiftNodeSetCross(movedIds, nodes, edges, graph.direction, delta)
       moved = true
     }

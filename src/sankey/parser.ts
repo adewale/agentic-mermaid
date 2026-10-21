@@ -41,8 +41,8 @@ export interface SankeyParseOptions {
  * Throws on malformed input:
  *   - a header that isn't `sankey` / `sankey-beta`
  *   - a row without exactly three columns
- *   - an unterminated quoted field, or text between a closing quote and the
- *     next comma
+ *   - an unterminated quoted field, text between a closing quote and the
+ *     next comma, or a quote inside an unquoted field
  *   - a value that is not a non-negative number
  *   - a self-loop (`A,A,1`) or a cycle — the layered layout requires a DAG,
  *     which upstream enforces with d3-sankey's "circular link" throw
@@ -145,7 +145,9 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
  * Split one logical CSV record into fields (RFC 4180 subset). Every field is
  * trimmed before identity assignment, and `""` inside a quoted field decodes
  * to a literal quote. Whitespace may surround a quoted field, but any other
- * text between the closing quote and the next comma errors loudly.
+ * text between the closing quote and the next comma errors loudly, as does a
+ * quote inside an unquoted field: whether it was meant literally or to open a
+ * quoted field is unclear, and Mermaid rejects both.
  */
 function parseCsvRow(line: string, lineNumber: number): string[] {
   const fields: string[] = []
@@ -187,7 +189,11 @@ function parseCsvRow(line: string, lineNumber: number): string[] {
     } else {
       let comma = line.indexOf(',', start)
       if (comma === -1) comma = line.length
-      fields.push(line.slice(index, comma).trim())
+      const field = line.slice(index, comma).trim()
+      if (field.includes('"')) {
+        throw new Error(`Sankey row ${lineNumber} has a quote inside the unquoted field "${field}": "${line.trim()}". ` + 'Quote the whole field and double each quote inside it ("").')
+      }
+      fields.push(field)
       index = comma
     }
     if (index >= line.length) break

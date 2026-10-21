@@ -8,7 +8,7 @@
 // ============================================================================
 
 import { MermaidFrontmatterError, normalizeMermaidSource } from '../mermaid-source.ts'
-import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { stripStateComment } from '../state/comment.ts'
 import { stripMindmapComment } from '../mindmap/parser.ts'
 import { classCommentStart, readClassStatements, type ClassStatementNode } from '../class/parser.ts'
@@ -390,7 +390,11 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
   if (!authoredSource.includes('%%') || diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
 
   const commentsIn = (source: string, normalized: Pick<ValidDiagramMeta, 'comments' | 'wrapperSource'>): SourceComment[] => {
-    const lines = source.split(/\r?\n/).map(line => line.trim())
+    // Directives configure the diagram; they are not comment casualties. Mask
+    // their bytes while retaining physical lines for the owning grammar.
+    const blank = (directive: string): string => directive.replace(/[^\r\n]/g, ' ')
+    const withoutDirectives = source.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), blank).replace(MERMAID_DIRECTIVE_REGEX, blank)
+    const lines = withoutDirectives.split(/\r?\n/).map(line => line.trim())
     const comments = [...normalized.comments]
     const knownLines = new Set(comments.map(comment => comment.line))
     // These grammars either expose every real comment in envelope metadata,
@@ -401,7 +405,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
       const normalized = normalizeMermaidSource(source)
       const start = normalized.wrapperSource?.length ?? 0
       const prefixLines = (source.slice(0, start).match(/\n/g) ?? []).length
-      const text = source.slice(start)
+      const text = withoutDirectives.slice(start)
       let cursor = 0, line = prefixLines + 1
       tokenize(text, (begin, end) => {
         for (; cursor < begin; cursor++) if (text.charCodeAt(cursor) === 10) line++
@@ -413,7 +417,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
       const envelope = normalizeMermaidSource(source)
       const start = envelope.wrapperSource?.length ?? 0
       const prefixLines = (source.slice(0, start).match(/\n/g) ?? []).length
-      parseKanbanDiagram(source.slice(start), {}, undefined, (text, row) => {
+      parseKanbanDiagram(withoutDirectives.slice(start), {}, undefined, (text, row) => {
         const line = prefixLines + row
         if (!knownLines.has(line)) { comments.push({ line, text }); knownLines.add(line) }
       })

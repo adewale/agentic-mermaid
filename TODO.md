@@ -248,12 +248,19 @@ queues. Retired IDs are not reused.
   than per-label text. The bench's self-harvested `labelsContain` admission
   hints still need independent replacement; do not treat them as the oracle.
 - [ ] **TEST-9 — Finish display-oriented grammar differentials** (`todo`).
-  Flowchart properties already cover additional entity codes, literal `\n`,
-  styles and nested membership; Sequence now generates boxes, properties,
-  activation, metadata, aliases and punctuation. The reference worker already
-  observes Class, ER and State DBs. Remaining work is broader Markdown and
-  `@{}` combinations plus browser-displayed text for families where DB text
-  differs from display. Source admission differences alone are not bugs.
+  The seeded grammar comparison mutates with fixed lexer-boundary fragments
+  (`eval/mermaid-modern-compat/grammar-fragments.ts`: entity codes, directives,
+  keyword and digit-led names, `@`, `||`, `:::`, Unicode blanks), reports silent
+  reads per family with reduced examples, and a nightly rolling-seed lane
+  records them in one issue. Flowchart properties cover additional entity
+  codes, literal `\n`, styles and nested membership; Sequence generates boxes,
+  properties, activation, metadata, aliases and punctuation. The reference
+  worker observes Class, ER and State DBs. Remaining work is broader Markdown
+  and `@{}` combinations plus browser-displayed text for families where DB
+  text differs from display. Source admission differences alone are not bugs.
+  Triage finder reports by real-world use before adding code (see the
+  likelihood paragraph in `docs/project/divergences.md`): most mutated
+  spellings occur in no real diagram.
 
 - [ ] **TEST-12 — Sweep for Bun's asymmetric-matcher write-back** (`todo`). In
   Bun 1.4.2, `toMatchObject`/`toEqual` with `expect.any`, `arrayContaining` or

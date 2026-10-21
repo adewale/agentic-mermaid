@@ -681,7 +681,7 @@ export function documentOpen(fields: {
 /** Lower bounded, source-owned icon paths without recovering geometry from SVG.
  * Each path carries the paint; the group's open tag carries hooks and the
  * transform only. */
-export function pathArtwork(fields: {
+export type PathArtworkFields = {
   id: string
   paths: readonly string[]
   open: string
@@ -691,8 +691,18 @@ export function pathArtwork(fields: {
   channels?: SemanticChannels
   join?: string
   indent?: number
-}): GroupMark {
-  return group({
+}
+
+export function pathArtwork(fields: PathArtworkFields): GroupMark {
+  return drawPathArtwork({ shape, group }, fields)
+}
+
+/** Share icon lowering with the immediate native writer. */
+export function drawPathArtwork<T, G>(factory: {
+  shape(fields: Parameters<typeof shape>[0]): T
+  group(fields: Omit<Parameters<typeof group>[0], 'children'> & { children: Array<{ node: T; indent: number }> }): G
+}, fields: PathArtworkFields): G {
+  return factory.group({
     id: fields.id, role: 'icon', open: fields.open, close: '</g>',
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(fields.owner ? { owner: fields.owner } : {}),
@@ -700,7 +710,7 @@ export function pathArtwork(fields: {
     join: fields.join ?? '',
     children: fields.paths.map((path, index) => ({
       indent: fields.indent ?? 0,
-      node: shape({ id: semanticChildId(fields.id, 'path', index), role: 'icon',
+      node: factory.shape({ id: semanticChildId(fields.id, 'path', index), role: 'icon',
         geometry: { kind: 'path', d: path }, paint: fields.paint,
         ...(fields.owner ? { owner: fields.owner } : {}),
       }),

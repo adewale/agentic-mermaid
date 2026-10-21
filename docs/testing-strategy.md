@@ -48,9 +48,12 @@ gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
 gaps and the Section B sheet, which is regenerated in memory and
-byte-compared). Committed text/JSON generated
-from source is refreshed with `bun run generate`, and its unit test fails when
-it is stale. There are no input-hash receipts.
+byte-compared). Generated runtime modules are the narrow committed exception
+when production code imports them. Other derived discovery views are generated
+at delivery: `am llms-txt` and the website use current registries, while the
+repository's authored `llms.txt` points readers to those sources. A second
+committed capability roster and its snapshot-freshness test are unnecessary.
+There are no input-hash receipts.
 
 ## The central problem: this is a partly non-testable program
 
@@ -97,8 +100,9 @@ advisory, while measured `CONTENT_OCCLUDED` and an explicit error policy fail ve
 Alongside it sit the **contract gates**: `am capabilities --json` schema
 tests, the `agent-doc-sync` tests, and the behavioural
 diagram-family citizenship loop. For an agent-native product the docs, schemas, CLI
-help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
-like code, not treated as prose.
+help, and live generated discovery *are* runtime surfaces (Loop 14), so their
+behavior is tested like code. The repository `llms.txt` is an authored pointer
+to those live surfaces.
 
 Citizenship requires a small smoke input and a domain-rich scenario for every
 registered built-in family. Required witnesses in the existing closed
@@ -240,7 +244,12 @@ sources we did not write:
   authored strings are not globally rewritten. None of these selected scopes
   proves full semantic fidelity. The default is 5,000
   seeded mutations per family; CI uses 100 per family on PRs/main and the full
-  default weekly and on manual dispatch. Per-input JSONL and detailed counterexamples are
+  default weekly and on manual dispatch, all at seed 7. Mutations draw on the
+  corpus's own token images and on fixed lexer-boundary fragments
+  (`grammar-fragments.ts`). Each run counts **silent reads** per family (pinned
+  Mermaid rejects, ours reads, verify names no problem) and lists them reduced;
+  the nightly finder runs the native families at a fresh seed and files new
+  ones in one issue. Per-input JSONL and detailed counterexamples are
   ignored build artifacts. This measures native admission and reference grammar
   round trips as well as the scoped native semantics/operations. Agentic has
   no homologous Mermaid token/`yy` interface, so exact protocol equality
@@ -387,6 +396,11 @@ Architecture routing counterexample (`AM_FC_SEED=1102132276` in
 `architecture-layout.test.ts`) that the pinned seed never reached. It is not
 fixed yet: the shrunk case is an `examples` entry inside an `it.failing` pin
 that names BUG-37 in `TODO.md`.
+
+The workflow's second job does the same for the Mermaid grammar comparison,
+which keeps seed 7 in the PR gate: it runs the native families at a fresh seed
+and lists each new silent read, reduced, with its seed in one issue
+(`scripts/ci/grammar-finder-report.ts`).
 
 Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with

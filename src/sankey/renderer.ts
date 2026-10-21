@@ -1,8 +1,8 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
-import type { LinearGradientDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
+import type { LinearGradientDescriptor } from '../scene/ir.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { ensureCompositedBgContrast } from '../shared/categorical-palette.ts'
 import { relativeLuminance } from '../shared/color-math.ts'
@@ -51,14 +51,14 @@ export function renderSankeySvg(ctx: RenderContext<PositionedSankeyChart>): stri
  * Lower a positioned sankey diagram to the SceneGraph IR in canonical mark
  * order: prelude, gradient defs, links (underneath), nodes, labels, title.
  */
-export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): SceneDoc {
+export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedSankeyChart>): DrawingDocument<T> {
   const { positioned: chart, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const style = resolveRenderStyle(options, SANKEY_STYLE_DEFAULTS, resolved.styleFace)
   const visual = chart.visual
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const linkBlendMode = sankeyLinkBlendMode(colors.bg)
 
   // One palette for node fills, ribbon paints, and the ASCII renderer (shared
@@ -313,3 +313,5 @@ function resolveLinkStroke(visual: SankeyVisualConfig, bg: string | undefined, s
 function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
+
+export const lowerSankeyScene = sceneLowering<PositionedSankeyChart>(lowerSankeyDrawing)

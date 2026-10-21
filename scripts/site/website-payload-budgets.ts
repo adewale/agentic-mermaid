@@ -49,9 +49,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   demo: Object.freeze({
     maxRequests: 36,
     // Optional sketch code stays out of the default Timeline delivery graph.
-    // Measured on macOS/Bun 1.4.2: 782,507 raw / 300,460 gzip / 273,934 Brotli.
-    maxRawBytes: 785_000,
-    maxGzipBytes: 302_000,
+    // Includes the shared native drawing writer, bounded admission and flat paint evidence.
+    maxRawBytes: 787_000,
+    maxGzipBytes: 302_100,
     // Shared cleanup provenance adds about 2.5 KB gzip; the per-PR delta
     // remains below 2%. Retain the same request graph and growth gate.
     maxBrotliBytes: 276_000,

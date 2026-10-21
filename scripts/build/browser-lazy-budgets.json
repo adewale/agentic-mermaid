@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "elkFamilies": ["flowchart", "state", "class", "er", "architecture", "requirement"],
   "initial": {
     "requests": 6,
     "raw": 138000,
@@ -11,14 +10,14 @@
     "flowchart": {
       "requests": 36,
       "raw": 2304000,
-      "gzip": 709000,
-      "brotli": 574000
+      "gzip": 712000,
+      "brotli": 577000
     },
     "state": {
       "requests": 35,
       "raw": 2302000,
-      "gzip": 709000,
-      "brotli": 574000
+      "gzip": 712000,
+      "brotli": 577000
     },
     "sequence": {
       "requests": 34,
@@ -35,14 +34,14 @@
     "class": {
       "requests": 37,
       "raw": 2316000,
-      "gzip": 711000,
-      "brotli": 576000
+      "gzip": 713000,
+      "brotli": 577000
     },
     "er": {
       "requests": 40,
       "raw": 2311000,
-      "gzip": 716000,
-      "brotli": 581000
+      "gzip": 718000,
+      "brotli": 582000
     },
     "journey": {
       "requests": 33,
@@ -54,13 +53,13 @@
       "requests": 35,
       "raw": 2318000,
       "gzip": 709000,
-      "brotli": 572000
+      "brotli": 573000
     },
     "xychart": {
       "requests": 33,
       "raw": 654000,
       "gzip": 210000,
-      "brotli": 185000
+      "brotli": 186000
     },
     "pie": {
       "requests": 35,
@@ -112,15 +111,15 @@
     },
     "packet": {
       "requests": 32,
-      "raw": 585000,
-      "gzip": 191000,
-      "brotli": 169000
+      "raw": 586000,
+      "gzip": 192000,
+      "brotli": 170000
     },
     "kanban": {
       "requests": 34,
-      "raw": 591000,
-      "gzip": 194000,
-      "brotli": 172000
+      "raw": 594000,
+      "gzip": 195000,
+      "brotli": 173000
     },
     "requirement": {
       "requests": 30,
@@ -130,20 +129,20 @@
     },
     "treemap": {
       "requests": 33,
-      "raw": 602000,
+      "raw": 605000,
       "gzip": 200000,
       "brotli": 177000
     },
     "ishikawa": {
       "requests": 31,
-      "raw": 583000,
-      "gzip": 190000,
-      "brotli": 169000
+      "raw": 586000,
+      "gzip": 191000,
+      "brotli": 169100
     },
     "block": {
       "requests": 30,
-      "raw": 729000,
-      "gzip": 241000,
+      "raw": 731000,
+      "gzip": 242000,
       "brotli": 213000
     }
   }

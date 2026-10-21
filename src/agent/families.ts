@@ -344,12 +344,12 @@ export interface FamilyOperations {
    */
   projectPositioned?: (ctx: FamilyPositionedProjectionContext) => FamilyPositionedView
   /** Optional extension fallback for descriptors that cannot lower SceneDoc.
-   * Built-ins use lowerScene exclusively so graphical behavior has one waist. */
+   * Built-ins adapt one typed drawing program to Scene and native crisp output. */
   renderSvg?: (ctx: RenderContext<PositionedDiagram>) => string
   /**
    * Optional: family-specific SceneGraph lowering (SPEC §3.1). Produces the
-   * semantic render-mark tree that style backends consume. Lowered families
-   * serialize exclusively through a registered backend.
+   * semantic render-mark tree that style backends consume. Styled and extension output
+   * serialize through a registered backend; native crisp uses the same writers.
    */
   lowerScene?: (ctx: RenderContext<PositionedDiagram>) => SceneDoc
   /** Optional: family-specific ASCII renderer. */

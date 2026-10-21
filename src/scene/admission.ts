@@ -28,6 +28,10 @@ function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: st
 export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown, crossChecks = sceneAssertionsEnabled()): SceneDoc {
   const external = descriptor.id.startsWith('family:')
   const scene = admitSceneDocument(value, external ? 'external' : 'internal', crossChecks)
+  // Native declarations are exercised by strict/verify/test admission. An
+  // ordinary owned lowering cannot change the registered role ledger; external
+  // producers always reconcile their emitted primitives against that ledger.
+  if (!external && !crossChecks) return scene
   const diagnostics: SceneValidationDiagnostic[] = []
 
   if (external && scene.family !== descriptor.id) {

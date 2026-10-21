@@ -197,6 +197,9 @@ export class ErRouteGeometryError extends Error {
   constructor(from: string, to: string) { super(`ER_ROUTE_BLOCKED: no clear frame corridor from ${from} to ${to}`); this.name = 'ErRouteGeometryError' }
 }
 
+/** Reroute each relationship whose route crosses an unrelated card or a group
+ * header: a route to a group frame, or one rebuilt after separating compounds
+ * moved only one of its ends. */
 function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[]): void {
   if (groups.length === 0) return
   const generated = generatedIds([...entities.map(entity => entity.id), ...groups.map(group => group.id)])
@@ -208,7 +211,7 @@ function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedE
   let operations = 0
   const charge = (count: number) => { operations += count; if (operations > 400_000) throw new ErRouteWorkLimitError() }
   for (const [index, rel] of relationships.entries()) {
-    if (!groupIds.has(rel.entity1) && !groupIds.has(rel.entity2) || rel.points.length < 2) continue
+    if (rel.points.length < 2) continue
     const [start, end] = [rel.points[0]!, rel.points.at(-1)!]
     const physical = obstacles.filter(node => { const id = entityIds.get(node.id); return id === undefined || groupIds.has(id) || id !== rel.entity1 && id !== rel.entity2 })
     const blocked = (points: Point[]) => points.slice(1).some((point, i) => physical.some(node => { charge(1); return segmentThroughShape(points[i]!, point, node) }))

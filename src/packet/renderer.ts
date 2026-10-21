@@ -1,23 +1,23 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
+import type { SceneNode } from '../scene/ir.ts'
 import { preparedDisplayTextValue } from '../shared/display-text.ts'
-import { sceneDocument } from '../shared/scene-document.ts'
-import { diagramTitleMark, resolveRenderStyle } from '../styles.ts'
+import { drawingDocument } from '../shared/scene-document.ts'
+import { diagramTitleFields, resolveRenderStyle } from '../styles.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedPacketDiagram } from './types.ts'
 
-export function lowerPacketScene({ positioned: diagram, colors, resolved }: RenderContext<PositionedPacketDiagram>): SceneDoc {
+export function lowerPacketDrawing<T>(marks: DrawingFactory<T>, { positioned: diagram, colors, resolved }: RenderContext<PositionedPacketDiagram>): DrawingDocument<T> {
   const style = resolveRenderStyle(resolved.renderOptions, undefined, resolved.styleFace)
   const transparent = resolved.renderOptions.transparent ?? false
-  const parts: SceneNode[] = []
-  if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
+  const parts: T[] = []
+  if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, style)))
   const fill = style.nodeFillColor ?? 'var(--_node-fill)'
   const ink = style.nodeTextColor ?? inkOnNodeFill(undefined, colors, fill)('var(--_text)')
   for (const field of diagram.fields) {
-    const children: SceneNode[] = [
+    const children: T[] = [
       marks.shape({
         id: `${field.id}:box`,
         role: 'node',
@@ -53,8 +53,10 @@ export function lowerPacketScene({ positioned: diagram, colors, resolved }: Rend
       }),
     )
   }
-  return sceneDocument('packet', diagram, colors, transparent, parts)
+  return drawingDocument(marks, 'packet', diagram, colors, transparent, parts)
 }
 export function renderPacketSvg(context: RenderContext<PositionedPacketDiagram>): string {
   return DefaultBackend.render(lowerPacketScene(context), { seed: 0 })
 }
+
+export const lowerPacketScene = sceneLowering<PositionedPacketDiagram>(lowerPacketDrawing)

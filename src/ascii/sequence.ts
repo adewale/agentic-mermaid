@@ -23,9 +23,9 @@ function messageLabelX(message: PositionedMessage, line: string): number {
   return message.fromX === message.toX ? message.x : Math.min(message.fromX, message.toX) + Math.floor((Math.abs(message.toX - message.fromX) - visualWidth(line)) / 2)
 }
 
-export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): TerminalArtifact {
+export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number, authoredLine?: (index: number) => number | undefined): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
-  const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), seqConfig)
+  const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), { ...seqConfig, ...(authoredLine ? { authoredLine } : {}) })
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
   if (!diagram.actors.length && !diagram.blocks.length) {
     const empty = new TerminalDocument()

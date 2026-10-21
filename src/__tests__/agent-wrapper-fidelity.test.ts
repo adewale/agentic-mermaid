@@ -21,6 +21,7 @@ import { join } from 'node:path'
 import {
   parseRegisteredMermaid as parseMermaid, synthesizeFromGraph, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidSVG,
 } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const FM_NESTED = '---\nconfig:\n  layout: elk\n  look: handDrawn\n---\nflowchart TD\n  A --> B'
 const FM_DAGRE = '---\nconfig:\n  layout: dagre\n---\nflowchart TD\n  A --> B'
@@ -108,6 +109,47 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
     if (!reparsed.ok) return
     expect(reparsed.value.meta.frontmatter?.theme).toBe('dark')
     expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  })
+
+  // Mermaid applies an init or wrap directive inside a statement too, and
+  // reads the statement without it: ours does, and writes the directive
+  // before the header.
+  const DARK = '%%{init: {"theme": "dark"}}%%'
+  test.each([
+    ['classDiagram\n  class A\n  A : +x %%{init: {"theme": "dark"}}%%', 'A : +x', DARK, { theme: 'dark' }],
+    ['stateDiagram-v2\n  A --> B : go %%{init: {"theme": "dark"}}%%', 'A --> B : go', DARK, { theme: 'dark' }],
+    ['pie\n  "a" : 1 %%{init: {"theme": "dark"}}%%', '"a" : 1', DARK, { theme: 'dark' }],
+    ['stateDiagram-v2\n  A --> B : go %%{wrap}%%', 'A --> B : go', '%%{wrap}%%', { wrap: true }],
+    ['mindmap\n  root\n    child %%{wrap}%%', 'child', '%%{wrap}%%', { wrap: true }],
+  ])('a directive inside a statement is applied, and written before the header: %j', async (source, statement, directive, config) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).not.toBe('opaque')
+    expect(parsed.value.canonicalSource.split('\n')).toContain(statement)
+    expect(parsed.value.meta.initDirectives.map(directive => directive.parsed)).toEqual([config])
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toStartWith(`${directive}\n`)
+    expect(serialized.split(directive)).toHaveLength(2)
+    expect(verifyMermaid(source).warnings.map(warning => warning.code)).not.toContain('COMMENT_DROPPED')
+    const reparsed = parseMermaid(serialized)
+    if (!reparsed.ok) throw new Error(JSON.stringify(reparsed.error))
+    expect(reparsed.value.body).toEqual(parsed.value.body)
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally { upstream.close() }
+  })
+
+  test('a directive that configures nothing is removed, as Mermaid removes it, and is not a dropped comment', () => {
+    const source = 'stateDiagram-v2\n  A --> B : go %%{config: {"theme": "dark"}}%%'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.canonicalSource).toBe('stateDiagram-v2\nA --> B : go')
+    expect(parsed.value.meta.initDirectives).toEqual([])
+    expect(serializeMermaid(parsed.value)).toBe('stateDiagram-v2\n  A --> B : go\n')
+    expect(verifyMermaid(source).warnings).toEqual([])
   })
 
   test('post-header init removal preserves indentation-sensitive family structure', () => {

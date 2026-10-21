@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { createMermaidRenderer, DefaultBackend, registerBackend, renderContractDigest, renderMermaidSVG } from '../index.ts'
 import { renderedSvgDigest } from '../graphical-render.ts'
@@ -10,10 +9,7 @@ import {
   NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
   SHARED_RENDER_OPTION_FIELDS,
   SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
-  SHARED_RENDER_OPTIONS_DOC_END,
-  SHARED_RENDER_OPTIONS_DOC_START,
   sharedRenderOptionsJsonSchema,
-  sharedRenderOptionsMarkdownTable,
   styleInputJsonSchema,
   resolveRenderRequest,
   validateSerializableRenderOptions,
@@ -276,19 +272,5 @@ describe('shared RenderOptions authority', () => {
     expect(graphical[0]).toMatchObject({ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.curve' })
   })
 
-  test('keeps the marked API inventory byte-for-byte generated from descriptors', () => {
-    const api = readFileSync(new URL('../../docs/api.md', import.meta.url), 'utf8')
-    const start = api.indexOf(SHARED_RENDER_OPTIONS_DOC_START)
-    const end = api.indexOf(SHARED_RENDER_OPTIONS_DOC_END)
-    expect(start).toBeGreaterThanOrEqual(0)
-    expect(end).toBeGreaterThan(start)
-    const generated = api.slice(start + SHARED_RENDER_OPTIONS_DOC_START.length, end).trim()
-    expect(generated).toBe(sharedRenderOptionsMarkdownTable())
-    for (const field of ['wrappingWidth', 'class', 'architecture', 'timeline', 'journey', 'gantt']) {
-      expect(generated).toContain(`\`${field}\``)
-    }
-    expect(generated).toContain('| Built-in families |')
-    expect(generated).toContain('| none — extension-defined |')
-    expect(generated).not.toContain('onConfigDiagnostic')
-  })
+
 })

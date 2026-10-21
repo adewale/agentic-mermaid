@@ -127,7 +127,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     if (syntax?.kind === 'block' || syntax?.kind === 'box') {
       // The shared reader, not a second depth scanner, owns this boundary.
       const block = raw.slice(i, entry.endIndex! + 1)
-      const blockLines = block.map(entry => entry.raw)
+      const blockLines = block.map(portableRaw)
       i = entry.endIndex! + 1
       const fragment = parseTypedFragment(block)
       for (const inner of block) fold.applyAll(participantEventsOf(inner.syntax))
@@ -184,6 +184,17 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
   }
 }
 
+/** A statement's source as kept verbatim, but with a local arrow spelling
+ * replaced by Mermaid's arrow that draws the same, so the kept source is
+ * source Mermaid reads. */
+function portableRaw(entry: SequenceSourceStatement): string {
+  const message = entry.syntax?.kind === 'message' ? entry.syntax.message : undefined
+  if (!message?.localArrow) return entry.raw
+  // Only `()` and spaces stand between the sender and its arrow.
+  const at = entry.raw.indexOf(message.localArrow, entry.raw.length - entry.raw.trimStart().length + message.from.length)
+  return entry.raw.slice(0, at) + message.arrow + entry.raw.slice(at + message.localArrow.length)
+}
+
 function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
   const syntax = entries[0]?.syntax
   const opener = syntax?.kind === 'block' ? syntax.opener : undefined
@@ -212,7 +223,7 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
     ...(text.value ? { label: text.value } : {}),
     ...(text.content ? { labelContent: text.content } : {}),
     branches,
-    rawLines: entries.map(entry => entry.raw),
+    rawLines: entries.map(portableRaw),
   }
 }
 
@@ -274,7 +285,8 @@ function styleForArrow(a: string): SequenceMessageStyle {
 
 /** Sequence source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a participant a second `box` meets stays in its first box
- * (sequence/participants.ts). */
+ * (sequence/participants.ts), and deactivating a participant that is not
+ * active does nothing, where Mermaid's database throws. */
 export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
   const authored = canonicalSource.split(/\r?\n/)
   const authoredHeader = authored.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
@@ -317,10 +329,25 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
   for (const issue of source.issues) warnings.push({
     code: 'UNSUPPORTED_SYNTAX', syntax: issue.syntax, line: header + issue.line + 2, message: issue.message,
   })
+  // Mermaid counts each participant's activations in statement order: `+`
+  // activates a message's receiver, `-` deactivates its sender.
+  const active = new Map<string, number>()
+  const deactivate = (id: string, how: string): void => {
+    const count = active.get(id) ?? 0
+    if (count > 0) { active.set(id, count - 1); return }
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_inactive_deactivation', line,
+      message: `${how} deactivates participant "${id}", which is not active; ours ignores it. Pinned Mermaid rejects this ("Trying to inactivate an inactive participant"); activate "${id}" first or remove the deactivation.`,
+    })
+  }
   for (const entry of source.statements) {
     line = header + entry.line + 2
     const statement = entry.syntax
     fold.applyAll(participantEventsOf(statement))
+    if (statement?.kind === 'message' && statement.message.activationMark === '+') active.set(statement.message.to, (active.get(statement.message.to) ?? 0) + 1)
+    else if (statement?.kind === 'message' && statement.message.activationMark === '-') deactivate(statement.message.from, 'The "-" on this message')
+    else if (statement?.kind === 'activation' && statement.activate) active.set(statement.actorId, (active.get(statement.actorId) ?? 0) + 1)
+    else if (statement?.kind === 'activation') deactivate(statement.actorId, 'This statement')
     if (statement?.kind === 'box') fold.openBox({ actorIds: [] })
     else if (entry.closes !== undefined && source.statements[entry.closes]?.syntax?.kind === 'box') {
       fold.closeBox()

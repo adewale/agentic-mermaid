@@ -188,7 +188,6 @@ describe('cleanup at public source boundaries', () => {
       ['flowchart LR\nA-->B\nclassDef c fill:#f00; C["hello;"]', 3],
       ['classDiagram\nclass A {\nstyle A fill:#f00;\n}', 3],
       ['classDiagram\nclass A {\nclassDef c fill:#f00;\n}', 3],
-      ['classDiagram\nclass A {\nstyle A fill:#f00; } classDef c fill:#fff;', 3],
       ['classDiagram\nnamespace N {\nclass A {\nclassDef c fill:#f00; } style A fill:#fff;\n}', 4],
       ['classDiagram\nclass A\nstyle A fill:#fff;stroke:#000', 3],
       ['erDiagram\nA\nstyle A fill:#fff;stroke:#000', 3],
@@ -204,12 +203,17 @@ describe('cleanup at public source boundaries', () => {
       ['requirementDiagram\nrequirement A {\nid: 1\ntext: "before\nclassDef c fill:#f00;\nafter"\nrisk: high\nverifymethod: test\n}', 5],
       ['quadrantChart\n"hello\nclassDef c fill:#f00;\nworld": [0.5, 0.5]', 3],
       ['---\ntitle: Caption\n---\nsequenceDiagram\nA->>B: <a href="x">text</a>', 5],
+      ['flowchart TD\nA["<span style=\'color:#0b66c3;font-weight:700\'>PCK</span>"]', 2],
+      ['---\nconfig:\n  htmlLabels: false\n---\nflowchart TD\nB --> C{Let <span style="color:red">me</span> think}', 6],
     ] as const
     for (const [source, line] of cases) {
       const warnings = verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')
       expect(warnings).toHaveLength(1)
       if (warnings.length) expect(warnings[0]).toMatchObject({ line, message: expect.stringContaining("Mermaid's cleanup changed this line") })
     }
+    // A line whose quote rewrite changes nothing names only its semicolon.
+    expect(verifyMermaid('flowchart TD\nSP[Power<br/><span style="font-size:12px;color:#666;">x</span>]').warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup'))
+      .toEqual([expect.objectContaining({ line: 2, message: expect.stringMatching(/it removes a style\/classDef semicolon before/) })])
     for (const source of [
       '---\ntitle: style A fill:#fff;\n---\nstateDiagram-v2\n%% style A fill:#fff;\nA --> B\nstyle A fill:#fff;',
       'flowchart LR\nA --> B\nstyle A fill:#fff;\nclassDef c fill:#fff;',
@@ -222,6 +226,14 @@ describe('cleanup at public source boundaries', () => {
       'requirementDiagram\nrequirement A {\nid: 1\ntext: "Hi"\nrisk: high\nverifymethod: test\n}\nstyle A fill:#fff;\nclassDef c fill:#fff;',
       ...['\n', '\r', '\r\n'].map(ending => '---\ntitle: requirementDiagram\n---\n%% preamble\n%%{init: {}}%%\nrequirement&#68;iagram\nrequirement A {\nid: 1\ntext: "Hi"\nrisk: high\nverifymethod: test\n}\nstyle A fill:#fff;\nclassDef c fill:#fff;'.replaceAll('\n', ending)),
       'treemap-beta\n"Leaf":1\nclassDef c fill:#fff;',
+      // The dropped `;` only ends a style statement sharing its row, or a
+      // statement Mermaid rejects whatever it does (`} classDef`).
+      'graph TD;style Q background:#fff;',
+      'flowchart LR\nA-->B;style A fill:#f00;',
+      'classDiagram\nclass A {\nstyle A fill:#f00; } classDef c fill:#fff;',
+      // Tag quotes inside one label, which Mermaid draws as HTML.
+      'flowchart TD\nB --> C{Let <span style="background-color:#ddd">me</span> think}',
+      'flowchart TD\nA -->|<span style="color:red">m</span>| B\nsubgraph S[Title<br/><span style="font-size:12px">sub</span>]\nC\nend',
     ]) {
       expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toEqual([])
     }

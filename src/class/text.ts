@@ -32,6 +32,9 @@ export function writeClassText(text: string, content?: LabelContent, reserved = 
   const authored = content?.value === text ? content.authored : undefined
   return (authored === undefined ? encodeMermaidEntities(text, reserved) : encodeMermaidAuthoredEntities(authored, reserved))
     .replace(/\r\n?|\n/g, '<br/>')
+    // Mermaid removes a `%%{…}%%` directive from the source before it reads
+    // text; `#123;` reads as the brace.
+    .replace(/%%\{/g, '%%#123;')
 }
 
 /** Convert a class member to its display string */

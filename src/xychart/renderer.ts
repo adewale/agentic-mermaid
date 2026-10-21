@@ -1,3 +1,4 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedBar, PositionedXYChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
@@ -10,10 +11,9 @@ import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
 import { toHex, tryParseCssColor } from '../shared/color-math.ts'
 import { formatBarValue } from './axis-utils.ts'
-import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
+import type { MarkPaint } from '../scene/ir.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
+import { drawTooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 
 // ============================================================================
@@ -53,15 +53,16 @@ export function renderXYChartSvg(
 /**
  * Lower a positioned XY chart to the SceneGraph IR in canonical mark order.
  */
-export function lowerXYChartScene(
+export function lowerXYChartDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedXYChart>,
-): SceneDoc {
+): DrawingDocument<T> {
   const { positioned: chart, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const interactive = options.interactive ?? false
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const style = resolveRenderStyle(options, XY_STYLE_DEFAULTS, resolved.styleFace)
   const chartColors = resolveChartColors(chart, style)
   const hasAuthoredSeriesPalette = Boolean(chart.theme.plotColorPalette?.length)
@@ -111,8 +112,8 @@ export function lowerXYChartScene(
     }))
   })
 
-  lowerAxis(parts, chart.xAxis, 'x', chartColors.xAxisLineColor, chartColors.xAxisTickColor)
-  lowerAxis(parts, chart.yAxis, 'y', chartColors.yAxisLineColor, chartColors.yAxisTickColor)
+  lowerAxis(marks, parts, chart.xAxis, 'x', chartColors.xAxisLineColor, chartColors.xAxisTickColor)
+  lowerAxis(marks, parts, chart.yAxis, 'y', chartColors.yAxisLineColor, chartColors.yAxisTickColor)
 
   // Normalization basis for the `value` channel: the largest absolute data
   // value across every series (cheap, deterministic).
@@ -124,7 +125,7 @@ export function lowerXYChartScene(
   const normalized = (value: number): number | undefined =>
     maxAbsValue > 0 ? value / maxAbsValue : undefined
 
-  const barOverlay: SceneNode[] = []
+  const barOverlay: T[] = []
   const barSeriesCount = new Map<number, number>()
   const seriesPalette = resolveSeriesPalette(chart, colors.accent, colors.bg)
   const barFills = new Map<PositionedBar, string>()
@@ -167,7 +168,7 @@ export function lowerXYChartScene(
             geometry: { kind: 'rect', x: rn(bar.x), y: rn(bar.y), width: rn(bar.width), height: rn(bar.height) }, paint: { fill: 'transparent' },
           }) },
           { indent: 0, node: marks.documentContent({ id: `${barId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipTitle)}</title>`) },
-          { indent: 0, node: tooltipArtwork('xychart', bar.tooltip, `${barId}:tooltip`, owner) },
+          { indent: 0, node: drawTooltipArtwork(marks, 'xychart', bar.tooltip, `${barId}:tooltip`, owner) },
         ],
       }))
     }
@@ -226,7 +227,7 @@ export function lowerXYChartScene(
     })
   }
 
-  const dotOverlay: SceneNode[] = []
+  const dotOverlay: T[] = []
   if (interactive) {
     for (const line of chart.lines) {
       line.points.forEach((point, pointIndex) => {
@@ -268,7 +269,7 @@ export function lowerXYChartScene(
               indent: 0,
             },
             {
-              node: tooltipArtwork('xychart', point.tooltip, `tooltip:${pointId}`, { id: pointId, role: 'point' }),
+              node: drawTooltipArtwork(marks, 'xychart', point.tooltip, `tooltip:${pointId}`, { id: pointId, role: 'point' }),
               indent: 0,
             },
           ],
@@ -315,8 +316,8 @@ export function lowerXYChartScene(
     }))
   }
 
-  lowerAxisLabels(parts, chart.xAxis.ticks, chart.xAxis.config.labelFontSize, 'x', style, chartColors.xAxisLabelColor)
-  lowerAxisLabels(parts, chart.yAxis.ticks, chart.yAxis.config.labelFontSize, 'y', style, chartColors.yAxisLabelColor)
+  lowerAxisLabels(marks, parts, chart.xAxis.ticks, chart.xAxis.config.labelFontSize, 'x', style, chartColors.xAxisLabelColor)
+  lowerAxisLabels(marks, parts, chart.yAxis.ticks, chart.yAxis.config.labelFontSize, 'y', style, chartColors.yAxisLabelColor)
 
   if (chart.xAxis.title) {
     const title = chart.xAxis.title
@@ -385,7 +386,7 @@ export function lowerXYChartScene(
   // canvas; an empty legend array means the chart is not legend-worthy, the
   // config hides it, or the column was dropped rather than clipped).
   if (chart.legend.length > 0) {
-    const legendChildren: Array<{ node: SceneNode; indent: number }> = []
+    const legendChildren: Array<{ node: T; indent: number }> = []
     for (const item of chart.legend) {
       const cy = item.y + Math.max(LEGEND_SWATCH_SIZE, item.block?.height ?? 0) / 2
       if (item.type === 'bar') {
@@ -466,8 +467,9 @@ export function lowerXYChartScene(
   return { family: 'xychart', width: chart.width, height: chart.height, colors, transparent, parts }
 }
 
-function lowerAxis(
-  parts: SceneNode[],
+function lowerAxis<T>(
+  marks: DrawingFactory<T>,
+  parts: T[],
   axis: PositionedXYChart['xAxis'],
   axisName: 'x' | 'y',
   lineColor: string,
@@ -495,8 +497,9 @@ function lowerAxis(
   }
 }
 
-function lowerAxisLabels(
-  parts: SceneNode[],
+function lowerAxisLabels<T>(
+  marks: DrawingFactory<T>,
+  parts: T[],
   ticks: PositionedXYChart['xAxis']['ticks'],
   fontSize: number,
   axisName: 'x' | 'y',
@@ -699,3 +702,5 @@ function hashChart(chart: PositionedXYChart): string {
   }
   return Math.abs(hash >>> 0).toString(36)
 }
+
+export const lowerXYChartScene = sceneLowering<PositionedXYChart>(lowerXYChartDrawing)

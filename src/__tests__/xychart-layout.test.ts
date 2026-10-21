@@ -109,6 +109,20 @@ xychart
       expect(point.y).toBeLessThanOrEqual(chart.plotArea.y + chart.plotArea.height)
     }
   })
+  // Mermaid insets a numeric x-axis by half a bar band at each end when the
+  // chart has bars. Without it the end bars hung off the plot, and the chart
+  // failed to render.
+  it('keeps numeric x-axis bars inside the plot area, with lines on their centres', () => {
+    for (const source of ['xychart\n  x-axis 0 --> 10\n  bar [1, 2]', 'xychart\n  x-axis 10 --> 0\n  bar [1, 2, 3]\n  line [3, 2, 1]', 'xychart\n  x-axis 0 --> 10\n  bar [5]']) {
+      const chart = layout(source)
+      for (const bar of chart.bars) {
+        expect(bar.x, source).toBeGreaterThanOrEqual(chart.plotArea.x)
+        expect(bar.x + bar.width, source).toBeLessThanOrEqual(chart.plotArea.x + chart.plotArea.width)
+      }
+      for (const [index, point] of (chart.lines[0]?.points ?? []).entries()) expect(point.x).toBeCloseTo(chart.bars[index]!.x + chart.bars[index]!.width / 2, 5)
+      expect(renderMermaidSVG(source), source).toContain('<svg')
+    }
+  })
 })
 
 describe('xychart layout – axis placement', () => {

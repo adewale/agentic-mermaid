@@ -1265,6 +1265,21 @@ function hasParallelPair(edges: readonly Pick<PositionedEdge, 'source' | 'target
   return false
 }
 
+/** A cosmetic centering proposal owns only coordinates, routes and label anchors.
+ * Capture those channels on its first actual move; authored data, prepared text,
+ * groups and certificates are neither copied nor replaced. */
+function checkpointCentering(context: LayoutPassContext): () => void {
+  const nodes = context.nodes.map(node => ({ node, x: node.x, y: node.y }))
+  const edges = context.edges.map(edge => ({ edge,
+    points: edge.points.map(point => ({ ...point })),
+    labelPosition: edge.labelPosition ? { ...edge.labelPosition } : undefined,
+  }))
+  return () => {
+    for (const { node, x, y } of nodes) { node.x = x; node.y = y }
+    for (const { edge, points, labelPosition } of edges) { edge.points = points; edge.labelPosition = labelPosition }
+  }
+}
+
 // The post-ELK geometry pipeline, reified (docs/design/system/route-contracts.md).
 // The array IS the execution path; each `run` delegates to the existing pass function
 // with byte-identical arguments. The three symmetric passes carry no `after` among each
@@ -1301,10 +1316,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
   },
   {
-    id: 'centerPeerBarycenters', doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
+    id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
-    run: c => { centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
+    run: c => {
+      let rollback: (() => void) | undefined
+      centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, () => { rollback ??= checkpointCentering(c) })
+      return rollback
+    },
   },
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
