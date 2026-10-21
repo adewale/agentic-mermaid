@@ -1341,3 +1341,46 @@ measures116,358,000→103,628,344 allocated bytes; cyclic19
 173,768,608→158,489,696. Concurrent work, two loaded bundles and short warmup
 exclude runtime/RSS qualification. These allocation reductions do not establish
 a win over ELK; the full controlled canary remains required.
+
+
+### Preserve valid native straight contacts
+
+Native route cleanup now has an explicit `preserveStraightRoutes` policy. Before
+replacing a straight contact with a preferred diamond vertex/hook, it verifies
+exact axis alignment, current lane obstacles and actual endpoint approach
+validity. A valid straight lane keeps its geometry and receives current route
+evidence; blocked or invalid lanes still require repair. ELK retains its
+existing policy. The straight/bend/port metric allowances are unchanged, and
+pass-contract errors still propagate. Native implementation attribution is16.
+
+The public retained-seed regression fails before this fix with the original
+`applyRouteContracts` ratchet error. After the fix, seed319 renders at4 crossings
+versus ELK20, both81 bends. The complete320-case source population now renders
+320 natively versus315 ELK. The retained five ELK paint/geometry rejections
+remain in the denominator. Seed296 remains the only additional proper-crossing
+case (31 versus22); none of the original256 shared successes adds crossings.
+All320 cases are development data.
+
+The initial combined route/selection owners pass247 tests /3,521 assertions;
+ten focused final straight/shape/seed checks pass72 assertions after tightening
+the guard to exact axis alignment. Both typechecks and lint pass. These test
+populations overlap. A concurrent canonical geometry check times out at35.96s
+against the unchanged30s limit; it is retained as failed, not a pass. A clean
+isolated committed-head check remains required. No baseline is updated.
+
+The generated CI advisory now retains all320 inputs in two windows (256+64),
+without changing the generator's256-per-call ceiling or the job's10-minute
+limit. The original root256 artifacts remain, and the added development window
+gets its own complete snapshots/report. A failing first report cannot prevent
+the second report being written. Known seed296 and reference errors stay visible.
+
+The4ab4bf82 canary is also unqualified: its cold arm loses its ELK-reference
+nine-node-chain worker to the remaining overall budget, leaving0/26 matched
+inputs. The normal arm completes timing but times out in native memory for
+that same workload, leaving later memory observations absent. Both A/A controls
+are healthy (0.9996× cold,0.9988× normal), but cannot qualify incomplete arms.
+The normal official raw ratio0.9955×, allocation1.00× and peakRSS0.79× are
+retained partial evidence only.
+[Artifact12312463962](https://github.com/adewale/agentic-mermaid/actions/runs/39522619395/artifacts/12312463962)
+is retained without retry or budget increases. All required4ab4bf82 lanes pass;
+this does not establish the performance goal.
