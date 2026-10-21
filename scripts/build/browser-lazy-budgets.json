@@ -137,7 +137,7 @@
       "requests": 31,
       "raw": 586000,
       "gzip": 191000,
-      "brotli": 169000
+      "brotli": 169100
     },
     "block": {
       "requests": 30,
