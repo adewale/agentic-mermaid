@@ -246,6 +246,10 @@ export function layoutNativeGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
 ): PositionedGraph {
+  const hints = options.layoutHints
+  if (hints && (Object.keys(hints.ranks ?? {}).length || hints.adjacent?.length || hints.shortEdges?.length)) {
+    bindings.unsupported('layout hints')
+  }
   const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
   return certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
 }
