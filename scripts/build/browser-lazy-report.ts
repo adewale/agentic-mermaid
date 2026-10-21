@@ -150,6 +150,7 @@ const agenticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
   agenticLoaders.some(loader => staticFamilyFiles[id].includes(loader))
     ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs]) : undefined,
 ]))
+const elkFiles = staticClosure([elkOutput])
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[id].includes(elkOutput)
   || elkLoaders.some(loader => staticFamilyFiles[id].includes(loader)))
 // Preserve the existing default-render payload contract: ELK consumers still
@@ -193,7 +194,7 @@ if (!MEASURE_ONLY) {
     }
   }
 
-  if (initialFiles.includes(elkOutput) || observedElkFamilies.length > 0) {
+  if (initialFiles.includes(elkOutput) || MEASURED_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(elkOutput))) {
     throw new Error(`ELK must load only when placement demands it, never in a family static closure: ${observedElkFamilies.join(', ')}`)
   }
 }
@@ -205,6 +206,9 @@ const report = {
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
+  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
+    requests: familyFiles[id].length, elk: familyFiles[id].includes(elkOutput), ...transferSize(familyFiles[id]),
+  }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
   families: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
     requests: familyFiles[id].length,
     elk: familyFiles[id].includes(elkOutput),
@@ -234,6 +238,6 @@ if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\n
 if (process.argv.includes('--json')) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
 else {
   process.stdout.write(`browser lazy build verified: ${report.initial.gzip} B initial gzip; `
-    + `${elkFamilies.length} families budget the shared on-demand ELK transfer; `
-    + `${MEASURED_FAMILY_IDS.length - elkFamilies.length} family graphs exclude it\n`)
+    + `${observedElkFamilies.length} families budget the shared on-demand ELK transfer; `
+    + `${MEASURED_FAMILY_IDS.length - observedElkFamilies.length} family graphs exclude it\n`)
 }
