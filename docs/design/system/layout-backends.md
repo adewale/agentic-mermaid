@@ -2429,3 +2429,81 @@ worker browser check passes with the repository runner's600000ms timeout
 (1 test /16 assertions), as do32 emitted IIFE/lazy tests /763 assertions;
 an initial direct invocation used Bun's5s default and is retained as a failed
 noncanonical test attempt.
+
+The standalone packaging fix adds pinned `@swc/core@1.15.8` as a development
+dependency and minifies only the inline module after Bun bundles it. It keeps
+both solvers, full editor schema documentation, validation, legal comments,
+inline-script escaping and function arity. Hosted chunk generation and the
+published Node/IIFE/lazy build paths are unchanged. Compression defaults are
+disabled: only declaration joining, constant evaluation and unused local
+elimination accompany identifier mangling. No inlining or loop rewriting is
+enabled. Canonical complete HTML is4,091,237 raw /1,226,663 gzip bytes, within
+both original limits. This common packaging saving is not a native algorithm
+saving. The final size, all-family worker/backend and pointer/momentum tests
+pass3 tests /28 assertions. Repository types passed after adding the minifier;
+the final option names also exist in its installed declarations. Fresh CI must
+check the combined revision.
+
+The initial full-compression SWC prototype makes smaller HTML (3,977,305 /
+1,210,269) and passes all-family SVG parity, but is rejected: the existing
+pointer/momentum test hits its unchanged60s deadline both in the full editor
+suite and alone. The full run has9 passes and11 failures, ten following Bun's
+browser shutdown. Pristine main passes the pointer case in37.04s, the same
+branch's original Bun build in31.56s, and that exact Bun HTML served from the
+main workspace in24.50s. The limited candidate passes in30.29s. These functional
+controls isolate the problem without claiming a qualified browser speed gain.
+A Terser build prototype is cancelled without a result after several minutes;
+it is not adopted. None of these attempts is erased by the final checks.
+
+Published `192b1582` CI passes all unit shards, quality, payload, consumers and
+semantic lanes; its browser lane fails only the raw standalone size check
+(4,107,828), which the packaging fix addresses. The original local30s geometry
+timeout remains recorded alongside the independent exact diagnostic. Generated
+paint remains an advisory failure.
+The emitted standalone worker now checks byte-exact strict-mode SVG parity
+against the source renderer for every registered built-in example, alongside
+backend selection, fallback, queueing, worker recovery, native terminal
+receipts and real Canvas PNG export. The existing size test is unchanged.
+
+The immutable-phase crossing prototype completes750/750 development outcomes:
+744 native renders and six identical declines, with exact SVGs, complete
+receipts and errors.86 existing crossing/native/self-loop tests pass3447
+assertions through the private implementation override. Its prospectively
+declared diagnostic first runs18 separate memory workers on the two retained
+dense inputs (three rotating before/A/A/after rounds). Both inputs must reduce
+median sampled pass allocation by at least5%, keep median RSS within1.05 and
+have allocation A/A within reciprocal1.10 before18 timing workers may run.
+The same480s campaign deadline,60s worker deadlines and25 timing repetitions
+remain. Any failed gate rejects the prototype without an unchanged retry.
+This is not a full ELK cost comparison; retained heap and the full27-input
+canary still need qualification if an optimization is adopted.
+
+The wider community reinforces the separate offline packaging constraint.
+[Mermaid #6294](https://github.com/mermaid-js/mermaid/issues/6294) remains open
+when checked October21 and asks for a plain bundled ELK distribution for
+desktop/standalone editors. Mermaid's pinned
+[12.0.0 change record](https://github.com/mermaid-js/mermaid/blob/6d8921f94f9a12b76586eddcf45a566080d4767e/packages/mermaid/CHANGELOG.md#1200)
+documents the move back to bundled default ELK, while retaining the separate
+layout package for Tiny. Those product choices do not prove any solver
+obsolete. For this project, a smaller on-demand native family closure does
+not excuse an oversized self-contained editor or justify requiring a CDN.
+
+The completed `192b1582` CI cost artifact
+[12338283814](https://github.com/adewale/agentic-mermaid/actions/runs/39582781085/artifacts/12338283814)
+retains all27 inputs,3 rounds,25 repetitions and480s per cache regime. Off A/A
+is healthy1.0400606, with126 timing workers taking407.242s and42 memory workers
+45.835s. The native comparison completes eight timing workers, zero matched
+official-corpus inputs and no paired memory. Its first failure is the ELK
+reference10-node cyclic timing worker in round1 (3097ms allowed,3121.85ms
+observed). This is not a native solver failure or a qualified speed result.
+
+Normal A/A completes126 timing +42 memory workers (248.345s +38.624s), with
+official-corpus ratio0.9800823, but fails the per-case reciprocal1.10 control
+on ER compound domains. Native comparison completes102 timing workers and
+has a partial seven-input corpus ratio0.9979953; no paired memory completes.
+Its first failure is the ELK reference18-cut cyclic worker in round3, during
+SVG correctness (673ms allowed,684.20ms observed). Both incomplete measurement
+and unhealthy normal A/A prevent a time/memory claim. The latest workflow
+job's success status is artifact collection, not proof of qualification.
+The prior complete normal-cache result at `f008a304` remains recorded; it is
+not combined with these partial observations or divided by a control ratio.
