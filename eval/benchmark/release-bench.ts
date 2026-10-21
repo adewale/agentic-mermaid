@@ -72,7 +72,7 @@ const CASE_BUDGET_MS = 10 * 60 * 1000
 const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
 export function releaseBenchArgs(argv = process.argv.slice(2)): Map<string, string> {
-  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'layout-modes', 'layout-cache'])
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'layout-modes', 'layout-cache', 'layout-reference'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.slice(2)
@@ -100,6 +100,9 @@ export function releaseBenchArgs(argv = process.argv.slice(2)): Map<string, stri
   }
   if (options.has('layout-cache') && (!options.has('layout-modes') || !['off', 'normal'].includes(options.get('layout-cache')!))) {
     throw new Error('--layout-cache requires --layout-modes and one of off|normal')
+  }
+  if (options.has('layout-reference') && (!options.has('layout-modes') || !['separate', 'shared'].includes(options.get('layout-reference')!))) {
+    throw new Error('--layout-reference requires --layout-modes and one of separate|shared')
   }
   return options
 }
@@ -198,8 +201,13 @@ function successful(run: EngineRun, input: Input, rounds: number): boolean {
   return !!result?.svg.ok && result.validSvg && result.deterministic && !result.missingSvgLabels.length && result.mediansMs.length === rounds
 }
 
-function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number): EngineRun[] {
-  const runs: EngineRun[] = engines.map(engine => ({ ...engine, importMs: [], firstRenderMs: [], coldDeterministic: true, results: new Map(), memory: new Map(), failures: new Map() }))
+export type MeasurementWorker = (run: EngineRun, mode: 'time' | 'memory', group: Group, round?: number) => TimeResult | MemoryResult | undefined
+
+function freshRuns(engines: Engine[]): EngineRun[] {
+  return engines.map(engine => ({ ...engine, importMs: [], firstRenderMs: [], coldDeterministic: true, results: new Map(), memory: new Map(), failures: new Map() }))
+}
+
+function measurementWorker(out: string, reps: number, deadline: number): MeasurementWorker {
   const record = (value: unknown) => appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify(value)}\n`)
   function worker(run: EngineRun, mode: 'time' | 'memory', group: Group, round?: number): TimeResult | MemoryResult | undefined {
     const budgetMs = Math.min(group.budgetMs, deadline - Date.now())
@@ -243,8 +251,13 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
     record({ engine: run.label, group: group.name, mode, round, workerBudgetMs: Math.max(0, budgetMs), workerWallMs, failure: reason })
     return undefined
   }
+  return worker
+}
+
+function measureTiming(runs: EngineRun[], groups: Group[], rounds: number, deadline: number, worker: MeasurementWorker, rotate = false): void {
   for (let round = 0; round < rounds; round++) {
-    const order = round % 2 === 0 ? runs : [...runs].reverse()
+    const order = rotate ? runs.slice(round % runs.length).concat(runs.slice(0, round % runs.length))
+      : round % 2 === 0 ? runs : [...runs].reverse()
     for (const group of groups) {
       for (const run of order) {
         if (run.failures.has(`time:${group.name}`)) continue
@@ -274,6 +287,9 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
     }
     if (Date.now() >= deadline || runs.every(run => groups.every(group => run.failures.has(`time:${group.name}`)))) break
   }
+}
+
+function measureMemory(runs: EngineRun[], groups: Group[], rounds: number, worker: MeasurementWorker): void {
   // A fresh memory process sees only the common, stable successful population.
   // Unsupported inputs and newly supported families cannot skew its caches/RSS.
   for (const group of groups) {
@@ -294,9 +310,61 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
     const value = worker(candidate, 'memory', { ...corpus, name: 'candidate-corpus', inputs: candidateInputs }) as MemoryResult | undefined
     if (value) candidate.memory.set('candidate-corpus', { ...value, inputIds: candidateInputs.map(input => input.id) })
   }
+}
+
+function cleanMeasurement(out: string): void {
   rmSync(join(out, 'job.json'), { force: true })
   rmSync(join(out, 'result.json'), { force: true })
+}
+
+function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number): EngineRun[] {
+  const runs = freshRuns(engines), worker = measurementWorker(out, reps, deadline)
+  measureTiming(runs, groups, rounds, deadline, worker)
+  measureMemory(runs, groups, rounds, worker)
+  cleanMeasurement(out)
   return runs
+}
+
+/** One fresh reference observation can serve both independent comparisons.
+ * Memory is still paired separately: a strict decline must never narrow A/A
+ * or fallback coverage, and failed observations are never retried. */
+export function measureLayoutComparisons(
+  out: string, plans: ReturnType<typeof layoutComparisons>, groups: Group[], rounds: number, reps: number, deadline: number,
+  execute?: MeasurementWorker,
+): Array<{ name: string; runs: EngineRun[] }> {
+  mkdirSync(out, { recursive: true })
+  const engines = [...new Set(plans.flatMap(plan => plan.engines))]
+  if (new Set(engines.map(engine => engine.label)).size !== engines.length) throw new Error('Layout arm labels must be unique')
+  appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ protocol: 'shared-layout-reference@1', engines, rounds, reps, timingOrder: 'rotating-fresh-arms', memoryReuse: 'identical-ordered-populations', failurePolicy: 'no-retry' })}\n`)
+  const runs = freshRuns(engines), worker = execute ?? measurementWorker(out, reps, deadline)
+  measureTiming(runs, groups, rounds, deadline, worker, true)
+  const byEngine = new Map(engines.map((engine, index) => [engine, runs[index]!]))
+  const memory = new Map<string, { value?: MemoryResult; failure?: string }>()
+  const pairedWorker: MeasurementWorker = (run, mode, group, round) => {
+    if (mode === 'time') return worker(run, mode, group, round)
+    const key = JSON.stringify([run.label, group.name, group.inputs.map(input => input.id)])
+    const prior = memory.get(key)
+    if (prior) {
+      if (prior.failure) run.failures.set(`memory:${group.name}`, prior.failure)
+      appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engine: run.label, group: group.name, mode: 'memory-reuse', inputIds: group.inputs.map(input => input.id), failure: prior.failure })}\n`)
+      return prior.value
+    }
+    const value = worker(run, mode, group) as MemoryResult | undefined
+    const failure = value ? undefined : run.failures.get(`memory:${group.name}`) ?? 'memory worker returned no result'
+    if (failure) run.failures.set(`memory:${group.name}`, failure)
+    memory.set(key, { value, failure })
+    return value
+  }
+  const pairs = plans.map(plan => {
+    const pair = plan.engines.map(engine => {
+      const run = byEngine.get(engine)!
+      return { ...run, memory: new Map(), failures: new Map(run.failures) }
+    })
+    measureMemory(pair, groups, rounds, pairedWorker)
+    return { name: plan.name, runs: pair }
+  })
+  cleanMeasurement(out)
+  return pairs
 }
 
 export function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: number, control = false) {
@@ -531,7 +599,7 @@ function main() {
   const deadline = Date.now() + budgetMs
   const modes = options.get('layout-modes')?.split(',') as LayoutMode[] | undefined
   const layoutCache = (options.get('layout-cache') ?? 'off') as LayoutCache
-  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, ...(modes ? { layoutModes: modes, layoutCache, cacheEnvironment: layoutCacheEnvironment(layoutCache) } : {}) }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
+  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, ...(modes ? { layoutModes: modes, layoutReference: options.get('layout-reference') ?? 'separate', layoutCache, cacheEnvironment: layoutCacheEnvironment(layoutCache) } : {}) }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
     cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
     memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined } }
   writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
@@ -575,11 +643,15 @@ function main() {
     }
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
     if (modes) {
-      const comparisons = layoutComparisons(engines, modes, layoutCache).map(plan => {
+      const plans = layoutComparisons(engines, modes, layoutCache)
+      const shared = options.get('layout-reference') === 'shared'
+        ? measureLayoutComparisons(join(out, 'shared-reference'), plans, groups, rounds, reps, deadline) : undefined
+      const comparisons = plans.map((plan, index) => {
         const directory = join(out, plan.name)
         mkdirSync(directory, { recursive: true })
         writeFileSync(join(directory, 'samples.jsonl'), `${JSON.stringify({ ...metadata, comparison: plan.name, engines: plan.engines })}\n`)
-        const runs = measure(directory, plan.engines, groups, rounds, reps, deadline)
+        const runs = shared ? shared[index]!.runs : measure(directory, plan.engines, groups, rounds, reps, deadline)
+        if (shared) appendFileSync(join(directory, 'samples.jsonl'), `${JSON.stringify({ sharedSamples: '../shared-reference/samples.jsonl', timingOrder: 'rotating-fresh-arms', memoryPopulation: 'independently-paired', referenceReuse: true })}\n`)
         const result = report(inputs, groups, runs, rounds, plan.name === 'elk-aa')
         const healthy = plan.advisory ? strictLayoutHealthy(inputs, runs, rounds) : result.ok
         const markdown = plan.advisory ? `Strict Agentic support is partial: full-coverage and performance gates below are advisory. Measurement, content, determinism and unexpected-error checks ${healthy ? 'pass' : 'FAIL'}.\n\n${result.markdown}` : result.markdown
@@ -590,7 +662,10 @@ function main() {
       })
       const ok = comparisons.every(result => result.ok)
       const markdown = [`# Layout backend comparison: ${ok ? 'pass' : 'FAIL'}`, '',
-        'Each arm runs in its own adjacent, counterbalanced pair against explicit ELK from the same package. ELK A/A is a control, not a divisor. Memory populations are paired within each arm; strict declines cannot shrink the fallback cohort. Every enrolled input and typed outcome is retained. Public quality vectors come from separately labelled layout reruns after timing; unavailable dimensions and workflows are explicit. No human visual preference study is implied.', '',
+        shared
+          ? 'Fresh arms rotate within each input group. One explicit ELK reference serves the A/A and native comparisons; memory is paired independently, with reuse only for the identical engine and ordered population. Failed observations are retained without retries.'
+          : 'Each arm runs in its own adjacent, counterbalanced pair against explicit ELK from the same package.',
+        'ELK A/A is a control, not a divisor. Strict declines cannot shrink A/A or fallback coverage. Every enrolled input and typed outcome is retained. Public quality vectors come from separately labelled layout reruns after timing; unavailable dimensions and workflows are explicit. No human visual preference study is implied.', '',
         ...comparisons.map(result => `## ${result.name}${result.advisory ? ' (partial-support advisory)' : ''}\n\n${result.markdown}`),
       ].join('\n')
       writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), ok, status: 'completed', comparisons: comparisons.map(({ markdown: _markdown, ...value }) => value) }, null, 2))

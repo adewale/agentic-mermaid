@@ -2296,3 +2296,78 @@ Bun fixture extractor uses `import.meta.dir`, so extraction is moved to Bun
 before the Node comparison. Neither data nor solver is changed to rescue an
 outcome. A separate36-worker before/A/A/after diagnostic retains the preceding
 three-round/25-repeat/60s/480s protocol, with no ELK or whole-workload win claim.
+
+
+The full `f008a304` cost artifact12330278064 completes the normal-cache campaign
+with a healthy symmetric ELK A/A corpus ratio0.9894733. Both arms complete all27
+inputs, three rounds and separate memory (126 timing +42 memory workers). The
+native official-corpus paired ratio is0.9881609; sampled corpus allocation is
+28,925,944 versus29,015,520 bytes (0.996913), peak RSS147,554,304 versus185,532,416
+(0.795302), retention362320 versus360072 (1.006243). Corpus p50/p95 are4.8486/
+8.6608ms native versus4.8231/8.5441ms ELK. These near-tie timing/allocation results,
+with slightly higher retention, do not prove the owner's full cost objective;
+RSS remains lower. Controls are not divisors. All20 large/agent cases remain
+included; the seven-input official-corpus ratio is not an all27-input aggregate.
+
+Cache-off A/A is healthy0.9814889, taking305.997s timing and34.245s memory.
+Native comparison still exhausts the same shared480s budget: the first failure
+is native13-node cyclic timing in round2,2865ms allowed and2888.30ms observed,
+with no result.58 timing workers complete, zero matched official corpus inputs
+and no paired memory; no cache-off speed/memory claim qualifies. The complete
+normal and incomplete off campaigns both remain recorded. No ceilings,
+populations, repetitions or deadlines are changed, and the adverse controls
+from earlier heads are not replaced by this result.
+
+
+The request-local certificate prototype matches all750 SVG/complete-receipt/error
+outcomes (744 native successes, six identical declines) and passes126 existing
+certification/selection/cache tests via the private implementation override.
+The declared cost run attempts36 workers:33 complete, then the native-before
+A/A19-node timing worker in round3 exhausts the remaining18.25s and the final
+two workers retain campaign-deadline failures.15-node timing A/A is unhealthy
+(three paired round ratios1.38005/1.25788/1.01597, geomean1.20820);19-node A/A has
+only two pairs and cannot qualify. Median pass allocation is76,668,224→75,979,184
+bytes on15 but111,723,472→113,055,576 on19. RSS is138624→144984 KiB and143516→138744
+KiB. There is no consistent allocation gain and no qualified time result; the
+prototype is not adopted despite exact output equivalence. All outcomes remain.
+
+### Opt-in shared-reference measurement protocol
+
+The default legacy pair protocol remains unchanged. `--layout-reference shared`
+is a separate, explicitly labelled experiment. It schedules one fresh ELK
+reference, a separate same-artifact ELK A/A worker and native worker per group
+and round, rotating arm positions. The same reference observation serves the
+A/A and native comparisons; it is never divided out of a ratio. All27 retained
+inputs, three rounds,25 repetitions, worker semantics, both cache regimes and
+the480000ms per-regime deadline remain fixed. This eliminates a duplicate ELK
+reference process, not a control observation, and completion cannot be credited
+as an engine speedup or used to erase the earlier incomplete protocol results.
+
+Memory populations are paired independently for each comparison. Strict native
+declines or timing failures cannot shrink A/A or fallback populations. A memory
+result can be reused only for the same arm and identical ordered input IDs;
+different matched subsets get their own fresh worker. Failed observations are
+reused as failures rather than retried. Candidate-only successful corpus memory
+remains separately measured for the absolute retention gate. All samples and
+reuse records are retained in the shared journal, with per-comparison reports
+pointing to it. The protocol is recorded in configuration and the journal.
+
+Owning tests exercise partial native support, a native timing failure, and a
+failed shared-reference memory observation. They verify full control/fallback
+populations, independent native subsets and no retry of a failed memory worker.
+The complete benchmark owner file passes59 tests /228 assertions before the
+additional journal-header and explanatory-text-only edits. Full type/lint and
+the predeclared actual-package experiment follow; no performance claim exists
+for the new protocol yet. The main CI legacy canary is not changed.
+
+
+Final shared-reference typechecks and lint pass. The prospective full trial uses
+the exact27 case IDs from `f008a304`'s CI definition and that head's immutable
+canonical Node package. The harness is frozen at its reviewed commit too.
+Each cache regime keeps3 rounds,25 repetitions and480000ms. With all inputs
+successful, the three-arm design produces189 timing and63 memory workers;
+any failures, subset-specific memory workers or missing results remain recorded.
+Both off and normal run once, without an unchanged retry. Trial completion is
+not an engine speedup and its figures must remain distinguished from legacy
+four-arm scheduling. The timing controls, output checks, strict declines and
+memory population rules remain fully enforced.
