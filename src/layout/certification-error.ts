@@ -11,3 +11,12 @@ export class LayoutCertificationError extends Error {
     this.name = 'LayoutCertificationError'
   }
 }
+
+/** Internal control flow for an async entry's not-yet-loaded layout provider.
+ * Synchronous entries retain their bundled provider and never throw this. */
+export class DeferredDependencyError extends Error {
+  constructor(readonly dependency: string, readonly load: () => Promise<void>) {
+    super(`${dependency} has not loaded`)
+    this.name = 'DeferredDependencyError'
+  }
+}

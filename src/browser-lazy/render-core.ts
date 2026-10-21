@@ -5,7 +5,7 @@ import type { HtmlEntityTableNotLoadedError } from '../shared/html-entity-table.
 import type { RenderOptions } from '../types.ts'
 import type { GraphicalSvgArtifact } from '../graphical-render.ts'
 import { captureRenderOptions, capturedRenderBackend, resolveRenderRequestForExecution, type ResolvedRenderRequest } from '../render-contract.ts'
-import { DeferredDependencyError } from '../shared/deferred-dependency.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { measureRenderStage } from '../render-stages.ts'
 
 export async function renderLoadedFamilySvg(
