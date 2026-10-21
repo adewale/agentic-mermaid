@@ -194,4 +194,43 @@ ${body}`
     expect(result.ok).toBe(false)
     expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'INTERNAL_ERROR', reason: expect.stringContaining('cannot safely avoid namespace header Vendor.Platform'), defaultRender: 'fails' }))
   })
+
+  test('official flattened namespace fanout renders and keeps rounded ELK shafts outside headers', () => {
+    for (const direction of ['TB', 'BT', 'LR', 'RL']) {
+      const source = `classDiagram
+direction ${direction}
+namespace Company.Engineering.Backend {
+  class Developer {
+    +writeCode()
+  }
+}
+namespace Company.Engineering.Frontend {
+  class Designer {
+    +createMockup()
+  }
+}
+namespace Company {
+  class CEO {
+    +makeDecisions()
+  }
+}
+CEO --> Developer : oversees
+CEO --> Designer : oversees`
+      const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), { class: { hierarchicalNamespaces: false } })
+      const svg = renderMermaidSVG(source, { class: { hierarchicalNamespaces: false } })
+      for (const label of ['Developer', 'Designer', 'CEO', 'writeCode()', 'createMockup()', 'makeDecisions()']) expect(svg.replace(/<[^>]*>/g, '')).toContain(label)
+      expect(positioned.relationships.map(relation => [relation.from, relation.to])).toEqual([['CEO', 'Developer'], ['CEO', 'Designer']])
+      for (const relation of positioned.relationships) for (let index = 1; index < relation.points.length; index++) {
+        const a = relation.points[index - 1]!, b = relation.points[index]!
+        expect([a.x, a.y, b.x, b.y].every(Number.isFinite)).toBe(true)
+        expect(Math.abs(a.x - b.x) < 0.01 || Math.abs(a.y - b.y) < 0.01).toBe(true)
+        for (const namespace of positioned.namespaces) {
+          const crossesHeader = Math.abs(a.x - b.x) < 0.01
+            ? a.x > namespace.x + 0.01 && a.x < namespace.x + namespace.width - 0.01 && Math.max(a.y, b.y) > namespace.y + 0.01 && Math.min(a.y, b.y) < namespace.y + namespace.headerHeight - 0.01
+            : a.y > namespace.y + 0.01 && a.y < namespace.y + namespace.headerHeight - 0.01 && Math.max(a.x, b.x) > namespace.x + 0.01 && Math.min(a.x, b.x) < namespace.x + namespace.width - 0.01
+          expect(crossesHeader, `${direction}: ${relation.from} -> ${relation.to} crosses ${namespace.id}`).toBe(false)
+        }
+      }
+    }
+  })
 })

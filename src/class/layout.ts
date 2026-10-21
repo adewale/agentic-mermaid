@@ -472,7 +472,9 @@ function avoidFlatNamespaceHeaders(relationships: PositionedClassRelationship[],
     if (ns.classIds.includes(relation.from) === ns.classIds.includes(relation.to)) continue
     for (let segment = 1; segment < relation.points.length; segment++) {
       const a = relation.points[segment - 1]!, b = relation.points[segment]!
-      if (a.x !== b.x || !intersects(a, b, header)) continue
+      // Compound offsets can differ by floating-point roundoff at the two
+      // ends of an ELK vertical segment (308.8 vs 308.79999999999995).
+      if (Math.abs(a.x - b.x) >= 0.01 || !intersects(a, b, header)) continue
       const top = ns.y - 4, bottom = ns.y + ns.headerHeight + 4
       if (Math.min(a.y, b.y) >= top || Math.max(a.y, b.y) <= bottom) continue
       const before = { x: a.x, y: a.y < b.y ? top : bottom }, after = { x: b.x, y: a.y < b.y ? bottom : top }
