@@ -26,6 +26,11 @@ test('adjacency changes sibling order without editing source', () => {
   expect(out.edges).toHaveLength(5)
 })
 
+test.each(['A->B', 'A->B#0', 'A->B#1'])('short-edge preferences accept duplicate-edge occurrence %s', id => {
+  const out = layout('flowchart LR\n A --> B\n A --> B', { shortEdges: [id] })
+  expect(out.edges).toHaveLength(2)
+})
+
 test.each([
   { ranks: { absent: 1 } },
   { adjacent: [['A', 'absent']] },

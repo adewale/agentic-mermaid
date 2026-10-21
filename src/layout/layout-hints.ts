@@ -45,7 +45,8 @@ export function applyLayoutHints(root: ElkNode, graph: MermaidGraph, hints?: Gra
   graph.edges.forEach((edge, index) => {
     const pair = `${edge.source}->${edge.target}`
     const occurrence = occurrences.get(pair) ?? 0
-    edgeIndices.set(occurrence ? `${pair}#${occurrence}` : pair, index)
+    edgeIndices.set(`${pair}#${occurrence}`, index)
+    if (occurrence === 0) edgeIndices.set(pair, index)
     if (edge.id) edgeIndices.set(edge.id, index)
     occurrences.set(pair, occurrence + 1)
   })
