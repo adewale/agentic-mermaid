@@ -1327,7 +1327,7 @@ export function applyRouteContracts(
   graph: MermaidGraph,
   bundled: ReadonlySet<PositionedEdge>,
   style: LabelMetricsStyle,
-  options?: { preserveSelfLoops?: boolean; preserveLabels?: boolean },
+  options?: { preserveSelfLoops?: boolean; preserveLabels?: boolean; preserveStraightRoutes?: boolean },
 ): RouteCertificate[] {
   const classes = classifyRoutes(graph)
   const { axis, ctx } = buildRouteLaneContext(
@@ -1367,6 +1367,18 @@ export function applyRouteContracts(
     if (!eligible) {
       cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'unverified-shape'
       return { applied: false, mutated: false }
+    }
+    // A valid native contact need not move to a preferred diamond vertex.
+    // Preserve its straight lane only after checking current obstacles and
+    // actual endpoint approaches; blocked or invalid routes still need repair.
+    if (options?.preserveStraightRoutes && edge.points.length === 2 && source && target
+      && edge.points[0]![axis.cross] === edge.points[1]![axis.cross]
+      && invalidEndpointApproaches(edge, source, target) === 0
+      && !hasDirectLaneBlocker(edge, edge.points[0]![axis.cross],
+        Math.min(edge.points[0]![axis.main], edge.points[1]![axis.main]),
+        Math.max(edge.points[0]![axis.main], edge.points[1]![axis.main]), ctx, edgeAxis)) {
+      cert.invariant = 'straight'; cert.bendCount = 0; cert.directLaneClear = true; cert.directLaneBlockedBy = undefined
+      return { applied: true, mutated: false }
     }
     // Port ranking, hard case: a diamond side carrying exactly ONE line
     // always emits from its vertex (the user-facing convention dot and
