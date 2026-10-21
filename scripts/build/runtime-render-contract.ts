@@ -71,11 +71,39 @@ interface BrowserBuild {
   onLoad(options: { filter: RegExp }, callback: (args: { path: string }) => { contents: string; loader: 'ts'; resolveDir: string } | undefined): void
 }
 
+/** Pipeline prose is for Node-side inspection and generated documentation.
+ * Keep the executable pass contracts intact in the browser renderer. */
+function runtimeLayoutSource(source: string, path: string): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const transformed = ts.transform(file, [context => root => {
+    const visit: ts.Visitor = node => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'LAYOUT_PIPELINE'
+        && node.initializer && ts.isArrayLiteralExpression(node.initializer)) {
+        const passes = node.initializer.elements.map(pass => ts.isObjectLiteralExpression(pass)
+          ? ts.factory.updateObjectLiteralExpression(pass, pass.properties.filter(property =>
+            !(property.name && ts.isIdentifier(property.name) && property.name.text === 'doc')))
+          : pass)
+        return ts.factory.updateVariableDeclaration(node, node.name, node.exclamationToken, node.type,
+          ts.factory.updateArrayLiteralExpression(node.initializer, passes))
+      }
+      return ts.visitEachChild(node, visit, context)
+    }
+    return ts.visitNode(root, visit) as ts.SourceFile
+  }])
+  try { return ts.createPrinter().printFile(transformed.transformed[0]!) }
+  finally { transformed.dispose() }
+}
+
 /** Structural plugin interface works in both esbuild and Bun builds. */
 export function runtimeRenderContractPlugin({ schemaDocumentation = true } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
+      build.onLoad({ filter: /[\\/]src[\\/]layout-engine\.ts$/ }, ({ path }) => ({
+        contents: runtimeLayoutSource(readFileSync(path, 'utf8'), path),
+        loader: 'ts',
+        resolveDir: dirname(path),
+      }))
       build.onLoad({ filter: /[\\/]src[\\/](?:render-contract|scene[\\/]style-spec)\.ts$/ }, ({ path }) => path.endsWith('style-spec.ts') && schemaDocumentation ? undefined : ({
         contents: runtimeSource(readFileSync(path, 'utf8'), path, schemaDocumentation),
         loader: 'ts',

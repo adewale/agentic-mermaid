@@ -2138,3 +2138,122 @@ quality and native ASCII companion execution. Larger-domain qualification still
 needs more than one successful development workload, so16 additional80-node
 sources across global directions/local overrides/labels are declared before
 execution. All outcomes will remain enrolled, including native declines.
+
+
+### October21 rebase and additional large-compound audit
+
+The complete frozen canonical `a84fc42f` package, on main `b1a50dfa`, finishes
+all238 development inputs:232 native successes,238 ELK successes and six native
+declines. All231 previously successful native SVGs and complete receipts are
+identical after allowing only the implementation revision19→20. No added
+measured crossings, label conflicts or parallel/opposing overlaps occur.
+
+The16 prospectively declared80-node development cases also all finish with both
+engines. They cover TB/BT/LR/RL global direction crossed with inherited, opposed,
+alternating local directions and labelled internal/cross-scope links. Native
+paint certification passes16/16; ELK passes14/16 and remains unverified on the
+BT-alternating and RL-alternating inputs. None has an added measured native
+crossing, label conflict or parallel/opposing overlap. This is a development
+audit, not a fresh holdout or a timing/memory qualification. The frozen package,
+all inputs and all outcomes remain recorded before the next rebase.
+
+The branch is subsequently rebased onto main `297eaaf2` (including `dfe5a674`'s
+layout-pass split, layout hints and flattened Class namespace header repair).
+Those upstream improvements must not be credited as native engine savings.
+Default geometry and backend integration must be rechecked at that combined
+revision. Native Flowchart/State must explicitly decline active layout hints
+until it implements them, so a requested ELK fallback can preserve the author's
+preferences. Empty hint collections do not require a fallback.
+
+The additional community review checks Mermaid
+[#8326](https://github.com/mermaid-js/mermaid/issues/8326) (repeated subgraph IDs,
+closed via#8337) and [#7659](https://github.com/mermaid-js/mermaid/issues/7659)
+(compound merge-edge adaptation, closed via#7712). Both concern the adapter's
+interpretation of authored identities or solver output; neither establishes a
+current ELK algorithm defect or proves our native engine fixes those inputs.
+They reinforce retaining endpoint/ownership checks alongside visual metrics.
+
+The hint regressions first fail seven cases without the native guard (15 pass,
+7 fail), then pass within132 engine/selection/hint tests and3707 assertions.
+The34 specialized adapter tests pass with1310 assertions. Both typechecks pass
+before the four-line hint guard; the final combined checks are recorded below.
+Default geometry first times out at74.21s while competing with the compiler;
+the retained serial rerun passes the unchanged gate in26.98s (32.73s whole
+file). No baseline or timeout is changed to rescue that adverse run.
+
+
+The next allocation probe changes only private degree-one adjacency: initialize
+its single incoming/outgoing entry at construction instead of pushing into two
+empty arrays. Vertex numbering, neighbor order, ranks and all work ceilings
+stay fixed. The declared before/after diagnostic retains both dense15/19-node
+inputs, three rounds,25 timing repetitions, separate one-pass GC allocation
+measurements,60s worker limits and480s total. Its24 workers have no ELK A/A
+control, so even favorable timing cannot qualify a speed win. It must preserve
+all750 existing development SVG/receipt/error outcomes before consideration.
+
+
+The combined rebased canonical package comparison completes238/238:232 native
+and238 ELK successes, six retained native declines, no added measured crossing,
+label or shared-span conflicts and no metric-collection errors.231 native SVGs
+and complete receipts remain byte-identical to frozen `a84fc42f`. The remaining
+Class example21 changes because main's flattened namespace adaptation preserves
+full authored paths and omits an empty wrapper. Its namespace-header repair is
+retained for both producers; this is an upstream semantic/geometry change,
+not a native optimization. The existing four-direction fanout test is extended
+to both backends with full-path assertions.
+
+The final pre-payload-fix typechecks pass. Emitted Chromium checks pass8 tests /
+648 assertions, including the96-node native route with zero ELK fetches and
+actual fallback imports. MCP declaration/discovery integration passes3 focused
+tests /93 assertions. The canonical Node/DTS/IIFE/catalog/lazy build passes.
+
+The rebased payload gate fails honestly: Architecture's default ELK structural
+closure is573764 Brotli bytes against main's573500 ceiling (264 bytes over).
+No budget is raised. Browser builds can omit the `LAYOUT_PIPELINE` description
+strings that are used only by Node inspection/documentation, retaining pass
+IDs, dependencies, mutation declarations, metric budgets, enabled/run functions,
+freezing and proposal contracts unchanged. Node manifests keep the prose.
+This shared browser packaging reduction applies to both engines and cannot be
+claimed as a native algorithm saving. Its emitted parity and budgets still
+require verification after rebuilding.
+
+
+The private adjacency diagnostic completes24/24 workers without failures and
+with identical before/after SVG/receipt fingerprints on both dense examples.
+Median sampled pass allocation changes77,447,888→75,355,600 bytes on15 nodes and
+112,327,440→111,553,080 on19. Whole-worker RSS changes184956→136468 KiB on15 but
+137980→151440 KiB on19. Medians of the three25-repeat timing medians change
+375.78→509.48ms on15 and599.28→419.84ms on19. There is no A/A control and neither
+source bundles nor these two development inputs qualify shipped performance.
+The15-node timing and19-node RSS observations are adverse; this candidate is
+not adopted. Its bounds and whole diagnostic stay intact. The full750-output
+comparison is not run for this rejected candidate; fingerprint identity here
+covers only the two measured inputs.
+
+
+The final combined metadata projection passes both typechecks, lint and the
+canonical IIFE/lazy browser builds (including declarations). Emitted Chromium
+checks pass32 tests /763 assertions: all23 IIFE families match source bytes,
+the lazy entry has strict-mode family parity, both selected solvers load once,
+and the large native workload fetches no ELK. The expanded Class flattening
+check passes both backends in all four directions (2 tests /474 assertions).
+
+All current payload budgets pass unchanged. Architecture's default closure
+falls573764→572815 Brotli bytes after omitting browser pipeline prose, leaving
+685 bytes below main's573500 ceiling. Flowchart's matched structural closures
+are711263 gzip /576405 Brotli /34 requests with ELK, and285963 /252906 /34 with
+native. Class/Requirement native still need one additional request. Main's
+layout-pass split changes the module graph; no cross-base request/byte delta is
+credited to the native solver. Node pipeline descriptions remain available.
+
+A separate next probe lifts the shared crossing metric's endpoint and parameter
+tolerance closures to module helpers, preserving arithmetic and contact rules.
+Its50006 direct comparisons across10000 reproducible development route sets,
+reversals, involvement filters, shrinking/empty routes and numeric edge cases
+match exactly with unchanged inputs. The declared cost diagnostic uses both
+retained dense inputs, three counterbalanced native-before/native-before-A/A/
+native-after arms,25 timing repetitions, separate memory,36 workers,60s per
+worker and480s total. Its symmetric A/A limit is reciprocal1.1 per input and
+aggregate; it is never a normalization divisor. No ELK or full-population cost
+claim follows from this source-bundle probe. Production adoption requires
+further output and shipped-package evidence.

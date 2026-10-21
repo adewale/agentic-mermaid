@@ -1,5 +1,7 @@
 import { expect, test } from 'bun:test'
 import { layoutMermaid, parseRegisteredMermaid, renderMermaidSVGWithReceipt } from '../agent/core.ts'
+import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 import type { GraphLayoutHints } from '../types.ts'
 
 const SOURCE = 'flowchart LR\n A --> B\n A --> C\n B --> D\n C --> D\n A --> D'
@@ -48,4 +50,38 @@ test('hints participate in receipt identity and remain deterministic', () => {
   expect(first.svg).toBe(second.svg)
   expect(first.receipt.sharedRequestDigest).toBe(second.receipt.sharedRequestDigest)
   expect(first.receipt.sharedRequestDigest).not.toBe(plain.receipt.sharedRequestDigest)
+})
+
+// Native layout must not silently discard preferences introduced by ELK.
+test.each(['flowchart LR', 'stateDiagram-v2\n direction LR'].flatMap(header => [
+  { header, hints: { ranks: { A: 0, B: 1, C: 2, D: 3 } } },
+  { header, hints: { adjacent: [['C', 'B']] } },
+  { header, hints: { shortEdges: ['A->D'] } },
+]))('native selection declines active hints and explicit fallback retains them: %j', ({ header, hints }) => {
+  const source = SOURCE.replace('flowchart LR', header)
+  const stages: string[] = []
+  expect(() => withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, {
+    graphLayout: { backend: 'agentic' }, layoutHints: hints,
+  }))).toThrow(GraphLayoutUnsupportedError)
+  expect(stages).not.toContain('elk')
+  const reference = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' }, layoutHints: hints })
+  const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'elk' }, layoutHints: hints })
+  expect(fallback.svg).toBe(reference.svg)
+  expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({
+    requested: 'agentic', selected: 'elk', attempts: [
+      { backend: 'agentic', outcome: 'unsupported', reason: 'layout hints' },
+      { backend: 'elk', outcome: 'selected' },
+    ],
+  })])
+})
+
+test.each([{}, { ranks: {} }, { adjacent: [] }, { shortEdges: [] }])('empty hints retain native layout: %j', layoutHints => {
+  const out = renderMermaidSVGWithReceipt(SOURCE, { graphLayout: { backend: 'agentic' }, layoutHints })
+  expect(out.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+})
+
+test('explicit fallback propagates invalid layout hints', () => {
+  expect(() => renderMermaidSVGWithReceipt(SOURCE, {
+    graphLayout: { backend: 'agentic', fallback: 'elk' }, layoutHints: { ranks: { absent: 1 } },
+  })).toThrow('LAYOUT_HINT_INVALID')
 })
