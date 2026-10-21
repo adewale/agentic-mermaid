@@ -56,7 +56,7 @@ jobs:
         if: ${{ always() && !cancelled() && steps.reference.outcome == 'success' }}
         continue-on-error: true
         run: |
-          bun run eval:mermaid-modern --mermaid-dir "$RUNNER_TEMP/mermaid" --reference-dir "$RUNNER_TEMP/mermaid-reference" --fuzz 100 --seed 7
+          bun run eval:mermaid-modern --mermaid-dir "$RUNNER_TEMP/mermaid" --reference-dir "$RUNNER_TEMP/mermaid-reference" --labels --fuzz 100 --seed 7
       - name: Compare all-family native admission and real grammar round trips
         if: ${{ always() && !cancelled() && steps.reference.outcome == 'success' }}
         env:
@@ -75,6 +75,7 @@ jobs:
             eval/mermaid-modern-compat/output/grammar-regressions-gate.json
             eval/mermaid-modern-compat/output/summary.json
             eval/mermaid-modern-compat/output/cases.json
+            eval/mermaid-modern-compat/output/label-census.json
             eval/mermaid-modern-compat/output/grammar/
           retention-days: 7
           if-no-files-found: warn

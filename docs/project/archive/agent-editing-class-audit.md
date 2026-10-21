@@ -79,6 +79,13 @@ unavailable surfaces and paired baseline/head changes. Regression assertions
 cover every built-in family's selected labels and generated Sequence controls,
 aliases, boxes, metadata and properties. This found discarded flat Class
 namespace context and order-sensitive Sequence metadata during relabeling.
+Visual review exposed Class shafts crossing restored namespace headers. The
+header detour initially refused an official fanout because nominally vertical
+coordinates differed by floating-point roundoff. The full census found that
+regression; tolerance-based axis classification fixes it. Owning checks span
+short/wrapped headers, four directions and 40 further fanout/fanin layouts.
+The 1,154-input census then showed no regression in selected label presence
+against the pre-merge report. This does not prove arbitrary route feasibility.
 Read-back now includes recognized Sequence messages/titles inside preserved
 segments and sparse XY point labels. GitGraph retains an authored merge ID
 instead of hiding it behind a synthetic message. Exact-fact consumers need
@@ -100,7 +107,8 @@ separate from language behavior.
 TEST-10's finder modes now explicitly shuffle file arguments and launch a
 fresh OS process per file. Logs record exact files and replay seeds. Focused
 local runs passed; scheduled full-suite results require the updated workflow
-to run. New finder modes retain artifacts without filing issues.
+to run. New finder modes retain artifacts without filing issues. TEST-11 is also
+complete: every CI unit shard installs the real CJK coverage font fixture.
 
 ## Live-agent evidence and remaining external work
 
@@ -136,6 +144,13 @@ The label census command and paired-report options are documented in
 `eval/mermaid-modern-compat/README.md`.
 
 Run `bun run typecheck`, `bun run lint`, `bun run build:browser:lazy` and
-`bun run check:browser-lazy` for integration. Size ceilings are unchanged;
-several families have little remaining headroom. Full final-revision CI and
+`bun run check:browser-lazy` for integration. The merged browser graph audit found no accidental capabilities in the lazy
+closures. Real hint, preservation and layout code crosses seven encoding
+ceilings, so this follow-up uses main’s existing 500-byte measured ratchet:
+Flowchart gzip 711,350 / ceiling 711,500 and Brotli 576,200 / 576,500; State
+gzip 711,299 / 711,500 and Brotli 576,103 / 576,500; Architecture Brotli
+572,548 / 573,000; Kanban raw 591,155 / 591,500; Treemap raw 602,175 /
+602,500. Request limits stay unchanged. Initial transfer is 5,492 bytes gzip.
+These are measured costs of the combined changes, not a size reduction claim. The follow-up integrates main `e951d22`, including its conditional rendering
+dependencies and authored-line grammar handling. Full final-revision CI and
 its retained same-input render artifacts are the PR's integration evidence.
