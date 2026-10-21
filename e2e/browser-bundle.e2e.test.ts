@@ -413,6 +413,9 @@ describe('async family-loaded browser renderer', () => {
         const api = await import(entryUrl)
         await Promise.all([
           api.renderMermaidSVGAsync('flowchart LR\n  A --> B', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nB -->|handoff| C', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('stateDiagram-v2\nstate One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('classDiagram\nnamespace One {\nclass A\n}\nnamespace Two {\nclass B\n}\nA --> B : handoff', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R --> L:b', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('classDiagram\nclass Account {\n+String name\n}\nAccount --> Audit : records', { graphLayout: { backend } }),
           api.renderMermaidSVGAsync('classDiagram\nnamespace Platform {\nclass A\nclass B\nA --> B : delegates\nnamespace Domain {\nclass User\n}\n}', { graphLayout: { backend } }),
@@ -469,13 +472,14 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
-  test.each(['native', 'compound', 'local-limit', 'refined-cycle'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
+  test.each(['native', 'cross-scope', 'compound', 'local-limit', 'refined-cycle'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
     const fallback = mode === 'compound' || mode === 'local-limit'
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
-      : `flowchart TD\n${mode === 'compound' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'compound' ? '\nend' : ''}`
+      : mode === 'compound' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOutside --> Inner'
+      : `flowchart TD\n${mode === 'cross-scope' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'cross-scope' ? '\nend' : ''}`
     const options = {
       graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
       security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },

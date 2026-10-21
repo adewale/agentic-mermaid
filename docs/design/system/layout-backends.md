@@ -4,8 +4,10 @@ Status: implementation and qualification contract for an opt-in owned backend.
 Native measured Flowchart/State placement includes cycles, loops and independent
 nested scopes. Requirement cards and relationship labels also use measured
 native placement. ER cards, frames and relations and Class cards, independent namespace frames
-and relations also use this kernel. Cross-namespace Class and cross-hierarchy Flowchart leaf
-routes and Architecture compound child order/boundary placement still require ELK. Flat Architecture
+and relations also use this kernel. Bounded cross-namespace Class and cross-hierarchy
+Flowchart/State leaf routes preserve scope placement and frame headers. Cross-scope
+frame endpoints, exhausted corridor searches and Architecture compound child
+order/boundary placement still require ELK. Flat Architecture
 placement reuses the native engine; ports, alignments and routing remain owned
 by its adapter. Quality and cost qualification remains
 in progress; admission is not proof of parity. Implementation scheduling remains
@@ -1941,3 +1943,89 @@ at138,936,320 and156,893,184. Preserve that RSS tradeoff. New-native retained
 growth is425,096 /420,504 bytes versus ELK491,888 /356,424. Allocation, RSS
 and retention do not tell one uniformly favorable story, and this incomplete
 two-case experiment cannot qualify the27-input comparison.
+
+
+### Bounded cross-hierarchy leaf corridors (@19)
+
+The owned solver now lifts each cross-scope leaf edge to the immediate children
+of its lowest common ancestor. Bottom-up placement retains local directions,
+frame dimensions and label reservations. Only scopes hosting lifted edges use
+compact private ranks. A bounded rectilinear visibility search then connects
+actual leaf outlines to the quotient route. Obstacles include leaf bodies,
+unrelated frames, related frame header bands, occupied labels and foreign
+shafts. The raw shortener preserves these routes' boundary corridors. This is
+standard visibility-routing prior art, not a new general compound algorithm.
+ELK Layered supports a much broader compound domain and hierarchy-port model;
+see its [algorithm reference](https://eclipse.dev/elk/reference/algorithms/org-eclipse-elk-layered.html)
+and [hierarchy edge merging](https://eclipse.dev/elk/reference/options/org-eclipse-elk-layered-mergeHierarchyEdges.html).
+
+Admission is conservative: at most64 leaves,16 groups,16 cross-scope edges,
+128 total edges and2048 raw route points. Grid states count against the existing
+32768 aggregate expansion bound; obstacle tests, visibility arcs, coordinate
+sorts and heap operations debit the existing shared routing budgets. Exhaustion
+or an obstructed corridor yields a typed decline. Cross-scope frame endpoints
+remain unsupported. No solver ceiling, measurement deadline or payload budget
+is raised. Strict native requests never execute ELK.
+
+The complete238-input source/workload development comparison admits231 native
+inputs versus223 before, with238 ELK successes. Five Flowchart and three Class
+inputs are newly supported; all223 previously supported inputs have identical
+SVGs and complete receipts in the prototype before the implementation ID bump.
+No measured crossings, label conflicts or parallel/opposing overlaps increase
+against ELK across shared successes. Class specialized overlap/label metrics
+remain unavailable; absence is not a zero. Six promoted inputs pass paint
+certification; two remain unverified, also unverified with ELK. An initial
+candidate introduced one extra crossing on Flowchart example96; compact ranks
+in lifted host scopes remove it. Both the failed candidate and full cohort
+remain in the ignored diagnostic reports. This is development evidence, not a
+fresh holdout or full aesthetic parity. Seven declines remain: cross-scope frame
+endpoints, overlapping frame/node identities, a96-leaf workload outside the
+local corridor domain, and four Architecture compounds.
+
+The preceding84b20082 cost run (CI39548848015) completes both healthy ELK A/A
+controls: aggregate ratios0.977798 cache-off and0.999070 normal. Both native
+comparisons remain incomplete under the unchanged shared480s budgets. Cache-off
+has no matched corpus or memory result; its first native100-card Requirement
+cold SVG receives336ms and expires after343.74ms. Normal has seven paired
+inputs and a partial0.989408 ratio, with no matched memory result; its first
+failure is an ELK-reference11-node correctness-ASCII worker receiving1176ms
+and expiring after1190.49ms. These are failed qualification runs, not speed wins.
+All required CI checks pass on that revision. The new compound domain still
+needs its own cost evidence; it cannot inherit the flat-domain measurements.
+
+
+The October21 community review checks Mermaid[#8302](https://github.com/mermaid-js/mermaid/issues/8302)
+(feedback into a group; closed as completed September28) and
+[#7901](https://github.com/mermaid-js/mermaid/issues/7901) (long nested frame
+titles; still open). They motivate separate endpoint/arrow preservation and
+measured-header containment checks, not a claim that our pinned ELK has either
+reported bug. Compact quotient routing can itself create a cycle even when the
+leaf graph is acyclic; no global optimality is claimed. A future sparse visibility
+router should be evaluated against Marriott, Stuckey and Wybrow's
+[Seeing around corners (2014)](https://research.monash.edu/en/publications/seeing-around-corners-fast-orthogonal-connector-routing/)
+before adding another search layer. The current grid is deliberately bounded
+and conservative; it is not the sparse algorithm from that paper.
+
+
+The canonical Node package repeats the complete238-input comparison:231 native,
+238 ELK, with no lost successes or additional measured crossing/label/shared-shaft
+conflicts. All223 previous native SVGs remain identical; complete receipts differ
+only by the declared implementation revision. The unchanged319-record default
+geometry gate passes (17.96s total,15.52s comparison). Both typechecks, lint,
+owning placement/selection/cache/family tests and the complete Node/declaration/
+IIFE/catalog/lazy build pass. Browser budgets pass unchanged: Flowchart closure
+711,542 gzip /576,399 Brotli with ELK versus285,656 /252,360 native,33 requests
+each. The new native routing code adds2,934 gzip bytes relative to the prior
+native build; Architecture's default closure is572,811 Brotli against573,000.
+Class and Requirement native closures still require one extra request.
+
+A broad local browser run is retained as incomplete/failed: Firefox exceeds its
+180s launch limit with read-only sandbox/cache errors, and WebKit lacks required
+shared libraries. The runner is stopped after those launch failures; subsequent
+teardown-induced failures do not diagnose layout behavior. The targeted Chromium
+emitted-import/cross-scope/fallback contracts are checked separately. Full
+cross-engine validation remains a CI obligation, not an inferred local pass.
+
+The targeted Chromium run passes8 tests /606 assertions (24.85s), including
+concurrent cross-scope Flowchart, State and Class rendering with one selected
+solver import, native-only cross-scope loading and actual frame-endpoint fallback.

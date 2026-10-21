@@ -285,8 +285,33 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
-  test('declines cross-hierarchy leaf routes and attributes a requested ELK fallback consistently across cache states', () => {
-    const compound = 'flowchart TD\nOutside --> A\nsubgraph G[Group]\n A --> B\nend'
+  test.each([
+    ['Flowchart', 'flowchart TB\nsubgraph One[Team One]\n A[Source] --> B[Review]\nend\nsubgraph Two[Team Two]\n C[Target] --> D[Finish]\nend\nB -->|handoff| C'],
+    ['State', 'stateDiagram-v2\nstate One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff'],
+  ])('preserves %s cross-scope leaf relationships across public surfaces', (_family, source) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('cross-scope example must parse')
+    const stages: string[] = []
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    const result = layoutMermaidWithReceipt(source, AGENTIC)
+    expect(stages).not.toContain('elk')
+    expect(result.layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D'])
+    expect(result.layout.groups.map(group => [group.id, group.members])).toEqual([['One', ['A', 'B']], ['Two', ['C', 'D']]])
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], ['C', 'D'], ['B', 'C']])
+    expect(svg.svg).toContain('handoff')
+    expect(svg.receipt.layoutCertification?.status).toBe('passed')
+    expect(renderMermaidSVGWithReceipt(parsed.value, AGENTIC).svg).toBe(svg.svg)
+    expect(renderMermaidPNGWithReceipt(source, AGENTIC).receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
+    expect(result.receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
+    expect(renderMermaidASCIIWithReceipt(source, AGENTIC).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
+    const quality = measureQuality(result.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toMatchObject({ opposing: 0, parallel: 0 })
+  })
+
+  test('declines cross-hierarchy frame endpoints and attributes a requested ELK fallback consistently across cache states', () => {
+    const compound = 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOutside --> Inner'
     expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
     clearElkLayoutCache()
     const diagnostics: unknown[] = []
@@ -308,7 +333,7 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ['class', 'classDiagram\nnamespace Left {\nclass A\n}\nnamespace Right {\nclass B\n}\nA --> B'],
+    ['flowchart', 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOutside --> Inner'],
     ['architecture', 'architecture-beta\ngroup g[Group]\n service a(server)[A] in g\n service b(server)[B] in g\n a:R --> L:b'],
   ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
     expect(() => renderMermaidSVGWithReceipt(source, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
