@@ -195,23 +195,16 @@ describe('layoutArchitectureDiagram', () => {
         numRuns: 300,
         // Graph crossing preferences must not score the temporary routes that
         // Architecture replaces with its authored side-specific projection.
-        examples: [['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s1_1:L --> T:s0_0']],
+        examples: [['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s1_1:L --> T:s0_0'],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_2\n  s1_1:L --> L:s0_1\n  s0_1:L --> L:s1_0\n  s0_0:B --> B:s0_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  service s1_2(server)[Svc s1_2] in g1\n  s1_0:T --> L:s0_0\n  s1_0:L --> L:s1_1\n  s1_2:L --> L:s1_1\n  s0_0:L --> L:s1_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  junction j0 in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s1_0:L --> T:s0_0"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_2:L --> L:s0_0\n  s0_1:B --> B:s0_0\n  s0_0:L --> L:s0_1\n  s1_0:L --> L:s0_0\n  s1_0:L --> L:s0_0"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  service s1_2(server)[Svc s1_2] in g1\n  s1_0:L --> L:s0_0\n  s0_0:L --> L:s1_1\n  s1_2:B --> B:s1_0\n  s1_2:L --> L:s0_0\n  s1_2:L --> L:s1_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  junction j0 in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:T --> T:s0_1"],
+          ["architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_0:L --> L:s0_1\n  s0_2:B --> B:s0_1"],
+          ['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0']],
       }),
-    )
-  })
-
-  // Known product bug BUG-37: the router sends s0_0:T --> T:s0_1 through card
-  // s0_2 (obstacleFree false). The nightly finder found it at
-  // AM_FC_SEED=1102132276; this is its shrunk counterexample, pinned as an
-  // `examples` entry. When BUG-37 is fixed this pin fails: move the example
-  // into the property above (keep it forever) and delete this test.
-  const BUG_37_SOURCE = 'architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s0_0:L --> L:s1_0\n  s0_0:T --> T:s0_1\n  s0_2:L --> L:s1_0\n  s0_1:L --> L:s1_0'
-  it.failing('BUG-37: the AM_FC_SEED=1102132276 counterexample routes an edge through a card', () => {
-    fc.assert(
-      fc.property(groupedArchitectureArb, source => {
-        expect(groupedLayoutViolations(source)).toEqual([])
-      }),
-      fcParameters({ examples: [[BUG_37_SOURCE]], numRuns: 1 }),
     )
   })
 
