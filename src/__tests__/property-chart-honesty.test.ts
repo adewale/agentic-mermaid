@@ -43,7 +43,7 @@ describe('chart honesty: generated diagrams with random titles', () => {
         fcParameters({
           numRuns: fc.readConfigureGlobal().numRuns ?? 6,
           // Nightly finder #362: the one-line title exceeded the fixed canvas.
-          examples: kind === 'xychart' ? [[1, 'Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly', undefined]] : kind === 'treemap' ? [[2, 'W'.repeat(70), 'accessible-high-contrast']] : [],
+          examples: kind === 'xychart' ? [[1, 'Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly', undefined]] : kind === 'sequence' ? [[3, 'revenue and Quarterly market region Quarterly region', undefined]] : kind === 'treemap' ? [[2, 'W'.repeat(70), 'accessible-high-contrast']] : [],
         }),
       )
     }, 120_000)
