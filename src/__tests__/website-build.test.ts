@@ -1056,7 +1056,7 @@ describe('Workers Static Assets website contract', () => {
   test('docs and editor reuse the shared visual primitive set', () => {
     const docs = read('docs/index.html')
     const editor = read('editor/index.html')
-    const styles = read('styles.css')
+    const styles = readRepo('website/source/assets/styles.css')
     expect(docs).not.toContain('tufte-docs')
     expect(docs).not.toContain('/* ---- /docs in the Tufte idiom')
     expect(docs).toContain('class="doc"')
@@ -1174,7 +1174,7 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('typography uses shared measure, leading, labels, and safe wrapping tokens', () => {
-    const styles = read('styles.css')
+    const styles = readRepo('website/source/assets/styles.css')
     expect(styles).toContain('--lh-body: 1.6;')
     expect(styles).toContain('--lh-code: 1.68;')
     expect(styles).toContain('line-height: var(--lh-body)')
@@ -1277,7 +1277,7 @@ describe('Workers Static Assets website contract', () => {
     expect(comparisons).not.toContain('fonts.googleapis.com')
     expect(comparisons).not.toContain('@import url(')
     expect(comparisons).not.toContain('principled decision')
-    const styles = read('styles.css')
+    const styles = readRepo('website/source/assets/styles.css')
     expect(styles).toContain('--comparison-panel-zoom-width')
     expect(styles).toContain('.comparison-mermaid { width: 100%;')
     expect(styles).toContain('.comparison-panel[data-comparison-engine="mermaid"] .comparison-render svg')
@@ -1392,7 +1392,7 @@ describe('Workers Static Assets website contract', () => {
     const loader = files().find(file => /^examples-[a-f0-9]{12}\.js$/.test(file))
     expect(loader).toBeDefined()
     expect(read(loader!)).toContain('resolveStandaloneAlias')
-    const styles = read('styles.css')
+    const styles = readRepo('website/source/assets/styles.css')
     expect(styles).toContain('.example-sample-palette .example-sample-grid { grid-template-columns: minmax(0, 1fr); }')
     expect(styles).toContain('.example-render-palette .example-svg svg { width: auto; max-width: none; margin-inline: auto; }')
     expect(styles).toContain('.example-render-palette .example-svg svg.xychart { width: 700px; }')
@@ -1418,7 +1418,7 @@ describe('Workers Static Assets website contract', () => {
     expect(examples).toContain('<p class="example-trace"><span>Trace</span> <code>asGantt · mutate(add_task) · verify</code>')
     expect(examples).not.toContain('Role style presets')
     expect(examples).not.toContain('id="styled-flowchart"')
-    const styles = read('styles.css')
+    const styles = readRepo('website/source/assets/styles.css')
     expect(styles).toContain('.example-prompt, .example-trace')
     expect(examples).toContain('class="example-jump"')
     expect(examples).toContain('Jump to a diagram family')
@@ -1632,7 +1632,7 @@ describe('Workers Static Assets website contract', () => {
 
   test('audit fixes keep hidden UI inert, shortcuts scoped, and mobile tables responsive', () => {
     const editor = read('editor/index.html')
-    const styles = read('styles.css')
+    const styles = readRepo('website/source/assets/styles.css')
     // Runtime behaviour of these controls (the "?" dialog, Cmd/Ctrl+C in the
     // source, copy-button width) is exercised in a real browser by
     // e2e/editor-site-interactions.e2e.test.ts and website-browser-a11y.test.ts;
