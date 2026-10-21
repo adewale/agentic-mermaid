@@ -87,7 +87,6 @@ function placeNativeGraphCandidate(
     const groupIndices = new Map<string, number>()
     const membership = new Map<string, { parent: number; direction: Direction }>()
     const visit = (source: MermaidSubgraph, parent: number | undefined, inherited: Direction): void => {
-      if (!source.nodeIds.length && !source.children.length) bindings.unsupported('empty compound frames')
       const index = groups.length, direction = source.direction ?? inherited
       const block = graphTextBlock(resolveLabelContent(source.label, source.labelContent), style, 'group')
       const header = source.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + block.height - block.lineHeight

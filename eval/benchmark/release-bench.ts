@@ -101,8 +101,8 @@ export function releaseBenchArgs(argv = process.argv.slice(2)): Map<string, stri
   if (options.has('layout-cache') && (!options.has('layout-modes') || !['off', 'normal'].includes(options.get('layout-cache')!))) {
     throw new Error('--layout-cache requires --layout-modes and one of off|normal')
   }
-  if (options.has('layout-reference') && (!options.has('layout-modes') || !['separate', 'shared'].includes(options.get('layout-reference')!))) {
-    throw new Error('--layout-reference requires --layout-modes and one of separate|shared')
+  if (options.has('layout-reference') && (!options.has('layout-modes') || !['separate', 'shared', 'batched'].includes(options.get('layout-reference')!))) {
+    throw new Error('--layout-reference requires --layout-modes and one of separate|shared|batched')
   }
   return options
 }
@@ -330,14 +330,24 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
  * or fallback coverage, and failed observations are never retried. */
 export function measureLayoutComparisons(
   out: string, plans: ReturnType<typeof layoutComparisons>, groups: Group[], rounds: number, reps: number, deadline: number,
-  execute?: MeasurementWorker,
+  execute?: MeasurementWorker, batchTiming = false,
 ): Array<{ name: string; runs: EngineRun[] }> {
   mkdirSync(out, { recursive: true })
   const engines = [...new Set(plans.flatMap(plan => plan.engines))]
   if (new Set(engines.map(engine => engine.label)).size !== engines.length) throw new Error('Layout arm labels must be unique')
-  appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ protocol: 'shared-layout-reference@1', engines, rounds, reps, timingOrder: 'rotating-fresh-arms', memoryReuse: 'identical-ordered-populations', failurePolicy: 'no-retry' })}\n`)
+  appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ protocol: batchTiming ? 'batched-layout-reference@1' : 'shared-layout-reference@1', engines, rounds, reps,
+    timingOrder: 'rotating-fresh-arms', timingIsolation: batchTiming ? 'one-fresh-process-per-arm-round; mixed enrolled inputs' : 'one-fresh-process-per-arm-group-round',
+    memoryReuse: 'identical-ordered-populations', failurePolicy: 'no-retry' })}\n`)
   const runs = freshRuns(engines), worker = execute ?? measurementWorker(out, reps, deadline)
-  measureTiming(runs, groups, rounds, deadline, worker, true)
+  // Import and the cold first-use probe happen once per fresh arm/round. Warm
+  // repetitions still consume every enrolled input, SVG and full receipt.
+  // This is a separately named mixed-workload protocol, not legacy case timing.
+  const timingGroups = batchTiming ? [{ name: 'batched-time', inputs: groups.flatMap(group => group.inputs), budgetMs: groups.reduce((sum, group) => sum + group.budgetMs, 0) }] : groups
+  measureTiming(runs, timingGroups, rounds, deadline, worker, true)
+  if (batchTiming) for (const run of runs) {
+    const failure = run.failures.get('time:batched-time')
+    if (failure) for (const group of groups) run.failures.set(`time:${group.name}`, failure)
+  }
   const byEngine = new Map(engines.map((engine, index) => [engine, runs[index]!]))
   const memory = new Map<string, { value?: MemoryResult; failure?: string }>()
   const pairedWorker: MeasurementWorker = (run, mode, group, round) => {
@@ -644,14 +654,14 @@ function main() {
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
     if (modes) {
       const plans = layoutComparisons(engines, modes, layoutCache)
-      const shared = options.get('layout-reference') === 'shared'
-        ? measureLayoutComparisons(join(out, 'shared-reference'), plans, groups, rounds, reps, deadline) : undefined
+      const shared = options.get('layout-reference') === 'shared' || options.get('layout-reference') === 'batched'
+        ? measureLayoutComparisons(join(out, 'shared-reference'), plans, groups, rounds, reps, deadline, undefined, options.get('layout-reference') === 'batched') : undefined
       const comparisons = plans.map((plan, index) => {
         const directory = join(out, plan.name)
         mkdirSync(directory, { recursive: true })
         writeFileSync(join(directory, 'samples.jsonl'), `${JSON.stringify({ ...metadata, comparison: plan.name, engines: plan.engines })}\n`)
         const runs = shared ? shared[index]!.runs : measure(directory, plan.engines, groups, rounds, reps, deadline)
-        if (shared) appendFileSync(join(directory, 'samples.jsonl'), `${JSON.stringify({ sharedSamples: '../shared-reference/samples.jsonl', timingOrder: 'rotating-fresh-arms', memoryPopulation: 'independently-paired', referenceReuse: true })}\n`)
+        if (shared) appendFileSync(join(directory, 'samples.jsonl'), `${JSON.stringify({ sharedSamples: '../shared-reference/samples.jsonl', protocol: options.get('layout-reference') === 'batched' ? 'batched-layout-reference@1' : 'shared-layout-reference@1', timingOrder: 'rotating-fresh-arms', memoryPopulation: 'independently-paired', referenceReuse: true })}\n`)
         const result = report(inputs, groups, runs, rounds, plan.name === 'elk-aa')
         const healthy = plan.advisory ? strictLayoutHealthy(inputs, runs, rounds) : result.ok
         const markdown = plan.advisory ? `Strict Agentic support is partial: full-coverage and performance gates below are advisory. Measurement, content, determinism and unexpected-error checks ${healthy ? 'pass' : 'FAIL'}.\n\n${result.markdown}` : result.markdown
@@ -662,7 +672,9 @@ function main() {
       })
       const ok = comparisons.every(result => result.ok)
       const markdown = [`# Layout backend comparison: ${ok ? 'pass' : 'FAIL'}`, '',
-        shared
+        options.get('layout-reference') === 'batched'
+          ? 'Batched mixed-workload protocol: each fresh arm/round imports once, checks all enrolled inputs, then times every input in every repetition. It changes cache pressure relative to isolated-case scheduling and is reported separately. Cold first-use probes remain separate from warm timing. Memory still uses independent matched populations. No retries or population reductions.'
+          : shared
           ? 'Fresh arms rotate within each input group. One explicit ELK reference serves the A/A and native comparisons; memory is paired independently, with reuse only for the identical engine and ordered population. Failed observations are retained without retries.'
           : 'Each arm runs in its own adjacent, counterbalanced pair against explicit ELK from the same package.',
         'ELK A/A is a control, not a divisor. Strict declines cannot shrink A/A or fallback coverage. Every enrolled input and typed outcome is retained. Public quality vectors come from separately labelled layout reruns after timing; unavailable dimensions and workflows are explicit. No human visual preference study is implied.', '',

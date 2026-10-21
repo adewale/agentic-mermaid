@@ -91,7 +91,7 @@ export function layoutArchitectureDiagram(
   }
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
-  const place = (backend: 'elk' | 'agentic') => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
+  const place = (backend: 'elk' | 'agentic', placementGraph = graph) => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(placementGraph, {
     ...(options.graphLayout ? { graphLayout: { backend } } : {}),
     // Keep placement clearance separate from the drawn surface. Larger rings
     // reserve their own footprint instead of borrowing State's fixed size.
@@ -139,8 +139,21 @@ export function layoutArchitectureDiagram(
     } : undefined,
   }))
   const positioned = runMeasuredGraphBackend(options, () => {
-    if (diagram.groups.length) throw new GraphLayoutUnsupportedError('Architecture compound child order and boundary placement')
-    return place('agentic')
+    try { return place('agentic') } catch (error) {
+      if (!(error instanceof GraphLayoutUnsupportedError) || !graph.subgraphs.length) throw error
+      // Cross-container paths in this graph are temporary placement scaffolds;
+      // the Architecture adapter below routes EVERY original relationship from
+      // its authored side/boundary after alignment and sibling constraints.
+      // A second bounded placement keeps in-scope ranks without asking the
+      // generic router to certify cross-scope paths that will never be painted.
+      const owner = new Map<string, string>()
+      const visit = (group: typeof graph.subgraphs[number]): void => {
+        for (const id of group.nodeIds) owner.set(id, group.id)
+        group.children.forEach(visit)
+      }
+      graph.subgraphs.forEach(visit)
+      return place('agentic', { ...graph, edges: graph.edges.filter(edge => owner.get(edge.source) === owner.get(edge.target)) })
+    }
   }, () => place('elk'))
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))

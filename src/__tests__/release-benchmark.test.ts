@@ -83,7 +83,9 @@ describe('release publication decisions', () => {
     expect(layoutRenderOptions()).toBeUndefined()
   })
 
-  test.each(['unsupported', 'worker-failure'] as const)('a shared reference preserves A/A and fallback populations after native %s', failure => {
+  test.each([
+    ['unsupported', false], ['worker-failure', false], ['unsupported', true], ['worker-failure', true],
+  ] as const)('reference protocol preserves A/A and fallback populations after native %s (batched=%s)', (failure, batched) => {
     const inputs = [input('flow'), input('compound')], groups = [{ name: 'corpus', inputs, budgetMs: 1000 }]
     const plans = layoutComparisons([run('candidate', inputs)], ['elk', 'agentic', 'agentic-with-elk'], 'off')
     const memory: Array<{ label: string; ids: string[] }> = [], referenceRounds: number[] = []
@@ -107,7 +109,7 @@ describe('release publication decisions', () => {
         })),
       }
     }
-    const pairs = measureLayoutComparisons(temp.dir(), plans, groups, 3, 25, Date.now() + 1000, execute)
+    const pairs = measureLayoutComparisons(temp.dir(), plans, groups, 3, 25, Date.now() + 1000, execute, batched)
     const control = pairs.find(pair => pair.name === 'elk-aa')!, native = pairs.find(pair => pair.name === 'agentic')!, fallback = pairs.find(pair => pair.name === 'agentic-with-elk')!
     expect(referenceRounds).toEqual([1, 2, 3])
     expect(report(inputs, groups, control.runs, 3, true).ok).toBe(true)
@@ -118,6 +120,25 @@ describe('release publication decisions', () => {
     expect(memory.filter(call => call.label === 'elk-reference' && call.ids.length === 2)).toHaveLength(1)
     expect(control.runs[0]!.results).toBe(native.runs[0]!.results)
     expect(control.runs[0]!.memory).not.toBe(native.runs[0]!.memory)
+  })
+
+  test('batched timing keeps all corpus and scaling inputs in each fresh arm and each round', () => {
+    const inputs = [input('official'), input('large', 'scaling')]
+    const groups = inputs.map(value => ({ name: value.id, inputs: [value], budgetMs: 1000 }))
+    const plans = layoutComparisons([run('candidate', inputs)], ['elk', 'agentic', 'agentic-with-elk'], 'normal')
+    const timing: Array<{ arm: string; round: number; ids: string[] }> = []
+    const execute: MeasurementWorker = (engine, mode, group, round) => {
+      if (mode === 'memory') return { perInput: [], passAllocatedBytes: 1, passPeakHeapBytes: 1, peakRssBytes: 1, retainedGrowthBytes: 0 }
+      timing.push({ arm: engine.label, round: round!, ids: group.inputs.map(value => value.id) })
+      return { node: 'controlled', importMs: 1, firstRenderMs: 1, firstRender: { ok: true, bytes: 1, sha256: 'cold' },
+        results: group.inputs.map(value => ({ id: value.id, svg: { ok: true, output: '<svg xmlns="http://www.w3.org/2000/svg"/>' },
+          ascii: { ok: true, bytes: 1, sha256: 'text' }, deterministic: true, ms: 1, samplesMs: Array(25).fill(1), missingSvgLabels: [] })) }
+    }
+    const pairs = measureLayoutComparisons(temp.dir(), plans, groups, 3, 25, Date.now() + 1000, execute, true)
+    expect(timing).toHaveLength(12)
+    for (const observation of timing) expect(observation.ids).toEqual(['official', 'large'])
+    expect(timing.filter(value => value.round === 1).map(value => value.arm)).not.toEqual(timing.filter(value => value.round === 2).map(value => value.arm))
+    for (const pair of pairs) for (const arm of pair.runs) for (const value of inputs) expect(arm.results.get(value.id)?.samplesMs).toHaveLength(3)
   })
 
   test('shared reference memory failures are retained for both comparisons without retry', () => {
