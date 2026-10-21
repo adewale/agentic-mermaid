@@ -441,7 +441,7 @@ describe('async family-loaded browser renderer', () => {
         return api.renderMermaidSVGAsync(source, { security: 'strict' })
       }, [`${base}/dist/browser-lazy/index.js`, forest] as const)
       expect(result).toBe(renderMermaidSVG(forest, { security: 'strict' }))
-      expect(requests).not.toContain(lazyElkChunk())
+      expect(requests).not.toContain(lazyImplementationChunk())
 
       const cycle = 'flowchart LR\n  A["x#hearts;y"] --> B[End]\n  B --> A'
       const resumed = await page.evaluate(async ([entryUrl, source]) => {
@@ -463,7 +463,7 @@ describe('async family-loaded browser renderer', () => {
       expect(resumed.first.receipt.layoutCertification?.status).toBe('passed')
       expect(resumed.diagnostics).toEqual(['flowchart.defaultRenderer'])
       expect(resumed.reads).toBe(1)
-      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(1)
     } finally {
       await page.close()
     }
