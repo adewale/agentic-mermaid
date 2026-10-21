@@ -317,7 +317,8 @@ export function layoutPieChart(
   for (const slice of slices) if (slice.pctLabel) slice.pctLabel.block = preparePixelText(slice.pctLabel.text, { display: 'literal', fontSize: slice.pctLabel.fontSize, fontWeight: PIE.sliceLabelFontWeight })
 
   // Legend rows.
-  const legend: PositionedPieLegendItem[] = legendRows.rows.map(({ item: row, top, textY }, i) => {
+  const placedLegendRows = layoutTextRows(rows, { top: legendTop, gap: PIE.legendRowGap, minRowHeight: PIE.legendSwatch })
+  const legend: PositionedPieLegendItem[] = placedLegendRows.rows.map(({ item: row, top, textY }, i) => {
     const entry = chart.entries[i]!
     const item: PositionedPieLegendItem = {
       label: entry.label,
@@ -325,10 +326,10 @@ export function layoutPieChart(
       value: entry.value,
       fraction: row.fraction,
       x: round(legendX),
-      y: round(legendTop + top),
+      y: round(top),
       swatchSize: PIE.legendSwatch,
       textX: round(legendX + PIE.legendSwatch + PIE.legendSwatchToText),
-      textY: round(legendTop + textY),
+      textY: round(textY),
       lines: row.lines,
       block: row.block,
       textWidth: round(row.textWidth),

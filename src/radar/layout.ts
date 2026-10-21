@@ -379,18 +379,19 @@ export function layoutRadarChart(
   if (wantLegend) {
     const legendX = titleLeftExtra + marginL + extL + extR + R.legendGap
     const legendTop = cy - legendHeight / 2
+    const placedLegendRows = layoutTextRows(legendBlocks.map(block => ({ block })), { top: legendTop, gap: R.legendRowGap, minRowHeight: legendSwatch })
     chart.curves.forEach((curve, index) => {
-      const { item: { block }, top, height: rowH, textY } = legendRows.rows[index]!
+      const { item: { block }, top, height: rowH, textY } = placedLegendRows.rows[index]!
       legend.push({
         label: curve.label,
         lines: block.lines,
         block,
         colorIndex: index,
         x: round(legendX),
-        y: round(legendTop + top + (rowH - legendSwatch) / 2),
+        y: round(top + (rowH - legendSwatch) / 2),
         swatchSize: legendSwatch,
         textX: round(legendX + legendSwatch + R.legendSwatchToText),
-        textY: round(legendTop + textY),
+        textY: round(textY),
       })
     })
   }
