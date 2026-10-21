@@ -272,9 +272,12 @@ function lowerGroup<T>(marks: DrawingFactory<T>, group: PositionedArchitectureGr
 function lowerService<T>(marks: DrawingFactory<T>, service: PositionedArchitectureService, visual: ArchitectureVisualConfig, labels: ArchitectureLabelPaints): T {
   const children: Array<{ node: T; indent: number }> = []
   const hasIcon = Boolean(service.icon)
+  const textIconBlock = service.iconText === undefined ? undefined : service.iconTextBlock ?? preparePixelText(service.iconText, { display: 'literal', fontSize: visual.serviceFontSize, fontWeight: 700 })
   const iconX = service.x + visual.servicePaddingX
   const iconY = service.y + service.height / 2 - visual.serviceIconSize / 2
-  const labelX = service.labelPosition?.x ?? (hasIcon
+  const labelX = service.labelPosition?.x ?? (textIconBlock
+    ? iconX + textIconBlock.width + (textIconBlock.width ? 10 : 0)
+    : hasIcon
     ? iconX + visual.serviceIconSize + Math.max(10, visual.servicePaddingX * 0.7)
     : service.x + visual.servicePaddingX)
 
@@ -309,6 +312,16 @@ function lowerService<T>(marks: DrawingFactory<T>, service: PositionedArchitectu
       indent: 0,
       node: renderIcon(marks, iconX, iconY, visual.serviceIconSize, service.icon, false, `icon:${service.id}`, { id: service.id, role: 'service' }, service.iconFallbackBlock),
     })
+  }
+
+  if (textIconBlock) {
+    const block = textIconBlock
+    children.push({ indent: 2, node: marks.text({
+      id: `icon-text:${service.id}`, role: 'icon', text: block.text, block,
+      x: iconX, y: service.y + service.height / 2, anchor: 'start',
+      fontSize: visual.serviceFontSize, fontWeight: 700,
+      paint: { fill: labels.service }, attributes: { className: 'architecture-icon-text' },
+    }) })
   }
 
   const labelY = service.labelPosition?.y ?? service.y + service.height / 2

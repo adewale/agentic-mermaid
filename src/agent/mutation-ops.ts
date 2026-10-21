@@ -71,6 +71,7 @@ export const MUTATION_OPS_BY_FAMILY = {
     'rename_service',
     'set_service_label',
     'set_service_icon',
+    'set_service_icon_text',
     'move_service',
     'add_junction',
     'remove_junction',

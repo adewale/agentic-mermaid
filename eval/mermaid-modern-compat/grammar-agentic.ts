@@ -1,5 +1,5 @@
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
-import { parseArchitectureDiagram } from '../../src/architecture/parser.ts'
+import { architectureSourceLines, parseArchitectureDiagram } from '../../src/architecture/parser.ts'
 import { parseBlockDiagram } from '../../src/block/parser.ts'
 import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { parseClassDiagram } from '../../src/class/parser.ts'
@@ -77,7 +77,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
         // As the render hooks do, the envelope's accessibility and the
         // frontmatter title join the family's own reading.
         case 'architecture':
-          return withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(lines), normalized.accessibility), normalized.frontmatter)
+          return withFrontmatterTitle(withAccessibilityFields(parseArchitectureDiagram(architectureSourceLines(normalized)), normalized.accessibility), normalized.frontmatter)
         case 'class':
           return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
         case 'er':

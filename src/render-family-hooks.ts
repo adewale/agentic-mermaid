@@ -18,6 +18,7 @@ import { terminalInputModel } from './ascii/terminal-model.ts'
 import type { AsciiContext, FamilyDescriptor } from './agent/families.ts'
 import type { DiagramKind } from './agent/types.ts'
 import { renderArchitectureTerminal } from './ascii/architecture.ts'
+import { architectureSourceLines } from './architecture/parser.ts'
 import { flipCanvasVertically } from './ascii/canvas.ts'
 import { nativeTerminalRenderer, terminalArtifact, type TerminalArtifact } from './ascii/terminal-artifact.ts'
 import { renderClassTerminal } from './ascii/class-diagram.ts'
@@ -112,7 +113,7 @@ function renderArchitectureTerminalWithContext(ctx: AsciiContext): TerminalArtif
   // precedence (explicit RenderOptions > source config > defaults) and the
   // terminal projector has sanitized it. Re-reading raw themeVariables here
   // created a second, unsafe color authority unique to Architecture.
-  return renderArchitectureTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options)
+  return renderArchitectureTerminal(architectureSourceLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, ctx.options)
 }
 
 const FLOWCHART_RENDER_HOOKS = {

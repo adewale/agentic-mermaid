@@ -72,6 +72,15 @@ export function layoutArchitectureDiagram(
   const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)
   for (const [id, block] of serviceText) graph.nodes.get(id)!.label = block.text
+  const iconTextBlocks = new Map(diagram.services.filter(service => service.iconText !== undefined).map(service => [service.id, preparePixelText(service.iconText!, {
+    display: 'literal', fontSize: typography.serviceFontSize, fontWeight: 700,
+  })]))
+  for (const [id, iconBlock] of iconTextBlocks) {
+    const labelBlock = serviceText.get(id)!
+    // Placement reserves the combined footprint; lowering retains two text
+    // blocks so literal icon text never acquires label formatting semantics.
+    graph.nodes.get(id)!.labelBlock = { ...labelBlock, width: labelBlock.width + iconBlock.width + (iconBlock.width ? 10 : 0), height: Math.max(labelBlock.height, iconBlock.height) }
+  }
   const prepareGroup = (group: typeof graph.subgraphs[number]): void => {
     group.label = groupText.get(group.id)!.text
     group.children.forEach(prepareGroup)
@@ -132,7 +141,7 @@ export function layoutArchitectureDiagram(
     const bounds = { x: node.x, y: node.y, width: node.width, height: node.height }
     if (servicesById.has(node.id)) {
       const service = servicesById.get(node.id)!
-      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
+      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
       serviceBounds.set(node.id, bounds)
     } else if (junctionIds.has(node.id)) {
       const junction = diagram.junctions.find((entry) => entry.id === node.id)!
@@ -262,7 +271,9 @@ export function layoutArchitectureDiagram(
   for (const service of services) {
     const iconX = service.x + typography.servicePaddingX
     service.labelPosition = {
-      x: service.icon
+      x: service.iconTextBlock
+        ? iconX + service.iconTextBlock.width + (service.iconTextBlock.width ? 10 : 0)
+        : service.icon
         ? iconX + (typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize) + Math.max(10, typography.servicePaddingX * 0.7)
         : iconX,
       y: service.y + service.height / 2,

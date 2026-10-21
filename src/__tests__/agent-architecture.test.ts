@@ -13,6 +13,44 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { asArchitecture } from '../agent/types.ts'
 import { renderMermaidSVG } from '../agent/index.ts'
 import type { ArchitectureValidDiagram, ArchitectureMutationOp } from '../agent/types.ts'
+import { parseArchitectureDiagram } from '../architecture/parser.ts'
+import { layoutArchitectureDiagram } from '../architecture/layout.ts'
+import { renderMermaidASCII } from '../agent/index.ts'
+
+test('literal service icons preserve text, reserve their full footprint and support typed edits', () => {
+  const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a "<b>日本 API</b>\\nSecond line" [Backend] in g\nservice b(database)[Storage]\na:R-->L:b'
+  const parsed = parseMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const typed = asArchitecture(parsed.value)
+  expect(typed?.body.services[0]?.iconText).toBe('<b>日本 API</b>\nSecond line')
+  if (!typed) throw new Error('Expected editable text icon')
+  const positioned = layoutArchitectureDiagram(parseArchitectureDiagram(source.split('\n')))
+  const service = positioned.services.find(item => item.id === 'a')!
+  const icon = service.iconTextBlock!
+  expect(service.labelPosition!.x).toBeGreaterThanOrEqual(service.x + icon.width)
+  expect(service.labelPosition!.x + service.labelBlock!.width).toBeLessThan(service.x + service.width)
+  expect(icon.height).toBeLessThan(service.height)
+  const svg = renderMermaidSVG(source)
+  expect(svg).toContain('&lt;b&gt;日本 API&lt;/b&gt;')
+  expect(svg).not.toContain('<b>日本 API</b>')
+  expect(renderMermaidASCII(source)).toContain('Second line')
+  const changed = mutate(typed, { kind: 'set_service_icon_text', id: 'a', text: 'SQL' })
+  expect(changed.ok).toBe(true)
+  if (!changed.ok) throw new Error(changed.error.message)
+  expect(serializeMermaid(changed.value)).toContain('"SQL"')
+  const named = mutate(changed.value, { kind: 'set_service_icon', id: 'a', icon: 'server' })
+  expect(named.ok).toBe(true)
+  if (!named.ok) throw new Error(named.error.message)
+  expect(asArchitecture(named.value)?.body.services[0]?.iconText).toBeUndefined()
+  expect(serializeMermaid(named.value)).toContain('a(server)')
+  const added = mutate(typed, { kind: 'add_service', id: 'worker', label: 'Worker', iconText: 'jobs' })
+  expect(added.ok).toBe(true)
+  if (!added.ok) throw new Error(added.error.message)
+  expect(asArchitecture(added.value)?.body.services.find(service => service.id === 'worker')?.iconText).toBe('jobs')
+  expect(renderMermaidSVG(added.value)).toContain('jobs')
+  expect(mutate(typed, { kind: 'add_service', id: 'worker', icon: 'server', iconText: 'jobs' }).ok).toBe(false)
+})
 
 const SRC = `architecture-beta
   group api(cloud)[API Layer]

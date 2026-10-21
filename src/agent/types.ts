@@ -395,6 +395,7 @@ export interface ArchitectureService {
   id: string
   label: string
   icon?: string
+  iconText?: string
   /** Undefined = ungrouped (not inside a group). */
   parentId?: string
 }
@@ -1367,11 +1368,12 @@ export type ArchitectureMutationOp =
   | { kind: 'set_title'; title: string | null }
   | { kind: 'set_accessibility_title'; title: string | null }
   | { kind: 'set_accessibility_description'; description: string | null }
-  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
+  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; iconText?: string | null; group?: string | null }
   | { kind: 'remove_service'; id: string }
   | { kind: 'rename_service'; from: string; to: string }
   | { kind: 'set_service_label'; id: string; label: string }
   | { kind: 'set_service_icon'; id: string; icon: string | null }
+  | { kind: 'set_service_icon_text'; id: string; text: string | null }
   | { kind: 'move_service'; id: string; group: string | null }
   | { kind: 'add_junction'; id: string; group?: string | null }
   | { kind: 'remove_junction'; id: string }
