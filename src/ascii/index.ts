@@ -267,7 +267,7 @@ export function executeTerminalRender(
   if (options.onProjectionDiagnostic) connectorStyle()
   for (const diagnostic of projectedStyle?.diagnostics ?? []) options.onProjectionDiagnostic?.(diagnostic)
   const theme: AsciiTheme = appearance.theme
-  const model = terminalInputModel(text, normalizedSource.familyText)
+  const model = terminalInputModel(text, normalizedSource.familyBody)
   const context: AsciiContext = {
     source: normalizedSource,
     ...familyContext,

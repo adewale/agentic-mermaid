@@ -6,6 +6,7 @@ import { parseMermaid as parseGraph } from '../parser.ts'
 import {
   asFlowchart,
   layoutMermaid,
+  mutate,
   parseRegisteredMermaid as parseMermaid,
   renderMermaidASCII,
   renderMermaidSVG,
@@ -51,6 +52,23 @@ function parseAgent(source: string) {
 }
 
 describe('flowchart @{...} node metadata preservation (issue #29)', () => {
+  test.each([
+    ['|', 'First line\nSecond line'],
+    ['>-', 'First line Second line'],
+  ])('block scalar %s retains its indentation through public rendering and typed edits', (scalar, label) => {
+    const source = `flowchart TD\n  A@{\n    shape: rect\n    label: ${scalar}\n      First line\n      Second line\n  }\n  A --> B[Done]`
+    const diagram = parseAgent(source)
+    const typed = asFlowchart(diagram)
+    expect(typed?.body.graph.nodes.get('A')?.label).toBe(label)
+    const edited = mutate(diagram, { kind: 'rename_node', from: 'B', to: 'Completed' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    const serialized = serializeMermaid(edited.value)
+    expect(asFlowchart(parseAgent(serialized))?.body.graph.nodes.get('A')?.label).toBe(label)
+    for (const text of [renderMermaidSVG(source), renderMermaidASCII(source)]) {
+      for (const line of label.split('\n')) expect(text).toContain(line)
+    }
+  })
+
   for (const c of ISSUE_29_CASES) {
     // Documented `@{ shape, label }` metadata is MODELED now (repo #44): the
     // agent body is structured, the authored shape spelling survives

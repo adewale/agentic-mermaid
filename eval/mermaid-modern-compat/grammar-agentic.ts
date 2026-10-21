@@ -67,7 +67,7 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
     const parse = (): unknown => {
       switch (family) {
         case 'flowchart':
-          return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyText, normalized.familyText)
+          return parseFlowchartRenderSource(normalizeMermaidSource(normalized.originalText).familyBody, normalized.familyBody)
         case 'state':
           return parseMermaid(normalized.familyText)
         case 'c4': {

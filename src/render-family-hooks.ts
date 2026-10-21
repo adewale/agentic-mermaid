@@ -72,7 +72,7 @@ import { XYCHART_SVG_HOOKS } from './svg-family-hooks/xychart.ts'
 
 type BuiltinRenderHooks = Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' | 'projectPositioned' | 'renderAscii' | 'lowerScene'>
 
-function renderFlowchartTerminal(ctx: AsciiContext, model = terminalInputModel(ctx.source.originalText, ctx.source.familyText)): TerminalArtifact {
+function renderFlowchartTerminal(ctx: AsciiContext, model = terminalInputModel(ctx.source.originalText, ctx.source.familyBody)): TerminalArtifact {
   const parsed = model.graph()
   checkAllGraphAuthoredStyles(parsed)
   const config = { ...ctx.config }
