@@ -134,7 +134,7 @@ describe('checked graph layout selection', () => {
     expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
   })
 
-  test.each([171, 217, 228, 319])('retains clear long-edge ordering for holdout seed %s', seed => {
+  test.each([171, 217, 228, 296, 319])('retains clear long-edge ordering for holdout seed %s', seed => {
     const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source
     const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
     const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })

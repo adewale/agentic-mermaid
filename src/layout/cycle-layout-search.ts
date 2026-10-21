@@ -1,3 +1,4 @@
+import { smallFeedbackCuts } from './small-feedback-cuts.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import { depthFirstOrder, feedbackOrder } from './cycle-order.ts'
@@ -84,8 +85,15 @@ export function layoutCyclicGraph(
   })
   // Spend the two larger compact trials on distinct cuts before input variants.
   const diversify = input.compactPrivateRanks && nodes.length > 16
-  const orders = [greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]
-  const permutations = [[true, true], [true, false], [false, true], [false, false]] as const
+  // Scarce larger-graph trials should explore cuts beyond the same greedy
+  // orientation. For nearly acyclic compact graphs, enumerate small cuts and
+  // try opposite span extremes with authored node/edge order intact.
+  const cuts = diversify && feedbackCount(primary) <= 2 ? smallFeedbackCuts(input, search) : []
+  cuts.sort((a, b) => b.span - a.span)
+  const cutOrders = cuts.length > 1 ? [cuts[0]!.order, cuts.at(-1)!.order, ...cuts.slice(1, -1).map(cut => cut.order)] : cuts.map(cut => cut.order)
+  const orders = [...cutOrders, greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]
+  const permutations = cuts.length ? [[false, false], [true, true], [true, false], [false, true]] as const
+    : [[true, true], [true, false], [false, true], [false, false]] as const
   for (let trial = 0; trial < orders.length * permutations.length; trial++) {
     const order = orders[diversify ? trial % orders.length : Math.floor(trial / permutations.length)]!
     const [reverseNodes, reverseEdges] = permutations[diversify ? Math.floor(trial / orders.length) : trial % permutations.length]!
