@@ -1,4 +1,0 @@
-required-version = "==0.16.0"
-
-[lint]
-ignore = ["EXE001", "SIM117"]
