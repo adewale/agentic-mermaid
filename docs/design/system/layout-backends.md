@@ -1470,3 +1470,63 @@ including20 errors/declines. It remains unshipped: a local full-render profiler
 shows15-node allocation100,497,104→102,083,976 bytes (worse), while19-node
 allocation159,620,712→141,233,744 improves. Those two-loaded-bundle diagnostics
 do not qualify performance, memory or download cost.
+
+
+### Rebase onto conditional rendering and retain incomplete cost evidence
+
+The branch is rebased onto main9cd93ba5 (#457). Its cosmetic rollback contracts,
+conditional text/dependency work and separate optional Pele1.6 read-only entry
+remain intact. That Pele entry supplies unsupported-family SVG only; it is not
+our measured graph backend, editable model, or evidence of native quality parity.
+The shared opposing-ink helper accepts the route fields it actually consumes;
+all lazy participants share one deferred-dependency error identity. Payload
+ceilings still count the complete demanded ELK transfer, alongside separately
+reported static and native-solver closures. No existing ceiling rises.
+
+At980a03ed all required CI lanes pass. The advisory generated report remains
+failed because it retains the five ELK reference rejections; a shared-success
+comparison is not permission to discard those errors. The full clean build,
+payload gate and built-browser contracts pass (six tests /498 assertions).
+Architecture default ELK closure is571,957 Brotli bytes against572,000;
+its native closure is244,446. Those costs precede this rebase.
+
+The predeclared legacy320–383 population first executed on clean980a:64 native
+and64 ELK successes, no additional native proper crossings. The six-family
+source cohort is238:223 native,15 capability declines,238 ELK successes,
+no extra proper crossings among shared successes. Existing unknown specialized
+metrics, preference differences and compound gaps remain open.
+
+Cost artifact12315805437 from CI39529516711 retains all27 inputs, three rounds,
+25 consumed repetitions and480,000ms per cache regime. Neither regime qualifies
+a native winner. Cold ELK A/A runs out of the overall budget: its first failed
+memory worker receives722ms, runs739ms and stops in memory warmup. Native cold
+comparison never begins. Normal ELK A/A completes27 inputs with corpus ratio
+0.99308. The subsequent native comparison also runs out of the shared deadline;
+its first failed100-requirement timing worker receives2,124ms and runs2,156ms.
+Its partial corpus ratio0.99633 is unqualified. These traces establish deadline
+exhaustion, not an unbounded renderer hang. No retries, control normalization,
+repetition/population reductions or deadline increases rescue either run.
+A compiled-worker exploratory pilot has identical output/receipt fingerprints
+but inconsistent timing across three counterbalanced pairs; it is not shipped.
+
+### Independent generator qualification, declared before first execution
+
+The legacy LCG consumes two draws per edge. On even node counts its alternating
+low bit restricts sources to one parity. Keep every legacy source unchanged:
+seeds0–383 are now development data. Add a separate `sha256-counter-v1` population:
+each endpoint draw takes the first big-endian32 bits of SHA256 of the ASCII
+counter string `agentic-mermaid-qualification-v1:<seed>:<counter>`, modulo its
+bound. Shape/direction/node-count/edge-count/label grammar stays identical.
+This does not assert unbiased real-world sampling or cryptographic layout work;
+it removes that specific generator correlation and records a distinct identity.
+
+Declare seeds0–63 inclusive (64 cases) before generating or laying them out.
+Commit the generator, CLI identity metadata and this declaration first. Tests
+use only development seeds1000–1025 to verify replay, parsing, source parity,
+endpoints, labels and bounded ranges. Keep every outcome, including paint
+rejections and regressions. Any failure used to refine the solver becomes
+development data. The advisory CI diagnostic retains its original320 inputs,
+adds legacy320–383 and this separate64 population, and reports every window even
+if another window fails; its ten-minute ceiling remains unchanged. Quality on
+this synthetic grammar does not close compound, specialized, preference,
+performance, memory, bundle or actual edit-churn qualification.
