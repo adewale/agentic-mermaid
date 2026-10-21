@@ -163,17 +163,32 @@ jobs:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
           mkdir -p "$EVIDENCE_DIR"
-          for backend in elk agentic; do
-            bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
-              --generated-start 0 --generated-count 256 --label "$backend" \
-              --out "$EVIDENCE_DIR/$backend.json"
+          for start in 0 256; do
+            count=256
+            directory="$EVIDENCE_DIR"
+            if [ "$start" = 256 ]; then
+              count=64
+              directory="$EVIDENCE_DIR/development-256-319"
+            fi
+            mkdir -p "$directory"
+            for backend in elk agentic; do
+              bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+                --generated-start "$start" --generated-count "$count" --label "$backend" \
+                --out "$directory/$backend.json"
+            done
           done
       - name: Compare final quality without declaring a performance winner
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
-          bun run eval/layout-compare/run.ts report --before "$EVIDENCE_DIR/elk.json" \
-            --after "$EVIDENCE_DIR/agentic.json" --out "$EVIDENCE_DIR/report.html"
+          failed=0
+          for directory in "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319"; do
+            if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
+              --after "$directory/agentic.json" --out "$directory/report.html"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
