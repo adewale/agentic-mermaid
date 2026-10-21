@@ -11,9 +11,12 @@ import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
-import { executeGraphicalRequest, lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
+import { executeGraphicalRequest, graphicalSvgArtifact, lowerPositionedFamilyScene, renderPositionedMermaidSVG, type GraphicalSvgArtifact, type ResolvedGraphicalExecution } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
-import { resolveRenderRequest } from '../render-contract.ts'
+import { captureRenderOptions, resolveRenderRequest, resolveRenderRequestForExecution } from '../render-contract.ts'
+import { assertScenesOf } from '../scene/assertions.ts'
+import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
+import type { OutputSecurityDiagnostic } from '../output-security.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
 import { walkJourneyLines } from '../journey/parse-core.ts'
@@ -25,7 +28,7 @@ import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { edgeEndpointSelectors, edgeSelectorIndices } from '../shared/edge-selectors.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
-import type { PositionedGraph } from '../types.ts'
+import type { PositionedGraph, RenderOptions } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
@@ -38,7 +41,7 @@ import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { detectsFlowchartFamily } from './family-router.ts'
-import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
+import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact, positionResolvedFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
@@ -135,12 +138,35 @@ function roundtripFaithfulnessWarnings(d: ParsedDiagram): LayoutWarning[] {
 
 /** The legacy ok flag is an error gate, never a task-correctness certificate. */
 export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions = {}): VerifyResult {
+  return verifyMermaidInternal(input, opts)
+}
+
+interface SharedVerificationRender {
+  source: string
+  artifact?: ProjectedFamilyArtifact
+  rendered?: ResolvedGraphicalExecution
+  diagnostics: OutputSecurityDiagnostic[]
+}
+
+/** Internal editor operation. No caller-owned positioned evidence is accepted. */
+export function renderAndVerifyMermaid(source: string, options: RenderOptions = {}): GraphicalSvgArtifact & { verification: VerifyResult } {
+  const captured = captureRenderOptions(options)
+  const shared: SharedVerificationRender = { source, diagnostics: [] }
+  const verification = verifyMermaidInternal(source, { renderOptions: captured }, shared)
+  const positioned = shared.artifact
+  const artifact = positioned
+    ? graphicalSvgArtifact(positioned.request, shared.rendered ?? renderPositionedMermaidSVG(positioned.request, positioned.layoutResult, shared.diagnostics), shared.diagnostics)
+    : executeGraphicalRequest(source, captured, 'svg')
+  return { svg: artifact.svg, receipt: artifact.receipt, verification }
+}
+
+function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, shared?: SharedVerificationRender): VerifyResult {
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
   // Capture source evidence before any config/layout/render early return.
   // Result branches and diagnostic suppression cannot revoke an observed loss.
   const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value)] : []
-  const result = verifyMermaidInternal(input, opts, parsed)
+  const result = verifyParsedMermaid(input, opts, parsed, shared)
   const suppressed = new Set(opts.suppress ?? [])
   const warnings = dedupedConcat(result.warnings, sourceEvidence.filter(warning => !suppressed.has(warning.code)))
   const suppressedErrors = (opts.suppress ?? []).some(code => WARNING_SEVERITY[code] === 'error')
@@ -152,7 +178,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   } }
 }
 
-function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>): VerifyResult {
+function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>, shared?: SharedVerificationRender): VerifyResult {
   if (!parsed.ok) {
     // Strict parsing must fail closed, but source-level repair diagnostics are
     // still valuable (and were historically part of verify's contract).
@@ -173,7 +199,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
     const { diagnostic } = parsed.value.body
     return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}`, origin: 'source' }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
-  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
+  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined, shared)
   // Check the merged source/options theme and family config colors before all
   // geometry tiers, while retaining any source loss already known at parse time.
   try {
@@ -190,7 +216,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
   }
   try {
     const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
-    return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
+    return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared)
   } catch (error) {
     // Family layouts, color admission and a work limit only a render-path
     // parser enforces (state nesting) are findings, not verify failures.
@@ -274,7 +300,7 @@ function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positio
 
 /** One lazy artifact per verify call; failures are memoized as well as values,
  * and so is the ordinary render an engine failure is checked against. */
-function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string): VerificationArtifact {
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string, shared?: SharedVerificationRender): VerificationArtifact {
   let attempted = false
   let artifact: ProjectedFamilyArtifact | null = null
   let failure: unknown
@@ -295,11 +321,19 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
       // parsed diagram position from one render source: the diagram's body
       // under its config wrapper (init directives, frontmatter, themeCSS),
       // which is also what every structural tier reads.
-      artifact = positionFamilyArtifact(d, {
-        renderOptions: opts.renderOptions,
-        output: 'svg',
-        assertScenes: true,
-      })
+      if (shared) {
+        const request = resolveRenderRequestForExecution(shared.source, opts.renderOptions ?? {}, 'svg', undefined, { expectedFamilyId: d.kind })
+        emitResolvedConfigDiagnostics(request)
+        assertScenesOf(request)
+        artifact = positionResolvedFamilyArtifact(d, request)
+        if (artifact) shared.artifact = artifact
+      } else {
+        artifact = positionFamilyArtifact(d, {
+          renderOptions: opts.renderOptions,
+          output: 'svg',
+          assertScenes: true,
+        })
+      }
       return artifact
     } catch (error) {
       failure = error
@@ -322,12 +356,13 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
  * failure under a different name (e.g. suppress UNRESOLVABLE_SCHEDULE on a
  * gantt whose render still throws for exactly that reason).
  */
-function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
+function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact, shared?: SharedVerificationRender): VerifyResult {
   if (!result.ok || (opts.suppress ?? []).some(code => code === 'RENDER_FAILED' || WARNING_SEVERITY[code] === 'error')) return result
   try {
     const artifact = positioned()
     if (!artifact) throw new Error(`Mermaid family "${result.layout.kind}" has no positioned graphical artifact`)
-    const rendered = renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
+    const rendered = renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, shared?.diagnostics ?? [])
+    if (shared) shared.rendered = rendered
     return { ...result, ...(rendered.layoutCertification ? { layoutCertification: rendered.layoutCertification } : {}) }
   } catch (e) {
     return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, positioned.failure(e)] }

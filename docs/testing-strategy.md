@@ -592,6 +592,91 @@ table here, which would drift. In broad strokes:
   Timing is source through SVG return, not visual/semantic fidelity or
   paint. The post does not specify its warm-up selection; choosing the
   first 30 is an explicit adaptation. Generated reports are not committed.
+  To include Bezel's Rust renderer, install Rust's `wasm32-unknown-unknown`
+  target and `wasm-bindgen-cli` 0.2.104, then run:
+
+  ```sh
+  bun run eval/benchmark/bezel-wasm/build.ts --checkout ../bezel --out /tmp/bezel-bench
+  bun run bench:dave --bezel-dir /tmp/bezel-bench --executable /path/to/chromium
+  ```
+
+  The adapter compiles an unmodified, clean Bezel checkout at `opt-level=3`
+  with LTO. Its manifest records the revision, compiler, dependency lock and
+  wrapper/WASM byte identities. Instantiation is outside the render timer;
+  timed calls use `render(source, &Options::default(), &Metrics).svg`. Reported
+  bundle size includes the WASM embedded in its JS wrapper. This measures
+  standalone browser rendering, not Bezel's GPUI gallery or native execution.
+  WASM memory is outside the separate V8 JS-memory diagnostic.
+  `bun run eval/benchmark/editor-preview-bench.ts --site website/public --out
+  bench-report/editor-preview --executable /path/to/chromium` complements that
+  render-only score with actual editor input through verified DOM and two
+  animation frames. It changes the root label in 5/50/150-node trees, keeps
+  default cache behavior and adaptive debounce, and records a 5 ms main-thread
+  heartbeat. Run baseline and candidate builds sequentially on an otherwise
+  idle runner. These targeted UI samples are separate from the full corpus.
+  The standalone editor embeds one module used by both the main thread and
+  its Blob worker; it does not embed separate copies of the rendering engine.
+  The real-browser standalone contract also caps the complete generated HTML
+  at 4,100,000 raw / 1,250,000 gzip bytes and checks worker crash recovery,
+  text output and the actual Canvas PNG download. The hosted editor retains
+  its separate, lazy worker asset and existing route payload budgets.
+
+  Two optional investigations expand these diagnostics without adding timing
+  gates:
+
+  ```sh
+  # AGENTIC_ROOT contains package.json and the actual dist/browser.global.js.
+  bun run eval/benchmark/renderer-profile.ts --agentic-root /path/to/extracted/package \
+    --bezel-dir /tmp/bezel-bench --out bench-report/renderer-profile --executable /path/to/chromium
+  bun run eval/benchmark/editor-session-bench.ts --site website/public \
+    --out bench-report/editor-session --session-edits 120 --executable /path/to/chromium
+  ```
+
+  The renderer investigation records family-level SVG acceptance, differential
+  inputs/errors and paired timing over the complete occurrence inventory. Its
+  separate source-build pass attributes stages over distinct sources after
+  warmup, both through SVG return and fully consumed receipts; layout includes
+  ELK, so those stage totals must not be added together. Chrome CPU profiles
+  cover the slowest shared-success example in eight families. Source profiles
+  retain function names; only the packaged pass establishes competitor ratios.
+  `--timing-report /path/to/renderer-profile.json` can reuse a completed timing
+  pass with identical artifact hashes/rounds and a complete adjacent
+  `samples.json`; it still reruns stage attribution and profiling.
+
+  The editor session runner covers trees, nested crosslinks, sequence, class,
+  ER, state, mindmap, Gantt and pie. Defaults are five fresh browser contexts,
+  20 warm edits, 60 subsequent edits and a 30-edit burst requesting 80 ms intervals per
+  case. It records median/p95 latency, heartbeat gaps, receipt invalidation,
+  visible final labels, worker concurrency and forced-GC JS heaps in both
+  realms. Fresh contexts do not clear browser-process or OS caches; localhost
+  transfer is uncompressed and unshaped. Heap figures exclude native/DOM/Blob
+  backing allocations and process RSS. Use `--case tree-150` for longer focused
+  sessions, `--memory-every 100` for periodic retained-heap checkpoints outside
+  timed edits, and `--entry /original.html` for standalone builds served in a site
+  directory alongside its `capabilities.json` and fonts. Baseline/candidate
+  runs must remain sequential on an otherwise idle runner.
+
+  The editor's persistent worker owns preview/verification, ASCII/Unicode and
+  PNG projection/validation. A PNG operation invokes the existing main-thread
+  font/Canvas callback and transfers an allocation-bounded copy of its bytes
+  back for canonical PNG validation. Callback buffers are never detached.
+  One operation is active, with one replaceable preview and four queued exports;
+  source/config changes cancel stale work, including a PNG awaiting font/Canvas
+  I/O, so a new preview can proceed. Timeouts and crashes reject all waiters and
+  the next operation starts a fresh worker.
+
+  `editor-ownership-bench.ts --site /path/to/site --out bench-report/ownership
+  --executable /path/to/chromium` compares frozen `original.html` and current
+  `candidate.html` in alternating fresh contexts. Serve their fonts alongside
+  them. It separately measures the empty shell, first preview, ASCII/Unicode
+  and a real Canvas PNG, with heap checkpoints before/after preview and exports.
+  `--case tree-5,tree-50,tree-150,nested-crosslinks,sequence-40,class-20,er-20,state-25,mindmap-30,gantt-20,pie-12`
+  expands it to the full editor portfolio; `--style hand-drawn` measures a seeded
+  alternate backend. The runner attempts every format even after a render
+  rejection, retains incremental samples and reports per-format acceptance.
+  Successful SVG/ASCII/Unicode/PNG bytes and request identities must match
+  across variants and repetitions; rejected outputs must have matching errors.
+  Report rejected attempts separately from successful-operation latency.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;

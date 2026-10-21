@@ -103,6 +103,71 @@ describe('editor and site interactions in a real browser', () => {
     await browser?.close()
   })
 
+  test('preview rendering uses one persistent worker and a late result cannot replace the newest verified source', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
+      return async function(source, options) {
+        var artifact = await original(source, options);
+        if (source.indexOf('Earlier') >= 0 || source.indexOf('Slow') >= 0) await new Promise(function(done) { setTimeout(done, 500); });
+        return artifact;
+      };
+    }`)
+    await page.goto(`${base}/editor/?empty=1`, { waitUntil: 'networkidle' })
+    const workerStarted = page.waitForEvent('worker')
+    await page.locator('#code-editor').fill('flowchart LR\nEarlier --> Result')
+    await workerStarted
+    await page.locator('#code-editor').fill('flowchart LR\nNewest --> Verified')
+    await waitForVerifiedRender(page)
+    await page.waitForTimeout(600)
+    expect(await page.locator('#preview-inner svg').textContent()).toContain('Newest')
+    expect(await page.locator('#preview-inner svg').textContent()).not.toContain('Earlier')
+    expect(await page.locator('#render-time').textContent()).toContain('Rendered and verified')
+    expect(page.workers()).toHaveLength(1)
+    await page.locator('#code-editor').fill('flowchart LR\nSlow --> Verified')
+    await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Slow'))
+    // Inspect the requested debounce, rather than a flaky wall-clock bound.
+    // The delayed background response must not force a 300 ms pause on input.
+    const delays = await page.evaluate(() => {
+      const captured: number[] = [], original = window.setTimeout
+      ;(window as any).setTimeout = (callback: TimerHandler, delay?: number, ...args: unknown[]) => {
+        captured.push(delay ?? 0)
+        return original(callback, delay, ...args)
+      }
+      try {
+        const input = document.getElementById('code-editor') as HTMLTextAreaElement
+        input.value = 'flowchart LR\nPrompt --> Verified'
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      } finally { window.setTimeout = original }
+      return captured
+    })
+    expect(delays[0]).toBeGreaterThanOrEqual(60)
+    expect(delays[0]).toBeLessThan(300)
+    await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Prompt'))
+    await page.close()
+  }, 60_000)
+
+  test('docs replay is keyboard operable and needs no client renderer to show the verified edit', async () => {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
+    const requested: string[] = []
+    page.on('request', request => requested.push(request.url()))
+    await page.goto(`${base}/docs/`, { waitUntil: 'networkidle' })
+    const demo = page.locator('[data-edit-demo]')
+    expect(await demo.locator('[data-edit-panel="0"]').isVisible()).toBe(true)
+    mkdirSync(SCREENSHOTS, { recursive: true })
+    await demo.screenshot({ path: join(SCREENSHOTS, 'current-docs-edit-before.png'), animations: 'disabled' })
+    const apply = demo.getByRole('button', { name: 'Apply typed edit' })
+    await apply.focus()
+    await page.keyboard.press('Enter')
+    expect(await apply.getAttribute('aria-pressed')).toBe('true')
+    expect(await demo.locator('[data-edit-panel="1"] svg').textContent()).toContain('Approved')
+    expect(await demo.getByRole('status').textContent()).toBe('Edited diagram verified: 0 warnings.')
+    await demo.screenshot({ path: join(SCREENSHOTS, 'current-docs-edit-after.png'), animations: 'disabled' })
+    expect(await demo.getByRole('link', { name: 'Open edited diagram in the editor' }).getAttribute('href')).toStartWith('/editor/#deflate:')
+    expect(requested.some(url => /\/editor\/runtime\/|browser-preview-worker|browser-lazy/.test(url))).toBe(false)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.close()
+  })
+
   test('"?" opens an aria-modal cheat sheet over an inert background, but is plain text in the source', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.goto(`${base}/editor/?example=flowchart-basic`, { waitUntil: 'networkidle' })

@@ -31,6 +31,7 @@ import { createExampleRenderState, createStyledExampleRenderState, WEBSITE_EXAMP
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
 import { LEGACY_RICH_EXAMPLE_ALIASES } from '../scripts/site/website-example-legacy-aliases.ts'
 import interSubsetManifestJson from './source/assets/fonts/inter/manifest.json'
+import { buildDocsEditDemo } from './docs-edit-demo.ts'
 import { WEBSITE_INTER_SUBSET_DIRECTORY, WEBSITE_INTER_UNICODE_RANGES, validateWebsiteInterSubsetManifest, type WebsiteInterSubsetManifest } from '../scripts/site/website-font-subsets.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -457,6 +458,9 @@ async function generateEditorHtml() {
   // semantics; do not ship them in the production editor document.
   transformed = transformed.replace(/<!--[\s\S]*?-->/g, '')
   transformed = transformed.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, block => block.replace(/\/\*[\s\S]*?\*\//g, ''))
+  // Drop authoring indentation while retaining whitespace between inline tags.
+  // Preserve whitespace-sensitive elements verbatim.
+  transformed = transformed.replace(/<(pre|textarea|style)\b[^>]*>[\s\S]*?<\/\1>|^[ \t]+(?=<)/gim, block => block.startsWith('<') ? block : '')
   // The bundle is the editor's whole app; let the preload scanner fetch it
   // before the parser reaches the end-of-body script tag.
   transformed = transformed.replace('</head>', `<link rel="modulepreload" href="/${scriptRel}">\n</head>`)
@@ -1936,7 +1940,13 @@ for (const [source, target] of pageOutputs) {
     html = injectHomeStyleShowcase(html)
     html = injectWorkflowUnicode(html)
   }
-  if (source === 'docs-article.html') html = injectDocsIndex(injectLoopHeadings(html))
+  if (source === 'docs-article.html') {
+    html = injectDocsIndex(injectLoopHeadings(html)).replace('{{EDIT_DEMO}}', buildDocsEditDemo().html)
+    const script = await Bun.file(join(SOURCE_ASSETS, 'docs-edit-demo.js')).text()
+    const scriptRel = `docs-edit-demo-${sha256(script).slice(0, 12)}.js`
+    await emit(scriptRel, script)
+    html = html.replace('</body>', `<script src="/${scriptRel}" defer></script>\n</body>`)
+  }
   await emit(target, html)
 }
 await emit('editor/index.html', await generateEditorHtml())

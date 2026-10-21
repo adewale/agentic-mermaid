@@ -211,12 +211,23 @@ async function readHtmlPartials(themeItems: string): Promise<{
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
   const runtimeDirectory = process.env.AM_EDITOR_RUNTIME_DIR
+  let workerUrl: string | undefined
+  if (runtimeDirectory) {
+    const workerBuild = await Bun.build({
+      entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
+      target: 'browser', format: 'esm', minify: true,
+      outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js' },
+    })
+    if (!workerBuild.success || workerBuild.outputs.length !== 1) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
+    workerUrl = `/editor/runtime/${basename(workerBuild.outputs[0]!.path)}`
+  }
   const buildResult = await Bun.build({
-    entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser.ts', import.meta.url))],
+    entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
     target: 'browser',
     format: 'esm',
     minify: true,
     ...(runtimeDirectory ? {
+      define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
       splitting: true,
       outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
@@ -296,9 +307,10 @@ ${html.rightPanel}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<!-- Bundled renderer -->
+<!-- The standalone runtime is also the worker source; keep app DOM code separate. -->
+${runtimeDirectory ? '' : `<script type="module" id="editor-runtime">\n${bundleJs}\n</script>`}
 <script type="module">
-${bundleJs}
+${runtimeDirectory ? bundleJs : ''}
 
 ${appJs}
 

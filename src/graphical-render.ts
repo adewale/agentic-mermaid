@@ -268,6 +268,15 @@ function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest): Graphi
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
+  return graphicalSvgArtifact(request, rendered, securityDiagnostics)
+}
+
+/** Complete an already-rendered private request without positioning again. */
+export function graphicalSvgArtifact(
+  request: ResolvedRenderRequest,
+  rendered: ResolvedGraphicalExecution,
+  securityDiagnostics: OutputSecurityDiagnostic[],
+): GraphicalSvgArtifact {
   const layoutCertification = Object.hasOwn(rendered, 'layoutCertification') ? rendered.layoutCertification : undefined
   return lazyGraphicalArtifact(rendered.svg, () => {
     const outputDigest = renderedSvgDigest(rendered.svg)
