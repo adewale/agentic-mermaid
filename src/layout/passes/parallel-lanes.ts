@@ -76,7 +76,8 @@ export function applySymmetricParallelEdgeLanes(
     if (edge.source === edge.target || !edge.label) continue
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
-    if (!source || !target || (source.shape !== 'rectangle' && source.shape !== 'diamond') || target.shape !== 'rectangle') continue
+    if (!source || !target || !PORT_EXACT.has(source.shape)
+      || !PORT_EXACT.has(target.shape)) continue
     if (nodeInsideGroups(source, groups) || nodeInsideGroups(target, groups)) continue
     const key = `${edge.source}\0${edge.target}`
     if (!byPair.has(key)) byPair.set(key, [])

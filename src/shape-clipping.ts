@@ -106,6 +106,12 @@ function clipPolygon(endpoint: Point, adjacent: Point, points: Point[]): Point {
   for (let index = 0; index < points.length; index++) {
     const first = points[index]!
     const second = points[(index + 1) % points.length]!
+    // Preserve an existing boundary contact, including diagonal candidates
+    // whose contact lies between polygon vertices. Route repair owns the
+    // diagonal; projecting it onto an axis must not slide its valid port.
+    const dx = second.x - first.x, dy = second.y - first.y
+    const ex = endpoint.x - first.x, ey = endpoint.y - first.y
+    if (Math.abs(ex * dy - ey * dx) < 1e-6 && ex * (endpoint.x - second.x) + ey * (endpoint.y - second.y) <= 1e-6) return endpoint
     const hit = vertical
       ? intersectVertical(endpoint.x, first, second)
       : intersectHorizontal(endpoint.y, first, second)
