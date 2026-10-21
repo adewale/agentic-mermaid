@@ -197,14 +197,14 @@ export function synthesizeFromGraph(payload: ValidDiagramPayload): Result<Parsed
   }
   const kind = (payload as { kind?: unknown }).kind
   if (typeof kind !== 'string' || !knownFamilies().includes(kind as never)) {
-    return err([{ code: 'INVALID_PAYLOAD', message: `payload.kind must be a known diagram family, received ${String(kind)}` }])
+    return err([{ code: 'INVALID_PAYLOAD', message: `payload.kind must be a known diagram family, received ${typeof kind === 'string' ? kind : typeof kind}` }])
   }
   const bodyKind = (bodyPayload as { kind: string }).kind
   const bodyFamily = bodyKind === 'opaque' || bodyKind === 'extension'
     ? (bodyPayload as { family?: unknown }).family
     : bodyKind
   if (bodyFamily !== kind) {
-    return err([{ code: 'INVALID_PAYLOAD', message: `payload kind "${kind}" does not match body family "${String(bodyFamily)}"` }])
+    return err([{ code: 'INVALID_PAYLOAD', message: `payload kind "${kind}" does not match body family "${typeof bodyFamily === 'string' ? bodyFamily : typeof bodyFamily}"` }])
   }
   if (bodyKind === 'pie') {
     const pie = bodyPayload as { showData?: unknown; title?: unknown; slices?: unknown }
