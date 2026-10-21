@@ -177,7 +177,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
     else checkThemeVariableColors(source.config.themeVariables, parsed.value.kind, opts.renderOptions)
     checkFamilyConfigColors(source.frontmatter, parsed.value.kind)
   } catch (error) {
-    return finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false)
+    return finalize([positioned.failure(error), ...commentLossWarnings(parsed.value)], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
   try {
     const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
@@ -187,7 +187,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
     // parser enforces (state nesting) are findings, not verify failures.
     if (!(error instanceof PaintLayoutCertificationError || error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError || error instanceof DiagramWorkLimitError)) throw error
     const certification = error instanceof PaintLayoutCertificationError ? { layoutCertification: error.certification } : {}
-    return { ...finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false), ...certification }
+    return { ...finalize([positioned.failure(error), ...commentLossWarnings(parsed.value)], emptyRenderedLayout(parsed.value.kind), opts, false), ...certification }
   }
 }
 
@@ -618,6 +618,12 @@ export function configWarningsForMermaid(source: string): LayoutWarning[] {
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
+function commentLossWarnings(parsed: ParsedDiagram): LayoutWarning[] {
+  return parsed.meta.droppedComments?.length
+    ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(comment => comment.line) }]
+    : []
+}
+
 function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact, authored?: string): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
@@ -629,7 +635,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
   // so the loss is announced rather than silent.
   const metaWarnings: LayoutWarning[] = [
-    ...(parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED' as const, count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []),
+    ...commentLossWarnings(parsed),
     ...cleanupWarningsForDiagram(parsed, authored),
   ]
   const dispatchedWarnings = dispatchFamilyVerify(parsed, opts, positioned)
