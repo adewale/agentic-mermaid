@@ -276,11 +276,13 @@ jobs:
           npm install -g npm@11.18.0 --ignore-scripts
           test "$(npm --version)" = "11.18.0"
 
-      - name: Run tarball-consumer fuzz (npm pack -> install -> drive bins under Node)
+      - name: Run tarball consumer and Getting Started commands under Node
         if: ${{ matrix.suite == 'tarball-consumer' || matrix.suite == 'tarball-consumer-node22' }}
         # Packs, installs into a clean project, and fuzzes the installed library
         # + `am`/`agentic-mermaid-mcp` bins as spawned Node processes — the real
         # consumer path (exports resolution, files[], bin linking, native deps).
+        # Executes the Getting Started shell blocks and pinned MCP config from
+        # the built page and library guide against that same tarball.
         run: cd e2e && bun test tarball-consumer-fuzz.e2e.test.ts --timeout 600000
 
       - name: Verify the reviewed npm package file manifest

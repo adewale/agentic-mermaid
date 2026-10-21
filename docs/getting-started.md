@@ -16,6 +16,8 @@ npm install agentic-mermaid
 # or: bun add agentic-mermaid / pnpm add agentic-mermaid
 ```
 
+### Repository development
+
 For repository development, install from source:
 
 ```bash
@@ -174,8 +176,16 @@ are imported from the root entry. Browser and workerd code should use
 ## Prefer the command line?
 
 The same renderers ship as the `am` CLI — no code required. After the local
-install above, use the package runner so the command resolves without a global
-install:
+install above, create a source file:
+
+```bash
+cat > diagram.mmd <<'MMD'
+flowchart LR
+  A --> B --> C
+MMD
+```
+
+Use the package runner so the command resolves without a global install:
 
 ```bash
 npx --no-install agentic-mermaid render diagram.mmd --format svg

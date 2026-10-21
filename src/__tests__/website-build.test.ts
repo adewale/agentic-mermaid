@@ -580,16 +580,6 @@ describe('Workers Static Assets website contract', () => {
     expect(Array.from(served.matchAll(/`(?:docs\/|references\/upstream\/)[^`]*`/g), match => match[0])).toEqual([])
   })
 
-  test('getting started uses installed package bins rather than repository-only paths', () => {
-    const page = read('docs/getting-started/index.html')
-    expect(page).toContain('npx --no-install agentic-mermaid verify diagram.mmd --json')
-    expect(page).toContain('npx --no-install agentic-mermaid render diagram.mmd --format svg')
-    expect(page).toContain('"command": "npx"')
-    const packageVersion = JSON.parse(readRepo('package.json')).version
-    expect(page).toContain(`"agentic-mermaid@${packageVersion}"`)
-    expect(page).not.toContain('bun run bin/')
-  })
-
   test('getting started publishes the agent-facing vocabulary without reviving the removed route', () => {
     const page = read('docs/getting-started/index.html')
     const terms = [
