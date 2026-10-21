@@ -1384,3 +1384,89 @@ retained partial evidence only.
 [Artifact12312463962](https://github.com/adewale/agentic-mermaid/actions/runs/39522619395/artifacts/12312463962)
 is retained without retry or budget increases. All required4ab4bf82 lanes pass;
 this does not establish the performance goal.
+
+
+### Diversify small feedback cuts without more routed trials
+
+The remaining development case296 has three feasible two-edge cycle cuts.
+The existing traversal starts did not explore the useful cut with authored
+node/edge order intact. For compact17–20-node graphs with at most48 edges
+and a primary feedback count of at most two, the producer now enumerates
+feasible one-edge cuts, then two-edge cuts only if no one-edge cut is found.
+Each completed cut passes a topological check. Temporary longest-path spans
+provide a diversity proxy: the two optional routed trials explore opposite
+span extremes, with authored order intact. Existing primary-cut/permutation
+deduplication still applies. No source text or fixture identity selects a path.
+
+All graph checks charge the same two-million-comparison optional ordering
+budget used by joint/chain moves. Exhaustion retains completed feasible cuts,
+never a partial topological order. The existing two larger-compact optional
+trials,128 shared cycle attempts, score/rank/routing limits and final owned
+certifier remain unchanged. Enumeration/topological sorting are standard
+techniques, not a new layout family or a global crossing-optimality guarantee.
+Native implementation attribution is17.
+
+The helper matches exhaustive total-order cut enumeration on128 small cyclic
+multigraphs; budget tests verify only complete orders escape. Disabling it
+makes only296 fail among the five retained-seed contracts (31 versus22).
+The production case is19 crossings /90 raw bends versus ELK22 /94, with lower
+area and route length; its longest route still has six bends versus ELK's four.
+The complete320-case development scan renders320 natively versus315 ELK,
+without extra crossings, padded-label conflicts or opposing/parallel shared
+ink on the315 shared successes. All five reference rejections remain.
+
+Broader preferences still differ:141 of315 shared drawings have more native
+raw bends, with median ratio1.00 and worst1.3864× (seed11). Native area is
+larger in100 cases, median ratio0.9030 and worst1.8733× (seed117). These
+tradeoffs, paint uncertainty, specialized-family dimensions and compound
+declines prevent calling the broader quality goal complete.
+
+The final combined cut/core/selection/cache/benchmark/route run passes363 tests
+/7,787 assertions across seven files. Earlier overlapping populations are not
+added. The new frozen18-node cut workload adds exactly one default geometry
+key318→319; all318 prior records stay unchanged. The canonical30s update
+passes in17.50s. Before the next canary, all26 inputs remain and this workload
+is added:27 inputs (seven official,19 scaling,one fixed edit workflow), with
+unchanged three rounds,25 repetitions,480,000ms/cache deadline and17-minute
+job limit. Do not compare changed-population aggregates as speed improvements.
+
+The next fresh generated population is predeclared as seeds320–383 inclusive
+(64 inputs). Execute it only after committing this implementation. Keep every
+outcome; using any failure to choose a refinement makes it development data.
+
+### Diagnose incomplete benchmark workers
+
+Worker breadcrumbs now identify module import, cold SVG, SVG/ASCII correctness,
+timing, quality, memory, result writing and event-loop drain. Writes occur
+outside the elapsed SVG operations and GC-profiler windows; the full process
+RSS still includes worker infrastructure. The coordinator also retains each
+assigned worker budget and total worker wall time, distinguishing a nearly
+exhausted overall deadline from a genuinely long individual worker. A timeout
+stays failed even when a result file exists. There is no automatic retry,
+extra budget, early-success acceptance or forced process exit.
+
+Four focused Node worker contracts pass30 assertions: both cache regimes
+still consume full output/receipts, while separately blocked ASCII correctness
+and blocked process shutdown retain distinct stages and nonzero exit status.
+The latter writes a payload before blocking; it still cannot pass as a worker.
+These diagnostics change the measurement protocol metadata, not the gates or
+API timing boundaries. Earlier incomplete runs remain unqualified.
+
+### Recover the shared browser margin
+
+The complete1f7a9bdf browser build correctly fails Architecture Brotli at
+572,087 versus572,000 bytes. Reusing the same straight-route draft update
+across three sites and naming the checked lane bounds removes duplication
+without changing assignments or property-update order. A successful Node API
+JavaScript-only probe now passes existing limits (Architecture571,957 Brotli),
+including the new native cut helper. Full clean committed-head builds remain
+required; the43-byte margin is small. The preceding Bun API launch failed
+with esbuild service stopped; a report against leftover files is explicitly
+unusable, and both failed launch and raw report remain retained. No limit rises.
+
+An additional crossing-buffer/scalar-contact prototype matches1,114 full
+outcomes on557 inputs against the preserved straight-route diagnostic build,
+including20 errors/declines. It remains unshipped: a local full-render profiler
+shows15-node allocation100,497,104→102,083,976 bytes (worse), while19-node
+allocation159,620,712→141,233,744 improves. Those two-loaded-bundle diagnostics
+do not qualify performance, memory or download cost.
