@@ -1477,8 +1477,13 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
       // settling loop or an arbitrary radius unrelated to the content.
       const xs = new Set([preferred.x, 0]), ys = new Set([preferred.y, 0])
       for (const region of regions ??= graph.canvas.regions()) {
-        xs.add(region.canvasColStart - text.width - 1); xs.add(region.canvasColEnd + 1)
-        ys.add(region.canvasRow - text.height - 1); ys.add(region.canvasRow + (region.rowSpan ?? 1) + 1)
+        // Region summaries prefer authored text bounds. Routing must clear
+        // the complete painted card, including its border and empty rows.
+        const spans = region.ownedCellSpans
+        xs.add(Math.min(...spans.map(span => span.start)) - text.width - 1)
+        xs.add(Math.max(...spans.map(span => span.end)) + 1)
+        ys.add(Math.min(...spans.map(span => span.row)) - text.height - 1)
+        ys.add(Math.max(...spans.map(span => span.row)) + 2)
       }
       for (const box of rectangles.values()) { xs.add(box.x - text.width - 1); xs.add(box.x + box.width + 1); ys.add(box.y - text.height - 1); ys.add(box.y + box.height + 1) }
       const candidates = [...xs].flatMap(x => [...ys].map(y => ({ x, y }))).sort((a, b) => Math.abs(a.x - preferred.x) + Math.abs(a.y - preferred.y) - Math.abs(b.x - preferred.x) - Math.abs(b.y - preferred.y) || a.y - b.y || a.x - b.x)
@@ -1685,5 +1690,23 @@ export function drawGraph(graph: AsciiGraph): Canvas {
     }
   }
   for (const label of labels) document.overlay(feasibleLabel(document, label, labelRoutes.get(label.owner.id) ?? []))
+  // Exhausting the bounded route search is an explicit projection, not a
+  // missing marker that crashes serialization. Retain every authored
+  // relationship in owned text; the collision diagnostic still fails strict
+  // terminal certification.
+  for (const edge of graph.edges) {
+    if (!edge.cellRoute || edge.cellRoute.points.length || edge.style === 'invisible') continue
+    const owner = edgeOwner(edge), feature = `graph.${owner.id}.route`
+    const head = (start: boolean) => {
+      if (!(start ? edge.hasArrowStart : edge.hasArrowEnd)) return ''
+      const marker = start ? edge.startMarker : edge.endMarker
+      return marker === 'circle' ? 'o' : marker === 'cross' ? 'x' : start ? '<' : '>'
+    }
+    const shaft = edge.style === 'dotted' ? '-.-' : edge.style === 'thick' ? '==' : '--'
+    const summary = `${owner.from} ${head(true)}${shaft}${head(false)} ${owner.to}${edge.text ? ` : ${edge.text}` : ''}`
+    document.textBlock(0, document.height, measuredText(summary), { owner, role: 'text' })
+    document.projectMarkers(owner, feature)
+    document.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature, message: 'No complete terminal route was allocated; the authored relationship is retained in an owned endpoint summary.' })
+  }
   return document
 }

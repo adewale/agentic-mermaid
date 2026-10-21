@@ -123,6 +123,28 @@ test('non-geometric terminal families explicitly retain their distinct projectio
   expect(gantt.terminalStyle.diagnostics.filter(diagnostic => diagnostic.feature.endsWith('.dependencies'))).toHaveLength(2)
 })
 
+test.each([false, true])('bounded Flowchart routing retains declined relationships without inventing marker ink (ASCII=%s)', useAscii => {
+  for (const source of [
+    'graph RL\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN5 --> N1\nN1 --> N4\nN5 --> N0\nN1 --> N4\nN0 --> N5',
+    'graph TD\nN0[N0]\nN1[N1]\nN2[N2]\nN3[N3]\nN4[N4]\nN5[N5]\nN6[N6]\nN3 --> N6\nN3 --> N1\nN1 --> N6\nN1 --> N2\nN1 --> N6',
+  ]) {
+    const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+    const doc = terminalDocumentOf(result)!
+    const edges = doc.regions().filter(region => region.kind === 'edge')
+    expect(edges).toHaveLength(parseMermaid(source).edges.length)
+    const projected = edges.filter(edge => edge.projectedText?.includes(' --> '))
+    expect(projected.length).toBeGreaterThan(0)
+    for (const edge of projected) {
+      expect(edge.projectedText).toContain(`${edge.from} --> ${edge.to}`)
+      expect(result.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `graph.${edge.id}.route` }))
+      for (const port of edge.ports ?? []) expect(port.markerProjection).toBe(`graph.${edge.id}.route`)
+    }
+    expect(() => doc.assertMarkers()).not.toThrow()
+    expect(result.receipt.layoutCertification?.status).not.toBe('passed')
+    expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).toThrow('Strict terminal layout safety failed')
+  }
+})
+
 function render(source: string, useAscii = false) {
   const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
   return { output: result.text, doc: terminalDocumentOf(result)! }

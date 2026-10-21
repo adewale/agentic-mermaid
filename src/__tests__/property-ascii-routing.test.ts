@@ -522,7 +522,14 @@ describe('property-based renderMermaidASCII', () => {
         const ascii = renderMermaidASCII(source, { colorMode: 'none', useAscii: false })
         assertNoDiagonals(ascii)
       }),
-      fcParameters({ numRuns: 30 }),
+      fcParameters({ numRuns: 30, examples: [[{
+        nodes: [
+          { id: 'Bbln', label: 'xfaxnvgbwf', shape: 'rectangle' as const },
+          { id: 'Mu', label: 'sbfhsccrx', shape: 'diamond' as const },
+          { id: 'Bs5br', label: 'kuwimkckkj', shape: 'rounded' as const },
+        ],
+        edges: [{ from: 'Bs5br', to: 'Bbln', label: undefined }, { from: 'Bs5br', to: 'Bbln', label: 'a' }, { from: 'Mu', to: 'Bbln', label: undefined }],
+      }]] }),
     )
   })
 })
