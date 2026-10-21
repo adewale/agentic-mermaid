@@ -23,7 +23,7 @@ export const FLOWCHART_SVG_HOOKS = {
     renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
   layout: ctx => {
-    const graph = parseFlowchartRenderSource(normalizeMermaidSource(ctx.source.originalText).familyText, ctx.source.familyText)
+    const graph = parseFlowchartRenderSource(normalizeMermaidSource(ctx.source.originalText).familyBody, ctx.source.familyBody)
     checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
     const diagramTitle = frontmatterTitle(ctx.source.frontmatter)

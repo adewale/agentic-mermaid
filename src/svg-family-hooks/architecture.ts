@@ -4,7 +4,7 @@ import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveArchitectureVisualConfig } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
-import { architectureStatementEnds, parseArchitectureDiagram } from '../architecture/parser.ts'
+import { architectureSourceLines, architectureStatementEnds, parseArchitectureDiagram } from '../architecture/parser.ts'
 import { lowerArchitectureScene } from '../architecture/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 
@@ -32,7 +32,7 @@ export const ARCHITECTURE_SVG_HOOKS = {
       layout: ReturnType<typeof resolveArchitectureVisualConfig>['layout']
     } | undefined
     const diagram = withFrontmatterTitle(withAccessibilityFields(
-      parseArchitectureDiagram(ctx.source.familyLines),
+      parseArchitectureDiagram(architectureSourceLines(ctx.source)),
       ctx.source.accessibility,
     ), ctx.source.frontmatter)
     return layoutResult(layoutArchitectureDiagram(diagram, ctx.renderOptions, familyConfig?.layout), {

@@ -151,7 +151,9 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
 // Shared class declaration grammar. The structured serializer emits bracket
 // labels, so the renderer and agent parser must resolve them to the same
 // logical ID instead of treating `A["Label"]` as an identifier.
-const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?(?:\s*:::([\w-]+))?\s*(\{\s*\}|\{)?\s*$/
+const CLASS_ID_SOURCE = '`[^`]+`|[\\w$\\p{L}\\p{N}\\p{M}]+(?:[.-][\\w$\\p{L}\\p{N}\\p{M}]+)*'
+const CLASS_DECLARATION_RE = new RegExp(`^class\\s+(${CLASS_ID_SOURCE})(?:\\s*~([^~]+)~)?(?:\\s*\\[\\s*"([^"]*)"\\s*\\])?(?:\\s+as\\s+"([^"]+)")?(?:\\s+~([^~]+)~)?(?:\\s*:::([\\w-]+))?\\s*(\\{\\s*\\}|\\{)?\\s*$`, 'u')
+const CLASS_REFERENCE_RE = new RegExp(`^(${CLASS_ID_SOURCE})(?:~([^~]+)~)?$`, 'u')
 
 export interface ParsedClassDeclaration {
   id: string
@@ -180,7 +182,7 @@ export function parseClassDeclaration(line: string): ParsedClassDeclaration | nu
  * `Box` plus a generic parameter. The same identity rule is used by
  * declarations, relationships, notes, and member statements. */
 export function parseClassReference(token: string): { id: string; generic?: string } | null {
-  const match = token.trim().match(/^(`[^`]+`|[\w$]+)(?:~([^~]+)~)?$/)
+  const match = token.trim().match(CLASS_REFERENCE_RE)
   if (!match) return null
   const rawId = match[1]!
   return {

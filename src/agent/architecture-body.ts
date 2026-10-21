@@ -31,7 +31,7 @@ import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import {
-  readArchitectureStatements, architectureIconError, architectureIdError, architectureStatementEnds, architectureTerminalRejections, architectureTitleSource,
+  readArchitectureStatements, architectureIconError, architectureIdError, architectureStatementEnds, architectureTerminalRejections, architectureTitleSource, architectureIconTextSource,
 } from '../architecture/parser.ts'
 import { statementText } from '../shared/trailing-comment.ts'
 
@@ -60,6 +60,7 @@ function sourceLabel(value: string): string {
 export function parseArchitectureBody(
   lines: string[],
   accessibility: import('./types.ts').Accessibility = {},
+  rawBodyLines: string[] = lines,
 ): ArchitectureBody | null {
   let title: string | undefined
   let accessibilityTitle = accessibility.title
@@ -73,7 +74,7 @@ export function parseArchitectureBody(
   const groupIds = new Set<string>()
   const endpointIds = new Set<string>() // services + junctions (valid edge endpoints)
 
-  for (const statement of readArchitectureStatements(lines)) {
+  for (const statement of readArchitectureStatements(rawBodyLines)) {
     if (statement.kind === 'invalid') return null
     if (statement.kind === 'blank' || statement.kind === 'comment') continue
     if (statement.kind === 'accessibility') {
@@ -101,12 +102,12 @@ export function parseArchitectureBody(
 
     if (statement.kind === 'service') {
       const declared = statement.declaration
-      const { id, icon, parentId } = declared
+      const { id, icon, iconText, parentId } = declared
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
       const label = sourceLabel(declared.title)
-      services.push({ id, label, icon, parentId })
+      services.push({ id, label, icon, ...(iconText !== undefined ? { iconText } : {}), parentId })
       continue
     }
 
@@ -178,8 +179,8 @@ export function parseArchitectureBody(
 
 // ---- Serializer -------------------------------------------------------------
 
-function renderNode(keyword: 'group' | 'service', id: string, label: string, icon?: string, parentId?: string): string {
-  const iconPart = icon ? `(${icon})` : ''
+function renderNode(keyword: 'group' | 'service', id: string, label: string, icon?: string, parentId?: string, iconText?: string): string {
+  const iconPart = iconText !== undefined ? ` ${architectureIconTextSource(iconText)} ` : icon ? `(${icon})` : ''
   const labelPart = `[${architectureTitleSource(label)}]`
   const inPart = parentId ? ` in ${parentId}` : ''
   return `  ${keyword} ${id}${iconPart}${labelPart}${inPart}`
@@ -200,7 +201,7 @@ export function renderArchitecture(body: ArchitectureBody): string {
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
   appendAccessibilityLines(lines, body)
   for (const g of body.groups) lines.push(renderNode('group', g.id, g.label, g.icon, g.parentId))
-  for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId))
+  for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId, s.iconText))
   for (const j of body.junctions) {
     lines.push(`  junction ${j.id}${j.parentId ? ` in ${j.parentId}` : ''}`)
   }
@@ -368,13 +369,16 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       const validatedIcon = validIcon(op.icon, 'service icon')
       if (!validatedIcon.ok) return validatedIcon
       const icon = validatedIcon.value
+      if (op.iconText !== undefined && op.iconText !== null && typeof op.iconText !== 'string') return err({ code: 'INVALID_OP', message: 'Architecture iconText must be a string or null' })
+      const iconText = op.iconText ?? undefined
+      if (icon && iconText !== undefined) return err({ code: 'INVALID_OP', message: 'Choose an Architecture icon name or iconText, not both' })
       if (op.group !== undefined && op.group !== null) {
         const g = validId(op.group, 'group id')
         if (!g.ok) return g
         if (!next.groups.some(grp => grp.id === g.value)) return err({ code: 'GROUP_NOT_FOUND', message: `No group "${g.value}"` })
-        next.services.push({ id: id.value, label: label.value, icon, parentId: g.value })
+        next.services.push({ id: id.value, label: label.value, icon, ...(iconText !== undefined ? { iconText } : {}), parentId: g.value })
       } else {
-        next.services.push({ id: id.value, label: label.value, icon })
+        next.services.push({ id: id.value, label: label.value, icon, ...(iconText !== undefined ? { iconText } : {}) })
       }
       break
     }
@@ -418,11 +422,21 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     case 'set_service_icon': {
       const svc = next.services.find(s => s.id === op.id)
       if (!svc) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
-      if (op.icon === null) { delete svc.icon; break }
+      if (op.icon === null) { delete svc.icon; delete svc.iconText; break }
       const icon = validIcon(op.icon, 'service icon')
       if (!icon.ok) return icon
       if (!icon.value) return err({ code: 'INVALID_OP', message: 'Architecture service icon must be non-empty (use null to clear)' })
       svc.icon = icon.value
+      delete svc.iconText
+      break
+    }
+    case 'set_service_icon_text': {
+      const svc = next.services.find(s => s.id === op.id)
+      if (!svc) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
+      if (op.text === null) { delete svc.iconText; break }
+      if (typeof op.text !== 'string') return err({ code: 'INVALID_OP', message: 'Architecture icon text must be a string or null' })
+      svc.iconText = op.text
+      delete svc.icon
       break
     }
     case 'move_service': {

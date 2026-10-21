@@ -71,11 +71,11 @@ interface OpSpec {
 }
 
 // Enum value lists, kept in sync with the type aliases they mirror.
-const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
+const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
 const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisible']
 const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'async', 'async-dashed', 'lost', 'lost-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
-const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par'] as const
+const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
@@ -263,11 +263,12 @@ const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {
   set_title: { fields: { title: strOrNull() } },
   set_accessibility_title: { fields: { title: strOrNull() } },
   set_accessibility_description: { fields: { description: strOrNull() } },
-  add_service: { fields: { id: str(), label: str(false), icon: strOrNull(false), group: strOrNull(false) } },
+  add_service: { fields: { id: str(), label: str(false), icon: strOrNull(false), iconText: strOrNull(false), group: strOrNull(false) } },
   remove_service: { fields: { id: str() } },
   rename_service: { fields: { from: str(), to: str() } },
   set_service_label: { fields: { id: str(), label: str() } },
   set_service_icon: { fields: { id: str(), icon: strOrNull() } },
+  set_service_icon_text: { fields: { id: str(), text: strOrNull() } },
   move_service: { fields: { id: str(), group: strOrNull() } },
   add_junction: { fields: { id: str(), group: strOrNull(false) } },
   remove_junction: { fields: { id: str() } },

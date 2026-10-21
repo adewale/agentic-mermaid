@@ -71,7 +71,7 @@ describe('parseClassDiagram – class definitions', () => {
     ['unterminated class body', 'class A {\n+String name', 'Unclosed class block'],
     ['unterminated namespace', 'namespace Domain {\nclass A', 'Unclosed namespace block'],
     ['extra close', 'class A\n}', 'Unexpected closing brace'],
-    ['partially invalid class assignment', 'class A\nclass A,bad-id hot', 'Unrecognized class statement'],
+    ['partially invalid class assignment', 'class A\nclass A,bad/id hot', 'Unrecognized class statement'],
     // Text that cannot hold a line break stays on its line.
     ['backtick name spanning lines', 'class `A\nB`', 'Unrecognized class statement'],
     ['link tooltip spanning lines', 'class A\nclick A href "https://example.com" "first\nsecond"', 'Unrecognized class link statement'],

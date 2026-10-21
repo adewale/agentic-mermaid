@@ -173,15 +173,16 @@ describe('Sequence critical/option keyword boundary', () => {
     }
   })
 
-  test('par_over retains its legacy native suffix without inserting whitespace', async () => {
+  test('par_over retains its own kind and label without a spurious suffix', async () => {
     for (const [opener, expected] of [
-      ['par_over|label', '_over|label'],
-      ['par_over:label', '_over:label'],
-      ['par_over    label', '_over    label'],
-      ['par_over', '_over'],
+      ['par_over|label', '|label'],
+      ['par_over:label', ':label'],
+      ['par_over    label', 'label'],
+      ['par_over', ''],
     ] as const) {
       const source = `sequenceDiagram\n${opener}\nA->>B: work\nend\n`
       expect(parseSequenceDiagram(source.split('\n')).blocks[0]?.label).toBe(expected)
+      expect(parseSequenceDiagram(source.split('\n')).blocks[0]?.type).toBe('par_over')
       const agent = parseRegisteredMermaid(source)
       expect(agent.ok).toBe(true)
       if (agent.ok) expect(serializeMermaid(agent.value)).toContain(opener)

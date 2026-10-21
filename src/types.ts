@@ -79,6 +79,7 @@ export type NodeShape =
   | 'diamond'
   | 'stadium'
   | 'circle'
+  | 'ellipse'        // (-text-) — elliptical outline
   // Batch 1 additions
   | 'subroutine'     // [[text]]  — double-bordered rectangle
   | 'doublecircle'   // (((text))) — concentric circles

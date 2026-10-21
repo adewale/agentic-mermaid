@@ -21,6 +21,14 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseSequenceDiagram – actors', () => {
+  it.each(['', ' ', '\t'])('reads participant metadata after separator %j', separator => {
+    const source = `sequenceDiagram\nparticipant Harry${separator}@{ "type": "database", "alias": "Orders" }\nHarry->>Harry: Save`
+    expect(() => parse(source)).not.toThrow()
+    const diagram = parse(source)
+    expect(diagram.actors).toEqual([expect.objectContaining({ id: 'Harry', label: 'Orders', type: 'database' })])
+    expect(diagram.messages).toEqual([expect.objectContaining({ from: 'Harry', to: 'Harry', label: 'Save' })])
+  })
+
   it('parses participant declarations', () => {
     const d = parse(`sequenceDiagram
       participant A as Alice

@@ -8,6 +8,8 @@ Current scope covers:
 
 - `group`, `service`, and `junction`
 - side-anchored edges (`L`, `R`, `T`, `B`)
+- compact or spaced edges (`api:R-->L:db` and `api:R --> L:db`), retaining
+  side and `{group}` boundary semantics through canonical writing
 - `{group}` boundary routing for services inside groups
 - visible `title ...` header furniture, including title-only diagrams
 - `align row|column` directives (upstream v11.16.0) — parsed, modeled,
@@ -141,6 +143,15 @@ Executable gates: `architecture-layout.test.ts`,
 `architecture-icons.test.ts`, and `architecture-ascii.test.ts`.
 
 ## Compatibility Notes
+
+- A service may use a literal STRING icon: `service api "API" [Backend]`.
+  `iconText` stores that text separately from the label and an icon-pack name.
+  STRING escapes survive parsing and serialization; SVG/PNG paint literal
+  escaped text with its full measured footprint, and terminal output retains
+  it above the label. `add_service` accepts `iconText`, and
+  `set_service_icon_text {id, text}` changes or clears it. Setting a named icon
+  replaces text; authoring both forms together is refused. The pinned grammar
+  permits text icons on services only.
 
 - Both `architecture-beta` (Mermaid's current public header) and `architecture` are accepted — the family descriptor's `headers` in `src/agent/families.ts` and `parseArchitectureDiagram()` agree; structured serialization emits `architecture-beta`.
 - Ids, icons and unquoted titles follow Mermaid's lexer terminals: an unquoted title allows only ASCII letters, digits, `_` and spaces, an icon only word characters, `-` and `:`, and an id may contain `-` only in the middle. Anything else (`[Public<br/>API]`, `[Edge-Layer]`, `[Café]`) must be quoted, and an unquoted form is rejected, as in Mermaid. The typed body stores Mermaid's reading of a title (`["API"]` is `API`) and writes it quoted when needed.

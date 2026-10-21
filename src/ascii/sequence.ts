@@ -17,7 +17,7 @@ import { concatDisplayText, prepareDisplayText, resolveLabelContent, type Displa
 interface CellBounds { x: number; y: number; width: number; height: number }
 interface PositionedText extends CellBounds { lines: string[]; index: number; parentId?: string }
 interface PositionedMessage extends PositionedText { arrowY: number; fromX: number; toX: number }
-interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ y: number; lines: string[] }> ; parentId?: string }
+interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ x?: number; y: number; lines: string[] }> ; parentId?: string }
 
 function messageLabelX(message: PositionedMessage, line: string): number {
   return message.fromX === message.toX ? message.x : Math.min(message.fromX, message.toX) + Math.floor((Math.abs(message.toX - message.fromX) - visualWidth(line)) / 2)
@@ -96,6 +96,32 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   if (maxDepth) leftMargin += maxDepth * 4
   const llX = [leftMargin]
   for (let index = 1; index < diagram.actors.length; index++) llX[index] = llX[index - 1]! + Math.max(halfBox[index - 1]! + halfBox[index]! + (diagram.actors[index - 1]!.box !== diagram.actors[index]!.box ? 4 : 2), gaps[index - 1]! + 2, 10)
+  const messageSpans = diagram.messages.map((message, index) => {
+    const from = llX[actorIndex.get(message.from)!]!, to = llX[actorIndex.get(message.to)!]!
+    const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
+    const labelX = from === to ? from + 6 : Math.min(from, to) + Math.floor((Math.abs(to - from) - width) / 2)
+    const x = Math.min(from, to, labelX)
+    return { x, width: Math.max(from, to, labelX + width - 1) - x + 1 }
+  })
+  const noteSpans = diagram.notes.map((note, index) => {
+    const width = Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4
+    const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!, last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
+    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
+    return { x: Math.max(0, x), width }
+  })
+  const frameSpans = new Map<number, { x: number; width: number }>()
+  const frameSpan = (index: number): { x: number; width: number } => {
+    const cached = frameSpans.get(index)
+    if (cached) return cached
+    const scope = scopes[index]!, block = diagram.blocks[index]!
+    const contents = [...messageSpans.slice(block.startIndex, scope.endMessageExclusive), ...scope.noteIndices.map(ni => noteSpans[ni]!), ...scope.childBlockIndices.map(frameSpan)]
+    const x = Math.max(0, (contents.length ? Math.min(...contents.map(item => item.x)) : llX[0]!) - 4)
+    const right = contents.length ? Math.max(...contents.map(item => item.x + item.width)) : llX.at(-1)!
+    const labelWidth = Math.max(0, ...headerLines[index]!.map(visualWidth), ...dividerLines[index]!.flatMap(lines => lines.map(visualWidth)))
+    const span = { x, width: Math.max(right + 4 - x, labelWidth + 2) + (block.type === 'par_over' ? labelWidth : 0) }
+    frameSpans.set(index, span)
+    return span
+  }
   const messages: PositionedMessage[] = []
   const notes: PositionedText[] = []
   const frames = new Map<number, SequenceFrame>()
@@ -105,12 +131,54 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   const currentParent = () => activeFrames.length ? generated(`block:${activeFrames.at(-1)!}`) : undefined
   let cursor = participantTop + actorBoxH
   const ownedBounds = new Map<number, CellBounds[]>()
+  const overlays = new Map<number, { start: number; bottom: number; prior: CellBounds[]; pending?: number }>()
+  const clearOverlay = (bounds: CellBounds): number => {
+    let shift = 0
+    const obstacles = [...overlays.values()].flatMap(state => state.prior)
+    for (let pass = 0; pass <= obstacles.length; pass++) {
+      const hit = obstacles.find(other => bounds.x < other.x + other.width + 1 && bounds.x + bounds.width + 1 > other.x
+        && bounds.y + shift < other.y + other.height + 1 && bounds.y + bounds.height + shift + 1 > other.y)
+      if (!hit) break
+      shift = hit.y + hit.height + 1 - bounds.y
+    }
+    return shift
+  }
+  const overlayContent = (bounds: CellBounds): number => {
+    let candidate = { ...bounds }
+    for (const [index, state] of overlays) {
+      if (state.pending === undefined) continue
+      const tag = frames.get(index)!.dividers[state.pending]!
+      const extra = tag.lines.length ? tag.lines.length + 1 : 0
+      candidate = { x: candidate.x, y: candidate.y - extra, width: Math.max(candidate.width, ...tag.lines.map(visualWidth)), height: candidate.height + extra }
+    }
+    const shift = clearOverlay(candidate)
+    for (const [index, state] of overlays) {
+      if (state.pending === undefined) continue
+      const tag = frames.get(index)!.dividers[state.pending]!
+      tag.x = bounds.x; tag.y = bounds.y + shift - tag.lines.length - 1
+      if (tag.lines.length) own({ x: tag.x, y: tag.y, width: Math.max(...tag.lines.map(visualWidth)), height: tag.lines.length })
+      delete state.pending
+    }
+    return shift
+  }
   const own = (bounds: CellBounds) => {
     // Every ancestor owns its full contents; frame completion adds its margins.
     for (const index of activeFrames) {
       const list = ownedBounds.get(index) ?? []
       list.push(bounds); ownedBounds.set(index, list)
     }
+  }
+  const finishEmptyOverlayLabel = (index: number): void => {
+    const state = overlays.get(index)
+    if (state?.pending === undefined) return
+    const tag = frames.get(index)!.dividers[state.pending]!
+    tag.x = llX[0]!; tag.y = Math.max(cursor, state.bottom) + 1
+    if (tag.lines.some(Boolean)) {
+      own({ x: tag.x, y: tag.y, width: Math.max(...tag.lines.map(visualWidth)), height: tag.lines.length })
+      cursor = tag.y + tag.lines.length
+      state.bottom = Math.max(state.bottom, cursor)
+    }
+    delete state.pending
   }
   let messageCursor = 0, noteCursor = 0, boundaryCursor = 0
   const boundaries = getSequenceBlockBoundaries(diagram) ?? []
@@ -120,16 +188,44 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       if (event.messageIndex > messageCursor || event.noteIndex > noteCursor) break
       const index = event.blockIndex
       if (event.kind === 'open') {
+        if (overlays.size) {
+          const span = frameSpan(index)
+          for (const [overlayIndex, state] of overlays) {
+            const tagRows = state.pending === undefined ? 0 : frames.get(overlayIndex)!.dividers[state.pending]!.lines.length + 1
+            for (const ink of state.prior) {
+              if (span.x < ink.x + ink.width + 1 && span.x + span.width + 1 > ink.x) cursor = Math.max(cursor, ink.y + ink.height + tagRows + 1)
+            }
+          }
+          cursor += overlayContent({ ...span, y: cursor + 1, height: 1 })
+        }
         cursor++
         frames.set(index, { index, x: 0, y: cursor, width: 0, height: 0, header: headerLines[index]!, dividers: [], parentId: currentParent() })
         activeFrames.push(index)
         cursor += Math.max(1, headerLines[index]!.length)
+        if (diagram.blocks[index]!.type === 'par_over') {
+          cursor += Math.max(0, ...dividerLines[index]!.map(lines => lines.length ? lines.length + 1 : 0))
+          overlays.set(index, { start: cursor, bottom: cursor, prior: [] })
+        }
       } else if (event.kind === 'divider') {
+        const overlay = overlays.get(index)
+        if (overlay) {
+          finishEmptyOverlayLabel(index)
+          overlay.bottom = Math.max(overlay.bottom, cursor)
+          overlay.prior = [...ownedBounds.get(index) ?? []]
+          cursor = overlay.start
+          const frame = frames.get(index)!
+          frame.dividers.push({ y: cursor, lines: dividerLines[index]![event.dividerIndex!]! })
+          overlay.pending = frame.dividers.length - 1
+          boundaryCursor++
+          continue
+        }
         cursor++
         const lines = dividerLines[index]![event.dividerIndex!]!
         frames.get(index)!.dividers.push({ y: cursor, lines })
         cursor += Math.max(1, lines.length)
       } else {
+        const overlay = overlays.get(index)
+        if (overlay) { finishEmptyOverlayLabel(index); cursor = Math.max(cursor, overlay.bottom); overlays.delete(index) }
         cursor++
         const frame = frames.get(index)!
         const contents = ownedBounds.get(index) ?? []
@@ -154,11 +250,9 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     if (note && note.afterIndex < messageCursor) {
       cursor++
       const lines = noteLines[noteCursor]!
-      const width = Math.max(0, ...lines.map(visualWidth)) + 4
-      const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!
-      const last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
-      const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
-      const positioned = { index: noteCursor, x: Math.max(0, x), y: cursor, width, height: lines.length + 2, lines, parentId: currentParent() }
+      const positioned = { index: noteCursor, ...noteSpans[noteCursor]!, y: cursor, height: lines.length + 2, lines, parentId: currentParent() }
+      const shift = overlayContent(positioned)
+      cursor += shift; positioned.y += shift
       notes.push(positioned); own(positioned); cursor += positioned.height; noteCursor++
     } else if (messageCursor < diagram.messages.length) {
       const message = diagram.messages[messageCursor]!
@@ -174,6 +268,8 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       const self = fromX === toX
       const width = Math.max(0, ...lines.map(visualWidth))
       const positioned = { index: messageCursor, x: self ? fromX + 6 : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2), y: self ? cursor + 1 : cursor, width, height: lines.length, lines, arrowY: self ? cursor : cursor + lines.length, fromX, toX, parentId: currentParent() }
+      const shift = overlayContent({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
+      cursor += shift; positioned.y += shift; positioned.arrowY += shift
       messages.push(positioned)
       own({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
       cursor += lines.length + (self ? 2 : 1); messageCursor++
@@ -211,7 +307,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   // foreground routes and labels still meet the ordinary collision checks.
   const foreground = closedFrames.flatMap(frame => [
     { x: frame.x + 1, y: frame.y, width: Math.max(0, ...frame.header.map(visualWidth)), height: frame.header.length },
-    ...frame.dividers.map(divider => ({ x: frame.x + 1, y: divider.y, width: Math.max(0, ...divider.lines.map(visualWidth)), height: divider.lines.length })),
+    ...frame.dividers.map(divider => ({ x: divider.x ?? frame.x + 1, y: divider.y, width: Math.max(0, ...divider.lines.map(visualWidth)), height: divider.lines.length })),
   ])
   foreground.push(...notes)
   messages.forEach(message => message.lines.forEach((line, row) => foreground.push({ x: messageLabelX(message, line), y: message.y + row, width: visualWidth(line), height: 1 })))
@@ -315,8 +411,10 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     frame(positioned, element)
     doc.textBlock(positioned.x + 1, positioned.y, positioned.header, { owner: element, role: 'text', kind: 'text' })
     positioned.dividers.forEach(divider => {
-      for (let x = positioned.x; x < positioned.x + positioned.width; x++) stroke(x, divider.y, 10, 'line', element, ascii ? 'solid' : 'dashed')
-      doc.textBlock(positioned.x + 1, divider.y, divider.lines, { owner: element, role: 'text', kind: 'text' })
+      if (diagram.blocks[positioned.index]!.type !== 'par_over') {
+        for (let x = positioned.x; x < positioned.x + positioned.width; x++) stroke(x, divider.y, 10, 'line', element, ascii ? 'solid' : 'dashed')
+      }
+      doc.textBlock(divider.x ?? positioned.x + 1, divider.y, divider.lines, { owner: element, role: 'text', kind: 'text' })
     })
   }
   for (const positioned of notes) {

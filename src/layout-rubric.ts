@@ -179,6 +179,7 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   // incursion is visible against a straight side.
   const GRAZE = 2.5
   switch (node.shape) {
+    case 'ellipse':
     case 'circle':
     case 'doublecircle':
     case 'state-start':

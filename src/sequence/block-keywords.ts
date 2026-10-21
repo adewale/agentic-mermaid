@@ -7,16 +7,10 @@ export type SequenceBlockContinuation = 'else' | 'and' | 'option'
 // while `optional` and `option_retry` are not block keywords.
 // [\s\S] keeps U+2028/U+2029 inside the argument for explicit validation;
 // dot would silently fail to classify the block opener at that boundary.
-const OPEN_RE = /^(loop|alt|opt|par|critical|break|rect|box)\b\s*([\s\S]*)$/i
+const OPEN_RE = /^(loop|alt|opt|par_over|par|critical|break|rect|box)\b\s*([\s\S]*)$/i
 const CONTINUE_RE = /^(else|and|option)\b\s*([\s\S]*)$/i
-const LEGACY_PAR_OVER_RE = /^par_over\b\s*([\s\S]*)$/i
 
 export function parseSequenceBlockOpener(line: string): { type: SequenceBlockOpener; label: string } | null {
-  // Preserve the existing par_over rendering disposition until its distinct
-  // upstream over-participants semantics get their own #264 block-authority
-  // slice. This is not evidence that par_over is a native `par` construct.
-  const parOver = LEGACY_PAR_OVER_RE.exec(line)
-  if (parOver) return { type: 'par_over', label: parOver[1]?.trim() ?? '' }
   const match = OPEN_RE.exec(line)
   return match ? { type: match[1]!.toLowerCase() as SequenceBlockOpener, label: match[2]?.trim() ?? '' } : null
 }
@@ -31,6 +25,6 @@ export function continuationBelongsToBlock(
   block: SequenceBlockOpener,
 ): boolean {
   return (continuation === 'else' && block === 'alt')
-    || (continuation === 'and' && block === 'par')
+    || (continuation === 'and' && (block === 'par' || block === 'par_over'))
     || (continuation === 'option' && block === 'critical')
 }

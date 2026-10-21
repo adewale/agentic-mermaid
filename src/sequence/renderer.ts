@@ -774,7 +774,7 @@ function renderBlock<T>(marks: DrawingFactory<T>, block: PositionedBlock, style:
   // lifelines and activations (renderBlockDividerLabels).
   const rawDividerStroke = style.edgeStrokeColor ?? 'var(--_line)'
   let dividerIndex = 0
-  for (const divider of part === 'background' || part === 'frame' ? [] : block.dividers) {
+  for (const divider of part === 'background' || part === 'frame' || block.type === 'par_over' ? [] : block.dividers) {
     const dividerId = `${sceneId}:divider#${dividerIndex}`
     dividerIndex++
     const dividerStrokeWidth = Math.max(0.75, style.lineWidth * 0.75)

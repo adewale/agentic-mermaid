@@ -11,7 +11,7 @@ export function terminalInputModel(source: string, admittedFamilyText: string) {
     parsed: () => parsed ??= parseRegisteredMermaid(source),
     graph() {
       if (graph) return graph
-      const authored = normalizeMermaidSource(source).familyText
+      const authored = normalizeMermaidSource(source).familyBody
       if (authored === admittedFamilyText) {
         const result = this.parsed()
         if (result.ok && result.value.body.kind === 'flowchart') return graph = result.value.body.graph

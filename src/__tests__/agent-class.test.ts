@@ -27,7 +27,7 @@ describe('class — parse', () => {
     expect(classUnsupportedSyntaxWarnings(source)).toEqual([])
   })
 
-  test.each(['class A\nfuture statement', 'class A {\n+String name', 'namespace Domain {\nclass A', 'class A\n}', 'class A\nclass A,bad-id hot', 'note "A &#10; B"', 'note for A "A &#13; B"'])('preserves source rather than exposing a partial editable model: %s', body => {
+  test.each(['class A\nfuture statement', 'class A {\n+String name', 'namespace Domain {\nclass A', 'class A\n}', 'class A\nclass A,bad/id hot', 'note "A &#10; B"', 'note for A "A &#13; B"'])('preserves source rather than exposing a partial editable model: %s', body => {
     const source = `classDiagram\n${body}`
     const diagram = parse(source)
     expect(diagram.body.kind).toBe('opaque')

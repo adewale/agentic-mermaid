@@ -118,8 +118,8 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
 function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMap' | 'serialize' | 'mutate'> {
   return {
     parse: ({ source, opaqueSource }) => {
-      if (containsFlowchartOpaqueSyntax(source.familyText)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
-      return parseFlowchartBody(source.familyText)
+      if (containsFlowchartOpaqueSyntax(source.familyBody)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
+      return parseFlowchartBody(source.familyBody)
     },
     buildSourceMap: (body, canonicalSource) => (body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
     serialize: body => {

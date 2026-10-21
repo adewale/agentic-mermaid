@@ -96,7 +96,7 @@ export function renderArchitectureTerminal(
 
   const serviceBoxes = new Map<string, CellBox>()
   for (const service of positioned.services) {
-    const labelLines = serviceLabelLines(service.label, service.icon).flatMap(line => wrapText(line, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined))
+    const labelLines = serviceLabelLines(service.label, service.icon, service.iconText).flatMap(line => wrapText(line, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined))
     const contentWidth = Math.max(1, ...labelLines.map(visualWidth))
     serviceBoxes.set(service.id, {
       id: service.id,
@@ -362,10 +362,11 @@ export function renderArchitectureTerminal(
   }
 }
 
-function serviceLabelLines(label: string, icon: string | undefined): string[] {
+function serviceLabelLines(label: string, icon: string | undefined, iconText?: string): string[] {
   const lines = displayText(label).split(/\r?\n/).map(line => line.trim()).filter(Boolean)
   const out = lines.length > 0 ? lines : ['']
   if (icon) out[0] = `[${icon}]${out[0] ? ` ${out[0]}` : ''}`
+  if (iconText !== undefined) out.unshift(...iconText.split('\n'))
   return out
 }
 

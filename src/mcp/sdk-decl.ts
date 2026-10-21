@@ -636,7 +636,7 @@ interface StateBody { unresolvedClasses?: Array<{ id: string; className: string 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 interface SeqParticipant { id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
 interface SeqMessage { from: string; to: string; text: string; textContent?: LabelContent; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
-type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
+type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
 interface SeqFragmentBranch { label?: string; labelContent?: LabelContent; messages: SeqMessage[] }
 interface SeqFragment { fragmentKind: SeqFragmentKind; label?: string; labelContent?: LabelContent; branches: SeqFragmentBranch[]; rawLines?: string[] }
 // BUILD-18: ordered statement list. participant/message refs index into the
@@ -680,7 +680,7 @@ interface JourneyBody { kind: 'journey'; title?: string; accessibilityTitle?: st
 type ArchitectureSide = 'L' | 'R' | 'T' | 'B'
 type ArchitectureEndpointBoundary = 'item' | 'group'
 interface ArchitectureGroup { id: string; label: string; icon?: string; parentId?: string }
-interface ArchitectureService { id: string; label: string; icon?: string; parentId?: string }
+interface ArchitectureService { id: string; label: string; icon?: string; iconText?: string; parentId?: string }
 interface ArchitectureJunction { id: string; parentId?: string }
 interface ArchitectureEndpoint { id: string; side: ArchitectureSide; boundary?: ArchitectureEndpointBoundary }
 interface ArchitectureEdge { source: ArchitectureEndpoint; target: ArchitectureEndpoint; label?: string; hasArrowStart: boolean; hasArrowEnd: boolean }
@@ -901,11 +901,12 @@ type ArchitectureMutationOp =
   | { kind: 'set_title'; title: string | null }
   | { kind: 'set_accessibility_title'; title: string | null }
   | { kind: 'set_accessibility_description'; description: string | null }
-  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; group?: string | null }
+  | { kind: 'add_service'; id: string; label?: string; icon?: string | null; iconText?: string | null; group?: string | null }
   | { kind: 'remove_service'; id: string }
   | { kind: 'rename_service'; from: string; to: string }
   | { kind: 'set_service_label'; id: string; label: string }
   | { kind: 'set_service_icon'; id: string; icon: string | null }
+  | { kind: 'set_service_icon_text'; id: string; text: string | null }
   | { kind: 'move_service'; id: string; group: string | null }
   | { kind: 'add_junction'; id: string; group?: string | null }
   | { kind: 'remove_junction'; id: string }

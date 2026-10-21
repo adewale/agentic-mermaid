@@ -29,12 +29,28 @@ const ENVELOPE_SHAPES = new Set([
 
 // Every geometric shape; the Record makes a new NodeShape a type error here.
 const GEOMETRIC_SHAPES = Object.keys({
-  rectangle: 1, service: 1, rounded: 1, diamond: 1, stadium: 1, circle: 1, subroutine: 1, doublecircle: 1,
+  rectangle: 1, service: 1, rounded: 1, diamond: 1, stadium: 1, circle: 1, ellipse: 1, subroutine: 1, doublecircle: 1,
   hexagon: 1, cylinder: 1, asymmetric: 1, trapezoid: 1, 'trapezoid-alt': 1, 'lean-r': 1, 'lean-l': 1,
   'state-start': 1, 'state-end': 1, 'state-fork': 1, 'state-join': 1, 'state-choice': 1, 'state-history': 1,
 } satisfies Record<NodeShape, 1>) as NodeShape[]
 
 describe('canonical shape outline authority', () => {
+  test('ellipse paint and every routed endpoint share the same curved boundary', () => {
+    const ellipse = node('ellipse')
+    const expected = { kind: 'ellipse' as const, cx: 60, cy: 40, rx: 50, ry: 20 }
+    const outline = shapeOutline(ellipse, PAINT)
+    expect(outline.geometry).toEqual(expected)
+    expect(outline.routing).toEqual(expected)
+    for (const target of [{ x: 160, y: 40 }, { x: 160, y: 140 }, { x: 60, y: -60 }]) {
+      const point = clipEdgeToShape([{ x: 60, y: 40 }, target], ellipse, true)[0]!
+      expect(((point.x - 60) / 50) ** 2 + ((point.y - 40) / 20) ** 2).toBeCloseTo(1, 8)
+    }
+    const positioned = layoutGraphSync(parseMermaid('flowchart LR\nA(-a wide ellipse label-) --> B[Done]'))
+    const source = positioned.nodes.find(candidate => candidate.id === 'A')!
+    expect(positioned.edges[0]!.points[0]).toEqual(shapePorts(source).E)
+    const text = source.labelBlock!
+    expect((text.width / source.width) ** 2 + (text.height / source.height) ** 2).toBeLessThan(1)
+  })
   // Node text is inked against the node's fill only where the outline paints
   // it (an open symbol leaves its label on the page), so the two must agree.
   test('paintsNodeFill says exactly which outlines paint the node fill', () => {

@@ -102,7 +102,7 @@ export interface Message {
 
 export interface Block {
   /** Block type keyword */
-  type: 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
+  type: 'loop' | 'alt' | 'opt' | 'par' | 'par_over' | 'critical' | 'break' | 'rect'
   /** Label for the block header */
   label: string
   labelContent?: LabelContent

@@ -112,10 +112,6 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
-    // `par_over` remains a distinct upstream construct, not a typed `par`
-    // fragment. Preserve the previous whole-body opaque disposition until
-    // its own #264 projection is implemented.
-    if (syntax?.kind === 'block' && syntax.opener.type === 'par_over') return null
     if (syntax?.kind === 'message') {
       fold.applyAll(participantEventsOf(syntax))
       messages.push(sequenceMessageFromParsed(syntax.message))
@@ -198,7 +194,7 @@ function portableRaw(entry: SequenceSourceStatement): string {
 function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
   const syntax = entries[0]?.syntax
   const opener = syntax?.kind === 'block' ? syntax.opener : undefined
-  if (!opener || !['alt', 'opt', 'loop', 'par'].includes(opener.type)) return null
+  if (!opener || !['alt', 'opt', 'loop', 'par', 'par_over'].includes(opener.type)) return null
   const fragmentKind = opener.type as SequenceFragment['fragmentKind']
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
   for (const entry of entries.slice(1, -1)) {
@@ -394,7 +390,7 @@ function renderFragment(fragment: SequenceFragment): string[] {
   const lines = [fragment.label ? prefix + writeSequenceText(fragment.label, fragment.labelContent, prefix) : prefix.trimEnd()]
   fragment.branches.forEach((branch, index) => {
     if (index > 0) {
-      const branchPrefix = `  ${fragment.fragmentKind === 'par' ? 'and' : 'else'} `
+      const branchPrefix = `  ${fragment.fragmentKind === 'par' || fragment.fragmentKind === 'par_over' ? 'and' : 'else'} `
       lines.push(branch.label ? branchPrefix + writeSequenceText(branch.label, branch.labelContent, branchPrefix) : branchPrefix.trimEnd())
     }
     for (const message of branch.messages) lines.push(`  ${renderMessage(message).trimStart()}`)
@@ -593,7 +589,7 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     case 'add_fragment_branch': {
       const target = fragmentStatements(statements)[op.fragmentIndex]
       if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
-      if (target.statement.fragment.fragmentKind !== 'alt' && target.statement.fragment.fragmentKind !== 'par') return err({ code: 'INVALID_OP', message: 'Only alt and par fragments can have multiple branches' })
+      if (!['alt', 'par', 'par_over'].includes(target.statement.fragment.fragmentKind)) return err({ code: 'INVALID_OP', message: 'Only alt, par and par_over fragments can have multiple branches' })
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
       delete target.statement.fragment.rawLines

@@ -16,7 +16,7 @@
     "state": {
       "requests": 35,
       "raw": 2302000,
-      "gzip": 712500,
+      "gzip": 713000,
       "brotli": 577500
     },
     "sequence": {
@@ -52,14 +52,14 @@
     "architecture": {
       "requests": 35,
       "raw": 2318000,
-      "gzip": 709000,
-      "brotli": 573500
+      "gzip": 709500,
+      "brotli": 574000
     },
     "xychart": {
       "requests": 33,
       "raw": 654000,
       "gzip": 210000,
-      "brotli": 186000
+      "brotli": 186500
     },
     "pie": {
       "requests": 35,
@@ -101,7 +101,7 @@
       "requests": 33,
       "raw": 624000,
       "gzip": 203000,
-      "brotli": 178000
+      "brotli": 178500
     },
     "c4": {
       "requests": 33,
@@ -117,7 +117,7 @@
     },
     "kanban": {
       "requests": 34,
-      "raw": 594500,
+      "raw": 595000,
       "gzip": 195000,
       "brotli": 173000
     },
@@ -129,7 +129,7 @@
     },
     "treemap": {
       "requests": 33,
-      "raw": 605500,
+      "raw": 606000,
       "gzip": 200000,
       "brotli": 177500
     },
@@ -141,7 +141,7 @@
     },
     "block": {
       "requests": 30,
-      "raw": 731000,
+      "raw": 731500,
       "gzip": 242000,
       "brotli": 213000
     }
