@@ -480,24 +480,81 @@ describe('runPipeline invariant enforcement', () => {
   test('a losing cosmetic proposal restores its owned geometry before dependent passes', () => {
     const node = { x: 0, y: 0, width: 1, height: 1 }
     const ctx: TestCtx = { frozen: false, nodes: [node], log: [] }
-    runPipeline(ctx, [mkPass({ id: 'proposal', mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
+    runPipeline(ctx, [mkPass({ id: 'proposal', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
       const x = c.nodes[0]!.x
       c.nodes[0]!.x = 9
       return () => { c.nodes[0]!.x = x }
     } }), mkPass({ id: 'dependent', after: ['proposal'], run: c => { expect(c.nodes[0]).toBe(node); expect(node.x).toBe(0) } })], {
-      measureMetrics: c => ({ symErr: c.nodes[0]!.x }),
+      measureMetrics: c => ({ symErr: c.nodes[0]!.x, hard: 0 }),
     })
   })
 
   test.each(['hard', 'freeze', 'measurement'] as const)('a cosmetic rollback cannot conceal a %s failure', kind => {
     const ctx: TestCtx = { frozen: kind === 'freeze', nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
     let restored = false
-    const pass = mkPass({ id: 'invalid', mayChangeMetrics: { [kind === 'hard' ? 'hard' : 'symErr']: 'improve-only' }, run: c => {
+    const pass = mkPass({ id: 'invalid', proposal: true, mayChangeMetrics: { [kind === 'hard' ? 'hard' : 'symErr']: 'improve-only' }, run: c => {
       c.nodes[0]!.x = 9
       return () => { restored = true; c.nodes[0]!.x = 0 }
     } })
     expect(() => runPipeline(ctx, [pass], { measureMetrics: c => kind === 'measurement' ? { symErr: Number.NaN } : { hard: c.nodes[0]!.x, symErr: c.nodes[0]!.x } })).toThrow()
     expect(restored).toBe(false)
+  })
+
+  test.each([9, 2])('an incomplete cosmetic rollback cannot leave symmetry at %s', restored => {
+    const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
+    const proposal = mkPass({ id: 'incomplete', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
+      c.nodes[0]!.x = 9
+      return () => { c.nodes[0]!.x = restored }
+    } })
+    expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.nodes[0]!.x, hard: 0 }) }))
+      .toThrow(LayoutMetricBudgetError)
+  })
+
+  test('a cosmetic rollback cannot introduce an undeclared hard regression', () => {
+    const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }] }
+    const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
+      c.edges![0]!.points[1]!.y = 1
+      return () => { c.edges![0]!.points[1]!.y = 0; c.nodes[0]!.x = 99 }
+    } })
+    expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.points[1]!.y, hard: c.nodes[0]!.x }) }))
+      .toThrow(/invalid-restore.*hard.*99/)
+  })
+
+  test('a cosmetic rollback cannot invalidate frozen geometry after repairing its score', () => {
+    const ctx: TestCtx = { frozen: true, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }], routeCertificate: {} }] }
+    const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
+      c.edges![0]!.points[1]!.y = 1
+      c.edges![0]!.routeCertificate = {}
+      return () => { c.edges![0]!.points[1]!.y = 0; c.nodes[0]!.x = 99 }
+    } })
+    expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.points[1]!.y, hard: 0 }) }))
+      .toThrow(/invalid-restore.*frozen geometry/)
+  })
+
+  test('a cosmetic rollback cannot leave a stale frozen route certificate', () => {
+    const ctx: TestCtx = { frozen: true, nodes: [], log: [], edges: [{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }], labelPosition: { x: 0.5, y: 0 }, routeCertificate: {} }] }
+    const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
+      c.edges![0]!.labelPosition!.y = 1
+      return () => { c.edges![0]!.labelPosition!.y = 0; c.edges![0]!.points[1]!.y = 2 }
+    } })
+    expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.edges![0]!.labelPosition!.y, hard: 0 }) }))
+      .toThrow(/re-issuing routeCertificate/)
+  })
+
+  test('returning a rollback requires an explicit cosmetic proposal contract', () => {
+    const ctx: TestCtx = { frozen: false, nodes: [], log: [] }
+    expect(() => runPipeline(ctx, [mkPass({ id: 'undeclared', run: () => () => {} })]))
+      .toThrow(/without declaring a cosmetic proposal/)
+  })
+
+  test('a cosmetic rollback cannot replace a finite score with a non-finite one', () => {
+    const ctx: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
+    const proposal = mkPass({ id: 'invalid-restore', proposal: true, mayChangeMetrics: { symErr: 'improve-only' }, run: c => {
+      c.nodes[0]!.x = 9
+      return () => { c.nodes[0]!.x = Number.NaN }
+    } })
+    expect(() => runPipeline(ctx, [proposal], { measureMetrics: c => ({ symErr: c.nodes[0]!.x, hard: 0 }) }))
+      .toThrow(/no finite measurement/)
   })
 
   test('rate improvements are allowed and a missing measurement fails closed', () => {

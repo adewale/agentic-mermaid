@@ -1327,7 +1327,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
   },
   {
-    id: 'centerPeerBarycenters', doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
+    id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
     run: c => {
