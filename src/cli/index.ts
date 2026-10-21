@@ -1440,7 +1440,7 @@ Version: ${cap.sdkVersion}
 ## What it does
 
 A typed editing surface over Mermaid for AI agents. Parse a diagram to a
-ValidDiagram, mutate it with typed ops, verify structurally (no pixels),
+ValidDiagram, mutate it with typed ops, verify source and renderability,
 serialize back to canonical source. Layout is deterministic (verified
 cross-process and same-machine cross-runtime on x86_64/ARM64).
 

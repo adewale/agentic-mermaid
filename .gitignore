@@ -2,6 +2,7 @@
 node_modules/
 
 # Build output
+/llms.txt
 dist/
 /site/
 *.tsbuildinfo

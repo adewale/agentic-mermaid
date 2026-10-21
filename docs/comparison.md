@@ -241,7 +241,7 @@ than treating this dated page as a continuously verified scorecard.
 | Deterministic output | Depends on renderer, configuration and host | No Agentic cross-runtime guarantee claimed for this comparator | Byte equality tested for the supported runtime/version matrix, not arbitrary machines or dependencies |
 | Round-trip guarantee (parse → serialize keeps your source) | — | — | ✅ verbatim for unmodeled syntax, canonical for structured bodies |
 | CLI | `mermaid-cli` (`mmdc`, Puppeteer-based) | — | `am` (render/verify/mutate/batch/preview/…, single-binary build) |
-| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Local Code Mode MCP (<!-- BEGIN GENERATED: local-mcp-tools -->`execute`, `describe_sdk`, `render_png`, and `describe`<!-- END GENERATED: local-mcp-tools -->) plus hosted `/mcp` (`execute`, progressive schema discovery, render/verify/describe, `mutate`/`build`), `llms.txt`, agent skill |
+| MCP / agent surface | Official hosted MCP (validation, PNG, Mermaid Chart integration) | — | Local Code Mode MCP (<!-- BEGIN GENERATED: local-mcp-tools -->`execute`, `describe_sdk`, `render_png`, `describe`, `mutate`, and `build`<!-- END GENERATED: local-mcp-tools -->) plus hosted `/mcp` (`execute`, progressive schema discovery, render/verify/describe, `mutate`/`build`), `llms.txt`, agent skill |
 | Interactivity (click handlers, animations) | Host and security-policy dependent | Partial (tooltips) | Typed action metadata; host activation and strict output policy remain separate |
 | Ecosystem & docs | Vast — the de-facto standard, GitHub/GitLab/Notion render it natively | Growing, popular for terminal/AI use | Small; this repo |
 
