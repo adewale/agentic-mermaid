@@ -2706,21 +2706,25 @@ export function repairLabelsOnSharedTrunks(
 
     const saved = edge.labelPosition
     let fixed = false
-    for (const seg of segs) {
+    // A narrow private segment beside a shared trunk can have no centered
+    // slot. Keep the shaft inside its pill while trying either side, within
+    // the existing on-route allowance; the route itself remains frozen.
+    const shift = Math.min(pw, ph) / 2 - 1
+    for (const offset of [0, shift, -shift]) {
       if (fixed) break
-      const half = (seg.vertical ? ph : pw) / 2
-      if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
-      const tMargin = half / seg.len
-      // Sample the fitting interval, ordered center-out (the midpoint reads best).
-      const N = 11
-      const ts: number[] = []
-      for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
-      ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
-      for (const t of ts) {
-        const cx = seg.a.x + (seg.b.x - seg.a.x) * t
-        const cy = seg.a.y + (seg.b.y - seg.a.y) * t
-        edge.labelPosition = { x: cx, y: cy }
-        if (!pillOverNode(pillRect(cx, cy, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
+      for (const seg of segs) {
+        if (fixed) break
+        const half = (seg.vertical ? ph : pw) / 2
+        if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
+        const tMargin = half / seg.len
+        // Sample the fitting interval, ordered center-out (the midpoint reads best).
+        for (const k of [5, 4, 6, 3, 7, 2, 8, 1, 9, 0, 10]) {
+          const t = tMargin + (1 - 2 * tMargin) * (k / 10)
+          const cx = seg.a.x + (seg.b.x - seg.a.x) * t + (seg.vertical ? offset : 0)
+          const cy = seg.a.y + (seg.b.y - seg.a.y) * t + (seg.vertical ? 0 : offset)
+          edge.labelPosition = { x: cx, y: cy }
+          if (!pillOverNode(pillRect(cx, cy, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
+        }
       }
     }
 

@@ -29,7 +29,7 @@ export interface AccessibilityScan {
   unclosedIndex?: number
 }
 
-const ACC_TITLE_RE = /^\s*accTitle(?:\s*:\s*|\s+)(.+)$/i
+const ACC_TITLE_RE = /^\s*accTitle(?:\s*:\s*|\s+)([^\r\n]+)$/i
 const ACC_DESCR_PREFIX_RE = /^\s*accDescr(?=\s|:|\{|$)/i
 /**
  * Parse one universal accessibility directive. `null` means the line is not

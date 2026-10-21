@@ -274,7 +274,16 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
 
   /** Upstream DB text in marker form, or its rejection. */
   const upstreamOutcome = (parsed: Awaited<ReturnType<UpstreamMermaid['parse']>>, text: (p: Extract<typeof parsed, { ok: true }>) => string | undefined): Outcome =>
-    parsed.ok ? { accepted: text(parsed) } : { rejected: true }
+    parsed.ok ? (() => {
+      const value = text(parsed)
+      // The parser DB retains entity markers, whereas our render models
+      // project display text and deliberately refuse terminal controls.
+      const control = [...(value ?? '').matchAll(/ﬂ°°(\d+)¶ß/g)].some(match => {
+        const code = Number(match[1])
+        return code > 0 && code < 32 || [127, 129, 141, 143, 144, 157].includes(code)
+      }) || /ﬂ°(?:Tab|NewLine)¶ß/.test(value ?? '')
+      return control ? { rejected: true } : { accepted: value }
+    })() : { rejected: true }
 
 
   /** Our outcome: acceptance is the whole renderer parser's (text after a
@@ -322,7 +331,7 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       const ours = ourOutcome(() => parseSequenceDiagram(source.split('\n')), line, 'sequence', 'alias')
       expect({ source, ours }).toEqual({ source, ours: theirs })
       if ('accepted' in theirs) accepted++
-    }), fcParameters({ numRuns: 200 }))
+    }), fcParameters({ numRuns: 200, examples: [['#5;"']] }))
     expect(accepted).toBeGreaterThan(0)
   }, 60_000)
 

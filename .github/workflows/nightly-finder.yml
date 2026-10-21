@@ -79,6 +79,7 @@ jobs:
         env:
           AM_FC_SEED: random
           AM_FC_NUM_RUNS: '300'
+          FORCE_COLOR: '0'
         run: |
           set -o pipefail
           mapfile -t files < <(git grep -l "from 'fast-check'" -- 'src/__tests__/*.test.ts')
@@ -91,14 +92,34 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          bun run scripts/ci/nightly-finder-report.ts sweep.log > finder-body.md
+          bun run scripts/ci/nightly-finder-report.ts sweep.log /dev/null finder-report.json > finder-body.md
           title=$(bun -e "import { FINDER_ISSUE_TITLE } from './scripts/ci/nightly-finder-report.ts'; console.log(FINDER_ISSUE_TITLE)")
           existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          : > prior.md
+          if [ -n "$existing" ]; then
+            gh issue view "$existing" --json body,comments --jq '.body, .comments[].body' > prior.md
+          fi
+          bun run scripts/ci/nightly-finder-report.ts sweep.log prior.md finder-report.json > finder-body.md
+          if [ ! -s finder-body.md ]; then
+            echo 'No failing property the collector does not already list.'
+            exit 0
+          fi
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body-file finder-body.md
           else
             gh issue create --title "$title" --body-file finder-body.md
           fi
+
+      - name: Retain complete property counterexamples
+        if: ${{ always() && steps.sweep.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: property-finder-evidence
+          path: |
+            sweep.log
+            finder-report.json
+          retention-days: 30
+          if-no-files-found: warn
 
       # A finder that cannot run searches nothing while its schedule looks
       # alive: a failed checkout or install, or a timeout, used to leave only a

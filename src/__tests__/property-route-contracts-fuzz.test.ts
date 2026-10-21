@@ -107,7 +107,16 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
           throw new Error(`route-contract violations on:\n${src}\n→ ${JSON.stringify(findings)}`)
         }
       }),
-      fcParameters({ numRuns: 400, seed: 0x9e3779b9 }),
+      fcParameters({ numRuns: 400, seed: 0x9e3779b9, includeErrorInReport: true, examples: [[{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 1, label: 'ok' }, { shape: 2, label: 'ok' }],
+        parents: [0, 0], extra: [{ from: 2, to: 1, label: 'yes' }, { from: 2, to: 1, label: 'yes' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 2, label: 'ok' }, { shape: 2, label: 'process the input' }],
+        parents: [0, 0], extra: [{ from: 2, to: 1, label: 'yes' }, { from: 2, to: 1, label: 'yes' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 3, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 2, label: 'rendered' }],
+        parents: [0, 1, 1], extra: [{ from: 1, to: 3, label: 'retry' }, { from: 0, to: 3, label: 'retry' }],
+      }]] }),
     )
   }, 30000)
 })

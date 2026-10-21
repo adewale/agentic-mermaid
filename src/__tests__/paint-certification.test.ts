@@ -330,16 +330,18 @@ test('shaft checking distinguishes proved straight crossings, uncertain curves a
   expect(certifyScenePaint(scene([unknown, surface()])).status).toBe('unverified')
 })
 
-test('the native Architecture BUG-37 route cannot receive a passed public certificate', () => {
+test('the repaired native Architecture BUG-37 route receives a passed public certificate', () => {
   const source = `${SIDE_CONSTRAINED_ARCHITECTURE.slice(0, SIDE_CONSTRAINED_ARCHITECTURE.indexOf('  s1_0:L'))}  s0_0:L --> L:s1_0
   s0_0:T --> T:s0_1
   s0_2:L --> L:s1_0
   s0_1:L --> L:s1_0`
-  expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).toThrow('Final paint certification failed')
+  const rendered = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  expect(rendered.receipt.layoutCertification?.outputDigest).toBe(renderedSvgDigest(rendered.svg))
   const verified = verifyMermaid(source)
-  expect(verified.ok).toBe(false)
-  expect(verified.layoutCertification?.status).toBe('failed')
-  expect(verified.layoutCertification?.issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: expect.stringContaining('s0_2') }))
+  expect(verified.ok).toBe(true)
+  expect(verified.layoutCertification?.status).toBe('passed')
+  expect(verified.layoutCertification?.issues).toEqual([])
 })
 
 test.each(['dashed', 'zero-width', 'transparent', 'zero-opacity'] as const)('%s shaft paint never proves hidden ink from an unpainted crossing', mode => {

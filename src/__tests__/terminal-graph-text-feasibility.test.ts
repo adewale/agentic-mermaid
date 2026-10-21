@@ -4,6 +4,7 @@ import { parseMermaid } from '../parser.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
 import { drawGraph } from '../ascii/draw.ts'
+import { certifyTerminalLayout } from '../ascii/terminal-certification.ts'
 import { measuredText, terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 
 type RelationshipWitness = [string, string, string?, ('circle' | 'cross')?]
@@ -268,7 +269,7 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false,
   })
 }
 
-test('an obstructed physical face reports a bounded lane failure without fabricating labels', () => {
+test('an obstructed physical face retains explicit summaries without fabricating route ink', () => {
   const graph = convertToAsciiGraph(parseMermaid('flowchart LR\nA -->|one| B\nA -->|two| B\nB -->|back| A'), {
     graphDirection: 'LR', paddingX: 1, paddingY: 1, boxBorderPadding: 1, useAscii: false,
   })
@@ -278,11 +279,20 @@ test('an obstructed physical face reports a bounded lane failure without fabrica
   graph.canvas.fill(x, source.drawingCoord!.y, 3, source.drawing!.height, { owner: { id: 'blocked-face', kind: 'label' } })
   const document = drawGraph(graph)
   expect(document.diagnostics.some(diagnostic => diagnostic.feature.startsWith('edge-lane:') && diagnostic.message.includes('physical ports'))).toBe(true)
-  expect(document.regions().filter(region => region.kind === 'edge')).toEqual([])
-  expect([...document.entries()].some(([, , cell]) => cell.kind === 'text' && cell.owners.some(owner => owner.kind === 'edge'))).toBe(false)
+  const edges = document.regions().filter(region => region.kind === 'edge')
+  expect(edges.map(edge => edge.projectedText)).toEqual(['A --> B : one', 'A --> B : two', 'B --> A : back'])
+  for (const edge of edges) {
+    const feature = `graph.${edge.id}.route`
+    expect(edge.ports).toHaveLength(2)
+    for (const port of edge.ports!) expect(port.markerProjection).toBe(feature)
+    expect(document.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature }))
+  }
+  expect([...document.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge')).every(([, , cell]) => cell.kind === 'text')).toBe(true)
+  expect(() => document.assertMarkers()).not.toThrow()
+  expect(certifyTerminalLayout(document, document.serialize(), 'none').status).toBe('failed')
 })
 
-test('joint approach admission rejects collapsed nested corridors before painting their labels', () => {
+test('joint approach admission retains explicit summaries for rejected nested corridors', () => {
   const graph = convertToAsciiGraph(parseMermaid('flowchart TD\nsubgraph P\nsubgraph C\nA\nend\nend\nP -->|one| C\nP -->|two<br>x| C\nC -->|back| P'), {
     graphDirection: 'TD', paddingX: 5, paddingY: 5, boxBorderPadding: 1, useAscii: false,
   })
@@ -293,12 +303,17 @@ test('joint approach admission rejects collapsed nested corridors before paintin
   const document = drawGraph(graph)
   const rejected = document.diagnostics.filter(diagnostic => diagnostic.feature.startsWith('edge-approach:'))
   expect(rejected).toHaveLength(2)
+  const summaries: Record<string, string> = { 'edge#0:P->C': 'P --> C : one', 'edge#1:P->C': 'P --> C : two\nx', 'edge#2:C->P': 'C --> P : back' }
   for (const diagnostic of rejected) {
     expect(diagnostic.code).toBe('TERMINAL_GEOMETRY_COLLISION')
     const id = diagnostic.feature.slice('edge-approach:'.length)
-    expect([...document.entries()].some(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === id))).toBe(false)
-    expect(document.regions().find(region => region.kind === 'edge' && region.id === id)).toBeUndefined()
+    const edge = document.regions().find(region => region.kind === 'edge' && region.id === id)!
+    expect(edge.projectedText).toBe(summaries[id])
+    expect(document.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `graph.${id}.route` }))
+    expect([...document.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === id)).every(([, , cell]) => cell.kind === 'text' || cell.kind === 'surface')).toBe(true)
   }
+  expect(() => document.assertMarkers()).not.toThrow()
+  expect(certifyTerminalLayout(document, document.serialize(), 'none').status).toBe('failed')
 })
 
 for (const direction of ['TD', 'BT', 'LR', 'RL'] as const) for (const useAscii of [false, true]) {

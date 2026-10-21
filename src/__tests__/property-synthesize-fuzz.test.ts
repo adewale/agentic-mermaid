@@ -86,6 +86,8 @@ describe('synthesize fuzz: real payloads round-trip', () => {
       { kind: 'flowchart', body: { kind: 'flowchart', graph: { nodes: {} } } },
       { kind: 'flowchart', body: { kind: 'opaque', family: 'pie', source: 'pie\n  "A" : 1\n' } },
       { kind: 'constructor', body: { kind: 'opaque', family: 'pie', source: 'pie\n  "A" : 1\n' } },
+      { kind: { toString: '' }, body: { kind: 'flowchart' } },
+      { kind: 'flowchart', body: { kind: 'opaque', family: { toString: '' } } },
       { kind: 'pie', body: { kind: 'pie', title: '', showData: false, slices: [{ label: 'A', value: 'oops' }] } },
     ]) {
       expect(synthesizeFromGraph(payload as never)).toMatchObject({ ok: false })

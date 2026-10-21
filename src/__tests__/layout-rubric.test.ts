@@ -340,7 +340,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         const positioned = layoutGraphSync(graph)
         expect({ source, hard: hardViolations(assessLayout(graph, positioned)) }).toEqual({ source, hard: [] })
       }),
-      fcParameters({ numRuns: 120, seed: PROPERTY_SEED }),
+      fcParameters({ numRuns: 120, seed: PROPERTY_SEED, examples: [['flowchart BT\n  N0[n0]\n  N1{{n1}}\n  N2[/n2\\]\n  N3((n3))\n  N4[n4]\n  N5[n5]\n  N5 --> N2\n  N4 --> N0\n  N4 --> N2\n  N3 --> N0\n  N1 -.- N0\n  N4 --> N3']] }),
     )
   })
 

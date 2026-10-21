@@ -84,6 +84,14 @@ const stableRepresentativeCues = {
 } as const
 const fixtures: Fixture[] = [
   {
+    id: 'nightly-architecture-card-clearance',
+    title: 'Nightly Architecture routes clear an unrelated service card',
+    source:
+      'architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_2\n  s1_1:L --> L:s0_1\n  s0_1:L --> L:s1_0\n  s0_0:B --> B:s0_1',
+    captureLayout: true,
+    cue: 'The baseline refuses public rendering because the s0_0-to-s0_1 shaft crosses the unrelated s0_2 card; preserve that actual error instead of manufacturing a before image. Inspect the complete bottom-side connection after the fix, clearance from s0_2, and retained authored side attachments. The owning Architecture property independently checks containment, separation and card-clear routes; this one fixture does not prove routing completeness.',
+  },
+  {
     id: 'compat-ellipse',
     title: 'Ellipse identity, complete label and curved attachment',
     source: 'flowchart LR\nA(-this is an ellipse-) --> B[Done]',

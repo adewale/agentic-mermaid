@@ -814,6 +814,32 @@ function routeArchitectureEdge(
   const source = resolveEndpoint(edge.source, servicesById, serviceBounds, junctionBounds, groups)
   const target = resolveEndpoint(edge.target, servicesById, serviceBounds, junctionBounds, groups)
   const obstacles = architectureRouteObstacles(edge, servicesById, groups, services, junctionsById)
+  // Only the anchor-to-exit lead may touch its incident card. The middle
+  // route must remain outside both endpoints so it cannot reverse through
+  // the target and hide an arrowhead under the card's paint.
+  for (const endpoint of [edge.source, edge.target]) {
+    const group = endpoint.boundary === 'group' ? groups.get(servicesById.get(endpoint.id)!.parentId!) : undefined
+    const bounds = group ?? serviceBounds.get(endpoint.id) ?? junctionBounds.get(endpoint.id)!
+    obstacles.push({ ...bounds, id: group?.id ?? endpoint.id, kind: group ? 'group' : serviceBounds.has(endpoint.id) ? 'service' : 'junction' })
+  }
+  // A fixed exit can land inside the clearance envelope of a neighboring
+  // card. Stop at that envelope so the visibility search has a reachable
+  // start/end, while retaining the authored attachment side.
+  for (const [endpoint, side] of [[source, edge.source.side], [target, edge.target.side]] as const) {
+    const horizontal = side === 'L' || side === 'R'
+    const forward = side === 'R' || side === 'B'
+    let distance = Math.abs(horizontal ? endpoint.exit.x - endpoint.anchor.x : endpoint.exit.y - endpoint.anchor.y)
+    for (const obstacle of obstacles) {
+      const cross = horizontal ? endpoint.anchor.y : endpoint.anchor.x
+      const lo = horizontal ? obstacle.y : obstacle.x
+      const size = horizontal ? obstacle.height : obstacle.width
+      if (cross <= lo + ROUTE_EPSILON || cross >= lo + size - ROUTE_EPSILON) continue
+      const face = horizontal ? obstacle.x + (forward ? 0 : obstacle.width) : obstacle.y + (forward ? 0 : obstacle.height)
+      const gap = (face - (horizontal ? endpoint.anchor.x : endpoint.anchor.y)) * (forward ? 1 : -1)
+      if (gap > ROUTE_EPSILON) distance = Math.min(distance, gap)
+    }
+    endpoint.exit = movePoint(endpoint.anchor, side, distance)
+  }
   const directMiddle = simplifyOrthogonalPoints([
     source.exit,
     ...routeBetween(source.exit, target.exit, edge.source.side, edge.target.side),

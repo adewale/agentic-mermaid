@@ -29,7 +29,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const REPO = join(import.meta.dir, '..')
@@ -315,13 +315,16 @@ describe('async family-loaded browser renderer', () => {
         const result = await page.evaluate(async ([entryUrl, source]) => {
           try {
             const api = await import(entryUrl)
-            return { svg: await api.renderMermaidSVGAsync(source, { security: 'strict' }), error: null }
+            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' })
+            return { svg: result.svg, receipt: result.receipt, error: null }
           } catch (error) {
-            return { svg: null, error: String(error) }
+            return { svg: null, receipt: null, error: String(error) }
           }
         }, [`${base}/dist/browser-lazy/index.js`, family.example] as const)
         expect(result.error, `${family.id} threw in the async browser entry`).toBeNull()
-        expect(result.svg).toBe(renderMermaidSVG(family.example, { security: 'strict' }))
+        const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict' })
+        expect(result.svg).toBe(expected.svg)
+        expect(result.receipt).toEqual(expected.receipt)
       }
     } finally {
       await page.close()

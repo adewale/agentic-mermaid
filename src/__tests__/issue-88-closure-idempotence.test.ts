@@ -7,18 +7,21 @@ import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { resolveRenderStyle } from '../styles.ts'
 
 describe('final route-contract closer invariants (issue #88)', () => {
-  test('dense settled routes remain proved and byte-idempotent when shared lanes block straightening', () => {
+  test('dense parallel lanes remain proved and byte-idempotent when shared lanes block straightening', () => {
     const graph = parseMermaid(denseDag(1656))
     const positioned = layoutGraphSync(graph)
-    const edge = positioned.edges.find(item => item.source === 'N1' && item.target === 'N4')!
+    const parallel = positioned.edges.filter(item => item.source === 'N1' && item.target === 'N4')
+    const blocked = positioned.edges.find(item => item.source === 'N0' && item.target === 'N1')!
 
-    // Shared channels and settled label pills can block the old straight
-    // candidate. The final hitch proof must agree with the final route,
-    // and invoking that proof again must preserve every byte.
+    // The labeled diamond pair now has certified parallel lanes. A feedback
+    // edge in the same graph still has its direct lane blocked by settled
+    // channels and labels. Closing either proof again must preserve every byte.
     expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
     expect(findRouteHitches(positioned, graph)).toEqual([])
-    expect(edge.routeCertificate).toMatchObject({ invariant: 'explained-detour', bendCount: 2, directLaneClear: false })
-    expect(edge.routeCertificate?.directLaneBlockedBy?.some(blocker => blocker.kind === 'channel' || blocker.kind === 'label')).toBe(true)
+    expect(parallel).toHaveLength(2)
+    for (const edge of parallel) expect(edge.routeCertificate?.invariant).toBe('bundle')
+    expect(blocked.routeCertificate?.directLaneClear).toBe(false)
+    expect(blocked.routeCertificate?.directLaneBlockedBy?.some(blocker => blocker.kind === 'channel' || blocker.kind === 'label')).toBe(true)
     const once = JSON.stringify(positioned.edges)
     closeRouteContracts(positioned, graph, resolveRenderStyle({}))
     expect(JSON.stringify(positioned.edges)).toBe(once)
