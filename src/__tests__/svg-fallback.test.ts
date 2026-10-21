@@ -96,6 +96,25 @@ describe('opt-in read-only SVG provider', () => {
     expect((await render(source, { security: 'default' })).svg).toBe(external)
   })
 
+  test('an inherited security option cannot downgrade the strict default', async () => {
+    const child = Bun.spawn([process.execPath, '-e', `
+      import {createReadOnlySvgRenderer} from ${JSON.stringify(new URL('../svg-fallback.ts', import.meta.url).pathname)};
+      const svg='<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.invalid/a.png"/></svg>';
+      const render=createReadOnlySvgRenderer(()=>({id:'remote',render:()=>svg}));
+      Object.defineProperty(Object.prototype,'security',{value:'default',configurable:true});
+      try {
+        let refused=false;
+        try { await render(${JSON.stringify(source)}); }
+        catch(e) { refused=String(e).includes('strict verification'); }
+        const explicit=await render(${JSON.stringify(source)},{security:'default'});
+        console.log(JSON.stringify({refused,explicit:explicit.svg===svg}));
+      } finally { delete Object.prototype.security; }
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+    expect(exitCode, stderr).toBe(0)
+    expect(JSON.parse(stdout)).toEqual({ refused: true, explicit: true })
+  })
+
   test('bounds source before loading and checks output size and shape before security inspection', async () => {
     let loads = 0
     const render = createReadOnlySvgRenderer(() => { loads++; return { id: 'never', render: () => safeSvg } })

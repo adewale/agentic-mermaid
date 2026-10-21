@@ -36,7 +36,7 @@ function captureSecurity(options: ReadOnlySvgOptions): OutputSecurityMode {
   const prototype = Object.getPrototypeOf(options)
   if (prototype !== Object.prototype && prototype !== null) throw new TypeError('Read-only SVG options must be a plain object')
   if (Reflect.ownKeys(options).some(key => key !== 'security')) throw new TypeError('Read-only SVG accepts only the security option')
-  const security = options.security ?? 'strict'
+  const security = Object.hasOwn(options, 'security') ? options.security ?? 'strict' : 'strict'
   if (security !== 'default' && security !== 'strict') throw new TypeError('Read-only SVG security must be default or strict')
   return security
 }
