@@ -154,6 +154,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     ))
   }
 
+  const curvePaint = new Map<number, string>()
   // Curve areas (reuse the pie-slice filled-data role so styled looks sketch
   // them). Drawn back-to-front in source order; a value-count mismatch draws
   // nothing but still legends (upstream parity).
@@ -167,6 +168,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
     const fill = authoredFill ?? roleStyle?.fillColor ?? fills[curve.colorIndex]!
     const stroke = authoredFill ?? roleStyle?.strokeColor ?? roleStyle?.borderColor ?? fill
+    curvePaint.set(curve.colorIndex, stroke)
     const strokeWidth = roleStyle?.lineWidth ?? style.nodeLineWidth
     // The area fills translucently under an opaque outline.
     const paint = { fill, fillOpacity: String(curveOpacity), stroke, strokeWidth: String(strokeWidth), strokeLinejoin: 'round' as const }
@@ -188,7 +190,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     const channels = { category: curve.label }
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'point', channels, { includeFallback: false })
     const authoredFill = chart.visual.paletteOverrides?.[curve.colorIndex]
-    const fill = authoredFill ?? roleStyle?.fillColor ?? fills[curve.colorIndex]!
+    const fill = authoredFill ?? roleStyle?.fillColor ?? curvePaint.get(curve.colorIndex) ?? fills[curve.colorIndex]!
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? dotStroke
     const strokeWidth = roleStyle?.lineWidth ?? 1.2
     curve.vertices.forEach((v, vi) => {
@@ -292,7 +294,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
     const channels = { category: item.label }
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'legend', channels, { includeFallback: false })
     const authoredFill = chart.visual.paletteOverrides?.[item.colorIndex]
-    const fill = authoredFill ?? roleStyle?.fillColor ?? fills[item.colorIndex]!
+    const fill = authoredFill ?? roleStyle?.fillColor ?? curvePaint.get(item.colorIndex) ?? fills[item.colorIndex]!
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
     const strokeWidth = roleStyle?.lineWidth ?? 1
     parts.push(marks.shape(

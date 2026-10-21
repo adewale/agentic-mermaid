@@ -128,6 +128,7 @@ export function lowerXYChartScene(
   const barSeriesCount = new Map<number, number>()
   const seriesPalette = resolveSeriesPalette(chart, colors.accent, colors.bg)
   const barFills = new Map<PositionedBar, string>()
+  const seriesPaints = new Map<string, string>()
   for (const bar of chart.bars) {
     const catIndex = barSeriesCount.get(bar.seriesIndex) ?? 0
     barSeriesCount.set(bar.seriesIndex, catIndex + 1)
@@ -136,6 +137,7 @@ export function lowerXYChartScene(
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels, { includeFallback: false })
     const paletteFill = `var(--xychart-color-${bar.colorIndex})`
     const fill = hasAuthoredSeriesPalette ? paletteFill : roleStyle?.fillColor ?? paletteFill
+    seriesPaints.set(channels.category, fill)
     barFills.set(bar, hasAuthoredSeriesPalette ? seriesPalette.concrete(bar.colorIndex) : roleStyle?.fillColor ?? seriesPalette.concrete(bar.colorIndex))
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor
     const strokeWidth = roleStyle?.lineWidth
@@ -182,6 +184,7 @@ export function lowerXYChartScene(
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'series', channels, { includeFallback: false })
     const paletteStroke = `var(--xychart-color-${line.colorIndex})`
     const stroke = hasAuthoredSeriesPalette ? paletteStroke : roleStyle?.strokeColor ?? roleStyle?.borderColor ?? paletteStroke
+    seriesPaints.set(channels.category, stroke)
     const strokeWidth = roleStyle?.lineWidth ?? style.lineWidth
     parts.push(marks.connector({
       id: `series:line-${line.seriesIndex}`,
@@ -391,7 +394,7 @@ export function lowerXYChartScene(
             id: `legend:swatch:${item.colorIndex}`,
             role: 'legend',
             geometry: { kind: 'rect', x: rn(item.x), y: rn(item.y), width: LEGEND_SWATCH_SIZE, height: LEGEND_SWATCH_SIZE, rx: 2, ry: 2 },
-            paint: { fill: `var(--xychart-color-${item.colorIndex})` },
+            paint: { fill: seriesPaints.get(`bar-${item.seriesIndex}`) ?? `var(--xychart-color-${item.colorIndex})` },
             channels: { category: `bar-${item.seriesIndex}` },
             attributes: { className: 'xychart-legend-swatch' },
           }),
@@ -405,7 +408,7 @@ export function lowerXYChartScene(
             id: `legend:swatch:${item.colorIndex}`,
             role: 'legend',
             geometry: { kind: 'line', x1: rn(item.x), y1: rn(cy), x2: rn(item.x + LEGEND_SWATCH_SIZE), y2: rn(cy) },
-            paint: { stroke: `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth), strokeLinecap: 'round' },
+            paint: { stroke: seriesPaints.get(`line-${item.seriesIndex}`) ?? `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth), strokeLinecap: 'round' },
             channels: { category: `line-${item.seriesIndex}` },
             attributes: { className: 'xychart-legend-swatch' },
           }),
@@ -416,7 +419,7 @@ export function lowerXYChartScene(
             id: `legend:dot:${item.colorIndex}`,
             role: 'legend',
             geometry: { kind: 'circle', cx: rn(item.x + LEGEND_SWATCH_SIZE / 2), cy: rn(cy), r: 2.5 },
-            paint: { fill: `var(--xychart-color-${item.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
+            paint: { fill: seriesPaints.get(`line-${item.seriesIndex}`) ?? `var(--xychart-color-${item.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
             channels: { category: `line-${item.seriesIndex}` },
             attributes: { className: 'xychart-legend-dot' },
           }),

@@ -26,6 +26,7 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
+import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
 import { hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, legibleInk, mixHex, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
@@ -403,19 +404,19 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
     children.push({
       indent: 2,
       node: marks.shape({
-        id: `actor-legend-dot:${actor.label}`,
+        id: `actor-legend-dot:${actor.category}`,
         role: 'actor',
         geometry: { kind: 'circle', cx: actor.x, cy: actor.y, r: JY.legendDotRadius },
         paint: { fill: actorFill(actor.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
-        channels: { category: actor.label },
-        attributes: { className: `journey-actor-dot ${actorClass(actor.colorIndex, paints)}`, data: { actor: actor.label } },
+        channels: { category: actor.category },
+        attributes: { className: `journey-actor-dot ${actorClass(actor.colorIndex, paints)}`, data: { actor: actor.category } },
       }),
     })
 
     children.push({
       indent: 2,
       node: marks.text({
-        id: `actor-legend-label:${actor.label}`,
+        id: `actor-legend-label:${actor.category}`,
         role: 'legend',
         text: actor.label,
         block: actor.block,
@@ -426,7 +427,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
         letterSpacing: style.edgeLetterSpacing,
         anchor: 'start',
         paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
-        channels: { category: actor.label },
+        channels: { category: actor.category },
         attributes: { className: 'journey-actor-legend-text' },
       }),
     })
@@ -834,10 +835,8 @@ function contrastGuardedLabelColor(
   return fallback
 }
 
-/** Actor identity is carried by small dots. Keep Journey's established colors
- * through six actors; above that compatibility boundary, use the shared
- * measured separation and visibility contract. Authored actorColours still
- * win in journeyPaints. */
+/** Keep established low-count actor colors where they satisfy the same
+ * visibility and separation contract as the shared palette. */
 function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRenderStyle, actorCount: number): string[] {
   const count = Math.max(actorCount, 1)
   if (count > 6 && isOpaqueConcreteCssColor(colors.bg)) {
@@ -848,7 +847,10 @@ function actorPalette(arrow: string, colors: DiagramColors, style: ResolvedRende
     const resolved = resolveColors(colors)
     const accent = firstHexColor(style.edgeStrokeColor, colors.accent, resolved.arrow)
     if (accent) {
-      if (count <= 6) return legacyActorPalette(accent, colors.bg, count)
+      if (count <= 6) {
+        const legacy = legacyActorPalette(accent, colors.bg, count)
+        if ((count < 2 || minPairwiseDeltaEOK(legacy)! >= 0.10) && legacy.every(color => wcagCssContrastRatio(color, colors.bg)! >= 1.25 && Math.abs(apcaContrast(color, colors.bg)!) >= 15)) return legacy
+      }
       return categoricalPalette(count, { accent, bg: colors.bg })
     }
   }

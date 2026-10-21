@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="750.055" height="511.536" viewBox="0 0 750.055 511.536" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" aria-labelledby="gitgraph-title" aria-roledescription="git graph" role="img" class="am-14eiywo1v1goax">
+<svg xmlns="http://www.w3.org/2000/svg" width="750.055" height="511.536" viewBox="0 0 750.055 511.536" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" aria-labelledby="gitgraph-title" aria-roledescription="git graph" role="img" class="am-0pzchxy09jeuwh">
 <style>
-  svg.am-14eiywo1v1goax { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
-  svg.am-14eiywo1v1goax {
+  svg.am-0pzchxy09jeuwh { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  svg.am-0pzchxy09jeuwh {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #202a2f;
     --_text-sec:      #60727a;
@@ -21,12 +21,12 @@
 <title id="gitgraph-title">Git graph</title>
 <g class="git-branch" data-id="branch:main" data-branch="main" data-role="group">
   <rect class="git-branch-label-background" x="81.24" y="108.593" width="40.21" height="17" rx="4" ry="4" fill="#e7ebe1" stroke="#1f6f8b" stroke-width="1" />
-  <line class="git-branch-line" data-branch="main" x1="131.45" y1="120.593" x2="528.665" y2="120.593" stroke="#1f6f8b" stroke-width="3" opacity="0.86" />
+  <line class="git-branch-line" data-branch="main" x1="131.45" y1="120.593" x2="528.665" y2="120.593" stroke="#1f6f8b" stroke-width="3" />
   <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="121.45" y="116.74300000000001" class="git-branch-label" data-branch="main" text-anchor="end" font-size="11" font-weight="700" letter-spacing="0.06" fill="#1f6f8b" data-prepared-text="true" dy="3.8499999999999996"><tspan x="91.24000000000001" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.9" lengthAdjust="spacingAndGlyphs">M</tspan><tspan x="101.20000000000002" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.919999999999998" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="109.18" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="2.64" lengthAdjust="spacingAndGlyphs">I</tspan><tspan x="111.88000000000001" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.569999999999999" lengthAdjust="spacingAndGlyphs">N</tspan></text>
 </g>
 <g class="git-branch" data-id="branch:feature" data-branch="feature" data-role="group">
   <rect class="git-branch-label-background" x="54" y="325.536" width="67.45" height="17" rx="4" ry="4" fill="#eaeee4" stroke="#3996a5" stroke-width="1" />
-  <line class="git-branch-line" data-branch="feature" x1="131.45" y1="337.536" x2="281.325" y2="337.536" stroke="#3996a5" stroke-width="3" opacity="0.86" />
+  <line class="git-branch-line" data-branch="feature" x1="131.45" y1="337.536" x2="281.325" y2="337.536" stroke="#3996a5" stroke-width="3" />
   <text paint-order="stroke" stroke="#fbf7ea" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="121.45" y="333.686" class="git-branch-label" data-branch="feature" text-anchor="end" font-size="11" font-weight="700" letter-spacing="0.06" fill="#317480" data-prepared-text="true" dy="3.8499999999999996"><tspan x="64.00000000000001" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.919999999999998" lengthAdjust="spacingAndGlyphs">F</tspan><tspan x="71.98000000000002" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.919999999999998" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="79.96000000000001" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.919999999999998" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="87.94000000000001" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.919999999999998" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="95.92" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.919999999999998" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="103.9" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="7.919999999999998" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="111.88" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.569999999999999" lengthAdjust="spacingAndGlyphs">E</tspan></text>
 </g>
 <polyline stroke-opacity="0" class="git-edge git-edge-parent" points="187.325,120.593 234.325,120.593 234.325,337.536 281.325,337.536" fill="none" stroke="#3996a5" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="base-&gt;work" data-role="edge" data-from="base" data-to="work" role="graphics-symbol" aria-roledescription="relation" aria-label="base to work" />

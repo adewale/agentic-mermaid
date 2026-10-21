@@ -167,6 +167,9 @@ export function lowerPieScene(
     // An indexed Mermaid `pieN` theme variable is authored concrete paint;
     // role/binding paint is a default beneath it, never a repaint authority.
     const fill = visual.paletteOverrides[index] ?? sliceRole?.fillColor ?? fills[index]!
+    // Labels and legend keys describe this effective paint, including semantic
+    // role overrides, rather than the unmodified generated palette.
+    fills[index] = fill
     const sliceStroke = visual.strokeColor ?? sliceRole?.strokeColor ?? sliceRole?.borderColor ?? style.nodeBorderColor ?? 'var(--bg)'
     const sliceStrokeWidth = visual.strokeWidth ?? sliceRole?.lineWidth ?? style.nodeLineWidth
     const cue = sliceRole?.cue ?? 'none'
