@@ -315,7 +315,7 @@ for (const family of BUILTIN_FAMILY_METADATA) {
 semantic('generated sequence edits retain boxes, activation, properties and punctuation', 'Mermaid 12.2.0 sequence DB with real DOM color admission; public typed edit and roundtrip', async () => {
   await fc.assert(fc.asyncProperty(
     fc.array(fc.constantFrom('literal * star', 'literal # comment', 'literal \\ slash', 'a < b > c'), { minLength: 1, maxLength: 5 }),
-    fc.array(fc.constantFrom('A', 'Alice', 'Updated', 'Client'), { minLength: 1, maxLength: 3 }).map(words => words.join(' ')),
+    fc.array(fc.constantFrom('A', 'Alice', 'Updated', 'Client', '}', '"quoted"', '{braces}', 'style:x}'), { minLength: 1, maxLength: 3 }).map(words => words.join(' ')),
     fc.constantFrom('participant A as Alice', 'participant A', 'participant A@{type: database, alias: Alice}', 'participant A@{type: database, alias: Alice, future: keep-me}'),
     async (messages, renamed, declaration) => {
       const controls = ['box transparent Crew', 'properties A: {"color":"red"}', 'activate A', 'deactivate A']
@@ -339,9 +339,10 @@ semantic('generated sequence edits retain boxes, activation, properties and punc
       expect(after.snapshot.data.getBoxes).toEqual(before.snapshot.data.getBoxes)
       const reparsed = am.parseRegisteredMermaid(output)
       if (!reparsed.ok || reparsed.value.body.kind !== 'sequence') throw new Error('Expected structured Sequence')
+      expect(reparsed.value.body.participants.map(actor => [actor.id, actor.kind, actor.label])).toEqual([['A', declaration.includes('database') ? 'database' : 'participant', renamed], ['B', 'actor', 'Bob']])
       expect(reparsed.value.body.messages.map(message => message.text)).toEqual(expectedMessages)
     },
-  ), fcParameters({ numRuns: 100 }))
+  ), fcParameters({ numRuns: 100, examples: [[['ping'], 'New } "label"', 'participant A@{type: database, alias: Alice, future: keep-me}'], [['ping'], 'style:x}', 'participant A@{type: database, alias: Alice}']] }))
 })
 
 semantic('recognized Sequence messages survive semantic read-back throughout the official corpus', 'Retained official Sequence fences and independent reference DB messages, including preserved controls', async () => {

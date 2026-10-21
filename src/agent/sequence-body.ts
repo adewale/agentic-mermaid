@@ -744,7 +744,11 @@ function relabelPreservedDeclaration(statement: SequenceStatement, participant: 
     if (!block.ok) return false
     // Keep unmodeled metadata values while making this alias authoritative,
     // including when the new label equals the participant's identity.
-    replacement = `${prefix}@${JSON.stringify({ ...Object.fromEntries(block.entries), alias: label })}`
+    // CONFIG ends at the first closing brace even inside a quoted scalar.
+    // YAML escapes avoid that boundary without adding Mermaid entity tokens.
+    const metadata = JSON.stringify({ ...Object.fromEntries(block.entries), alias: label })
+      .replace(/"(?:\\.|[^"\\])*"/g, scalar => scalar.replace(/}/g, '\\u007d'))
+    replacement = `${prefix}@${metadata}`
   } else replacement = `${prefix} as ${label}`
   const line = statement.lines[entry.line]!
   const indent = entry.raw.match(/^\s*/)?.[0] ?? ''
