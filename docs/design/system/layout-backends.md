@@ -2575,3 +2575,12 @@ regime qualifies a time or memory win. Workflow job success means evidence
 collection, not qualification; partial ratios are not normalized by A/A or
 combined with earlier complete results. The overall replacement goal remains
 open, and ELK remains the default and supported fallback.
+
+
+The subsequent rebase includes main `35902e75` (shared family text rows and
+spacing, plus executable Getting Started documentation). Main now owns the
+shared `config-spacing.ts` helper, so the branch's equivalent
+`diagram-spacing.ts` extraction commit is dropped rather than duplicating it.
+All 92 affected family/shape/backend tests pass (6,275 assertions). Main's
+payload budget changes remain inherited upstream changes; the branch budget
+file still matches main exactly. Fresh combined CI is required for this base.
