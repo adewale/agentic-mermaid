@@ -22,6 +22,27 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Losing cosmetic centering proposals retain the previous feasible geometry.
+  Straight-route repairs retain canonical ports unless higher-priority conflicts
+  improve. Four generated valid-flowchart failures now render.
+- Wildcard HTTP listeners advertise a connectable loopback URL while retaining
+  their configured bind address and bearer-token policy.
+- Lazy browser SVG loading fetches ELK only when placement needs it, and keeps
+  one admitted request across deferred dependencies. Ordinary native rendering
+  avoids declaration-ledger reconciliation and full text inspection evidence;
+  strict, verify, extension admission and final paint/security checks remain.
+- An inexpensive Scene admission cannot bypass a later strict cross-check.
+
+### Maintenance
+
+- Retire copied discovery/API inventories, the empty-divergence pin and
+  exclusions-ledger hygiene gates. Keep live generated discovery, executable
+  divergence behavior and shipped/external artifact integrity checks.
+- Family portfolio selects four distinct inputs for all 23 native families.
+  Degenerate-route failures always retain their complete diagnostic report.
+
+### Earlier fixes
+
 - `verify` on a source string checks the request `render` makes from that
   string, including its `%%{init}%%` and frontmatter config. It used to check
   a canonical copy that drops that config, so it measured a different layout

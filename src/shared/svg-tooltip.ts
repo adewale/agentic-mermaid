@@ -1,3 +1,4 @@
+import type { DrawingFactory } from '../scene/drawing.ts'
 // ============================================================================
 // Shared SVG hover-tooltip primitive.
 //
@@ -38,6 +39,10 @@ export function tooltipMarkup(prefix: string, cx: number, topY: number, text: st
 
 /** The same owned tooltip geometry, retained as paint rather than opaque SVG. */
 export function tooltipArtwork(prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): GroupMark {
+  return drawTooltipArtwork(marks, prefix, plan, id, owner) as GroupMark
+}
+
+export function drawTooltipArtwork<T>(marks: DrawingFactory<T>, prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): T {
   if (!plan) throw new TypeError(`Missing retained tooltip layout for ${id}`)
   const { block, bgW, bgX, bgY, textX, textY, ptrPath } = plan
   const n = (value: number) => Number(r(value))

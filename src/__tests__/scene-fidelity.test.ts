@@ -19,7 +19,7 @@ import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-c
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, freezeBoundedFirstPartyData } from '../scene/external-data-snapshot.ts'
+import { admitSceneDocument, admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, snapshotBoundedExternalData } from '../scene/external-data-snapshot.ts'
 import { buildExternalScene, EXTERNAL_SCENE_API_VERSION } from '../scene/external-scene.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { inspectScenePrimitives } from '../scene/inspection.ts'
@@ -276,6 +276,18 @@ describe('scene fidelity', () => {
 })
 
 describe('built-in Scene cross-checks', () => {
+  test('a cheap admission cannot suppress later strict connector checks', () => {
+    const lowered = lowerSample('flowchart LR\n  A --> B')
+    if (!lowered || !('doc' in lowered)) throw new Error('Expected native Scene')
+    const connectors = (node: SceneNode): Array<Extract<SceneNode, { kind: 'connector' }>> =>
+      node.kind === 'connector' ? [node] : node.kind === 'group' ? node.children.flatMap(child => connectors(child.node)) : []
+    const connector = lowered.doc.parts.flatMap(connectors)[0]!
+    Object.assign(connector, { terminalProjection: { ...connector.terminalProjection, relationship: 'not-derived' } })
+    const admitted = admitSceneDocument(lowered.doc, 'internal', false)
+    expect(admitted).not.toBe(lowered.doc)
+    expect(() => admitSceneDocument(admitted, 'internal', true)).toThrow(/terminalProjection/)
+  })
+
   test('render skips them unless scene assertions are on; verify, strict renders and ASCII always run them', () => {
     // A lowering that stores a connector projection disagreeing with the one
     // derived from its own semantics. Fresh processes control the variable the
@@ -332,10 +344,8 @@ describe('built-in Scene cross-checks', () => {
   })
 })
 
-describe('built-in Scene admission walk', () => {
-  // Small limits stand in for the multi-megabyte production ones. The walk
-  // charges three bytes per UTF-16 unit first and recounts exactly only when
-  // that bound passes a limit, so the exact limit must still decide.
+describe('bounded Scene admission snapshot', () => {
+  // Small limits stand in for the multi-megabyte production ones.
   const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 30, maxPropertyKeyBytes: 6, maxAggregatePropertyKeyBytes: 12 }
   test.each([
     ['ASCII text under the byte limit but over the three-byte bound', { a: 'x'.repeat(14), b: 'y'.repeat(16) }, undefined],
@@ -347,11 +357,13 @@ describe('built-in Scene admission walk', () => {
     ['a sparse array, named by its path', { parts: [{ points: [0, , 2] }] }, 'External Scene scene.parts[0].points must not be sparse'],
   ] as const)('%s', (_name, document, error) => {
     const value = structuredClone(document)
-    const admit = () => freezeBoundedFirstPartyData(value, limits, 'scene')
+    const admit = () => snapshotBoundedExternalData(value, limits, 'scene')
     if (error) expect(admit).toThrow(error)
     else {
-      expect(admit()).toBe(value)
-      expect(Object.isFrozen(value)).toBe(true)
+      const snapshot = admit()
+      expect(snapshot).not.toBe(value)
+      expect(snapshot).toEqual(value)
+      expect(Object.isFrozen(snapshot)).toBe(true)
     }
   })
 })

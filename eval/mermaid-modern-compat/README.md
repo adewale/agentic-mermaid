@@ -106,6 +106,21 @@ the requested number of mutations of at most 4,000 characters; oversized
 attempts are counted and replaced. Raw syntax disagreement is not a bug count
 under the write-strict/read-generously policy.
 
+A mutation inserts, deletes, duplicates or replaces text, drawing fragments from
+the token images Mermaid's lexer produced on the family's corpus and from the
+fixed lexer-boundary fragments in `grammar-fragments.ts`. A **silent read** is
+an input the pinned grammar rejects that ours reads as the same family (native
+parser or structured body) while `verifyMermaid` reports neither
+`UNSUPPORTED_SYNTAX` nor a source refusal (`EMPTY_DIAGRAM`,
+`UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`). The policy requires a generous read
+to be announced, so these are the bug candidates. Every run counts them per
+family in `summary.json` (`silentReads`), reduces the first eight of each
+family by line and then code point, and prints each distinct reduction with
+what ours read and Mermaid's error.
+`--native-only` restricts a run to the families ours parses. The nightly finder
+(`.github/workflows/nightly-finder.yml`) runs those at a fresh seed and files
+new silent reads in one issue; the PR gate and weekly run keep seed 7.
+
 Canonical CI calls the reusable semantic workflow for every PR/main revision,
 and its success is required by `CI complete` and exact-commit release attestation.
 This includes policy and corpus changes outside source paths. It runs 100 mutations **per family**, 5,000

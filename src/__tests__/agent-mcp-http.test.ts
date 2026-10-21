@@ -270,6 +270,8 @@ describe('MCP HTTP/SSE transport and managed artifacts', () => {
     await expect(startHttpServer({ host: '0.0.0.0', port: 0, artifactDir: tempDir() })).rejects.toThrow(/auth-token/)
     const started = await startHttpServer({ host: '0.0.0.0', port: 0, artifactDir: tempDir(), authToken: 'secret' })
     servers.push(started)
+    expect(new URL(started.url).hostname).toBe('127.0.0.1')
+    expect(started.server.address()).toMatchObject({ address: '0.0.0.0' })
     const unauthorized = await fetch(`${started.url}/rpc`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

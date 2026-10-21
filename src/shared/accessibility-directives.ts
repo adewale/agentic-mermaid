@@ -23,6 +23,8 @@ export interface AccessibilityScan {
   accessibility: MermaidAccessibility
   /** Original physical lines with valid universal directives removed. */
   familyLines: string[]
+  /** The index in the scanned lines of each family line. */
+  familyOrigins: number[]
   /** First unterminated accDescr block, retained in `familyLines`. */
   unclosedIndex?: number
 }
@@ -96,6 +98,7 @@ export function parseAccessibilityDirective(
 export function scanAccessibilityDirectives(lines: readonly string[], statementEnds?: readonly number[]): AccessibilityScan {
   const accessibility: MermaidAccessibility = {}
   const familyLines: string[] = []
+  const familyOrigins: number[] = []
   let unclosedIndex: number | undefined
 
   for (let index = 0; index < lines.length; index++) {
@@ -103,23 +106,29 @@ export function scanAccessibilityDirectives(lines: readonly string[], statementE
     if (directive === undefined) {
       unclosedIndex = index
       familyLines.push(...lines.slice(index))
+      for (let origin = index; origin < lines.length; origin++) familyOrigins.push(origin)
       break
     }
     if (directive === null) {
       const end = statementEndAt(statementEnds, index, lines.length)
       familyLines.push(...lines.slice(index, end + 1))
+      for (let origin = index; origin <= end; origin++) familyOrigins.push(origin)
       index = end
       continue
     }
     if (directive.title) accessibility.title = directive.value
     else accessibility.descr = directive.value
-    if (directive.suffixLine) familyLines.push(directive.suffixLine)
+    if (directive.suffixLine) {
+      familyLines.push(directive.suffixLine)
+      familyOrigins.push(directive.endIndex)
+    }
     index = directive.endIndex
   }
 
   return {
     accessibility,
     familyLines,
+    familyOrigins,
     ...(unclosedIndex !== undefined ? { unclosedIndex } : {}),
   }
 }

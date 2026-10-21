@@ -107,6 +107,11 @@ export interface C4Diagnostic {
   severity: 'warning' | 'error'
   statementId?: string
 }
+/** A reader diagnostic on an authored statement. */
+export interface C4SyntaxDiagnostic extends C4Diagnostic {
+  /** Stable `c4_<construct>` name, reported as verify's `syntax`. */
+  syntax: string
+}
 export interface C4Body {
   kind: 'c4'
   variant: C4Variant
@@ -118,7 +123,7 @@ export interface C4Body {
   relationships: C4Relationship[]
   directives: C4Directive[]
   statements: C4Statement[]
-  diagnostics: C4Diagnostic[]
+  diagnostics: C4SyntaxDiagnostic[]
   layout: C4LayoutHints
   legend?: { visible: boolean; entries: { id: string; label: string; kind: 'element' | 'relationship'; style: C4Style }[] }
 }

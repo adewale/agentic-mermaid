@@ -1,14 +1,14 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from '../agent/families.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { canvasOf, f, labelRect, retainedLabelBounds, retainedLabelGeometry } from '../positioned-views/geometry.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
-import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkerDescriptor } from '../scene/ir.ts'
 import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
-import * as marks from '../scene/marks.ts'
 import { shapeOutline } from '../shape-outline.ts'
-import { diagramTitleMark } from '../styles.ts'
+import { diagramTitleFields } from '../styles.ts'
 import { buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import { arrowMask, arrowSize, blockArrowPoints } from './arrows.ts'
@@ -21,11 +21,11 @@ for (const end of ['start', 'end'] as const) {
   markers[`arrow_circle:${end}`] = { id: `block-circle-${end}`, shape: 'circle', size: { width: 9, height: 9 }, ref: { x: 4.5, y: 4.5 }, orient: 'auto', geometry: { kind: 'circle', cx: 4.5, cy: 4.5, r: 3.5 }, paint: { fill: 'var(--bg)', stroke: 'var(--_arrow)', strokeWidth: '1' }, units: 'userSpaceOnUse' }
   markers[`arrow_cross:${end}`] = { id: `block-cross-${end}`, shape: 'cross', size: { width: 9, height: 9 }, ref: { x: 4.5, y: 4.5 }, orient: 'auto', geometry: { kind: 'path', d: 'M1 1L8 8M1 8L8 1' }, paint: { fill: 'none', stroke: 'var(--_arrow)', strokeWidth: '1' }, units: 'userSpaceOnUse' }
 }
-export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): SceneDoc {
+export function lowerBlockDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedBlockDiagram>): DrawingDocument<T> {
   const { positioned: p, colors } = ctx,
     transparent = ctx.resolved.renderOptions.transparent ?? false,
     font = colors.font ?? 'Inter',
-    parts: SceneNode[] = [],
+    parts: T[] = [],
     markerSet: Record<string, MarkerDescriptor> = p.style.edgeStrokeColor
       ? Object.fromEntries(Object.entries(markers).map(([key, marker]) => [key, { ...marker, paint: { ...marker.paint, ...(marker.paint?.fill === 'var(--_arrow)' ? { fill: p.style.edgeStrokeColor } : {}), ...(marker.paint?.stroke ? { stroke: p.style.edgeStrokeColor } : {}) } }]))
       : markers,
@@ -36,7 +36,7 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
   if (p.model.accessibilityDescription) open += `<desc>${escapeXml(p.model.accessibilityDescription)}</desc>`
   open += buildStyleBlock(font, false, undefined, colors.embedFontImport)
   parts.push(marks.documentOpen({ id: 'prelude', width: p.width, height: p.height, colors, transparent, font, hasMonoFont: false }, open), marks.definitions({ id: 'defs', markerResources: resources }, `<defs>${serializeMarkerResources(resources)}</defs>`))
-  const lowerNode = (node: (typeof p.nodes)[number], children: SceneNode[]): SceneNode => {
+  const lowerNode = (node: (typeof p.nodes)[number], children: T[]): T => {
     const composite = node.block.type === 'composite',
       role = composite ? 'group' : 'node',
       fill = node.style.fill ?? (composite ? p.style.groupFillColor : p.style.nodeFillColor) ?? (composite ? 'var(--_group-fill)' : 'var(--_node-fill)'),
@@ -98,7 +98,7 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
       ],
     })
   }
-  const childrenByParent = new Map<string | undefined, SceneNode[]>()
+  const childrenByParent = new Map<string | undefined, T[]>()
   // Placement is parent-first. Lower in reverse so each semantic container
   // owns its painted children rather than merely overlapping sibling groups.
   for (let index = p.nodes.length - 1; index >= 0; index--) {
@@ -146,7 +146,7 @@ export function lowerBlockScene(ctx: RenderContext<PositionedBlockDiagram>): Sce
       )
     }
 
-  if (p.title) parts.push(diagramTitleMark(p.title, p.style))
+  if (p.title) parts.push(marks.text(diagramTitleFields(p.title, p.style)))
   parts.push(marks.documentClose())
   return { family: 'block', width: p.width, height: p.height, colors, transparent, parts }
 }
@@ -179,3 +179,5 @@ export function projectBlockPositioned({ positioned: p }: FamilyPositionedProjec
     labels,
   }
 }
+
+export const lowerBlockScene = sceneLowering<PositionedBlockDiagram>(lowerBlockDrawing)

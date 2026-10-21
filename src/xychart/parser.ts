@@ -253,19 +253,29 @@ function parseNumericArray(str: string): number[] {
 const NUMBER_PATTERN = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`
 const RANGE_REGEX = new RegExp(`^(${NUMBER_PATTERN})\\s*-->\\s*(${NUMBER_PATTERN})$`)
 
-/** Where Mermaid's xychart lexer rejects unquoted text: what it rejects. */
-type XYChartTextReport = (what: string) => void
+type XYChartTextSyntax = 'xychart_unquoted_axis_title' | 'xychart_unquoted_text'
+/** Where Mermaid's xychart lexer reads unquoted text otherwise: the syntax it
+ * concerns, and what it does there. */
+type XYChartTextReport = (syntax: XYChartTextSyntax, what: string) => void
 
-// Mermaid's xychart lexer reads an unquoted axis title only from ASCII
-// letters, whitespace and &+=*.#_- (and runs the words together); a digit
-// there starts a range number. Any other character is a lexical or parse
-// error upstream. Ours reads the title as written; verify reports it, and the
-// serializer writes it quoted, as Mermaid reads it.
+// Mermaid's xychart lexer reads unquoted text (a title, an axis title, a
+// series label or a category) as a run of ASCII letters, digits and
+// &+=*.#_-, running the words together; in an axis title a digit starts a
+// range number instead. Any other character, a single quote included, is a
+// lexical or parse error upstream. A keyword where a word can start is a
+// token of its own, so the text ends there. Ours reads the text as written;
+// verify reports it, and the serializer writes it quoted, as Mermaid reads it.
+const NOT_TEXT_RE = /[^A-Za-z0-9&+=*.#_\s-]/
 const NOT_AXIS_TEXT_RE = /[^A-Za-z&+=*.#_\s-]/
+const TEXT_KEYWORD_RE = /(?<![A-Za-z])(?:xychart-beta|xychart|vertical|horizontal|[xy]-axis|title|line|bar)(?![A-Za-z0-9_])/i
 
-function reportAxisTitle(title: string, axisName: 'x' | 'y', report: XYChartTextReport | undefined): void {
-  const error = NOT_AXIS_TEXT_RE.exec(title)?.[0]
-  if (error !== undefined) report?.(`XY chart ${axisName}-axis title ${JSON.stringify(title)} has ${JSON.stringify(error)} outside a quoted string`)
+/** Report `text`, read from `raw`, unless `raw` is a double-quoted string. */
+function reportUnquotedText(raw: string, text: string, subject: string, syntax: XYChartTextSyntax, report: XYChartTextReport | undefined): void {
+  if (!report || raw.startsWith('"')) return
+  const error = raw.startsWith("'") ? "'" : (syntax === 'xychart_unquoted_axis_title' ? NOT_AXIS_TEXT_RE : NOT_TEXT_RE).exec(text)?.[0]
+  if (error !== undefined) return report(syntax, `${subject} ${JSON.stringify(text)} has ${JSON.stringify(error)} outside a double-quoted string, which pinned Mermaid rejects`)
+  const keyword = TEXT_KEYWORD_RE.exec(text)?.[0]
+  if (keyword !== undefined) report(syntax, `${subject} ${JSON.stringify(text)} has the keyword ${JSON.stringify(keyword)} outside a double-quoted string, where pinned Mermaid ends the text: it rejects the line or reads another statement there`)
 }
 
 function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y', statementLine: number, report?: XYChartTextReport): boolean {
@@ -279,8 +289,9 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y',
     if (title === null) return false
     const categories = splitCommaList(categoriesMatch.contents)
     if (categories.length === 0) return false
+    if (report) for (const raw of splitCommaTokens(categoriesMatch.contents)) reportUnquotedText(raw, raw, 'XY chart category', 'xychart_unquoted_text', report)
     if (title !== undefined) {
-      if (!/^["']/.test(prefix)) reportAxisTitle(title, axisName, report)
+      reportUnquotedText(prefix, title, `XY chart ${axisName}-axis title`, 'xychart_unquoted_axis_title', report)
       axis.title = title
       if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title }, { line: statementLine, unit: 'normalized' })
     }
@@ -298,7 +309,7 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y',
   const parsed = readAxisTitleRange(value)
   if (!parsed) return false
   if (parsed.title !== undefined) {
-    if (!/^["']/.test(value)) reportAxisTitle(parsed.title, axisName, report)
+    reportUnquotedText(value, parsed.title, `XY chart ${axisName}-axis title`, 'xychart_unquoted_axis_title', report)
     axis.title = parsed.title
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
   }
@@ -660,13 +671,22 @@ function getString(root: MermaidFrontmatterMap, path: readonly string[]): string
  * statements, read by the parser's own statement grammar, with the index in
  * `lines` (header first) of the line each statement starts on.
  */
-export function xychartTextRejections(lines: readonly string[]): Array<{ index: number; what: string }> {
-  const rejections: Array<{ index: number; what: string }> = []
+export function xychartTextRejections(lines: readonly string[]): Array<{ index: number; syntax: XYChartTextSyntax; what: string }> {
+  const rejections: Array<{ index: number; syntax: XYChartTextSyntax; what: string }> = []
   const read = (statement: string, index: number): void => {
+    const report: XYChartTextReport = (syntax, what) => rejections.push({ index, syntax, what })
+    const title = statement.match(/^title\s+([\s\S]+)$/i)
+    if (title) return reportUnquotedText(title[1]!.trim(), title[1]!.trim(), 'XY chart title', 'xychart_unquoted_text', report)
+    const series = statement.match(/^(bar|line)\s+([\s\S]+)$/i)
+    if (series) {
+      const label = splitTrailingBracketList(series[2]!.trim())?.prefix
+      if (label) reportUnquotedText(label, label, `XY chart ${series[1]!.toLowerCase()} label`, 'xychart_unquoted_text', report)
+      return
+    }
     const axis = statement.match(/^([xy])-axis\s+([\s\S]+)$/i)
     if (!axis) return
     const axisName = axis[1]!.toLowerCase() as 'x' | 'y'
-    applyAxisDirective({}, axis[2]!, axisName, index + 1, what => rejections.push({ index, what }))
+    applyAxisDirective({}, axis[2]!, axisName, index + 1, report)
   }
   const starts: number[] = []
   const statements = expandXYChartStatements([...lines], false, starts)

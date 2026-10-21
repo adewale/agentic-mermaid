@@ -53,10 +53,10 @@ const report = { diagnostic: true, revision: workingRevision(), cpu: cpus()[0]?.
   note: 'Stage clocks and Node CPU sampling add overhead. CPU profile excludes imports and warm-up. Layout includes parsing, repair and certification; ELK is nested, never additive. No visual-fidelity or peer-stage claim.', cases }
 writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2))
 const lines = ['# Current pipeline stages (diagnostic)', '', `Source ${report.revision}; ELK result cache ${cache}; ${rounds} rounds × ${reps} renders per workload.`, '',
-  '| Workload | Total ms | Request | Layout (ELK) | Scene | Paint proof | SVG security | Backend | Other |', '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
+  '| Workload | Total ms | Request | Layout (ELK) | Scene | Drawing | Paint proof | SVG security | Backend | Other |', '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
 for (const row of cases) {
   const stage = (name: RenderStage) => (row.stages[name]?.meanMs ?? 0).toFixed(3)
-  lines.push(`| ${row.id} | ${row.meanMs.toFixed(3)} | ${stage('request')} | ${stage('layout')} (${stage('elk')}) | ${stage('scene')} | ${stage('paint-certification')} | ${stage('svg-security')} | ${stage('backend')} | ${row.otherMeanMs.toFixed(3)} |`)
+  lines.push(`| ${row.id} | ${row.meanMs.toFixed(3)} | ${stage('request')} | ${stage('layout')} (${stage('elk')}) | ${stage('scene')} | ${stage('drawing')} | ${stage('paint-certification')} | ${stage('svg-security')} | ${stage('backend')} | ${row.otherMeanMs.toFixed(3)} |`)
 }
 lines.push('', report.note, '')
 writeFileSync(join(out, 'report.md'), lines.join('\n'))

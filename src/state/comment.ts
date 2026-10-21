@@ -42,6 +42,9 @@ export interface StateSourceLine {
   /** The line ends inside a `state "…"` or `note "…"` string that a later
    *  line closes; Mermaid reads the line break as part of the string. */
   openQuote: boolean
+  /** A comment follows the text with no blank between (`A --> note%%`), so
+   *  no blank follows a name that ends the text. */
+  commentGlued: boolean
 }
 
 /** Retain physical-line correspondence for source-loss receipts while the two
@@ -72,6 +75,7 @@ export function scanStateComments(lines: readonly string[]): StateSourceLine[] {
       inNote = noteOpen = true
     }
     quoted = !inNote && scan.quoted && quoteAfter[index]! && (continued || /^(?:state|note)\s/i.test(text))
-    return { text, commentIndex: noteBody ? -1 : scan.comment, noteBody, noteOpen, openQuote: quoted }
+    const commentGlued = !noteBody && scan.comment > 0 && !/\s/.test(raw[scan.comment - 1]!)
+    return { text, commentIndex: noteBody ? -1 : scan.comment, noteBody, noteOpen, openQuote: quoted, commentGlued }
   })
 }

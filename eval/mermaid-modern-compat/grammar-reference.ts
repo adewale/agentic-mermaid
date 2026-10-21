@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import type { GrammarReferencePreparation, GrammarReferenceReply, GrammarReferenceRequest } from './grammar-types.ts'
+import { wireLine } from './reference.ts'
 
 interface WireReply {
   id: number
@@ -65,7 +66,7 @@ export function startGrammarReference(
         child.kill()
       }, 120_000)
       pending.set(id, { resolve: value => resolve(value as T), reject, timer })
-      child.stdin.write(JSON.stringify({ id, operation, payload }) + '\n')
+      child.stdin.write(wireLine({ id, operation, payload }))
     })
   }
   return {

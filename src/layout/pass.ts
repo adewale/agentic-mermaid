@@ -71,7 +71,11 @@ export interface LayoutPass<C extends PassContextBase> {
   freezesNodes?: boolean
   /** When present and false, the pass is skipped (e.g. bundling without mergeEdges). */
   enabled?: (ctx: C) => boolean
-  run: (ctx: C) => void
+  /** Opt in to transactional cosmetic proposals with hard-safe restoration. */
+  proposal?: true
+  /** A cosmetic proposal may return a geometry-only rollback. Required passes
+   * return void; ordering, measurement, hard and freeze failures always escape. */
+  run: (ctx: C) => void | (() => void)
 }
 
 export interface RunOptions<C extends PassContextBase> {
@@ -111,15 +115,16 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
     const budgets = Object.entries(pass.mayChangeMetrics ?? {}) as Array<[RubricMetric, MetricBudget]>
     const conditions = (budget: MetricBudget): readonly RubricMetric[] => budget === 'improve-only' || !budget.whenImproves ? [] : typeof budget.whenImproves === 'string' ? [budget.whenImproves] : budget.whenImproves
     const measured = [...new Set(budgets.flatMap(([metric, budget]) => [metric, ...conditions(budget)]))]
-    if (budgets.length && !opts.measureMetrics) throw new LayoutPassContractError(pass.id, 'measurement', `Layout pass '${pass.id}' declares metric budgets but no geometry measurement was supplied`)
-    const measure = (): PassMetrics => {
-      try { return opts.measureMetrics!(ctx, measured) }
+    const restorationMetrics = pass.proposal ? [...new Set([...measured, 'hard' as const])] : measured
+    if ((budgets.length || pass.proposal) && !opts.measureMetrics) throw new LayoutPassContractError(pass.id, 'measurement', `Layout pass '${pass.id}' declares metric budgets but no geometry measurement was supplied`)
+    const measure = (requested = measured): PassMetrics => {
+      try { return opts.measureMetrics!(ctx, requested) }
       catch (error) {
         if (error instanceof LayoutPassContractError) throw error
         throw new LayoutPassContractError(pass.id, 'measurement', `Layout pass '${pass.id}' could not measure its declared geometry: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
-    const metricsBefore = budgets.length ? measure() : undefined
+    const metricsBefore = budgets.length || pass.proposal ? measure(restorationMetrics) : undefined
 
     // Inspect actual geometry even when a pass advertises only edge effects.
     // Coordinate snapshots are linear in the already-admitted artifact size.
@@ -130,54 +135,76 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
       certificate: edge.routeCertificate,
     })) : undefined
 
-    pass.run(ctx)
-
-    if (metricsBefore) {
-      const metricsAfter = measure()
-      const change = (metric: RubricMetric): number => {
-        const before = metricsBefore[metric],
-          after = metricsAfter[metric]
-        if (before === undefined || after === undefined || !Number.isFinite(before) || !Number.isFinite(after)) {
-          throw new LayoutPassContractError(pass.id, 'measurement', `Layout pass '${pass.id}' has no finite measurement for ${metric}`)
+    const checkMetrics = (restored = false): LayoutMetricBudgetError | undefined => {
+      let metricFailure: LayoutMetricBudgetError | undefined
+      if (metricsBefore) {
+        const metricsAfter = measure(restored ? restorationMetrics : measured)
+        const change = (metric: RubricMetric): number => {
+          const before = metricsBefore[metric],
+            after = metricsAfter[metric]
+          if (before === undefined || after === undefined || !Number.isFinite(before) || !Number.isFinite(after)) {
+            throw new LayoutPassContractError(pass.id, 'measurement', `Layout pass '${pass.id}' has no finite measurement for ${metric}`)
+          }
+          return (metric === 'straight' || metric === 'portRate' ? -1 : 1) * (after - before)
         }
-        return (metric === 'straight' || metric === 'portRate' ? -1 : 1) * (after - before)
-      }
-      for (const [metric, budget] of budgets) {
-        const improvement = Math.max(0, ...conditions(budget).map(metric => -change(metric)))
-        const allowance = budget === 'improve-only' || (budget.whenImproves && improvement <= 1e-6) ? 0
-          : budget.worsenBy * (budget.perImprovement ? Math.floor(improvement + 1e-6) : 1)
-        if (change(metric) > allowance + 1e-6) throw new LayoutMetricBudgetError(pass.id, metric, metricsBefore[metric]!, metricsAfter[metric]!, allowance)
-      }
-    }
-
-    if (before) {
-      const after = frozenBoxes(ctx)
-      const translate = pass.mutates.includes('translate')
-      const dx = translate && before[0] && after[0] ? after[0].x - before[0].x : 0
-      const dy = translate && before[0] && after[0] ? after[0].y - before[0].y : 0
-      const shifted = (a: { x: number; y: number }, b: { x: number; y: number }): boolean =>
-        translate ? Math.abs(b.x - a.x - dx) <= 1e-6 && Math.abs(b.y - a.y - dy) <= 1e-6 : a.x === b.x && a.y === b.y
-      if (after.length !== before.length || !ctx.frozen) throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' changed frozen geometry membership or state`)
-      for (let i = 0; i < before.length; i++) {
-        const a = before[i]!, b = after[i]!
-        if (a.id !== b.id || a.width !== b.width || a.height !== b.height || !shifted(a, b)) {
-          throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' moved frozen geometry without a uniform translation`)
-        }
-      }
-      if (beforeEdges) {
-        if ((ctx.edges?.length ?? 0) !== beforeEdges.length) throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' changed frozen edge membership`)
-        for (let i = 0; i < beforeEdges.length; i++) {
-          const prior = beforeEdges[i]!, edge = ctx.edges![i]!
-          const unchanged = prior.points?.length === edge.points?.length && (prior.points ?? []).every((point, index) => edge.points?.[index] && shifted(point, edge.points[index]!))
-          if (translate) {
-            if (!unchanged || Boolean(prior.labelPosition) !== Boolean(edge.labelPosition) || (prior.labelPosition && !shifted(prior.labelPosition, edge.labelPosition!))) {
-              throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' did not translate all frozen routes and labels uniformly`)
-            }
-          } else if (!unchanged && (!pass.mutates.includes('edges') || edge.routeCertificate === undefined || edge.routeCertificate === prior.certificate)) {
-            throw new LayoutPassContractError(pass.id, 'certificate', `LayoutPass certificate: '${pass.id}' rewrote edge geometry after the route-contract freeze without re-issuing routeCertificate`)
+        // Intermediate node moves may leave routes for a later repair pass. A
+        // rejected proposal must restore the original hard state as well.
+        const checkedBudgets: Array<[RubricMetric, MetricBudget]> = restored && pass.proposal ? [...budgets, ['hard', 'improve-only']] : budgets
+        for (const [metric, budget] of checkedBudgets) {
+          const improvement = Math.max(0, ...conditions(budget).map(metric => -change(metric)))
+          const allowance = budget === 'improve-only' || (budget.whenImproves && improvement <= 1e-6) ? 0
+            : budget.worsenBy * (budget.perImprovement ? Math.floor(improvement + 1e-6) : 1)
+          if (change(metric) > allowance + 1e-6) {
+            const failure = new LayoutMetricBudgetError(pass.id, metric, metricsBefore[metric]!, metricsAfter[metric]!, allowance)
+            if (metric === 'hard') throw failure
+            metricFailure ??= failure
           }
         }
       }
+      return metricFailure
+    }
+    const checkFrozenGeometry = (): void => {
+      if (before) {
+        const after = frozenBoxes(ctx)
+        const translate = pass.mutates.includes('translate')
+        const dx = translate && before[0] && after[0] ? after[0].x - before[0].x : 0
+        const dy = translate && before[0] && after[0] ? after[0].y - before[0].y : 0
+        const shifted = (a: { x: number; y: number }, b: { x: number; y: number }): boolean =>
+          translate ? Math.abs(b.x - a.x - dx) <= 1e-6 && Math.abs(b.y - a.y - dy) <= 1e-6 : a.x === b.x && a.y === b.y
+        if (after.length !== before.length || !ctx.frozen) throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' changed frozen geometry membership or state`)
+        for (let i = 0; i < before.length; i++) {
+          const a = before[i]!, b = after[i]!
+          if (a.id !== b.id || a.width !== b.width || a.height !== b.height || !shifted(a, b)) {
+            throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' moved frozen geometry without a uniform translation`)
+          }
+        }
+        if (beforeEdges) {
+          if ((ctx.edges?.length ?? 0) !== beforeEdges.length) throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' changed frozen edge membership`)
+          for (let i = 0; i < beforeEdges.length; i++) {
+            const prior = beforeEdges[i]!, edge = ctx.edges![i]!
+            const unchanged = prior.points?.length === edge.points?.length && (prior.points ?? []).every((point, index) => edge.points?.[index] && shifted(point, edge.points[index]!))
+            if (translate) {
+              if (!unchanged || Boolean(prior.labelPosition) !== Boolean(edge.labelPosition) || (prior.labelPosition && !shifted(prior.labelPosition, edge.labelPosition!))) {
+                throw new LayoutPassContractError(pass.id, 'freeze', `LayoutPass freeze: '${pass.id}' did not translate all frozen routes and labels uniformly`)
+              }
+            } else if (!unchanged && (!pass.mutates.includes('edges') || edge.routeCertificate === undefined || edge.routeCertificate === prior.certificate)) {
+              throw new LayoutPassContractError(pass.id, 'certificate', `LayoutPass certificate: '${pass.id}' rewrote edge geometry after the route-contract freeze without re-issuing routeCertificate`)
+            }
+          }
+        }
+      }
+    }
+
+    const rollback = pass.run(ctx)
+    if (rollback && !pass.proposal) throw new LayoutPassContractError(pass.id, 'metric-budget', `Layout pass '${pass.id}' returned a rollback without declaring a cosmetic proposal`)
+    const metricFailure = checkMetrics()
+    checkFrozenGeometry()
+    if (metricFailure) {
+      if (!rollback) throw metricFailure
+      rollback()
+      const restoredFailure = checkMetrics(true)
+      if (restoredFailure) throw restoredFailure
+      checkFrozenGeometry()
     }
 
     if (pass.freezesNodes) ctx.frozen = true

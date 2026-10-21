@@ -13,7 +13,8 @@ import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 import { evaluateBrowserScript } from './browser-script-harness.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SKIP_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules', 'public'])
+// .claude holds untracked agent worktrees, each a copy of the repository.
+const SKIP_DIRECTORIES = new Set(['.claude', '.git', 'coverage', 'dist', 'node_modules', 'public'])
 
 function markdownFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

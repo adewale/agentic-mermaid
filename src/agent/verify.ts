@@ -51,16 +51,19 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
-import { authoredLineForCanonical, sourceCleanup } from './source-map-spans.ts'
+import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
+import { timelineUnsupportedSyntaxWarnings } from './timeline-body.ts'
 import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
 import { radarUnsupportedSyntaxWarnings } from './radar-body.ts'
+import { sankeyUnsupportedSyntaxWarnings } from './sankey-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { logToolInvocation } from './trace-log.ts'
 import type { ExtensionValidDiagram, LayoutWarning, ParseError, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
 import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
 import type { PositionedC4Diagram } from '../c4/layout.ts'
+import { c4DiagnosticMessage } from '../c4/parser.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -461,18 +464,27 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   radar: radarUnsupportedSyntaxWarnings,
+  sankey: sankeyUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
   state: stateUnsupportedSyntaxWarnings,
+  timeline: timelineUnsupportedSyntaxWarnings,
   xychart: xychartUnsupportedSyntaxWarnings,
 }
 
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
+  if (!rule) return []
   const lines = authored?.split(/\r\n?|\n/)
-  const authoredLine = lines && ((line: number) => lines[authoredLineForCanonical(d.source, line) - 1])
-  return (rule?.(d.canonicalSource, authoredLine) ?? []).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
-    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
-    : warning)
+  // A diagram parsed from source keeps its authored lines with its source map.
+  const authoredLine = lines ? (line: number) => lines[authoredLineForCanonical(d.source, line) - 1] : (line: number) => authoredTextForCanonical(d.source, line)
+  return atAuthoredLines(rule(d.canonicalSource, authoredLine), line => authoredLineForCanonical(d.source, line))
+}
+
+/** Verify names the authored line. A rule that reads the canonical source
+ * reports canonical lines, and a family verify hook lines of its body, which
+ * starts at the header; `authoredLine` maps either to the authored line. */
+function atAuthoredLines(warnings: LayoutWarning[], authoredLine: (line: number) => number): LayoutWarning[] {
+  return warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined ? { ...warning, line: authoredLine(warning.line) } : warning)
 }
 
 function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
@@ -534,7 +546,8 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
         }
       }
       if (diagnostic.code === 'C4_WIDTH_EXCEEDED') return { code: 'LAYOUT_LIMIT_EXCEEDED', constraint: 'c4.maxWidth', message: `${diagnostic.code}: ${diagnostic.message}` }
-      return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: statement?.raw ?? 'C4 layout', message: `${diagnostic.code}: ${diagnostic.message}` }
+      // A stable code (C4_LAYOUT_CONFLICT is c4_layout_conflict); the statement is in the message.
+      return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: diagnostic.code.toLowerCase(), message: `${diagnostic.code}: ${c4DiagnosticMessage(layout.body, diagnostic)}` }
     })
   } catch {
     return []
@@ -663,11 +676,14 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
 
   const d = parsed as ValidDiagram
   const familySourceWarnings =
-    d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
+    d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
-  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
+  // The header starts the body, on the line after the authored wrapper.
+  const wrapperLines = d.meta.wrapperSource?.match(/\n/g)?.length ?? 0
+  const hookWarnings = atAuthoredLines(dispatchedWarnings, line => line + wrapperLines)
+  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, hookWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
   // Mermaid treats universal accessibility metadata as renderable document
   // furniture. A classDiagram containing only accTitle/accDescr therefore is
   // not an empty source even though its structural layout has zero classes.

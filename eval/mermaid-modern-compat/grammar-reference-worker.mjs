@@ -358,6 +358,10 @@ async function parse({ family, source, unobserved = false }) {
   return reply;
 }
 
+// JSON leaves U+2028/U+2029 raw, and the parent's Bun readline ends a line at
+// either, so a reply holding one would arrive torn in two.
+const wire = value => '\u0001modern-grammar\u0001' + JSON.stringify(value).replace(/[\u2028\u2029]/g, c => `\\u${c.charCodeAt(0).toString(16)}`) + '\n';
+
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
   let request;
   try {
@@ -367,8 +371,8 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
     else if (request.operation === 'parse') value = await parse(request.payload);
     else if (request.operation === 'parseMany') { value = []; for (const item of request.payload) value.push(await parse(item)); }
     else throw new Error(`Unknown grammar operation ${request.operation}`);
-    writeSync(1, '\u0001modern-grammar\u0001' + JSON.stringify({ id: request.id, value }) + '\n');
+    writeSync(1, wire({ id: request.id, value }));
   } catch (error) {
-    writeSync(1, '\u0001modern-grammar\u0001' + JSON.stringify({ id: request?.id ?? -1, error: String(error?.stack ?? error) }) + '\n');
+    writeSync(1, wire({ id: request?.id ?? -1, error: String(error?.stack ?? error) }));
   }
 }

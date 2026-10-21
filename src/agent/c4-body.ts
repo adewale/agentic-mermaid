@@ -1,7 +1,7 @@
-import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { encodeMermaidEntities, TERMINAL_CONTROL_RE } from '../shared/mermaid-entities.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import {
-  C4_VARIANTS, c4ArgumentFields, c4BoundaryFields, c4DirectiveCategory, c4ElementFields,
+  C4_VARIANTS, c4ArgumentFields, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveCategory, c4ElementFields,
   c4RecordSignature, c4RelationshipFields, emptyC4Body, readC4Source, resolveC4Directives,
 } from '../c4/parser.ts'
 import type {
@@ -27,13 +27,20 @@ export function parseC4Body(lines: string[] | string, accessibility: Accessibili
 function quote(value: string): string {
   // C4's official lexer has no backslash escape. Entity encoding also protects
   // literal entity spellings and does not reinterpret punctuation as syntax.
-  return `"${encodeMermaidEntities(value, '"\\')}"`
+  return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\'))}"`
+}
+
+/** Mermaid's C4 grammar, and ours, trim each argument, so whitespace at
+ * either end is written as an entity code, which neither trims. A control
+ * character has no entity spelling: the serialized-model check refuses it. */
+function edgeWhitespace(text: string): string {
+  return text.replace(/^\s+|\s+$/g, run => [...run].map(character => TERMINAL_CONTROL_RE.test(character) ? character : `#${character.codePointAt(0)};`).join(''))
 }
 
 function alias(value: string): string {
   return /^[A-Za-z_][A-Za-z_0-9]*$/.test(value) ? value : quote(value)
 }
-function displayQuote(value: string): string { return `"${encodeMermaidEntities(value, '"\\<>').replace(/\r\n?|\n/g, '<br/>')}"` }
+function displayQuote(value: string): string { return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\<>').replace(/\r\n?|\n/g, '<br/>'))}"` }
 
 function call(name: string, fields: Record<string, string | undefined>, slots: readonly string[], required: number): string {
   const args: string[] = []
@@ -106,16 +113,33 @@ function canonicalStatements(body: C4Body): C4Statement[] {
   return result
 }
 
+// Reader extensions with a spelling pinned Mermaid reads as ours reads them:
+// the statement's canonical rendering (one line, quoted and named arguments).
+const RESPELLED_C4_EXTENSIONS = new Set([
+  'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_space_before_arguments',
+  'c4_quoted_string_extension', 'c4_relindex_positional_metadata',
+])
+
 /** Unchanged statements retain exact raw bytes. A typed edit rewrites only its
  * declaration; comments, unknown balanced blocks and surrounding trivia keep
- * their original place. Header and dynamic variant are independent of layout. */
-function renderC4Unchecked(body: C4Body): string {
+ * their original place. Header and dynamic variant are independent of layout.
+ * `portable` writes each reader extension with a Mermaid spelling instead
+ * (RESPELLED_C4_EXTENSIONS, `;` as a line break, a line break after a
+ * statement that shares its line), unless a statement has no native
+ * interpretation: Mermaid cannot read that source anyway, so it is kept. */
+function renderC4Unchecked(body: C4Body, portable = false): string {
+  const respell = portable && !body.diagnostics.some(item => item.severity === 'error')
+  const flagged = (syntax: (code: string) => boolean): Set<string | undefined> =>
+    new Set(respell ? body.diagnostics.filter(item => syntax(item.syntax)).map(item => item.statementId) : [])
+  const canonical = flagged(code => RESPELLED_C4_EXTENSIONS.has(code))
+  const semicolons = flagged(code => code === 'c4_semicolon_separator')
+  const breaks = flagged(code => code === 'c4_statements_on_one_line')
+  const parts: RenderedPart[] = []
   const elements = new Map(body.elements.map(record => [record.id, record]))
   const boundaries = new Map(body.boundaries.map(record => [record.id, record]))
   const relationships = new Map(body.relationships.map(record => [record.id, record]))
   const directives = new Map(body.directives.map(record => [record.id, record]))
   const sourceStatements = body.statements.length ? body.statements : canonicalStatements(body)
-  let output = ''
   for (const statement of sourceStatements) {
     let current: string | undefined, signature: string | undefined
     if (statement.kind === 'header') { current = body.variant; signature = body.variant }
@@ -140,15 +164,40 @@ function renderC4Unchecked(body: C4Body): string {
         : statement.kind === 'boundary-open' ? renderC4Boundary(record as C4Boundary)
           : statement.kind === 'relationship' ? renderC4Relationship(record as C4Relationship) : renderDirective(record as C4Directive)
     }
-    output += current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) ? statement.raw : current
+    let text = current === undefined || (statement.raw && (signature === statement.signature || statement.kind === 'boundary-close')) && !canonical.has(statement.id) ? statement.raw : current
+    if (semicolons.has(statement.id)) text = text.replace(/;/g, '')
+    if (breaks.has(statement.id)) lineBreakBefore(parts)
+    parts.push({ kind: statement.kind, text })
+    if (semicolons.has(statement.id) && !text.includes('\n')) lineBreakBefore(parts)
   }
-  return output
+  return parts.map(part => part.text).join('')
+}
+
+interface RenderedPart { kind: C4Statement['kind']; text: string }
+
+/** End the line of the statement before the next one. Mermaid's comment
+ * takes the line breaks after it, so a comment sharing that line moves to a
+ * line of its own. The new line keeps that statement's indentation, one
+ * level deeper (as appended statements are) after a boundary's `{`. */
+function lineBreakBefore(parts: RenderedPart[]): void {
+  let at = parts.length
+  for (let index = parts.length - 1; index >= 0 && parts[index]!.kind === 'trivia'; index--) {
+    if (parts[index]!.text.includes('\n')) at = index
+    else if (parts[index]!.text.startsWith('%%')) at = index
+  }
+  // Spaces ending the statement's line give way to the line break.
+  const spaces = at > 0 && parts[at - 1]!.kind === 'trivia' && /^[ \t]*$/.test(parts[at - 1]!.text) ? 1 : 0
+  const ended = parts.slice(0, at - spaces)
+  const before = ended.map(part => part.text).join('')
+  const indent = /^[ \t]*/.exec(before.slice(before.lastIndexOf('\n') + 1))![0]
+  const nested = ended.findLast(part => part.kind !== 'trivia')?.kind === 'boundary-open' ? '  ' : ''
+  parts.splice(at - spaces, spaces, { kind: 'trivia', text: `\n${indent}${nested}` })
 }
 
 export function renderC4(body: C4Body): string {
   const problem = c4BodyProblem(body)
   if (problem) throw new Error(problem)
-  return renderC4Unchecked(body)
+  return renderC4Unchecked(body, true)
 }
 
 function validText(value: unknown, name: string, required = false): string | null {
@@ -514,7 +563,7 @@ export function lintC4(body: C4Body, opts: VerifyOptions): LayoutWarning[] {
   }
   for (const diagnostic of body.diagnostics) {
     const statement = body.statements.find(record => record.id === diagnostic.statementId)
-    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: statement?.raw ?? 'C4', line: statement?.span.line, message: diagnostic.message })
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: diagnostic.syntax, line: statement?.span.line, message: c4DiagnosticMessage(body, diagnostic) })
   }
   return warnings
 }
@@ -536,7 +585,9 @@ export function buildC4SourceMap(body: C4Body, canonicalSource: string): SourceM
           const namedPrefix = argument.name ? argument.raw.indexOf('=') + 1 : 0
           const leading = argument.raw.slice(namedPrefix).match(/^\s*/)?.[0].length ?? 0
           const quoted = argument.raw[namedPrefix + leading] === '"' || argument.raw[namedPrefix + leading] === "'"
-          const position = prefixText + argument.raw.slice(0, namedPrefix + leading + (quoted ? 1 : 0))
+          // The label starts after the quote and the blanks the reader trims.
+          const inner = quoted ? argument.raw.slice(namedPrefix + leading + 1).match(/^\s*/)?.[0].length ?? 0 : 0
+          const position = prefixText + argument.raw.slice(0, namedPrefix + leading + (quoted ? 1 + inner : 0))
           const lines = position.split(/\r\n?|\n/)
           result.labels.set(`${prefix}:${record.id}`, { line: statement.span.line + lines.length - 1, col: lines.length === 1 ? statement.span.column + position.length : lines.at(-1)!.length + 1 })
           break

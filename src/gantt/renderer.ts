@@ -1,5 +1,5 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { type PixelTextBlock, pixelTextLine, preparePixelText } from '../shared/prepared-text.ts'
-
 // ============================================================================
 // Gantt SVG renderer (docs/design/families/gantt.md §4).
 //
@@ -25,11 +25,9 @@ import { type PixelTextBlock, pixelTextLine, preparePixelText } from '../shared/
 // Deterministic: no Math.random, no Date.now. The today marker draws only
 // when the caller supplied a clock (options.ganttToday → schedule.today).
 // ============================================================================
-
 import { DefaultBackend } from '../scene/backend.ts'
-import type { MarkAttributes, MarkerDescriptor, MarkPaint, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
+import type { MarkAttributes, MarkerDescriptor, MarkPaint, SceneNode, SemanticChannels } from '../scene/ir.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
-import * as marks from '../scene/marks.ts'
 import { hashId } from '../scene/seed.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { RoleStyleSpec } from '../scene/style-spec.ts'
@@ -129,7 +127,7 @@ function barPaint(status: 'done' | 'active' | 'crit' | undefined, p: GanttPalett
 
 /** A literal label. A prepared block takes the shared baseline shift; an
  *  unprepared label is centred on y by its dominant baseline. */
-function textMark(id: string, role: SceneNode['role'], x: number, y: number, content: string, cls: string, size: number, weight: number, fill: string, anchor: 'start' | 'middle' | 'end' = 'start', letterSpacing = 0, channels?: SemanticChannels, block?: PixelTextBlock): SceneNode {
+function textMark<T>(marks: DrawingFactory<T>, id: string, role: SceneNode['role'], x: number, y: number, content: string, cls: string, size: number, weight: number, fill: string, anchor: 'start' | 'middle' | 'end' = 'start', letterSpacing = 0, channels?: SemanticChannels, block?: PixelTextBlock): T {
   return marks.text({
     id,
     role,
@@ -188,14 +186,14 @@ export function renderGanttSvg(ctx: RenderContext<GanttLayoutResult>): string {
 /**
  * Lower a gantt layout to the SceneGraph IR in canonical mark order.
  */
-export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc {
+export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<GanttLayoutResult>): DrawingDocument<T> {
   const { positioned: layout, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const style = resolveGanttRenderStyle(options, resolved.styleFace)
   const palette = ganttPalette(style)
-  const parts: SceneNode[] = []
+  const parts: T[] = []
 
   // Opt-in dependency/critical-path overlay (RenderOptions.gantt) — both
   // default OFF, and every overlay branch below is byte-inert when off.
@@ -300,9 +298,9 @@ export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc
   const bottomAxisOffset = axisOffset === 10 && style.edgeLabelFontSize === 11 ? 12 : Math.max(12, axisOffset)
   for (const tick of layout.ticks) {
     const label = tick.labelBlock?.text ?? applyTextTransform(tick.label, style.edgeTextTransform)
-    parts.push(textMark(`axis:${tick.time}:bottom`, 'axis', tick.x, plotBottom + bottomAxisOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing, undefined, tick.labelBlock))
+    parts.push(textMark(marks, `axis:${tick.time}:bottom`, 'axis', tick.x, plotBottom + bottomAxisOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing, undefined, tick.labelBlock))
     if (layout.topAxis) {
-      parts.push(textMark(`axis:${tick.time}:top`, 'axis', tick.x, plot.y - axisOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing, undefined, tick.labelBlock))
+      parts.push(textMark(marks, `axis:${tick.time}:top`, 'axis', tick.x, plot.y - axisOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, style.edgeLabelFontWeight, palette.axisText, 'middle', style.edgeLetterSpacing, undefined, tick.labelBlock))
     }
   }
 
@@ -321,7 +319,7 @@ export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc
       lines.forEach((line, li) => {
         const id = li === 0 ? `section-label:${s.label}#${k}` : `section-label:${s.label}#${k}/${li}`
         parts.push(
-          textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * (s.labelBlock?.lineHeight ?? sectionLineHeight), line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelTextLine(s.labelBlock, li)),
+          textMark(marks, id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * (s.labelBlock?.lineHeight ?? sectionLineHeight), line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelTextLine(s.labelBlock, li)),
         )
       })
     }
@@ -345,7 +343,7 @@ export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc
       lines.forEach((line, li) => {
         const id = li === 0 ? baseId : `${baseId}/${li}`
         parts.push(
-          textMark(
+          textMark(marks,
             id,
             'label',
             bar.labelPosition?.x ?? 16,
@@ -378,19 +376,19 @@ export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc
         const w = block.width
         const cy = bar.y + bar.h / 2
         if (bar.labelPosition) {
-          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.labelPosition.x, bar.labelPosition.y, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, bar.labelPosition.anchor, style.nodeLetterSpacing, undefined, block))
+          parts.push(textMark(marks, taskLabelId(bar.id ?? bar.label), 'label', bar.labelPosition.x, bar.labelPosition.y, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, bar.labelPosition.anchor, style.nodeLetterSpacing, undefined, block))
           return
         }
         const leftLimit = i > 0 ? row[i - 1]!.x + row[i - 1]!.w + 4 : 2
         const rightLimit = i + 1 < row.length ? row[i + 1]!.x - 4 : layout.width - 2
         if (bar.x - 6 - w >= leftLimit) {
-          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.x - 6, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'end', style.nodeLetterSpacing, undefined, block))
+          parts.push(textMark(marks, taskLabelId(bar.id ?? bar.label), 'label', bar.x - 6, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'end', style.nodeLetterSpacing, undefined, block))
         } else if (bar.x + bar.w + 6 + w <= rightLimit) {
-          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.x + bar.w + 6, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, block))
+          parts.push(textMark(marks, taskLabelId(bar.id ?? bar.label), 'label', bar.x + bar.w + 6, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, block))
         } else {
           // No clear slot beside the bar — keep the legacy column (surfaced by
           // eval/overlap-audit rather than hidden).
-          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', 16, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, block))
+          parts.push(textMark(marks, taskLabelId(bar.id ?? bar.label), 'label', 16, cy, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, block))
         }
       })
     }
@@ -545,7 +543,7 @@ export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc
     )
     const label = v.labelBlock?.text ?? applyTextTransform(v.label, style.edgeTextTransform)
     const vertOffset = layout.topAxis ? Math.max(24, axisOffset + style.edgeLabelFontSize * 1.25) : axisOffset === 10 && style.edgeLabelFontSize === 11 ? 8 : axisOffset
-    parts.push(textMark(`vert-label:${v.label}#${k}`, 'axis', v.x, plot.y - vertOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, Math.max(style.edgeLabelFontWeight, 600), palette.axisText, 'middle', style.edgeLetterSpacing, undefined, v.labelBlock))
+    parts.push(textMark(marks, `vert-label:${v.label}#${k}`, 'axis', v.x, plot.y - vertOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, Math.max(style.edgeLabelFontWeight, 600), palette.axisText, 'middle', style.edgeLetterSpacing, undefined, v.labelBlock))
   }
 
   // Today marker — only with a supplied clock. The todayMarker directive's
@@ -573,12 +571,12 @@ export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc
   if (layout.title) {
     const title = layout.titleBlock?.text ?? applyTextTransform(layout.title, style.groupTextTransform)
     const y = layout.titleY ?? ganttTitleY(style)
-    parts.push(textMark('title', 'title', layout.width / 2, y, title, 'gantt-title', ganttTitleFontSize(style), ganttTitleFontWeight(style), palette.titleFill, 'middle', style.groupLetterSpacing, undefined, layout.titleBlock))
+    parts.push(textMark(marks, 'title', 'title', layout.width / 2, y, title, 'gantt-title', ganttTitleFontSize(style), ganttTitleFontWeight(style), palette.titleFill, 'middle', style.groupLetterSpacing, undefined, layout.titleBlock))
   }
 
   if (layout.emptyLabel) {
     const block = layout.emptyLabel
-    parts.push(textMark('empty-state', 'label', plot.x + plot.w / 2, plot.y + plot.h / 2, block.text, 'gantt-empty-state', block.fontSize, block.fontWeight, palette.axisText, 'middle', block.letterSpacing, undefined, block))
+    parts.push(textMark(marks, 'empty-state', 'label', plot.x + plot.w / 2, plot.y + plot.h / 2, block.text, 'gantt-empty-state', block.fontSize, block.fontWeight, palette.axisText, 'middle', block.letterSpacing, undefined, block))
   }
 
   parts.push(marks.documentClose())
@@ -609,3 +607,5 @@ function dependencyArrowMarker(id: string, color: string): MarkerDescriptor {
 function depTaskKey(bar: { id?: string; label: string } | undefined): string {
   return bar === undefined ? '' : (bar.id ?? bar.label)
 }
+
+export const lowerGanttScene = sceneLowering<GanttLayoutResult>(lowerGanttDrawing)
