@@ -898,35 +898,6 @@ export function styleInputJsonSchema(description?: string): Record<string, unkno
   return { ...cloneSchema(STYLE_OPTION_SCHEMA), ...(description === undefined ? {} : { description }) }
 }
 
-export const SHARED_RENDER_OPTIONS_DOC_START = '<!-- BEGIN GENERATED SHARED RENDER OPTIONS -->'
-export const SHARED_RENDER_OPTIONS_DOC_END = '<!-- END GENERATED SHARED RENDER OPTIONS -->'
-
-function markdownCell(value: string): string {
-  return value.replaceAll('|', '\\|').replaceAll('\n', ' ')
-}
-
-/** API field inventory generated from the same descriptors as validation and schema. */
-export function sharedRenderOptionsMarkdownTable(): string {
-  const rows = SHARED_RENDER_OPTION_FIELDS.map(field => {
-    const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field]
-    const terminalNote = 'terminalNote' in descriptor ? descriptor.terminalNote : undefined
-    const terminal = descriptor.terminal === 'consumed'
-      ? 'consumed'
-      : `${descriptor.terminal}${terminalNote ? ` — ${terminalNote}` : ''}`
-    const builtInFamilies = !('applicableBuiltinFamilies' in descriptor)
-      ? 'all'
-      : descriptor.applicableBuiltinFamilies.length === 0
-        ? 'none — extension-defined'
-        : descriptor.applicableBuiltinFamilies.join(', ')
-    return `| \`${field}\` | \`${markdownCell(descriptor.typeScript)}\` | ${descriptor.defaultLabel} | ${markdownCell(descriptor.description)} | ${markdownCell(builtInFamilies)} | ${markdownCell(terminal)} |`
-  })
-  return [
-    '| Option | Type | Effective default | Meaning | Built-in families | Terminal |',
-    '|---|---|---|---|---|---|',
-    ...rows,
-  ].join('\n')
-}
-
 export interface ResolvedAppearance {
   readonly version: typeof RENDER_CONTRACT_VERSION
   readonly colors: Readonly<DiagramColors>

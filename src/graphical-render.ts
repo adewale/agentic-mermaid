@@ -254,6 +254,16 @@ function executeInspectedGraphicalRequest(
     outputOptions,
     resolutionOptions,
   ))
+  return consumeResolvedGraphicalRequest(request)
+}
+
+/** Async entries retain one immutable request across dependency loading.
+ * Diagnostics and lazy receipts consume that same admitted identity. */
+export function executeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
+  return withSvgInspectionCache(() => consumeResolvedGraphicalRequest(request))
+}
+
+function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)

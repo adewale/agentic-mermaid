@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
-import { inspectScenePrimitives } from '../scene/inspection.ts'
+import { inspectScenePrimitives, inspectScenePaintGeometry } from '../scene/inspection.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
@@ -140,4 +140,22 @@ test.each([
   const inspection = inspectScenePrimitives(scene([edge]))
   expect(inspection.primitives[1]).toMatchObject({ id: 'inline-label', coverage })
   expect(inspection.coverage.preparedText).toBe(coverage === 'measured' ? 1 : 0)
+})
+
+
+test('mandatory paint geometry omits retained text read-back while explicit inspection preserves it', () => {
+  const text = 'Wide 中 labels'
+  const block = preparePixelText(text, { fontSize: 12, fontWeight: 400 })
+  const mark = marks.text({ id: 'label:A', role: 'label', text, block, x: 20, y: 40, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+  const doc = scene([marks.group({ id: 'A', role: 'node', open: '<g>', close: '</g>', children: [{ node: mark, indent: 0 }] })])
+  const geometry = inspectScenePaintGeometry(doc).primitives[0]!
+  expect(geometry).toMatchObject({ id: 'label:A', owner: { id: 'A', role: 'node' }, coverage: 'measured', text: { measurement: 'prepared' } })
+  expect(geometry.text).not.toHaveProperty('source')
+  expect(geometry.text).not.toHaveProperty('displayed')
+  expect(geometry.bounds!.x1).toBeGreaterThan(geometry.bounds!.x0)
+  const inspection = inspectScenePrimitives(doc).primitives[0]!
+  expect(inspection.text).toMatchObject({ source: text, displayed: text, measurement: 'prepared' })
+  expect(inspection.ancestors).toEqual([{ id: 'A', role: 'node' }])
+  expect(Object.isFrozen(inspection.ancestors)).toBe(true)
+  expect(Object.isFrozen(inspection.ancestors[0])).toBe(true)
 })

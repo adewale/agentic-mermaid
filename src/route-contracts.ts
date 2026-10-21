@@ -37,6 +37,7 @@ import { clipEdgeToShape } from './shape-clipping.ts'
 import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
 import { LABEL_PILL_PADDING, labelRect, pillRect } from './shared/edge-label-geometry.ts'
 
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -1229,7 +1230,13 @@ function tryStraighten(
     if (current.length === 2 && Math.abs(current[0]![axis.cross] - current[1]![axis.cross]) <= EPS) {
       const priorContacts = Number(Boolean(portAt(source, current[0]!))) + Number(Boolean(portAt(target, current[1]!)))
       const nextContacts = Number(Boolean(portAt(source, proven.start))) + Number(Boolean(portAt(target, proven.end)))
-      if (nextContacts < priorContacts && countRouteCrossings([proven.start, proven.end], edge, ctx) >= countRouteCrossings(current, edge, ctx)) {
+      const losesContacts = nextContacts < priorContacts
+      const reducesOpposingInk = () => {
+        const others = ctx.edges.filter(other => other !== edge)
+        return countOpposingRouteOverlaps([{ ...edge, points: [proven.start, proven.end] }, ...others]) <
+          countOpposingRouteOverlaps([{ ...edge, points: current }, ...others])
+      }
+      if (losesContacts && countRouteCrossings([proven.start, proven.end], edge, ctx) >= countRouteCrossings(current, edge, ctx) && !reducesOpposingInk()) {
         const lane = current[0]![axis.cross]
         // The aesthetic inset may exclude an existing valid contact near a
         // corner. Re-prove its actual boundary and clear lane, rather than
@@ -1247,6 +1254,11 @@ function tryStraighten(
           if (edge.label) edge.labelPosition = priorProof.slot ?? undefined
           return { applied: true, blockers: [] }
         }
+        // A cosmetic spacing candidate that loses canonical contacts is not a
+        // repair. Keep searching; the current route stays available for later
+        // label/obstacle repair and receives an honest certificate below.
+        if ('blockers' in priorProof) blockers.push(...priorProof.blockers)
+        continue
       }
     }
     edge.points = [proven.start, proven.end]

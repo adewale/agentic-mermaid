@@ -40,9 +40,12 @@ gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
 gaps and the Section B sheet, which is regenerated in memory and
-byte-compared). Committed text/JSON generated
-from source is refreshed with `bun run generate`, and its unit test fails when
-it is stale. There are no input-hash receipts.
+byte-compared). Generated runtime modules are the narrow committed exception
+when production code imports them. Other derived discovery views are generated
+at delivery: `am llms-txt` and the website use current registries, while the
+repository's authored `llms.txt` points readers to those sources. A second
+committed capability roster and its snapshot-freshness test are unnecessary.
+There are no input-hash receipts.
 
 ## The central problem: this is a partly non-testable program
 
@@ -89,8 +92,9 @@ advisory, while measured `CONTENT_OCCLUDED` and an explicit error policy fail ve
 Alongside it sit the **contract gates**: `am capabilities --json` schema
 tests, the `agent-doc-sync` tests, and the behavioural
 diagram-family citizenship loop. For an agent-native product the docs, schemas, CLI
-help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
-like code, not treated as prose.
+help, and live generated discovery *are* runtime surfaces (Loop 14), so their
+behavior is tested like code. The repository `llms.txt` is an authored pointer
+to those live surfaces.
 
 Citizenship requires a small smoke input and a domain-rich scenario for every
 registered built-in family. Required witnesses in the existing closed

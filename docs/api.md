@@ -255,54 +255,19 @@ Omitting both width options preserves the unconstrained output path.
 
 ## Shared render options
 
-SVG, PNG, ASCII, and Unicode adapters accept this serializable `RenderOptions`
-field set. The built-in-family column exposes family applicability; the
-terminal column records whether text output consumes a field, projects it with
-an explicit diagnostic, or declares it inapplicable. Output-specific controls
-remain in their respective sections.
+SVG, PNG, ASCII, and Unicode accept the shared `RenderOptions` contract.
+The complete field definitions live in the exported TypeScript
+[`RenderOptions`](../src/types.ts) and the generated
+[render-options JSON schema](https://agentic-mermaid.dev/schemas/render-options.schema.json).
+Those are derived from the runtime authority; this guide describes usage and
+output-specific controls rather than maintaining another complete field roster.
 
-<!-- BEGIN GENERATED SHARED RENDER OPTIONS -->
-| Option | Type | Effective default | Meaning | Built-in families | Terminal |
-|---|---|---|---|---|---|
-| `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence. | all | consumed |
-| `bg` | `string` | `#FFFFFF` | Background color or CSS variable. | all | consumed |
-| `fg` | `string` | `#27272A` | Primary foreground and text color. | all | consumed |
-| `line` | `string` | derived | Connector and secondary-line color. | all | consumed |
-| `accent` | `string` | derived | Arrowhead, highlight, and data accent color. | all | consumed |
-| `muted` | `string` | derived | Secondary text and label color. | all | projected — terminal themes have no dedicated muted-text role |
-| `surface` | `string` | derived | Node and group surface color. | all | projected — terminal cells do not paint graphical surfaces |
-| `border` | `string` | derived | Node and group border color. | all | consumed |
-| `font` | `string` | `Inter` | CSS font family or stack. | all | projected — the host terminal owns the font face |
-| `style` | `StyleInput \| StyleInput[]` | `crisp` | Registered Style/Palette name, inline StyleSpec, or left-to-right stack. | all | consumed |
-| `padding` | `number` | `40` | Canvas padding in SVG user units. | flowchart, state, architecture, c4 | not-applicable — terminal output uses paddingX, paddingY, and boxBorderPadding |
-| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. | flowchart, state, class, er, architecture, c4 | not-applicable — terminal layout has a cell-grid spacing contract |
-| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. | flowchart, state, class, er, architecture, c4 | not-applicable — terminal layout has a cell-grid spacing contract |
-| `wrappingWidth` | `number` | unset | Flowchart measured-label wrapping budget in pixels. | flowchart | not-applicable — terminal output uses maxWidth or targetWidth |
-| `componentSpacing` | `number` | extension-defined | Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it. | none — extension-defined | not-applicable — terminal layout has a cell-grid spacing contract |
-| `transparent` | `boolean` | `false` | Omit the painted SVG canvas background. | all | projected — terminal output has no painted canvas background |
-| `interactive` | `boolean` | `false` | Enable hover tooltips for supported chart data points. | xychart, pie, quadrant | projected — terminal output is a static semantic projection |
-| `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. | flowchart, state, sequence, timeline, class, er, journey, xychart, pie, quadrant, gantt, mindmap, gitgraph, sankey | projected — elevation projects to borders and labels |
-| `class` | `{ hierarchicalNamespaces?: boolean }` | `hierarchicalNamespaces: true` | Class-diagram rendering controls. | class | not-applicable — this option configures graphical class layout |
-| `kanban` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Kanban column wrapping with readable column widths. | kanban | not-applicable — terminal layout uses its own targetWidth |
-| `architecture` | `{ visual?: ArchitectureVisualOverrides }` | built-in metrics | Sparse architecture renderer visual metric and paint overrides. | architecture | not-applicable — this option configures graphical architecture rendering |
-| `timeline` | `{ maxWidth?: number }` | `maxWidth`: unset | Timeline layout controls. | timeline | not-applicable — terminal output uses maxWidth or targetWidth |
-| `journey` | `{ experienceCurve?: boolean }` | `experienceCurve: true` | User-journey graphical controls. | journey | not-applicable — experience curves are graphical-only |
-| `gantt` | `{ dependencyArrows?: boolean; criticalPath?: boolean }` | both `false` | Gantt dependency and critical-path overlays. | gantt | not-applicable — graphical Gantt connector emphasis is not represented in cells |
-| `mermaidConfig` | `MermaidRuntimeConfig` | source config | Mermaid-style recursive runtime configuration. | all | consumed |
-| `embedFontImport` | `boolean` | `false` | Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization. | all | not-applicable — terminal output embeds no web-font import |
-| `compact` | `boolean` | `false` | Compact SVG serialization while preserving agent hooks. | all | not-applicable — compact controls SVG serialization |
-| `idPrefix` | `string` | unset | Non-empty namespace for generated SVG definition IDs and local references. | all | not-applicable — terminal output has no SVG definition ids |
-| `security` | `'default' \| 'strict'` | `default` | Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes. | all | not-applicable — terminal text has its own control-character and HTML-color safety projection |
-| `ganttToday` | `string` | unset | Explicit deterministic date for the Gantt today marker. | gantt | consumed |
-| `seed` | `number` | `0` | Deterministic re-roll seed for stochastic Styles. | all | not-applicable — terminal glyph geometry is deterministic and has no stochastic ink |
-<!-- END GENERATED SHARED RENDER OPTIONS -->
+A family-scoped value that a renderer cannot consume receives
+`RENDER_OPTION_NOT_APPLICABLE` in its receipt. External descriptors opt into
+such fields through `applicableRenderOptions`.
 
-`Built-in families: all` means the field is family-neutral. `none —
-extension-defined` means no built-in currently consumes it. An external
-`FamilyDescriptor` opts into any family-scoped field it consumes through its
-frozen `applicableRenderOptions` array; an omitted or empty declaration means
-none, and authored values receive `RENDER_OPTION_NOT_APPLICABLE` in the render
-receipt.
+Read-only fallback rendering is a separate, opt-in API with narrower capabilities;
+see [read-only SVG fallback](svg-fallback.md).
 
 `onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void` is deliberately
 outside the serializable field set. Library callers can collect qualified

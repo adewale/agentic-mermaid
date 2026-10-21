@@ -4,7 +4,7 @@ import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup } from '../types.ts'
 import { LayoutPassContractError } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
-import { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
+import { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 
@@ -281,7 +281,7 @@ function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candi
     }
   } catch (error) {
     // A successful alternative cannot hide a broken pass or exceeded input work limit.
-    if (error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError) throw error
+    if (error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
     return { attempt: { strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] } }
   }
 }

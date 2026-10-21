@@ -544,7 +544,8 @@ function canonicalIpv6Hostname(host: string): string | undefined {
 
 function httpServerOrigin(host: string, port: number): string {
   const ipv6 = canonicalIpv6Hostname(host)
-  const urlHost = ipv6 ? `[${ipv6}]` : host
+  // Wildcard addresses select listening interfaces; they are not destinations.
+  const urlHost = ipv6 ? `[${ipv6 === '::' ? '::1' : ipv6}]` : host === '0.0.0.0' ? '127.0.0.1' : host
   return `http://${urlHost}:${port}`
 }
 

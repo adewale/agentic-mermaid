@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "elkFamilies": ["flowchart", "state", "class", "er", "architecture", "requirement"],
   "initial": {
     "requests": 6,
     "raw": 138000,

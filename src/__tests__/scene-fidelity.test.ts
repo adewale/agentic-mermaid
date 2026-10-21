@@ -19,7 +19,7 @@ import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-c
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, freezeBoundedFirstPartyData } from '../scene/external-data-snapshot.ts'
+import { admitSceneDocument, admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, freezeBoundedFirstPartyData } from '../scene/external-data-snapshot.ts'
 import { buildExternalScene, EXTERNAL_SCENE_API_VERSION } from '../scene/external-scene.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { inspectScenePrimitives } from '../scene/inspection.ts'
@@ -276,6 +276,18 @@ describe('scene fidelity', () => {
 })
 
 describe('built-in Scene cross-checks', () => {
+  test('a cheap admission cannot suppress later strict connector checks', () => {
+    const lowered = lowerSample('flowchart LR\n  A --> B')
+    if (!lowered || !('doc' in lowered)) throw new Error('Expected native Scene')
+    const connectors = (node: SceneNode): Array<Extract<SceneNode, { kind: 'connector' }>> =>
+      node.kind === 'connector' ? [node] : node.kind === 'group' ? node.children.flatMap(child => connectors(child.node)) : []
+    const connector = lowered.doc.parts.flatMap(connectors)[0]!
+    Object.assign(connector, { terminalProjection: { ...connector.terminalProjection, relationship: 'not-derived' } })
+    const admitted = admitSceneDocument(lowered.doc, 'internal', false)
+    expect(admitted).toBe(lowered.doc)
+    expect(() => admitSceneDocument(admitted, 'internal', true)).toThrow(/terminalProjection/)
+  })
+
   test('render skips them unless scene assertions are on; verify, strict renders and ASCII always run them', () => {
     // A lowering that stores a connector projection disagreeing with the one
     // derived from its own semantics. Fresh processes control the variable the

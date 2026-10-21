@@ -378,6 +378,46 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
+  test('a certified forest renders before ELK loads and a cyclic named-reference flow loads it once', async () => {
+    const page = await browser.newPage()
+    const requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    try {
+      await page.goto(`${base}/blank.html`)
+      const forest = 'flowchart LR\n  A[Start] --> B[End]'
+      const result = await page.evaluate(async ([entryUrl, source]) => {
+        const api = await import(entryUrl)
+        return api.renderMermaidSVGAsync(source, { security: 'strict' })
+      }, [`${base}/dist/browser-lazy/index.js`, forest] as const)
+      expect(result).toBe(renderMermaidSVG(forest, { security: 'strict' }))
+      expect(requests).not.toContain(lazyElkChunk())
+
+      const cycle = 'flowchart LR\n  A["x#hearts;y"] --> B[End]\n  B --> A'
+      const resumed = await page.evaluate(async ([entryUrl, source]) => {
+        const api = await import(entryUrl)
+        const diagnostics: string[] = []
+        let reads = 0
+        const options = {
+          security: 'strict',
+          get mermaidConfig() { reads++; return { flowchart: { defaultRenderer: 'dagre' } } },
+          onConfigDiagnostic: (item: { field: string }) => diagnostics.push(item.field),
+        }
+        const first = await api.renderMermaidSVGWithReceiptAsync(source, options)
+        const repeated = await api.renderMermaidSVGAsync(source, { security: 'strict' })
+        return { first, repeated, diagnostics, reads }
+      }, [`${base}/dist/browser-lazy/index.js`, cycle] as const)
+      expect(resumed.first.svg).toBe(renderMermaidSVG(cycle, { security: 'strict' }))
+      expect(resumed.repeated).toBe(resumed.first.svg)
+      expect(resumed.first.svg).toContain('x♥y')
+      expect(resumed.first.receipt.layoutCertification?.status).toBe('passed')
+      expect(resumed.diagnostics).toEqual(['flowchart.defaultRenderer'])
+      expect(resumed.reads).toBe(1)
+      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
+    } finally {
+      await page.close()
+    }
+  })
+
   test('the emitted lazy artifact rejects hostile strict-mode theme CSS', async () => {
     const page = await browser.newPage()
     try {

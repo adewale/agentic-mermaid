@@ -1,6 +1,6 @@
 # Balanced Mermaid family portfolio
 
-This 64-example companion corpus gives every registered built-in Mermaid family
+This companion corpus gives every registered built-in Mermaid family
 the same four-example quota. It is the macro/family-balanced input for evals;
 the larger documentation corpus remains useful for syntax breadth but must not
 stand in for balanced family coverage.

@@ -25,6 +25,7 @@
         "fast-check": "^4.6.0",
         "mermaid": "12.2.0",
         "mermaid-ast": "0.8.2",
+        "pele": "1.6.0",
         "perfect-freehand": "1.2.3",
         "playwright": "^1.58.2",
         "publint": "0.3.24",
@@ -35,6 +36,12 @@
         "upng-js": "^2.1.0",
         "wrangler": "4.149.0",
       },
+      "peerDependencies": {
+        "pele": "1.6.0",
+      },
+      "optionalPeers": [
+        "pele",
+      ],
     },
   },
   "overrides": {
@@ -814,6 +821,8 @@
     "path-to-regexp": ["path-to-regexp@6.3.0", "", {}, "sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ=="],
 
     "pathe": ["pathe@2.0.3", "", {}, "sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w=="],
+
+    "pele": ["pele@1.6.0", "", {}, "sha512-VfAiVItsOGlGhvnBfphdT28VCG7mXMZxQNOwAGsCtxI2ztbUsT39MraEOYjsapLxVETkdUZscm0DdotYDQMLdw=="],
 
     "perfect-freehand": ["perfect-freehand@1.2.3", "", {}, "sha512-bHZSfqDHGNlPpgH2yxXgPHlQSPpEbo+qg7li0M78J9vNAi2yjwLeA4x79BEQhX44lEWpCLSFCeRZwpw0niiXPA=="],
 
