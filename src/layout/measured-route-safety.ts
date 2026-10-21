@@ -28,10 +28,20 @@ function sharesShaft(a: Point, b: Point, c: Point, d: Point): boolean {
   )
 }
 
+function orthogonal(points: readonly Point[]): boolean {
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index]!
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)
+      || (index && point.x !== points[index - 1]!.x && point.y !== points[index - 1]!.y)) return false
+  }
+  return true
+}
+
 /** A bend touching another route must not erase a crossing from the metric.
  * Only an authored common endpoint may be an unmarked contact. */
 export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredGraph): number | undefined {
   let score = 0
+  let candidateOrthogonal: boolean | undefined
   const edge = input.edges[index]!, pair = [{ points }, { points: [] as Point[] }]
   for (let other = 0; other < routes.length; other++) {
     const route = routes[other]!
@@ -60,6 +70,9 @@ export function scoreMeasuredRouteCrossings(points: Point[], index: number, rout
         || (edge.target === peerEdge.source && to && peerFrom) || (edge.target === peerEdge.target && to && peerTo)
       if (!common) (contacts ??= new Set()).add(`${x},${y}`)
     }
+    // Every proper crossing of finite orthogonal routes is a recorded
+    // perpendicular contact. A contact-free pair needs no segment preparation.
+    if (!contacts && (candidateOrthogonal ??= orthogonal(points)) && orthogonal(route.points)) continue
     pair[1]!.points = route.points
     const crossings = countPolylineCrossings(pair)
     if (crossings < (contacts?.size ?? 0)) return undefined

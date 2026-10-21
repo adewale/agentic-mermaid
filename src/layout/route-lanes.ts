@@ -19,6 +19,7 @@ import {
   type LabelMetricsStyle,
   type Axis,
   axisFor,
+  axisPoint,
   simplifyPolyline,
   isMonotoneStaircase,
   type CrossSpan,
@@ -76,36 +77,34 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
 }
 
 export function diamondSpreadPortSet(axis: Axis, count: number): Array<PortSide | DiamondFacet> | null {
-  if (axis.main === 'x') {
-    if (axis.sign > 0) {
-      if (count === 2) return ['NE', 'SE']
-      if (count === 3) return ['NE', 'E', 'SE']
-    } else {
-      if (count === 2) return ['NW', 'SW']
-      if (count === 3) return ['NW', 'W', 'SW']
-    }
-  } else if (axis.sign > 0) {
-    if (count === 2) return ['SW', 'SE']
-    if (count === 3) return ['SW', 'S', 'SE']
-  } else {
-    if (count === 2) return ['NW', 'NE']
-    if (count === 3) return ['NW', 'N', 'NE']
-  }
-  return null
+  if (count !== 2 && count !== 3) return null
+  const side = facingSide(axis, 1)
+  const first = side === 'E' ? 'NE' : side === 'S' ? 'SW' : 'NW'
+  const last = side === 'W' ? 'SW' : side === 'N' ? 'NE' : 'SE'
+  return count === 2 ? [first, last] : [first, side, last]
 }
 
 export interface DiamondSpreadAssignment {
   sourcePort: PortSide | DiamondFacet
   sourceLane: number
+  targetsShareRank: boolean
 }
 
-export function diamondSpreadAssignment(edge: PositionedEdge, source: PositionedNode, ctx: LaneContext, axis: Axis): DiamondSpreadAssignment | null {
+export function diamondSpreadAssignment(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis,
+): DiamondSpreadAssignment | null {
   if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
     return null
   }
   const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
   const siblings = ctx.edges
-    .filter(candidate => candidate.source === edge.source && candidate.edgeIndex !== undefined && ctx.classes?.[candidate.edgeIndex] === 'primary-forward' && nodeMap.has(candidate.target))
+    .filter(candidate => candidate.source === edge.source &&
+      candidate.edgeIndex !== undefined &&
+      ctx.classes?.[candidate.edgeIndex] === 'primary-forward' &&
+      nodeMap.has(candidate.target))
     .sort((a, b) => {
       const aTarget = nodeMap.get(a.target)!
       const bTarget = nodeMap.get(b.target)!
@@ -118,26 +117,18 @@ export function diamondSpreadAssignment(edge: PositionedEdge, source: Positioned
   const index = siblings.indexOf(edge)
   if (index < 0) return null
   const sourcePort = ports[index]!
-  return { sourcePort, sourceLane: portPoint(source, sourcePort)[axis.cross] }
+  const targetMains = siblings.map(candidate => {
+    const target = nodeMap.get(candidate.target)!
+    return target[axis.main] + (axis.main === 'x' ? target.width : target.height) / 2
+  })
+  return { sourcePort, sourceLane: portPoint(source, sourcePort)[axis.cross], targetsShareRank: Math.max(...targetMains) - Math.min(...targetMains) <= 1 }
 }
 
 export function diamondSpreadLane(edge: PositionedEdge, source: PositionedNode, ctx: LaneContext, axis: Axis): number | undefined {
   return diamondSpreadAssignment(edge, source, ctx, axis)?.sourceLane
 }
 
-export function diamondSpreadTargetsShareRank(edge: PositionedEdge, source: PositionedNode, ctx: LaneContext, axis: Axis): boolean {
-  if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
-    return false
-  }
-  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
-  const siblings = ctx.edges.filter(candidate => candidate.source === edge.source && candidate.edgeIndex !== undefined && ctx.classes?.[candidate.edgeIndex] === 'primary-forward' && nodeMap.has(candidate.target))
-  if (!diamondSpreadPortSet(axis, siblings.length)) return false
-  const targetMains = siblings.map(candidate => {
-    const target = nodeMap.get(candidate.target)!
-    return target[axis.main] + (axis.main === 'x' ? target.width : target.height) / 2
-  })
-  return Math.max(...targetMains) - Math.min(...targetMains) <= 1
-}
+
 
 export interface DiamondSpreadTargetPortConstraint {
   sourcePort: PortSide | DiamondFacet
@@ -146,13 +137,19 @@ export interface DiamondSpreadTargetPortConstraint {
   targetLane: number
 }
 
-export function diamondSpreadTargetPortConstraint(edge: PositionedEdge, source: PositionedNode, target: PositionedNode, ctx: LaneContext, axis: Axis): DiamondSpreadTargetPortConstraint | null {
+export function diamondSpreadTargetPortConstraint(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis,
+): DiamondSpreadTargetPortConstraint | null {
   const spread = diamondSpreadAssignment(edge, source, ctx, axis)
-  if (!spread || !diamondSpreadTargetsShareRank(edge, source, ctx, axis)) return null
+  if (!spread || !spread.targetsShareRank) return null
   const targetPort = facingSide(axis, -1)
   const targetLane = shapePorts(target)[targetPort][axis.cross]
   if (Math.abs(spread.sourceLane - targetLane) <= PORT_TOLERANCE) return null
-  return { ...spread, targetPort, targetLane }
+  return { sourcePort: spread.sourcePort, sourceLane: spread.sourceLane, targetPort, targetLane }
 }
 
 export function satisfiesDiamondSpreadTargetPortConstraint(edge: PositionedEdge, source: PositionedNode, target: PositionedNode, constraint: DiamondSpreadTargetPortConstraint): boolean {
@@ -214,10 +211,10 @@ function collectLaneBlockers(
   for (let nodeIndex = 0; nodeIndex < ctx.nodes.length; nodeIndex++) {
     const node = ctx.nodes[nodeIndex]!
     if (node.id === edge.source || node.id === edge.target) continue
-    const nMainLo = node[axis.main] - CLEARANCE
-    const nMainHi = node[axis.main] + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
-    const nCrossLo = node[axis.cross] - CLEARANCE
-    const nCrossHi = node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
+    const nMainLo = (axis.main === 'x' ? node.x : node.y) - CLEARANCE
+    const nMainHi = (axis.main === 'x' ? node.x : node.y) + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
+    const nCrossLo = (axis.cross === 'x' ? node.x : node.y) - CLEARANCE
+    const nCrossHi = (axis.cross === 'x' ? node.x : node.y) + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
     if (c > nCrossLo && c < nCrossHi && Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
       if (firstOnly) return true
       blockers!.push({ kind: 'node', id: node.id })
@@ -250,13 +247,13 @@ function collectLaneBlockers(
     // merge, where the final approaches draw as one line into one arrowhead.
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
-      if (Math.abs(a[axis.cross] - b[axis.cross]) > EPS) continue
-      if (Math.abs(a[axis.cross] - c) >= CLEARANCE) continue
-      const sLo = Math.min(a[axis.main], b[axis.main])
-      const sHi = Math.max(a[axis.main], b[axis.main])
+      if (Math.abs((axis.cross === 'x' ? a.x : a.y) - (axis.cross === 'x' ? b.x : b.y)) > EPS) continue
+      if (Math.abs((axis.cross === 'x' ? a.x : a.y) - c) >= CLEARANCE) continue
+      const sLo = Math.min((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
+      const sHi = Math.max((axis.main === 'x' ? a.x : a.y), (axis.main === 'x' ? b.x : b.y))
       if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
         if (other.target === edge.target && other.source !== edge.source &&
-          Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
+          Math.abs((axis.cross === 'x' ? a.x : a.y) - c) < EPS && i === other.points.length - 1) {
           continue
         }
         if (firstOnly) return true
@@ -548,7 +545,15 @@ export function laneSearch(edge: PositionedEdge, source: PositionedNode, target:
  *  clear, crossing-free, and label-hostable; otherwise the blocker(s) that
  *  rejected it. Pure — never mutates the edge — so both the mutating
  *  straightener and the read-only predictor share one lane proof. */
-export function proveLane(edge: PositionedEdge, source: PositionedNode, target: PositionedNode, c: number, ctx: LaneContext, axis: Axis, search: LaneSearch): { start: Point; end: Point; slot: Point | null } | { blockers: RouteBlocker[] } {
+export function proveLane(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  c: number,
+  ctx: LaneContext,
+  axis: Axis,
+  search: LaneSearch,
+): { start: Point; end: Point; slot: Point | null } | { blockers: RouteBlocker[] } {
   const lo = search.isPortLane(c) ? search.relaxedLo : search.overlapLo
   const hi = search.isPortLane(c) ? search.relaxedHi : search.overlapHi
   if (c < lo - EPS || c > hi + EPS) return { blockers: [{ kind: 'span', id: edgeId(edge) }] }
@@ -560,8 +565,8 @@ export function proveLane(edge: PositionedEdge, source: PositionedNode, target: 
   const mainHi = Math.max(srcMain, tgtMain)
   const found = directLaneBlockers(edge, c, mainLo, mainHi, ctx, axis)
   if (found.length > 0) return { blockers: found }
-  const start: Point = axis.main === 'x' ? { x: srcMain, y: c } : { x: c, y: srcMain }
-  const end: Point = axis.main === 'x' ? { x: tgtMain, y: c } : { x: c, y: tgtMain }
+  const start: Point = axisPoint(axis, srcMain, c)
+  const end: Point = axisPoint(axis, tgtMain, c)
   // A repair may never increase edge crossings: a perpendicular crossing is
   // legal when the router chose it, but the straightener must not create
   // one that the original route avoided.

@@ -1710,3 +1710,117 @@ The complete new-base payload gate still rejects d0a98258: Flowchart
 Brotli. Preserve that failed combined build and its artifacts; neither the
 previous successful JS probe nor upstream's revised limits qualify this head.
 Continue reducing actual code cost rather than raising limits.
+
+### Continued qualification: d1b73e34 and main bd0ccbe5
+
+The complete d1b73e34 CI run39538409813 retains all512 generated native
+successes and506 ELK successes, with no additional native proper crossings
+on their shared successes. All three unit shards and browser, CLI, package,
+MCP and semantic lanes pass. The required quality gate still fails its five
+compressed-payload limits; the advisory generated report retains the six
+ELK reference rejections. Neither is a reason to discard those inputs.
+
+The27-input, three-round,25-repetition cost artifact12319366074 has a
+complete healthy normal-cache control (A/A1.0109958), but native corpus time
+is **1.0303272**, allocated-byte ratio **1.00**, and peak-RSS ratio **0.79**.
+Matched525-sample p50s are5.148901ms ELK and5.149807ms native; p95s are
+8.775486ms and9.154563ms. Retained native growth is0.3MiB across seven
+memory inputs. Passing permissive regression checks is not beating ELK.
+Cache-off A/A completes healthy at1.0420469, but the comparison is
+incomplete, with zero fully paired corpus results: the reference18-cuts
+worker receives only2,900ms of remaining budget and expires during timing
+at2,920.9ms. Keep this incomplete campaign; do not divide native timing by
+A/A, reduce its population or repetitions, or increase its deadline.
+
+Rebase onto mainbd0ccbe5 (#458) before the next combined qualification.
+Main independently replaces ordinary crisp Scene construction with native
+drawing programs and removes the optional unsupported-family Pele fallback.
+It also changes several payload budgets, including Flowchart/State gzip
+712,000 and Brotli577,000, Class gzip713,000/Brotli577,000, ER gzip718,000/
+Brotli582,000 and Architecture Brotli573,000. This branch makes no budget
+edits relative to main. Attribute neither these ceiling changes nor main's
+rendering savings to the native graph solver. Preserve the new `drawing`
+diagnostic stage alongside `graph-preparation` and `agentic` when reconciling
+the shared stage observer. Rebased core and repository typechecks pass.
+
+Allocation diagnostics before this rebase tested batching all route-pair
+crossings, preparing the candidate polyline once, and skipping the general
+crossing scorer for contact-free finite orthogonal pairs. All preserve10,000
+direct rejection/count comparisons. Batching reduces allocations but loses
+median time on both dense cases. Prepared scoring's19-node timings include
+an adverse1,374.29ms sample. The initial contact-free variant reduces median
+allocated bytes from100,699,280 to93,921,904 on15 nodes and156,267,944 to
+137,079,688 on19, but15-node median time rises255.53→292.22ms; retain that
+loss. These fresh-process GC-profiled diagnostics have no independent A/A
+control and qualify no shipped performance claim.
+
+A separate25-repeat, profiler-free pilot defers the orthogonality check
+until a contact-free pair actually needs it. On15 nodes, the three per-worker
+medians are303.47/395.15/417.16ms before and231.04/279.29/189.42ms after.
+Its six19-node workers fail before rendering because their fixture path is
+temporarily absent during the rebase. A browser probe also overlaps the
+rebase and fails to build. Preserve both launch errors; neither is valid
+19-node timing or combined-artifact evidence. Subsequent diagnostics use
+immutable input snapshots and identify the new base explicitly.
+
+The community remains a source of integration requirements, not evidence
+that one placement heuristic subsumes every family. Kroki's own
+[v0.33.0 release](https://github.com/yuzutech/kroki/releases/tag/v0.33.0)
+(2026-10-05) makes ELK the Mermaid default and documents a Dagre opt-out.
+The current [Mermaid C4 tracker](https://github.com/mermaid-js/mermaid/issues/7849)
+still separates placement, boundary titles, relationship identity and label
+wrapping. Their evidence reinforces retaining ELK, testing the actual
+adapter and output contracts, and measuring code download separately from
+solver execution. A smaller owned solver has not made ELK obsolete.
+
+The next allocation change keeps the general crossing scorer for every pair
+that could contribute a crossing. For finite orthogonal polylines, every
+proper crossing is already a perpendicular contact in the existing shaft/
+contact veto. If that scan finds only authored common endpoints or no
+contacts, its proper-crossing count is provably zero; those common endpoints
+are excluded by the metric as well. Defer checking orthogonality until such
+a pair occurs. Diagonal/non-finite input still takes the unchanged scorer.
+No geometry preference, tolerance, search ceiling or mandatory certification
+is relaxed.
+
+Factor the shared route owner at the same time: read preferred cardinal
+coordinates without cloning four ports, reuse diamond-sibling classification,
+axis-point construction and the three identical longest-segment/center-out
+label enumerations. Read `x`/`y` directly in lane checks instead of using
+computed property names. Keep all sample arithmetic, stable ties and public
+certificate fields. Reuse the existing weighted LRU for ELK with exactly its
+64-entry/1,048,576-key-code-unit bounds and copy-on-store/hit behavior; the
+native LRU remains private to its optional chunk. Filter environment names
+before reading values for the native strategy key, preserving its sorted
+APL pairs. Consolidate the selected-attempt append without changing fallback,
+error identity, receipt ordering or observer/retention ordering.
+
+Before the direct-coordinate-load extension, Node bundles of clean rebased
+5ab4380d and the combined prototype produce **1,500 identical full SVG,
+serialized-receipt or error-name/message outcomes** on750 inputs:238 source/
+workload cases, all384 legacy generated cases and128 independent-generator
+development cases. All21 errors/declines stay enrolled. The direct-load
+extension changes12 property reads to equivalent `x`/`y` conditionals; it
+still requires owning tests, default geometry and the combined shipped build.
+
+A new predeclared three-round Latin-order diagnostic uses immutable fixture
+snapshots, fresh Node24.19.0 workers, two consumed warmups and25 consumed
+timed renders, with allocation profiling in separate workers. Per-worker
+median times (baseline / factored-plus-contact-free / direct-load extension):
+15 nodes248.18 /275.52 /207.23ms;19 nodes368.95 /334.16 /270.17ms. The middle
+variant loses on15 nodes. In the third19-node round, even the direct-load
+variant loses257.58ms versus254.93ms baseline; preserve it. Median allocated
+bytes are99,687,400 /93,663,232 /89,776,616 on15 nodes and154,309,136 /
+132,098,176 /121,954,456 on19. All18 timing rows and18 memory rows complete,
+and each fixture retains one SVG/receipt fingerprint across every contender.
+These two-case diagnostics have no independent A/A and compare experimental
+Node bundles, not the canonical shipped-package27-input canary. They justify
+further qualification, not a claim of beating ELK.
+
+The adopted direct-load candidate passes355 owning tests /4,977 assertions
+across native placement/cache, ELK cache, shared route contracts, selection,
+certification, measured-backend errors and the new crisp drawing path. The
+canonical default-geometry gate passes all319 records without a golden edit
+(two tests,17.45s total; geometry comparison12.96s), and repository lint passes.
+Run the complete build, both typechecks and real-browser request checks on
+the frozen combined revision before publishing its next cost campaign.

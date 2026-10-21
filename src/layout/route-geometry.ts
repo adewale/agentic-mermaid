@@ -94,9 +94,9 @@ export function diamondFacetPorts(node: PositionedNode): Record<DiamondFacet, Po
 export function portAt(node: PositionedNode, pt: Point): AnyPort | undefined {
   const profile = shapeRoutingProfile(node)
   if (profile.boundary.kind === 'envelope' || profile.boundary.kind === 'none') return undefined
-  const ports = shapePorts(node)
   for (const side of ['N', 'E', 'S', 'W'] as const) {
-    if (Math.abs(ports[side].x - pt.x) <= PORT_TOLERANCE && Math.abs(ports[side].y - pt.y) <= PORT_TOLERANCE) return side
+    const preferred = profile.sides[side].preferred
+    if (Math.abs(preferred.x - pt.x) <= PORT_TOLERANCE && Math.abs(preferred.y - pt.y) <= PORT_TOLERANCE) return side
   }
   if (hasFacetAttachments(node)) {
     const facets = diamondFacetPorts(node)
@@ -239,16 +239,8 @@ export interface Axis {
 }
 
 export function axisFor(direction: Direction): Axis {
-  switch (direction) {
-    case 'LR':
-      return { main: 'x', cross: 'y', sign: 1 }
-    case 'RL':
-      return { main: 'x', cross: 'y', sign: -1 }
-    case 'BT':
-      return { main: 'y', cross: 'x', sign: -1 }
-    default:
-      return { main: 'y', cross: 'x', sign: 1 } // TD / TB
-  }
+  const horizontal = direction === 'LR' || direction === 'RL'
+  return { main: horizontal ? 'x' : 'y', cross: horizontal ? 'y' : 'x', sign: direction === 'RL' || direction === 'BT' ? -1 : 1 }
 }
 
 /**
@@ -436,57 +428,18 @@ export interface RoutePortAllocation {
   sideUse: Map<string, number>
 }
 
-export function facetSides(port: DiamondFacet): [PortSide, PortSide] {
-  switch (port) {
-    case 'NE':
-      return ['N', 'E']
-    case 'SE':
-      return ['S', 'E']
-    case 'SW':
-      return ['S', 'W']
-    case 'NW':
-      return ['N', 'W']
-  }
-}
+
 
 export function sideForPort(port: AnyPort | undefined, semanticSide: PortSide): PortSide {
   if (!port) return semanticSide
   if (port === 'N' || port === 'E' || port === 'S' || port === 'W') return port
-  const sides = facetSides(port)
-  return sides.includes(semanticSide) ? semanticSide : sides[0]
+  return port.includes(semanticSide) ? semanticSide : port[0] as PortSide
 }
 
 export function roleAndSide(routeClass: RouteClass, endpoint: 'source' | 'target', axis: Axis): { role: PortSemanticRole; side: PortSide } {
-  const source = endpoint === 'source'
-  switch (routeClass) {
-    case 'feedback': {
-      const flipped: Axis = { ...axis, sign: axis.sign === 1 ? -1 : 1 }
-      return {
-        role: source ? 'feedback-source' : 'feedback-target',
-        side: facingSide(flipped, source ? 1 : -1),
-      }
-    }
-    case 'self-loop':
-      return {
-        role: source ? 'self-loop-source' : 'self-loop-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    case 'container':
-      return {
-        role: source ? 'container-source' : 'container-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    case 'cross-hierarchy':
-      return {
-        role: source ? 'cross-hierarchy-source' : 'cross-hierarchy-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-    default:
-      return {
-        role: source ? 'flow-source' : 'flow-target',
-        side: facingSide(axis, source ? 1 : -1),
-      }
-  }
+  const category = routeClass === 'feedback' || routeClass === 'self-loop' || routeClass === 'container' || routeClass === 'cross-hierarchy' ? routeClass : 'flow'
+  const facing = (endpoint === 'source') !== (routeClass === 'feedback') ? 1 : -1
+  return { role: `${category}-${endpoint}` as PortSemanticRole, side: facingSide(axis, facing) }
 }
 
 export function sideOrderCoordinate(side: PortSide, node: PositionedNode, point: Point | undefined): number {
@@ -593,4 +546,12 @@ export function buildRouteLaneContext(positioned: { nodes: PositionedNode[]; edg
     axis,
     ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance },
   }
+}
+
+export function axisPoint(axis: Pick<Axis, 'main'>, main: number, cross: number): Point {
+  return axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
+}
+
+export function perpendicularAxis(axis: Axis, from: number, to: number): Axis {
+  return { main: axis.cross, cross: axis.main, sign: from < to ? 1 : -1 }
 }

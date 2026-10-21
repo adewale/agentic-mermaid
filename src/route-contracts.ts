@@ -25,6 +25,8 @@ import {
   type LabelMetricsStyle,
   classifyRoutes,
   type Axis,
+  axisPoint,
+  perpendicularAxis,
   simplifyPolyline,
   orthogonalizeResidualDiagonals,
   bendCount,
@@ -340,11 +342,10 @@ export function applyRouteContracts(
           // capacity check applies exactly once, where the pill will live.
           const longFirst = Math.abs(jog - srcMain) >= Math.abs(tgtMain - jog)
           if (hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)) continue
-          const hopAxis: Axis = axis.main === 'x' ? { main: 'y', cross: 'x', sign: c1 < c2 ? 1 : -1 } : { main: 'x', cross: 'y', sign: c1 < c2 ? 1 : -1 }
+          const hopAxis = perpendicularAxis(axis, c1, c2)
           if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
           if (hasDirectLaneBlocker(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
-          const pt = (main: number, cross: number): Point => (axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main })
-          const route = [pt(srcMain, c1), pt(jog, c1), pt(jog, c2), pt(tgtMain, c2)]
+          const route = [axisPoint(axis, srcMain, c1), axisPoint(axis, jog, c1), axisPoint(axis, jog, c2), axisPoint(axis, tgtMain, c2)]
           const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
           const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
           priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
@@ -488,8 +489,6 @@ export function applyRouteContracts(
     }
     escCandidates.sort((a, b) => Math.abs(a - spCross) - Math.abs(b - spCross))
 
-    const pt = (main: number, cross: number): Point => (axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main })
-    const perpAxis = (from: number, to: number): Axis => (axis.main === 'x' ? { main: 'y', cross: 'x', sign: from < to ? 1 : -1 } : { main: 'x', cross: 'y', sign: from < to ? 1 : -1 })
 
     let fallback: { route: Point[]; labelMid: Point } | null = null
     for (const escCross of escCandidates) {
@@ -497,17 +496,20 @@ export function applyRouteContracts(
       // A: short riser off the source flow port, in the pre-obstacle gap.
       if (hasDirectLaneBlocker(unlabeled, spCross, Math.min(srcMain, gapMain), Math.max(srcMain, gapMain), ctx, axis)) continue
       // B: sidestep along the gap to the escape lane.
-      if (hasDirectLaneBlocker(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpAxis(spCross, escCross))) continue
+      if (hasDirectLaneBlocker(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpendicularAxis(axis, spCross, escCross))) continue
       // C: full riser along the escape lane, up to the hop.
       if (hasDirectLaneBlocker(unlabeled, escCross, Math.min(gapMain, hopMain), Math.max(gapMain, hopMain), ctx, axis)) continue
       // D: hop across to the target's flow-port lane.
-      if (hasDirectLaneBlocker(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpAxis(escCross, tpCross))) continue
+      if (hasDirectLaneBlocker(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpendicularAxis(axis, escCross, tpCross))) continue
       // E: drop into the target flow port.
       if (hasDirectLaneBlocker(unlabeled, tpCross, Math.min(hopMain, tgtMain), Math.max(hopMain, tgtMain), ctx, axis)) continue
-      const route = simplifyPolyline([pt(srcMain, spCross), pt(gapMain, spCross), pt(gapMain, escCross), pt(hopMain, escCross), pt(hopMain, tpCross), pt(tgtMain, tpCross)])
+      const route = simplifyPolyline([
+        axisPoint(axis, srcMain, spCross), axisPoint(axis, gapMain, spCross), axisPoint(axis, gapMain, escCross),
+        axisPoint(axis, hopMain, escCross), axisPoint(axis, hopMain, tpCross), axisPoint(axis, tgtMain, tpCross),
+      ])
       // The escape riser (segment C) is the longest lane and the only one that
       // reliably clears the obstacle band — seat the label there.
-      const labelLane: [Point, Point] = [pt(gapMain, escCross), pt(hopMain, escCross)]
+      const labelLane: [Point, Point] = [axisPoint(axis, gapMain, escCross), axisPoint(axis, hopMain, escCross)]
       if (edge.label) {
         const slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
         if (slot) {
@@ -576,11 +578,11 @@ export function applyRouteContracts(
     // (own-label capacity applies exactly once, where the pill lives).
     const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
     if (hasDirectLaneBlocker(edge, lane, Math.min(srcMain, portMain), Math.max(srcMain, portMain), ctx, axis)) return false
-    const stubAxis: Axis = axis.main === 'x' ? { main: 'y', cross: 'x', sign: lane < entryCross ? 1 : -1 } : { main: 'x', cross: 'y', sign: lane < entryCross ? 1 : -1 }
+    const stubAxis = perpendicularAxis(axis, lane, entryCross)
     if (hasDirectLaneBlocker(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis)) return false
-    const pt = (main: number, cross: number): Point => (axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main })
-    const route = [pt(srcMain, lane), pt(portMain, lane), pt(portMain, entryCross)]
-    if (!routeThroughNodeBBox(edge, ctx) && countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
+    const route = [axisPoint(axis, srcMain, lane), axisPoint(axis, portMain, lane), axisPoint(axis, portMain, entryCross)]
+    if (!routeThroughNodeBBox(edge, ctx) &&
+      countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
     if (edge.label) {
       const slot = findLabelSlot(edge, route[0]!, route[1]!, ctx)
       if (!slot) return false
@@ -946,6 +948,25 @@ function flattenGroups(groups: PositionedGroup[], out: Map<string, PositionedGro
   return out
 }
 
+/** Label repairs share the same stable longest-segment and center-out order. */
+function orderedLabelSegments(edge: PositionedEdge): Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> {
+  const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
+  for (let i = 1; i < edge.points.length; i++) {
+    const a = edge.points[i - 1]!, b = edge.points[i]!
+    const vertical = Math.abs(a.x - b.x) < EPS
+    if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
+  }
+  segs.sort((p, q) => q.len - p.len || p.i - q.i)
+  return segs
+}
+
+function centerOutLabelSamples(tMargin: number): number[] {
+  const ts: number[] = []
+  const N = 11
+  for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
+  return ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+}
+
 /**
  * Post-freeze label repair for ROUTE_LABEL_ON_SHARED_TRUNK. A labeled edge whose
  * pill sits on a trunk shared with another edge is illegible — the reader cannot
@@ -975,14 +996,7 @@ export function repairLabelsOnSharedTrunks(positioned: { nodes: PositionedNode[]
     const pw = m.width + 2 * LABEL_PILL_PADDING,
       ph = m.height + 2 * LABEL_PILL_PADDING
 
-    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
-    for (let i = 1; i < edge.points.length; i++) {
-      const a = edge.points[i - 1]!,
-        b = edge.points[i]!
-      const vertical = Math.abs(a.x - b.x) < EPS
-      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
-    }
-    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+    const segs = orderedLabelSegments(edge)
 
     const saved = edge.labelPosition
     let fixed = false
@@ -1061,14 +1075,7 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
     if (routeDist(edge.labelPosition) <= allow) continue // already on its own route — no-op (the corpus case)
     const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow && !pillOverNode(pillRect(x, y, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
 
-    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
-    for (let i = 1; i < edge.points.length; i++) {
-      const a = edge.points[i - 1]!,
-        b = edge.points[i]!
-      const vertical = Math.abs(a.x - b.x) < EPS
-      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
-    }
-    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+    const segs = orderedLabelSegments(edge)
 
     // (1) Prefer a slot ON the route: sample each segment center-out (midpoint
     // reads best) and take the first clear one.
@@ -1078,10 +1085,7 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
       const half = (seg.vertical ? ph : pw) / 2
       if (seg.len <= 2 * half) continue // pill can't sit on this segment without overhanging a bend
       const tMargin = half / seg.len
-      const N = 11
-      const ts: number[] = []
-      for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
-      ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+      const ts = centerOutLabelSamples(tMargin)
       for (const t of ts) {
         const cx = seg.a.x + (seg.b.x - seg.a.x) * t
         const cy = seg.a.y + (seg.b.y - seg.a.y) * t
@@ -1204,14 +1208,7 @@ export function separateEdgeLabelPills(
       }
       return true
     }
-    const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
-    for (let i = 1; i < edge.points.length; i++) {
-      const a = edge.points[i - 1]!,
-        b = edge.points[i]!
-      const vertical = Math.abs(a.x - b.x) < EPS
-      if (vertical || Math.abs(a.y - b.y) < EPS) segs.push({ a, b, vertical, len: Math.abs(a.x - b.x) + Math.abs(a.y - b.y), i })
-    }
-    segs.sort((p, q) => q.len - p.len || p.i - q.i)
+    const segs = orderedLabelSegments(edge)
     // Offset ladder: on-route first, then perpendicular offsets up to the
     // rubric's labelOffRoute allowance (ph/2 + 4, the same formula
     // repairLabelsOffOwnRoute enforces) — a labeled reciprocal pair whose
@@ -1226,10 +1223,7 @@ export function separateEdgeLabelPills(
         const nx = seg.vertical ? 1 : 0,
           ny = seg.vertical ? 0 : 1 // unit perpendicular
         const tMargin = overhang ? 0 : half / seg.len
-        const ts: number[] = []
-        const N = 11
-        for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
-        ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
+        const ts = centerOutLabelSamples(tMargin)
         for (const t of ts) {
           const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
           const cy = seg.a.y + (seg.b.y - seg.a.y) * t + ny * d
