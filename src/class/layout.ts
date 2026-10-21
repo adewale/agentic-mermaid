@@ -618,11 +618,13 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
     const generated = generatedIds(diagram.classes.map(cls => cls.id))
     const groups = namespaces.map(info => {
       const block = classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group')
+      const headerHeight = namespaceHeaderHeight(style, block.text)
       return {
         id: generated(`class-namespace:${info.path}`, ['class', 'namespace', info.path]),
         ...(info.parentPath ? { parent: groupIndices.get(info.parentPath)! } : {}),
         minWidth: block.width + 2 * Math.max(style.groupLabelPaddingX, style.groupPaddingX + 8),
-        padding: { top: namespaceHeaderHeight(style, block.text) + style.groupPaddingY,
+        headerHeight,
+        padding: { top: headerHeight + style.groupPaddingY,
           right: style.groupPaddingX + 8, bottom: style.groupPaddingY + 8, left: style.groupPaddingX + 8 },
       }
     })

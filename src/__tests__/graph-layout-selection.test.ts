@@ -16,7 +16,7 @@ import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../ind
 import { withRenderStageObserver } from '../render-stages.ts'
 import { resolveRenderRequest, validateSerializableRenderOptions } from '../render-contract.ts'
 import { captureCli } from './helpers/cli-capture.ts'
-import { flowchartMultigraph } from '../../eval/benchmark/release-bench-cases.ts'
+import { flowchartMultigraph, releaseBenchCases } from '../../eval/benchmark/release-bench-cases.ts'
 import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.ts'
 
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
@@ -308,6 +308,26 @@ describe('checked graph layout selection', () => {
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.labelConflicts?.total).toBe(0)
     expect(quality.routeOverlaps).toMatchObject({ opposing: 0, parallel: 0 })
+  })
+
+  test('routes the large grouped workload without a dense visibility grid or ELK', () => {
+    const source = releaseBenchCases().find(input => input.id === 'flowchart:subgraphs-12x8')!.source
+    const model = parseFlowchart(source), stages: string[] = []
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    const result = layoutMermaidWithReceipt(source, AGENTIC)
+    expect(result.layout.nodes).toHaveLength(96)
+    expect(result.layout.groups).toHaveLength(12)
+    expect(result.layout.groups.every(group => group.members.length === 8)).toBe(true)
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual(model.edges.map(edge => [edge.source, edge.target]))
+    expect(svg.receipt.layoutCertification?.status).toBe('passed')
+    const quality = measureQuality(result.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toMatchObject({ opposing: 0, parallel: 0 })
+    const terminal = renderMermaidASCIIWithReceipt(source, AGENTIC)
+    expect(terminal.text.length).toBeGreaterThan(0)
+    expect(terminal.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
   })
 
   test('declines cross-hierarchy frame endpoints and attributes a requested ELK fallback consistently across cache states', () => {
