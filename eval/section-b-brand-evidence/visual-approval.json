@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "0995a0d590d401d4dfe06abb5daba9aaf68fa3726ab33c229c4401df32e90b47",
-  "reviewedAt": "2026-10-20",
-  "reviewer": "Claude Code agent, XYChart canvas refresh",
-  "scope": "92 family-by-variant cells. Candidate on branch claude/0.5-render-pipeline, where the final paint check measures a butt-capped axis or grid line to its ends, so an XYChart no longer widens its SVG viewBox past its laid-out canvas. Compared with the previously approved artifact bb9067a6dcb0ba78b5fc8d8de22a68696f823a110f5ef7500384e9dedc14faf4, the 1560x12504 sheet changes 28,395 pixels in four cells: XY chart in all four treatments. The other 88 cells and all headings are pixel-identical. Each XY chart used to draw about 0.14% smaller inside a 701x500.71 viewBox, leaving a sliver of background past the x-axis and last bar; it now draws at its laid-out size, with the axis line and bar flush to the canvas edge, which moves anti-aliased edges across the chart. The agent inspected all four changed crops beside the approved ones at native 520x380 and the bar-top region at 3x zoom: bars, ticks, labels, title, grid and palette are unchanged. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
+  "artifactSha256": "49fe0f51a79d80e9ca4f5ce34afe6df78209b0322999a7c9061ae59400c407c5",
+  "reviewedAt": "2026-10-21",
+  "reviewer": "Codex agent, PR #456 radar legend refresh",
+  "scope": "92 family-by-variant cells at 1560x12504. Incremental review against previously approved artifact 0995a0d590d401d4dfe06abb5daba9aaf68fa3726ab33c229c4401df32e90b47: 1,328 pixels change in four Radar cells (sentinel 328, editorial 332, technical 334, operations 334). The other 88 cells, all headings and background are pixel-identical. The Codex agent inspected all four before/after pairs at native 520x380. Legend swatches strengthen to their categorical colors; axes, labels, plot geometry, curve opacity and positions remain unchanged. This approves the intended opaque Radar legend keys only. This is agent review, not human approval, deployed-site parity or a general readability proof for arbitrary inputs, fonts, density or displays.",
   "audit": "eval/section-b-brand-evidence/stable-families-review.md"
 }

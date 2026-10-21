@@ -47,3 +47,26 @@ arrow-polygon evidence covers routing that this small sheet does not exercise.
 This refresh approves those visible new-family styling changes only. It does
 not certify arbitrary density or contrast chosen explicitly by an author. The
 updated approval record binds the exact reviewed PNG bytes.
+
+## Radar legend refresh, 2026-10-21
+
+The Codex agent reviewed PR #456's Radar legend change against the previously
+approved sheet, SHA-256
+`0995a0d590d401d4dfe06abb5daba9aaf68fa3726ab33c229c4401df32e90b47`.
+A whole-image pixel comparison found exactly 1,328 changed pixels in four
+Radar cells: sentinel 328, warm editorial 332, light technical 334, and dark
+operations 334. All other 88 cells, headings, and background are pixel-identical.
+The sheet remains 1560 × 12504, with unchanged cell positions.
+
+All four before/after Radar pairs were inspected at their native 520 × 380
+cell size. Legend swatches now use the opaque category colors. Axes, labels,
+plot geometry, curve opacity, and positions are unchanged. The pixel changes
+are confined to legend-swatch bands, matching the renderer's intentional
+change from curve opacity to an opaque key.
+
+The reviewed candidate SHA-256 is
+`49fe0f51a79d80e9ca4f5ce34afe6df78209b0322999a7c9061ae59400c407c5`,
+bound by the updated approval record. This incremental approval covers those
+four legend cells only. It is agent review, not human approval, deployed-site
+parity, or a general readability proof for arbitrary inputs, fonts, density,
+or displays. No rendering logic or test assertion changed for this refresh.
