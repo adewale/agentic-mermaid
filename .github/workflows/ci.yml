@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install the CJK coverage fixture
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+
       - name: Build the Node bundle for cross-runtime determinism contracts
         run: bunx --no-install tsup
 
@@ -340,13 +343,14 @@ jobs:
   ci-complete:
     name: CI complete
     runs-on: ubuntu-latest
-    needs: [test, e2e, red-green, expire-label-approvals, semantic]
+    needs: [test, e2e, red-green, expire-label-approvals, semantic, consumer-quickstarts]
     if: ${{ always() }}
     timeout-minutes: 5
     steps:
       - name: Require every CI lane to pass
         env:
           SEMANTIC_RESULT: ${{ needs.semantic.result }}
+          CONSUMER_RESULT: ${{ needs.consumer-quickstarts.result }}
           TEST_RESULT: ${{ needs.test.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           RED_GREEN_RESULT: ${{ needs.red-green.result }}
@@ -354,7 +358,24 @@ jobs:
         run: |
           # red-green runs only for pull requests, and label expiry only when a
           # push adds commits to one; other events skip them.
-          if [[ "$SEMANTIC_RESULT" != "success" || "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || ( "$RED_GREEN_RESULT" != "success" && "$RED_GREEN_RESULT" != "skipped" ) || ( "$EXPIRE_RESULT" != "success" && "$EXPIRE_RESULT" != "skipped" ) ]]; then
-            echo "semantic=$SEMANTIC_RESULT test=$TEST_RESULT e2e=$E2E_RESULT red-green=$RED_GREEN_RESULT expire-label-approvals=$EXPIRE_RESULT"
+          if [[ "$CONSUMER_RESULT" != "success" || "$SEMANTIC_RESULT" != "success" || "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || ( "$RED_GREEN_RESULT" != "success" && "$RED_GREEN_RESULT" != "skipped" ) || ( "$EXPIRE_RESULT" != "success" && "$EXPIRE_RESULT" != "skipped" ) ]]; then
+            echo "consumer=$CONSUMER_RESULT semantic=$SEMANTIC_RESULT test=$TEST_RESULT e2e=$E2E_RESULT red-green=$RED_GREEN_RESULT expire-label-approvals=$EXPIRE_RESULT"
             exit 1
           fi
+
+  consumer-quickstarts:
+    name: Installed-package quickstarts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: node scripts/ci/installed-quickstarts.mjs

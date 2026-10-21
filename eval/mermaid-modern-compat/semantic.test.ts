@@ -263,3 +263,28 @@ afterAll(async () => {
     console.log(`Modern semantic assertions: ${results.filter(result => result.status === 'passed').length}/${results.length}; diagnostic probes: ${diagnostics.length}; ${reportPath}`)
   } finally { oracle?.close() }
 })
+
+
+for (const source of [
+  'flowchart LR\n Login["Login / SSO"] -->|accepted| Store["Store & index"]',
+  'sequenceDiagram\n participant Login as Login / SSO\n participant Store as Store & index\n Login->>Store: accepted',
+  'classDiagram\n class Login["Login / SSO"]\n class Store["Store & index"]\n Login --> Store : accepted',
+  'erDiagram\n Login["Login / SSO"]\n Store["Store & index"]\n Login ||--o{ Store : accepted',
+  'stateDiagram-v2\n state "Login / SSO" as Login\n state "Store & index" as Store\n Login --> Store: accepted',
+]) {
+  semantic(`independent authored label census: ${source.split('\n')[0]}`, 'portable authored labels', async () => {
+    if (!oracle) throw new Error('Independent reference not installed')
+    const reply = await oracle.parse(source)
+    if (!reply.ok) throw new Error(reply.error)
+    const data = reply.snapshot.data
+    const diagramData = data.getData as { nodes?: Array<{ label?: string }>; edges?: Array<{ label?: string }> } | undefined
+    const actorLabels = Array.isArray(data.getActors) ? data.getActors.map(entry => (entry as unknown as [string, { description: string }])[1].description) : []
+    const messageLabels = Array.isArray(data.getMessages) ? data.getMessages.map(entry => (entry as { message?: string }).message) : []
+    const expected = [...(diagramData?.nodes ?? []).map(node => node.label), ...(diagramData?.edges ?? []).map(edge => edge.label), ...actorLabels, ...messageLabels].filter((label): label is string => typeof label === 'string' && label.length > 0)
+    expect(expected.length).toBeGreaterThan(0)
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Source failed to parse')
+    const facts = am.describeMermaidFacts(parsed.value).join('\n')
+    for (const label of expected) expect(facts).toContain(label)
+  })
+}

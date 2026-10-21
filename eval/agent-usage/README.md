@@ -166,3 +166,23 @@ Run deterministic layers: `bun run eval/agent-usage/harness.ts`
 Run stored Code Mode eval: `bun run eval/agent-usage/run.ts`
 Prepare/finalize subagent transcript capture: `bun run eval:agent-subagent -- prepare` / `bun run eval:agent-subagent -- finalize --run-dir <dir>`
 Run live-model transcript capture: `bun run eval:agent-live -- --provider anthropic --model <model>`
+
+
+Capture runners can record discovery cost without guessing from response length.
+At the first successful diagram operation (parse, edit, verify, or render; excluding
+capability/schema discovery), write `observations/<case-id>.json` in the run directory:
+
+```json
+{
+  "turnsBeforeFirstProductiveCall": 2,
+  "inputTokensBeforeFirstProductiveCall": 1200,
+  "outputTokensBeforeFirstProductiveCall": 300,
+  "elapsedMsToFirstProductiveCall": 1800
+}
+```
+
+These are runner-observed counters for the whole interaction before that call,
+not values narrated by the model or inferred from a replay. `finalize` validates
+and retains each observation in `summary.discovery`, with observed and unavailable
+case counts. Missing measurements remain unavailable; historical transcripts do
+not acquire fabricated costs. Compare task success and these counters together.
