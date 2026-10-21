@@ -2029,3 +2029,112 @@ cross-engine validation remains a CI obligation, not an inferred local pass.
 The targeted Chromium run passes8 tests /606 assertions (24.85s), including
 concurrent cross-scope Flowchart, State and Class rendering with one selected
 solver import, native-only cross-scope loading and actual frame-endpoint fallback.
+
+
+The predeclared three-example cross-scope diagnostic completes54/54 canonical
+workers on frozenab5ed275, with25 fully consumed timing repetitions per worker
+and separate warmup/input/pass/retention memory workers. All content/determinism
+checks pass. Retain all three rounds.
+A/A round-time ratios are0.694/1.036/1.341 for Flowchart (geomean0.988),
+0.696/0.977/0.492 for Class (0.694) and0.501/0.927/1.111 for State (0.802).
+The aggregate control ratio is0.819; Class and State fail the predeclared
+[1/1.1,1.1] per-input bound. This is not a qualified timing win, and it is not
+retried unchanged. ELK-reference/native median pass allocations are7,714,640 /
+5,832,280 bytes for Flowchart,7,007,352 /5,582,784 Class and7,781,240 /
+5,296,144 State. Peak RSS is125,550,592 /100,925,440;126,910,464 /
+102,633,472;126,279,680 /101,052,416 respectively. Retained growth is
+987,080 /588,856;704,824 /324,632;992,696 /591,216. These are observations on
+three development inputs only. Typed-array backing stores are not included in
+V8 heap allocation; RSS remains separate. The27-input qualification stays open.
+
+
+Currentab5ed275 CI39554337334 passes every required lane, including all unit
+shards, browser/cross-engine contracts, consumers, semantic conformance, payload
+and quality. Generated artifact12325300634 retains512 native /506 ELK successes,
+no extra measured crossings/labels/shared spans, all506 shared paint certificates
+unverified, and7004 native versus6556 ELK issues. Cost evidence is still pending.
+The local Firefox/WebKit failures remain recorded despite the successful CI run.
+
+A request-scoped crossing scratch prototype is not adopted. Its50006 direct
+metric comparisons match, including involved filters, reversed/shrinking/empty
+inputs, diagonals and numeric edge cases. All12 memory and12 timing workers
+complete with identical native SVG/receipt fingerprints. Median allocated heap
+bytes fall78,255,664→73,657,880 on15 nodes and112,210,064→109,617,160 on19.
+However, median profiler-free worker medians move225.86→245.72ms on15 nodes
+and312.05→300.67ms on19;19-node peak RSS moves135420→155180KiB. These
+uncontrolled custom-bundle diagnostics are not qualification, and their adverse
+time/RSS signals are retained rather than shipping an allocation-only result.
+
+
+A separate private-vertex record reuse prototype is also not adopted. All12
+memory and12 timing workers complete with identical SVG/receipt fingerprints.
+On15 nodes median allocations increase75,962,744→76,813,032 bytes; on19 they
+fall112,609,104→109,841,032. Median profiler-free worker medians are237.52→
+210.12ms and440.80→243.33ms, but there is no independent A/A, one15-node
+round gets slower, and the first before-memory worker's284632KiB RSS is an
+adverse outlier retained in the report. These custom-bundle diagnostics do not
+justify introducing mutable request scratch into the production core.
+
+
+The separated-interior-contact scoring prototype is not adopted either. All50009
+score/rejection comparisons match. Its12 memory and12 timing workers complete,
+with median allocations77,369,136→76,650,776 on15 nodes and113,115,144→
+113,602,112 on19. Median profiler-free worker medians move294.02→307.91ms
+and455.16→414.33ms; the after15-node memory run includes a291880KiB RSS
+outlier, retained. The guarded shortcut does not establish a consistent cost
+benefit and never changes the published scorer.
+
+The completeab5ed275 cost artifact12324944916 is unqualified in both cache
+regimes. Both full ELK A/A controls are healthy (1.011737 cache-off;1.011207
+normal). Cache-off control timing workers use427.41s and memory49.01s of the
+shared480s budget. The next ELK-reference corpus worker receives3340ms and
+expires after3373.07ms during timing; native has no paired corpus or memory
+result. Normal control timing uses263.83s and memory41.31s. Its native100-card
+Requirement timing worker in round3 receives1899ms and expires after1929.15ms.
+The normal partial seven-input0.995276 ratio is unqualified, with no matched
+memory. No deadline or population changes rescue these runs. Required CI is
+fully green; passing required checks does not complete the owner's cost goal.
+
+
+### Measured headers and large-scope direct corridors (@20)
+
+Rebase onto mainb1a50dfa includes#454's precise cleanup warnings and bounded
+startup-test child. The next native revision carries the adapter's actual measured
+header height separately from top content padding. Flowchart/State use the
+already measured group header; Class uses its namespace header measurement.
+The private contract validates a finite header strip inside top padding. Missing
+measurement retains the conservative padding strip. No header height is inferred
+from rendered output or fixture identity.
+
+The visibility-grid domain remains at most64 leaves. Larger scopes use at most64
+short corridor/prefix proposals per cross-edge, with a separate pair allowance of
+min(16384, remaining shared pairs/8). Every obstacle test also debits the existing
+shared pair budget; tested segments and self-contact checks debit shared arc/pair
+budgets. Centers on each side precede quarter ports, blocked endpoint rays are
+rejected early, and L/Z/perimeter proposals must clear all bodies, headers,
+unrelated frames, labels and foreign shafts within the host content bounds.
+If no complete path is proved, the large input declines; no large dense grid is
+allocated. The global4096-subject/32768-expansion and routing-work ceilings stay
+unchanged, as do16 groups,16 cross-edges,128 edges and2048 initial route points.
+This replaces the preemptive64-leaf rejection with a bounded additional routing
+algorithm; it does not raise the grid or work ceilings to admit the workload.
+
+The initial direct probe still declines the96-node workload. A second candidate
+reorders port proposals and adds perimeter corridors, but the conservative full
+top-padding obstacle still seals useful routes. Passing the actual header strip
+unblocks the content padding without crossing painted headers. The third
+prototype completes the full238-input development cohort:232 native,238 ELK,
+six native declines, no lost cases or added measured crossings/label/shared-span
+conflicts. All231 prior native SVGs and complete receipts remain identical before
+the implementation revision bump. The96-node case has zero measured crossings,
+label conflicts and parallel/opposing overlaps, with passing paint certification
+for both engines. The earlier failed probes and full cohort stay recorded.
+
+Production owning checks pass121 tests /4004 assertions before the additional
+raw reserve test; that test separately passes and proves a blocked probe retains
+positive shared pair reserve with a typed decline. The public large-workload
+check preserves all96 nodes,12 scopes,95 authored endpoints, paint certification,
+quality and native ASCII companion execution. Larger-domain qualification still
+needs more than one successful development workload, so16 additional80-node
+sources across global directions/local overrides/labels are declared before
+execution. All outcomes will remain enrolled, including native declines.

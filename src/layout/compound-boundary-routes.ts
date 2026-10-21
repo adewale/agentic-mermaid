@@ -1,6 +1,7 @@
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { Direction, Point } from '../types.ts'
+import { segmentEntersMeasuredBox } from './measured-route-safety.ts'
 import { createVisibilityGrid, simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
 
 const inflate = (box: RoutingBox, margin: number): RoutingBox => ({ x: box.x - margin, y: box.y - margin, width: box.width + 2 * margin, height: box.height + 2 * margin })
@@ -43,13 +44,75 @@ function selfContact(points: readonly Point[], work: ChannelWork, fail: (reason:
   return false
 }
 
+/** Large scopes first try at most64 short rectilinear corridors, sharing a
+ * small fraction of the existing pair budget. Every tested shaft still clears
+ * all obstacles. Larger scopes decline if these complete paths are blocked. */
+function directCorridor(
+  bounds: RoutingBox, obstacles: readonly RoutingBox[], starts: readonly Terminal[], goal: Point,
+  frames: readonly RoutingBox[], clearance: number, work: ChannelWork,
+  probes: { pairs: number; candidates: number }, fail: (reason: string) => never,
+): Point[] | undefined {
+  const right = bounds.x + bounds.width, bottom = bounds.y + bounds.height
+  const test = (raw: Point[]): Point[] | undefined => {
+    if (probes.candidates-- <= 0) return
+    const path = simplifyOrthogonal(raw)
+    for (const point of path) if (!Number.isFinite(point.x + point.y) || point.x < bounds.x || point.x > right || point.y < bounds.y || point.y > bottom) return
+    if (selfContact(path, work, fail)) return
+    for (let index = 1; index < path.length; index++) {
+      if (--work.arcs < 0) fail('agentic local cross-hierarchy direct-arc limit')
+      const a = path[index - 1]!, b = path[index]!
+      for (const box of obstacles) {
+        if (probes.pairs <= 0) return
+        probes.pairs--
+        if (--work.pairs < 0) fail('agentic local cross-hierarchy direct-pair limit')
+        if (segmentEntersMeasuredBox(a, b, box)) return
+      }
+    }
+    return path
+  }
+  // Check each side's center before considering quarter ports. A blocked
+  // endpoint ray cannot be rescued by any subsequent corridor proposal.
+  for (let fraction = 0; fraction < 3; fraction++) for (let side = 0; side < 4; side++) {
+    const { port, stub } = starts[side * 3 + fraction]!
+    if (!test([port, stub])) {
+      if (probes.pairs <= 0 || probes.candidates <= 0) return
+      continue
+    }
+    for (const middle of [{ x: goal.x, y: stub.y }, { x: stub.x, y: goal.y }]) {
+      const result = test([port, stub, middle, goal])
+      if (result) return result
+      if (probes.pairs <= 0 || probes.candidates <= 0) return
+    }
+    for (const frame of frames) {
+      const xs = [frame.x - clearance, frame.x + frame.width + clearance]
+      const ys = [frame.y - clearance, frame.y + frame.height + clearance]
+      for (const x of xs) {
+        const result = test([port, stub, { x, y: stub.y }, { x, y: goal.y }, goal])
+        if (result) return result
+        if (probes.pairs <= 0 || probes.candidates <= 0) return
+      }
+      for (const y of ys) {
+        const result = test([port, stub, { x: stub.x, y }, { x: goal.x, y }, goal])
+        if (result) return result
+        if (probes.pairs <= 0 || probes.candidates <= 0) return
+      }
+      for (const x of xs) for (const y of ys) {
+        const result = test([port, stub, { x, y: stub.y }, { x, y }, { x: goal.x, y }, goal])
+        if (result) return result
+        if (probes.pairs <= 0 || probes.candidates <= 0) return
+      }
+    }
+  }
+  return undefined
+}
+
 export function routeCrossHierarchy(
   input: MeasuredGraph, placed: AgenticLayout, owners: Int32Array,
   lifted: ReadonlyMap<number, { source: number; target: number; host: number }>, directions: readonly Direction[],
   work: ChannelWork, expansionLimit: number, fail: (reason: string) => never,
 ): AgenticLayout {
   const leafCount = input.nodes.length, frames = placed.groups!, groups = input.groups!
-  if (leafCount > 64 || groups.length > 16 || lifted.size > 16 || input.edges.length > 128) fail('agentic local cross-hierarchy size limit')
+  if (groups.length > 16 || lifted.size > 16 || input.edges.length > 128) fail('agentic local cross-hierarchy size limit')
   if (placed.edges.reduce((sum, edge) => sum + edge.points.length, 0) > 2048) fail('agentic local cross-hierarchy route-point limit')
   let expanded = placed.expandedVertices ?? 0
   const clearance = Math.max(8, input.edgeSpacing ?? 6)
@@ -72,7 +135,7 @@ export function routeCrossHierarchy(
     for (let group = 0; group < frames.length; group++) {
       const frame = frames[group]!
       if (!related.has(group)) obstacles.push(inflate(frame, clearance))
-      else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
+      else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: leafCount > 64 ? (groups[group]!.headerHeight ?? groups[group]!.padding.top) : groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
     }
     for (let other = 0; other < placed.edges.length; other++) {
       if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
@@ -90,10 +153,25 @@ export function routeCrossHierarchy(
       : { x: 0, y: 0, width: placed.width, height: placed.height }
     const sources = crossingSource ? terminals(nodes[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance) : []
     const targets = crossingTarget ? terminals(nodes[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance) : []
-    const grid = createVisibilityGrid(bounds, obstacles, [...sources, ...targets], [start, end], clearance, work, expansionLimit - expanded, fail)
-    expanded += grid.vertices
-    const first = crossingSource ? grid.route(sources, start) : [start]
-    const last = crossingTarget ? grid.route(targets, end).reverse() : [end]
+    let first = crossingSource ? undefined : [start]
+    let last = crossingTarget ? undefined : [end]
+    if (leafCount > 64) {
+      const probes = { pairs: Math.min(16384, Math.floor(work.pairs / 8)), candidates: 64 }
+      const endpointFrames = (endpoint: number): RoutingBox[] => {
+        const result: RoutingBox[] = []
+        for (let group = owners[endpoint]!; group >= 0; group = owners[leafCount + group]!) result.push(frames[group]!)
+        return result
+      }
+      if (!first) first = directCorridor(bounds, obstacles, sources, start, endpointFrames(edge.source), clearance, work, probes, fail)
+      if (!last) last = directCorridor(bounds, obstacles, targets, end, endpointFrames(edge.target), clearance, work, probes, fail)?.reverse()
+      if (!first || !last) fail('large cross-hierarchy route has no bounded direct corridor')
+    }
+    if (!first || !last) {
+      const grid = createVisibilityGrid(bounds, obstacles, [...sources, ...targets], [start, end], clearance, work, expansionLimit - expanded, fail)
+      expanded += grid.vertices
+      first ??= grid.route(sources, start)
+      last ??= grid.route(targets, end).reverse()
+    }
     const points = simplifyOrthogonal([...first, ...core.slice(1, -1), ...last])
     if (selfContact(points, work, fail)) fail('cross-hierarchy route needs an unsupported self-contact repair')
     if (edge.label && !points.some((point, cursor) => cursor > 0 && onSegment(raw.labelPosition!, points[cursor - 1]!, point))) fail('cross-hierarchy route lost its reserved label corridor')

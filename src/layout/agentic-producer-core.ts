@@ -93,7 +93,7 @@ function placeNativeGraphCandidate(
       const header = source.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + block.height - block.lineHeight
       const divider = source.concurrencyRegion ? (options.stateVisual?.dividerMargin ?? 0) : 0
       groupIndices.set(source.id, index); groupSources.push(source)
-      groups.push({ id: source.id, parent, direction, minWidth: groupTitleWidth(source, style), padding: {
+      groups.push({ id: source.id, parent, direction, minWidth: groupTitleWidth(source, style), headerHeight: header, padding: {
         top: header + style.groupPaddingY + divider, bottom: style.groupPaddingY + divider,
         left: style.groupPaddingX + divider, right: style.groupPaddingX + divider,
       } })
