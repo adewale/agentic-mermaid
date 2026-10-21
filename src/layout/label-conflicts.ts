@@ -58,16 +58,18 @@ export function measureLabelConflicts(
   )
 }
 
-/** Public graph layouts retain text bounds; other families do not use pills. */
+/** Graphs paint padded pills; specialized families use retained text footprints.
+ * Missing measurements remain unavailable, rather than becoming zero conflicts. */
 export function measureRenderedLabelConflicts(layout: RenderedLayout): LabelConflictCounts | undefined {
-  if (layout.kind !== 'flowchart' && layout.kind !== 'state') return undefined
+  if (layout.edges.some(edge => edge.label?.text && !edge.label.bounds)) return undefined
+  const padding = layout.kind === 'flowchart' || layout.kind === 'state' ? LABEL_PILL_PADDING : 0
   const labels = layout.edges.flatMap((edge, edgeIndex) => {
     const bounds = edge.label?.bounds
     return edge.label?.text && bounds ? [{
       edgeIndex,
       rect: {
-        x: bounds.x - LABEL_PILL_PADDING, y: bounds.y - LABEL_PILL_PADDING,
-        w: bounds.w + 2 * LABEL_PILL_PADDING, h: bounds.h + 2 * LABEL_PILL_PADDING,
+        x: bounds.x - padding, y: bounds.y - padding,
+        w: bounds.w + 2 * padding, h: bounds.h + 2 * padding,
       },
     }] : []
   })

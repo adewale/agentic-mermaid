@@ -91,9 +91,13 @@ components and long links. Independent nested scopes retain frame endpoints,
 headers and local directions, including State composites and concurrent regions. State pseudostates, configured fork/join dimensions and notes
 use the shared family sizing and projection rules.
 The shared geometry pipeline clips ports to each actual shape outline.
-Cross-hierarchy leaf routes, overlapping node/frame identities, empty frames
-and other graph families currently require ELK. Native work limits can also
-produce an explicit decline. ELK support remains available for every existing
+Bounded cross-hierarchy leaf and frame routes retain authored endpoints, and
+empty frames retain measured headers. Class cards/namespaces, ER frames and
+relations, Requirement cards, and Architecture compounds use the owned kernel
+with their specialized family geometry. Architecture applies final authored
+side constraints and routing after placement. Active layout hints, overlapping
+node/frame identities, ancestor-container endpoints, and exhausted bounded
+searches still decline explicitly. ELK support remains available for every existing
 ELK family. Omitting fallback makes an unsupported Agentic request throw
 `GraphLayoutUnsupportedError`; requesting `fallback: 'elk'` records the actual
 selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback

@@ -21,6 +21,15 @@ function loadCorpus(): CorpusEntry[] {
 
 const corpus = loadCorpus().filter(e => e.family === 'flowchart')
 
+test('raw route geometry counts actual turns, ignores zero segments and hidden routes across families', () => {
+  const f = toFinite
+  const layout: RenderedLayout = { version: 1, kind: 'class', nodes: [], groups: [], bounds: { w: f(100), h: f(50) }, edges: [
+    { id: 'visible', from: 'a', to: 'b', path: [[f(0), f(0)], [f(10), f(0)], [f(10), f(0)], [f(20), f(0)], [f(20), f(10)], [f(30), f(10)]] },
+    { id: 'hidden', from: 'a', to: 'b', visibility: 'hidden', path: [[f(0), f(0)], [f(50), f(0)], [f(50), f(50)]] },
+  ] }
+  expect(measureQuality(layout).routeGeometry).toEqual({ bends: 2, length: 40, area: 5000 })
+})
+
 const GENERATED_FLOWCHART_CORPUS = [
   { nodeCount: 20, layers: 5, rows: 4 },
   { nodeCount: 50, layers: 10, rows: 5 },

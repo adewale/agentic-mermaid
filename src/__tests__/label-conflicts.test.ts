@@ -189,15 +189,15 @@ describe('label conflict projections share geometry', () => {
     expect(hiddenShaftLabel.labelConflicts?.labelNode).toBe(1)
   })
 
-  it('limits pill counts to graph families and leaves missing text geometry unmeasured', () => {
+  it('measures specialized text footprints without inventing pills or missing measurements', () => {
     const layout = positionedToRenderedLayout(graph([labeled()], [node()]), 'flowchart')
     for (const kind of ['class', 'er', 'sequence'] as const) {
       const other = { ...layout, kind }
-      expect(measureRenderedLabelConflicts(other)).toBeUndefined()
-      expect(measureQuality(other)).not.toHaveProperty('labelConflicts')
+      expect(measureRenderedLabelConflicts(other)?.labelNode).toBe(1)
+      expect(measureQuality(other).labelMeasurement.measuredEdges).toBe(1)
     }
     delete layout.edges[0]!.label!.bounds
-    expect(measureQuality(layout).labelConflicts?.total).toBe(0)
+    expect(measureQuality(layout).labelConflicts).toBeUndefined()
     expect(measureQuality(layout).labelMeasurement.unmeasuredEdges).toBe(1)
   })
 })

@@ -5,11 +5,12 @@ Native measured Flowchart/State placement includes cycles, loops and independent
 nested scopes. Requirement cards and relationship labels also use measured
 native placement. ER cards, frames and relations and Class cards, independent namespace frames
 and relations also use this kernel. Bounded cross-namespace Class and cross-hierarchy
-Flowchart/State leaf routes preserve scope placement and frame headers. Cross-scope
-frame endpoints, exhausted corridor searches and Architecture compound child
-order/boundary placement still require ELK. Flat Architecture
-placement reuses the native engine; ports, alignments and routing remain owned
-by its adapter. Quality and cost qualification remains
+Flowchart/State leaf and frame routes preserve scope placement and frame headers.
+Ancestor container endpoints, ambiguous identities, active hints and exhausted
+corridor searches still decline. Architecture compounds use owned placement;
+ports, alignments and final routing remain owned by its adapter. The current
+research and campaign are in [layout-qualification.md](layout-qualification.md).
+Quality and cost qualification remains
 in progress; admission is not proof of parity. Implementation scheduling remains
 in root TODO.md.
 

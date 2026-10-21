@@ -131,10 +131,27 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   const outside = (g: Geometry): boolean => {
     if (!work()) return false
     if (g.kind === 'compound') return g.children.length <= 64 && g.children.every(outside)
-    if (g.kind === 'circle') {
-      const x = Math.max(Math.min(...corners.map(p => p.x)), Math.min(g.cx, Math.max(...corners.map(p => p.x))))
-      const y = Math.max(Math.min(...corners.map(p => p.y)), Math.min(g.cy, Math.max(...corners.map(p => p.y))))
-      return Math.hypot(x - g.cx, y - g.cy) >= g.r - inset + margin - 1e-8
+    if (g.kind === 'ellipse' || g.kind === 'circle') {
+      const rx = g.kind === 'circle' ? g.r : g.rx, ry = g.kind === 'circle' ? g.r : g.ry
+      if (!(rx > 0 && ry > 0)) return false
+      if (g.kind === 'circle') {
+        const x = Math.max(Math.min(...corners.map(p => p.x)), Math.min(g.cx, Math.max(...corners.map(p => p.x))))
+        const y = Math.max(Math.min(...corners.map(p => p.y)), Math.min(g.cy, Math.max(...corners.map(p => p.y))))
+        if (Math.hypot(x - g.cx, y - g.cy) >= rx - inset + margin - 1e-8) return true
+      }
+      // A supporting line separates a convex ellipse from the complete marker
+      // hull. Test candidate normals at hull points; every accepted line uses
+      // the exact ellipse support function, including transformed ink padding.
+      // Failure to find a separator preserves uncertainty, never visibility.
+      for (const point of corners) {
+        if (!work()) return false
+        const nx = (point.x - g.cx) / (rx * rx), ny = (point.y - g.cy) / (ry * ry), norm = Math.hypot(nx, ny)
+        if (!norm) continue
+        const x = nx / norm, y = ny / norm
+        const support = Math.hypot(rx * x, ry * y) - inset + margin
+        if (corners.every(p => work() && (p.x - g.cx) * x + (p.y - g.cy) * y >= support - 1e-8)) return true
+      }
+      return false
     }
     const points = g.kind === 'rect' ? [{ x: g.x, y: g.y }, { x: g.x + g.width, y: g.y }, { x: g.x + g.width, y: g.y + g.height }, { x: g.x, y: g.y + g.height }] : g.kind === 'polygon' ? g.points : undefined
     if (!points || points.length < 3 || points.length > 64) return false
