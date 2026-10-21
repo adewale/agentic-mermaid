@@ -3,8 +3,8 @@
 Status: implementation and qualification contract for an opt-in owned backend.
 Native measured Flowchart/State placement includes cycles, loops and independent
 nested scopes. Requirement cards and relationship labels also use measured
-native placement. ER cards, frames and relations and flat Class cards and
-relations also use this kernel. Class namespaces, cross-hierarchy Flowchart leaf
+native placement. ER cards, frames and relations and Class cards, independent namespace frames
+and relations also use this kernel. Cross-namespace Class and cross-hierarchy Flowchart leaf
 routes and Architecture compound child order/boundary placement still require ELK. Flat Architecture
 placement reuses the native engine; ports, alignments and routing remain owned
 by its adapter. Quality and cost qualification remains
@@ -1135,3 +1135,74 @@ all303 records from main remain unchanged. Final affected contracts pass159 test
 /5,261 assertions, both typechecks and changed-file lint pass. A separate78-test
 metadata/startup run overlaps that population and is not added to it. The new
 browser-only readiness wrapper still requires fresh built-browser validation.
+
+
+### Independent Class namespace scopes
+
+The Class adapter now supplies measured namespace frames and class membership to
+the existing native compound engine. Nested scopes retain their header bands,
+full captions, parent identities, member compartments, notes, cardinalities and
+interface glyphs. Internal frame IDs reserve all authored card identities,
+including names that resemble generated namespace IDs. Flattened namespace
+configuration remains explicit. Empty native namespaces retain their frames;
+the default ELK empty-diagram behavior stays unchanged. Cross-namespace leaf
+relations still decline explicitly, without moving endpoints or flattening groups.
+
+The new `class-compound-backends.mmd` workload exercises nested and sibling
+frames, a generated-looking authored card name, a scoped note and an interface.
+Both backends pass visible-label and painted-geometry checks in all four
+directions. Source, parsed, layout and PNG surfaces retain native attribution.
+Reinstating the earlier namespace rejection makes all five new scope/surface
+contracts fail. The default geometry baseline adds only this fixture; all316
+previous records remain unchanged. An initial update invocation used Bun's
+default five-second timeout and failed after writing the baseline; that adverse
+log is retained separately from the canonical thirty-second check.
+
+Before the next measurement, the canary population expands from23 to25 inputs:
+all previous inputs remain, with official Class example17 and the new namespace
+workload added. This is seven official inputs, seventeen scaling workloads and
+one fixed edit workflow, with the same three rounds, twenty-five repetitions,
+cache regimes, controls and gates. Do not compare the new aggregate directly
+with the previous six-official-input aggregate. Namespace captions reserve their
+full measured width; matching ELK's wrapping/aspect ratio is not established.
+
+
+### Exact-head allocation and bundle checkpoint (32a1a969)
+
+[CI run39517782723](https://github.com/adewale/agentic-mermaid/actions/runs/39517782723)
+passes every required lane. The generated advisory retains its one crossing
+regression. The complete Node/declaration/IIFE/lazy build at this clean head
+passes the existing download ceilings, and six selected-solver/fallback browser
+contracts pass498 assertions. Transfer closures match the JavaScript probe
+above. This qualifies those closures for this built head, not arbitrary later
+commits; synchronous IIFE still contains both engines.
+
+The unchanged23-input canary completes all three25-repetition rounds under
+both cache regimes. ELK A/A time is0.9972× cache-off and1.0211× normal, with
+all reciprocal control checks healthy. Native time on the six official inputs
+is0.5238× ELK cache-off and0.9992× normal; allocation is0.79× and1.00×, peak RSS
+0.78× in both. All seventeen workload latency diagnostics pass. Normal timing
+and allocation are effectively tied, not evidence of a clear win. These are
+raw ratios; no control normalization or retries were used. The orchestrator
+runs Node26.3.0; shipped-artifact workers report Node24.22.0.
+
+Dense allocation still fails the broader goal despite the scratch-buffer work:
+cache-off cyclic15 allocates136.48MiB natively versus58.97MiB ELK; cyclic19
+allocates229.31 versus119.71MiB. Peak RSS favors native163.58 versus188.80MiB
+and172.45 versus206.44MiB respectively. With normal caching, the same inputs
+allocate11.45 versus11.16MiB and15.21 versus15.24MiB. The fixed edit workflow
+allocates8.35 versus11.49MiB cache-off,6.93 versus6.92MiB normal; it is still
+not a cache-churn experiment. Earlier adverse08b8ab71 and145809d6 runs remain
+part of the evidence. The matching quality, performance and memory goal stays open.
+
+
+The expanded source diagnostic enrolls236 cases across all six graph families:
+221 native renders,15 explicit declines,236 ELK renders. None of the221 shared
+successes adds proper crossings. Class is38/41, all38 with passed paint; the
+remaining three cases have cross-namespace relations. This diagnostic does not
+include the separate256 generated cases or prove all quality dimensions. The
+new Class owners pass12 tests /348 assertions, with overlapping selection
+contracts49 /411. Changed-file Biome lint passes. The first lint command
+incorrectly requested an uninstalled ESLint binary; its failure is retained.
+A concurrent canonical geometry check also times out (137s elapsed against the
+unchanged30s limit); its completed record comparison is not a canonical pass.
