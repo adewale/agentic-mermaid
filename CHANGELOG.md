@@ -33,12 +33,6 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   strict, verify, extension admission and final paint/security checks remain.
 - An inexpensive Scene admission cannot bypass a later strict cross-check.
 
-### Added
-
-- Optional `agentic-mermaid/svg/read-only` renders unsupported core families via
-  a lazily loaded Pele peer. Results explicitly lack native editing, layout and
-  paint certification; strict output security applies by default.
-
 ### Maintenance
 
 - Retire copied discovery/API inventories, the empty-divergence pin and

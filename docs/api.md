@@ -266,9 +266,6 @@ A family-scoped value that a renderer cannot consume receives
 `RENDER_OPTION_NOT_APPLICABLE` in its receipt. External descriptors opt into
 such fields through `applicableRenderOptions`.
 
-Read-only fallback rendering is a separate, opt-in API with narrower capabilities;
-see [read-only SVG fallback](svg-fallback.md).
-
 `onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void` is deliberately
 outside the serializable field set. Library callers can collect qualified
 `INEFFECTIVE_CONFIG` warnings without changing output bytes; CLI, MCP, editor,

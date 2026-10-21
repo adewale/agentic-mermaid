@@ -29,7 +29,6 @@ interface Fixture {
   pngScale?: number
   measurementProfile?: 'nonadditive-tracking'
   captureLayout?: true
-  readOnly?: true
   classMutation?: ClassMutationOp
   mutation?: AnyMutationOp
   directFragmentLabel?: string
@@ -94,11 +93,6 @@ const fixtures: Fixture[] = [
     source: diamondFan(seed), captureLayout: true as const,
     cue: 'Before: preserve the real symmetry contract refusal. After: inspect all nodes, labels and arrows. A losing cosmetic centering proposal restores its owned geometry; independent contract tests reject incomplete restoration. This witness does not establish arbitrary layout readability.',
   })),
-  {
-    id: 'read-only-venn', title: 'Optional read-only Venn provider', readOnly: true,
-    source: 'venn-beta\n set Readers\n set Authors\n union Readers,Authors["Contributors"]',
-    cue: 'Before: the read-only entry does not exist. After: Pele supplies SVG under strict output security. Inspect Readers, Authors and Contributors; this surface makes no native editing, layout or paint-certification claim.',
-  },
   ...['Z', 'AC', 'AL'].map((letter): Fixture => ({
     id: `performance-${letter.toLowerCase()}`,
     title: `Default forest: ${letter} geometry golden`,
@@ -953,13 +947,6 @@ function renderRevision(sha: string): RevisionEvidence {
               ...(edited.value.body.kind === 'er' ? { entityOrder: edited.value.body.entities.map(entity => entity.id) } : {}),
               ...(reloaded.value.body.kind === 'er' ? { reloadedEntityOrder: reloaded.value.body.entities.map(entity => entity.id) } : {}),
             }
-          }
-          if (fixture.readOnly) {
-            const { renderReadOnlyMermaidSVG } = await import('./src/svg-fallback.ts')
-            const { Resvg } = await import('@resvg/resvg-js')
-            const { svg } = await renderReadOnlyMermaidSVG(input)
-            renders[fixture.id] = { svg, png: Buffer.from(new Resvg(svg).render().asPng()).toString('base64') }
-            continue
           }
           const measurement = fixtureOptions[fixture.id].measurementProfile
           const host = measurement ? { textMeasurement: {

@@ -7,7 +7,6 @@
 - [Live discovery and agent workflow](https://agentic-mermaid.dev/llms.txt): current families, operations, output formats and examples.
 - [Agent instructions](Instructions_for_agents.md): parse, narrow, mutate, verify and serialize.
 - [Getting started](docs/getting-started.md): install and use the library, CLI or MCP server.
-- [Read-only SVG fallback](docs/svg-fallback.md): optional rendering for unsupported core families, without native editing or layout claims.
 
 For the installed version, run `am capabilities --json` or `am llms-txt`.
 Use `am --agent-instructions` for the workflow shipped with that installation.
