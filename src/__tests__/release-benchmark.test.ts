@@ -4,7 +4,7 @@ import { describe, expect, test } from 'bun:test'
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { layoutComparisons, layoutCoverage, releaseBenchArgs, report, strictLayoutHealthy, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
+import { layoutComparisons, layoutCoverage, measureLayoutComparisons, releaseBenchArgs, report, strictLayoutHealthy, type EngineRun, type Group, type Input, type MeasurementWorker } from '../../eval/benchmark/release-bench.ts'
 import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from '../../eval/benchmark/browser-memory.ts'
 import { bezelEngine } from '../../eval/benchmark/bezel.ts'
@@ -76,8 +76,78 @@ describe('release publication decisions', () => {
     expect(() => releaseBenchArgs(['--layout-modes', 'elk,elk'])).toThrow('--layout-modes')
     expect(() => releaseBenchArgs(['--layout-cache', 'normal'])).toThrow('--layout-cache')
     expect(() => releaseBenchArgs(['--layout-modes', 'elk', '--layout-cache', 'infinite'])).toThrow('--layout-cache')
+    expect(releaseBenchArgs(['--layout-modes', 'elk,agentic', '--layout-reference', 'shared']).get('layout-reference')).toBe('shared')
+    expect(() => releaseBenchArgs(['--layout-reference', 'shared'])).toThrow('--layout-reference')
+    expect(() => releaseBenchArgs(['--layout-modes', 'elk', '--layout-reference', 'unknown'])).toThrow('--layout-reference')
     expect(layoutRenderOptions('agentic-with-elk')?.graphLayout).toEqual({ backend: 'agentic', fallback: 'elk' })
     expect(layoutRenderOptions()).toBeUndefined()
+  })
+
+  test.each(['unsupported', 'worker-failure'] as const)('a shared reference preserves A/A and fallback populations after native %s', failure => {
+    const inputs = [input('flow'), input('compound')], groups = [{ name: 'corpus', inputs, budgetMs: 1000 }]
+    const plans = layoutComparisons([run('candidate', inputs)], ['elk', 'agentic', 'agentic-with-elk'], 'off')
+    const memory: Array<{ label: string; ids: string[] }> = [], referenceRounds: number[] = []
+    const execute: MeasurementWorker = (engine, mode, group, round) => {
+      if (mode === 'memory') {
+        memory.push({ label: engine.label, ids: group.inputs.map(input => input.id) })
+        return { perInput: [], passAllocatedBytes: 100, passPeakHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }
+      }
+      if (engine.label === 'elk-reference') referenceRounds.push(round!)
+      if (engine.label === 'agentic' && failure === 'worker-failure') {
+        engine.failures.set(`time:${group.name}`, 'controlled timing timeout')
+        return undefined
+      }
+      return {
+        node: 'controlled', importMs: 1, firstRenderMs: 1, firstRender: { ok: true, bytes: 1, sha256: 'cold' },
+        results: group.inputs.map(input => ({
+          id: input.id, svg: engine.label === 'agentic' && input.id === 'compound'
+            ? { ok: false as const, error: 'unsupported groups', category: 'unsupported' as const }
+            : { ok: true as const, output: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>' },
+          ascii: { ok: true, bytes: 1, sha256: 'ascii' }, deterministic: true, ms: 1, samplesMs: [1], missingSvgLabels: [],
+        })),
+      }
+    }
+    const pairs = measureLayoutComparisons(temp.dir(), plans, groups, 3, 25, Date.now() + 1000, execute)
+    const control = pairs.find(pair => pair.name === 'elk-aa')!, native = pairs.find(pair => pair.name === 'agentic')!, fallback = pairs.find(pair => pair.name === 'agentic-with-elk')!
+    expect(referenceRounds).toEqual([1, 2, 3])
+    expect(report(inputs, groups, control.runs, 3, true).ok).toBe(true)
+    expect(report(inputs, groups, native.runs, 3).ok).toBe(false)
+    expect(report(inputs, groups, fallback.runs, 3).ok).toBe(true)
+    for (const pair of [control, fallback]) for (const arm of pair.runs) expect(arm.memory.get('corpus')?.inputIds).toEqual(['flow', 'compound'])
+    expect(native.runs[0]!.memory.get('corpus')?.inputIds).toEqual(failure === 'unsupported' ? ['flow'] : undefined)
+    expect(memory.filter(call => call.label === 'elk-reference' && call.ids.length === 2)).toHaveLength(1)
+    expect(control.runs[0]!.results).toBe(native.runs[0]!.results)
+    expect(control.runs[0]!.memory).not.toBe(native.runs[0]!.memory)
+  })
+
+  test('shared reference memory failures are retained for both comparisons without retry', () => {
+    const inputs = [input('flow')], groups = [{ name: 'corpus', inputs, budgetMs: 1000 }]
+    const plans = layoutComparisons([run('candidate', inputs)], ['elk', 'agentic'], 'off')
+    let referenceMemoryCalls = 0
+    const execute: MeasurementWorker = (engine, mode, group) => {
+      if (mode === 'memory') {
+        if (engine.label === 'elk-reference') {
+          referenceMemoryCalls++
+          engine.failures.set(`memory:${group.name}`, 'controlled memory timeout')
+          return undefined
+        }
+        return { perInput: [], passAllocatedBytes: 100, passPeakHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }
+      }
+      return {
+        node: 'controlled', importMs: 1, firstRenderMs: 1, firstRender: { ok: true, bytes: 1, sha256: 'cold' },
+        results: group.inputs.map(input => ({ id: input.id,
+          svg: { ok: true as const, output: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>' },
+          ascii: { ok: true, bytes: 1, sha256: 'ascii' }, deterministic: true, ms: 1, samplesMs: [1], missingSvgLabels: [],
+        })),
+      }
+    }
+    const pairs = measureLayoutComparisons(temp.dir(), plans, groups, 3, 25, Date.now() + 1000, execute)
+    expect(referenceMemoryCalls).toBe(1)
+    for (const pair of pairs) {
+      expect(pair.runs[0]!.failures.get('memory:corpus')).toBe('controlled memory timeout')
+      expect(pair.runs[0]!.memory.has('corpus')).toBe(false)
+      expect(report(inputs, groups, pair.runs, 3, pair.name === 'elk-aa').ok).toBe(false)
+    }
   })
 
   test('complete equal observations pass; a partial baseline cannot pass on the remaining intersection', () => {
