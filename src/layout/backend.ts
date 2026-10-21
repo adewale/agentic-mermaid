@@ -1,15 +1,4 @@
-import type { Direction, RenderOptions } from '../types.ts'
-
-/** Family adapters share ELK's direction mapping without importing the full
- * Flowchart/State geometry pipeline for this small conversion. */
-export function directionToElk(direction: Direction): string {
-  switch (direction) {
-    case 'LR': return 'RIGHT'
-    case 'RL': return 'LEFT'
-    case 'BT': return 'UP'
-    default: return 'DOWN'
-  }
-}
+import type { RenderOptions } from '../types.ts'
 
 export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@20'
 

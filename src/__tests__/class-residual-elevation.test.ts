@@ -195,7 +195,7 @@ ${body}`
     expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'INTERNAL_ERROR', reason: expect.stringContaining('cannot safely avoid namespace header Vendor.Platform'), defaultRender: 'fails' }))
   })
 
-  test('official flattened namespace fanout renders and keeps rounded ELK shafts outside headers', () => {
+  test.each(['elk', 'agentic'] as const)('official flattened namespace fanout retains full paths and clears headers with %s', backend => {
     for (const direction of ['TB', 'BT', 'LR', 'RL']) {
       const source = `classDiagram
 direction ${direction}
@@ -216,8 +216,12 @@ namespace Company {
 }
 CEO --> Developer : oversees
 CEO --> Designer : oversees`
-      const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), { class: { hierarchicalNamespaces: false } })
-      const svg = renderMermaidSVG(source, { class: { hierarchicalNamespaces: false } })
+      const options = { graphLayout: { backend }, class: { hierarchicalNamespaces: false } }
+      const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), options)
+      const svg = renderMermaidSVG(source, options)
+      expect(positioned.namespaces.map(namespace => namespace.label).sort()).toEqual([
+        'Company', 'Company.Engineering.Backend', 'Company.Engineering.Frontend',
+      ])
       for (const label of ['Developer', 'Designer', 'CEO', 'writeCode()', 'createMockup()', 'makeDecisions()']) expect(svg.replace(/<[^>]*>/g, '')).toContain(label)
       expect(positioned.relationships.map(relation => [relation.from, relation.to])).toEqual([['CEO', 'Developer'], ['CEO', 'Designer']])
       for (const relation of positioned.relationships) for (let index = 1; index < relation.points.length; index++) {
