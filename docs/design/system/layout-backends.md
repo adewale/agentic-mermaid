@@ -1616,3 +1616,62 @@ seeds64–127 inclusive,64 cases, before any source generation or layout run.
 Execute only after committing this refinement and allocation change. Keep all
 448 existing generated inputs in the diagnostic and add this window in CI;
 retain the same ten-minute job ceiling. Do not call independent0–63 fresh again.
+
+
+### Fresh independent64–127 and optional policy ownership
+
+The predeclared second SHA counter window first executes on clean53c17357:
+64 native versus63 ELK successes, with no additional proper crossings,
+padded-label conflicts or opposing/parallel shared spans. ELK seed85 rejects
+final paint (an unrelated-card shaft intersection and potential marker
+occlusion); preserve that complete outcome. Across the512 generated inputs,
+native512 versus506 ELK render, with six reference rejections retained.
+The previous448 remain development data. Paint uncertainty, raw-bend/area
+tradeoffs, missing specialized metrics and compound eligibility remain open.
+The combined pre-relocation owning check passes466 tests /8,966 assertions;
+subsequent policy/certification coverage includes the existing strict error,
+meaning-preservation and mutation-isolation contracts, not weaker tolerances.
+
+The complete53c17357 Node/declaration/IIFE/catalog/lazy build succeeds, but its
+actual payload gate fails Flowchart gzip709,031>709,000 and Architecture
+Brotli572,307>572,000. No ceilings rise. Move native candidate/refinement
+policy into the optional producer; keep mandatory correspondence, geometry
+and metric checks in shared functions supplied through typed bindings.
+The producer performs the same final strict certification before returning.
+Share the formerly duplicated backend-selection kernel. Measured family
+adapters still admit only typed capability declines; only the generic graph
+adapter opts into certified candidate rejection. Unexpected defects, pass
+contracts, deferred dependencies and work limits still escape. Retain the
+geometry decision before observing it, with the same receipt field ordering.
+These are implementation/module-boundary changes, not geometry policy19.
+
+Keep every JS-only probe, including adverse module/chunk behavior:
+
+| Probe | Architecture Brotli bytes | Outcome |
+| --- | ---: | --- |
+| Clean53c17357 full build |572,307|Fails; Flowchart gzip also fails by31 |
+| Direct optional imports for refinement |574,048|Fails; Flowchart and State also exceed gzip/Brotli |
+| Shared certifier/score bindings |572,153|Fails |
+| Separate metric bindings |572,131|Fails |
+| Indexed/compacted opposing-span prototype |572,196|Fails; unshipped |
+| Optional owned-certification policy |572,157|Fails |
+| Shared backend selection; original opposing sweep |571,961|Passes JS-only probe; requires complete clean-head build |
+
+The last probe reports Flowchart708,577 gzip /573,764 Brotli, Class653,252 /
+525,641, Architecture707,020 /571,961. Complete native closures are
+Class225,443 gzip /200,033 Brotli and Architecture277,923 /245,157;
+initial four requests /5,457 gzip /4,919 Brotli. Actual requested input
+eligibility and extra named-reference/fallback transfers remain separate.
+The Architecture margin is only39 bytes. Do not describe a successful probe
+as full shipped-build validation.
+
+A separate cache-copy prototype preserves nine owning contracts /63 assertions
+and exact output on four profiled inputs, but full-render time varies adversely
+(e.g.15-node round2,65.70ms candidate versus23.04ms baseline), and a Class
+allocation observation is worse. Both-loaded-artifact diagnostics have no
+independent A/A or peak-RSS qualification. It remains unshipped. The opposing
+sweep prototype matches10,000 mixed/tolerance/reversal/invisible route sets,
+but its added bytes fail the unchanged budget and it is also unshipped.
+A new full consumed19-node cache-off allocation sample points to repeated
+proper-crossing preparation/scoring and lane-blocker work as material remaining
+hotspots; it is diagnostic sampling, not a performance win.

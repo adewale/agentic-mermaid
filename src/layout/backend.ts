@@ -92,11 +92,14 @@ export function selectElkForGraphFamily(options: Pick<RenderOptions, 'graphLayou
 }
 
 /** Family adapters retain their measured geometry and painting rules. Only a
- * typed native capability decline permits the requested one-way fallback. */
+ * typed native capability decline permits the requested one-way fallback. The
+ * generic graph adapter also opts into certified candidate rejection. */
 export function runMeasuredGraphBackend<T>(
   options: Pick<RenderOptions, 'graphLayout'>,
   native: () => T,
   elk: () => T,
+  allowCandidateRejection = false,
+  retainDecision?: (result: T, decision: GraphLayoutDecision) => void,
 ): T {
   const policy = options.graphLayout
   if (!policy) return elk()
@@ -107,9 +110,10 @@ export function runMeasuredGraphBackend<T>(
       result = native()
       attempts.push({ backend: 'agentic', outcome: 'selected' })
     } catch (error) {
-      if (!(error instanceof GraphLayoutUnsupportedError) || policy.fallback !== 'elk') throw error
-      reason = error.reason
-      attempts.push({ backend: 'agentic', outcome: 'unsupported', reason })
+      const unsupported = error instanceof GraphLayoutUnsupportedError
+      if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || policy.fallback !== 'elk') throw error
+      reason = unsupported ? error.reason : 'candidate failed mandatory geometry certification'
+      attempts.push({ backend: 'agentic', outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
       result = elk()
       selected = 'elk'
       attempts.push({ backend: 'elk', outcome: 'selected' })
@@ -118,8 +122,10 @@ export function runMeasuredGraphBackend<T>(
     result = elk()
     attempts.push({ backend: 'elk', outcome: 'selected' })
   }
-  emitGraphLayoutDecision({ requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) })
+  const decision: GraphLayoutDecision = { requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
+    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) }
+  retainDecision?.(result, decision)
+  emitGraphLayoutDecision(decision)
   return result
 }
 

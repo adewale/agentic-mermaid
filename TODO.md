@@ -323,7 +323,8 @@ A new defect needs a current reproduction at its owning boundary.
 - [x] Close the retained seed228 crossing gap in the256-case development population (11 versus12 crossings;75 versus74 bends).
 - [x] Preserve the valid native straight contact that triggered seed319’s pass-contract error; do not loosen metric allowances.
 - [x] Close the retained seed296 crossing gap with bounded small-cut diversity (19 versus22 crossings,90 versus94 raw bends). All320 seeds remain development data, with all five ELK rejections retained.
-- [ ] Execute the predeclared320–383 holdout only after the small-cut implementation is committed; retain every outcome and review bends/area and unverified dimensions.
+- [x] Execute the predeclared320–383 holdout on clean980a:64/64 render with both engines and no extra proper crossings; retain preference and paint uncertainty.
+- [x] Qualify independent counter-generated populations: initial0–63 exposes seed22 (16 versus15 crossings); bounded three-edge cuts reduce it to14. Fresh64–127 runs on clean53c17357:64 native/63 ELK successes, no added crossing/label/shared-ink metrics. All512 generated sources and six ELK rejections remain enrolled.
 - [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
 - [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
 - [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence.
