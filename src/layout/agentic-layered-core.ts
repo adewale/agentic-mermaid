@@ -45,6 +45,8 @@ export interface AgenticLayout {
   groups?: { x: number; y: number; width: number; height: number }[]
   /** Private aggregate work accounting for nested scope expansion. */
   expandedVertices?: number
+  /** Routes whose frame/header corridors must survive raw shortcutting. */
+  boundaryRoutes?: readonly number[]
   edges: { points: Point[]; labelPosition?: Point }[]
 }
 
@@ -94,7 +96,7 @@ export function layoutLayeredGraph(
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
   if (input.groups?.length) {
     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
-    return layoutCompoundGraph(input, flat => layoutLayeredGraph(flat, forestLayout, unsupported, routingWork, searchWork), unsupported, MAX_EXPANDED_VERTICES)
+    return layoutCompoundGraph(input, flat => layoutLayeredGraph(flat, forestLayout, unsupported, routingWork, searchWork), unsupported, MAX_EXPANDED_VERTICES, routingWork)
   }
   const horizontal = input.direction === 'LR' || input.direction === 'RL'
   const reverse = input.direction === 'BT' || input.direction === 'RL'

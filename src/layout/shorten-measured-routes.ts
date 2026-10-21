@@ -35,6 +35,7 @@ export function shortenMeasuredRoutes(input: MeasuredGraph, placed: AgenticLayou
   const ray = (a: Point, b: Point): string => `${Math.sign(b.x - a.x)},${Math.sign(b.y - a.y)}`
   let attempts = 512, comparisons = 8_000_000
   for (const [index, edge] of input.edges.entries()) {
+    if (placed.boundaryRoutes?.includes(index)) continue
     if (edge.source === edge.target || edge.visible === false || ink[index]!.points.length < 5) continue
     let localAttempts = 24
     const occupied = [...boxes, ...headers, ...labels.filter((box, other): box is MeasuredBox => Boolean(box) && other !== index)]

@@ -1,20 +1,23 @@
+import { routeCrossHierarchy } from './compound-boundary-routes.ts'
+import type { ChannelWork } from './channel-tracks.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { Direction } from '../types.ts'
 
-/** Independent scopes preserve frames, headers and local directions. A route
- * between leaves in different scopes needs boundary ports; decline it rather
- * than flattening the hierarchy or inventing a container endpoint. */
+/** Place scopes bottom-up, then join cross-scope leaves through bounded
+ * boundary corridors. Frame endpoints across scopes remain unsupported. */
 export function layoutCompoundGraph(
   input: MeasuredGraph,
   layout: (flat: MeasuredGraph) => AgenticLayout,
   unsupported: (reason: string) => never,
   expansionLimit: number,
+  routingWork: ChannelWork,
 ): AgenticLayout {
   const groups = input.groups!, leafCount = input.nodes.length
   const count = leafCount + groups.length
   const owners = new Int32Array(count).fill(-1)
   const children: number[][] = Array.from({ length: groups.length + 1 }, () => [])
   const hosted: number[][] = Array.from({ length: groups.length + 1 }, () => [])
+  const lifted = new Map<number, { source: number; target: number; host: number }>()
   const ids = new Set<string>()
   for (let index = 0; index < count; index++) {
     const subject = index < leafCount ? input.nodes[index]! : groups[index - leafCount]!
@@ -45,10 +48,23 @@ export function layoutCompoundGraph(
     const edge = input.edges[index]!
     if (!Number.isInteger(edge.source) || !Number.isInteger(edge.target) || edge.source < 0 || edge.target < 0 || edge.source >= count || edge.target >= count) throw new TypeError('Invalid measured compound endpoint')
     if (!Number.isSafeInteger(edge.minSpan) || edge.minSpan < 1 || (edge.label && ![edge.label.width, edge.label.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured compound edge dimensions')
-    if (owners[edge.source] !== owners[edge.target]) unsupported('cross-hierarchy leaf routes')
-    hosted[owners[edge.source]! + 1]!.push(index)
+    let owner = owners[edge.source]!
+    if (owner !== owners[edge.target]) {
+      if (edge.source >= leafCount || edge.target >= leafCount) unsupported('cross-hierarchy container endpoints')
+      const ancestors = new Set<number>([-1])
+      for (let parent = owner; parent >= 0; parent = owners[leafCount + parent]!) ancestors.add(parent)
+      owner = owners[edge.target]!
+      while (!ancestors.has(owner)) owner = owners[leafCount + owner]!
+      const representative = (endpoint: number): number => {
+        while (owners[endpoint] !== owner) endpoint = leafCount + owners[endpoint]!
+        return endpoint
+      }
+      lifted.set(index, { source: representative(edge.source), target: representative(edge.target), host: owner })
+    }
+    hosted[owner + 1]!.push(index)
   }
-  type Scope = { placed: AgenticLayout; width: number; height: number; dx: number; dy: number }
+  if (lifted.size && (leafCount > 64 || groups.length > 16 || lifted.size > 16 || input.edges.length > 128)) unsupported('agentic local cross-hierarchy size limit')
+  type Scope = { direction: Direction; placed: AgenticLayout; width: number; height: number; dx: number; dy: number }
   const scopes: Scope[] = new Array(groups.length + 1)
   let expandedVertices = 0
   const place = (scope: number, inherited: Direction): Scope => {
@@ -65,14 +81,17 @@ export function layoutCompoundGraph(
     })
     const edges = hosted[scope]!.map(index => {
       const edge = input.edges[index]!
-      return { ...edge, source: local.get(edge.source)!, target: local.get(edge.target)! }
+      const endpoints = lifted.get(index) ?? edge
+      return { ...edge, source: local.get(endpoints.source)!, target: local.get(endpoints.target)! }
     })
-    const placed = layout({ nodes, edges, padding: 0, direction, nodeSpacing: input.nodeSpacing, layerSpacing: input.layerSpacing, edgeSpacing: input.edgeSpacing })
+    const flat: MeasuredGraph = { nodes, edges, padding: 0, direction, nodeSpacing: input.nodeSpacing, layerSpacing: input.layerSpacing, edgeSpacing: input.edgeSpacing }
+    if (lifted.size && hosted[scope]!.some(index => lifted.has(index))) flat.compactPrivateRanks = true
+    const placed = layout(flat)
     expandedVertices += placed.expandedVertices ?? nodes.length
     if (expandedVertices > expansionLimit) unsupported('agentic local compound-expansion limit')
     const pad = group?.padding ?? { top: input.padding, right: input.padding, bottom: input.padding, left: input.padding }
     const width = Math.max(group?.minWidth ?? 0, placed.width + pad.left + pad.right, 1)
-    const value = { placed, width, height: Math.max(placed.height + pad.top + pad.bottom, 1), dx: pad.left + (width - placed.width - pad.left - pad.right) / 2, dy: pad.top }
+    const value = { direction, placed, width, height: Math.max(placed.height + pad.top + pad.bottom, 1), dx: pad.left + (width - placed.width - pad.left - pad.right) / 2, dy: pad.top }
     if (!Number.isFinite(value.width + value.height + value.dx + value.dy)) unsupported('agentic local coordinate-range limit')
     scopes[scope] = value
     return value
@@ -99,5 +118,7 @@ export function layoutCompoundGraph(
     })
   }
   project(0, 0, 0)
-  return { topology: 'layered', width: root.width, height: root.height, nodes, groups: frames, edges, expandedVertices }
+  const result: AgenticLayout = { topology: 'layered', width: root.width, height: root.height, nodes, groups: frames, edges, expandedVertices }
+  if (!lifted.size) return result
+  return routeCrossHierarchy(input, result, owners, lifted, scopes.map(scope => scope.direction), routingWork, expansionLimit, unsupported)
 }

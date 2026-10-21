@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
@@ -114,10 +114,15 @@ describe('Class layout backends', () => {
     }
   })
 
-  test('attributes cross-namespace declines while retaining native empty diagrams', () => {
+  test('routes cross-namespace relationships while retaining native empty diagrams', () => {
     const grouped = 'classDiagram\nnamespace Left {\nclass A\n}\nnamespace Right {\nclass B\n}\nA --> B'
-    expect(() => renderMermaidSVGWithReceipt(grouped, native)).toThrow(GraphLayoutUnsupportedError)
-    expect(renderMermaidSVGWithReceipt(grouped, { graphLayout: { backend: 'agentic', fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', reason: 'cross-hierarchy leaf routes', attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'unsupported' }), { backend: 'elk', outcome: 'selected' }] })])
+    const stages: string[] = []
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(grouped, native))
+    expect(stages).not.toContain('elk')
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(renderMermaidPNGWithReceipt(grouped, native).receipt.layoutDecisions).toEqual(result.receipt.layoutDecisions)
+    expect(layoutMermaidWithReceipt(grouped, native).receipt.layoutDecisions).toEqual(result.receipt.layoutDecisions)
     for (const source of ['classDiagram', '---\ntitle: Empty Class title\n---\nclassDiagram']) {
       const result = renderMermaidSVGWithReceipt(source, native)
       expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
