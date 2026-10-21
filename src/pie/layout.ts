@@ -1,4 +1,6 @@
 import { layoutTooltip } from '../shared/tooltip-layout.ts'
+import { formatChartValue } from '../shared/chart-value-format.ts'
+import { pieTotal } from './semantics.ts'
 import type {
   PieChart,
   PositionedPieChart,
@@ -87,8 +89,7 @@ export const PIE_STYLE_DEFAULTS: RenderStyleDefaults = {
 
 /** Format a numeric value compactly (drops trailing `.0`). */
 export function formatPieValue(value: number): string {
-  if (Number.isInteger(value)) return String(value)
-  return String(Math.round(value * 100) / 100)
+  return formatChartValue(value)
 }
 
 /**
@@ -187,7 +188,7 @@ export function layoutPieChart(
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedPieChart {
   const style = resolveRenderStyle(options, PIE_STYLE_DEFAULTS, styleFace)
-  const total = chart.entries.reduce((sum, e) => sum + e.value, 0)
+  const total = pieTotal(chart.entries)
 
   const radius = PIE.radius
   const diameter = radius * 2

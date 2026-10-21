@@ -3,10 +3,11 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { parseRadarChart } from '../radar/parser.ts'
+import { layoutRadarChart } from '../radar/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import type { RadarBody, RadarMutationOp, RadarValidDiagram, SankeyValidDiagram } from '../agent/index.ts'
 import type { RadarRuntimeConfig } from '../index.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
 const BASIC = 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5'
@@ -303,3 +304,29 @@ test('radar baseline warnings use the rendered auto-range below one', () => {
     code: 'SCALE_RANGE_EXCLUDES_ZERO', range: { min: 0.1, max: 0.6 },
   }))
 })
+
+test('generated radar scale boundaries agree with independent radial and diagnostic expectations', () => {
+  fc.assert(fc.property(
+    fc.integer({ min: -3, max: 3 }), fc.integer({ min: 0, max: 5 }), fc.integer({ min: 1, max: 10 }), fc.boolean(),
+    (exponent, lower, span, explicitMax) => {
+      const unit = 10 ** exponent
+      const min = lower * unit / 10
+      const max = (lower + span) * unit / 10
+      const values = [min / 2, min, (min + max) / 2, max, explicitMax ? max * 1.5 : max]
+      const source = `radar-beta\naxis a,b,c,d,e\ncurve sample{${values.join(',')}}\nmin ${min}${explicitMax ? `\nmax ${max}` : ''}`
+      const result = verifyMermaid(source)
+      const outside = values.filter(value => value < min || value > max)
+      const clipped = result.warnings.filter(warning => warning.code === 'VALUES_OUTSIDE_RANGE')
+      expect(clipped.map(({ series, values, range }) => ({ series, values, range }))).toEqual(outside.length ? [{ series: 'sample', values: outside, range: { min, max } }] : [])
+      expect(result.warnings.flatMap(warning => warning.code === 'SCALE_RANGE_EXCLUDES_ZERO' ? [warning.range] : [])).toEqual(min > 0 ? [{ min, max }] : [])
+      const positioned = layoutRadarChart(parseRadarChart(normalizeMermaidSource(source).lines))
+      for (const [index, vertex] of positioned.curves[0]!.vertices.entries()) {
+        const ratio = values[index]! < min ? 0 : values[index]! > max ? 1 : (values[index]! - min) / (max - min)
+        // Pixel coordinates are rounded to two decimals at the layout boundary.
+        expect(Math.abs(Math.hypot(vertex.x - positioned.cx, vertex.y - positioned.cy) - ratio * positioned.radius)).toBeLessThanOrEqual(0.015)
+      }
+      expect(positioned.rings.at(-1)!.value).toBeCloseTo(max, 9)
+      expect(renderMermaidASCII(source)).toContain(`scale: ${min} .. ${max}`)
+    },
+  ), fcParameters({ numRuns: 150, examples: [[0, 1, 5, false]] }))
+}, 30000)

@@ -31,6 +31,7 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { MAX_RADAR_TICKS, parseRadarChart, radarStatementEnds } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
+import { mermaidNumber as formatNumber } from '../shared/mermaid-number.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
@@ -40,7 +41,6 @@ import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
 const HEADER_RE = /^radar-beta\s*:?\s*$/i
 const ID_RE = /^[\w](?:[\w-]*[\w])?$/
 
-function formatNumber(n: number): string { return String(n) }
 
 // ---- Parser (structured-or-opaque) ------------------------------------------
 
