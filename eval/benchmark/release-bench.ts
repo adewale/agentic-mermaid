@@ -203,18 +203,21 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
   const record = (value: unknown) => appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify(value)}\n`)
   function worker(run: EngineRun, mode: 'time' | 'memory', group: Group, round?: number): TimeResult | MemoryResult | undefined {
     const budgetMs = Math.min(group.budgetMs, deadline - Date.now())
-    let reason: string | undefined
+    let reason: string | undefined, workerWallMs: number | undefined
     if (budgetMs <= 0) reason = 'overall benchmark budget exhausted'
     else {
       const job = join(out, 'job.json')
       const result = join(out, 'result.json')
       rmSync(result, { force: true })
+      rmSync(`${result}.progress.json`, { force: true })
       writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps, layoutMode: run.layoutMode, layoutCache: run.layoutCache, consumeReceipt: run.consumeReceipt,
         collectQuality: run.consumeReceipt && mode === 'time' && round === 1 }))
       // Time ELK rather than a cached result, and renders as users get them.
+      const workerStart = performance.now()
       const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: {
         ...process.env, AGENTIC_MERMAID_ELK_CACHE: run.layoutCache === 'normal' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0',
       } })
+      workerWallMs = performance.now() - workerStart
       if (child.status === 0) {
         const value = JSON.parse(readFileSync(result, 'utf8')) as TimeResult | MemoryResult
         const evidence =
@@ -224,13 +227,20 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
                 results: (value as TimeResult).results.map(({ svg, ...rest }) => ({ ...rest, svg: fingerprint(svg) })),
               }
             : value
-        record({ engine: run.label, group: group.name, mode, round, inputIds: group.inputs.map(input => input.id), value: evidence })
+        record({ engine: run.label, group: group.name, mode, round, inputIds: group.inputs.map(input => input.id), workerBudgetMs: budgetMs, workerWallMs, value: evidence })
         return value
       }
       reason = child.error?.message ?? `exited with ${child.status ?? child.signal}`
+      let progress: unknown
+      try { progress = JSON.parse(readFileSync(`${result}.progress.json`, 'utf8')) } catch { /* Early startup failure may precede the first breadcrumb. */ }
+      if (progress && typeof progress === 'object' && 'stage' in progress && typeof progress.stage === 'string') {
+        const inputId = 'inputId' in progress && typeof progress.inputId === 'string' ? ` (${progress.inputId})` : ''
+        reason += `; last worker stage: ${progress.stage}${inputId}; result ${existsSync(result) ? 'written' : 'missing'}`
+      }
+
     }
     run.failures.set(`${mode}:${group.name}`, reason)
-    record({ engine: run.label, group: group.name, mode, round, failure: reason })
+    record({ engine: run.label, group: group.name, mode, round, workerBudgetMs: Math.max(0, budgetMs), workerWallMs, failure: reason })
     return undefined
   }
   for (let round = 0; round < rounds; round++) {
