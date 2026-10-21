@@ -16,6 +16,14 @@ is historical; its removed reports and receipts are not current requirements.
 
 ## Local CI parity
 
+The scheduled nightly finder also runs the unit file set in randomized order
+and starts a fresh OS process for each file. These modes search for test-order,
+module-state and native-runtime interference without adding randomness to PR
+gates. Each log records its seed and exact files. Replay a focused failure with
+`AM_TEST_ORDER_SEED=<seed> bun run scripts/ci/find-test-order.ts shuffled <files>`
+or replace `shuffled` with `fresh-process`. The new modes retain artifact logs;
+they do not create issues automatically.
+
 Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
 the dependency audit, the font-subset, lazy browser-family catalog, and website

@@ -234,16 +234,16 @@ jobs:
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         run: bunx playwright install ${{ matrix.suite == 'browser' && 'chromium firefox webkit' || 'chromium' }} --with-deps
 
-      - name: Render selected forest before and after
+      - name: Render selected diagrams before and after
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/selected-forest performance-forest performance-z performance-ac performance-al
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/selected-forest performance-forest performance-z performance-ac performance-al agent-flat-namespace agent-category-role agent-journey-visibility agent-gitgraph-rails agent-small-values
 
-      - name: Retain selected forest review images
+      - name: Retain diagram review images
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@v7
         with:

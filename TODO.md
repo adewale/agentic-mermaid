@@ -151,19 +151,6 @@ queues. Retired IDs are not reused.
   Native C4 from [#387](https://github.com/adewale/agentic-mermaid/issues/387)
   is implemented in source; see [its dispositions and validation](docs/design/families/c4.md).
   Native admission does not imply a published package or deployed site update.
-- [ ] **BUILD-34 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
-  Palettes separate peers where colors are generated (`categoricalPalette`,
-  ΔE_OK ≥ 0.10), but a scene-keyed census of every family's honesty corpus in
-  every style found three cases where the drawn colors compress: the
-  watercolor wash glazes pie slices at 30% (ΔE_OK 0.03 between slices) while
-  their legend keys stay opaque; journey actor dots under watercolor (0.049);
-  and radar legend keys, drawn at the curve opacity with a neutral border
-  (0.06–0.09 between keys in most palettes — the curves themselves separate by
-  their opaque outlines). Build an as-drawn oracle keyed by legend categories
-  (keys distinguishable; each key matches the marks it names), then decide the
-  look policy for keyed marks. See
-  [`docs/design/system/chart-honesty.md`](docs/design/system/chart-honesty.md).
-
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
@@ -174,15 +161,21 @@ queues. Retired IDs are not reused.
 
 - [ ] **EVAL-3 — Eval the `agentic-mermaid-diagram-workflow` skill for
   helpfulness** (`todo`). The public skill
-  (`website/public/skills/agentic-mermaid-diagram-workflow/SKILL.md` +
+  (`skills/agentic-mermaid-diagram-workflow/SKILL.md` +
   `references/`) is the site's main agent call-to-action, now linked from the
   footer. Verify it actually improves outcomes: run agent-usage cases with vs.
   without the skill loaded and compare on task success, verify-before-return
   discipline, Code-Mode vs. prose answers, and source-level-vs-structured edit
   choice — reuse the existing `eval/agent-usage/` sandbox, task oracle, and
   trace linter.
-  Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
-  footer link based on whether it demonstrably helps.
+  A two-task fresh-agent comparison on 2026-10-21 produced correct diagrams
+  in both conditions (2/2 each); skill-guided runs used the hosted typed edit
+  and verify path. This small sample supplies no efficacy or cost estimate.
+  The API runner now captures usage (including Anthropic cache tokens), actual
+  execution timing and paired skill/no-skill results, but model credentials
+  were unavailable and the existing Codex CLI could not initialize on its
+  read-only state directory. Finish a larger instrumented comparison, fold any
+  gaps into the skill, and make the footer decision from that evidence.
 
 
 ## Parked / evidence-required ideas
@@ -243,28 +236,24 @@ queues. Retired IDs are not reused.
   separately from the 2,800-case pathological corpus. Keep it non-blocking and
   make no route repair unless the issue's representative-witness and
   non-regression decision gate passes.
-- [ ] **TEST-8 — Label-text census** (`todo`). For every case in the docs
-  corpus, the upstream bench and the official fences, record each label's text
-  on every surface (model, SVG, ASCII, meta, facts, metrics) and upstream's DB
-  text. Assert the surfaces agree and match upstream, replace the bench's
-  self-harvested `labelsContain` values with upstream-harvested ones, and post a
-  base-vs-head diff of changed label text on pull requests. It flags BUG-19 and
-  BUG-20 on existing corpus cases, and would have flagged the untrimmed labels
-  fixed in #359; image contact sheets would not, because most of these defects
-  render identically before and after a change.
-- [ ] **TEST-9 — Widen the upstream differentials** (`todo`). The flowchart and
-  sequence generators still omit characters and constructs where defects live:
-  entity codes other than `#quot;`, `\n`, markdown strings, `@{}`, `style` lines
-  and subgraph membership (flowchart); `* # \ < >`, `activate`, `box`,
-  `properties` and `links` (sequence). Add ER, class and state DBs to the upstream
-  worker, and compare what upstream displays (the Pie browser oracle's
-  approach), not only its DB.
-- [ ] **TEST-10 — Random-order, fresh-process finder lane** (`todo`). Two
-  order-dependent failures (resvg initialization, the Bun `node:vm` timer)
-  surfaced only by accident. Run the suite nightly in shuffled file order and
-  each file alone. The existing `nightly-finder.yml` already randomizes property
-  seeds and reports to #362; shuffled order and file isolation are the additional
-  work here, not a second random-seed finder.
+- [ ] **TEST-8 — Complete identity-aware label correspondence** (`todo`).
+  The independent reference census now records raw labels and model, layout,
+  SVG, terminal metadata, ASCII, facts and describe surfaces for the docs,
+  official fences, upstream bench and authored witnesses; it supports paired
+  base/head reports. This is existential text-presence evidence, not a proof
+  of label identity, multiplicity or complete equality. Extend its scoped
+  projections to Class/ER member signatures, accessibility and Sequence
+  note/control text. Preserve explicit unavailable results and documented
+  display/configuration differences. Metrics expose aggregate counts rather
+  than per-label text. The bench's self-harvested `labelsContain` admission
+  hints still need independent replacement; do not treat them as the oracle.
+- [ ] **TEST-9 — Finish display-oriented grammar differentials** (`todo`).
+  Flowchart properties already cover additional entity codes, literal `\n`,
+  styles and nested membership; Sequence now generates boxes, properties,
+  activation, metadata, aliases and punctuation. The reference worker already
+  observes Class, ER and State DBs. Remaining work is broader Markdown and
+  `@{}` combinations plus browser-displayed text for families where DB text
+  differs from display. Source admission differences alone are not bugs.
 
 - [ ] **TEST-12 — Sweep for Bun's asymmetric-matcher write-back** (`todo`). In
   Bun 1.4.2, `toMatchObject`/`toEqual` with `expect.any`, `arrayContaining` or

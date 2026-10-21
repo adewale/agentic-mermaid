@@ -23,7 +23,7 @@ export function applyLayoutHints(root: ElkNode, graph: MermaidGraph, hints?: Gra
   if (hints.ranks) {
     for (const [id, rank] of Object.entries(hints.ranks)) {
       const { node, parent } = requireNode(id)
-      if (!Number.isSafeInteger(rank) || rank < 0 || rank > 10000) invalidHint(`rank for "${id}" must be an integer from 0 to 10000`)
+      if (!Number.isSafeInteger(rank) || rank < 0 || rank > 10000) invalidHint(`rank for "${id}" must be an integer in [0,10000]`)
       rankedParents.add(parent)
       parent.layoutOptions = { ...parent.layoutOptions, 'elk.partitioning.activate': 'true' }
       node.layoutOptions = { ...node.layoutOptions, 'elk.partitioning.partition': String(rank) }
@@ -34,12 +34,12 @@ export function applyLayoutHints(root: ElkNode, graph: MermaidGraph, hints?: Gra
   }
   const grouped = new Set<string>()
   for (const ids of hints.adjacent ?? []) {
-    if (ids.length < 2) invalidHint('adjacent requires at least two nodes')
+    if (ids.length < 2) invalidHint('adjacent needs two or more nodes')
     const entries = ids.map(requireNode)
     const parent = entries[0]!.parent
-    if (entries.some(entry => entry.parent !== parent)) invalidHint('adjacent nodes must share a container')
+    if (entries.some(entry => entry.parent !== parent)) invalidHint('adjacent nodes need the same container')
     for (const id of ids) {
-      if (grouped.has(id)) invalidHint('a node can belong to only one adjacency group')
+      if (grouped.has(id)) invalidHint('a node cannot repeat in adjacency groups')
       grouped.add(id)
     }
     const children = parent.children!

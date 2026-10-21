@@ -20,6 +20,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  execution-order:
+    name: Test execution finder (${{ matrix.mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [shuffled, fresh-process]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - name: Install dependencies and native test prerequisites
+        run: |
+          bun install --frozen-lockfile
+          sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+          bunx --no-install tsup
+      - name: Search execution-order and process-state failures
+        env:
+          FINDER_MODE: ${{ matrix.mode }}
+        run: |
+          set -o pipefail
+          bun run scripts/ci/find-test-order.ts "$FINDER_MODE" 2>&1 | tee execution-order.log
+      - name: Retain replay seeds and failures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: execution-order-${{ matrix.mode }}
+          path: execution-order.log
+          retention-days: 7
+          if-no-files-found: warn
+
   random-seed-properties:
     name: Random-seed property sweep
     runs-on: ubuntu-latest
