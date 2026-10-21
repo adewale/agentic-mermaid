@@ -436,8 +436,36 @@ describe('owned measured layered layout', () => {
     expect(output.nodes[1]!.x).toBeGreaterThan(output.nodes[2]!.x)
     expect(output.nodes[3]!.y).toBeGreaterThan(output.nodes[4]!.y)
     expect(frames[0]!.width).toBeGreaterThanOrEqual(300)
-    expect(() => layoutAgenticGraph({ ...input, edges: [{ source: 1, target: 3, minSpan: 1 }] })).toThrow('cross-hierarchy leaf routes')
+    expect(() => layoutAgenticGraph({ ...input, edges: [{ source: 1, target: 3, minSpan: 1 }] })).toThrow('no bounded clear corridor')
+    expect(() => layoutAgenticGraph({ ...input, edges: [{ source: 1, target: input.nodes.length + 2, minSpan: 1 }] })).toThrow('cross-hierarchy container endpoints')
     expect(() => layoutAgenticGraph({ ...input, groups: input.groups!.map((group, index) => index === 0 ? { ...group, parent: 1 } : group) })).toThrow(TypeError)
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('joins cross-scope leaves without entering frame headers in %s', direction => {
+    const padding = { top: 35, right: 20, bottom: 20, left: 20 }
+    const input = measured({ direction, nodes: [
+      { id: 'a', width: 80, height: 30, parent: 0 }, { id: 'b', width: 100, height: 40, parent: 0 },
+      { id: 'c', width: 90, height: 35, parent: 1 }, { id: 'd', width: 110, height: 45, parent: 1 },
+    ], groups: [{ id: 'left', minWidth: 150, padding }, { id: 'right', minWidth: 150, padding }],
+    edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 2, target: 3, minSpan: 1 },
+      { source: 1, target: 2, minSpan: 1, label: { width: 100, height: 20 } }] })
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    expect(output.boundaryRoutes).toEqual([2])
+    const path = output.edges[2]!.points
+    expect(onOutline(path[0]!, { ...input.nodes[1]!, ...output.nodes[1]! })).toBe(true)
+    expect(onOutline(path.at(-1)!, { ...input.nodes[2]!, ...output.nodes[2]! })).toBe(true)
+    for (let index = 1; index < path.length; index++) {
+      const a = path[index - 1]!, b = path[index]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      for (const frame of output.groups!) expect(crossesInterior(a, b, { ...frame, height: padding.top })).toBe(false)
+      for (let node = 0; node < input.nodes.length; node++) expect(crossesInterior(a, b, { ...input.nodes[node]!, ...output.nodes[node]! })).toBe(false)
+    }
+    expect(output.edges[2]!.labelPosition).toBeDefined()
+    const exhausted = { pairs: 0, arcs: 0, swaps: 0 }
+    expect(() => layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) }, exhausted))
+      .toThrow(GraphLayoutUnsupportedError)
   })
 
   test('invalid measured endpoints remain defects instead of unsupported capabilities', () => {
