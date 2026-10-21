@@ -427,6 +427,17 @@ for the current roster and field schemas, or call `describeOps(family)` and
 same descriptors; this reference deliberately does not copy an exhaustive
 family/operation table.
 
+### Preserved Sequence and XY label facts
+
+Sequence facts include recognized messages inside preserved segments as
+`preserved-message#<segment>.<statement> ...` and their title directives.
+These identifiers do not change the typed `message#<index>` mutation indexes.
+XY facts include authored point labels as `series#<index> point#<index> : <label>`;
+the point index stays aligned with the data even when labels are sparse.
+Consumers using `exact: true` must add these facts to their reviewed expected
+inventory. Subset checks can keep their existing required facts. Do not build
+an expected inventory by copying the output being checked.
+
 ### Class relation facts and `exact: true`
 
 Class facts retain their existing class/member/relation lines and add endpoint

@@ -70,3 +70,7 @@ bound by the updated approval record. This incremental approval covers those
 four legend cells only. It is agent review, not human approval, deployed-site
 parity, or a general readability proof for arbitrary inputs, fonts, density,
 or displays. No rendering logic or test assertion changed for this refresh.
+
+### PR #456 category and authored-label follow-up
+
+The incremental agent review inspected five native-size before/after pairs: the sentinel Pie role key and GitGraph in all four variants. Pie now binds its Pro key to the same role paint as the mark. GitGraph shows the authored merge label and opaque rails; its shorter canvas fits at a larger size. All other 87 cells are pixel-identical. The exact image digest and bounded approval are in `visual-approval.json`.

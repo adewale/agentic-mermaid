@@ -4,9 +4,14 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
 import ts from 'typescript'
+import fc from 'fast-check'
+import { fcParameters } from '../../src/__tests__/helpers/fc-parameters.ts'
 import { admitCurrentReference, currentReferencePin, startModernReference, type ReferenceReply } from './reference.ts'
 import { startGrammarReference } from './grammar-reference.ts'
 import type { FlowchartValidDiagram } from '../../src/agent/types.ts'
+import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
+import { censusDisplayText, labelCensus } from './label-census.ts'
+import { officialCorpusInventory } from '../shared/official-fences.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '../..')
@@ -25,7 +30,7 @@ function semantic(name: string, origin: string, check: () => Promise<void>): voi
   test(name, async () => {
     try { await check(); results.push({ name, origin, status: 'passed' }) }
     catch (error) { results.push({ name, origin, status: 'failed', error: String(error) }); throw error }
-  })
+  }, 30_000)
 }
 
 /** Select the actual static input of a reviewed upstream test; never eval its body. */
@@ -157,6 +162,8 @@ for (const title of ['Different Colors in xyChart', 'Smallest AI models scoring 
     if (!chart) throw new Error('Expected structured XY chart')
     expect(chart.body.title).toBe(title)
     expect(chart.body.series.map(series => series.values)).toEqual(expected.plots.map(plot => plot.data.map(point => point[1])))
+    const expectedLabels = expected.plots.flatMap((plot, series) => plot.pointLabels?.flatMap((label, point) => label ? [`series#${series} point#${point} : ${label}`] : []) ?? [])
+    expect(am.describeMermaidFacts(chart).filter(fact => fact.includes(' point#'))).toEqual(expectedLabels.sort())
     expect(xySemantics(await accepted(am.serializeMermaid(chart)))).toEqual(expected)
     const changedTitle = `${title} updated`
     const edited = am.mutate(chart, { kind: 'set_title', title: changedTitle })
@@ -288,3 +295,70 @@ for (const source of [
     for (const label of expected) expect(facts).toContain(label)
   })
 }
+
+for (const family of BUILTIN_FAMILY_METADATA) {
+  semantic(`independent label surfaces: ${family.id}`, 'FamilyDescriptor.example parsed by the independently installed reference DB', async () => {
+    const reference = await accepted(family.example)
+    const parsed = am.parseRegisteredMermaid(family.example)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const census = labelCensus(family.id, reference, parsed.value, am.renderMermaidSVG(parsed.value))
+    if (census.status !== 'measured') throw new Error(census.reason)
+    expect(census.labels.length).toBeGreaterThan(0)
+    for (const label of census.labels) {
+      for (const surface of ['model', 'facts', 'svg', 'ascii', 'meta']) {
+        expect({ family: family.id, path: label.path, text: label.text, surface, present: label.presence[surface] }).toEqual({ family: family.id, path: label.path, text: label.text, surface, present: true })
+      }
+    }
+  })
+}
+
+semantic('generated sequence edits retain boxes, activation, properties and punctuation', 'Mermaid 12.2.0 sequence DB with real DOM color admission; public typed edit and roundtrip', async () => {
+  await fc.assert(fc.asyncProperty(
+    fc.array(fc.constantFrom('literal * star', 'literal # comment', 'literal \\ slash', 'a < b > c'), { minLength: 1, maxLength: 5 }),
+    fc.array(fc.constantFrom('A', 'Alice', 'Updated', 'Client'), { minLength: 1, maxLength: 3 }).map(words => words.join(' ')),
+    fc.constantFrom('participant A as Alice', 'participant A', 'participant A@{type: database, alias: Alice}', 'participant A@{type: database, alias: Alice, future: keep-me}'),
+    async (messages, renamed, declaration) => {
+      const controls = ['box transparent Crew', 'properties A: {"color":"red"}', 'activate A', 'deactivate A']
+      const source = `sequenceDiagram\n  ${controls[0]}\n    ${declaration}\n    actor B as Bob\n  end\n  ${controls[1]}\n  ${controls[2]}\n${messages.map(message => `  A->>B: ${message}`).join('\n')}\n  ${controls[3]}`
+      const before = await accepted(source)
+      const messageText = (reply: typeof before) => (reply.snapshot.data.getMessages as unknown as Array<{ type: number; message: string }>).filter(message => message.type === 0).map(message => message.message)
+      const expectedMessages = messages.map(message => message.split('#')[0]!.trim())
+      expect(messageText(before)).toEqual(expectedMessages)
+      const parsed = am.parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const edited = am.mutate(parsed.value, { kind: 'set_participant_label', id: 'A', label: renamed })
+      if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+      const output = am.serializeMermaid(edited.value)
+      for (const control of controls) expect(output).toContain(control)
+      if (declaration.includes('future:')) expect(output).toContain('keep-me')
+      const after = await accepted(output)
+      expect(messageText(after)).toEqual(expectedMessages)
+      const actors = after.snapshot.data.getActors as unknown as Array<[string, { description: string; type: string; properties: unknown }]>
+      expect(actors.map(([id, actor]) => [id, actor.type, actor.description])).toEqual([['A', declaration.includes('database') ? 'database' : 'participant', renamed], ['B', 'actor', 'Bob']])
+      expect(actors[0]![1].properties).toEqual({ color: 'red' })
+      expect(after.snapshot.data.getBoxes).toEqual(before.snapshot.data.getBoxes)
+      const reparsed = am.parseRegisteredMermaid(output)
+      if (!reparsed.ok || reparsed.value.body.kind !== 'sequence') throw new Error('Expected structured Sequence')
+      expect(reparsed.value.body.messages.map(message => message.text)).toEqual(expectedMessages)
+    },
+  ), fcParameters({ numRuns: 100 }))
+})
+
+semantic('recognized Sequence messages survive semantic read-back throughout the official corpus', 'Retained official Sequence fences and independent reference DB messages, including preserved controls', async () => {
+  let compared = 0
+  for (const sample of officialCorpusInventory().occurrences.filter(sample => sample.family === 'sequence')) {
+    if (!oracle) throw new Error('Independent reference did not start')
+    const reference = await oracle.parse(sample.source)
+    if (!reference.ok) continue
+    const parsed = am.parseRegisteredMermaid(sample.source)
+    if (!parsed.ok || parsed.value.body.kind !== 'sequence') continue
+    const facts = am.describeMermaidFacts(parsed.value).map(censusDisplayText)
+    const messages = reference.snapshot.data.getMessages as unknown as Array<{ type: number; from?: string; to?: string; message: string }>
+    for (const message of messages.filter(message => message.type !== 2 && typeof message.from === 'string' && typeof message.to === 'string')) {
+      const expected = censusDisplayText(`message ${message.from} -> ${message.to} : ${message.message}`)
+      expect({ sample: sample.id, expected, present: facts.includes(expected) }).toEqual({ sample: sample.id, expected, present: true })
+      compared++
+    }
+  }
+  expect(compared).toBeGreaterThan(0)
+})

@@ -43,6 +43,18 @@ describe('deterministic Mermaid facts', () => {
     })
   }
 
+  test('XY point-label facts retain sparse authored labels and stable series/point identities on readback', () => {
+    const source = 'xychart\n x-axis [Q1,Q2,Q3]\n line [25 "Launch",45,90 "Target Hit"]'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const expected = ['series#0 point#0 : Launch', 'series#0 point#2 : Target Hit']
+    for (const input of [source, serializeMermaid(parsed.value)]) {
+      const out = facts(input)
+      expect(out.filter(fact => fact.includes(' point#'))).toEqual(expected)
+    }
+    expect(checkMermaid(parsed.value, expected).ok).toBe(true)
+  })
+
   test('source helper returns the same facts as parsed diagrams', () => {
     const source = 'pie title Traffic\n  "Docs" : 3'
     const parsed = parseMermaid(source)
@@ -51,6 +63,19 @@ describe('deterministic Mermaid facts', () => {
     const fromSource = describeMermaidFactsSource(source)
     expect(fromSource.ok).toBe(true)
     if (fromSource.ok) expect(fromSource.value).toEqual(describeMermaidFacts(parsed.value))
+  })
+
+  test('recognized messages in preserved Sequence controls remain observable without claiming typed edit indexes', () => {
+    const source = 'sequenceDiagram\n title Checkout\n A->>B: start\n critical Connect\n A->>B: attempt\n option timeout\n B-->>A: retry\n end\n rect rgb(200,200,200)\n loop nested\n A->>B: #lt;b#gt;literal#lt;/b#gt;\n end\n end'
+    const out = facts(source)
+    for (const message of ['message A -> B : start', 'message A -> B : attempt', 'message B -> A : retry', 'message A -> B : <b>literal</b>']) expect(out).toContain(message)
+    expect(out).toContain('title Checkout')
+    expect(out.filter(fact => fact.startsWith('preserved-message#'))).toHaveLength(3)
+    expect(out.filter(fact => /^message#\d+ (?:top-level|fragment#)/.test(fact))).toEqual(['message#0 top-level A -> B : start'])
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(checkMermaid(parsed.value, ['message A -> B : attempt', 'message B -> A : retry']).ok).toBe(true)
+    expect(facts(serializeMermaid(parsed.value))).toEqual(out)
   })
 })
 

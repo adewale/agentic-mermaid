@@ -399,7 +399,7 @@ describe('GitGraph full-family citizenship', () => {
     expect(text).toContain('main')
     expect(text).toContain('feature')
     expect(text).toContain('[Foundation]')
-    expect(text).toContain('[merged branch feature into main]')
+    expect(text).toContain('[merge]')
 
     const equalOrder = renderMermaidASCII(`gitGraph
   commit id:"base"
@@ -412,6 +412,23 @@ describe('GitGraph full-family citizenship', () => {
     const parsed = parseMermaid(GITGRAPH)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(layoutMermaid(parsed.value, { regions: true }).regions!.filter(region => region.kind === 'node')).toHaveLength(6)
+  })
+
+  test('authored merge IDs remain visible while explicit commit messages and automatic merge labels retain their precedence', () => {
+    for (const [merge, label] of [['merge feature id:"release-merge"', 'release-merge'], ['merge feature', 'merged branch feature into main']]) {
+      const source = `gitGraph\n commit id:"base" msg:"Foundation"\n branch feature\n commit id:"work"\n checkout main\n ${merge}`
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const serialized = serializeMermaid(parsed.value)
+      expect(serialized).toContain(merge!)
+      expect(serialized).not.toContain('msg:"merged branch')
+      for (const input of [source, serialized]) {
+        expect(renderMermaidSVG(input)).toContain(`>${label}<`)
+        const text = renderMermaidASCII(input)
+        expect(text).toContain(`[${label}]`)
+        expect(text).toContain('[Foundation]')
+      }
+    }
   })
 
   test('branch and tag text remains WCAG AA against its badge in every built-in palette', () => {
