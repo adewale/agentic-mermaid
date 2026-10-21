@@ -71,15 +71,17 @@ function ensureBrowserBundle() {
   }
 }
 
-function lazyElkChunk(): string {
+function lazyChunkContaining(input: string): string {
   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
     outputs: Record<string, { inputs: Record<string, unknown> }>
   }
   const matches = Object.entries(metafile.outputs).filter(([, output]) =>
-    Object.keys(output.inputs).some(input => input.includes('node_modules/elkjs/')))
+    Object.keys(output.inputs).some(path => path.includes(input)))
   expect(matches.length).toBe(1)
   return matches[0]![0].replace(/^dist\//, '')
 }
+
+function lazyElkChunk(): string { return lazyChunkContaining('node_modules/elkjs/') }
 
 describe('browser bundle', () => {
   let browser: Browser
@@ -378,7 +380,7 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
-  test('a certified forest renders before ELK loads and a cyclic named-reference flow loads it once', async () => {
+  test('native crisp defers Scene admission and strict cyclic named references resume through all three demanded dependencies', async () => {
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
@@ -391,6 +393,8 @@ describe('async family-loaded browser renderer', () => {
       }, [`${base}/dist/browser-lazy/index.js`, forest] as const)
       expect(result).toBe(renderMermaidSVG(forest, { security: 'strict' }))
       expect(requests).not.toContain(lazyElkChunk())
+      expect(requests).not.toContain(lazyChunkContaining('src/scene/admission-core.ts'))
+      expect(requests).not.toContain(lazyChunkContaining('generated/decode-data-html.js'))
 
       const cycle = 'flowchart LR\n  A["x#hearts;y"] --> B[End]\n  B --> A'
       const resumed = await page.evaluate(async ([entryUrl, source]) => {
@@ -399,20 +403,23 @@ describe('async family-loaded browser renderer', () => {
         let reads = 0
         const options = {
           security: 'strict',
+          layoutSafety: 'strict',
           get mermaidConfig() { reads++; return { flowchart: { defaultRenderer: 'dagre' } } },
           onConfigDiagnostic: (item: { field: string }) => diagnostics.push(item.field),
         }
         const first = await api.renderMermaidSVGWithReceiptAsync(source, options)
-        const repeated = await api.renderMermaidSVGAsync(source, { security: 'strict' })
+        const repeated = await api.renderMermaidSVGAsync(source, { security: 'strict', layoutSafety: 'strict' })
         return { first, repeated, diagnostics, reads }
       }, [`${base}/dist/browser-lazy/index.js`, cycle] as const)
-      expect(resumed.first.svg).toBe(renderMermaidSVG(cycle, { security: 'strict' }))
+      expect(resumed.first.svg).toBe(renderMermaidSVG(cycle, { security: 'strict', layoutSafety: 'strict' }))
       expect(resumed.repeated).toBe(resumed.first.svg)
       expect(resumed.first.svg).toContain('x♥y')
       expect(resumed.first.receipt.layoutCertification?.status).toBe('passed')
       expect(resumed.diagnostics).toEqual(['flowchart.defaultRenderer'])
       expect(resumed.reads).toBe(1)
       expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
+      expect(requests.filter(path => path === lazyChunkContaining('src/scene/admission-core.ts'))).toHaveLength(1)
+      expect(requests.filter(path => path === lazyChunkContaining('generated/decode-data-html.js'))).toHaveLength(1)
     } finally {
       await page.close()
     }
