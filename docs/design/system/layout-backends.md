@@ -2371,3 +2371,61 @@ Both off and normal run once, without an unchanged retry. Trial completion is
 not an engine speedup and its figures must remain distinguished from legacy
 four-arm scheduling. The timing controls, output checks, strict declines and
 memory population rules remain fully enforced.
+
+### Worker rebase and subsequent experiments (October 21)
+
+The next rebase integrates main `ee24030c` (#455), retaining its standalone
+worker entry and applying the browser runtime projection to both hosted worker
+and facade builds. The owned engine remains `agentic-layered@20`. New owning
+preview cases cover ELK, native and explicit fallback through the shared
+positioned artifact: each positions once and retains the direct renderer's
+complete receipt and verification. The worker queue also preserves the queued
+backend choice. These preview, layout-hint and hosted-MCP files pass102 tests /
+514 assertions; the canonical package build and both typechecks pass.
+
+All238 retained source/workload inputs complete the Node comparison against
+the frozen `f008a304` package:232 native successes,238 ELK successes, six
+unchanged native declines. Every native SVG and complete receipt is identical
+across the rebase. All232 measured crossing comparisons and148 available
+label/shared-span comparisons have no additional native conflicts; these are
+development comparisons, not a new independent holdout.
+
+The local default-geometry test exceeds its unchanged30s comparison deadline
+(37.480s); that failed gate remains recorded. A pristine-main control passes
+its303 records in19.187s. A separate diagnostic finds319/319 exact geometry
+matches, with the303 shared records taking19.384s and the16 added fixtures
+7.191s. This confirms geometry equivalence without converting the failed timed
+gate into a pass or changing its deadline/baseline.
+
+The prospectively declared shared-reference trial is now complete as an
+attempt, and fails qualification in both cache regimes. It uses controller
+`f28d70cd`, the frozen canonical `f008a304` package and Node26.3.0 (per its
+recorded environment). Cache-off first fails the ELK reference13-node cyclic
+timing worker in round1 (10722ms allowed,10775.38ms observed); normal first
+fails the native13-node cyclic worker in round1 (11266ms,11426.88ms). Neither
+finishes round1, neither comparison has a matched official-corpus population,
+and neither regime has paired memory. A/A is also incomplete. All27 input IDs,
+missing observations and journals remain retained. There is no qualified speed
+or memory result and no unchanged retry. Legacy CI scheduling remains the
+default; sharing a reference has not solved local campaign completion.
+
+A further unshipped prototype prepares immutable route segments only within
+the measured-shortening/loop-compaction phase, specializing two-route and
+single-involved-route queries. It preserves numerical crossing rules and all
+work debits; general or numerically unsafe queries use the original counter.
+It matches90006 differential counter queries including route/point reversal,
+shrinking populations, involved filters, invisible routes and numeric edge
+cases. Full750-outcome and cost qualification are still required. No engine
+improvement is claimed from these direct counter checks.
+
+The rebased standalone editor currently exposes a packaging regression:
+4,107,828 raw /1,274,431 gzip bytes, versus unchanged limits4,100,000 /1,260,000.
+Pristine main is4,044,706 /1,250,651. The family lazy-transfer check passes with
+unchanged budgets, but that does not excuse the standalone failure. A full
+esbuild compiler substitution and an unminified-Bun/esbuild two-stage prototype
+do not close the complete-HTML budget and are discarded. No schema prose,
+validation, rendering feature or budget is removed to make this pass. The
+worker browser check passes with the repository runner's600000ms timeout
+(1 test /16 assertions), as do32 emitted IIFE/lazy tests /763 assertions;
+an initial direct invocation used Bun's5s default and is retained as a failed
+noncanonical test attempt.
