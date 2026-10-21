@@ -32,49 +32,37 @@ function sharesShaft(a: Point, b: Point, c: Point, d: Point): boolean {
  * Only an authored common endpoint may be an unmarked contact. */
 export function scoreMeasuredRouteCrossings(points: Point[], index: number, routes: readonly { points: Point[]; style: string }[], input: MeasuredGraph): number | undefined {
   let score = 0
-  const edge = input.edges[index]!
-  for (const [other, route] of routes.entries()) {
+  const edge = input.edges[index]!, pair = [{ points }, { points: [] as Point[] }]
+  for (let other = 0; other < routes.length; other++) {
+    const route = routes[other]!
     if (other === index || route.style === 'invisible') continue
-    const peerEdge = input.edges[other]!,
-      contacts = new Map<string, Point>()
-    for (let i = 1; i < points.length; i++)
-      for (let j = 1; j < route.points.length; j++) {
-        const a = points[i - 1]!,
-          b = points[i]!,
-          c = route.points[j - 1]!,
-          d = route.points[j]!
-        if (sharesShaft(a, b, c, d)) return undefined
-        const av = a.x === b.x,
-          bv = c.x === d.x
-        let p: Point | undefined
-        if (av !== bv) {
-          const vertical = av ? a : c,
-            horizontal = av ? c : a
-          const point = { x: vertical.x, y: horizontal.y }
-          if (pointOnMeasuredSegment(point, a, b) && pointOnMeasuredSegment(point, c, d)) p = point
-        } else if (av ? a.x === c.x : a.y === c.y) {
-          const lo = Math.max(av ? Math.min(a.y, b.y) : Math.min(a.x, b.x), av ? Math.min(c.y, d.y) : Math.min(c.x, d.x))
-          const hi = Math.min(av ? Math.max(a.y, b.y) : Math.max(a.x, b.x), av ? Math.max(c.y, d.y) : Math.max(c.x, d.x))
-          if (hi >= lo) p = av ? { x: a.x, y: lo } : { x: lo, y: a.y }
-        }
-        if (!p) continue
-        const common = (
-          [
-            ['source', 0],
-            ['target', points.length - 1],
-          ] as const
-        ).some(([end, pointIndex]) =>
-          (
-            [
-              ['source', 0],
-              ['target', route.points.length - 1],
-            ] as const
-          ).some(([peerEnd, peerIndex]) => edge[end] === peerEdge[peerEnd] && points[pointIndex]!.x === p!.x && points[pointIndex]!.y === p!.y && route.points[peerIndex]!.x === p!.x && route.points[peerIndex]!.y === p!.y),
-        )
-        if (!common) contacts.set(`${p.x},${p.y}`, p)
+    const peerEdge = input.edges[other]!
+    let contacts: Set<string> | undefined
+    for (let i = 1; i < points.length; i++) for (let j = 1; j < route.points.length; j++) {
+      const a = points[i - 1]!, b = points[i]!, c = route.points[j - 1]!, d = route.points[j]!
+      if (sharesShaft(a,b,c,d)) return undefined
+      const av = a.x === b.x, bv = c.x === d.x
+      let x = 0, y = 0, contact = false
+      if (av !== bv) {
+        x = av ? a.x : c.x; y = av ? c.y : a.y
+        contact = x >= Math.min(a.x,b.x) && x <= Math.max(a.x,b.x) && y >= Math.min(a.y,b.y) && y <= Math.max(a.y,b.y)
+          && x >= Math.min(c.x,d.x) && x <= Math.max(c.x,d.x) && y >= Math.min(c.y,d.y) && y <= Math.max(c.y,d.y)
+      } else if (av ? a.x === c.x : a.y === c.y) {
+        const lo = Math.max(av ? Math.min(a.y,b.y) : Math.min(a.x,b.x), av ? Math.min(c.y,d.y) : Math.min(c.x,d.x))
+        const hi = Math.min(av ? Math.max(a.y,b.y) : Math.max(a.x,b.x), av ? Math.max(c.y,d.y) : Math.max(c.x,d.x))
+        if (hi >= lo) { x = av ? a.x : lo; y = av ? lo : a.y; contact = true }
       }
-    const crossings = countPolylineCrossings([{ points }, route])
-    if (crossings < contacts.size) return undefined
+      if (!contact) continue
+      const first = points[0]!, last = points.at(-1)!, peerFirst = route.points[0]!, peerLast = route.points.at(-1)!
+      const from = first.x === x && first.y === y, to = last.x === x && last.y === y
+      const peerFrom = peerFirst.x === x && peerFirst.y === y, peerTo = peerLast.x === x && peerLast.y === y
+      const common = (edge.source === peerEdge.source && from && peerFrom) || (edge.source === peerEdge.target && from && peerTo)
+        || (edge.target === peerEdge.source && to && peerFrom) || (edge.target === peerEdge.target && to && peerTo)
+      if (!common) (contacts ??= new Set()).add(`${x},${y}`)
+    }
+    pair[1]!.points = route.points
+    const crossings = countPolylineCrossings(pair)
+    if (crossings < (contacts?.size ?? 0)) return undefined
     score += crossings
   }
   return score

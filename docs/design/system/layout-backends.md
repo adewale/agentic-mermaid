@@ -1530,3 +1530,89 @@ adds legacy320–383 and this separate64 population, and reports every window ev
 if another window fails; its ten-minute ceiling remains unchanged. Quality on
 this synthetic grammar does not close compound, specialized, preference,
 performance, memory, bundle or actual edit-churn qualification.
+
+
+### Independent population result and three-edge cycle refinement
+
+The first independent SHA counter population0–63 executes on clean17c01a67:
+64 native and64 ELK successes, with one additional native crossing at seed22
+(16 versus15). There are no additional native padded-label conflicts or shared
+route overlaps. All128 paint certificates are unverified, so this is not a paint
+parity result. Preserve both complete snapshots. This population is now
+**development data**; no later run is a fresh holdout on those inputs.
+
+That17-node /35-edge graph's primary feedback order reverses three edges.
+The two larger compact trials previously could not explore a small-cut
+alternative there. After exhausting one- and two-edge reversal cuts, a bounded
+three-edge search now branches on one witnessed directed cycle: every feedback
+set must contain an edge of it. Deduplicate chosen edge sets, stop at depth
+three, and test a completed reversal set with the existing topological/span
+checker. Charge DFS inspections and completed checks to the same shared two
+million ordering-work budget. Only complete topological orders escape budget
+exhaustion. The existing two routed trials,128 shared attempts, rank, scoring,
+channel and certifier limits remain unchanged; no new per-fixture policy exists.
+The caller enables this only for the existing17–20-node compact scope with a
+primary feedback count of at most three. Solver attribution becomes18.
+
+The retained public seed22 test fails16>15 before the change and passes14≤15
+after it. Native raw bends fall75→74, still above ELK67; maximum route bends
+fall12→4, equal to ELK. Exhaustive total-order checks cover minimum cut sets up
+to both two and three edges, with a retained three-reciprocal-cycle example.
+Focused helper/development-source checks pass10 tests /2,137 assertions.
+All448 retained generated inputs (legacy384 plus independent64) now render
+natively versus443 ELK. There are no extra proper crossings, padded-label
+conflicts or opposing/parallel shared ink among443 shared successes; all five
+ELK rejections remain. Those scans include dirty exploratory snapshots and
+clean982c043e windows; they are development diagnostics, not timing evidence.
+Every native generated paint certificate is unverified. All broader goal gaps
+remain open.
+
+### Scalar contact allocation, without the adverse buffer-pooling change
+
+The earlier combined crossing-buffer/scalar prototype remains unshipped.
+Isolating scalar contact checks eliminates temporary point objects, eager
+contact maps and nested endpoint tuple arrays; it retains the same endpoint,
+shaft/contact rejection and shared proper-crossing metric. A before/after Node
+artifact comparison on686 inputs (238 source/workload,384 legacy generated,
+64 independent generated), both backends, preserves all1,372 exact SVG/full
+receipt/error outcomes, including20 errors/declines. Neither source-specific
+lookup nor a quality tolerance changes. Two-loaded-artifact cold diagnostics
+reduce allocation101,005,336→97,181,384 bytes for15 nodes, and
+159,898,080→148,242,512 for19. These are exploratory full-render GC estimates,
+not A/A-qualified performance, peak RSS, or proof of beating ELK's dense memory.
+
+The rebase's canonical default geometry check passes all319 retained records
+(28.71s within the existing30s per-test ceiling), with no baseline rewrite.
+An initial accidental five-second default invocation times out and is retained.
+Core typechecking passed; repository typechecking initially catches two renamed
+browser-test helper references, then passes after fixing them. An attempted
+cache-copy prototype test launch accidentally invokes the full package test
+script; it is terminated and retained as incomplete, including environment
+failures. The correctly scoped cache-copy prototype contracts pass9/63, but
+no production copy change is made on that evidence alone.
+
+### Current research and community refresh (2026-10-21)
+
+[Angelini et al., WG2026, bounded-span upward-planar drawing](https://doi.org/10.4230/LIPIcs.WG.2026.6) proves hardness even for restricted
+families and provides algorithms under additional structural parameters.
+[Baumann, Rutter and Sudholt, Algorithmica2026](https://doi.org/10.1007/s00453-025-01361-5) analyzes evolutionary permutation
+operators for one-sided bipartite crossing minimization; its strongest runtime
+comparison concerns crossing-free instances. Neither is a drop-in compound
+orthogonal router or a browser speed comparison. Our witnessed-cycle branching
+is a standard bounded search technique, not an implementation of those papers.
+
+Mermaid community updates still emphasize integration and user preferences:
+[ER grouping #3225](https://github.com/mermaid-js/mermaid/issues/3225) asks for
+meaningful entity groups, matching why we retained family-owned ER frames;
+[connector changes #8496](https://github.com/mermaid-js/mermaid/issues/8496)
+reports changed curves, positions and colors after an upgrade, but supplies no
+reproducible source, so it is preference evidence rather than an ELK solver
+counterexample. C4 #7849 and BPMN #8160 remain active on separate family/scope
+contracts. A lower crossing score alone does not satisfy those expectations.
+
+
+The next fresh population is predeclared as independent `sha256-counter-v1`
+seeds64–127 inclusive,64 cases, before any source generation or layout run.
+Execute only after committing this refinement and allocation change. Keep all
+448 existing generated inputs in the diagnostic and add this window in CI;
+retain the same ten-minute job ceiling. Do not call independent0–63 fresh again.
