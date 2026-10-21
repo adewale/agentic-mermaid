@@ -135,7 +135,10 @@ export function routeCrossHierarchy(
     const obstacles: RoutingBox[] = nodes.map((box, node) => node === edge.source || node === edge.target ? box : inflate(box, clearance))
     for (let group = 0; group < frames.length; group++) {
       const frame = frames[group]!
-      if (!related.has(group)) obstacles.push(inflate(frame, clearance))
+      // Endpoint ports lie on this box. Inflation would make every port
+      // unreachable; the actual box still forbids a route through its interior.
+      if (leafCount + group === edge.source || leafCount + group === edge.target) obstacles.push(frame)
+      else if (!related.has(group)) obstacles.push(inflate(frame, clearance))
       else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: leafCount > 64 ? (groups[group]!.headerHeight ?? groups[group]!.padding.top) : groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
     }
     for (let other = 0; other < placed.edges.length; other++) {
