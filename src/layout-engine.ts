@@ -77,6 +77,8 @@ import {
   layoutEnvFlag,
 } from './layout/geometry.ts'
 import type { MarginInfo } from './layout/geometry.ts'
+import { directionToElk } from './layout/direction.ts'
+export { directionToElk } from './layout/direction.ts'
 import {
   translateGeometryToNonNegativeOrigin,
   extractEdgesRecursively,
@@ -127,21 +129,6 @@ type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'n
 // ============================================================================
 // Layout options
 // ============================================================================
-
-/** Default render options (layout-only) */
-/** Convert Mermaid direction to ELK direction. Exported so the class/ER
- *  layouts wire their `direction` statements through the SAME mapping the
- *  flowchart engine uses (no parallel copy to drift). */
-export function directionToElk(dir: MermaidGraph['direction']): string {
-  switch (dir) {
-    case 'LR': return 'RIGHT'
-    case 'RL': return 'LEFT'
-    case 'BT': return 'UP'
-    case 'TD':
-    case 'TB':
-    default: return 'DOWN'
-  }
-}
 
 /**
  * ELK's model-order options are useful for keeping feedback-loop diagrams

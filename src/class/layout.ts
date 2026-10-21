@@ -26,7 +26,7 @@ export { memberToString } from './text.ts'
 
 import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
-import { directionToElk } from '../layout-engine.ts'
+import { directionToElk } from '../layout/direction.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'

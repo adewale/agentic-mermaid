@@ -19,7 +19,7 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTit
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
-import { directionToElk } from '../layout-engine.ts'
+import { directionToElk } from '../layout/direction.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
 import { erCommentText } from './text.ts'
