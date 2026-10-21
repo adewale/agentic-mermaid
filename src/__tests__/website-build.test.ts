@@ -1753,7 +1753,7 @@ describe('Workers Static Assets website contract', () => {
     expect(graph.find((node: any) => node['@type'] === 'WebPage').speakable.cssSelector).toContain('h1')
     // The editor verdict is truthful copy, not the old overclaim.
     const editorScript = read(editorScriptRel())
-    expect(editorScript).toContain('Verified: no warnings')
+    expect(editorScript).toContain('Render checks passed: no warnings')
     expect(editorScript).not.toContain('Verified: safe to export')
     expect(editorScript).toContain('Diagram too large for text rendering')
   })

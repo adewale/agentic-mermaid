@@ -166,7 +166,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
   }
   const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
   // Check the merged source/options theme and family config colors before all
-  // verification tiers, so a refused color is the whole finding.
+  // geometry tiers, while retaining any source loss already known at parse time.
   try {
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
