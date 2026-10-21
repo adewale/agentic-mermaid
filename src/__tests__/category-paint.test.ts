@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'bun:test'
 import { Resvg } from '@resvg/resvg-wasm'
 import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
-import '../index.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequest, resolvedFamilyRenderContextOf } from '../render-contract.ts'
 import { getBackend } from '../scene/backend.ts'
@@ -24,7 +24,7 @@ type ColorPolicy = { readonly mark: (node: ColorMark) => boolean; readonly expla
 const CATEGORY_COLORS: Record<DiagramKind, ColorPolicy> = {
   pie: { mark: n => n.role === 'pie-slice' || n.role === 'legend', explanation: 'slice fills and keyed legend swatches' },
   radar: { mark: n => n.role === 'point' || n.role === 'legend', explanation: 'opaque vertex dots and keyed legend swatches; overlapping area washes are secondary' },
-  xychart: { mark: n => n.role === 'bar' || n.role === 'series' || n.role === 'legend', explanation: 'bar fills, line strokes and keyed legend samples' },
+  xychart: { mark: n => n.role === 'bar' || n.role === 'series' || n.role === 'point' || n.role === 'legend', explanation: 'bar fills, line strokes, point dots and keyed legend samples' },
   journey: { mark: n => n.role === 'actor', explanation: 'actor dots on tasks and in the keyed actor legend' },
   mindmap: { mark: n => n.kind === 'connector' && n.role === 'edge', explanation: 'opaque branch strokes; node tints are secondary' },
   gitgraph: { mark: n => n.role === 'rail', explanation: 'branch rails; commit shapes and labels provide additional identity' },
@@ -157,16 +157,64 @@ describe('category color as drawn', () => {
     const cases = [
       { kind: 'pie', source: categorySource('pie', 2), roles: { 'pie-slice': { fillColor: '#b42318' } } },
       { kind: 'radar', source: categorySource('radar', 2), roles: { 'pie-slice': { fillColor: '#b42318' } } },
-      { kind: 'xychart', source: 'xychart-beta\nx-axis [A,B]\nbar "Actual" [1,2]\nline "Forecast" [2,3]', roles: { bar: { fillColor: '#b42318' }, series: { strokeColor: '#087443' } } },
+      { kind: 'xychart', source: 'xychart-beta\nx-axis [A,B]\nbar "Actual" [1,2]\nline "Forecast" [2 "First",3 "Second"]', roles: { bar: { fillColor: '#b42318' }, series: { strokeColor: '#087443' } } },
     ] as const
-    for (const { kind, source, roles } of cases) {
-      const { samples } = categoryPaint(kind, source, { style: { roles } })
+    for (const { kind, source, roles } of cases) for (const interactive of [false, true]) {
+      const { samples } = categoryPaint(kind, source, { interactive, style: { roles } })
       const keys = samples.filter(sample => sample.key)
       expect(keys.length, kind).toBeGreaterThan(0)
       for (const key of keys) {
         const marks = samples.filter(sample => !sample.key && sample.category === key.category)
         expect(marks.length, `${kind}/${key.category}`).toBeGreaterThan(0)
         for (const mark of marks) expect(mark.color, `${kind}/${key.category}/${mark.id}`).toBe(key.color)
+      }
+    }
+  })
+  it('XY point dots inherit series paint while explicit point paint and authored palettes retain precedence', () => {
+    for (const interactive of [false, true]) for (const single of [false, true]) {
+      const chart = `xychart-beta\nx-axis [${single ? 'A' : 'A,B'}]\nline "Forecast" [${single ? '2 "First"' : '2 "First",3 "Second"'}]`
+      for (const authored of [false, true]) for (const pointOverride of ['none', 'role', 'binding'] as const) {
+        const source = authored ? `---\nconfig:\n  themeVariables:\n    xyChart:\n      plotColorPalette: "#7c3aed"\n---\n${chart}` : chart
+        const seriesColor = authored ? '#7c3aed' : '#087443'
+        const hasPointOverride = pointOverride !== 'none'
+        const pointColor = !authored && hasPointOverride ? '#b42318' : seriesColor
+        const pointStyle = { fillColor: '#b42318', strokeColor: '#442211', lineWidth: 3 }
+        const options = { interactive, embedFontImport: false, style: {
+          roles: { series: { strokeColor: '#087443' }, ...(pointOverride === 'role' ? { point: pointStyle } : {}) },
+          ...(pointOverride === 'binding' ? {
+            semanticSlots: { selected: pointStyle },
+            bindings: [{ channel: 'category' as const, value: 'line-0', slot: 'selected', role: 'point' as const }],
+          } : {}),
+        } }
+        const svg = renderMermaidSVG(source, options)
+        const dots = [...svg.matchAll(/<circle\b[^>]*class="xychart-dot [^"]*"[^>]*>/g)].map(match => match[0])
+        const attribute = (tag: string, name: string) => tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1]
+        expect(dots).toHaveLength((single ? 1 : 2) * (interactive ? 2 : 1))
+        for (const dot of dots) {
+          expect(attribute(dot, 'fill')).toBe(pointColor)
+          expect(attribute(dot, 'stroke')).toBe(hasPointOverride ? '#442211' : '#FFFFFF')
+          expect(attribute(dot, 'stroke-width')).toBe(hasPointOverride ? '3' : '2')
+        }
+        const labels = [...svg.matchAll(/<text\b[^>]*class="xychart-point-label [^"]*"[^>]*>/g)]
+        expect(labels).toHaveLength(single ? 1 : 2)
+        for (const [label] of labels) expect(attribute(label, 'fill')).toBe(seriesColor)
+        // A point-specific override is intentional. The series key still
+        // identifies the line, while default points must match that key.
+        const key = svg.match(/<circle\b[^>]*class="xychart-legend-dot"[^>]*>/)?.[0]
+        expect(key).toBeDefined()
+        expect(attribute(key!, 'fill')).toBe(seriesColor)
+        if (!single) expect(svg.match(/<path\b[^>]*class="xychart-line [^"]*"[^>]*>/)?.[0]).toContain(`stroke="${seriesColor}"`)
+        const resvg = new Resvg(svg, { fitTo: { mode: 'zoom', value: 4 }, font: { loadSystemFonts: false } })
+        const rendered = resvg.render()
+        try {
+          // Observe actual SVG paint at each dot center, including the real
+          // family stylesheet and overlap of labelled/interactive markers.
+          for (const dot of dots) {
+            const x = Math.round(Number(attribute(dot, 'cx')) * 4), y = Math.round(Number(attribute(dot, 'cy')) * 4)
+            const at = (y * rendered.width + x) * 4
+            expect(toHex(rendered.pixels[at]!, rendered.pixels[at + 1]!, rendered.pixels[at + 2]!)).toBe(pointColor)
+          }
+        } finally { rendered.free(); resvg.free() }
       }
     }
   })

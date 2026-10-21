@@ -175,17 +175,15 @@ export function lowerXYChartDrawing<T>(
   }
 
   for (const line of chart.lines) {
-    // A single sample has no relationship to route.  The graphical SVG has
-    // historically treated its one-command path as invisible, while the
-    // terminal renderer still draws the sample directly from the semantic
-    // series.  Do not manufacture an invalid one-point Scene connector.
-    if (line.points.length < 2) continue
-    const d = polylinePath(line.points)
     const channels = { category: `line-${line.seriesIndex}` }
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'series', channels, { includeFallback: false })
     const paletteStroke = `var(--xychart-color-${line.colorIndex})`
     const stroke = hasAuthoredSeriesPalette ? paletteStroke : roleStyle?.strokeColor ?? roleStyle?.borderColor ?? paletteStroke
     seriesPaints.set(channels.category, stroke)
+    // A single sample has no relationship to route, but its markers and key
+    // still need the effective series paint.
+    if (line.points.length < 2) continue
+    const d = polylinePath(line.points)
     const strokeWidth = roleStyle?.lineWidth ?? style.lineWidth
     parts.push(marks.connector({
       id: `series:line-${line.seriesIndex}`,
@@ -196,6 +194,17 @@ export function lowerXYChartDrawing<T>(
       channels,
       attributes: { className: `xychart-line xychart-color-${line.colorIndex}` },
     }))
+  }
+
+  const pointPaint = (seriesIndex: number, colorIndex: number, value: number): MarkPaint => {
+    const category = `line-${seriesIndex}`
+    const pointRole = resolveRoleStyle(resolved.styleFace, 'point', { category, value: normalized(value) }, { includeFallback: false })
+    const paletteFill = `var(--xychart-color-${colorIndex})`
+    return {
+      fill: hasAuthoredSeriesPalette ? paletteFill : pointRole?.fillColor ?? seriesPaints.get(category) ?? paletteFill,
+      stroke: pointRole?.strokeColor ?? pointRole?.borderColor ?? 'var(--bg)',
+      strokeWidth: String(pointRole?.lineWidth ?? 2),
+    }
   }
 
   // Mermaid 11.16 line-point labels are semantic chart content, not hover
@@ -212,7 +221,7 @@ export function lowerXYChartDrawing<T>(
       parts.push(marks.shape({
         id: `point-label-dot:${line.seriesIndex}:${pointIndex}`, role: 'point',
         geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
-        paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '2' },
+        paint: pointPaint(line.seriesIndex, line.colorIndex, point.value),
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
         attributes: { className: `xychart-dot xychart-color-${line.colorIndex}`, data: { value: String(point.value) } },
       }))
@@ -220,7 +229,7 @@ export function lowerXYChartDrawing<T>(
         id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textBlock?.text ?? point.textLabel, block: point.textBlock,
         x: rn(x), y: rn(y), fontSize: 12, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
         display: 'literal', anchor, baselineShift: at ? 0.35 : 0,
-        paint: { fill: `var(--xychart-color-${line.colorIndex})` },
+        paint: { fill: seriesPaints.get(`line-${line.seriesIndex}`) ?? `var(--xychart-color-${line.colorIndex})` },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
         attributes: { className: `xychart-point-label xychart-color-${line.colorIndex}`, data: { 'label-position': position } },
       }))
@@ -255,7 +264,7 @@ export function lowerXYChartDrawing<T>(
                 id: pointId,
                 role: 'point',
                 geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
-                paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '2' },
+                paint: pointPaint(line.seriesIndex, line.colorIndex, point.value),
                 channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
                 attributes: {
                   className: `xychart-dot xychart-color-${line.colorIndex}`,

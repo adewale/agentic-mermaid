@@ -166,7 +166,7 @@ prints its fast-check seed; `AM_FC_SEED=<seed>` reproduces it (see
 These were measured and are tracked in [`TODO.md`](../../../TODO.md):
 
 - **H5 scope.** The as-drawn paint census covers Pie slices, Radar vertex dots,
-  XY series, Journey actors, Mindmap branches, GitGraph rails, Sankey nodes and
+  XY series and point dots, Journey actors, Mindmap branches, GitGraph rails, Sankey nodes and
   Treemap categories. Other families identify peers through labels, position,
   shapes and connectivity; their decorative tints and authored status palettes
   do not acquire a generated categorical-color guarantee. The census normalizes
@@ -177,7 +177,10 @@ These were measured and are tracked in [`TODO.md`](../../../TODO.md):
   opaque vertex dots as the primary category cue. Authored opacity, palette
   overrides and static emphasis can intentionally reduce separation; the
   authored emphasis corpus still requires keys to match its dimmed marks.
-  Pairwise separation beyond 24 categories remains best effort.
+  XY labeled and interactive dots inherit effective series paint; explicit
+  point paint can intentionally differ, while an authored plot palette retains
+  its established precedence. Pairwise separation beyond 24 categories remains
+  best effort.
 - **H6 for radar.** Non-zero minima emit `SCALE_RANGE_EXCLUDES_ZERO`; values
   outside the authored domain emit `VALUES_OUTSIDE_RANGE` with curve identity,
   values, and range. Authored values remain unchanged; the drawing still clips
