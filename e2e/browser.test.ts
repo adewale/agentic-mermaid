@@ -319,6 +319,18 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     expect(preview.checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
     expect(preview.selections).toEqual([{ selected: 'elk', verified: true }, { selected: 'agentic', verified: true }])
     expect(preview.fallback).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+    // The self-contained module has its own compression path. Exercise every
+    // registered family through that emitted worker against the source renderer.
+    const parity = await standalone.evaluate(async examples => {
+      const results = []
+      for (const example of examples) {
+        const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(example.source)
+        results.push({ id: example.id, equal: artifact.svg === example.svg })
+      }
+      return results
+    }, BUILTIN_FAMILY_METADATA.map(family => ({ id: family.id, source: family.example,
+      svg: renderMermaidSVG(family.example, { security: 'strict', embedFontImport: false }) })))
+    expect(parity).toEqual(BUILTIN_FAMILY_METADATA.map(family => ({ id: family.id, equal: true })))
     await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
     await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
     expect(standalone.workers()).toEqual([worker])
