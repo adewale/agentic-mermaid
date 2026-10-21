@@ -86,11 +86,8 @@ export class PreviewWorkerClient {
   }
 }
 
-declare const AM_PREVIEW_WORKER_URL: string
-declare const AM_PREVIEW_WORKER_SOURCE: string
-const client = new PreviewWorkerClient(() => {
-  // Build defines are literal data: executable Blob construction must stay here.
-  const url = AM_PREVIEW_WORKER_URL || URL.createObjectURL(new Blob([AM_PREVIEW_WORKER_SOURCE], { type: 'text/javascript' }))
+/** Each Blob URL is owned by one worker attempt, including failed starts. */
+export function createPreviewWorker(url: string): Worker {
   let released = false
   const release = () => { if (!released && url.startsWith('blob:')) { released = true; URL.revokeObjectURL(url) } }
   let worker: Worker
@@ -103,7 +100,4 @@ const client = new PreviewWorkerClient(() => {
     worker.terminate = () => { release(); terminate() }
   }
   return worker
-})
-export const renderEditorPreview = (source: string, options: RenderOptions = {}): Promise<PreviewArtifact> => client.render(source, options)
-export const cancelPendingEditorPreview = (): void => client.cancelPending()
-if (typeof window !== 'undefined') window.addEventListener('pagehide', () => client.dispose())
+}

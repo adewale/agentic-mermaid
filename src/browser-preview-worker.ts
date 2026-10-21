@@ -3,7 +3,8 @@ import './scene/builtin-backends.ts'
 import { renderAndVerifyMermaid } from './agent/verify.ts'
 
 const host = globalThis as unknown as { onmessage: (event: MessageEvent<PreviewWorkerRequest>) => void; postMessage: (response: PreviewWorkerResponse) => void }
-host.onmessage = event => {
+// The standalone editor embeds this module once and runs it in both realms.
+if (typeof window === 'undefined') host.onmessage = event => {
   const { id, source, options } = event.data
   try {
     const started = performance.now()

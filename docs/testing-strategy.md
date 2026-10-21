@@ -592,6 +592,12 @@ table here, which would drift. In broad strokes:
   default cache behavior and adaptive debounce, and records a 5 ms main-thread
   heartbeat. Run baseline and candidate builds sequentially on an otherwise
   idle runner. These targeted UI samples are separate from the full corpus.
+  The standalone editor embeds one module used by both the main thread and
+  its Blob worker; it does not embed separate copies of the rendering engine.
+  The real-browser standalone contract also caps the complete generated HTML
+  at 4,100,000 raw / 1,250,000 gzip bytes and checks worker crash recovery,
+  text output and the actual Canvas PNG download. The hosted editor retains
+  its separate, lazy worker asset and existing route payload budgets.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;

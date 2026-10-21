@@ -27,7 +27,6 @@ import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyles, knownStyleDescriptors, getS
 import { getSeriesColor, CHART_ACCENT_FALLBACK } from './xychart/colors.ts'
 import { renderMermaidPNGInBrowserWithReceipt } from './browser-png.ts'
 import { resolveEditorRenderOptions } from './editor-render-options.ts'
-import { renderEditorPreview, cancelPendingEditorPreview } from './browser-preview-client.ts'
 
 declare const window: unknown
 
@@ -47,7 +46,6 @@ async function renderMermaidSVGAsync(text: string, options = {}) {
 export const BROWSER_EDITOR_ADAPTER = {
   renderMermaidSVGAsync,
   renderMermaidSVGWithReceipt,
-  cancelPendingRender: cancelPendingEditorPreview,
   SHARED_RENDER_OPTION_FIELDS,
   STYLE_COLOR_TOKEN_FIELDS: Object.freeze(Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS)),
   SHARED_RENDER_OPTIONS_JSON_SCHEMA: sharedRenderOptionsJsonSchema(),
@@ -69,9 +67,6 @@ export const BROWSER_EDITOR_ADAPTER = {
   resolveEditorRenderOptions,
 }
 
-declare const AM_EDITOR_WORKER_ENABLED: boolean
 if (typeof window !== 'undefined') {
-  ;(window as Record<string, unknown>).__mermaid = typeof AM_EDITOR_WORKER_ENABLED === 'undefined'
-    ? BROWSER_EDITOR_ADAPTER
-    : { ...BROWSER_EDITOR_ADAPTER, renderMermaidSVGWithReceipt: renderEditorPreview }
+  ;(window as Record<string, unknown>).__mermaid = BROWSER_EDITOR_ADAPTER
 }
