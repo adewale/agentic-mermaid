@@ -9,7 +9,6 @@
 // ============================================================================
 
 import { CSS_NAMED_COLORS } from './css-named-colors.ts'
-import { memoizeColorToken } from './color-token-cache.ts'
 
 export type RgbaColor = [red: number, green: number, blue: number, alpha: number]
 
@@ -74,10 +73,10 @@ export function luminanceContrastRatio(la: number, lb: number): number {
 }
 
 /** WCAG 2.x relative luminance for a concrete CSS color. */
-export const relativeLuminance = memoizeColorToken((color: string): number | null => {
+export function relativeLuminance(color: string): number | null {
   const parsed = tryParseCssColor(color)
   return parsed ? srgbRelativeLuminance(parsed) : null
-})
+}
 
 /** WCAG contrast ratio, or null when either color is unresolved CSS. */
 export function contrastRatio(a: string, b: string): number | null {
@@ -152,15 +151,6 @@ export function luma255(r: number, g: number, b: number): number {
 
 /** Parse concrete CSS colors used by Mermaid config into RGBA. */
 export function tryParseCssColor(color: string): RgbaColor | null {
-  const parsed = cachedCssColor(color)
-  // The public helper historically returns a mutable tuple. Never expose a
-  // cached array that a caller could change for subsequent diagrams.
-  return parsed ? [...parsed] : null
-}
-
-const cachedCssColor = memoizeColorToken(parseConcreteCssColor)
-
-function parseConcreteCssColor(color: string): RgbaColor | null {
   const value = color.trim().toLowerCase()
   const named = Object.hasOwn(CSS_NAMED_COLORS, value) ? CSS_NAMED_COLORS[value] : undefined
   if (named) {
