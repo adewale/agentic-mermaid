@@ -57,6 +57,7 @@ describe('flowchart @{...} node metadata preservation (issue #29)', () => {
     ['>-', 'First line Second line'],
   ])('block scalar %s retains its indentation through public rendering and typed edits', (scalar, label) => {
     const source = `flowchart TD\n  A@{\n    shape: rect\n    label: ${scalar}\n      First line\n      Second line\n  }\n  A --> B[Done]`
+    expect(parseMermaid(source).ok).toBe(true)
     const diagram = parseAgent(source)
     const typed = asFlowchart(diagram)
     expect(typed?.body.graph.nodes.get('A')?.label).toBe(label)

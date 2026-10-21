@@ -97,6 +97,7 @@ describe('pinned Mermaid Mindmap/GitGraph upstream oracle', () => {
         expect(graph.commits.filter(commit => (commit.sourceId ?? commit.id) === b.assertions!.duplicateSourceId)).toHaveLength(2)
         expect(parseGitGraph(serializeGitGraph(graph))).toEqual(graph)
       } else if (b.reason === 'reachable-cherry-pick-policy') {
+        expect(() => parseGitGraph(b.source!)).not.toThrow()
         const graph = parseGitGraph(b.source!)
         const picked = graph.commits.filter(commit => commit.source === 'cherry-pick')
         expect(picked.map(commit => [commit.cherrySource, commit.cherryParent, commit.tags])).toEqual([

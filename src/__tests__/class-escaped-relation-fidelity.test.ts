@@ -96,6 +96,7 @@ describe('Class escaped relationship IDs', () => {
   test('native, agent, verify, SVG, and serialization preserve the same endpoints', () => {
     for (const item of cases) {
       const source = `classDiagram\n${item.statement}`
+      expect(() => parseClassDiagram(source.split('\n'))).not.toThrow()
       const native = parseClassDiagram(source.split('\n'))
       expect(native.classes.map(node => node.id)).toEqual([item.from, item.to])
       expect(native.relationships).toEqual([expect.objectContaining({
