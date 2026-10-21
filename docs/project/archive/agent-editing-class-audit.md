@@ -174,3 +174,9 @@ applies. The largest increase is Flowchart gzip, 712,000 to 713,000 bytes,
 against an actual 712,535. Request limits stay unchanged; initial transfer is
 5,493 bytes gzip. These costs do not establish layout continuity or a complete
 portable-export verdict. Final rebased CI is linked from PR #456.
+
+The rebased website payload lane measures the default demo at 787,643 raw /
+302,191 gzip bytes, crossing the inherited ceilings by 643 / 91 bytes. Its
+ceilings become 788,000 / 302,500; request and per-PR growth gates remain. A
+separate Chromium launch crashed before executing application tests; rerun
+results, rather than that failed process, determine browser readiness.
