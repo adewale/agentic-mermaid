@@ -126,6 +126,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install the CJK coverage fixture
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+
       - name: Run changed tests against the base branch's production code
         env:
           GH_TOKEN: ${{ github.token }}
