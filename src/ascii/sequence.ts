@@ -96,6 +96,32 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   if (maxDepth) leftMargin += maxDepth * 4
   const llX = [leftMargin]
   for (let index = 1; index < diagram.actors.length; index++) llX[index] = llX[index - 1]! + Math.max(halfBox[index - 1]! + halfBox[index]! + (diagram.actors[index - 1]!.box !== diagram.actors[index]!.box ? 4 : 2), gaps[index - 1]! + 2, 10)
+  const messageSpans = diagram.messages.map((message, index) => {
+    const from = llX[actorIndex.get(message.from)!]!, to = llX[actorIndex.get(message.to)!]!
+    const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
+    const labelX = from === to ? from + 6 : Math.min(from, to) + Math.floor((Math.abs(to - from) - width) / 2)
+    const x = Math.min(from, to, labelX)
+    return { x, width: Math.max(from, to, labelX + width - 1) - x + 1 }
+  })
+  const noteSpans = diagram.notes.map((note, index) => {
+    const width = Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4
+    const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!, last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
+    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
+    return { x: Math.max(0, x), width }
+  })
+  const frameSpans = new Map<number, { x: number; width: number }>()
+  const frameSpan = (index: number): { x: number; width: number } => {
+    const cached = frameSpans.get(index)
+    if (cached) return cached
+    const scope = scopes[index]!, block = diagram.blocks[index]!
+    const contents = [...messageSpans.slice(block.startIndex, scope.endMessageExclusive), ...scope.noteIndices.map(ni => noteSpans[ni]!), ...scope.childBlockIndices.map(frameSpan)]
+    const x = Math.max(0, (contents.length ? Math.min(...contents.map(item => item.x)) : llX[0]!) - 4)
+    const right = contents.length ? Math.max(...contents.map(item => item.x + item.width)) : llX.at(-1)!
+    const labelWidth = Math.max(0, ...headerLines[index]!.map(visualWidth), ...dividerLines[index]!.flatMap(lines => lines.map(visualWidth)))
+    const span = { x, width: Math.max(right + 4 - x, labelWidth + 2) + (block.type === 'par_over' ? labelWidth : 0) }
+    frameSpans.set(index, span)
+    return span
+  }
   const messages: PositionedMessage[] = []
   const notes: PositionedText[] = []
   const frames = new Map<number, SequenceFrame>()
@@ -162,6 +188,16 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       if (event.messageIndex > messageCursor || event.noteIndex > noteCursor) break
       const index = event.blockIndex
       if (event.kind === 'open') {
+        if (overlays.size) {
+          const span = frameSpan(index)
+          for (const [overlayIndex, state] of overlays) {
+            const tagRows = state.pending === undefined ? 0 : frames.get(overlayIndex)!.dividers[state.pending]!.lines.length + 1
+            for (const ink of state.prior) {
+              if (span.x < ink.x + ink.width + 1 && span.x + span.width + 1 > ink.x) cursor = Math.max(cursor, ink.y + ink.height + tagRows + 1)
+            }
+          }
+          cursor += overlayContent({ ...span, y: cursor + 1, height: 1 })
+        }
         cursor++
         frames.set(index, { index, x: 0, y: cursor, width: 0, height: 0, header: headerLines[index]!, dividers: [], parentId: currentParent() })
         activeFrames.push(index)
@@ -214,11 +250,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     if (note && note.afterIndex < messageCursor) {
       cursor++
       const lines = noteLines[noteCursor]!
-      const width = Math.max(0, ...lines.map(visualWidth)) + 4
-      const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!
-      const last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
-      const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
-      const positioned = { index: noteCursor, x: Math.max(0, x), y: cursor, width, height: lines.length + 2, lines, parentId: currentParent() }
+      const positioned = { index: noteCursor, ...noteSpans[noteCursor]!, y: cursor, height: lines.length + 2, lines, parentId: currentParent() }
       const shift = overlayContent(positioned)
       cursor += shift; positioned.y += shift
       notes.push(positioned); own(positioned); cursor += positioned.height; noteCursor++

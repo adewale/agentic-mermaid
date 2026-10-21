@@ -82,6 +82,8 @@ it('note-only overlay branches share time and keep a later branch label above it
   const overlay = nested.blocks.find(block => block.type === 'par_over')!
   const child = nested.blocks.find(block => block.type === 'rect')!
   expect(overlay.dividers[0]!.labelPosition!.bounds.y + overlay.dividers[0]!.labelPosition!.bounds.height).toBeLessThan(child.y)
+  const shared = layout('sequenceDiagram\npar_over Work\nA->>B: first\nand Other\nrect rgb(240,240,240)\nA->>B: second\nend\nend\nA->>B: joined')
+  expect(overlaps(shared.blocks.find(block => block.type === 'rect')!, shared.messages[0]!.bounds)).toBe(false)
 })
 
 function actorRect(actor: PositionedSequenceDiagram['actors'][number]): Rect {

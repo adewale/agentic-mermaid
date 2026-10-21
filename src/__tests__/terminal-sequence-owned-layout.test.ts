@@ -51,6 +51,13 @@ describe('Sequence terminal ordered ownership and measured fragment bounds', () 
     expect(region('message:0').canvasRow).toBeGreaterThan(bottom(block('Work')))
     expect(doc.diagnostics).toEqual([])
   })
+
+  test('a later nested frame cannot cover a message from an earlier overlay branch', () => {
+    const { output, doc, region, block } = render('par_over Work\nA->>B: first\nand Other\nloop Nested\nA->>B: second\nend\nend\nA->>B: joined')
+    expect(output).toContain('first')
+    expect(block('Nested').canvasRow).toBeGreaterThan(bottom(region('message:0')))
+    expect(doc.diagnostics).toEqual([])
+  })
   test('closes a fragment before a later note at the same message cursor (#391)', () => {
     const { output, doc, region, block } = render(`loop inside
 A->>B: hi
