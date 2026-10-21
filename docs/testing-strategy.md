@@ -598,6 +598,61 @@ table here, which would drift. In broad strokes:
   at 4,100,000 raw / 1,250,000 gzip bytes and checks worker crash recovery,
   text output and the actual Canvas PNG download. The hosted editor retains
   its separate, lazy worker asset and existing route payload budgets.
+
+  Two optional investigations expand these diagnostics without adding timing
+  gates:
+
+  ```sh
+  # AGENTIC_ROOT contains package.json and the actual dist/browser.global.js.
+  bun run eval/benchmark/renderer-profile.ts --agentic-root /path/to/extracted/package \
+    --bezel-dir /tmp/bezel-bench --out bench-report/renderer-profile --executable /path/to/chromium
+  bun run eval/benchmark/editor-session-bench.ts --site website/public \
+    --out bench-report/editor-session --session-edits 120 --executable /path/to/chromium
+  ```
+
+  The renderer investigation records family-level SVG acceptance, differential
+  inputs/errors and paired timing over the complete occurrence inventory. Its
+  separate source-build pass attributes stages over distinct sources after
+  warmup, both through SVG return and fully consumed receipts; layout includes
+  ELK, so those stage totals must not be added together. Chrome CPU profiles
+  cover the slowest shared-success example in eight families. Source profiles
+  retain function names; only the packaged pass establishes competitor ratios.
+  `--timing-report /path/to/renderer-profile.json` can reuse a completed timing
+  pass with identical artifact hashes/rounds and a complete adjacent
+  `samples.json`; it still reruns stage attribution and profiling.
+
+  The editor session runner covers trees, nested crosslinks, sequence, class,
+  ER, state, mindmap, Gantt and pie. Defaults are five fresh browser contexts,
+  20 warm edits, 60 subsequent edits and a 30-edit burst requesting 80 ms intervals per
+  case. It records median/p95 latency, heartbeat gaps, receipt invalidation,
+  visible final labels, worker concurrency and forced-GC JS heaps in both
+  realms. Fresh contexts do not clear browser-process or OS caches; localhost
+  transfer is uncompressed and unshaped. Heap figures exclude native/DOM/Blob
+  backing allocations and process RSS. Use `--case tree-150` for longer focused
+  sessions, `--memory-every 100` for periodic retained-heap checkpoints outside
+  timed edits, and `--entry /original.html` for standalone builds served in a site
+  directory alongside its `capabilities.json` and fonts. Baseline/candidate
+  runs must remain sequential on an otherwise idle runner.
+
+  `editor-ownership-probe.ts --html editor.html --out /path/to/probe.html`
+  builds an experimental standalone HTML using the hosted async facade and
+  guarded worker initialization. It defers main-thread engine initialization
+  until text/PNG export; it does not establish permanent worker ownership or
+  replace the synchronous public browser adapter. Compare its measured heaps,
+  startup, exports and compressed payload before proposing a production change.
+  `editor-ownership-bench.ts --site /path/to/site --out bench-report/ownership
+  --executable /path/to/chromium` compares `original.html` and `probe.html` in
+  alternating fresh contexts. It separately measures the empty shell, first
+  receipt-bearing preview, ASCII/Unicode output and a real Canvas PNG, with
+  heap checkpoints before/after preview and after exports.
+  Add `--mode worker-only` to the probe builder for a serial-call RPC experiment
+  that keeps preview/text/PNG projection and PNG validation in the worker while
+  sending the existing Canvas raster callback to the main thread. Build it as
+  `worker-only.html` and pass `--candidate worker-only` to the ownership runner.
+  The runner also requires matching SVG/ASCII/Unicode/PNG output identities
+  across variants. This experiment omits production queue/cancellation/retry
+  and callback-admission behavior; it is evidence for an architecture decision,
+  not a production entry point.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
