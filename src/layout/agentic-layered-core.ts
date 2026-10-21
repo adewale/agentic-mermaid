@@ -12,6 +12,8 @@ export interface MeasuredGraph {
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
     id: string; parent?: number; direction?: Direction; minWidth: number
+    /** Measured painted header strip, excluding blank content padding. */
+    headerHeight?: number
     padding: { top: number; right: number; bottom: number; left: number }
   }[]
   /** Label dimensions include the occupied painted body. Its own shaft is
