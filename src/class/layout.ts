@@ -1,6 +1,7 @@
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
 import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
+import { configSpacing } from '../shared/config-spacing.ts'
 import { type DisplayTextInput, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
@@ -93,12 +94,6 @@ export function resolveClassRenderOptions(frontmatter: MermaidFrontmatterMap | u
     layerSpacing: options.layerSpacing ?? rankSpacing,
     ...(hierarchicalNamespaces !== undefined ? { class: { ...options.class, hierarchicalNamespaces } } : {}),
   }
-}
-
-/** Read a finite non-negative spacing number from a family config section. */
-export function configSpacing(frontmatter: MermaidFrontmatterMap, family: string, key: string): number | undefined {
-  const value = getFrontmatterScalar<number>(frontmatter, [family, key])
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
 export function classTextBlock(text: DisplayTextInput, style: ResolvedRenderStyle, role: 'node' | 'edge' | 'group', maxWidth?: number): PixelTextBlock {

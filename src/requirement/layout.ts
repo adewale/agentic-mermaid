@@ -4,6 +4,7 @@ import { resolveRoleStyle } from '../scene/roles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { assertRequirementDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { layoutTextRows } from '../shared/text-rows.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
 import type { RenderOptions } from '../types.ts'
@@ -51,18 +52,15 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
           ['Doc Ref', element!.docRef],
         ]
     const headerHeight = header.height + Math.max(12, insetY * 1.5)
-    let height = headerHeight + 8,
-      width = Math.max(minWidth, header.width + insetX * 2)
-    const rows = fields
+    const measured = layoutTextRows(fields
       .filter(([, value]) => value)
       .map(([key, value]) => {
         const block = preparePixelText(`${key}: ${value}`, { fontSize, fontWeight: fontWeight ?? 400, maxWidth, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing, fontFamily: options.font })
-        const y = height + block.height / 2
-        height += Math.max(block.height, rowStride) + 9
-        width = Math.max(width, block.width + insetX * 2)
-        return { label: key!, block, y }
-      })
-    height = Math.max(minHeight, height + 8)
+        return { label: key!, block }
+      }), { top: headerHeight + 8, gap: 9, minRowHeight: rowStride, align: 'start', trailingGap: true })
+    const rows = measured.rows.map(({ item, textY }) => ({ ...item, y: textY }))
+    const height = Math.max(minHeight, measured.bottom + 8),
+      width = Math.max(minWidth, header.width + insetX * 2, measured.width + insetX * 2)
     return { id: record.name, requirement, element, x: 0, y: 0, width, height, header, rows, paddingX: insetX, headerHeight, style: props }
   })
   const byId = new Map(nodes.map(n => [n.id, n])),
