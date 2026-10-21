@@ -11,13 +11,13 @@ function stateCommentMap(source: string): SourceMap {
     if (transition) {
       const pair = `${transition.from}->${transition.to}`
       const occurrence = occurrences.get(pair) ?? 0
-      map.edges.set(`${pair}#${occurrence}`, { line: statement.line, col: 1 })
+      map.edges.set(`${pair}#${occurrence}`, { line: statement.line + 1, col: 1 })
       occurrences.set(pair, occurrence + 1)
     } else {
       const id = matchStateDeclarationLine(statement.text) ?? matchStereotypeDecl(statement.text)?.id
         ?? STATE_ALIAS_RE.exec(statement.text)?.[2] ?? STATE_COMPOSITE_OPEN_RE.exec(statement.text)?.[2]
         ?? STATE_DESCRIPTION_RE.exec(statement.text)?.[1]
-      if (id && !map.nodes.has(id)) map.nodes.set(id, { line: statement.line, col: 1 })
+      if (id && !map.nodes.has(id)) map.nodes.set(id, { line: statement.line + 1, col: 1 })
     }
   }
   return map
@@ -27,6 +27,7 @@ function stateCommentMap(source: string): SourceMap {
 export function retainBodyComments(diagram: ParsedDiagram, authored: string): void {
   if ((diagram.kind !== 'flowchart' && diagram.kind !== 'state') || !diagram.meta.droppedComments?.length) return
   const lines = authored.split(/\r?\n/)
+  const stateLines = diagram.kind === 'state' ? scanStateComments(lines) : undefined
   const stateMap = diagram.kind === 'state' ? stateCommentMap(authored) : undefined
   const statements = (['nodes', 'edges', 'groups'] as const).flatMap(collection =>
     stateMap ? [...stateMap[collection]].map(([id, point]) => ({ collection, id, line: point.line }))
@@ -34,7 +35,7 @@ export function retainBodyComments(diagram: ParsedDiagram, authored: string): vo
     .sort((a, b) => a.line - b.line)
   diagram.meta.bodyComments = diagram.meta.droppedComments.map(comment => {
     const line = lines[comment.line - 1] ?? ''
-    const marker = line.indexOf('%%')
+    const marker = stateLines ? stateLines[comment.line - 1]?.commentIndex ?? -1 : line.indexOf('%%')
     const raw = marker >= 0 ? line.slice(marker) : `%% ${comment.text}`
     const inline = marker > 0 && line.slice(0, marker).trim().length > 0
     const target = inline ? statements.find(statement => statement.line === comment.line) : statements.find(statement => statement.line > comment.line)

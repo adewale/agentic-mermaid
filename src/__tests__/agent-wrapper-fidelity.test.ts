@@ -6,8 +6,8 @@
 // through parse → serialize and through mutation. Canonical wrapper synthesis
 // (Mermaid's documented config-nested shape) is opt-in.
 //
-// 2C: in-body %% comments are not modeled by structured bodies; their loss is
-// announced by the Tier 3 COMMENT_DROPPED lint instead of being silent.
+// 2C: Flowchart and State keep anchored body comments. Other structured
+// families announce known loss with COMMENT_DROPPED.
 // Opaque bodies and preserved opaque segments keep comments and never warn.
 //
 // Each round-trip test also asserts the PREVIOUS bug shape is gone (flattened
@@ -389,4 +389,24 @@ test('comment anchors survive renaming and JSON transport; metadata cannot intro
   expect(serializeMermaid(restored.value)).toContain('%% name rationale')
   payload.meta.bodyComments[0].raw = 'Injected --> Other'
   expect(synthesizeFromGraph(payload).ok).toBe(false)
+})
+
+test('State comments stay before their authored state through serialization and renaming', () => {
+  const parsed = parseMermaid('stateDiagram-v2\n  %% state rationale\n  state "Start" as A')
+  if (!parsed.ok) throw new Error('parse failed')
+  const source = serializeMermaid(parsed.value)
+  expect(source).toMatch(/%% state rationale\n\s*state "Start" as A/)
+  const renamed = mutate(parsed.value, { kind: 'rename_state', from: 'A', to: 'Renamed' })
+  if (!renamed.ok) throw new Error(renamed.error.message)
+  expect(serializeMermaid(renamed.value)).toMatch(/%% state rationale\n\s*state "Start" as Renamed/)
+})
+
+test('State inline comments start outside quoted aliases', () => {
+  const parsed = parseMermaid('stateDiagram-v2\n  state "A %% quoted" as A %% real comment\n  A --> B')
+  if (!parsed.ok) throw new Error('parse failed')
+  const source = serializeMermaid(parsed.value)
+  expect(source).toContain('state "A %% quoted" as A\n%% real comment\n')
+  const reparsed = parseMermaid(source)
+  if (!reparsed.ok) throw new Error('reload failed')
+  expect(serializeMermaid(reparsed.value)).toBe(source)
 })
