@@ -176,18 +176,22 @@ jobs:
                 --out "$directory/$backend.json"
             done
           done
-          mkdir -p "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63"
-          for backend in elk agentic; do
-            bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
-              --generated-kind sha256-counter-v1 --generated-start 0 --generated-count 64 --label "$backend" \
-              --out "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63/$backend.json"
+          for start in 0 64; do
+            end=$((start + 63))
+            directory="$EVIDENCE_DIR/independent-sha256-counter-v1-$start-$end"
+            mkdir -p "$directory"
+            for backend in elk agentic; do
+              bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+                --generated-kind sha256-counter-v1 --generated-start "$start" --generated-count 64 --label "$backend" \
+                --out "$directory/$backend.json"
+            done
           done
       - name: Compare final quality without declaring a performance winner
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
           failed=0
-          for directory in "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63"; do
+          for directory in "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63" "$EVIDENCE_DIR/independent-sha256-counter-v1-64-127"; do
             if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
               --after "$directory/agentic.json" --out "$directory/report.html"; then
               failed=1
