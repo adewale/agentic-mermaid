@@ -1,9 +1,12 @@
 import { expect, test } from 'bun:test'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 // Run with production admission: the ordinary test preload intentionally asks
 // for full Scene cross-checks, which must keep exercising the Scene adapter.
-test('ordinary native crisp rendering constructs no populated Scene groups and retains paint safety', () => {
-  const child = Bun.spawnSync([process.execPath, '-e', `
+test('ordinary native crisp rendering constructs no populated Scene groups and retains paint safety', async () => {
+  const child = await runChild(process.execPath, ['-e', `
     import { spyOn } from 'bun:test'
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
     import { knownBuiltinFamilies, getFamily } from './src/agent/families.ts'
@@ -34,14 +37,10 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
       if (!stages.includes('scene')) throw new Error('Scene consumer bypassed its adapter')
     }
     console.log('native crisp and Scene consumers passed')
-  `], {
-    cwd: `${import.meta.dir}/../..`,
-    env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' },
-    stdout: 'pipe', stderr: 'pipe',
-  })
-  expect(new TextDecoder().decode(child.stderr)).toBe('')
-  expect(child.exitCode).toBe(0)
-  expect(new TextDecoder().decode(child.stdout)).toContain('native crisp and Scene consumers passed')
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+  expect(child.stdout).toContain('native crisp and Scene consumers passed')
 }, 30_000)
 
 test('native fragment reuse cannot exceed the emitted node budget', async () => {
@@ -53,8 +52,8 @@ test('native fragment reuse cannot exceed the emitted node budget', async () => 
   }, { positioned: { width: 10, height: 10 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }, 'flowchart')).toThrow('too many emitted nodes')
 })
 
-test('native crisp rendering refuses a failed default writer conformance report', () => {
-  const child = Bun.spawnSync([process.execPath, '-e', `
+test('native crisp rendering refuses a failed default writer conformance report', async () => {
+  const child = await runChild(process.execPath, ['-e', `
     import { spyOn } from 'bun:test'
     import * as conformance from './src/scene/backend-conformance.ts'
     import { renderMermaidSVG } from './src/index.ts'
@@ -66,7 +65,7 @@ test('native crisp rendering refuses a failed default writer conformance report'
       if (!failure?.message.includes('failed SVG conformance: draw-node-semantics: forced failure'))
         throw new Error('unproven writer produced output')
     }
-  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, stdout: 'pipe', stderr: 'pipe' })
-  expect(new TextDecoder().decode(child.stderr)).toBe('')
-  expect(child.exitCode).toBe(0)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
 })

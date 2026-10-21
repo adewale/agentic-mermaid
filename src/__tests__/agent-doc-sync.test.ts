@@ -3,7 +3,6 @@
 // declaration matches the runtime registries and sandbox.
 
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,6 +19,9 @@ import { buildCapabilities, buildLlmsTxt, MUTATION_OPS_BY_FAMILY } from '../cli/
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const REPO = join(import.meta.dir, '..', '..')
 
@@ -177,7 +179,7 @@ describe('agent-facing runnable docs', () => {
   // to a var the prose calls a string); those need human review. Skipped:
   // continuation fragments (no import), module/handler fragments (top-level
   // export/return), and React/JSX blocks.
-  test('public-API doc snippets execute', () => {
+  test('public-API doc snippets execute', async () => {
     const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
     const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
     const BROWSER = JSON.stringify(join(REPO, 'src/browser-lazy.ts'))
@@ -206,7 +208,7 @@ describe('agent-facing runnable docs', () => {
           const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
           const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
           writeFileSync(file, placeholders(block) + '\n' + wired)
-          const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
+          const r = await runChild('bun', ['run', file], { cwd: dir })
           expect({ doc, block: i, status: r.status, stderr: r.stderr }).toEqual({ doc, block: i, status: 0, stderr: '' })
           ran++
         }
@@ -409,7 +411,7 @@ describe('documented package usage works', () => {
     }
   })
 
-  test('package-runner quickstarts install the published package and run a real subcommand', () => {
+  test('package-runner quickstarts install the published package and run a real subcommand', async () => {
     // `npx <pkg> <sub>` resolves the bin named after the package, so every
     // documented invocation must name this package, that bin must exist, and
     // the subcommand must be one `am` accepts.
@@ -443,7 +445,7 @@ describe('documented package usage works', () => {
     }
     expect(subcommands.has('mcp')).toBe(true)
     for (const sub of subcommands) {
-      const help = spawnSync('bun', ['run', join(REPO, 'bin/am.ts'), sub, '--help'], { cwd: REPO, encoding: 'utf8' })
+      const help = await runChild('bun', ['run', join(REPO, 'bin/am.ts'), sub, '--help'], { cwd: REPO })
       expect({ sub, status: help.status }).toEqual({ sub, status: 0 })
     }
   }, 60_000)

@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -34,6 +33,9 @@ import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { SCENE_ROLE_DESCRIPTORS } from '../scene/roles.ts'
 import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
 const BACKEND_REGISTRATION_OPTIONS = Object.freeze({ compatibility: BACKEND_COMPATIBILITY })
@@ -616,10 +618,10 @@ describe('canonical style identities', () => {
 })
 
 describe('backend registration and host policy', () => {
-  test('first-party backend implementations are inert and have one enrollment authority', () => {
+  test('first-party backend implementations are inert and have one enrollment authority', async () => {
     // A fresh process observes import side effects that this file's own
     // import of builtin-backends.ts has already applied.
-    const probe = spawnSync(process.execPath, ['--eval', `
+    const probe = await runChild(process.execPath, ['--eval', `
       const { knownBackendDescriptors } = await import('./src/scene/backend.ts')
       const ids = () => knownBackendDescriptors().map(entry => entry.identity.id)
       const initial = ids()
@@ -628,7 +630,7 @@ describe('backend registration and host policy', () => {
       const afterImplementations = ids()
       const { BUILTIN_BACKENDS } = await import('./src/scene/builtin-backends.ts')
       console.log(JSON.stringify({ initial, afterImplementations, enrolled: ids(), builtins: BUILTIN_BACKENDS.map(backend => backend.id) }))
-    `], { cwd: join(import.meta.dir, '..', '..'), encoding: 'utf8' })
+    `], { cwd: join(import.meta.dir, '..', '..') })
     expect({ status: probe.status, stderr: probe.stderr }).toEqual({ status: 0, stderr: '' })
     const observed = JSON.parse(probe.stdout) as Record<'initial' | 'afterImplementations' | 'enrolled' | 'builtins', string[]>
     expect(observed.builtins).toEqual(BUILTIN_BACKENDS.map(backend => backend.id))
@@ -1094,10 +1096,10 @@ describe('backend registration and host policy', () => {
 })
 
 describe('built-in backend conformance', () => {
-  test('refuses a non-conforming built-in at its first render instead of at registration', () => {
+  test('refuses a non-conforming built-in at its first render instead of at registration', async () => {
     // A fresh process: a built-in cannot be unregistered, and a failing one
     // left in this process would break every later test of the built-in set.
-    const probe = spawnSync(process.execPath, ['--eval', `
+    const probe = await runChild(process.execPath, ['--eval', `
       const { DefaultBackend, knownBackendDescriptors, registerBackend, registerBuiltInBackend } = await import('./src/scene/backend.ts')
       const builtIn = (inputName, render) => ({
         ...DefaultBackend,
@@ -1130,7 +1132,7 @@ describe('built-in backend conformance', () => {
       registerBuiltInBackend(mutator)
       attempt(() => mutator.render(undefined, { seed: 0 }))
       console.log(JSON.stringify({ callsAtRegistration, first, second, reran: calls !== callsAfterFirst, passed, firstDraw, mutation }))
-    `], { cwd: join(import.meta.dir, '..', '..'), encoding: 'utf8' })
+    `], { cwd: join(import.meta.dir, '..', '..') })
     expect({ status: probe.status, stderr: probe.stderr }).toEqual({ status: 0, stderr: '' })
     const observed = JSON.parse(probe.stdout) as { callsAtRegistration: number; first: string; second: string; reran: boolean; passed: boolean; firstDraw: string; mutation: string }
     expect(observed.callsAtRegistration).toBe(0)

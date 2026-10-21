@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -38,7 +37,7 @@ const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const runChild = useTestChildren(30_000)
 
 describe('canonical PNG output-option authority', () => {
-  test('initializes the hosted styled PNG adapter in a fresh process', () => {
+  test('initializes the hosted styled PNG adapter in a fresh process', async () => {
     ensureWebsiteBuilt()
     const adapter = join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts')
     const probe = `
@@ -59,7 +58,7 @@ describe('canonical PNG output-option authority', () => {
       console.log(JSON.stringify({ bytes: artifact.png.byteLength,
         backend: artifact.receipt.executionDecision.backend.selectedId }))
     `
-    const result = spawnSync(process.execPath, ['--eval', probe], { encoding: 'utf8' })
+    const result = await runChild(process.execPath, ['--eval', probe])
     expect(result.status, result.stderr).toBe(0)
     expect(JSON.parse(result.stdout)).toMatchObject({ backend: 'backend:rough' })
     expect(JSON.parse(result.stdout).bytes).toBeGreaterThan(0)

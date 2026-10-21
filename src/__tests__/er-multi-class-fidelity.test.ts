@@ -194,7 +194,7 @@ describe('ER multiple-class shorthand (Mermaid 11.16.0)', () => {
       const classes = 'hot,'.repeat(200000) + 'hot';
       const chart = parseErDiagram(['erDiagram', 'A ||--o{ B : x', 'class A vip', 'class A ' + classes]);
       if (chart.entities[0]?.className?.split(' ').length !== 200002) process.exit(1);`
-    const node = spawnSync('node', ['--input-type=module', '-e', script], { encoding: 'utf8' })
+    const node = spawnSync('node', ['--input-type=module', '-e', script], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
     expect(node.status).toBe(0)
   })
 })

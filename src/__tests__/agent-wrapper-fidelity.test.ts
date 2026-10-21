@@ -16,12 +16,14 @@
 // ============================================================================
 
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import {
   parseRegisteredMermaid as parseMermaid, synthesizeFromGraph, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidSVG,
 } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const FM_NESTED = '---\nconfig:\n  layout: elk\n  look: handDrawn\n---\nflowchart TD\n  A --> B'
 const FM_DAGRE = '---\nconfig:\n  layout: dagre\n---\nflowchart TD\n  A --> B'
@@ -316,14 +318,12 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(canonical).toContain('theme: dark')
   })
 
-  test('am format defaults to verbatim; --canonical-wrapper opts into synthesis', () => {
-    const run = (args: string[]) => spawnSync('bun', [join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'format', '-', ...args], {
-      input: COMBO, encoding: 'utf8',
-    })
-    const verbatim = run([])
+  test('am format defaults to verbatim; --canonical-wrapper opts into synthesis', async () => {
+    const run = (args: string[]) => runChild('bun', [join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'format', '-', ...args], { input: COMBO })
+    const verbatim = await run([])
     expect(verbatim.status).toBe(0)
     expect(verbatim.stdout).toBe(COMBO + '\n')
-    const canonical = run(['--canonical-wrapper'])
+    const canonical = await run(['--canonical-wrapper'])
     expect(canonical.status).toBe(0)
     expect(canonical.stdout.startsWith('---\ntitle: My flow\nconfig:\n')).toBe(true)
     expect(canonical.stdout).not.toContain('%%{init')

@@ -1,7 +1,6 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
 import { beforeAll, describe, expect, spyOn, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
@@ -15,6 +14,9 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs()
 
@@ -998,27 +1000,27 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   // `am serialize` reads the parse JSON on stdin, so it runs as a subprocess.
-  const amSerialize = (json: string) => {
-    const r = spawnSync('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'serialize'], { input: json, encoding: 'utf8' })
+  const amSerialize = async (json: string) => {
+    const r = await runChild('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'serialize'], { input: json })
     return { code: r.status, out: r.stdout, err: r.stderr }
   }
 
-  test('REGRESSION: am parse | am serialize supports structured payload families', () => {
+  test('REGRESSION: am parse | am serialize supports structured payload families', async () => {
     const sources = ['classDiagram\n  class Animal\n', 'timeline\n  title Plan\n  2024 : Alpha\n', 'erDiagram\n  CUSTOMER {\n    string id\n  }\n']
-    sources.forEach((src, i) => {
+    for (const [i, src] of sources.entries()) {
       const parsed = capture(() => runCli(['parse', tmpFile(`structured-${i}.mmd`, src)]))
       expect(parsed.code).toBe(0)
-      const serialized = amSerialize(parsed.out)
+      const serialized = await amSerialize(parsed.out)
       expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
       expect(serialized.out.trim()).toContain(src.trim().split('\n')[0]!)
-    })
+    }
   })
 
-  test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', () => {
+  test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', async () => {
     const tmp = tmpFile('styled.mmd', 'flowchart TD\n  A[Start] --> B[End]\n  classDef hot fill:#f00\n  class A hot\n  style B stroke:#0f0\n  linkStyle 0 stroke:#00f\n')
     const parsed = capture(() => runCli(['parse', tmp]))
     expect(parsed.code).toBe(0)
-    const serialized = amSerialize(parsed.out)
+    const serialized = await amSerialize(parsed.out)
     expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
     const out = serialized.out
     expect(out).toContain('classDef hot fill:#f00')
