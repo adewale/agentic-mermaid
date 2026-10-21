@@ -1,8 +1,32 @@
 import { expect, test } from 'bun:test'
-import { snapshotSample, compareSample, buildReportHtml, buildSnapshot } from './run.ts'
+import { snapshotSample, compareSample, buildReportHtml, buildSnapshot, summarizeComparisonsByFamily } from './run.ts'
 import { generatedFlowchartSamples } from './generated.ts'
 import { parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
+
+test('newly supported diagrams improve coverage while lost or missing inputs remain adverse', () => {
+  const rendered = snapshotSample({ id: 'support', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'support-')
+  expect(rendered.ok).toBe(true)
+  const declined = { id: rendered.id, family: rendered.family, source: rendered.source, ok: false, errorCode: 'GRAPH_LAYOUT_UNSUPPORTED', error: 'unsupported' }
+  const gain = compareSample(declined, rendered), loss = compareSample(rendered, declined)
+  expect(gain.verdict).toBe('improvement')
+  expect(loss.verdict).toBe('regression')
+  expect(summarizeComparisonsByFamily([gain]).microAdverseRate).toBe(0)
+  expect(summarizeComparisonsByFamily([loss]).microAdverseRate).toBe(1)
+  expect(summarizeComparisonsByFamily([compareSample(rendered, undefined)]).microAdverseRate).toBe(1)
+  expect(compareSample(declined, { ...declined, errorCode: 'INTERNAL_ERROR', error: 'defect' }).verdict).toBe('changed')
+})
+
+test('a crossing improvement cannot hide added bends, route length or area', () => {
+  const before = snapshotSample({ id: 'tradeoff', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'tradeoff-')
+  expect(before.ok).toBe(true)
+  const metrics = { ...before.metrics!, edgeCrossings: 2, routeGeometry: { bends: 0, length: 100, area: 1000 } }
+  const after = { ...before, metrics: { ...metrics, edgeCrossings: 1, routeGeometry: { bends: 2, length: 120, area: 1200 } } }
+  const comparison = compareSample({ ...before, metrics }, after)
+  expect(comparison.verdict).toBe('regression')
+  expect(comparison.notes.some(note => note.startsWith('polyline bends:'))).toBe(true)
+  expect(comparison.notes.some(note => note.startsWith('canvas area:'))).toBe(true)
+})
 
 test('generated quality snapshots replay an explicit population and retain fully consumed backend evidence', () => {
   const range = { start: 66, count: 1 }
@@ -63,7 +87,7 @@ test('visual snapshots apply the same backend to source rendering and parsed qua
 })
 
 test('visual snapshots preserve typed native declines and attribute requested fallback', () => {
-  const input = { id: 'compound', family: 'flowchart', source: 'flowchart TD\nOutside --> A\nsubgraph Group\n A --> B\nend' }
+  const input = { id: 'compound', family: 'flowchart', source: 'flowchart TD\nsubgraph Group\n A --> B\nend\nGroup --> A' }
   const declined = snapshotSample(input, 'review-', { graphLayout: { backend: 'agentic' } })
   expect(declined).toMatchObject({ ok: false, errorCode: 'GRAPH_LAYOUT_UNSUPPORTED' })
   expect(declined.svg).toBeUndefined()

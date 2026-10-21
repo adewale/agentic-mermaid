@@ -330,8 +330,8 @@ describe('checked graph layout selection', () => {
     expect(terminal.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
   })
 
-  test('declines cross-hierarchy frame endpoints and attributes a requested ELK fallback consistently across cache states', () => {
-    const compound = 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOutside --> Inner'
+  test('declines ancestor frame endpoints and attributes a requested ELK fallback consistently across cache states', () => {
+    const compound = 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOuter --> A'
     expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
     clearElkLayoutCache()
     const diagnostics: unknown[] = []
@@ -353,8 +353,7 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ['flowchart', 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOutside --> Inner'],
-    ['architecture', 'architecture-beta\ngroup g[Group]\n service a(server)[A] in g\n service b(server)[B] in g\n a:R --> L:b'],
+    ['flowchart', 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOuter --> A'],
   ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
     expect(() => renderMermaidSVGWithReceipt(source, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
     const result = renderMermaidSVGWithReceipt(source, FALLBACK)
@@ -378,7 +377,12 @@ describe('checked graph layout selection', () => {
     const fallback = renderMermaidASCIIWithReceipt(source, FALLBACK)
     expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'companion' })])
     const architecture = 'architecture-beta\ngroup g[Group]\n service a(server)[A] in g'
-    expect(() => renderMermaidASCIIWithReceipt(architecture, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
+    const projected = renderMermaidASCIIWithReceipt(architecture, AGENTIC)
+    expect(projected.text).toContain('Group')
+    expect(projected.receipt.layoutDecisions).toEqual([
+      expect.objectContaining({ selected: 'agentic', role: 'primary' }),
+      expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+    ])
   })
 
   test('diagnoses nonapplicable families without claiming graph execution', () => {

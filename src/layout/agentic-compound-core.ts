@@ -3,8 +3,8 @@ import type { ChannelWork } from './channel-tracks.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { Direction } from '../types.ts'
 
-/** Place scopes bottom-up, then join cross-scope leaves through bounded
- * boundary corridors. Frame endpoints across scopes remain unsupported. */
+/** Place scopes bottom-up, then join leaves and frames through bounded boundary
+ * corridors. Ancestor/descendant frame relationships still decline explicitly. */
 export function layoutCompoundGraph(
   input: MeasuredGraph,
   layout: (flat: MeasuredGraph) => AgenticLayout,
@@ -51,7 +51,6 @@ export function layoutCompoundGraph(
     if (!Number.isSafeInteger(edge.minSpan) || edge.minSpan < 1 || (edge.label && ![edge.label.width, edge.label.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured compound edge dimensions')
     let owner = owners[edge.source]!
     if (owner !== owners[edge.target]) {
-      if (edge.source >= leafCount || edge.target >= leafCount) unsupported('cross-hierarchy container endpoints')
       const ancestors = new Set<number>([-1])
       for (let parent = owner; parent >= 0; parent = owners[leafCount + parent]!) ancestors.add(parent)
       owner = owners[edge.target]!
@@ -61,6 +60,7 @@ export function layoutCompoundGraph(
         return endpoint
       }
       lifted.set(index, { source: representative(edge.source), target: representative(edge.target), host: owner })
+      if (lifted.get(index)!.source === lifted.get(index)!.target) unsupported('ancestor container endpoints')
     }
     hosted[owner + 1]!.push(index)
   }

@@ -117,6 +117,7 @@ export function routeCrossHierarchy(
   let expanded = placed.expandedVertices ?? 0
   const clearance = Math.max(8, input.edgeSpacing ?? 6)
   const nodes = placed.nodes.map((point, index): RoutingBox => ({ ...point, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+  const subjects = [...nodes, ...frames]
   for (const [index, endpoints] of lifted) {
     const edge = input.edges[index]!, raw = placed.edges[index]!
     const quotient = simplifyOrthogonal(raw.points)
@@ -151,8 +152,8 @@ export function routeCrossHierarchy(
     const host = endpoints.host, frame = host < 0 ? undefined : frames[host], pad = host < 0 ? undefined : groups[host]!.padding
     const bounds = frame && pad ? { x: frame.x + pad.left, y: frame.y + pad.top, width: frame.width - pad.left - pad.right, height: frame.height - pad.top - pad.bottom }
       : { x: 0, y: 0, width: placed.width, height: placed.height }
-    const sources = crossingSource ? terminals(nodes[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance) : []
-    const targets = crossingTarget ? terminals(nodes[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance) : []
+    const sources = crossingSource ? terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance) : []
+    const targets = crossingTarget ? terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance) : []
     let first = crossingSource ? undefined : [start]
     let last = crossingTarget ? undefined : [end]
     if (leafCount > 64) {
