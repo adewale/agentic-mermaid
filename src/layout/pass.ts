@@ -71,7 +71,9 @@ export interface LayoutPass<C extends PassContextBase> {
   freezesNodes?: boolean
   /** When present and false, the pass is skipped (e.g. bundling without mergeEdges). */
   enabled?: (ctx: C) => boolean
-  run: (ctx: C) => void
+  /** A cosmetic proposal may return a geometry-only rollback. Required passes
+   * return void; ordering, measurement, hard and freeze failures always escape. */
+  run: (ctx: C) => void | (() => void)
 }
 
 export interface RunOptions<C extends PassContextBase> {
@@ -130,7 +132,8 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
       certificate: edge.routeCertificate,
     })) : undefined
 
-    pass.run(ctx)
+    const rollback = pass.run(ctx)
+    let metricFailure: LayoutMetricBudgetError | undefined
 
     if (metricsBefore) {
       const metricsAfter = measure()
@@ -146,7 +149,11 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
         const improvement = Math.max(0, ...conditions(budget).map(metric => -change(metric)))
         const allowance = budget === 'improve-only' || (budget.whenImproves && improvement <= 1e-6) ? 0
           : budget.worsenBy * (budget.perImprovement ? Math.floor(improvement + 1e-6) : 1)
-        if (change(metric) > allowance + 1e-6) throw new LayoutMetricBudgetError(pass.id, metric, metricsBefore[metric]!, metricsAfter[metric]!, allowance)
+        if (change(metric) > allowance + 1e-6) {
+          const failure = new LayoutMetricBudgetError(pass.id, metric, metricsBefore[metric]!, metricsAfter[metric]!, allowance)
+          if (metric === 'hard') throw failure
+          metricFailure ??= failure
+        }
       }
     }
 
@@ -178,6 +185,11 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
           }
         }
       }
+    }
+
+    if (metricFailure) {
+      if (!rollback) throw metricFailure
+      rollback()
     }
 
     if (pass.freezesNodes) ctx.frozen = true
