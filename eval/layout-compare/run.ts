@@ -28,7 +28,7 @@ import { validateSerializableRenderOptions, type RenderRequestReceipt } from '..
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import { namespaceSvgIds } from '../../src/renderer.ts'
 import { FamilyLayoutError } from '../../src/agent/family-layouts.ts'
-import { generatedFlowchartSamples, type GeneratedFlowchartRange } from './generated.ts'
+import { generatedFlowchartSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -53,7 +53,7 @@ export interface Snapshot {
   rev: string
   dirty?: boolean
   renderOptions?: RenderOptions
-  population?: GeneratedFlowchartRange & { kind: 'generated-flowchart'; terminal: 'not-requested' }
+  population?: GeneratedFlowchartRange & { kind: 'generated-flowchart'; generator?: GeneratedFlowchartKind; terminal: 'not-requested' }
   createdAt: string
   samples: SampleResult[]
 }
@@ -99,7 +99,7 @@ export function snapshotSample(input: SampleInput, idPrefix: string, options: Re
   }
 }
 
-export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange } = {}): Snapshot {
+export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind } = {}): Snapshot {
   let rev = 'unknown'
   let dirty = true
   try {
@@ -107,12 +107,12 @@ export function buildSnapshot(label: string, options: { renderOptions?: RenderOp
     dirty = execSync('git status --porcelain', { cwd: ROOT, encoding: 'utf8' }).length > 0
   } catch { /* not a repo */ }
   if (options.generated && !options.renderOptions?.graphLayout) throw new RangeError('Generated comparisons require an explicit graphLayout.backend')
-  const all = options.generated ? generatedFlowchartSamples(options.generated) : collectSamples()
+  const all = options.generated ? generatedFlowchartSamples(options.generated, options.generatedKind) : collectSamples()
   if (options.families?.some(family => !all.some(sample => sample.family === family))) throw new RangeError('Unknown snapshot family')
   const samples = all.filter(sample => !options.families || options.families.includes(sample.family))
     .map((s, i) => snapshotSample(s, `lc${i}-`, options.renderOptions, { includeAscii: !options.generated }))
   return { label, rev, dirty, ...(options.renderOptions ? { renderOptions: options.renderOptions } : {}),
-    ...(options.generated ? { population: { ...options.generated, kind: 'generated-flowchart' as const, terminal: 'not-requested' as const } } : {}),
+    ...(options.generated ? { population: { ...options.generated, kind: 'generated-flowchart' as const, ...(options.generatedKind ? { generator: options.generatedKind } : {}), terminal: 'not-requested' as const } } : {}),
     createdAt: new Date().toISOString(), samples }
 }
 
@@ -351,10 +351,11 @@ if (import.meta.main) {
     const renderOptions = backend ? { graphLayout: { backend, ...(fallback ? { fallback } : {}) } } as RenderOptions : undefined
     const problems = renderOptions ? validateSerializableRenderOptions(renderOptions) : []
     if (problems.length) throw new RangeError(JSON.stringify(problems))
-    const count = arg('--generated-count'), start = arg('--generated-start')
+    const count = arg('--generated-count'), start = arg('--generated-start'), generatedKind = arg('--generated-kind') as GeneratedFlowchartKind | undefined
+    if (generatedKind && count === undefined) throw new RangeError('--generated-kind requires --generated-count')
     if (start !== undefined && count === undefined) throw new RangeError('--generated-start requires --generated-count')
     const generated = count === undefined ? undefined : { start: start === undefined ? 0 : Number(start), count: Number(count) }
-    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated })
+    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated, generatedKind })
     writeFileSync(out, JSON.stringify(snap))
     const failed = snap.samples.filter(s => !s.ok).length
     console.log(`wrote ${out}: ${snap.samples.length} samples (${failed} errored) at ${snap.rev}`)
@@ -371,7 +372,7 @@ if (import.meta.main) {
     console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--generated-start 0 --generated-count 160] | report --before a.json --after b.json --out report.html')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')
     process.exit(2)
   }
 }
