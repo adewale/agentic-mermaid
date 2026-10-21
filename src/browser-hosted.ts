@@ -1,51 +1,8 @@
-// Hosted editor: keep the empty editor independent of rendering engines.
-// Feature modules are fetched when the corresponding operation is requested.
-import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-contract.ts'
-import { verifyNoExternalRefs } from './output-security.ts'
-import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
-import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyleDescriptors } from './scene/style-registry.ts'
-import { resolveEditorRenderOptions } from './editor-render-options.ts'
-import type { AsciiRenderOptions } from './ascii/index.ts'
-import type { RenderOptions } from './types.ts'
+import { createBrowserEditorAdapter } from './browser-editor-adapter.ts'
+import type { PreviewWorkerClient } from './browser-preview-client.ts'
 
-let previewClient: typeof import('./browser-preview-runtime.ts') | undefined
-let loadingPreview: Promise<typeof import('./browser-preview-runtime.ts')> | undefined
-let previewGeneration = 0
-
-async function renderEditorPreview(source: string, options: RenderOptions = {}) {
-  const generation = previewGeneration
-  const snapshot = structuredClone(options)
-  const client = await (loadingPreview ??= import('./browser-preview-runtime.ts').then(module => previewClient = module).catch(error => { throw new Error('Background renderer could not load; reload the page to retry', { cause: error }) }))
-  if (generation !== previewGeneration) throw new client.PreviewSupersededError()
-  return client.renderEditorPreview(source, snapshot)
-}
-
-function cancelPendingEditorPreview() {
-  previewGeneration++
-  previewClient?.cancelPendingEditorPreview()
-}
-
-const adapter = {
-  renderMermaidSVGWithReceipt: renderEditorPreview,
-  cancelPendingRender: cancelPendingEditorPreview,
-  async renderMermaidASCIIWithReceipt(source: string, options: AsciiRenderOptions = {}) {
-    return (await import('./ascii/index.ts')).renderMermaidASCIIWithReceipt(source, options)
-  },
-  async renderMermaidUnicodeWithReceipt(source: string, options: AsciiRenderOptions = {}) {
-    return (await import('./ascii/index.ts')).renderMermaidASCIIWithReceipt(source, { ...options, useAscii: false })
-  },
-  async renderMermaidPNGInBrowserWithReceipt(...args: Parameters<typeof import('./browser-png.ts').renderMermaidPNGInBrowserWithReceipt>) {
-    return (await import('./browser-png.ts')).renderMermaidPNGInBrowserWithReceipt(...args)
-  },
-  SHARED_RENDER_OPTION_FIELDS,
-  STYLE_COLOR_TOKEN_FIELDS: Object.freeze(Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS)),
-  SHARED_RENDER_OPTIONS_JSON_SCHEMA: sharedRenderOptionsJsonSchema(),
-  validateSerializableRenderOptions,
-  verifyNoExternalRefs,
-  WARNING_TIER,
-  WARNING_SEVERITY,
-  knownStyleDescriptors,
-  resolveEditorRenderOptions,
-}
-
+let loading: Promise<PreviewWorkerClient> | undefined
+const adapter = createBrowserEditorAdapter(() => loading ??= import('./browser-preview-runtime.ts').then(module => module.client).catch(error => {
+  throw new Error('Background renderer could not load; reload the page to retry', { cause: error })
+}))
 ;(globalThis as unknown as { __mermaid: typeof adapter }).__mermaid = adapter

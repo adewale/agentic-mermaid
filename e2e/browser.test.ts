@@ -319,12 +319,24 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     expect(replacement.url()).not.toBe(worker.url())
     expect(standalone.workers()).toEqual([replacement])
 
-    const text = await standalone.evaluate(() => {
+    await replacement.evaluate(() => {
+      const host = globalThis as any, original = host.onmessage
+      host.__exportOperations = []
+      host.onmessage = (event: MessageEvent) => {
+        if (event.data.operation) host.__exportOperations.push(event.data.operation)
+        return original(event)
+      }
+    })
+    const text = await standalone.evaluate(async () => {
       const api = (window as any).__mermaid
       const source = 'flowchart LR\nRecovered --> Verified'
+      const [ascii, unicode] = await Promise.all([
+        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
+        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none' }),
+      ])
       return {
-        ascii: api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }).text,
-        unicode: api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none' }).text,
+        ascii: ascii.text,
+        unicode: unicode.text,
       }
     })
     expect(text.ascii).toContain('Recovered')
@@ -335,6 +347,7 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     await standalone.locator('#export-png-btn').click()
     const png = new Uint8Array(await Bun.file((await (await downloaded).path())!).arrayBuffer())
     expect([...png.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+    expect(await replacement.evaluate(() => (globalThis as any).__exportOperations)).toEqual(['ascii', 'unicode', 'png'])
   } finally { await standalone.close() }
 })
 

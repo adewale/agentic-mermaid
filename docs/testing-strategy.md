@@ -634,25 +634,24 @@ table here, which would drift. In broad strokes:
   directory alongside its `capabilities.json` and fonts. Baseline/candidate
   runs must remain sequential on an otherwise idle runner.
 
-  `editor-ownership-probe.ts --html editor.html --out /path/to/probe.html`
-  builds an experimental standalone HTML using the hosted async facade and
-  guarded worker initialization. It defers main-thread engine initialization
-  until text/PNG export; it does not establish permanent worker ownership or
-  replace the synchronous public browser adapter. Compare its measured heaps,
-  startup, exports and compressed payload before proposing a production change.
+  The editor's persistent worker owns preview/verification, ASCII/Unicode and
+  PNG projection/validation. A PNG operation invokes the existing main-thread
+  font/Canvas callback and transfers an allocation-bounded copy of its bytes
+  back for canonical PNG validation. Callback buffers are never detached.
+  One operation is active, with one replaceable preview and four queued exports;
+  source/config changes cancel stale work, including a PNG awaiting font/Canvas
+  I/O, so a new preview can proceed. Timeouts and crashes reject all waiters and
+  the next operation starts a fresh worker.
+
   `editor-ownership-bench.ts --site /path/to/site --out bench-report/ownership
-  --executable /path/to/chromium` compares `original.html` and `probe.html` in
-  alternating fresh contexts. It separately measures the empty shell, first
-  receipt-bearing preview, ASCII/Unicode output and a real Canvas PNG, with
-  heap checkpoints before/after preview and after exports.
-  Add `--mode worker-only` to the probe builder for a serial-call RPC experiment
-  that keeps preview/text/PNG projection and PNG validation in the worker while
-  sending the existing Canvas raster callback to the main thread. Build it as
-  `worker-only.html` and pass `--candidate worker-only` to the ownership runner.
-  The runner also requires matching SVG/ASCII/Unicode/PNG output identities
-  across variants. This experiment omits production queue/cancellation/retry
-  and callback-admission behavior; it is evidence for an architecture decision,
-  not a production entry point.
+  --executable /path/to/chromium` compares frozen `original.html` and current
+  `candidate.html` in alternating fresh contexts. Serve their fonts alongside
+  them. It separately measures the empty shell, first preview, ASCII/Unicode
+  and a real Canvas PNG, with heap checkpoints before/after preview and exports.
+  `--case tree-5,tree-50,tree-150,nested-crosslinks,sequence-40,class-20,er-20,state-25,mindmap-30,gantt-20,pie-12`
+  expands it to the full editor portfolio; `--style hand-drawn` measures a seeded
+  alternate backend. The runner requires matching SVG/ASCII/Unicode/PNG output
+  identities for every selected input across variants and repetitions.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;

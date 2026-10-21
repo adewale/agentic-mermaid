@@ -48,7 +48,7 @@ interface FakePreviewWorker {
   terminate(): void
 }
 function workerHarness(timeout = 30_000) {
-  const sent: Array<{ id: number; source: string; options?: unknown }> = []
+  const sent: Array<{ id: number; source: string; options?: unknown; operation?: string; kind?: string; png?: Uint8Array; ok?: boolean }> = []
   const workers: FakePreviewWorker[] = []
   function create(): FakePreviewWorker {
     const worker = {
@@ -63,11 +63,120 @@ function workerHarness(timeout = 30_000) {
     return worker
   }
   const client = new PreviewWorkerClient(create as unknown as () => Worker, timeout)
-  const reply = (id: number, svg = '<svg/>') => workers.at(-1)!.onmessage?.({ data: { id, ok: true, artifact: { svg } } })
-  return { client, sent, workers, reply }
+  const replyArtifact = (id: number, artifact: unknown) => workers.at(-1)!.onmessage?.({ data: { id, ok: true, artifact } })
+  const reply = (id: number, svg = '<svg/>') => replyArtifact(id, { svg, receipt: { output: 'svg' } })
+  const raster = (id: number) => workers.at(-1)!.onmessage?.({ data: { id, kind: 'rasterize', svg: '<svg/>', context: { rasterDimensions: { width: 1, height: 1, pixels: 1 } } } })
+  return { client, sent, workers, reply, replyArtifact, raster }
 }
 
 describe('persistent preview worker queue', () => {
+  test('orders text exports with the newest preview and bounds pending exports', async () => {
+    const h = workerHarness()
+    try {
+      const first = h.client.render('first', {})
+      const ascii = h.client.renderText('first', {}, true)
+      const preview = h.client.render('latest', {})
+      const unicode = h.client.renderText('first', {}, false)
+      h.reply(1)
+      await first
+      expect(h.sent.map(r => r.operation)).toEqual(['preview', 'ascii'])
+      h.replyArtifact(2, { text: 'plain', receipt: { output: 'ascii' } })
+      expect((await ascii).text).toBe('plain')
+      expect(h.sent.at(-1)?.source).toBe('latest')
+      h.reply(3)
+      await preview
+      h.replyArtifact(4, { text: 'unicode', receipt: { output: 'unicode' } })
+      expect((await unicode).text).toBe('unicode')
+      const active = h.client.render('active', {}).catch(error => error)
+      const exports = Array.from({ length: 4 }, () => h.client.renderText('queued', {}, true).catch(error => error))
+      await expect(h.client.renderText('overflow', {}, true)).rejects.toThrow('queue is full')
+      h.client.invalidate()
+      for (const error of await Promise.all(exports)) expect(error).toBeInstanceOf(PreviewSupersededError)
+      h.reply(5)
+      await active
+      expect(h.workers).toHaveLength(1)
+    } finally { h.client.dispose() }
+  })
+
+  test('PNG raster transport snapshots bytes and host metadata without detaching the caller buffer', async () => {
+    const h = workerHarness(), bytes = new Uint8Array([137, 80, 78, 71])
+    let reads = 0
+    try {
+      const png = h.client.renderPng('PNG', {}, 1, async (_svg, context) => {
+        expect(context.rasterDimensions.width).toBe(1)
+        return { get png() { reads++; return bytes }, diagnostics: [{ code: 'FONT_NOTE', message: 'host note' }], fontSources: ['embedded-data-uri'] }
+      })
+      h.raster(1)
+      await Promise.resolve(); await Promise.resolve()
+      const transfer = h.sent.at(-1)!
+      expect(transfer.kind).toBe('rasterized')
+      expect(transfer.png).toEqual(bytes)
+      expect(transfer.png).not.toBe(bytes)
+      expect(bytes.byteLength).toBe(4)
+      expect(reads).toBe(1)
+      h.replyArtifact(1, { png: bytes, receipt: { output: 'png' }, diagnostics: [{ code: 'WORKER_NOTE' }] })
+      const artifact = await png
+      expect(artifact.diagnostics.map(d => d.code)).toEqual(['WORKER_NOTE', 'FONT_NOTE'])
+      expect(artifact.runtime.fontSources).toEqual(['embedded-data-uri'])
+    } finally { h.client.dispose() }
+  })
+
+  test('rejects oversized raster buffers before copying and ignores callback completion after a crash', async () => {
+    const h = workerHarness()
+    try {
+      const rejected = h.client.renderPng('large', {}, 1, async () => ({ png: new Uint8Array(2_000_000) })).catch(error => error)
+      h.raster(1)
+      await Promise.resolve(); await Promise.resolve()
+      expect(h.sent.at(-1)).toMatchObject({ kind: 'rasterized', ok: false })
+      h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'allocation-derived limit' } })
+      expect((await rejected).message).toContain('allocation-derived')
+      let finish!: (value: { png: Uint8Array }) => void
+      const pending = h.client.renderPng('pending', {}, 1, () => new Promise(resolve => { finish = resolve })).catch(error => error)
+      h.raster(2)
+      h.workers[0]!.onerror?.({ preventDefault() {} })
+      expect((await pending).message).toContain('crashed')
+      const sentBefore = h.sent.length
+      finish({ png: new Uint8Array([137, 80]) })
+      await Promise.resolve(); await Promise.resolve()
+      expect(h.sent).toHaveLength(sentBefore)
+      const recovered = h.client.render('recovered', {})
+      h.reply(3)
+      expect((await recovered).svg).toBe('<svg/>')
+    } finally { h.client.dispose() }
+  })
+
+  test('a wrong output receipt terminates the transaction and rejects queued callers', async () => {
+    const h = workerHarness()
+    const active = h.client.render('first', {}).catch(error => error)
+    const queued = h.client.renderText('second', {}, true).catch(error => error)
+    h.replyArtifact(1, { text: 'wrong', receipt: { output: 'ascii' } })
+    for (const error of await Promise.all([active, queued])) expect(error.message).toContain('wrong output receipt')
+    expect(h.workers[0]!.terminated).toBe(true)
+    h.client.dispose()
+  })
+
+  test('a new source releases a PNG awaiting Canvas so the preview can proceed', async () => {
+    const h = workerHarness()
+    let finish!: (value: { png: Uint8Array }) => void
+    try {
+      const png = h.client.renderPng('old', {}, 1, () => new Promise(resolve => { finish = resolve })).catch(error => error)
+      h.raster(1)
+      h.client.invalidate()
+      expect(h.sent.at(-1)).toMatchObject({ id: 1, kind: 'rasterized', ok: false })
+      const preview = h.client.render('new', {})
+      h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'cancelled raster' } })
+      expect(await png).toBeInstanceOf(PreviewSupersededError)
+      expect(h.sent.at(-1)?.source).toBe('new')
+      h.reply(2)
+      await preview
+      const count = h.sent.length
+      finish({ png: new Uint8Array([137, 80]) })
+      await Promise.resolve(); await Promise.resolve()
+      expect(h.sent).toHaveLength(count)
+      expect(h.workers).toHaveLength(1)
+    } finally { h.client.dispose() }
+  })
+
   test('keeps only the newest pending edit and ignores unmatched replies', async () => {
     const h = workerHarness()
     try {
