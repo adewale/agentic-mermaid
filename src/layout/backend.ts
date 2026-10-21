@@ -11,7 +11,7 @@ export function directionToElk(direction: Direction): string {
   }
 }
 
-export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@17'
+export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@18'
 
 /** A synchronous producer can suspend for a dependency in the async entry.
  * Loading is neither geometric infeasibility nor a solver failure. */
