@@ -34,7 +34,6 @@ interface TransferSize { raw: number; gzip: number; brotli: number }
 interface TransferBudget extends TransferSize { requests: number }
 interface Budgets {
   schemaVersion: 1
-  elkFamilies: BrowserBuiltinFamilyId[]
   initial: TransferBudget
   families: Record<BrowserBuiltinFamilyId, TransferBudget>
 }
@@ -170,16 +169,17 @@ if (!MEASURE_ONLY) {
     }
   }
 
-  if (JSON.stringify(observedElkFamilies) !== JSON.stringify(budgets.elkFamilies)) {
-    throw new Error(`ELK family graph drifted: expected ${budgets.elkFamilies.join(', ')}, observed ${observedElkFamilies.join(', ')}`)
+  if (initialFiles.includes(elkOutput) || observedElkFamilies.length > 0) {
+    throw new Error(`ELK must load only when placement demands it, never in a family static closure: ${observedElkFamilies.join(', ')}`)
   }
-  if (observedElkFamilies.length < 2) throw new Error('ELK sharing needs at least two family consumers')
 }
 
 const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
+  familyClosure: 'static imports only; on-demand ELK and HTML entity downloads are additional when a diagram requires them',
   elkChunk: elkOutput,
+  elkTransfer: fileSize(elkOutput),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
   families: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
     requests: familyFiles[id].length,

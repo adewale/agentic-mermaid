@@ -24,13 +24,15 @@ export default defineConfig({
   metafile: true,
   noExternal: [/.*/],
   external: [],
-  // The HTML5 entity table loads on demand here: every import of
+  // ELK and the HTML5 entity table load on demand here: every import of
   // src/shared/html-entity-table.ts gets its lazy twin, which fetches the
   // table only when renderMermaidSVGAsync sees a named code beyond XML's five.
   esbuildPlugins: [{
-    name: 'lazy-html-entity-table',
+    name: 'lazy-browser-dependencies',
     setup(build) {
       build.onResolve({ filter: /\/html-entity-table\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
     },
   }],
