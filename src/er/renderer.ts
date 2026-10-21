@@ -1,19 +1,19 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext, Point } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { breakLineTags, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
-import type { Geometry, MarkAttributes, MarkPaint, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
+import type { Geometry, MarkAttributes, MarkPaint, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
-import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -63,14 +63,15 @@ export function renderErSvg(
 /**
  * Lower a positioned ER diagram to the SceneGraph IR in canonical mark order.
  */
-export function lowerErScene(
+export function lowerErDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedErDiagram>,
-): SceneDoc {
+): DrawingDocument<T> {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, resolved.styleFace)
   const uid = `er-${hashId(diagram.width, diagram.height, diagram.entities.length, diagram.relationships.length)}`
   const titleId = `${uid}-title`
@@ -108,10 +109,10 @@ export function lowerErScene(
   }
 
   // The diagram's frontmatter title, in the band layout reserved above.
-  if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
+  if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, style)))
 
   // 0. ER subgraph frames, parent-first and behind relationships/entities.
-  for (const group of diagram.groups) parts.push(renderErGroup(group, style))
+  for (const group of diagram.groups) parts.push(renderErGroup(marks, group, style))
 
   // 1. Relationship lines
   const lineOccurrence = new Map<string, number>()
@@ -121,12 +122,12 @@ export function lowerErScene(
     const pairKey = `${rel.entity1}-${rel.entity2}`
     const k = lineOccurrence.get(pairKey) ?? 0
     lineOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationshipLine(rel, style, resolved.styleFace, `rel:${pairKey}#${k}`, endpointOwner))
+    parts.push(renderRelationshipLine(marks, rel, style, resolved.styleFace, `rel:${pairKey}#${k}`, endpointOwner))
   }
 
   // 2. Entity boxes
   for (const entity of diagram.entities) {
-    parts.push(renderEntityBox(entity, style, colors))
+    parts.push(renderEntityBox(marks, entity, style, colors))
   }
 
   // 3. Cardinality markers at relationship endpoints
@@ -135,7 +136,7 @@ export function lowerErScene(
     const pairKey = `${rel.entity1}-${rel.entity2}`
     const k = cardOccurrence.get(pairKey) ?? 0
     cardOccurrence.set(pairKey, k + 1)
-    parts.push(...renderCardinality(rel, style, `card:${pairKey}#${k}`))
+    parts.push(...renderCardinality(marks, rel, style, `card:${pairKey}#${k}`))
   }
 
   // 4. Relationship labels — positions are collision-separated first: two
@@ -148,7 +149,7 @@ export function lowerErScene(
     const pairKey = `${rel.entity1}-${rel.entity2}`
     const k = labelOccurrence.get(pairKey) ?? 0
     labelOccurrence.set(pairKey, k + 1)
-    parts.push(...renderRelationshipLabel(rel, style, resolved.styleFace, `rel-label:${pairKey}#${k}`, labelPos.get(rel)))
+    parts.push(...renderRelationshipLabel(marks, rel, style, resolved.styleFace, `rel-label:${pairKey}#${k}`, labelPos.get(rel)))
   }
 
   parts.push(marks.documentClose())
@@ -156,7 +157,7 @@ export function lowerErScene(
   return { family: 'er', width: diagram.width, height: diagram.height, colors, transparent, parts }
 }
 
-function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): SceneNode {
+function renderErGroup<T>(marks: DrawingFactory<T>, group: PositionedErGroup, style: ResolvedRenderStyle): T {
   const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const fill = style.groupFillColor ?? 'var(--_group-fill)'
   const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
@@ -181,9 +182,9 @@ function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): Sc
  * Render an entity box with header and attribute rows.
  * Wrapped in <g class="entity"> with semantic data attributes.
  */
-function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle, colors: DiagramColors): SceneNode {
+function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity, style: ResolvedRenderStyle, colors: DiagramColors): T {
   const { id, x, y, width, height, headerHeight, rowHeight, label, attributes } = entity
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
 
   // Semantic wrapper with entity metadata
   const classAttr = entity.className ? ` ${escapeAttr(entity.className)}` : ''
@@ -261,7 +262,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
   for (let i = 0; i < attributes.length; i++) {
     const attr = attributes[i]!
     const rowY = attrTop + i * rowHeight + rowHeight / 2
-    for (const node of renderAttribute(attr, id, x, rowY, width, style, ink, commentColumn, entity.attributeBlocks?.[i])) {
+    for (const node of renderAttribute(marks, attr, id, x, rowY, width, style, ink, commentColumn, entity.attributeBlocks?.[i])) {
       children.push({ indent: 2, node })
     }
   }
@@ -306,7 +307,8 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
  * Returns the row's scene nodes; when the attribute has a comment they are
  * wrapped in a single <g><title>…</title> group mark for tooltip support.
  */
-function renderAttribute(
+function renderAttribute<T>(
+  marks: DrawingFactory<T>,
   attr: ErAttribute,
   entityId: string,
   boxX: number,
@@ -316,8 +318,8 @@ function renderAttribute(
   ink: (tone: string) => string,
   commentColumn: number,
   prepared?: ReturnType<typeof erAttributeBlocks>,
-): SceneNode[] {
-  const rowNodes: SceneNode[] = []
+): T[] {
+  const rowNodes: T[] = []
   const attrId = `attr:${entityId}:${attr.name}`
   const blocks = prepared ?? erAttributeBlocks(attr)
   // Key text sits on its theme-tinted badge; type and name sit on the entity fill.
@@ -418,13 +420,14 @@ function renderAttribute(
 /**
  * Render a relationship line with semantic data attributes.
  */
-function renderRelationshipLine(
+function renderRelationshipLine<T>(
+  marks: DrawingFactory<T>,
   rel: PositionedErRelationship,
   style: ResolvedRenderStyle,
   styleFace: Readonly<InternalStyleFace> | undefined,
   sceneId: string,
   endpointOwner: (id: string) => SceneOwner,
-): SceneNode {
+): T {
   const lineStyle = rel.identifying ? 'solid' as const : 'dashed' as const
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
   const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels, { includeFallback: false })
@@ -634,13 +637,14 @@ export function separateRelationshipLabels(
 
 /** Render a relationship label at the midpoint (supports multi-line).
  *  Emits the background pill and the text as separate marks (in old part order). */
-function renderRelationshipLabel(
+function renderRelationshipLabel<T>(
+  marks: DrawingFactory<T>,
   rel: PositionedErRelationship,
   style: ResolvedRenderStyle,
   styleFace: Readonly<InternalStyleFace> | undefined,
   sceneId: string,
   at?: { x: number; y: number },
-): SceneNode[] {
+): T[] {
   if (!rel.label || rel.points.length < 2) {
     return []
   }
@@ -690,7 +694,7 @@ function renderRelationshipLabel(
  *   'many':      ─│<─  (one tick + crow's foot: one or more)
  *   'zero-many': ─o<─  (circle + crow's foot)
  */
-function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode[] {
+function renderCardinality<T>(marks: DrawingFactory<T>, rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): T[] {
   if (rel.points.length < 2) {
     // Old renderer pushed '' for degenerate relationships — keep the empty
     // slot (a compound shape with no children writes '').
@@ -711,21 +715,22 @@ function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderS
   const pN1 = rel.points[rel.points.length - 2]!
 
   return [
-    crowsFootMark(p1, p2, rel.cardinality1, style, `${sceneId}:1`),
-    crowsFootMark(pN, pN1, rel.cardinality2, style, `${sceneId}:2`),
+    crowsFootMark(marks, p1, p2, rel.cardinality1, style, `${sceneId}:1`),
+    crowsFootMark(marks, pN, pN1, rel.cardinality2, style, `${sceneId}:2`),
   ]
 }
 
 /** Build the shape mark for one crow's foot glyph from its pieces. The glyph
  * is stroked; a zero-minimum circle also fills with the page background, so
  * then each piece carries its own paint. */
-function crowsFootMark(
+function crowsFootMark<T>(
+  marks: DrawingFactory<T>,
   point: { x: number; y: number },
   toward: { x: number; y: number },
   cardinality: Cardinality,
   style: ResolvedRenderStyle,
   sceneId: string,
-): SceneNode {
+): T {
   const paint: MarkPaint = {
     stroke: style.edgeStrokeColor ?? 'var(--_line)',
     strokeWidth: String(style.lineWidth + 0.25),
@@ -899,3 +904,5 @@ const escapeXml = escapeXmlUtil
 /**
  * Escape a string for use as an XML/HTML attribute value.
  */
+
+export const lowerErScene = sceneLowering<PositionedErDiagram>(lowerErDrawing)

@@ -370,10 +370,14 @@ export function positionDiagramTitle(band: DiagramTitleBand, width: number, top:
 }
 
 export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
+  return marks.text(diagramTitleFields(title, style))
+}
+
+export function diagramTitleFields(title: PositionedDiagramTitle, style: ResolvedRenderStyle): Parameters<typeof marks.text>[0] {
   const fill = style.groupTextColor ?? 'var(--_text)'
-  return marks.text({
+  return {
     id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
     fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing,
     anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' },
-  })
+  }
 }

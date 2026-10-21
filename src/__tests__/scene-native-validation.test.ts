@@ -1,0 +1,123 @@
+import { expect, test } from 'bun:test'
+import * as marks from '../scene/marks.ts'
+import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
+import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
+import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
+import type { LinearGradientDescriptor, SceneDoc } from '../scene/ir.ts'
+
+const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
+const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
+const label = (text: string, id = 'label') => marks.text({ id, role: 'label', text, x: 10, y: 20, fontSize: 0.1, anchor: 'start', paint: { fill: '#111' } })
+
+test('native admission resolves companion labels and owners submitted after connectors', () => {
+  const validator = createNativeSceneValidator(header)
+  validator.node(marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 10, x2: 20, y2: 20 }, paint: { stroke: '#111' }, owner: { id: 'A', role: 'node' }, labels: [{ text: 'Hello', visual: { kind: 'companion', markId: 'label' } }] }))
+  validator.node(label('Hello'))
+  expect(validator.node(shape())).toContain('<rect ')
+  const result = validator.finish()
+  expect(result).toEqual({ valid: true, diagnostics: [] })
+  expect(validator.finish()).toBe(result)
+  expect(() => validator.node(shape('late'))).toThrow(/already finished/)
+
+  const missing = createNativeSceneValidator(header)
+  missing.node(marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 10, x2: 20, y2: 20 }, paint: { stroke: '#111' }, owner: { id: 'missing-owner', role: 'node' }, labels: [{ text: 'Hello', visual: { kind: 'companion', markId: 'missing-label' } }] }))
+  expect(missing.finish().diagnostics).toEqual(expect.arrayContaining([
+    expect.objectContaining({ code: 'SCENE_REFERENCE', path: expect.stringContaining('.owner') }),
+    expect.objectContaining({ code: 'SCENE_REFERENCE', path: expect.stringContaining('.visual.markId') }),
+  ]))
+})
+
+test('native owned artwork requires its reported matching semantic enclosure', () => {
+  for (const enclosing of [undefined, 'A', 'B']) {
+    const validator = createNativeSceneValidator(header)
+    validator.node(marks.shape({ id: 'frame:A', role: 'node', identity: false, owner: { id: 'A', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } }))
+    validator.node(marks.group({ id: 'wrapper:A', role: 'node', open: '<g data-id="A">', close: '</g>', children: [] }))
+    if (enclosing) validator.enclosure('frame:A', { id: enclosing, role: 'node' })
+    const result = validator.finish()
+    expect(result.valid).toBe(enclosing === 'A')
+    if (enclosing !== 'A') expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: 'scene.parts[0].identity' }))
+  }
+})
+
+test('native admission refuses invalid geometry, headers, depth and retained group trees immediately', () => {
+  expect(() => createNativeSceneValidator({ ...header, width: Number.NaN })).toThrow(SceneValidationError)
+  expect(() => createNativeSceneValidator({ ...header, colors: { ...header.colors, font: 'url(https://example.com/font)' } })).toThrow(SceneValidationError)
+  const validator = createNativeSceneValidator(header)
+  const invalid = shape()
+  if (invalid.geometry.kind !== 'rect') throw new Error('Expected rect')
+  invalid.geometry.width = Number.NaN
+  expect(() => validator.node(invalid)).toThrow(SceneValidationError)
+  expect(validator.finish().diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FINITE', path: 'scene.parts[0].geometry.width' }))
+  expect(() => createNativeSceneValidator(header).depth(SCENE_VALIDATION_LIMITS.maxDepth + 1)).toThrow(SceneValidationError)
+  expect(() => createNativeSceneValidator(header).node(shape(), -1)).toThrow(SceneValidationError)
+  expect(() => createNativeSceneValidator(header).node(marks.group({ id: 'tree', role: 'group', open: '<g>', close: '</g>', children: [{ node: shape(), indent: 2 }] }))).toThrow(/shallow/)
+})
+
+test('native admission resolves local paint resources and refuses undeclared resources', () => {
+  const gradient: LinearGradientDescriptor = { id: 'paint', units: 'userSpaceOnUse', x1: 0, y1: 0, x2: 20, y2: 0, stops: [{ offset: 0, color: '#111' }, { offset: 1, color: '#fff' }] }
+  for (const declared of [false, true]) {
+    const validator = createNativeSceneValidator(header)
+    validator.node(marks.shape({ id: 'gradient', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: 'url(#paint)' } }))
+    if (declared) validator.node(marks.definitions({ id: 'definitions', gradientResources: [gradient] }, `<defs>\n${serializeLinearGradientResources([gradient])}\n</defs>`))
+    const result = validator.finish()
+    expect(result.valid).toBe(declared)
+    if (!declared) expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_REFERENCE', path: 'scene.parts[0].paint.fill' }))
+  }
+})
+
+test('native text and point budgets accumulate across transient leaves', () => {
+  const text = createNativeSceneValidator(header)
+  const textMark = Object.freeze(label('x'.repeat(40_000)))
+  for (let index = 0; index < 50; index++) text.node(textMark)
+  expect(() => text.node(textMark)).toThrow(/aggregate 2000000-byte/)
+
+  const points = createNativeSceneValidator(header)
+  const line = (id: string, count: number) => marks.shape({ id, role: 'chrome', geometry: { kind: 'polyline', points: Array.from({ length: count }, (_, index) => ({ x: index % 100, y: 10 })) }, paint: { stroke: '#111' } })
+  points.node(line('first', 25_000))
+  points.node(line('second', 25_000))
+  expect(() => points.node(line('third', 2))).toThrow(/aggregate 50000-point/)
+})
+
+test('native admission enforces per-fragment and aggregate serialization limits', () => {
+  expect(() => createNativeSceneValidator(header).serialization('x'.repeat(SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode + 1))).toThrow(/oversized SVG serialization/)
+  const validator = createNativeSceneValidator(header)
+  const chunk = `<metadata>${'x'.repeat(4_100_000)}</metadata>`
+  for (let index = 0; index < 3; index++) validator.node(marks.documentContent({ id: `metadata:${index}`, role: 'chrome' }, chunk))
+  expect(() => validator.node(marks.documentContent({ id: 'metadata:over', role: 'chrome' }, chunk))).toThrow(/aggregate 16000000-byte/)
+})
+
+test('native admission bounds total node count even when each leaf is tiny', () => {
+  const validator = createNativeSceneValidator(header)
+  const node = marks.documentClose()
+  for (let index = 0; index < SCENE_VALIDATION_LIMITS.maxNodes; index++) validator.node(node)
+  expect(() => validator.node(node)).toThrow(/too many Scene nodes/)
+})
+
+
+test('native transient connector validation leaves its registered derived projection unevaluated', () => {
+  const edge = () => withDeferredTerminalProjections(() => marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 10, x2: 20, y2: 20 }, paint: { stroke: '#111' } }))
+  for (const crossChecks of [false, true]) {
+    const node = edge()
+    expect(deferredTerminalProjectionInput(node)).toBeDefined()
+    const validator = createNativeSceneValidator(header, { crossChecks })
+    validator.node(node)
+    expect(validator.finish().valid).toBe(true)
+    expect(deferredTerminalProjectionInput(node) !== undefined).toBe(!crossChecks)
+  }
+  const invalid = edge()
+  invalid.route.bendRadius = Number.NaN
+  expect(() => createNativeSceneValidator(header).node(invalid)).toThrow(SceneValidationError)
+  expect(deferredTerminalProjectionInput(invalid)).toBeDefined()
+})
+
+
+test('native resource limits accumulate across otherwise admissible definitions', () => {
+  const validator = createNativeSceneValidator(header)
+  const definition = (start: number, count: number) => {
+    const gradientResources: LinearGradientDescriptor[] = Array.from({ length: count }, (_, index) => ({ id: `g${start + index}`, units: 'userSpaceOnUse', x1: 0, y1: 0, x2: 20, y2: 0, stops: [{ offset: 0, color: '#111' }, { offset: 1, color: '#fff' }] }))
+    return marks.definitions({ id: `definitions:${start}`, gradientResources }, `<defs>\n${serializeLinearGradientResources(gradientResources)}\n</defs>`)
+  }
+  validator.node(definition(0, 5_000))
+  validator.node(definition(5_000, 5_000))
+  expect(() => validator.node(definition(10_000, 1))).toThrow(/10000 aggregate gradient resources/)
+})

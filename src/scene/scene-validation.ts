@@ -29,7 +29,7 @@ import type {
   SceneOwner,
 } from './ir.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
-import { hasReservedDeferredTerminalProjection } from './deferred-terminal-projection.ts'
+import { deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
 import {
   connectorContourSemantics,
   connectorEndpointAnchors,
@@ -663,6 +663,13 @@ function validateMarker(
 interface ValidationState {
   readonly diagnostics: MutableDiagnostic[]
   readonly external: boolean
+  readonly aggregateBudgets: boolean
+  readonly native?: {
+    readonly artwork: Array<{ id: string; owner: SceneOwner; path: string }>
+    readonly groups: Set<string>
+    readonly enclosures: Map<string, SceneOwner>
+  }
+  readonly paintReferences: Array<{ id: string; path: string }>
   readonly ids: Map<string, { path: string; kind: string }>
   readonly subjects: Set<string>
   readonly ownerReferences: Array<{ key: string; path: string }>
@@ -694,6 +701,31 @@ function validateRole(kind: string, value: unknown, path: string, state: Validat
   return true
 }
 
+function validateNodeSerialization(value: SceneNode, path: string, state: ValidationState): string | undefined {
+  let serialized: string | undefined
+  try {
+    serialized = sceneNodeSerialization(value)
+    if (boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
+      add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
+    }
+  } catch (error) {
+    add(state.diagnostics, 'SCENE_DOCUMENT', path, error instanceof Error ? error.message : String(error))
+  }
+  if (state.aggregateBudgets && serialized !== undefined) {
+    consumeStringBudget(
+      state.budget,
+      'serializationBytes',
+      'serializationExceeded',
+      serialized,
+      path,
+      state.diagnostics,
+      MAX_AGGREGATE_SERIALIZATION_BYTES,
+      'Scene serializations',
+    )
+  }
+  return serialized
+}
+
 function validateNode(value: unknown, path: string, state: ValidationState, depth: number, enclosing?: SceneOwner): void {
   if (depth > MAX_SCENE_DEPTH) {
     add(state.diagnostics, 'SCENE_BOUNDS', path, `exceeds maximum nesting depth ${MAX_SCENE_DEPTH}`)
@@ -708,6 +740,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     return
   }
   const kind = value.kind
+  for (const reference of localPaintResourceReferences(value, path)) state.paintReferences.push(reference)
   if (!['shape', 'connector', 'text', 'group', 'document'].includes(kind)) {
     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.kind`, `unknown Scene node kind "${kind}"`)
     return
@@ -748,27 +781,9 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (record(value.identity) && typeof value.identity.id === 'string' && typeof value.identity.role === 'string') state.subjects.add(JSON.stringify([value.identity.id, value.identity.role]))
   if (record(value.owner) && typeof value.owner.id === 'string' && typeof value.owner.role === 'string') state.ownerReferences.push({ key: JSON.stringify([value.owner.id, value.owner.role]), path: `${path}.owner` })
   validateChannels(value.channels, `${path}.channels`, state.diagnostics)
-  let serialized: string | undefined
-  try {
-    serialized = sceneNodeSerialization(value as unknown as SceneNode)
-    if (boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
-      add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
-    }
-  } catch (error) {
-    add(state.diagnostics, 'SCENE_DOCUMENT', path, error instanceof Error ? error.message : String(error))
-  }
-  if (state.external && serialized !== undefined) {
-    consumeStringBudget(
-      state.budget,
-      'serializationBytes',
-      'serializationExceeded',
-      serialized,
-      path,
-      state.diagnostics,
-      MAX_AGGREGATE_SERIALIZATION_BYTES,
-      'Scene serializations',
-    )
-  }
+  const serialized = !state.native || kind === 'document'
+    ? validateNodeSerialization(value as unknown as SceneNode, path, state)
+    : undefined
   if (value.transform !== undefined) {
     if (!record(value.transform) || !['rotate', 'matrix'].includes(String(value.transform.kind))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'must be a rotate or matrix transform')
@@ -791,7 +806,9 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
 
   if (kind === 'shape') {
     if (value.identity === undefined && typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)) {
-      if (!enclosing || !record(value.owner) || value.role !== enclosing.role || value.owner.id !== enclosing.id || value.owner.role !== enclosing.role) {
+      if (state.native && typeof value.id === 'string' && record(value.owner) && typeof value.owner.id === 'string' && value.owner.role === value.role) {
+        state.native.artwork.push({ id: value.id, owner: { id: value.owner.id, role: value.role as SceneRole }, path: `${path}.identity` })
+      } else if (!enclosing || !record(value.owner) || value.role !== enclosing.role || value.owner.id !== enclosing.id || value.owner.role !== enclosing.role) {
         add(state.diagnostics, 'SCENE_FIDELITY', `${path}.identity`, 'owned artwork without DOM identity must be inside its matching semantic group')
       }
     }
@@ -816,7 +833,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   }
   if (kind === 'text') {
     boundedString(value.text, `${path}.text`, state.diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
-    if (state.external) consumeStringBudget(state.budget, 'textBytes', 'textExceeded', value.text, `${path}.text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
+    if (state.aggregateBudgets) consumeStringBudget(state.budget, 'textBytes', 'textExceeded', value.text, `${path}.text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
     finite(value.x, `${path}.x`, state.diagnostics); finite(value.y, `${path}.y`, state.diagnostics)
     finite(value.fontSize, `${path}.fontSize`, state.diagnostics, { positive: true })
     if (value.fontWeight !== undefined) finite(value.fontWeight, `${path}.fontWeight`, state.diagnostics, { positive: true })
@@ -849,16 +866,25 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (value.textDecoration !== undefined && !['underline', 'line-through', 'underline line-through'].includes(String(value.textDecoration))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textDecoration`, 'must be underline, line-through, or both')
     if (value.spans !== undefined) {
       if (!Array.isArray(value.spans) || value.spans.length === 0) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.spans`, 'must be a non-empty run list')
-      else value.spans.forEach((span, index) => {
-        if (!record(span)) { add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.spans[${index}]`, 'must be a painted run'); return }
-        boundedString(span.text, `${path}.spans[${index}].text`, state.diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
-        validatePaint({ fill: span.fill }, `${path}.spans[${index}]`, state.diagnostics, state.external)
-      })
+      else {
+        if (value.spans.length > MAX_SCENE_NODES) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.spans`, 'contains too many text runs')
+        for (let index = 0; index < Math.min(value.spans.length, MAX_SCENE_NODES); index++) {
+          const span = value.spans[index]
+          if (!record(span)) { add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.spans[${index}]`, 'must be a painted run'); continue }
+          boundedString(span.text, `${path}.spans[${index}].text`, state.diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
+          if (state.aggregateBudgets) consumeStringBudget(state.budget, 'textBytes', 'textExceeded', span.text, `${path}.spans[${index}].text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
+          validatePaint({ fill: span.fill }, `${path}.spans[${index}]`, state.diagnostics, state.external)
+        }
+      }
     }
     validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
     return
   }
   if (kind === 'group') {
+    if (state.native && typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)
+      && record(value.identity) && typeof value.identity.id === 'string' && value.identity.role === value.role) {
+      state.native.groups.add(JSON.stringify([value.identity.id, value.role]))
+    }
     if (value.paint !== undefined) {
       validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
       if (record(value.paint)) rejectUnknownKeys(value.paint, ['opacity', 'fill'], `${path}.paint`, state.diagnostics)
@@ -901,6 +927,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       else {
         if (value.markerResources.length > MAX_SCENE_NODES) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.markerResources`, 'contains too many marker resources')
         for (let index = 0; index < Math.min(value.markerResources.length, MAX_SCENE_NODES); index++) {
+          if (state.native && state.markerIds.size >= MAX_SCENE_NODES) {
+            add(state.diagnostics, 'SCENE_BOUNDS', `${path}.markerResources`, 'contains too many aggregate marker resources')
+            return
+          }
           const marker = value.markerResources[index]
           const markerPath = `${path}.markerResources[${index}]`
           if (validateMarker(marker, markerPath, state.diagnostics, state.external, state.budget) && typeof marker.id === 'string') {
@@ -930,6 +960,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       else {
         if (value.gradientResources.length > LINEAR_GRADIENT_LIMITS.maxResources) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.gradientResources`, `contains more than ${LINEAR_GRADIENT_LIMITS.maxResources} gradient resources`)
         for (let index = 0; index < Math.min(value.gradientResources.length, LINEAR_GRADIENT_LIMITS.maxResources); index++) {
+          if (state.native && state.gradientIds.size >= LINEAR_GRADIENT_LIMITS.maxResources) {
+            add(state.diagnostics, 'SCENE_BOUNDS', `${path}.gradientResources`, `contains more than ${LINEAR_GRADIENT_LIMITS.maxResources} aggregate gradient resources`)
+            return
+          }
           const gradient = value.gradientResources[index]
           const gradientPath = `${path}.gradientResources[${index}]`
           try {
@@ -962,7 +996,8 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         }
       }
     }
-    if (state.external && (value.element === 'title' || value.element === 'description')) {
+    if (state.aggregateBudgets && (value.element === 'title' || value.element === 'description')) {
+      boundedString(value.text, `${path}.text`, state.diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
       consumeStringBudget(state.budget, 'textBytes', 'textExceeded', value.text, `${path}.text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
     }
     if (state.external && value.element === 'close' && serialized !== '</svg>') {
@@ -1106,7 +1141,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       ], `${path}.labels[${index}]`, state.diagnostics)
       if (label.id !== undefined) boundedString(label.id, `${path}.labels[${index}].id`, state.diagnostics, { externalId: state.external })
       boundedString(label.text, `${path}.labels[${index}].text`, state.diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
-      if (state.external) consumeStringBudget(state.budget, 'textBytes', 'textExceeded', label.text, `${path}.labels[${index}].text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
+      if (state.aggregateBudgets) consumeStringBudget(state.budget, 'textBytes', 'textExceeded', label.text, `${path}.labels[${index}].text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
       if (label.anchor !== undefined) validatePoint(label.anchor, `${path}.labels[${index}].anchor`, state.diagnostics, state.budget, state.external)
       if (label.bounds !== undefined) {
         if (!record(label.bounds)) {
@@ -1177,11 +1212,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       }
     }
   } else add(state.diagnostics, 'SCENE_MARKER', `${path}.markers`, 'must be a typed marker set')
-  // Only our assertions-off built-in lowering can carry this exact registered
-  // getter, and bounded immutable admission has already reserved its payload.
-  // All source connector fields above are still validated normally. External
-  // Scenes and explicit consistency checks always materialize and inspect it.
-  if (!state.external && !state.crossChecks && hasReservedDeferredTerminalProjection(value)) return
+  // A native mark is transient: its source fields above were checked and
+  // its derived payload never escapes admission. Only the exact registered
+  // getter is trusted; full Scenes and explicit checks materialize it.
+  if (!state.external && !state.crossChecks
+    && state.native && deferredTerminalProjectionInput(value) !== undefined) return
   if (record(value.terminalProjection)) {
     if (!['native', 'emulated', 'projected', 'lossy', 'unsupported'].includes(String(value.terminalProjection.realization))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.terminalProjection.realization`, 'has an unknown realization')
@@ -1426,19 +1461,13 @@ function localPaintResourceReferences(node: unknown, path: string): Array<{ id: 
       if (id) references.push({ id, path: `${path}.stroke.color` })
     }
     if (Array.isArray(node.labels)) {
-      for (let index = 0; index < node.labels.length; index++) {
+      for (let index = 0; index < Math.min(node.labels.length, MAX_SCENE_NODES); index++) {
         const label = node.labels[index]
         if (record(label)) inspectPaint(label.paint, `${path}.labels[${index}].paint`)
       }
     }
   } else {
     inspectPaint(node.paint, `${path}.paint`)
-  }
-  if (node.kind === 'group' && Array.isArray(node.children)) {
-    for (let index = 0; index < node.children.length; index++) {
-      const child = node.children[index]
-      if (record(child)) references.push(...localPaintResourceReferences(child.node, `${path}.children[${index}].node`))
-    }
   }
   return references
 }
@@ -1466,16 +1495,137 @@ export function assertAdmissibleSceneDoc(value: unknown, mode: 'internal' | 'ext
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
 }
 
-function validateScene(value: unknown, options: SceneValidationOptions, crossChecks: boolean): SceneValidationResult {
+/** Incremental admission for built-in lowerings. No submitted mark is retained.
+ * Groups are shallow headers; submit each child separately, in any order.
+ * The caller reports final nesting depth and actual semantic enclosures while
+ * composing fragments, then applies the final SVG security and byte gates.
+ */
+export interface NativeSceneValidator {
+  /** Rejects invalid source fields before writing; groups must have children: []. */
+  node(node: SceneNode, depth?: number): string
+  depth(depth: number): void
+  enclosure(artworkId: string, owner: SceneOwner): void
+  /** Checks the full composed group limit without recounting its child bytes. */
+  serialization(svg: string): void
+  finish(): SceneValidationResult
+}
+
+export function createNativeSceneValidator(
+  header: Omit<SceneDoc, 'parts'>,
+  options: { readonly crossChecks?: boolean } = {},
+): NativeSceneValidator {
   const diagnostics: MutableDiagnostic[] = []
-  if (!record(value)) {
-    return Object.freeze({
-      valid: false,
-      diagnostics: Object.freeze([{ code: 'SCENE_DOCUMENT', path: 'scene', message: 'must be a Scene document object' } as const]),
-    })
+  validateSceneHeader(header, false, diagnostics)
+  if (sceneValidationMode(header) === 'external') add(diagnostics, 'SCENE_DOCUMENT', 'scene.family', 'native admission requires a built-in family')
+  if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+  const native = { artwork: [] as Array<{ id: string; owner: SceneOwner; path: string }>, groups: new Set<string>(), enclosures: new Map<string, SceneOwner>() }
+  const state = { ...createValidationState(diagnostics, false, options.crossChecks ?? false, true), native }
+  let result: SceneValidationResult | undefined
+  const open = (): void => {
+    if (result) throw new Error('Native Scene validation has already finished')
+    if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
   }
-  const external = sceneValidationMode(value, options) === 'external'
-  if (external) rejectUnknownKeys(value, ['family', 'width', 'height', 'colors', 'transparent', 'parts'], 'scene', diagnostics)
+  const depth = (value: number): void => {
+    open()
+    if (!Number.isInteger(value) || value < 0 || value > MAX_SCENE_DEPTH) {
+      add(diagnostics, 'SCENE_BOUNDS', 'scene.depth', `must be an integer nesting depth between 0 and ${MAX_SCENE_DEPTH}`)
+      throw new SceneValidationError(diagnostics)
+    }
+  }
+  return {
+    node(node, nesting = 0) {
+      open()
+      depth(nesting)
+      if (node.kind === 'group' && (!Array.isArray(node.children) || node.children.length !== 0)) {
+        add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'native groups must be shallow headers with separately submitted children')
+        throw new SceneValidationError(diagnostics)
+      }
+      const path = `scene.parts[${state.nodeCount}]`
+      validateNode(node, path, state, nesting)
+      // Typed leaves must be structurally admissible before any writer runs.
+      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      const serialized = node.kind === 'document' ? sceneNodeSerialization(node) : validateNodeSerialization(node, path, state)
+      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+      return serialized!
+    },
+    depth,
+    enclosure(artworkId, owner) {
+      open()
+      boundedString(artworkId, 'scene.enclosure.id', diagnostics)
+      boundedString(owner.id, 'scene.enclosure.owner.id', diagnostics)
+      const prior = native.enclosures.get(artworkId)
+      if (prior && (prior.id !== owner.id || prior.role !== owner.role)) {
+        add(diagnostics, 'SCENE_FIDELITY', 'scene.enclosure', 'artwork cannot have conflicting semantic enclosures')
+      } else if (native.enclosures.size >= MAX_SCENE_NODES) {
+        add(diagnostics, 'SCENE_BOUNDS', 'scene.enclosure', 'contains too many semantic enclosure relations')
+      } else native.enclosures.set(artworkId, { id: owner.id, role: owner.role })
+      if (diagnostics.length > 0) throw new SceneValidationError(diagnostics)
+    },
+    serialization(svg) {
+      open()
+      if (boundedUtf8ByteLength(svg, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
+        add(diagnostics, 'SCENE_DOCUMENT', 'scene.serialization', 'has an oversized SVG serialization')
+        throw new SceneValidationError(diagnostics)
+      }
+    },
+    finish() {
+      if (result) return result
+      validateAggregateReferences(state)
+      for (const artwork of native.artwork) {
+        const enclosing = native.enclosures.get(artwork.id)
+        if (!enclosing || enclosing.id !== artwork.owner.id || enclosing.role !== artwork.owner.role
+          || !native.groups.has(JSON.stringify([enclosing.id, enclosing.role]))) {
+          add(diagnostics, 'SCENE_FIDELITY', artwork.path, 'owned artwork without DOM identity must be inside its matching semantic group')
+        }
+      }
+      result = Object.freeze({ valid: diagnostics.length === 0, diagnostics: Object.freeze(diagnostics.map(item => Object.freeze(item))) })
+      return result
+    },
+  }
+}
+
+function validateAggregateReferences(state: ValidationState): void {
+  for (const reference of state.paintReferences) {
+    if (!state.gradientIds.has(reference.id)) add(state.diagnostics, 'SCENE_REFERENCE', reference.path, `references undeclared gradient "${reference.id}"`)
+  }
+  for (const reference of state.ownerReferences) if (!state.subjects.has(reference.key)) add(state.diagnostics, 'SCENE_REFERENCE', reference.path, 'must reference an actual Scene subject identity and role')
+  for (const reference of state.companionLabelReferences) {
+    const target = state.ids.get(reference.id)
+    if (!target) add(state.diagnostics, 'SCENE_REFERENCE', reference.path, `references unknown companion Text mark "${reference.id}"`)
+    else if (target.kind !== 'text') add(state.diagnostics, 'SCENE_REFERENCE', reference.path, `must reference a Text mark; "${reference.id}" is a ${target.kind} mark`)
+  }
+}
+
+function createValidationState(diagnostics: MutableDiagnostic[], external: boolean, crossChecks: boolean, aggregateBudgets = external): ValidationState {
+  return {
+    diagnostics,
+    external,
+    aggregateBudgets,
+    paintReferences: [],
+    ids: new Map(),
+    subjects: new Set(),
+    ownerReferences: [],
+    domIds: new Map(),
+    markerIds: new Map(),
+    gradientIds: new Map(),
+    markerReferences: [],
+    endpointReferences: [],
+    companionLabelReferences: [],
+    budget: {
+      textBytes: 0,
+      serializationBytes: 0,
+      points: 0,
+      textExceeded: false,
+      serializationExceeded: false,
+      pointsExceeded: false,
+      pointCollections: new WeakSet(),
+    },
+    crossChecks,
+    nodeCount: 0,
+  }
+}
+
+function validateSceneHeader(value: Record<string, unknown>, external: boolean, diagnostics: MutableDiagnostic[]): { widthOk: boolean; heightOk: boolean } {
   boundedString(value.family, 'scene.family', diagnostics)
   const widthOk = finite(value.width, 'scene.width', diagnostics, external ? { positive: true } : { nonNegative: true })
   const heightOk = finite(value.height, 'scene.height', diagnostics, external ? { positive: true } : { nonNegative: true })
@@ -1503,43 +1653,27 @@ function validateScene(value: unknown, options: SceneValidationOptions, crossChe
       add(diagnostics, 'SCENE_DOCUMENT', 'scene.colors.embedFontImport', 'must be boolean')
     }
   }
+  return { widthOk, heightOk }
+}
+
+function validateScene(value: unknown, options: SceneValidationOptions, crossChecks: boolean): SceneValidationResult {
+  const diagnostics: MutableDiagnostic[] = []
+  if (!record(value)) {
+    return Object.freeze({
+      valid: false,
+      diagnostics: Object.freeze([{ code: 'SCENE_DOCUMENT', path: 'scene', message: 'must be a Scene document object' } as const]),
+    })
+  }
+  const external = sceneValidationMode(value, options) === 'external'
+  if (external) rejectUnknownKeys(value, ['family', 'width', 'height', 'colors', 'transparent', 'parts'], 'scene', diagnostics)
+  const { widthOk, heightOk } = validateSceneHeader(value, external, diagnostics)
   if (!Array.isArray(value.parts)) {
     add(diagnostics, 'SCENE_DOCUMENT', 'scene.parts', 'must be an array')
   } else {
-    const state: ValidationState = {
-      diagnostics,
-      external,
-      ids: new Map(),
-      subjects: new Set(),
-      ownerReferences: [],
-      domIds: new Map(),
-      markerIds: new Map(),
-      gradientIds: new Map(),
-      markerReferences: [],
-      endpointReferences: [],
-      companionLabelReferences: [],
-      budget: {
-        textBytes: 0,
-        serializationBytes: 0,
-        points: 0,
-        textExceeded: false,
-        serializationExceeded: false,
-        pointsExceeded: false,
-        pointCollections: new WeakSet(),
-      },
-      crossChecks,
-      nodeCount: 0,
-    }
+    const state = createValidationState(diagnostics, external, crossChecks)
     if (value.parts.length > MAX_SCENE_NODES) add(diagnostics, 'SCENE_BOUNDS', 'scene.parts', 'contains too many top-level Scene nodes')
     for (let index = 0; index < Math.min(value.parts.length, MAX_SCENE_NODES); index++) {
       validateNode(value.parts[index], `scene.parts[${index}]`, state, 0)
-    }
-    for (let index = 0; index < Math.min(value.parts.length, MAX_SCENE_NODES); index++) {
-      for (const reference of localPaintResourceReferences(value.parts[index], `scene.parts[${index}]`)) {
-        if (!state.gradientIds.has(reference.id)) {
-          add(diagnostics, 'SCENE_REFERENCE', reference.path, `references undeclared gradient "${reference.id}"`)
-        }
-      }
     }
     const externalSvg = external && value.parts.length <= MAX_SCENE_NODES
       ? boundedExternalSvg(value.parts, diagnostics)
@@ -1652,12 +1786,7 @@ function validateScene(value: unknown, options: SceneValidationOptions, crossChe
       }
     }
 
-    for (const reference of state.ownerReferences) if (!state.subjects.has(reference.key)) add(diagnostics, 'SCENE_REFERENCE', reference.path, 'must reference an actual Scene subject identity and role')
-    for (const reference of state.companionLabelReferences) {
-      const target = state.ids.get(reference.id)
-      if (!target) add(diagnostics, 'SCENE_REFERENCE', reference.path, `references unknown companion Text mark "${reference.id}"`)
-      else if (target.kind !== 'text') add(diagnostics, 'SCENE_REFERENCE', reference.path, `must reference a Text mark; "${reference.id}" is a ${target.kind} mark`)
-    }
+    validateAggregateReferences(state)
 
     if (diagnostics.length === 0 && external) {
       validateCanonicalExternalScene(value as unknown as SceneDoc, diagnostics)

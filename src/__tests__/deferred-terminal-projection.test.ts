@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { deriveConnectorTerminalProjection } from '../scene/connector-terminal.ts'
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
-import { EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, freezeBoundedFirstPartyData, snapshotBoundedExternalData } from '../scene/external-data-snapshot.ts'
+import { EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, snapshotBoundedExternalData } from '../scene/external-data-snapshot.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import { getFamily } from '../agent/families.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
@@ -20,24 +20,29 @@ function edge(id = 'message'): ConnectorMark {
 }
 
 describe('deferred terminal projection', () => {
-  test('stays deferred through built-in admission, group ownership and SVG serialization', () => {
+  test('defers through group ownership and SVG writing, then captures retained Scenes as immutable data', () => {
     const original = withDeferredTerminalProjections(edge)
     expect(deferredTerminalProjectionInput(original)).toBeDefined()
     const group = marks.group({ id: 'messages', role: 'message', open: '<g>', close: '</g>', children: [{ node: original, indent: 2 }] })
-    const retained = group.children[0]!.node as ConnectorMark
-    expect(deferredTerminalProjectionInput(retained)).toBeDefined()
+    const grouped = group.children[0]!.node as ConnectorMark
+    expect(deferredTerminalProjectionInput(grouped)).toBeDefined()
+    expect(sceneNodeSerialization(group)).toContain('<line')
+    expect(deferredTerminalProjectionInput(grouped)).toBeDefined()
     const colors = { bg: '#fff', fg: '#111' }
     const doc: SceneDoc = {
       family: 'sequence', width: 100, height: 50, colors, transparent: false,
       parts: [marks.documentOpen({ id: 'prelude', width: 100, height: 50, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">'), group, marks.documentClose()],
     }
-    expect(admitFamilyScene(getFamily('sequence')!, doc, false)).toBe(doc)
+    const admitted = admitFamilyScene(getFamily('sequence')!, doc, false)
+    expect(admitted).not.toBe(doc)
+    const retained = (admitted.parts[1] as Extract<SceneDoc['parts'][number], { kind: 'group' }>).children[0]!.node as ConnectorMark
+    expect(retained).not.toBe(grouped)
     expect(Object.isFrozen(retained)).toBe(true)
     expect(Object.isFrozen(retained.route)).toBe(true)
     expect(Object.keys(retained)).toContain('terminalProjection')
     expect(Object.getOwnPropertyDescriptor(retained, 'terminalProjection')?.enumerable).toBe(true)
-    expect(sceneNodeSerialization(group)).toContain('<line')
-    expect(deferredTerminalProjectionInput(retained)).toBeDefined()
+    expect(Object.getOwnPropertyDescriptor(retained, 'terminalProjection')).toHaveProperty('value')
+    expect(deferredTerminalProjectionInput(retained)).toBeUndefined()
     const expected = deriveConnectorTerminalProjection({
       geometry: retained.route.geometry, lineStyle: retained.lineStyle, endpoints: retained.endpoints,
       relationship: retained.relationship, route: retained.route, stroke: retained.stroke,
@@ -50,144 +55,9 @@ describe('deferred terminal projection', () => {
     expect(Object.isFrozen(projection)).toBe(true)
     expect(Object.isFrozen(projection.route.contours[0])).toBe(true)
     expect(Object.isFrozen(projection.diagnostics)).toBe(true)
-    expect(() => { retained.terminalProjection = expected }).toThrow(/readonly/)
-  })
-
-  test('keeps a large connector batch deferred through admission and freezes later projections', () => {
-    const group = marks.group({
-      id: 'messages', role: 'message', open: '<g>', close: '</g>',
-      children: Array.from({ length: 400 }, (_, index) => ({
-        indent: 2, node: withDeferredTerminalProjections(() => edge(`message:${index}`)),
-      })),
-    })
-    const nodes = group.children.map(child => child.node as ConnectorMark)
-    const colors = { bg: '#fff', fg: '#111' }
-    const doc: SceneDoc = {
-      family: 'sequence', width: 100, height: 50, colors, transparent: false,
-      parts: [marks.documentOpen({ id: 'prelude', width: 100, height: 50, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">'), group, marks.documentClose()],
-    }
-    admitFamilyScene(getFamily('sequence')!, doc, false)
-    const svg = sceneNodeSerialization(group)
-    expect(nodes.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
-    expect(svg).toContain('data-id="message:0"')
-    expect(svg).toContain('data-id="message:399"')
-    for (const node of [nodes[0]!, nodes.at(-1)!]) {
-      const projection = node.terminalProjection
-      expect(projection.endpoints.from).toBe('a')
-      expect(projection.endpoints.to).toBe('b')
-      expect(projection.geometry).toBe(node.route.geometry)
-      expect(projection.diagnostics.at(-1)).toBe('Preserved diagnostic')
-      expect(Object.isFrozen(projection)).toBe(true)
-      expect(Object.isFrozen(projection.route.contours[0])).toBe(true)
-      expect(Object.isFrozen(projection.diagnostics)).toBe(true)
-      expect(node.terminalProjection).toBe(projection)
-    }
-    expect(deferredTerminalProjectionInput(nodes[1]!)).toBeDefined()
-    expect(sceneNodeSerialization(group)).toBe(svg)
-  })
-
-  test.each([
-    ['maxObjects', 1500],
-    ['maxTextBytes', 60_000],
-    ['maxAggregateArrayEntries', 700],
-    ['maxAggregateProperties', 5000],
-    ['maxAggregatePropertyKeyBytes', 100_000],
-  ] as const)('reconciles projections under %s pressure while retaining unused deferred projections', (field, bound) => {
-    const group = marks.group({
-      id: 'messages', role: 'message', open: '<g>', close: '</g>',
-      children: Array.from({ length: 12 }, (_, index) => ({
-        indent: 2, node: withDeferredTerminalProjections(() => edge(`message:${index}`)),
-      })),
-    })
-    const nodes = group.children.map(child => child.node as ConnectorMark)
-    const svg = sceneNodeSerialization(group)
-    freezeBoundedFirstPartyData(group, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, [field]: bound })
-    const pending = nodes.filter(node => deferredTerminalProjectionInput(node) !== undefined)
-    const materialized = nodes.filter(node => deferredTerminalProjectionInput(node) === undefined)
-    expect(pending.length).toBeGreaterThan(0)
-    expect(materialized.length).toBeGreaterThan(0)
-    expect(sceneNodeSerialization(group)).toBe(svg)
-    for (const node of [materialized[0]!, pending.at(-1)!]) {
-      const projection = node.terminalProjection
-      expect(projection.endpoints).toEqual(node.endpoints)
-      expect(projection.geometry).toBe(node.route.geometry)
-      expect(projection.diagnostics.at(-1)).toBe('Preserved diagnostic')
-      expect(Object.isFrozen(node)).toBe(true)
-      expect(Object.isFrozen(projection)).toBe(true)
-      expect(Object.isFrozen(projection.route.contours[0]!.start)).toBe(true)
-      expect(Object.isFrozen(projection.diagnostics)).toBe(true)
-      expect(node.terminalProjection).toBe(projection)
-      expect(() => { node.terminalProjection = projection }).toThrow(/readonly/)
-    }
-    expect(sceneNodeSerialization(group)).toBe(svg)
-  })
-
-  test.each([
-    ['array entries', { maxAggregateArrayEntries: 1000 }, () => new Array(500).fill(0)],
-    ['text bytes', { maxTextBytes: 100_000 }, () => 'x'.repeat(15_000)],
-  ] as const)('makes room before charging a large later increment of %s', (_name, constrained, tail) => {
-    const nodes = Array.from({ length: 6 }, (_, index) => withDeferredTerminalProjections(() => edge(`message:${index}`)))
-    const value = { nodes, tail: tail() }
-    expect(freezeBoundedFirstPartyData(value, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, ...constrained })).toBe(value)
-    expect(deferredTerminalProjectionInput(nodes[0]!)).toBeUndefined()
-    expect(deferredTerminalProjectionInput(nodes.at(-1)!)).toBeDefined()
-    expect(Object.isFrozen(value)).toBe(true)
-    expect(Object.isFrozen(value.tail)).toBe(true)
-  })
-
-  test('materializes one oversized projection envelope without consuming unrelated projections', () => {
-    const label = 'Kept label '.repeat(300)
-    const nodes = withDeferredTerminalProjections(() => [
-      ...Array.from({ length: 3 }, (_, index) => edge(`before:${index}`)),
-      marks.connector({
-        id: 'long-label', role: 'message',
-        geometry: { kind: 'line', x1: 10, y1: 20, x2: 90, y2: 20 },
-        lineStyle: 'solid', paint: {}, labels: [{ text: label }],
-      }),
-      ...Array.from({ length: 3 }, (_, index) => edge(`after:${index}`)),
-    ])
-    const oversized = nodes[3]!
-    const unrelated = nodes.filter(node => node !== oversized)
-    expect(nodes.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
-
-    freezeBoundedFirstPartyData({ nodes }, { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 100_000 })
-
-    expect(deferredTerminalProjectionInput(oversized)).toBeUndefined()
-    expect(unrelated.every(node => deferredTerminalProjectionInput(node) !== undefined)).toBe(true)
-    const projection = oversized.terminalProjection
-    expect(projection.labels[0]!.text).toBe(label)
-    expect(Object.isFrozen(oversized)).toBe(true)
-    expect(Object.isFrozen(projection)).toBe(true)
-    expect(Object.isFrozen(projection.labels)).toBe(true)
-    expect(oversized.terminalProjection).toBe(projection)
-  })
-
-  test('preserves eager depth rejection when later projections reach their original property position', () => {
-    const make = (defer: boolean) => {
-      const lower = () => {
-        const nodes = Array.from({ length: 6 }, (_, index) => edge(`message:${index}`))
-        let nested: Record<string, unknown> = {}
-        for (let index = 0; index < 16; index++) nested = { next: nested }
-        const transform = { kind: 'rotate' as const, angle: 0, cx: 0, cy: 0, nested }
-        nodes.push(marks.connector({
-          id: 'deep-transform', role: 'message', transform,
-          geometry: { kind: 'line', x1: 10, y1: 20, x2: 90, y2: 20 },
-          lineStyle: 'solid', paint: {},
-        }))
-        return { nodes }
-      }
-      return defer ? withDeferredTerminalProjections(lower) : lower()
-    }
-    // The retained nested value reaches depth 21 through the projection,
-    // before the shallower public transform can mark it as already visited.
-    for (const limits of [
-      { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxObjects: 1500, maxDepth: 20 },
-      { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxArrayEntries: 10, maxDepth: 20 },
-    ]) {
-      for (const defer of [false, true]) {
-        expect(() => freezeBoundedFirstPartyData(make(defer), limits)).toThrow('External Scene input object graph is too deeply nested')
-      }
-    }
+    expect(() => { retained.terminalProjection = expected }).toThrow()
+    Object.assign(grouped.endpoints, { from: 'changed source' })
+    expect(retained.endpoints.from).toBe('a')
   })
 
   test('keeps direct constructors and path validation eager and restores scope after a failure', () => {
@@ -205,8 +75,8 @@ describe('deferred terminal projection', () => {
     const diagnostics = ['Original']
     const node = withDeferredTerminalProjections(() => marks.connector({ id: 'e', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 1, y2: 1 }, lineStyle: 'solid', paint: {}, terminalProjection: { diagnostics } }))
     diagnostics[0] = 'Changed'
-    freezeBoundedFirstPartyData(node, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS)
-    expect(node.terminalProjection.diagnostics.at(-1)).toBe('Original')
+    const snapshot = snapshotBoundedExternalData(node, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS) as ConnectorMark
+    expect(snapshot.terminalProjection.diagnostics.at(-1)).toBe('Original')
   })
 
   test('materializes the admitted own-data capture despite later prototype fields and getters', () => {
@@ -228,10 +98,11 @@ describe('deferred terminal projection', () => {
       marks.definitions({ id: 'defs', markerResources: [arrow] }, `<defs>${serializeMarkerResources([arrow])}</defs>`),
       ...nodes, marks.documentClose(),
     ] }
-    admitFamilyScene(getFamily('sequence')!, doc, false)
     const expected = nodes.map(node => deriveConnectorTerminalProjection(deferredTerminalProjectionInput(node)!))
+    const admitted = admitFamilyScene(getFamily('sequence')!, doc, false)
+    const retained = admitted.parts.filter((node): node is ConnectorMark => node.kind === 'connector')
     const expectedJson = JSON.stringify(expected)
-    const expectedSvg = doc.parts.map(sceneNodeSerialization).join('\n')
+    const expectedSvg = admitted.parts.map(sceneNodeSerialization).join('\n')
     const injected: Record<string, unknown> = {
       projection: { unexpected: true }, transform: { kind: 'translate', x: 99, y: 99 },
       dash: { array: '999', offset: 99 }, start: { id: 'foreign-start', shape: 'circle' }, end: { id: 'foreign-end', shape: 'circle' },
@@ -245,7 +116,6 @@ describe('deferred terminal projection', () => {
     }
     const prior = new Map(Object.keys(injected).map(key => [key, Object.getOwnPropertyDescriptor(Object.prototype, key)]))
     let inheritedReads = 0
-    let pending = false
     let actual: ReturnType<typeof deriveConnectorTerminalProjection>[] = []
     let actualJson = '', actualSvg = ''
     try {
@@ -253,23 +123,21 @@ describe('deferred terminal projection', () => {
         configurable: true,
         get() { inheritedReads++; return injected[key] },
       })
-      pending = nodes.every(node => deferredTerminalProjectionInput(node) !== undefined)
-      actual = nodes.map(node => node.terminalProjection)
+      actual = retained.map(node => node.terminalProjection)
       actualJson = JSON.stringify(actual)
-      actualSvg = doc.parts.map(sceneNodeSerialization).join('\n')
+      actualSvg = admitted.parts.map(sceneNodeSerialization).join('\n')
     } finally {
       for (const [key, descriptor] of prior) {
         if (descriptor) Object.defineProperty(Object.prototype, key, descriptor)
         else Reflect.deleteProperty(Object.prototype, key)
       }
     }
-    expect(pending).toBe(true)
     expect(inheritedReads).toBe(0)
     expect(actualJson).toBe(expectedJson)
     expect(actualSvg).toBe(expectedSvg)
     expect(actual).toEqual(expected)
-    for (let index = 0; index < nodes.length; index++) {
-      const projection = actual[index]!, node = nodes[index]!
+    for (let index = 0; index < retained.length; index++) {
+      const projection = actual[index]!, node = retained[index]!
       expect(Object.isFrozen(projection)).toBe(true)
       expect(projection.geometry).toBe(node.route.geometry)
       expect(projection.hit.geometry).toBe(node.hit.geometry)
@@ -295,7 +163,7 @@ describe('deferred terminal projection', () => {
     expect(Object.isFrozen(snapshot.terminalProjection)).toBe(true)
   })
 
-  test('every resource cap falls back to exact accounting with the same acceptance and diagnostic', () => {
+  test('retained snapshots apply identical resource caps to eager and deferred construction', () => {
     const limits = EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS
     const unicodeEdge = (): ConnectorMark => marks.connector({
       id: 'unicode-keys', role: 'edge', lineStyle: 'solid', paint: {},
@@ -313,8 +181,7 @@ describe('deferred terminal projection', () => {
     const placementFields = new Set<keyof typeof limits>(['maxObjects', 'maxAggregateProperties', 'maxAggregateArrayEntries', 'maxAggregatePropertyKeyBytes'])
     const batch = () => ({
       nodes: Array.from({ length: 6 }, (_, index) => edge(`message:${index}`)),
-      // The late ASCII value exhausts every pending text reservation before
-      // exact UTF-8 accounting decides acceptance or the original diagnostic.
+      // The late value must count alongside all materialized projections.
       tail: 'x'.repeat(20_000),
     })
     for (const field of Object.keys(limits) as Array<keyof typeof limits>) {
@@ -327,7 +194,7 @@ describe('deferred terminal projection', () => {
           const outcome = (defer: boolean): string => {
             try {
               const node = defer ? withDeferredTerminalProjections(make) : make()
-              freezeBoundedFirstPartyData(node, constrained, 'scene')
+              snapshotBoundedExternalData(node, constrained, 'scene')
               return 'accepted'
             } catch (error) { return error instanceof Error ? error.message : String(error) }
           }
@@ -344,7 +211,7 @@ describe('deferred terminal projection', () => {
       lineStyle: 'solid', paint: {}, markers: { mid: [{ id: 'm'.repeat(1000), shape: 'circle' }] },
     })
     const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 500_000 }
-    expect(() => freezeBoundedFirstPartyData(make(), limits)).toThrow(/text values exceed/)
-    expect(() => freezeBoundedFirstPartyData(withDeferredTerminalProjections(make), limits)).toThrow(/text values exceed/)
+    expect(() => snapshotBoundedExternalData(make(), limits)).toThrow(/text values exceed/)
+    expect(() => snapshotBoundedExternalData(withDeferredTerminalProjections(make), limits)).toThrow(/text values exceed/)
   })
 })

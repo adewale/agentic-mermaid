@@ -1,17 +1,16 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from './scene/drawing.ts'
 import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
+import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleFields } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { escapeAttr, escapeDisplayAttr } from './multiline-utils.ts'
 import { topRoundedRectPath } from './scene/svg-writer.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
-import type { ConnectorLabelDescriptor, MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import type { ConnectorLabelDescriptor, MarkAttributes, MarkerDescriptor, SemanticChannels } from './scene/ir.ts'
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
-import * as marks from './scene/marks.ts'
-import { pathArtwork } from './scene/marks.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
@@ -26,11 +25,9 @@ import { calculatePathMidpoint } from './layout/geometry.ts'
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
 //
-// The graph is first lowered to a SceneGraph (SPEC §3.1): every visual mark
-// becomes a scene node carrying semantic fields (role, geometry, paint,
-// channels, stable id). renderSvg() uses DefaultBackend serialization of that
-// scene; styled backends redraw the same
-// scene without re-parsing SVG.
+// One typed lowering draws native crisp fragments or the Scene tree consumed
+// by styled backends, verification and inspection. Both use the same primitive
+// fields and writers without re-parsing SVG.
 //
 // Renders back-to-front: groups → edges → arrow heads → edge labels → nodes.
 //
@@ -62,16 +59,18 @@ export function renderSvg(
 }
 
 /**
- * Lower a positioned graph to the SceneGraph IR in canonical mark order.
+ * Draw a positioned graph in canonical mark order for the selected consumer.
  */
-export function lowerGraphScene(
+export function lowerGraphDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedGraph>,
-): SceneDoc {
+  composition?: { surfaces?: boolean; edgeLabels?: boolean; beforeEdges?: () => T[] },
+): DrawingDocument<T> {
   const { positioned: graph, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const stateVisual = (resolved.familyAppearance as { visual?: ResolvedStateVisualConfig } | undefined)?.visual
     ?? (options as RenderOptions & { stateVisual?: ResolvedStateVisualConfig }).stateVisual
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults, resolved.styleFace)
@@ -112,12 +111,14 @@ export function lowerGraphScene(
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   // 0. The diagram's frontmatter title, in the band layout reserved above.
-  if (graph.title) parts.push(diagramTitleMark(graph.title, style))
+  if (graph.title) parts.push(marks.text(diagramTitleFields(graph.title, style)))
 
   // 1. Subgraph backgrounds (group rectangles with header bands)
-  for (const group of graph.groups) {
-    parts.push(renderGroup(group, font, style))
+  for (const group of composition?.surfaces === false ? [] : graph.groups) {
+    parts.push(renderGroup(marks, group, font, style))
   }
+
+  if (composition?.beforeEdges) parts.push(...composition.beforeEdges())
 
   // 2. Edges (polylines — rendered behind nodes)
   // Each edge is a <polyline> with semantic data-* attributes. Its authored
@@ -136,24 +137,24 @@ export function lowerGraphScene(
     const sceneId = `edge:${pairKey}#${k}`
     edgeSceneIds.set(edge, sceneId)
     const identity = edge.id !== undefined && !nodeAndGroupIds.has(edge.id) ? edge.id : sceneId
-    parts.push(renderEdge(edge, style, sceneId, identity, markerResources))
+    parts.push(renderEdge(marks, edge, style, sceneId, identity, markerResources))
   }
 
   // 3. Edge labels (positioned at midpoint of edge)
   // Each label is wrapped in <g class="edge-label">
   for (const edge of graph.edges) {
     const connectorSceneId = edgeSceneIds.get(edge)
-    if (edge.label && connectorSceneId) parts.push(renderEdgeLabel(edge, font, style, connectorLabelSceneId(connectorSceneId)))
+    if (composition?.edgeLabels !== false && edge.label && connectorSceneId) parts.push(renderEdgeLabel(marks, edge, font, style, connectorLabelSceneId(connectorSceneId)))
   }
 
   // 4. Nodes (shape + label wrapped in <g class="node">)
-  for (const node of graph.nodes) {
-    parts.push(renderNode(node, font, style, colors, options.security !== 'strict'))
+  for (const node of composition?.surfaces === false ? [] : graph.nodes) {
+    parts.push(renderNode(marks, node, font, style, colors, options.security !== 'strict'))
   }
 
   // 5. State-diagram notes (placed by the layout pass on their declared side)
   for (const note of graph.notes ?? []) {
-    parts.push(renderStateNote(note, font, style))
+    parts.push(renderStateNote(marks, note, font, style))
   }
 
   parts.push(marks.documentClose())
@@ -165,7 +166,7 @@ export function lowerGraphScene(
 // Group rendering (subgraph backgrounds)
 // ============================================================================
 
-function renderGroup(group: PositionedGroup, font: string, style: ResolvedRenderStyle, parentId?: string): SceneNode {
+function renderGroup<T>(marks: DrawingFactory<T>, group: PositionedGroup, font: string, style: ResolvedRenderStyle, parentId?: string): T {
   // Concurrency regions (plan §State 2c) draw no box/header of their own —
   // the parent composite draws dashed separators between them instead. Nested
   // composites inside a region still render normally.
@@ -175,13 +176,13 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       role: 'group',
       open: `<g class="concurrency-region" data-id="${escapeAttr(group.id)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`,
       close: '</g>',
-      children: group.children.map(child => ({ indent: 0, node: renderGroup(child, font, style, group.id) })),
+      children: group.children.map(child => ({ indent: 0, node: renderGroup(marks, child, font, style, group.id) })),
     })
   }
 
   const headerBlock = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
   const headerHeight = group.headerHeight ?? style.groupHeaderFontSize + 16 + headerBlock.height - headerBlock.lineHeight
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
 
   // Opening <g> with semantic attributes for subgraph identification
   // data-id: original Mermaid subgraph ID
@@ -252,7 +253,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
 
   // Render nested groups recursively (inside this group)
   for (const child of group.children) {
-    children.push({ indent: 0, node: renderGroup(child, font, style, group.id) })
+    children.push({ indent: 0, node: renderGroup(marks, child, font, style, group.id) })
   }
 
   return marks.group({
@@ -298,7 +299,7 @@ function regionSeparators(group: PositionedGroup, headerHeight: number): RegionS
 // on the declared side of its state by placeStateNotes.
 // ============================================================================
 
-function renderStateNote(note: PositionedStateNote, font: string, style: ResolvedRenderStyle): SceneNode {
+function renderStateNote<T>(marks: DrawingFactory<T>, note: PositionedStateNote, font: string, style: ResolvedRenderStyle): T {
   void font
   const { x, y, width: w, height: h } = note
   const rawFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
@@ -344,13 +345,14 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
 // Edge rendering
 // ============================================================================
 
-function renderEdge(
+function renderEdge<T>(
+  marks: DrawingFactory<T>,
   edge: PositionedEdge,
   style: ResolvedRenderStyle,
   sceneId: string,
   identityId: string,
   markerResources: readonly MarkerDescriptor[],
-): SceneNode {
+): T {
   const lineStyle = edge.style === 'dotted' ? 'dotted'
     : edge.style === 'thick' ? 'thick'
     : edge.style === 'invisible' ? 'invisible'
@@ -556,7 +558,7 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
     css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full))
 }
 
-function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderEdgeLabel<T>(marks: DrawingFactory<T>, edge: PositionedEdge, font: string, style: ResolvedRenderStyle, sceneId: string): T {
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.
   const mid = edge.labelPosition ?? calculatePathMidpoint(edge.points)
@@ -628,10 +630,10 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
  * - data-label: display label text
  * - data-shape: shape type (rectangle, diamond, circle, etc.)
  */
-function renderNode(node: PositionedNode, font: string, style: ResolvedRenderStyle, colors: DiagramColors, includeInteraction: boolean): SceneNode {
-  const shape = renderNodeShape(node, style)
+function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: string, style: ResolvedRenderStyle, colors: DiagramColors, includeInteraction: boolean): T {
+  const shape = renderNodeShape(marks, node, style)
   const ink = nodeTextInk(node, style, colors)
-  const label = renderNodeLabel(node, font, style, ink)
+  const label = renderNodeLabel(marks, node, font, style, ink)
 
   // Combine shape and label inside a semantic group
   // This enables reliable node identification without heuristics
@@ -647,8 +649,8 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
     node.shape === 'state-end' ? { status: 'end' } :
     undefined
 
-  const children: Array<{ node: SceneNode; indent: number }> = [{ indent: 2, node: shape }]
-  const media = renderFlowchartMedia(node, ink)
+  const children: Array<{ node: T; indent: number }> = [{ indent: 2, node: shape }]
+  const media = renderFlowchartMedia(marks, node, ink)
   if (media) children.push({ indent: 2, node: media })
   if (label) {
     children.push({ indent: 2, node: label })
@@ -668,7 +670,7 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   })
 }
 
-function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | null {
+function renderFlowchartMedia<T>(marks: DrawingFactory<T>, node: PositionedNode, ink: string): T | null {
   const size = Math.min(28, node.height * 0.4)
   const cx = node.x + node.width / 2
   const y = node.y + 6
@@ -676,7 +678,7 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
     const glyph = resolveMindmapIcon(node.icon)
     if (glyph) {
       const scale = size / 24
-      return pathArtwork({ id: `node:${node.id}:icon`, paths: glyph.paths,
+      return marks.pathArtwork({ id: `node:${node.id}:icon`, paths: glyph.paths,
         owner: { id: node.id, role: 'node' },
         open: `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})">`,
         transform: { kind: 'matrix', a: scale, b: 0, c: 0, d: scale, e: cx - size / 2, f: y },
@@ -706,7 +708,7 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
   return null
 }
 
-function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): SceneNode {
+function renderNodeShape<T>(marks: DrawingFactory<T>, node: PositionedNode, style: ResolvedRenderStyle): T {
   const { x, y, width, height, shape, inlineStyle } = node
 
   // Resolve fill and stroke — inline styles (from mermaid `style` directives)
@@ -741,7 +743,7 @@ function nodeTextInk(node: PositionedNode, style: ResolvedRenderStyle, colors: D
   return resolveInlineNodeTextColor(node.inlineStyle, onNode)
 }
 
-function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRenderStyle, rawTextColor: string): SceneNode | null {
+function renderNodeLabel<T>(marks: DrawingFactory<T>, node: PositionedNode, font: string, style: ResolvedRenderStyle, rawTextColor: string): T | null {
   // State pseudostates have no label (history keeps its H/H* glyph)
   if (node.shape === 'state-start' || node.shape === 'state-end' ||
       node.shape === 'state-fork' || node.shape === 'state-join' || node.shape === 'state-choice') {
@@ -774,3 +776,5 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
  * Escape a string for use as an XML/HTML attribute value.
  * Escapes quotes and ampersands to prevent attribute injection.
  */
+
+export const lowerGraphScene = sceneLowering<PositionedGraph>(lowerGraphDrawing)

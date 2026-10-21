@@ -1,9 +1,10 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { RenderContext, PositionedNode, PositionedGroup } from '../types.ts'
 import type { PositionedC4Diagram } from './layout.ts'
 import type { C4Boundary, C4Element } from './types.ts'
-import type { Geometry, MarkAttributes, SceneDoc, SceneNode, MarkPaint } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
-import { lowerGraphScene } from '../renderer.ts'
+import type { Geometry, MarkAttributes, MarkPaint } from '../scene/ir.ts'
+import * as typedMarks from '../scene/marks.ts'
+import { lowerGraphDrawing } from '../renderer.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { c4Appearance, effectiveC4Shape } from './config.ts'
 import { resolveRenderStyle } from '../styles.ts'
@@ -17,9 +18,9 @@ import { c4SourceLine } from './projection.ts'
 
 /** C4 cards and frames are typed Scene shapes. Shared graph lowering supplies
  * native routed connectors, marker resources, edge labels and title chrome. */
-export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc {
+export function lowerC4Drawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedC4Diagram>): DrawingDocument<T> {
   const positioned = ctx.positioned, { body, config, identities } = positioned
-  const base = lowerGraphScene(ctx), style = resolveRenderStyle(ctx.resolved.renderOptions, undefined, ctx.resolved.styleFace)
+  const style = resolveRenderStyle(ctx.resolved.renderOptions, undefined, ctx.resolved.styleFace)
   const link = (value: string | undefined): string => value && ctx.resolved.renderOptions.security !== 'strict' && isSafeActionHref(value) ? ` data-href="${escapeAttr(value)}" role="link" tabindex="0"` : ''
   const id = (owner: string, feature: string) => identities.generated(`c4:${owner}:${feature}`, ['c4', owner, feature])
   const shape = (owner: string, feature: string, geometry: Geometry, paint: MarkPaint, group = false) => marks.shape({ id: id(owner, feature), role: group ? 'group' : 'node', geometry, paint })
@@ -32,11 +33,11 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
     ...(c4SourceLine(body, item.statementId) !== undefined ? [`data-source-line="${c4SourceLine(body, item.statementId)}"`] : []),
     ...('external' in item ? [`data-external="${item.external}"`, `data-c4-shape="${item.shape}"`, `data-effective-c4-shape="${effectiveC4Shape(item)}"`] : [`data-alignment="${item.alignment ?? 'center'}"`]),
   ].join(' ')
-  const card = (item: C4Element, node: PositionedNode): SceneNode => {
+  const card = (item: C4Element, node: PositionedNode): T => {
     const { x, y, width, height } = node, appearance = c4Appearance(item, config), renderedShape = effectiveC4Shape(item)
     const fill = appearance.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke = appearance.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', color = appearance.text ?? resolveInlineNodeTextColor(appearance.fill ? { fill: appearance.fill } : undefined, style.nodeTextColor ?? toneOnFill('var(--_text)', fill, ctx.colors)), lineWidth = String(style.nodeLineWidth)
     const paint: MarkPaint = { fill, stroke, strokeWidth: lineWidth, ...(appearance.dashed ? { strokeDasharray: '5 3' } : {}) }
-    const children: Array<{ node: SceneNode; indent: number }> = [], add = (mark: SceneNode) => children.push({ node: mark, indent: 2 })
+    const children: Array<{ node: T; indent: number }> = [], add = (mark: T) => children.push({ node: mark, indent: 2 })
     if (renderedShape === 'database') {
       const ry = 8, d = `M ${x} ${y + ry} A ${width / 2} ${ry} 0 0 1 ${x + width} ${y + ry} L ${x + width} ${y + height - ry} A ${width / 2} ${ry} 0 0 1 ${x} ${y + height - ry} Z`
       add(shape(item.id, 'surface', { kind: 'path', d }, paint))
@@ -60,10 +61,10 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
     return marks.group({ id: id(item.id, 'card'), role: 'node', open: `<g class="node c4-${item.kind}" ${metadata(item)}>`, close: '</g>', children, channels: { category: `${item.external ? 'external-' : ''}${item.kind}`, ...(item.tags.length ? { status: item.tags.join(',') } : {}) } })
   }
   const byBoundary = new Map(body.boundaries.map(item => [item.id, item]))
-  const frame = (group: PositionedGroup): SceneNode => {
+  const frame = (group: PositionedGroup): T => {
     const item = byBoundary.get(group.id)!, appearance = c4Appearance(item, config), { x, y, width, height } = group
     const stroke = appearance.stroke ?? style.groupBorderColor ?? 'var(--_node-stroke)', fill = appearance.fill ?? style.groupFillColor ?? 'var(--_group-fill)', headerFill = appearance.fill ?? style.groupHeaderFillColor ?? 'var(--_group-hdr)', color = appearance.text ?? resolveInlineNodeTextColor(appearance.fill ? { fill: appearance.fill } : undefined, style.groupTextColor ?? toneOnFill('var(--_text-sec)', headerFill, ctx.colors)), headerHeight = group.headerHeight ?? 36
-    const children: Array<{ node: SceneNode; indent: number }> = [], add = (mark: SceneNode) => children.push({ node: mark, indent: 2 })
+    const children: Array<{ node: T; indent: number }> = [], add = (mark: T) => children.push({ node: mark, indent: 2 })
     const dash = item.style.lineStyle === 'solid' ? undefined : item.style.lineStyle === 'dotted' ? '1 3' : item.style.lineStyle === 'dashed' ? '5 3' : item.kind === 'deployment' ? undefined : '6 4'
     add(shape(item.id, 'boundary-frame', { kind: 'rect', x, y, width, height, rx: style.groupCornerRadius, ry: style.groupCornerRadius }, { fill, stroke, strokeWidth: String(style.groupLineWidth), ...(dash ? { strokeDasharray: dash } : {}) }, true))
     const band = topRoundedRectPath(x, y, width, headerHeight, style.groupCornerRadius)
@@ -77,12 +78,11 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
   }
   // Preserve the common root/resources/title/routes, replacing generic graph
   // surfaces with C4-owned typed primitives and explicit semantic metadata.
-  const genericNodeIds = new Set(positioned.nodes.map(node => `node:${node.id}`)), genericGroupIds = new Set(positioned.groups.map(group => `group:${group.id}`))
   const relationshipById = new Map(body.relationships.map(item => [item.id, item]))
-  const parts = base.parts.filter(part => !genericNodeIds.has(part.id) && !genericGroupIds.has(part.id) && part.role !== 'edge-label').map(part => {
-    if (part.kind !== 'connector') return part
+  const connector = (fields: typedMarks.ConnectorFields): T => {
+    const part = typedMarks.connector(fields)
     const item = relationshipById.get(part.identity?.id ?? '')
-    if (!item) return part
+    if (!item) return marks.connector(fields)
     const stroke = item.style.lineStyle === 'dotted' ? { ...part.stroke, dash: { array: '1 3' } } : part.stroke
     // Inspection hooks: the drawn style, arrow presence and markers, the
     // label, and the authored C4 source (macro, endpoints, order, index, tags
@@ -103,11 +103,11 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
       },
       ...(href && isSafeActionHref(href) ? { tabIndex: 0 as const } : {}),
     }
-    const fields: marks.ConnectorFields = { id: id(item.id, 'relationship'), role: 'edge', identity: part.identity, geometry: part.route.geometry, paint: { stroke: stroke.color, strokeWidth: String(stroke.width) }, lineStyle: part.lineStyle, endpoints: part.endpoints, relationship: { ...part.relationship, kind: `c4-${item.macro}` }, route: part.route, stroke, markers: part.markers, hit: part.hit, labels: part.labels.map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) }, attributes }
-    return marks.connector(fields)
-  })
-  const firstRoute = parts.findIndex(part => part.kind === 'connector')
-  parts.splice(firstRoute < 0 ? Math.max(0, parts.length - 1) : firstRoute, 0, ...positioned.groups.map(frame))
+    const replacement: typedMarks.ConnectorFields = { id: id(item.id, 'relationship'), role: 'edge', identity: part.identity, geometry: part.route.geometry, paint: { stroke: stroke.color, strokeWidth: String(stroke.width) }, lineStyle: part.lineStyle, endpoints: part.endpoints, relationship: { ...part.relationship, kind: `c4-${item.macro}` }, route: part.route, stroke, markers: part.markers, hit: part.hit, labels: part.labels.map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) }, attributes }
+    return marks.connector(replacement)
+  }
+  const base = lowerGraphDrawing({ ...marks, connector }, ctx, { surfaces: false, edgeLabels: false, beforeEdges: () => positioned.groups.map(frame) })
+  const parts = base.parts
   const labels = positioned.edges.flatMap(edge => {
     if (!edge.label || !edge.labelBlock || !edge.labelPosition) return []
     const item = relationshipById.get(edge.id!)!, block = edge.labelBlock, { x, y } = edge.labelPosition, color = item.style.textColor ?? item.style.fontColor ?? style.edgeTextColor ?? 'var(--_text-sec)'
@@ -119,7 +119,7 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
   })
   parts.splice(parts.length - 1, 0, ...labels, ...positioned.nodes.map(node => card(body.elements.find(item => item.id === node.id)!, node)))
   if (positioned.legend) {
-    const legend = positioned.legend, children: Array<{ node: SceneNode; indent: number }> = []
+    const legend = positioned.legend, children: Array<{ node: T; indent: number }> = []
     const legendStyle = resolveRoleStyle(ctx.resolved.styleFace, 'legend', {}, { includeFallback: false })
     const textColor = legendStyle?.textColor ?? 'var(--_text)'
     const headingBlock = legend.heading, headingX = legend.x + 12, headingY = legend.y + 8 + headingBlock.height / 2
@@ -158,3 +158,5 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
   }
   return { ...base, family: 'c4', parts }
 }
+
+export const lowerC4Scene = sceneLowering<PositionedC4Diagram>(lowerC4Drawing)

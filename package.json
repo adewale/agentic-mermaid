@@ -40,12 +40,7 @@
       "default": "./dist/browser-lazy/index.js"
     },
     "./style-spec.schema.json": "./docs/schemas/style-spec.schema.json",
-    "./package.json": "./package.json",
-    "./svg/read-only": {
-      "types": "./dist/svg-read-only.d.ts",
-      "import": "./dist/svg-read-only.js",
-      "default": "./dist/svg-read-only.js"
-    }
+    "./package.json": "./package.json"
   },
   "unpkg": "./dist/browser.global.js",
   "jsdelivr": "./dist/browser.global.js",
@@ -266,15 +261,6 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "upng-js": "^2.1.0",
-    "wrangler": "4.149.0",
-    "pele": "1.6.0"
-  },
-  "peerDependencies": {
-    "pele": "1.6.0"
-  },
-  "peerDependenciesMeta": {
-    "pele": {
-      "optional": true
-    }
+    "wrangler": "4.149.0"
   }
 }

@@ -1,6 +1,5 @@
-/** Terminal-only derived data on the trusted, assertions-off Scene path.
- * The own enumerable property remains observable as before. Admission reserves
- * its complete resource envelope before allowing it to stay unevaluated. */
+/** Defer terminal-only derived data during trusted native drawing. Retained
+ * Scenes materialize it into their bounded immutable admission snapshot. */
 import type { ConnectorMark } from './ir.ts'
 import { deriveConnectorTerminalProjection, type ConnectorTerminalProjectionInput } from './connector-terminal.ts'
 
@@ -8,7 +7,6 @@ interface DeferredProjection {
   readonly input: ConnectorTerminalProjectionInput
   readonly get: () => ConnectorMark['terminalProjection']
   projection: ConnectorMark['terminalProjection'] | undefined
-  reserved: boolean
 }
 
 const deferred = new WeakMap<object, DeferredProjection>()
@@ -21,23 +19,13 @@ export function withDeferredTerminalProjections<T>(lower: () => T): T {
   try { return lower() } finally { loweringDepth-- }
 }
 
-function freezeProjection(value: unknown): void {
-  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return
-  for (const key of Object.keys(value)) freezeProjection((value as Record<string, unknown>)[key])
-  Object.freeze(value)
-}
-
 function install(node: ConnectorMark, input: ConnectorTerminalProjectionInput): void {
   const state: DeferredProjection = {
     input,
     projection: undefined,
-    reserved: false,
     get() {
       if (state.projection === undefined) {
         const projection = deriveConnectorTerminalProjection(input, true)
-        // Only an admitted, bounded immutable capture can survive a public
-        // return with its projection deferred.
-        if (state.reserved && Object.isFrozen(node)) freezeProjection(projection)
         state.projection = projection
       }
       return state.projection
@@ -80,15 +68,6 @@ export function deferredTerminalProjectionInput(node: object): ConnectorTerminal
   if (!state || state.projection !== undefined) return undefined
   const descriptor = Object.getOwnPropertyDescriptor(node, 'terminalProjection')
   return descriptor?.get === state.get ? state.input : undefined
-}
-
-export function reserveDeferredTerminalProjection(node: object): void {
-  const state = deferred.get(node)
-  if (state) state.reserved = true
-}
-
-export function hasReservedDeferredTerminalProjection(node: object): boolean {
-  return deferredTerminalProjectionInput(node) !== undefined && deferred.get(node)!.reserved && Object.isFrozen(node)
 }
 
 /** Snapshot only our registered getter. External caller accessors still fail
