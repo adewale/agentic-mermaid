@@ -1,5 +1,6 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
+import { isSafeShadowedInlinePaintValue } from '../shared/inline-paint-value.ts'
 import type { MarkAttributes } from '../scene/ir.ts';
 import { type PixelTextBlock, pixelTextLine, preparePixelText } from '../shared/prepared-text.ts'
 // ============================================================================
@@ -636,11 +637,12 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
       attributes: { className: 'gantt-today-marker' },
     }, { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta('gantt-today-marker') },
-      ...(todayStyle?.applied.length ? [{ name: 'style' as const, value: { source: 'style' as const, declarations: todayStyle.applied.map(([property, value], index) => ({
+      ...(todayStyle?.applied.length ? [{ name: 'style' as const, value: { source: 'style' as const, declarations: todayStyle.applied.flatMap(([property, value], index) =>
+        index !== lastDeclaration.get(property) && !isSafeShadowedInlinePaintValue(value) ? [] : [{
         property: property as SvgCssProperty,
         value: index === lastDeclaration.get(property) ? v.paint(TODAY_STYLE_FIELDS[property]!) : v.meta(value),
         ...(index === lastDeclaration.get(property) ? {} : { shadowed: true as const }),
-      })) } }] : []),
+      }]) } }] : []),
       ...LINE_FIELDS.map(name => ({ name, value: v.geometry(name) })),
       ...PAINT_ATTRIBUTES,
     ] }))

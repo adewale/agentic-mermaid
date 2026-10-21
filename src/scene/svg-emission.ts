@@ -1,5 +1,5 @@
 import { formatPercent1 } from '../shared/percent-format.ts'
-import { isSafeInlinePaintValue } from '../shared/inline-paint-value.ts'
+import { isSafeShadowedInlinePaintValue } from '../shared/inline-paint-value.ts'
 import type { SvgTextWhitespaceEdit } from './svg-text-whitespace.ts'
 import { requireSafeCssPaint } from '../shared/css-color.ts'
 /** Private SVG projection recipes. Recipes describe lexical presentation,
@@ -288,8 +288,11 @@ export function svgEmissionValue(node: SvgEmissionNode, value: SvgValue, recipe?
       if (!PAINT_FIELDS.has(value.field)) throw new TypeError(`Unsupported SVG paint field ${value.field}`)
       const paint = node.kind === 'shape' || node.kind === 'text' ? node.paint : undefined
       const piece = value.piece ?? recipe?.piece
-      const override = (node.kind === 'shape' && piece !== undefined ? node.childPaints?.[piece] : undefined) ?? recipe?.pieces?.[piece ?? 0]?.paint
-      const direct = override?.[value.field] ?? paint?.[value.field]
+      const childPaint = node.kind === 'shape' && piece !== undefined ? node.childPaints?.[piece] : undefined
+      // Explicit semantic child paint replaces its parent's complete paint.
+      // Private lexical piece overrides supply only missing presentation facts.
+      const direct = childPaint !== undefined ? childPaint[value.field]
+        : recipe?.pieces?.[piece ?? 0]?.paint?.[value.field] ?? paint?.[value.field]
       if (direct !== undefined || node.kind !== 'connector') return direct
       switch (value.field) {
         case 'fill': return 'none'
@@ -774,7 +777,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         if (item.shadowed !== undefined) {
           if (item.shadowed !== true || !['stroke', 'stroke-width', 'stroke-dasharray', 'opacity'].includes(String(item.property))) throw new TypeError('Only overridden line-paint declarations may retain lexical values')
           const projected = object(item.value, ['source', 'value'])
-          if (projected.source !== 'metadata' || typeof projected.value !== 'string' || !isSafeInlinePaintValue(projected.value)) throw new TypeError('Shadowed paint requires a safe lexical value')
+          if (projected.source !== 'metadata' || typeof projected.value !== 'string' || !isSafeShadowedInlinePaintValue(projected.value)) throw new TypeError('Shadowed paint requires a safe lexical value')
           if ((canonicalPositions.get(item.property) ?? -1) <= position) throw new TypeError('Shadowed paint requires a later semantic declaration')
           continue
         }

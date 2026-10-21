@@ -1,14 +1,138 @@
 # Performance evidence and reproduction
 
-The 0.5 work reduces measured routing and allocation costs while preserving
-rendering, editing and trust contracts. It does **not** establish general speed,
-startup or browser-payload parity with Beautiful Mermaid or Pele. Final packed
-comparisons and raw CI artifacts belong in the PR/run evidence; the bounded
-source experiments below must not be relabeled as final package results.
+The current typed SVG pipeline campaign is PR #433. Its requested fixed source
+baseline is **`a9d1551da27ddab542a1ae96329464ad65725448`**, as recorded in the
+[campaign contract](../../docs/project/0.5-svg-pipeline.md). The performance
+objective remains unmet. Source correctness repairs do not establish a new
+packed performance, startup, memory or browser-payload result.
 
-## Fixed identities and decision rules
+The routing and allocation observations retained below belong to the older
+`67d47989` versus `30f0af5d` campaign. They keep their original SHA bindings and
+are not new gains from the typed SVG pipeline. In particular, existing #431
+admission, freezing, hashing, color-resolution and cache work is baseline work.
 
-| Item | Campaign policy |
+## Current campaign reproduction
+
+Use Node 24.19.0, Bun 1.4.2 and npm 11.18.0. Start from a clean checkout, record
+the exact candidate commit before building, and retain both source locks,
+verified package manifests and installed runtime locks. HEAD below selects a
+candidate for a new run; it does not make that moving ref a historical measured
+candidate. Finish all builds and installs before the serialized measurement
+window. Never combine absolute timings from different hosts or CI jobs.
+
+~~~bash
+set -euo pipefail
+git diff --quiet
+git diff --cached --quiet
+test -z "$(git status --porcelain --untracked-files=all)"
+fixed_sha=a9d1551da27ddab542a1ae96329464ad65725448
+candidate_source="$(git rev-parse HEAD)"
+candidate_out="$PWD/bench-report/$candidate_source"
+mkdir -p "$candidate_out"
+printf '%s\n' "$candidate_source" > "$candidate_out/candidate-source.txt"
+node --version > "$candidate_out/node-version.txt"
+bun --version > "$candidate_out/bun-version.txt"
+npm --version > "$candidate_out/npm-version.txt"
+bun install --frozen-lockfile
+cp bun.lock "$candidate_out/candidate-source.bun.lock"
+bun run build
+bun run scripts/ci/verify-publish-package.ts --pack-destination "$candidate_out/candidate-artifact"
+candidate_sha="$(jq -er '.sha256' "$candidate_out/candidate-artifact/package-manifest.json")"
+
+fixed_workspace="$(mktemp -d /tmp/am-fixed-a9.XXXXXX)"
+fixed_tree="$fixed_workspace/source"
+fixed_pack="$fixed_workspace/package"
+fixed_consumer="$fixed_workspace/consumer"
+git fetch --no-tags origin "$fixed_sha"
+git worktree add --detach "$fixed_tree" "$fixed_sha"
+(
+  cd "$fixed_tree"
+  test "$(git rev-parse HEAD)" = "$fixed_sha"
+  bun install --frozen-lockfile
+  bun run build
+  bun run scripts/ci/verify-publish-package.ts --pack-destination "$fixed_pack"
+  git diff --exit-code
+)
+cp "$fixed_tree/bun.lock" "$candidate_out/baseline-source.bun.lock"
+cp "$fixed_pack/package-manifest.json" "$candidate_out/baseline-package-manifest.json"
+npm install --prefix "$fixed_consumer" --ignore-scripts --no-audit --no-fund "$fixed_pack/package.tgz"
+cp "$fixed_consumer/package-lock.json" "$candidate_out/baseline-runtime.package-lock.json"
+cp "$fixed_consumer/node_modules/.package-lock.json" "$candidate_out/baseline-runtime.installed-package-lock.json"
+fixed_package="$fixed_consumer/node_modules/agentic-mermaid"
+
+# Continue through requested populations while retaining every command status.
+# A zero return from this recording helper is not a benchmark gate pass.
+record_measurement() {
+  local log="$1" status=0
+  shift
+  "$@" > "$log" 2>&1 || status=$?
+  printf '%s\n' "$status" > "$log.exit-code"
+  printf '%s: exit %s\n' "$log" "$status"
+}
+
+# Same installed baseline package and dependency tree on both sides.
+record_measurement "$candidate_out/aa-command.log" \
+  bun run bench:release --baseline "$fixed_package" --candidate "$fixed_package" \
+  --elk-cache off --rounds 5 --reps 3 --budget-ms 1200000 --out "$candidate_out/aa"
+for cache in off on; do
+  record_measurement "$candidate_out/fixed-$cache-command.log" \
+    bun run bench:release --baseline "$fixed_package" \
+    --candidate-tarball "$candidate_out/candidate-artifact/package.tgz" --candidate-sha256 "$candidate_sha" \
+    --elk-cache "$cache" --rounds 5 --reps 3 --budget-ms 1200000 \
+    --out "$candidate_out/fixed-$cache"
+  record_measurement "$candidate_out/peers-$cache-command.log" \
+    bun run bench:peers --peers agentic,beautiful,zombie,pele \
+    --candidate-tarball "$candidate_out/candidate-artifact/package.tgz" --candidate-sha256 "$candidate_sha" \
+    --elk-cache "$cache" --rounds 5 --json "$candidate_out/peers-$cache.json" \
+    --markdown "$candidate_out/peers-$cache.md"
+done
+
+# Source preservation is separate from packed timings, in both actual modes.
+for assertions in 0 1; do
+  record_measurement "$candidate_out/output-identity-assertions-$assertions.log" \
+    env AGENTIC_MERMAID_ELK_CACHE=0 AGENTIC_MERMAID_SCENE_ASSERTIONS="$assertions" \
+    bun run check:output-identity --baseline "$fixed_sha" --jobs 2 --show 8
+done
+~~~
+
+Keep nonzero exit codes, unsupported inputs, timeouts and incomplete reports;
+inspect each command's retained output and exit-code file. The recording helper
+runs the requested populations without discarding earlier failures. The
+fixed a9 package does not support every later enrolled family, so its A/A can
+fail the unchanged scaling-success gate while still retaining its timing
+observations. That failure is not a gate pass or permission to remove inputs.
+Record any differences in source and resolved runtime dependencies. Preserve the
+fixed worktree, tarballs and locks alongside the evidence until it is archived.
+
+The benchmark harness sets Scene assertions off before starting production
+workers. Source identity commands above run via "bun run", without the unit-test
+preload. Canonical "bun test" deliberately loads fc-seed.preload.ts, which
+forces assertions on; a shell variable alone does not prove an assertions-off
+unit run. Such a run needs a separate preload/configuration and an executable
+qualifier checking the live assertion mode and shared pinned fast-check seed.
+Assertions-on and cache-on results remain separate populations.
+
+Final all-ten-mode identity against a9, fixed-tool visual/decoded-pixel evidence,
+packed Node/Bun/browser/CLI/MCP/PNG qualification and complete final CI remain
+candidate-bound requirements. Upstream intentional output and family changes
+must be separated from refactor differences, never hidden by updating a golden
+or shrinking the corpus. Final packed startup/time/allocation/heap/RSS,
+peer ratios and payload claims require fresh exact-artifact receipts. No current
+performance win follows from the historical observations below.
+
+For CI, run **Release benchmark** at the reviewed exact candidate ref with
+fixed-baseline-sha set to the full a9 SHA above. Link the actual
+release-fixed-benchmark candidate-SHA/attempt artifact and separately retain
+the normal-release/browser job's artifact. A workflow recipe is not evidence
+that the job ran or passed. Neither benchmark invocation publishes or deploys.
+
+## Historical identities and decision rules: 19 October campaign
+
+Everything from this table through the historical reproduction section retains
+the older `67d47989`/`30f0af5d` scope. Its acceptance thresholds and observations
+do not replace the current typed-pipeline campaign contract.
+
+| Item | Historical campaign policy |
 | --- | --- |
 | Fixed post-#431 source baseline | `30f0af5d63e460c8bd3de88358414f2c7857a2c6`; never advance it to make a comparison pass. |
 | Frozen production candidate | `67d47989ddb5ba7e391054d19378b7a0e7d946ef`; later documentation changes do not change this production scope. Bind actual pack SHA-256/SHA-512 integrity separately. |
@@ -32,7 +156,7 @@ one pair establishes no retained-heap noise floor, and no retained-memory win is
 noise observations, not universal tolerances. Older raw release metadata used
 Bun's Node compatibility version; its real Node worker receipts record 24.19.0.
 
-## Bounded findings, 19 October 2026
+## Historical bounded findings, 19 October 2026
 
 | Change / evidence scope | Reproduced observation | Limit |
 | --- | --- | --- |
@@ -62,7 +186,12 @@ remain in coverage counts and receive no successful speed ratio. Pele has no
 native terminal API. Different output/edit/security contracts are disclosed,
 not normalized into an invented equal-work benchmark.
 
-## Reproduce with the existing tools
+## Historical reproduction with the existing tools
+
+These commands reproduce the older comparison only when the candidate checkout
+is exactly `67d47989ddb5ba7e391054d19378b7a0e7d946ef` and its original harness is
+used. They are retained to explain the historical observations, not as current
+HEAD/a9 qualification instructions. Use the current recipe above for new runs.
 
 Finish builds/installs before a serialized measurement window. Use Node 24.19.0,
 Bun 1.4.2 and the pinned publishing npm; retain source locks and install receipts.

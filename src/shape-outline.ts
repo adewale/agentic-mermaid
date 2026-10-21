@@ -104,8 +104,8 @@ function outline(geometry: Geometry, paint: MarkPaint, routing: ShapeRoutingBoun
   let childPaints: MarkPaint[] | undefined
   if (emission === OPEN_PATH_EMISSION) surface.fill = 'none'
   if (emission === TEXT_EMISSION) { surface.fill = 'none'; surface.stroke = 'none' }
-  if (emission === SUBROUTINE_EMISSION) childPaints = [surface, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }]
-  if (emission === CYLINDER_EMISSION) childPaints = [{ fill: paint.fill, stroke: 'none' }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, surface, surface]
+  if (emission === SUBROUTINE_EMISSION) childPaints = [{ ...surface }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }]
+  if (emission === CYLINDER_EMISSION) childPaints = [{ fill: paint.fill, stroke: 'none' }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, { ...surface }, { ...surface }]
   if (emission === STATE_END_EMISSION) childPaints = [{ fill: 'none', stroke: 'var(--_text)', strokeWidth: String(STROKE_WIDTHS.innerBox * 2) }, { fill: 'var(--_text)', stroke: 'none' }]
   return { geometry, paint: surface, ...(childPaints ? { childPaints } : {}), routing, emission,
     get crisp() { return serializeSvgEmission({ kind: 'shape', id: 'outline', role: 'node', geometry, paint }, emission) },

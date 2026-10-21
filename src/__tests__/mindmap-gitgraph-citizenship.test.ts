@@ -12,6 +12,7 @@ import { DefaultBackend, getFamily } from '../agent/core.ts'
 import type { GitGraphCommitType, PositionedGitGraphCommit, PositionedGitGraphDiagram } from '../gitgraph/types.ts'
 import { contrastRatio } from '../shared/color-math.ts'
 import { DEFAULTS } from '../theme.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
@@ -558,9 +559,11 @@ describe('GitGraph full-family citizenship', () => {
         if (branch === 'main') expect(body, id).toContain(`stroke="${main}"`)
         if (branch === 'feature') expect(body, id).toContain(`stroke="${feature}"`)
       }
-      expect(svg).toContain('class="git-edge git-edge-parent" data-from="base" data-to="work"')
-      expect(svg).toContain('class="git-edge git-edge-merge" data-from="work" data-to="merge"')
-      expect(svg).toContain('class="git-edge git-edge-cherry-pick" data-from="patch" data-to="c5"')
+      const relations = scanSvgStartTags(svg).map(tag => new Map(tag.attributes.map(attribute => [attribute.name, attribute.value])))
+      for (const [kind, from, to] of [['parent', 'base', 'work'], ['merge', 'work', 'merge'], ['cherry-pick', 'patch', 'c5']]) {
+        expect(relations.some(attributes => attributes.get('class') === `git-edge git-edge-${kind}`
+          && attributes.get('data-from') === from && attributes.get('data-to') === to)).toBe(true)
+      }
       expect(svg).toContain('Late Ω &amp; repeats')
       expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
 

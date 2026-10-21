@@ -9,6 +9,7 @@ import { parseRegisteredMermaid, asTimeline, serializeMermaid, verifyMermaid, re
 import { DefaultBackend, getFamily } from '../agent/core.ts'
 import type { PositionedTimelineDiagram } from '../timeline/types.ts'
 import type { TimelineFamilyPalette } from '../timeline/renderer.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 function render(text: string, options: RenderOptions = {}): string {
   return renderMermaidSVG(text, options)
@@ -20,6 +21,28 @@ const MERMAID_DOCS_SOCIAL_TIMELINE = `timeline
   2004 : Facebook : Google
   2005 : YouTube
   2006 : Twitter`
+
+describe('tracked Unicode timeline titles', () => {
+  for (const style of ['crisp', 'excalidraw', 'watercolor'] as const) {
+    it.each(['é Ω ⋯ 😀', 'hello<br>世界'])(`${style} retains authored tracking on the native glyph run: %s`, title => {
+      const svg = render(`timeline\ntitle ${title}\n2024 : Release`, {
+        embedFontImport: false,
+        style: [style, { roles: { label: { letterSpacing: 1.5, fontWeight: 600 } } }],
+      })
+      const text = svg.match(/<text\b[^>]*class="timeline-title"[^>]*>[\s\S]*?<\/text>/)?.[0]
+      expect(text).toBeDefined()
+      const tags = scanSvgStartTags(text!)
+      const outer = new Map(tags[0]!.attributes.map(attribute => [attribute.name, attribute.value]))
+      expect(outer.get('letter-spacing')).toBe('1.5')
+      expect(outer.get('data-prepared-text')).toBe('true')
+      expect(tags.map(tag => tag.name)).toEqual(['text', 'tspan'])
+      const glyph = new Map(tags[1]!.attributes.map(attribute => [attribute.name, attribute.value]))
+      expect(glyph.get('data-text-fragment')).toBe('true')
+      expect(glyph.get('x')).toBe(outer.get('x'))
+      expect(text).not.toContain('textLength=')
+    })
+  }
+})
 
 describe('renderMermaidSVG – timeline diagrams', () => {
   it.each(['Timeline redesign', 'timeline', 'TIMELINE release'])('keeps a period named %s through parse, export and rendering', label => {

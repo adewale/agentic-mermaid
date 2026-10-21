@@ -54,8 +54,9 @@ const JUNCTION_RING_EMISSION = primitive('architecture-junction-ring', CIRCLE_FI
 const JUNCTION_CORE_EMISSION = primitive('architecture-junction-core', CIRCLE_FIELDS)
 const MARKER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'resources', resources: ['markers'] })
 const EDGE_LABEL_BG_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+  { name: 'class', value: v.meta('architecture-edge-label-bg') },
   ...(['x', 'y', 'width', 'height'] as const).map(name => ({ name, value: v.geometry(name) })),
-  { name: 'class', value: v.meta('architecture-edge-label-bg') }, { name: 'rx', value: v.geometry('rx') }, { name: 'ry', value: v.geometry('ry') }, ...PAINT_ATTRIBUTES,
+  { name: 'rx', value: v.geometry('rx') }, { name: 'ry', value: v.geometry('ry') }, ...PAINT_ATTRIBUTES,
 ] })
 function textAttributes(className: string): SvgAttribute[] {
   return [
@@ -438,12 +439,15 @@ function lowerEdge<T>(marks: DrawingFactory<T>, edge: PositionedArchitectureEdge
   const startMarker = edge.hasArrowStart ? ARCHITECTURE_MARKERS[1] : undefined
   const endMarker = edge.hasArrowEnd ? ARCHITECTURE_MARKERS[0] : undefined
   const emissionAttributes: SvgAttribute[] = [
-    { name: 'class', value: v.meta('architecture-edge') }, { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
+    { name: 'class', value: v.meta('architecture-edge') },
     { name: 'data-from-side', value: v.meta(edge.source.side) }, { name: 'data-to-side', value: v.meta(edge.target.side) },
     { name: 'data-from-boundary', value: v.meta(edge.source.boundary) }, { name: 'data-to-boundary', value: v.meta(edge.target.boundary) },
     ...(edge.label ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
   ]
-  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => ({ kind: 'primitive', attributes: [...emissionAttributes, { name: field, value: v.geometry(field) }, ...PAINT_ATTRIBUTES] })
+  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => ({ kind: 'primitive', attributes: [
+    ...emissionAttributes, { name: field, value: v.geometry(field) },
+    ...PAINT_ATTRIBUTES.map(attribute => attribute.name === 'stroke-linecap' ? { ...attribute, omit: 'butt' as const } : attribute),
+  ] })
 
   const attributes: MarkAttributes = { className: 'architecture-edge', data: {
     'from-side': edge.source.side, 'to-side': edge.target.side,

@@ -263,7 +263,6 @@ function emitGraphEdgeFields(edge: PositionedEdge, fields: marks.ConnectorFields
     const attributes: SvgAttribute[] = [
       { name: 'class', value: v.meta(['edge', ...(fields.identity?.classNames ?? [])].join(' ')) },
       ...(edge.id ? [{ name: 'data-id' as const, value: v.identity('id') }] : []),
-      { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
       { name: 'data-style', value: v.connector('lineStyle') },
       { name: 'data-arrow-start', value: v.connector('hasMarkerStart') }, { name: 'data-arrow-end', value: v.connector('hasMarkerEnd') },
       ...(edge.hasArrowStart ? [{ name: 'data-marker-start' as const, value: v.connector('markerStartShape') }] : []),

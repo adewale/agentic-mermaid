@@ -67,7 +67,9 @@ function textAttributes(className: string): SvgAttribute[] {
     { name: 'data-literal-text', value: v.meta(true) }, { name: 'fill', value: v.paint('fill') },
   ]
 }
-const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('timeline-title') })
+const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  ...textAttributes('timeline-title'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+] })
 const PERIOD_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
   ...textAttributes('timeline-period-text'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
 ] })
