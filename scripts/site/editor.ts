@@ -18,6 +18,7 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
+import { minify } from '@swc/core'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
@@ -222,7 +223,15 @@ async function generateEditorHtml(): Promise<string> {
     if (!entry) throw new Error('Hosted editor runtime entry not found')
     bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
   } else {
-    bundleJs = await buildResult.outputs[0]!.text()
+    // Compress the complete inline module without dropping schema prose or
+    // either solver. Keep legal comments and escape inline-script delimiters.
+    const compressed = await minify(await buildResult.outputs[0]!.text(), {
+      ecma: 2022, module: true, mangle: true,
+      compress: { defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true },
+      format: { comments: 'some', inlineScript: true },
+    })
+    if (!compressed.code) throw new Error('Standalone runtime compression produced no module')
+    bundleJs = compressed.code
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
