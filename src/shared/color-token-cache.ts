@@ -7,9 +7,12 @@ export function memoizeColorToken<T>(parse: (token: string) => T): (token: strin
     if (typeof token !== 'string' || token.length > 256) return parse(token)
     const prior = values.get(token)
     if (prior !== undefined || values.has(token)) return prior as T
-    const result = parse(token)
+    // A short slice may retain an arbitrarily large source string. Copy its
+    // code units before parsing so neither keys nor returned strings retain it.
+    const ownedToken = token.split('').join('')
+    const result = parse(ownedToken)
     if (values.size >= 256) values.delete(values.keys().next().value!)
-    values.set(token, result)
+    values.set(ownedToken, result)
     return result
   }
 }
