@@ -1675,3 +1675,38 @@ but its added bytes fail the unchanged budget and it is also unshipped.
 A new full consumed19-node cache-off allocation sample points to repeated
 proper-crossing preparation/scoring and lane-blocker work as material remaining
 hotspots; it is diagnostic sampling, not a performance win.
+
+
+### Rebase main's grammar and ER leaf-route repair
+
+The branch is rebased again onto maine951d229 (#448). Preserve its grammar,
+authored-text retention and ER leaf-route repair, as well as #457's conditional
+dependency work. Main independently raises Flowchart gzip709,000→710,500 and
+Brotli574,000→575,500; State gzip709,000→710,500 and Brotli574,000→575,000;
+ER gzip716,000→716,500. The Architecture572,000-Brotli limit is unchanged.
+The branch makes no bundle-budget edits relative to this new base and cannot
+claim an engine saving from those upstream ceiling changes.
+
+Clean combined d0a98258 builds all shipped variants and passes both typechecks.
+Seven real-browser solver/forest/fallback checks pass531 assertions.
+The238-case family scan remains223 native /15 typed declines /238 ELK, with
+no additional native crossings on shared successes. A concurrent owning run
+has139 passes and one30-second11-node selection timeout; keep it. The separate
+idle selection file passes54 tests /441 assertions without a timeout change.
+Earlier overlapping counts are not added together.
+
+The default geometry gate identifies exactly one changed record among319:
+our ER compound fixture's ORDER→AUDIT route. A fresh, isolated source invocation
+on pristine maine951d229 produces **the exact same full default fixture layout**
+as the branch. Main's new leaf-route repair replaces the old
+(241,291)→(676,291)→(676,184)→(1111,184) route with
+(241,291)→(273,291)→(273,228)→(1079,228)→(1079,184)→(1111,184),
+and moves the `logs` label from(676,238) to(666,228). Update only that golden
+edge path/label position to retain the upstream fix. The other318 records stay
+unchanged. This is not a native-policy geometry change or a broad baseline reset.
+
+The complete new-base payload gate still rejects d0a98258: Flowchart
+710,770 gzip /575,669 Brotli, State710,720 /575,581, and Architecture572,130
+Brotli. Preserve that failed combined build and its artifacts; neither the
+previous successful JS probe nor upstream's revised limits qualify this head.
+Continue reducing actual code cost rather than raising limits.
