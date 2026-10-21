@@ -59,8 +59,9 @@ export function retainBodyComments(diagram: ParsedDiagram, authored: string): vo
     const marker = stateLines ? stateLines[comment.line - 1]?.commentIndex ?? -1 : line.indexOf('%%')
     const raw = marker >= 0 ? line.slice(marker) : `%% ${comment.text}`
     const inline = marker > 0 && line.slice(0, marker).trim().length > 0
-    const target = inline ? statements.find(statement => statement.line <= comment.line && statement.endLine >= comment.line) : statements.find(statement => statement.line > comment.line)
-    return { raw, ...(target ? { anchor: { collection: target.collection, id: target.id } } : {}), placement: inline && target ? 'after' as const : 'before' as const }
+    const afterStatement = inline && comment.line !== diagram.source.spans?.preserved.header.start.line
+    const target = afterStatement ? statements.find(statement => statement.line <= comment.line && statement.endLine >= comment.line) : statements.find(statement => statement.line > comment.line)
+    return { raw, ...(target ? { anchor: { collection: target.collection, id: target.id } } : {}), placement: afterStatement && target ? 'after' as const : 'before' as const }
   })
   delete diagram.meta.droppedComments
 }
