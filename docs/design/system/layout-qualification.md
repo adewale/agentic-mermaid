@@ -24,6 +24,7 @@ were inspected at these revisions; no third-party layout code was copied.
 | [Brandes, Walter, Zink: coordinate-assignment erratum](https://arxiv.org/abs/2008.01252) | The original Brandes–Köpf procedure has two documented flaws. | Do not replace the current coordinate descent with an uncorrected recipe or claim it implements Brandes–Köpf. |
 | [Boyd and Vandenberghe: Convex Optimization, separating hyperplanes](https://web.stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf) | A separating support line certifies disjoint convex sets. | Add an exact ellipse support-function test against the complete marker hull and transformed ink padding. Failed separation preserves uncertainty. Entering markers stay checked. |
 | [Preserving the Mental Map](https://www.st.uni-trier.de/diehl/pubs/VisSym01.pdf) | Dynamic drawing must evaluate what happens to unchanged subjects. | Add declared edit sequences and report raw and translation-aligned displacement, relative order, route changes, and attachment-side proxies. This is measurement, not an incremental-layout guarantee. |
+| [Purchase: Which aesthetic has the greatest effect on human understanding?](https://eprints.gla.ac.uk/35804/) | The reported experiments found the strongest effect for crossings, with weaker effects for bends and symmetry; the result is limited to the tested tasks and drawings. | Keep the dimensions separate. Neither a crossing total nor a weighted score establishes universal readability or a preference for every specialized family. |
 
 ## Protocol and populations declared before qualification
 
@@ -38,7 +39,7 @@ were inspected at these revisions; no third-party layout code was copied.
 - The emitted-browser nested-frame endpoint test subsequently exposed an
   inflated-endpoint obstacle. Correcting it requires a new frozen revision;
   retain the first campaign at `81b23ada`. Before rerunning, declare counter
-  seeds **192–255** as an additional untouched 64-case holdout. Seeds128–191
+  seeds **192–255** as an additional untouched 64-case holdout. Seeds 128–191
   remain retained evidence; the new fix changes compound routing only.
 - Inspect a fixed visual sample across all six graph families, including the
   frame-endpoint corpus Flowchart and Architecture source/group/port cases.
@@ -73,4 +74,274 @@ The source inventory and seeded cohorts cannot prove universal dominance over
 ELK. A dimension is only matched or beaten on the named measured population;
 missing evidence is unproven. A successful CI artifact job is not qualification.
 
-Results and reproduction commands will be appended after the declared campaign.
+## Frozen quality result, October 21
+
+Runtime and measurement revision: **`e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01`**,
+`agentic-layered@22`, on main `009159f93e6cea53f97ca53e416cf66b130c8e49`.
+All final quality snapshots identify that clean revision. Subsequent report and
+comparison-coverage checks do not change the measured runtime. The earlier clean `81b23ada` campaign
+is retained separately. The intermediate `1b5c26b4`/dirty diagnostics are not
+relabeled as final qualification.
+
+The implementation removes blanket refusals for cross-scope frame terminals,
+empty scopes and grouped Architecture. Nested terminal boxes now remain solid
+obstacles without inflating over their own ports. Architecture's second placement
+attempt keeps in-scope ranks while its specialized adapter still routes every
+original side-constrained relationship. This retry lives inside the optional
+native module. Ancestor frame endpoints, active hints, ambiguous identities and
+exhausted searches still decline explicitly. No ELK default is changed.
+
+The source population contains **246 occurrences / 231 distinct sources**:
+139 Flowchart, 22 State, 42 Class, 29 ER, 4 Requirement and 10 Architecture.
+Both backends render all 246. Against the frozen rebase baseline, all 216 prior
+native successes retain identical SVG bytes; six declines become native renders:
+Flowchart 96, Architecture 0/1/3/5 and `architecture-basic.mmd`. The 24 workload-source
+occurrences are retained too, including duplicate source occurrences.
+These are source renders, not execution of the agent mutation workflow. That
+workflow's final facts and consumed SVG are checked separately by the cost worker;
+its final quality projection remains explicitly unavailable.
+
+The generated population retains 384 LCG and 256 counter-generator sources:
+**640 native / 634 ELK renders**. ELK failures remain enrolled at LCG 123, 135, 243, 303
+and counter 85, 177. Initial counter 128–191 has 64/63 renders; the additional
+predeclared 192–255 holdout has 64/64. No generated window has an extra native
+proper crossing, measured label conflict, parallel span or opposing span on
+shared successes. This does not imply that every other dimension matches.
+
+| Raw dimension | Source/workload ELK → native | Source cases better / equal / worse | Fresh counter 192–255 ELK → native | Fresh cases better / equal / worse |
+| --- | --- | --- | --- | --- |
+| Proper crossings | 879 →533 | 22 / 222 / 2 | 1825 →521 | 63 / 1 / 0 |
+| Measured label conflicts | 40 →16 | 16 / 229 / 1 | 93 →0 | 44 / 20 / 0 |
+| Parallel shared spans | 18 →0 | 14 / 232 / 0 | 27 →0 | 22 / 42 / 0 |
+| Opposing shared spans | 9 →0 | 4 / 242 / 0 | 20 →0 | 16 / 48 / 0 |
+| Polyline bends | 2673 →3190 | 31 / 190 / 25 | 4472 →4383 | 37 / 4 / 23 |
+| Route length, pixels | 797806.61 →595120.20 | 83 / 143 / 20 | 1148633.84 →862562.10 | 58 / 0 / 6 |
+| Canvas area, square pixels | 106290464.21 →84291286.75 | 70 / 142 / 34 | 86909262.41 →74132383.41 | 49 / 0 / 15 |
+
+All 246 source and 64 fresh comparisons have these measurements. Specialized
+label metrics use retained text footprints; Flowchart/State use their 8px pill
+padding. Route length/bends concern the public visible polylines, rather than
+exact raster ink or a validated preference score. Less area is not automatically
+a better proportion. Proper crossings exclude shared-span and endpoint contacts,
+which have their own measurements. Across all 634 generated shared successes,
+native has more bends in 268 cases and more area in 191; aggregate improvements
+must not hide those cases.
+Comparison checks also treat losing a previously available label, route-overlap
+or route-geometry measurement as adverse. Gaining measurement alone is a coverage
+change, rather than proof of better geometry. The follow-up regression tests do
+not change any of the frozen observations in this table.
+
+Paint certificates are 219 passed / 27 unverified for native and 217 / 29 for ELK on
+the 246 source occurrences, with 180 versus 208 retained uncertainty issues. On
+generated shared successes, **all 634 certificates remain unverified** for both
+engines: 6507 native versus 6878 ELK issues, with native having more issues in 48
+individual cases. Prepared measurement coverage is complete in these cohorts;
+exact glyph ink and conditional/external styles remain outside the proof. The
+convex separator adds sound proofs; it does not waive an entering marker or
+convert failure to certainty.
+
+The fixed visual review covers Flowchart 96, cyclic-labelled 15, State 8, Class 0,
+compound Class, ER 0, Requirement, Architecture 0/3/5 and ER 40. All 492 corpus SVGs
+match the inspected paired snapshot byte for byte at the final revision. Visible
+tradeoffs agree with the metrics: Architecture 0/5 each adds a crossing, ER 40 has 16
+label/route conflicts, Flowchart 96 uses 13 versus 4 bends, and the cyclic 15 example
+removes crossings while adding bends. The Architecture source-order/side rules
+remain visible. This is an engineering inspection, not a blinded preference or
+comprehension study.
+
+## Edit sequences
+
+Both startup cache policies retain 117 observations: 39 per selection. ELK and
+native-with-fallback render 39/39; strict native renders 38/39 and retains the
+active-layout-hint decline. Every undo restores the original SVG: 18/18 per cache,
+36/36 overall. The two cache runs have identical quality outcomes.
+
+On the 31 comparable native/ELK transitions, translation-aligned mean movement of
+unaffected subjects is better in 13, equal in 14 and worse in 4. Native cannot claim
+universal mental-map preservation. Full vectors retain raw and aligned movement,
+relative ordering, route changes, bounding-box attachment proxies and both
+affected and whole-graph observations. The fallback arm has 20 relative-order
+inversions versus 17 for ELK, including an eligibility discontinuity. Duplicate
+edge correspondence still uses occurrence order.
+
+## Cost result and limits
+
+The [frozen CI run](https://github.com/adewale/agentic-mermaid/actions/runs/39692904654)
+retains all 27 inputs, 3 rounds, 25 repetitions, both cache policies and the 480000 ms
+shared bound per policy. Its [cost artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39692904654/artifacts/12389169062)
+records `batched-layout-reference@1`. The normal-cache campaign completes all arms
+and their independent memory measurements. Its reciprocal 1.1 ELK A/A controls
+pass. The following are paired ratios to the unmodified ELK reference; A/A is
+reported alongside them and is never used as a divisor.
+
+| Normal-cache observation | ELK A/A | Native | Native with fallback |
+| --- | --- | --- | --- |
+| Seven-input corpus time | 1.019211 | 0.989424 | 0.985709 |
+| Corpus allocated bytes | 1.000349 | 0.997655 | 0.997839 |
+| Corpus peak heap | 1.000041 | 0.600876 | 0.600793 |
+| Corpus peak RSS | 0.993755 | 0.778840 | 0.787073 |
+| Corpus retained growth | 1.005349 | 0.978365 | 0.982507 |
+| Agent edit workflow time | 0.931870 | 0.929557 | 0.967530 |
+| Agent edit allocated bytes | 0.999926 | 1.000759 | 1.000739 |
+
+The corpus time and edit-time differences do not establish improvement beyond
+control variation. Allocation is approximately tied, rather than a substantial
+reduction. Peak heap and RSS improve on the named population. The 20 scaling/edit
+inputs also complete the existing 1.5 time ceilings; passing those ceilings is not
+the stronger goal of beating ELK. Quality is independently measured for 26/27
+inputs, with the workflow projection explicitly unavailable.
+
+The **cache-off campaign fails**. The ELK A/A timing arm times out in the batched
+timing stage; its incomplete control and exhausted shared budget leave no paired
+memory. Native's partial corpus ratio 0.617254 and edit ratio 0.631651 are not
+qualified wins. Cyclic 15, cyclic 13 and 18-cuts also exceed the 1.5 per-case ceiling.
+All failures remain enrolled, with no longer deadline or smaller replacement
+population. The preceding `81b23ada` run also fails off-cache qualification; its
+complete normal-cache corpus time is 1.022472, rather than the later 0.989424. These
+observations are separate runs, not a selected best-of result.
+
+The CI artifact's observed runtime is Node 26.3.0 / Bun 1.4.2 on its recorded runner.
+Local supplemental diagnostics use Node 24.19.0 / Bun 1.4.2. Do not pool them.
+
+### First use and actual fallback
+
+`actual-first-use@1` retains 168 fresh Node workers: 7 fixed scenarios, 3 rotated
+rounds, 4 arms and 2 startup cache policies. Six scenarios cover the six graph
+families, including compounds; the seventh is a real ancestor-frame fallback.
+All workers complete. All 162 successful runs retain stable fully consumed SVG
+and receipt fingerprints; the six strict-native ancestor declines are retained.
+Timing includes UTF-8 SVG, full receipt JSON and the declared hash consumption.
+It excludes process launch and does not claim a cold filesystem or browser network.
+
+On the six eligible examples, observed import-plus-first-render native ratios
+range 0.507–0.657 off-cache and 0.593–0.667 with normal caching. This is promising
+first-use evidence, not a universal speed win. Some component/warm controls are
+unhealthy: normal Architecture A/A import-plus-first-use is 1.260; normal eligible
+Flowchart warm A/A is 0.821. The actual-fallback off-cache warm ratio is 1.149 versus
+A/A 0.972, while its normal-cache control is itself noisy. An unsupported strict
+request is never counted as a fast render.
+
+### Cache eviction and default ELK control
+
+`bounded-cache-churn@1` uses 96 distinct measured Flowcharts, exceeding both
+64-entry geometry caches, 3 rotated rounds and fresh isolated GC workers. All 12
+workers complete the existing memory worker's warmup, per-input measurements,
+settled full-population pass and retained-growth check. There is no timing claim.
+Native median paired allocation is 1.001092, peak heap 0.589673 and RSS 0.713395;
+A/A is 0.999944 / 0.999932 / 1.022644 respectively. Thus peak heap/RSS improve while
+allocation is slightly higher. Retained native growth is 671928–673672 bytes;
+its ratio is lower in two rounds and higher in one. A/A retention also varies;
+this is not a general leak or retained-memory improvement proof.
+
+`default-continuation-control@1` separately compares a canonical Node build of
+pristine main 009159f9 with the frozen candidate, using the same 7 sources, 3 rotated
+rounds, 25 repetitions, both cache policies and a predeclared 180000 ms shared bound.
+All 36 time/GC workers complete in 123476 ms. Neither arm supplies `graphLayout`;
+the startup experiment flags exclude the automatic forest policy symmetrically.
+All source SVG/ASCII fingerprints are unchanged and deterministic. Memory ratios
+are approximately tied: allocated bytes 0.997562 off / 1.001165 normal, peak
+RSS 1.002922 / 1.003242. Timing A/A is unhealthy in both regimes, 0.866753 / 0.887091;
+the candidate's 0.984380 / 0.955887 ratios cannot establish time parity or a win.
+This seven-source control supplements the 319-record default geometry gate; it
+does not replace the full 27-input backend canary.
+
+## Delivery and verification
+
+Canonical Node, declarations, IIFE and lazy artifacts build. Core/repository
+types and lint of all 27 changed TypeScript files pass. Local Chromium/IIFE/lazy
+checks pass 43 tests / 970 assertions; standalone worker/payload checks pass 2 / 20,
+including all 23 built-in family SVGs, strict selection, promoted frame terminals,
+actual fallback, recovery and PNG. Cache, hints and the unchanged 319-record
+default-geometry gate pass 35 tests / 119 assertions. Owning kernel/family tests,
+quality comparators and paint proofs also pass. Full cross-engine, consumer,
+semantic and CI observations remain attached to the measured commit.
+All required CI lanes pass on the frozen revision, including all three unit
+shards, cross-engine browser, payload, consumers and semantic conformance. The
+generated diagnostic remains advisory failure for the disclosed quality tradeoffs;
+cache-off cost qualification fails separately. Green required CI does not close
+the owner's broader performance and quality target.
+
+| Browser closure | ELK gzip / Brotli | Native gzip / Brotli | ELK / native requests |
+| --- | --- | --- | --- |
+| Flowchart | 711870 / 576891 | 286669 / 253431 | 34 / 34 |
+| State | 711822 / 576789 | 286621 / 253329 | 33 / 33 |
+| Class | 656045 / 528117 | 232132 / 205853 | 34 / 35 |
+| ER | 697557 / 564018 | 272356 / 240558 | 38 / 38 |
+| Requirement | 643026 / 516597 | 219113 / 194333 | 29 / 30 |
+| Architecture | 709038 / 573993 | 283837 / 250533 | 34 / 34 |
+
+These are sums of separately compressed emitted files, gzip 9 and Brotli 11.
+Native closures establish transfer cost when eligible, not universal eligibility.
+Runtime Chromium tests independently check that strict native does not fetch ELK,
+and a real fallback fetches it once. Initial transfer is 5494 gzip bytes / 4 requests.
+All existing ceilings pass unchanged. Architecture has only 7 Brotli bytes of
+headroom under 574000, so budget fragility remains an explicit maintenance risk.
+The synchronous all-family entry retains both engines. Standalone HTML is 4097251
+raw / 1233822 gzip bytes under 4100000 / 1260000 caps; its shared packaging saving
+cannot be counted as a native solver saving.
+
+## Achievement and ELK assessment
+
+**The complete goal is not achieved.** “Matched” below is restricted to the
+named measured contracts/populations; it never asserts all possible Mermaid
+inputs, aesthetic preferences or long-lived hosts.
+
+| Aspect | Achieved | Assessment / remaining blocker |
+| --- | --- | --- |
+| 1. Rebase and integration | Integrated main 009159f9; required CI passes at the frozen runtime. | Matched tested integration contracts. |
+| 2. Backend selection and fallback | Checked explicit selection, truthful receipts, lazy loading and actual fallback work across public surfaces. | Matched tested contracts; fallback remains necessary. |
+| 3. Six-family native coverage | 246/246 source/workload and 640/640 generated renders; six baseline promotions. | Matched source admission and better generated admission; bounded domain remains partial. |
+| 4. Hierarchy and authored constraints | Frame terminals, empty scopes and grouped Architecture preserve original endpoints; nested terminal bug repaired. | Partial: ancestor endpoints, active hints, ambiguous identities and bounded-search declines remain. |
+| 5. Content and default geometry | Prior 216 native SVGs unchanged; 319-record default gate and seven-source main SVG/ASCII control pass. | Matched observed content/geometry; default time comparison remains unqualified. |
+| 6. Crossings | Source total 879→533; no additional crossings on 634 generated shared successes. | Better aggregate; Architecture 0/5 are individually worse. |
+| 7. Labels and specialized metrics | Label/shared-span measurement extends across families; source label conflicts 40→16. | Partial: ER 40 introduces 16 label/route conflicts; full symmetry/preferred-port scores unavailable. |
+| 8. Visible shared routing | Source parallel/opposing spans 18/9→0/0; no generated regressions. | Matched or beaten on measured spans. |
+| 9. Bends and route length | Exposed actual visible polyline geometry; lower total source route length. | Partial: 25 source / 268 generated cases have more bends; 20 source cases have longer routes. |
+| 10. Compactness and spacing preferences | Source total area 106.29M→84.29M square pixels; retained gap/aspect metrics. | Partial: 34 source / 191 generated cases have more area; no general symmetry/proportion preference proof. |
+| 11. Final paint and markers | Exact convex separation adds proofs; 219 source certificates pass versus 217. | Partial: generated certificates remain unverified, with 48 individual native issue-count increases. |
+| 12. Edit stability | Both-cache sequences and all 36 undo checks complete; whole/unaffected motion stays visible. | Partial: four comparable transitions move unaffected subjects more; hint eligibility changes backend. |
+| 13. Cold start and fallback cost | Full-consumption first-use observations cover six families and actual fallback. | Promising eligible examples; noisy controls and fallback overhead prevent an all-case win. |
+| 14. Warm and agent workflows | Full normal-cache canary completes with healthy control; agent parse/edit/verify/serialize/render is consumed. | No convincing time/allocation win; cache-off qualification fails. |
+| 15. Memory and cache churn | Independent allocation/heap/RSS/retention and 96-geometry eviction measurements complete. | Lower heap/RSS on named cohorts; allocation and retention do not win on all dimensions. |
+| 16. Browser delivery and reproducibility | Smaller native closures, actual request checks, standalone worker, unchanged caps, research pins and retained artifacts. | Native transfer beats ELK on six closures; Class/Requirement add one request, synchronous bundle retains both, and headroom is tight. |
+
+Remaining engineering priorities are the two Architecture crossings, ER 40 label
+placement around unrelated routes, bend/area tradeoffs, native hints/ancestor
+terminals, edit stability, generated paint certainty, and a complete off-cache
+cost campaign with healthy controls. Sparse long-edge normalization and corrected
+coordinate-assignment methods are research candidates, not implemented savings.
+Further complete preferred-port/symmetry and human-readability evidence is still
+needed. The objective remains open; ELK stays the supported default.
+
+## Reproduction
+
+The [machine-readable results](layout-qualification-results.json) retain cohort
+counts, adverse cases, raw ratios and artifact provenance. The
+[complete CI quality artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39692904654/artifacts/12389776376)
+contains source/fixture/workload and generated inputs, both backend outcomes,
+paired HTML, full receipts and both edit-cache runs. Supplemental local workers,
+jobs, sources and diagnostics are retained with the review evidence; they are
+separately named protocols, not replacements for a failed CI canary.
+
+Use the frozen revision and the pinned lockfile; keep generated populations,
+errors, receipts and cache policies intact. The CI workflow retains the complete
+quality and 27-input cost artifacts, including adverse report exits. A successful
+artifact-upload job is not a successful quality or cost qualification.
+
+```sh
+bun install --frozen-lockfile
+bun run build
+bun run typecheck
+bun run check:browser-lazy
+bun run eval/layout-compare/run.ts snapshot --graph-layout elk --families flowchart,state,class,er,requirement,architecture --workloads --out /tmp/elk.json
+bun run eval/layout-compare/run.ts snapshot --graph-layout agentic --families flowchart,state,class,er,requirement,architecture --workloads --out /tmp/native.json
+bun run eval/layout-compare/run.ts report --before /tmp/elk.json --after /tmp/native.json --out /tmp/paired.html
+bun run eval/layout-compare/run.ts snapshot --graph-layout elk --generated-kind sha256-counter-v1 --generated-start 192 --generated-count 64 --out /tmp/holdout-elk.json
+bun run eval/layout-compare/run.ts snapshot --graph-layout agentic --generated-kind sha256-counter-v1 --generated-start 192 --generated-count 64 --out /tmp/holdout-native.json
+AGENTIC_MERMAID_ELK_CACHE=0 AGENTIC_MERMAID_EXPERIMENTS=text-spans bun run eval/layout-compare/edit-run.ts --out /tmp/edits-off.json
+AGENTIC_MERMAID_ELK_CACHE=1 AGENTIC_MERMAID_EXPERIMENTS=text-spans,position-cache bun run eval/layout-compare/edit-run.ts --out /tmp/edits-normal.json
+```
+
+Run the exact 27-case command in `.github/workflows/ci.yml` for each cache policy;
+do not substitute a smaller set or enlarge the 480000 ms bound. The opt-in batched
+protocol is a separately named experiment, not a rewrite of historical results.

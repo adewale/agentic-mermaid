@@ -28,6 +28,15 @@ test('a crossing improvement cannot hide added bends, route length or area', () 
   expect(comparison.notes.some(note => note.startsWith('canvas area:'))).toBe(true)
 })
 
+test.each(['labelConflicts', 'routeOverlaps', 'routeGeometry'] as const)('losing %s measurement stays adverse and gaining it does not claim a geometry win', dimension => {
+  const sample = snapshotSample({ id: 'coverage', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'coverage-')
+  expect(sample.ok).toBe(true)
+  expect(sample.metrics![dimension]).toBeDefined()
+  const unavailable = { ...sample, metrics: { ...sample.metrics!, [dimension]: undefined } }
+  expect(compareSample(sample, unavailable)).toMatchObject({ verdict: 'regression', notes: [`${dimension}: measurement lost`] })
+  expect(compareSample(unavailable, sample)).toMatchObject({ verdict: 'changed', notes: [`${dimension}: measurement gained; geometry not compared`] })
+})
+
 test('generated quality snapshots replay an explicit population and retain fully consumed backend evidence', () => {
   const range = { start: 66, count: 1 }
   expect(generatedFlowchartSamples(range)).toEqual(generatedFlowchartSamples(range))
