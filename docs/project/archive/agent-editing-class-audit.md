@@ -47,7 +47,10 @@ BUILD-34's paint census is implemented: 1,258 corpus/style combinations and
 using hue for peer identity. Actual backends and a separate rasterizer measure
 category ink and semantic key/mark correspondence. The checks exposed Journey
 identity/visibility failures, GitGraph opacity compression and stale Pie,
-Radar and XY keys after role overrides.
+Radar and XY keys after role overrides. A final fresh reviewer found that
+XY labeled/interactive dots still used their original palette. Point paint
+now inherits effective series paint, with explicit point overrides and authored
+palette precedence covered through actual SVG and raster observations.
 
 The atlas removes overlap and layout geometry to isolate paint. It does not
 certify occlusion, clipping, thin antialiasing, an unknown host backdrop or
@@ -89,7 +92,11 @@ against the pre-merge report. This does not prove arbitrary route feasibility.
 Read-back now includes recognized Sequence messages/titles inside preserved
 segments and sparse XY point labels. GitGraph retains an authored merge ID
 instead of hiding it behind a synthetic message. Exact-fact consumers need
-the additive inventory migration described in `docs/api.md`.
+the additive inventory migration described in `docs/api.md`. The final
+adversarial review widened metadata aliases to braces and quotes, found a
+first-closing-brace lexer loss, and checked its repair against Mermaid. An
+entity-based repair exposed a second interaction with style preprocessing;
+JSON scalar Unicode escapes preserve both metadata structure and exact aliases.
 
 The census is existential text-presence evidence. It does not prove label
 identity or multiplicity. Class/ER members, accessibility and Sequence
@@ -144,7 +151,7 @@ The label census command and paired-report options are documented in
 `eval/mermaid-modern-compat/README.md`.
 
 Run `bun run typecheck`, `bun run lint`, `bun run build:browser:lazy` and
-`bun run check:browser-lazy` for integration. The merged browser graph audit found no accidental capabilities in the lazy
+`bun run check:browser-lazy` for integration. At revision `155ded4`, the merged browser graph audit found no accidental capabilities in the lazy
 closures. Real hint, preservation and layout code crosses seven encoding
 ceilings, so this follow-up uses main’s existing 500-byte measured ratchet:
 Flowchart gzip 711,350 / ceiling 711,500 and Brotli 576,200 / 576,500; State
