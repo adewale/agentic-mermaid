@@ -84,6 +84,27 @@ const stableRepresentativeCues = {
 } as const
 const fixtures: Fixture[] = [
   {
+    id: 'compat-ellipse',
+    title: 'Ellipse identity, complete label and curved attachment',
+    source: 'flowchart LR\nA(-this is an ellipse-) --> B[Done]',
+    captureLayout: true,
+    cue: 'The baseline draws a rounded rectangle and retains delimiter hyphens in the label. Inspect the elliptical boundary, exact text and arrow attachment. This is a finite geometry witness, not a general layout continuity claim.',
+  },
+  {
+    id: 'compat-parallel-overlay',
+    title: 'Parallel branches share time and join after the longest branch',
+    source: 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nparticipant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined',
+    captureLayout: true,
+    cue: 'The baseline refuses the and branch. Compare first and second at the same height, the Other label, the complete longest branch and joined below the frame. Owning tests separately challenge shared actors, notes, self messages and nested frames.',
+  },
+  {
+    id: 'compat-architecture-text-icon',
+    title: 'Literal text icons retain their own text and measured space',
+    source: 'architecture-beta\ngroup app(cloud)[Application]\nservice api "API" [Backend] in app\nservice db "SQL" [Storage]\napi:R-->L:db',
+    captureLayout: true,
+    cue: 'The baseline refuses STRING icons. Inspect API and SQL as literal icon text, separate Backend/Storage labels, containment and the attached edge. Semantic tests cover quotes, escapes, empty strings and markup-looking literal text.',
+  },
+  {
     id: 'compat-flowchart-block-label',
     title: 'Flowchart block-scalar metadata retains physical indentation',
     source: 'flowchart TD\n  A@{\n    shape: rect\n    label: |\n      First line\n      Second line\n  }\n  A --> B[Done]',

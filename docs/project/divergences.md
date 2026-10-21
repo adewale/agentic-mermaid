@@ -25,9 +25,14 @@ repairs are asserted against this repository's pinned Mermaid reference.
 
 The generated backtick/directive/entity writer cases remain a separate triage
 queue. The 40 witnessed export failures are not 40 distinct bugs, and the
-silent-read count is not a reason to add a new warning pass. Ellipse support,
-`par_over` layout semantics, text icons and portable extension authoring remain
-outside these five reader fixes. Their absence must not be represented as fixed.
+silent-read count is not a reason to add a new warning pass. The follow-up
+adds ellipse geometry, service text icons and `par_over` branches. Ellipses
+share their painted and routed boundary; literal icons preserve STRING text;
+overlay branches share a time origin and join below the longest branch, with
+clearance for conflicting ink in each output's units. The pinned parser
+checks identities and source semantics; our own geometry assertions check
+these placement contracts. Portable extension authoring and the generated
+writer failures remain outside this work.
 
 The same-toolchain browser comparison against main `297eaaf` measures
 Architecture's budgeted Brotli closure at 573,473 → 573,513 bytes and Sankey's

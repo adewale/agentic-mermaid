@@ -163,6 +163,69 @@ semantic('GitGraph can pick the same merge relative to different parents', 'pack
   expect(am.renderMermaidSVG(diagram)).toContain('type-cherry_pick')
 })
 
+semantic('Ellipse vertices retain their shape and text after an unrelated edit', 'packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js: should handle text in ellipse vertices', async () => {
+  const source = specSource('packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js', 'should handle text in ellipse vertices')
+  const expected = (await accepted(source)).snapshot.data.getVertices
+  const diagram = flow(source)
+  expect(diagram.body.graph.nodes.get('A')).toMatchObject({ shape: 'ellipse', label: 'this is an ellipse' })
+  const edited = am.mutate(diagram, { kind: 'rename_node', from: 'B', to: 'Completed' })
+  expect(edited.ok).toBe(true)
+  if (!edited.ok) throw new Error(edited.error.message)
+  const vertices = (await accepted(am.serializeMermaid(edited.value))).snapshot.data.getVertices as Array<[string, unknown]>
+  expect(vertices.find(([id]) => id === 'A')).toEqual((expected as Array<[string, unknown]>).find(([id]) => id === 'A'))
+  const reshaped = am.mutate(edited.value, { kind: 'set_shape', id: 'Completed', shape: 'ellipse' })
+  expect(reshaped.ok).toBe(true)
+  if (!reshaped.ok) throw new Error(reshaped.error.message)
+  const authored = (await accepted(am.serializeMermaid(reshaped.value))).snapshot.data.getVertices as Array<[string, unknown]>
+  expect(authored.find(([id]) => id === 'Completed')?.[1]).toMatchObject({ type: 'ellipse' })
+  expect(am.renderMermaidSVG(edited.value)).toContain('<ellipse')
+  expect(am.renderMermaidASCII(edited.value)).toContain('this is an ellipse')
+})
+
+semantic('Architecture literal icons retain STRING escapes and stay independent of labels', 'packages/parser/src/language/architecture/architecture.langium Service iconText=STRING; Langium STRING converter', async () => {
+  for (const [token, text] of [['"TXT"', 'TXT'], ['"a\\nb"', 'a\nb'], ['"a\\\\b"', 'a\\b'], ["'it\\'s'", "it's"], ['"<b>日本</b>"', '<b>日本</b>'], ['""', ''], ['"  head\n    tail  "', '  head\n    tail  ']]) {
+    const source = `architecture-beta\nservice a ${token} [API]`
+    const reference = await accepted(source)
+    expect(reference.snapshot.data.getServices).toEqual([expect.objectContaining({ id: 'a', iconText: text, title: 'API' })])
+    const parsed = am.parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = am.asArchitecture(parsed.value)
+    expect(diagram?.body.services[0]).toMatchObject({ id: 'a', iconText: text, label: 'API' })
+    if (!diagram) throw new Error('Expected editable text icon')
+    const edited = am.mutate(diagram, { kind: 'set_service_label', id: 'a', label: 'Updated API' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(edited.error.message)
+    expect((await accepted(am.serializeMermaid(edited.value))).snapshot.data.getServices).toEqual([expect.objectContaining({ id: 'a', iconText: text, title: 'Updated API' })])
+    expect(am.renderMermaidSVG(edited.value)).toContain('architecture-icon-text')
+  }
+})
+
+semantic('Sequence parallel overlays retain their distinct kind, branches and editable messages', 'packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js: it should handle par_over statements; sequenceDiagram.jison par_sections', async () => {
+  const source = specSource('packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js', 'it should handle par_over statements')
+  const originalMessages = (await accepted(source)).snapshot.data.getMessages
+  const sourceParsed = am.parseRegisteredMermaid(source)
+  expect(sourceParsed.ok).toBe(true)
+  if (!sourceParsed.ok) throw new Error(JSON.stringify(sourceParsed.error))
+  expect((await accepted(am.serializeMermaid(sourceParsed.value))).snapshot.data.getMessages).toEqual(originalMessages)
+  expect(am.renderMermaidSVG(source)).toContain('Alice note')
+  const branched = 'sequenceDiagram\npar_over Independent\nA->>B: first\nand Other\nC->>D: second\nend\nA->>D: joined'
+  const parsed = am.parseRegisteredMermaid(branched)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const diagram = am.asSequence(parsed.value)
+  const fragment = diagram?.body.statements.find(statement => statement.kind === 'fragment')
+  expect(fragment?.kind === 'fragment' && fragment.fragment.fragmentKind).toBe('par_over')
+  if (!diagram) throw new Error('Expected editable overlay')
+  const edited = am.mutate(diagram, { kind: 'set_fragment_branch_label', fragmentIndex: 0, branchIndex: 1, label: 'Updated branch' })
+  expect(edited.ok).toBe(true)
+  if (!edited.ok) throw new Error(edited.error.message)
+  const messages = (await accepted(am.serializeMermaid(edited.value))).snapshot.data.getMessages as Array<Record<string, unknown>>
+  expect(messages.map(message => message.type)).toEqual([32, 0, 20, 0, 21, 0])
+  expect(messages.map(message => message.message)).toEqual(['Independent', 'first', 'Updated branch', 'second', '', 'joined'])
+  expect(am.renderMermaidASCII(edited.value)).toContain('Updated branch')
+})
+
 const REPEATED_TITLE = 'keeps the title of the first declaration'
 const NESTED_REDECLARATION = 'flattens a subgraph redeclared inside its own body instead of creating a cycle'
 const subgraphWitnesses = [{ testTitle: REPEATED_TITLE, label: 'First' }, { testTitle: NESTED_REDECLARATION, label: 'S' }]
