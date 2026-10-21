@@ -50,6 +50,11 @@ try {
     page.on('console', message => { if (message.type() === 'error') console.error(message.text()) })
     await page.goto(`${host.origin}/${variant}.html?empty=1`)
     await page.waitForFunction(() => (globalThis as any).__mermaid !== undefined)
+    await page.evaluate(() => {
+      const api = (globalThis as any).__mermaid
+      const methods = ['renderMermaidSVGWithReceipt', 'renderMermaidASCIIWithReceipt', 'renderMermaidUnicodeWithReceipt', 'renderMermaidPNGInBrowserWithReceipt']
+      if (!api || methods.some(method => typeof api[method] !== 'function')) throw new Error('Editor adapter did not load all required operations')
+    })
     const shellReadyMs = await page.evaluate(() => performance.now())
     const empty = await realmMemory(browser, page)
     const preview = await page.evaluate(async ({ source, style }) => {
@@ -60,11 +65,14 @@ try {
       let artifact, receipt
       try {
         artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(source, options)
-        receipt = artifact.receipt
       } catch (error) {
         return { ok: false as const, elapsedMs: performance.now() - start, error: error instanceof Error ? error.message : String(error) }
       }
+      if (!artifact || typeof artifact !== 'object' || typeof artifact.svg !== 'string' || !('receipt' in artifact)) throw new Error('Malformed fulfilled SVG artifact')
+      try { receipt = artifact.receipt }
+      catch (error) { return { ok: false as const, elapsedMs: performance.now() - start, error: error instanceof Error ? error.message : String(error) } }
       const elapsedMs = performance.now() - start
+      if (!receipt || typeof receipt !== 'object' || receipt.output !== 'svg' || typeof receipt.sharedRequestDigest !== 'string' || !receipt.sharedRequestDigest || typeof receipt.graphicalProjectionDigest !== 'string' || !receipt.graphicalProjectionDigest) throw new Error('Malformed fulfilled SVG receipt')
       if (!artifact.verification.ok || !artifact.svg.includes('Ownership')) throw new Error('Preview failed')
       input.digest = receipt.sharedRequestDigest
       const bytes = new TextEncoder().encode(artifact.svg)
@@ -82,12 +90,15 @@ try {
         let artifact, receipt
         try {
           artifact = await (format === 'ascii' ? api.renderMermaidASCIIWithReceipt(source, { ...options, useAscii: true }) : api.renderMermaidUnicodeWithReceipt(source, options))
-          // Force the lazy canonical receipt inside the measured operation.
-          receipt = artifact.receipt
         } catch (error) {
           return { ok: false as const, elapsedMs: performance.now() - started, error: error instanceof Error ? error.message : String(error) }
         }
+        if (!artifact || typeof artifact !== 'object' || typeof artifact.text !== 'string' || !('receipt' in artifact)) throw new Error('Malformed fulfilled text artifact')
+        // A canonical lazy receipt may reject on its own admission limits.
+        try { receipt = artifact.receipt }
+        catch (error) { return { ok: false as const, elapsedMs: performance.now() - started, error: error instanceof Error ? error.message : String(error) } }
         const elapsedMs = performance.now() - started
+        if (!receipt || typeof receipt !== 'object' || typeof receipt.sharedRequestDigest !== 'string' || !receipt.sharedRequestDigest) throw new Error('Malformed fulfilled text receipt')
         if (!artifact.text.includes('Ownership') || receipt.output !== format || (digest && receipt.sharedRequestDigest !== digest)) throw new Error('Text receipt/content mismatch')
         const bytes = new TextEncoder().encode(artifact.text)
         return { ok: true as const, elapsedMs, bytes: bytes.length, hash: await hash(bytes), digest: receipt.sharedRequestDigest }
@@ -107,6 +118,7 @@ try {
       }) } catch (error) { failure = error instanceof Error ? error.message : String(error) }
       const pngMs = performance.now() - pngStarted
       if (!artifact && failure === undefined) throw new Error('PNG returned no artifact')
+      if (artifact && (typeof artifact !== 'object' || !(artifact.png instanceof Uint8Array) || !artifact.receipt || typeof artifact.receipt.sharedRequestDigest !== 'string' || !artifact.receipt.sharedRequestDigest)) throw new Error('Malformed fulfilled PNG artifact')
       if (artifact && (artifact.receipt.output !== 'png' || (digest && artifact.receipt.sharedRequestDigest !== digest) || artifact.png[0] !== 137 || artifact.png[1] !== 80)) throw new Error('PNG receipt/encoding mismatch')
       const png = artifact ? { ok: true as const, elapsedMs: pngMs, bytes: artifact.png.length, hash: await hash(artifact.png), digest: artifact.receipt.sharedRequestDigest }
         : { ok: false as const, elapsedMs: pngMs, error: failure! }
