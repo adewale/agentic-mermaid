@@ -1,5 +1,10 @@
 import type { ElkNode } from 'elkjs'
 import type { GraphLayoutHints, MermaidGraph } from '../types.ts'
+import { edgeSelectorIndices } from '../shared/edge-selectors.ts'
+
+function invalidHint(reason: string): never {
+  throw new Error(`LAYOUT_HINT_INVALID: ${reason}`)
+}
 
 /** Hints only change layout metadata. Authored nodes and relationships are never removed. */
 export function applyLayoutHints(root: ElkNode, graph: MermaidGraph, hints?: GraphLayoutHints): void {
@@ -11,14 +16,14 @@ export function applyLayoutHints(root: ElkNode, graph: MermaidGraph, hints?: Gra
   visit(root)
   const requireNode = (id: string) => {
     const entry = nodes.get(id)
-    if (!entry || !graph.nodes.has(id)) throw new Error(`LAYOUT_HINT_INVALID: unknown node "${id}"`)
+    if (!entry || !graph.nodes.has(id)) invalidHint(`unknown node "${id}"`)
     return entry
   }
   const rankedParents = new Set<ElkNode>()
   if (hints.ranks) {
     for (const [id, rank] of Object.entries(hints.ranks)) {
       const { node, parent } = requireNode(id)
-      if (!Number.isSafeInteger(rank) || rank < 0 || rank > 10000) throw new Error(`LAYOUT_HINT_INVALID: rank for "${id}" must be an integer from 0 to 10000`)
+      if (!Number.isSafeInteger(rank) || rank < 0 || rank > 10000) invalidHint(`rank for "${id}" must be an integer from 0 to 10000`)
       rankedParents.add(parent)
       parent.layoutOptions = { ...parent.layoutOptions, 'elk.partitioning.activate': 'true' }
       node.layoutOptions = { ...node.layoutOptions, 'elk.partitioning.partition': String(rank) }
@@ -29,30 +34,23 @@ export function applyLayoutHints(root: ElkNode, graph: MermaidGraph, hints?: Gra
   }
   const grouped = new Set<string>()
   for (const ids of hints.adjacent ?? []) {
-    if (ids.length < 2) throw new Error('LAYOUT_HINT_INVALID: adjacent requires at least two nodes')
+    if (ids.length < 2) invalidHint('adjacent requires at least two nodes')
     const entries = ids.map(requireNode)
     const parent = entries[0]!.parent
-    if (entries.some(entry => entry.parent !== parent)) throw new Error('LAYOUT_HINT_INVALID: adjacent nodes must share a container')
-    if (ids.some(id => grouped.has(id)) || new Set(ids).size !== ids.length) throw new Error('LAYOUT_HINT_INVALID: a node can belong to only one adjacency group')
-    ids.forEach(id => grouped.add(id))
+    if (entries.some(entry => entry.parent !== parent)) invalidHint('adjacent nodes must share a container')
+    for (const id of ids) {
+      if (grouped.has(id)) invalidHint('a node can belong to only one adjacency group')
+      grouped.add(id)
+    }
     const children = parent.children!
     const first = Math.min(...entries.map(entry => children.indexOf(entry.node)))
     parent.children = [...children.slice(0, first), ...entries.map(entry => entry.node), ...children.slice(first).filter(node => !ids.includes(node.id))]
     parent.layoutOptions = { ...parent.layoutOptions, 'elk.layered.crossingMinimization.forceNodeModelOrder': 'true' }
   }
-  const edgeIndices = new Map<string, number>()
-  const occurrences = new Map<string, number>()
-  graph.edges.forEach((edge, index) => {
-    const pair = `${edge.source}->${edge.target}`
-    const occurrence = occurrences.get(pair) ?? 0
-    edgeIndices.set(`${pair}#${occurrence}`, index)
-    if (occurrence === 0) edgeIndices.set(pair, index)
-    if (edge.id) edgeIndices.set(edge.id, index)
-    occurrences.set(pair, occurrence + 1)
-  })
+  const edgeIndices = edgeSelectorIndices(graph.edges)
   const preferred = new Set((hints.shortEdges ?? []).map(id => {
     const index = edgeIndices.get(id)
-    if (index === undefined) throw new Error(`LAYOUT_HINT_INVALID: unknown edge "${id}"`)
+    if (index === undefined) invalidHint(`unknown edge "${id}"`)
     return index
   }))
   const prioritize = (container: ElkNode) => {

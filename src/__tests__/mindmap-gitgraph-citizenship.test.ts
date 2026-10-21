@@ -121,10 +121,11 @@ describe('Mindmap full-family citizenship', () => {
       ['final', 'Final'],
     ])
     expect(diagram.body.root.children[2]).toMatchObject({ icon: 'mdi:foo%%bar', className: 'hot%%class' })
-    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([{ code: 'COMMENT_DROPPED', count: 4, lines: [2, 5, 6, 8] }])
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([])
     const changed = mutate(diagram, { kind: 'add_node', id: 'added', label: 'more%%text', shape: 'rect', parent: 'root' })
     if (!changed.ok) throw new Error(changed.error.message)
     const written = serializeMermaid(changed.value)
+    for (const text of ['root comment', 'cloud comment', 'icon comment', 'real comment']) expect(written.split(`%% ${text}`)).toHaveLength(2)
     const reloaded = parseMermaid(written)
     if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
     expect(describeMermaidFacts(reloaded.value)).toEqual(describeMermaidFacts(changed.value))

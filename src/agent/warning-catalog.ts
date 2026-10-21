@@ -219,12 +219,11 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   COMMENT_DROPPED: {
-    summary: 'This family cannot retain one or more body comments in its structured serialization. Flowchart and State keep anchored body comments; wrappers, opaque bodies, and preserved segments retain their existing policies.',
-    guideNote: 'inspect the named comment occurrences before committing an edit; Flowchart and State body comments are retained',
-    what: 'known comment loss in a family without anchored comment retention.',
-    triggers: 'A body comment is absent from the family serializer output. The warning carries occurrence count and original line numbers.',
-    fix: 'Use a source-level edit when this family cannot preserve a required comment. Do not treat an ok flag as a losslessness certificate.',
-    example: 'pie\n  "Dogs": 3 %% review rationale',
+    summary: 'A parsed payload carries a known comment-loss receipt, including payloads produced by older serializers. Current built-in serializers retain detected comments; Flowchart and State anchor them to statements, and other structured families append unassociated comments. The warning carries occurrence count and original line numbers.',
+    guideNote: 'a payload carries known comment loss; current serializers retain detected comments, but cannot recover text already omitted from an older payload',
+    what: 'a record of comments already lost from a parsed artifact.',
+    triggers: 'Parsed metadata records a missing comment occurrence. No current built-in source-only reproducer is known; legacy or externally assembled payloads can still carry this receipt.',
+    fix: 'Recover the named comment text from the original source before committing the edit. Do not treat an ok flag as a losslessness certificate.',
     origins: ['source'],
   },
   UNSUPPORTED_SYNTAX: {

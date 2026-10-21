@@ -8,7 +8,7 @@ import { fromEntityMarkers, toEntityMarkers } from '../shared/mermaid-entities.t
 import { readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservation } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
 import type { KanbanBody, KanbanColumn, KanbanItem } from './types.ts'
 
 const OPEN = /(\(\(|\{\{|\(-|-\)|\)\)|\[|\(|\))/
@@ -48,7 +48,7 @@ function metadataRanges(block: string, end: number, offset: number): Array<{ nam
 
 /** The first node's indentation defines the column level. All deeper levels
  * belong to the most recent column, including levels deeper than one card. */
-export function parseKanbanDiagram(input: readonly string[] | string, accessibility: Accessibility = {}, origin?: Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource'>): KanbanBody {
+export function parseKanbanDiagram(input: readonly string[] | string, accessibility: Accessibility = {}, origin?: Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource'>, onComment?: (text: string, line: number) => void): KanbanBody {
   const source = typeof input === 'string' ? input : input.join('\n')
   // Shared payload views have normalized CRLF already. A remaining CR beside
   // LF is payload, so never combine those characters a second time.
@@ -62,6 +62,12 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     bodyLine++
   }
   const header = lines.shift() ?? ''
+  const reportComment = (source: string, line: number): void => {
+    if (!onComment) return
+    const start = trailingCommentStart(source)
+    if (start >= 0) onComment(source.slice(start + 2).trim(), line)
+  }
+  reportComment(header, bodyLine - 1)
   endings.shift()
   observeParserStatement('kanban', 'header', header, { line: bodyLine - 1, unit: 'normalized' })
   if (!/^kanban\s*$/i.test(stripTrailingComment(header).trim())) throw syntaxError({ what: 'Invalid Kanban header', expectedForm: 'kanban', example: 'kanban\nTodo\n  task[Write documentation]' })
@@ -106,10 +112,14 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     const fail = (what: string, column: number, expectedForm: string, atIndex = startIndex): Error => syntaxError({ what: `Kanban syntax at ${position(atIndex, column)}: ${what}`, expectedForm, example: 'task[Work]@{ assigned: Alice }' })
     if (text.startsWith(':::') || text.startsWith('::icon(')) {
       if (!previous) throw fail('Kanban decoration has no preceding item', indent, 'a column or task before its decoration')
-      if (text.startsWith(':::')) previous.className = stripTrailingComment(text.slice(3)).trim()
+      if (text.startsWith(':::')) {
+        reportComment(text.slice(3), index + bodyLine)
+        previous.className = stripTrailingComment(text.slice(3)).trim()
+      }
       else {
         const match = /^::icon\(([^)]*)\)\s*(?:%%.*)?$/.exec(text)
         if (!match) throw fail('Invalid Kanban icon decoration', indent, '::icon(icon-name)')
+        reportComment(text.slice(text.indexOf(')') + 1), index + bodyLine)
         previous.icon = match[1]!.trim()
       }
       observeParserStatement('kanban', text.startsWith(':::') ? 'class' : 'icon', line, { line: index + bodyLine, unit: 'normalized' })
@@ -153,7 +163,9 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
       suffix = rest.slice(consumed).trim()
       if (implicitId) rawId = label
     } else {
-      const plain = stripTrailingComment(metadataAt < 0 ? text : text.slice(0, metadataAt)).trim()
+      const prefix = metadataAt < 0 ? text : text.slice(0, metadataAt)
+      reportComment(prefix, index + bodyLine)
+      const plain = stripTrailingComment(prefix).trim()
       rawId = label = plain
       suffix = metadataAt < 0 ? '' : text.slice(metadataAt)
     }
@@ -183,6 +195,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
       if (metadata.label) label = String(metadata.label)
     }
     if (stripTrailingComment(suffix).trim()) throw fail(`Unexpected Kanban suffix: ${suffix}`, indent, 'a node followed by optional @{ metadata }')
+    reportComment(suffix, index + bodyLine)
     if (parserObservationActive('kanban')) observeParserStatement('kanban', 'node', lines.slice(startIndex, index + 1).join('\n'), { line: startIndex + bodyLine, unit: 'normalized' })
     rawId = decodeMermaidEntities(rawId)
     label = decodeMermaidEntities(label)

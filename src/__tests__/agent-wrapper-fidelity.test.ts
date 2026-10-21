@@ -6,8 +6,8 @@
 // through parse → serialize and through mutation. Canonical wrapper synthesis
 // (Mermaid's documented config-nested shape) is opt-in.
 //
-// 2C: Flowchart and State keep anchored body comments. Other structured
-// families announce known loss with COMMENT_DROPPED.
+// 2C: Structured families retain parser-identified body comments. Statements
+// with stable identities keep anchors; otherwise the comment follows the body.
 // Opaque bodies and preserved opaque segments keep comments and never warn.
 //
 // Each round-trip test also asserts the PREVIOUS bug shape is gone (flattened

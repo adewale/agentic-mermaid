@@ -64,23 +64,19 @@ test('verification reports its scope rather than certifying the requested task',
 })
 
 
-test('suppressing a source-loss warning cannot erase the source-loss report', () => {
-  const result = verifyMermaid('pie\n "Dogs": 3 %% rationale', { suppress: ['COMMENT_DROPPED'] })
-  expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
-  expect(result.checks?.sourceLoss).toBe('detected')
-})
-
-test('render configuration failure cannot erase already known comment loss', () => {
+test('retained Pie comments are not reported as lost, including when rendering fails', () => {
   const source = 'pie\n "Dogs": 3 %% rationale'
   const parsed = parseMermaid(source)
   expect(parsed.ok).toBe(true)
   if (!parsed.ok) return
   for (const input of [source, parsed.value]) {
-    const result = verifyMermaid(input, {
-      renderOptions: { mermaidConfig: { themeVariables: { background: 'notacolor()' } } },
-      suppress: ['COMMENT_DROPPED'],
-    })
-    expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
-    expect(result.checks).toEqual({ renderability: 'failed', sourceLoss: 'detected', taskCorrectness: 'not-checked' })
+    for (const background of ['white', 'notacolor()']) {
+      const result = verifyMermaid(input, {
+        renderOptions: { mermaidConfig: { themeVariables: { background } } },
+        suppress: ['COMMENT_DROPPED'],
+      })
+      expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+      expect(result.checks).toEqual({ renderability: background === 'white' ? 'passed' : 'failed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    }
   }
 })

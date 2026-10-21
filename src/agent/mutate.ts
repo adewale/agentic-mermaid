@@ -1,4 +1,4 @@
-import { restoreBodyComments } from './body-comments.ts'
+import { rebaseBodyComments, restoreBodyComments } from './body-comments.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
@@ -106,9 +106,7 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerializatio
   if (plugin?.mutate && plugin.serialize) {
     const r = plugin.mutate(d.body, op)
     if (!r.ok) return r
-    if ((op.kind === 'rename_node' || op.kind === 'rename_state') && d.meta.bodyComments) {
-      d = { ...d, meta: { ...d.meta, bodyComments: d.meta.bodyComments.map(comment => comment.anchor?.collection === 'nodes' && comment.anchor.id === op.from ? { ...comment, anchor: { ...comment.anchor, id: op.to } } : comment) } } as ParsedDiagram
-    }
+    d = rebaseBodyComments(d, r.value, op)
     return deferSerialization ? ok({ ...d, body: r.value } as ParsedDiagram) : commitMutation(d, r.value)
   }
 

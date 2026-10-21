@@ -812,7 +812,8 @@ export interface ValidDiagramMeta {
    * `canonicalSource`.
    */
   droppedComments?: SourceComment[]
-  /** Body comments retained beside a stable semantic statement across edits. */
+  /** Parser-identified body comments, anchored where the family exposes a
+   * stable statement identity; unassociated/deleted anchors follow the body. */
   bodyComments?: Array<{ raw: string; anchor?: { collection: 'nodes' | 'edges' | 'groups'; id: string }; placement: 'before' | 'after' }>
 }
 

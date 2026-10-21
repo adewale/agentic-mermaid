@@ -6,6 +6,7 @@ import {
   getFamily,
   getFamilyConformanceReport,
   registerFamily,
+  parseRegisteredMermaid,
   verifyMermaid,
   type ExternalFamilyId,
   type FamilyDescriptor,
@@ -142,6 +143,33 @@ function expectRejected(descriptor: FamilyDescriptor, message: RegExp): void {
 }
 
 describe('external family executable registration conformance', () => {
+  test('known source-loss evidence survives failures injected into each family execution phase', () => {
+    let phase: 'verify' | 'layout' | 'projection' | 'svg' | undefined
+    const base = directDescriptor('source-evidence-faults')
+    const fail = (current: typeof phase) => {
+      if (phase === current) throw new TypeError(`injected ${current} failure`)
+    }
+    const unregister = registerFamily({
+      ...base,
+      verify: (...args) => { fail('verify'); return base.verify!(...args) },
+      layout: (...args) => { fail('layout'); return base.layout!(...args) },
+      projectPositioned: (...args) => { fail('projection'); return base.projectPositioned!(...args) },
+      renderSvg: (...args) => { fail('svg'); return base.renderSvg!(...args) },
+    })
+    try {
+      const parsed = parseRegisteredMermaid(base.example)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const input = { ...parsed.value, meta: { ...parsed.value.meta, droppedComments: [{ text: 'known lost comment', line: 2 }] } }
+      for (const current of ['verify', 'layout', 'projection', 'svg'] as const) {
+        phase = current
+        const result = verifyMermaid(input, { suppress: ['COMMENT_DROPPED'] })
+        expect(result.checks?.sourceLoss).toBe('detected')
+        expect(result.warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+        expect(result.warnings.some(warning => warning.code === 'INTERNAL_ERROR' && warning.reason.includes(`injected ${current} failure`))).toBe(true)
+      }
+    } finally { unregister() }
+  })
+
   test('captures an opt-in config diagnostic hook once and preserves root ordering and frozen results', () => {
     const base = directDescriptor('config-diagnostics')
     const warnings = Object.freeze([
