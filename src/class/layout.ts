@@ -17,7 +17,9 @@ export { memberToString } from './text.ts'
  *   2. Attributes section
  *   3. Methods section
  *
- * Namespaces lay out as ELK compound nodes (the flowchart-subgraph pattern):
+ * The native producer places independent namespace scopes from measured frames.
+ * Cross-namespace leaf routes retain an explicit capability decline.
+ * ELK namespaces lay out as compound nodes (the flowchart-subgraph pattern):
  * member classes are children of their namespace's compound, the compound
  * reserves a header band for the label via top padding, and relationships are
  * hosted on the lowest common ancestor compound so ELK (INCLUDE_CHILDREN)
@@ -27,6 +29,7 @@ export { memberToString } from './text.ts'
 
 import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
+import { generatedIds } from '../shared/generated-identity.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
@@ -599,25 +602,38 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
 export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
-  const nativeScope = () => {
-    if (diagram.namespaces.length) throw new GraphLayoutUnsupportedError('Class compound namespaces')
-  }
-  if (diagram.classes.length === 0) {
+  if (diagram.classes.length === 0 && (!diagram.namespaces.length || options.graphLayout?.backend !== 'agentic')) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
-    return runMeasuredGraphBackend(options, () => { nativeScope(); return empty() }, empty)
+    return runMeasuredGraphBackend(options, empty, empty)
   }
   const classSizes = measureClassCards(diagram, style)
   const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
   let titles: Map<string, string> = new Map()
   const positioned = runMeasuredGraphBackend(options, () => {
-    nativeScope()
+    const namespaces = flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces)
+    const groupIndices = new Map(namespaces.map((info, index) => [info.path, index]))
+    if (groupIndices.size !== namespaces.length) throw new GraphLayoutUnsupportedError('ambiguous Class namespace paths')
+    const membership = new Map<string, number>()
+    for (const [index, info] of namespaces.entries()) for (const id of info.ns.classIds) if (!membership.has(id)) membership.set(id, index)
+    const generated = generatedIds(diagram.classes.map(cls => cls.id))
+    const groups = namespaces.map(info => {
+      const block = classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group')
+      return {
+        id: generated(`class-namespace:${info.path}`, ['class', 'namespace', info.path]),
+        ...(info.parentPath ? { parent: groupIndices.get(info.parentPath)! } : {}),
+        minWidth: block.width + 2 * Math.max(style.groupLabelPaddingX, style.groupPaddingX + 8),
+        padding: { top: namespaceHeaderHeight(style, block.text) + style.groupPaddingY,
+          right: style.groupPaddingX + 8, bottom: style.groupPaddingY + 8, left: style.groupPaddingX + 8 },
+      }
+    })
     const indices = new Map(diagram.classes.map((cls, index) => [cls.id, index]))
     const labels = diagram.relationships.map(rel => {
       const block = rel.label ? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge') : undefined
       return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + 6 } : undefined
     })
     const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
-      nodes: diagram.classes.map(cls => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height })),
+      nodes: diagram.classes.map(cls => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height,
+        ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })), groups,
       edges: diagram.relationships.map((rel, index) => {
         const source = indices.get(rel.from), target = indices.get(rel.to)
         if (source === undefined || target === undefined) throw new Error('Class relationship references an undeclared card')
@@ -625,8 +641,12 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
       }), direction: diagram.direction ?? 'TB', padding: CLS.padding, nodeSpacing: options.nodeSpacing ?? CLS.nodeSpacing,
       layerSpacing: options.layerSpacing ?? CLS.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
     }))
+    if (placed.nodes.length !== diagram.classes.length || (placed.groups?.length ?? 0) !== namespaces.length || placed.edges.length !== diagram.relationships.length) {
+      throw new TypeError('Native Class placement lost measured subjects')
+    }
     const geometry: ClassPlacement = { width: placed.width, height: placed.height,
-      nodes: placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: classSizes.get(diagram.classes[index]!.id)!.width, height: classSizes.get(diagram.classes[index]!.id)!.height })),
+      nodes: [...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: classSizes.get(diagram.classes[index]!.id)!.width, height: classSizes.get(diagram.classes[index]!.id)!.height })),
+        ...namespaces.map((info, index) => ({ ...placed.groups![index]!, id: NS_PREFIX + info.path, namespace: true as const }))],
       routes: new Map(placed.edges.map((edge, index) => [index, { points: edge.points,
         // Class text is painted eight pixels above its stored route anchor.
         ...(edge.labelPosition ? { labelPosition: { x: edge.labelPosition.x, y: edge.labelPosition.y + 8 } } : {}),
