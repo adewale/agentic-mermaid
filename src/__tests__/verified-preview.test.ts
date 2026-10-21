@@ -25,13 +25,14 @@ describe('one positioned artifact for preview and verification', () => {
     finally { restore() }
   })
   test.each([
-    { name: 'ELK', backend: 'elk', frame: false },
-    { name: 'native', backend: 'agentic', frame: false },
-    { name: 'explicit fallback', backend: 'agentic', frame: true },
-  ] as const)('retains $name selection while positioning and verifying a preview once', ({ backend, frame }) => {
-    const source = `flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\n${frame ? 'One' : 'B'} -->|handoff| C`
+    { name: 'ELK', backend: 'elk', frame: false, fallback: false },
+    { name: 'native', backend: 'agentic', frame: false, fallback: false },
+    { name: 'native frame terminal', backend: 'agentic', frame: true, fallback: false },
+    { name: 'explicit fallback', backend: 'agentic', frame: true, fallback: true },
+  ] as const)('retains $name selection while positioning and verifying a preview once', ({ backend, frame, fallback }) => {
+    const source = `flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\n${frame ? 'One' : 'B'} -->|handoff| ${fallback ? 'A' : 'C'}`
     const options = { security: 'strict' as const, embedFontImport: false,
-      graphLayout: { backend, ...(frame ? { fallback: 'elk' as const } : {}) } }
+      graphLayout: { backend, ...(fallback ? { fallback: 'elk' as const } : {}) } }
     const expected = renderMermaidSVGWithReceipt(source, options)
     const expectedVerification = verifyMermaid(source, { renderOptions: options })
     const descriptor = getFamily('flowchart')!, stages: string[] = []
@@ -43,8 +44,8 @@ describe('one positioned artifact for preview and verification', () => {
       expect(result.svg).toBe(expected.svg)
       expect(result.receipt).toEqual(expected.receipt)
       expect(result.verification).toEqual(expectedVerification)
-      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe(frame ? 'elk' : backend)
-      if (backend === 'agentic' && !frame) expect(stages).not.toContain('elk')
+      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe(fallback ? 'elk' : backend)
+      if (backend === 'agentic' && !fallback) expect(stages).not.toContain('elk')
       else expect(stages).toContain('elk')
     } finally { restore() }
   })

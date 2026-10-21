@@ -35,6 +35,11 @@ were inspected at these revisions; no third-party layout code was copied.
 - Retain all 512 prior generated Flowcharts as development evidence. The fresh
   counter-generator holdout is `sha256-counter-v1`, seeds **128–191**, 64 cases.
   Any solver tuning based on it makes it development data immediately.
+- The emitted-browser nested-frame endpoint test subsequently exposed an
+  inflated-endpoint obstacle. Correcting it requires a new frozen revision;
+  retain the first campaign at `81b23ada`. Before rerunning, declare counter
+  seeds **192–255** as an additional untouched 64-case holdout. Seeds128–191
+  remain retained evidence; the new fix changes compound routing only.
 - Inspect a fixed visual sample across all six graph families, including the
   frame-endpoint corpus Flowchart and Architecture source/group/port cases.
 - Run all declared edit sequences in `eval/layout-compare/edit-sequences.ts`
