@@ -1295,3 +1295,49 @@ choose a subsequent refinement makes this population development data.
 The final combined owning/selection/cache/family/benchmark run passes196 tests
 /6,019 assertions across nine files. Counts include the new frozen fixture and
 exhaustive insertion checks; earlier overlapping runs are not added to them.
+
+
+### Fresh holdout and allocation-preserving cleanup
+
+The predeclared4ab4bf82 holdout256–319 completes64 inputs: native63 renders,
+ELK63 renders, with62 shared successes. Seed296 has31 native crossings versus
+ELK22. Seed319 fails the unchanged `applyRouteContracts` straight-route
+ratchet (1→0); ELK renders it. ELK separately rejects seed303's paint geometry.
+All outcomes are retained. Seeds256–319 are now development data because their
+failures are being used to guide work. The remaining failures are not removed
+from the qualification population. A preferred diamond port bends an already
+valid native straight route in seed319; the explicit preservation prototype
+renders it with4 crossings versus ELK20, both81 bends, but is not yet shipped.
+
+Class3715d2d6 CI completes required gates, but the cold25-input cost run is
+incomplete: its ELK-reference cyclic10 worker times out against the remaining
+overall budget. Only10/25 matched inputs remain, with no paired corpus memory.
+The healthy cold A/A0.9859× does not qualify an incomplete native comparison.
+The normal run completes25/25: A/A0.9477×, native official time1.0032×,
+allocation1.00×, peak RSS0.79×. These adverse outcomes remain in
+[artifact12311926200](https://github.com/adewale/agentic-mermaid/actions/runs/39521059556/artifacts/12311926200);
+there was no retry or raised budget.
+
+Allocation sampling identifies repeated lane-existence queries as a cleanup
+hotspot. Those queries now return a Boolean without constructing blocker
+evidence. Certificate-producing queries retain the same ordered, deduplicated
+blocker records. Indexed loops and scalar label bounds avoid iterator, closure
+and rectangle allocations; all arithmetic, current-label measurement,
+reciprocal exceptions, comparisons and tolerances remain unchanged.
+
+Against the clean4ab4bf82 shipped Node artifact, the source allocation-only
+change retains exact SVG bytes, full receipt JSON and error names/messages
+for both backends on557 inputs (237 official/scaling plus320 generated):
+1,114 identical outcomes, including21 errors/declines. The first diagnostic
+launch incorrectly requested320 cases from the generator's256-per-call limit;
+it failed before comparison. The completed comparison uses256+64 without
+changing that limit. Existing route owners pass195 tests /3,092 assertions,
+both typechecks and lint pass, and all318 default geometry records pass the
+unchanged30-second gate (13.67s), with no golden update.
+
+A separate exploratory Node GC-profiler diagnostic consumes complete SVG UTF-8
+and receipt JSON from both loaded artifacts, with caches off. For cyclic15 it
+measures116,358,000→103,628,344 allocated bytes; cyclic19
+173,768,608→158,489,696. Concurrent work, two loaded bundles and short warmup
+exclude runtime/RSS qualification. These allocation reductions do not establish
+a win over ELK; the full controlled canary remains required.
