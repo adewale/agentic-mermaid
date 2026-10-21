@@ -147,8 +147,9 @@ xychart
     expect(svg).toMatch(/<line class="xychart-axis-line xychart-y-axis-line"[^>]* stroke="#708090" stroke-width="4" /)
     expect(svg).toContain('dominant-baseline="middle"')
     expect(svg).toContain('font-size="13" font-weight="400"')
-    expect(svg).toMatch(/font-size="17" font-weight="400" class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
-    expect(svg).toMatch(/transform="rotate\(-90,[-\d.]+,[-\d.]+\)"[^>]*class="xychart-axis-title xychart-y-axis-title"/)
+    expect(svg).toMatch(/class="xychart-axis-title xychart-y-axis-title"[^>]*font-size="17" font-weight="400"[^>]*>Users<\/text>/)
+    const yTitle = svg.match(/<text\b[^>]*class="xychart-axis-title xychart-y-axis-title"[^>]*>/)?.[0]
+    expect(yTitle).toMatch(/transform="rotate\(-90 [-\d.]+ [-\d.]+\)"/)
   })
 
   it('adapts text contrast to backgroundColor and carries the authored background and series palette into PNG', () => {

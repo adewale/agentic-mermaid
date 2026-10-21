@@ -96,7 +96,7 @@ export interface SvgAttribute {
   readonly name: SvgAttributeName
   readonly value: SvgValue
   readonly format?: SvgNumberFormat
-  readonly omit?: 'undefined' | 'zero' | 'false' | 'empty'
+  readonly omit?: 'undefined' | 'zero' | 'false' | 'empty' | 'butt' | 'miter' | 'none'
   readonly fallback?: string | number
   /** Existing display metadata sanitizes controls separately from IDs. */
   readonly display?: boolean
@@ -376,7 +376,8 @@ export function svgEmissionValue(node: SvgEmissionNode, value: SvgValue, recipe?
  * XML escaping belongs to SvgWriter; absence is distinct from an empty value. */
 export function resolveSvgAttributeValue(node: SvgEmissionNode, attribute: SvgAttribute, recipe?: SvgPrimitiveEmission): string | undefined {
   let value = svgEmissionValue(node, attribute.value, recipe, attribute.format) ?? attribute.fallback
-  if (value === undefined || attribute.omit === 'zero' && (value === 0 || value === '0') || attribute.omit === 'false' && value === false || attribute.omit === 'empty' && value === '') return undefined
+  if (value === undefined || attribute.omit === 'zero' && (value === 0 || value === '0') || attribute.omit === 'false' && value === false || attribute.omit === 'empty' && value === ''
+    || (attribute.omit === 'butt' || attribute.omit === 'miter' || attribute.omit === 'none') && value === attribute.omit) return undefined
   if (typeof value === 'number') value = numberString(value, attribute.format)
   const text = String(value)
   return attribute.display ? sanitizeDisplayLines(text) : text
@@ -826,7 +827,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       }
       oneOf(attribute.format, ['exact', 'round2', 'round3', 'percent1'])
       if (attribute.format === 'percent1' && attribute.name !== 'data-percent') throw new TypeError('Percent formatting is limited to percentage metadata')
-      oneOf(attribute.omit, ['undefined', 'zero', 'false', 'empty'])
+      oneOf(attribute.omit, ['undefined', 'zero', 'false', 'empty', 'butt', 'miter', 'none'])
       oneOf(attribute.escape, ['attribute', 'xml', 'safe'])
       oneOf(attribute.before, [' ', '  ', '\n', '\n  '])
       optionalBoolean(attribute.display)

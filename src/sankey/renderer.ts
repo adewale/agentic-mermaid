@@ -41,25 +41,25 @@ const SANKEY_LABEL_HALO_WIDTH = 3
 
 const LINK_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
   { name: 'class', value: v.meta('sankey-link') },
-  { name: 'd', value: v.geometry('d') },
-  { name: 'fill', value: v.paint('fill') },
-  { name: 'stroke', value: v.paint('stroke') },
-  { name: 'stroke-width', value: v.paint('strokeWidth') },
-  { name: 'opacity', value: v.paint('opacity') },
-  { name: 'style', value: { source: 'style', declarations: [{ property: 'mix-blend-mode', value: v.connector('mixBlendMode') }] } },
   { name: 'data-source', value: v.identity('from') },
   { name: 'data-target', value: v.identity('to') },
   { name: 'data-value', value: v.channel('value') },
+  { name: 'd', value: v.geometry('d') },
+  { name: 'fill', value: v.paint('fill') },
+  { name: 'stroke', value: v.paint('stroke') },
+  { name: 'stroke-opacity', value: v.connector('opacity') },
+  { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'style', value: { source: 'style', declarations: [{ property: 'mix-blend-mode', value: v.connector('mixBlendMode') }] } },
 ] })
 
 const NODE_ATTRIBUTES: readonly SvgAttribute[] = [
   { name: 'class', value: v.meta('sankey-node') },
+  { name: 'data-label', value: v.channel('category'), display: true },
+  { name: 'data-value', value: v.channel('value') },
   { name: 'x', value: v.geometry('x') }, { name: 'y', value: v.geometry('y') },
   { name: 'width', value: v.geometry('width') }, { name: 'height', value: v.geometry('height') },
   { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') },
   { name: 'stroke-width', value: v.paint('strokeWidth') },
-  { name: 'data-label', value: v.channel('category'), display: true },
-  { name: 'data-value', value: v.channel('value') },
 ]
 
 const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
@@ -227,7 +227,9 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
     const fill = nodePaint.color
     let emission = nodeEmissions.get(node.layer)
     if (!emission) {
-      emission = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [...NODE_ATTRIBUTES, { name: 'data-layer', value: v.meta(node.layer) }] })
+      emission = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+        ...NODE_ATTRIBUTES.slice(0, 3), { name: 'data-layer', value: v.meta(node.layer) }, ...NODE_ATTRIBUTES.slice(3),
+      ] })
       nodeEmissions.set(node.layer, emission)
     }
     parts.push(

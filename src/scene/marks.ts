@@ -106,7 +106,7 @@ import { attachSvgGroupMetadata, snapshotSvgGroupMetadata, projectSvgCoordinate,
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { decorateEmission, emissionAttribute, emissionIdentity, firstEmission } from './svg-mark-emission.ts'
 import { classConstructionOpeningLimit, originalConstructionNode } from './construction-operands.ts'
-import { publicConstructionOperandsRequired } from './lowering-invocation.ts'
+import { publicConstructionOperandsRequired, publicSceneLowering } from './lowering-invocation.ts'
 import { SvgWriter } from './svg-writer.ts'
 import { writeSvgGroupOpen } from './svg-emission.ts'
 
@@ -973,6 +973,17 @@ export function group(fields: {
       ...(fields.visibility ? { visibility: fields.visibility } : {}), ...(fields.transform ? { transform: fields.transform } : {}) }
     if (metadata) attachSvgGroupMetadata(node, metadata)
     const decorated = decorateEmission(recipe, node) as SvgGroupEmission
+    if (publicSceneLowering() && openingLimit === undefined) {
+      // Public GroupMark fields are writable data, including the inert wrapper
+      // hooks callers can edit before admission. The native group projection
+      // consumes those fields; retaining a private group recipe here would
+      // silently ignore edits even after restoring their descriptors.
+      const writer = new SvgWriter()
+      writeSvgGroupOpen(node, decorated, writer)
+      node.open = writer.finish()
+      node.close = '</g>'
+      return admitWritableSceneNode(node)
+    }
     attachSceneNodeEmission(node, decorated)
     if (openingLimit !== undefined) {
       const writer = new SvgWriter({ maxBytes: openingLimit })

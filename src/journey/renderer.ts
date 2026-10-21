@@ -92,13 +92,25 @@ function primitive(className: string, geometry: readonly SvgGeometryField[], ext
     ...PAINT_ATTRIBUTES.filter(attribute => !extra.some(other => other.name === attribute.name)),
   ] })
 }
+function connector(className: string, geometry: readonly SvgGeometryField[], extra: readonly SvgAttribute[] = []): SvgEmissionRecipe {
+  return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+    { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })),
+    ...(geometry.includes('d') ? [{ name: 'fill' as const, value: v.paint('fill') }] : []),
+    { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-opacity', value: v.connector('opacity') },
+    { name: 'stroke-width', value: v.paint('strokeWidth') }, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
+    { name: 'stroke-dashoffset', value: v.paint('strokeDashoffset') },
+    { name: 'stroke-linecap', value: v.paint('strokeLinecap'), omit: 'butt' },
+    { name: 'stroke-linejoin', value: v.paint('strokeLinejoin'), omit: 'miter' },
+    ...extra,
+  ] })
+}
 const RECT_FIELDS = ['x', 'y', 'width', 'height', 'rx', 'ry'] as const
 const LINE_FIELDS = ['x1', 'y1', 'x2', 'y2'] as const
 const CIRCLE_FIELDS = ['cx', 'cy', 'r'] as const
-const CURVE_EMISSION = primitive('journey-curve', ['d'])
-const GUIDE_EMISSION = primitive('journey-guide', LINE_FIELDS)
-const BASELINE_EMISSION = primitive('journey-baseline', LINE_FIELDS, [{ name: 'marker-end', value: { source: 'marker', position: 'end' } }])
-const TRACK_EMISSION = primitive('journey-track', LINE_FIELDS)
+const CURVE_EMISSION = connector('journey-curve', ['d'])
+const GUIDE_EMISSION = connector('journey-guide', LINE_FIELDS)
+const BASELINE_EMISSION = connector('journey-baseline', LINE_FIELDS, [{ name: 'marker-end', value: { source: 'marker', position: 'end' } }])
+const TRACK_EMISSION = connector('journey-track', LINE_FIELDS)
 const TASK_EMISSION = primitive('journey-task-box', RECT_FIELDS)
 const FACE_EMISSION = primitive('journey-score-face', CIRCLE_FIELDS)
 const EYE_EMISSION = primitive('journey-face-eye', CIRCLE_FIELDS)
@@ -239,8 +251,10 @@ export function lowerJourneyDrawing<T>(
       },
       { kind: 'text', layout: 'multiline', attributes: [
         { name: 'class', value: v.meta('journey-title') }, { name: 'text-anchor', value: v.text('anchor') },
-        { name: 'fill', value: v.paint('fill') }, { name: 'font-size', value: v.meta(visual.titleFontSizeCss) }, { name: 'font-weight', value: v.text('fontWeight') },
         ...(visual.titleFontFamily ? [{ name: 'font-family' as const, value: v.meta(visual.titleFontFamily) }] : []),
+        { name: 'font-size', value: v.meta(visual.titleFontSizeCss) }, { name: 'font-weight', value: v.text('fontWeight') },
+        { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' }, { name: 'fill', value: v.paint('fill') },
+        { name: 'data-id', value: v.identity('id') }, { name: 'data-role', value: v.identity('role') },
       ] },
     ))
   }

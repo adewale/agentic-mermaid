@@ -77,7 +77,7 @@ const ICON_EMISSIONS = {
 }
 const ICON_GLYPH_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
   { name: 'class', value: v.meta('architecture-icon-glyph') }, { name: 'd', value: v.geometry('d') },
-  { name: 'transform', value: { source: 'transform', form: 'translate-scale-space' } }, ...PAINT_ATTRIBUTES,
+  ...PAINT_ATTRIBUTES, { name: 'transform', value: v.transform() },
 ] }) as SvgPrimitiveEmission
 const FALLBACK_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
   { name: 'class', value: v.meta('architecture-icon-glyph architecture-icon-fallback') }, { name: 'data-fallback', value: v.meta(true) },

@@ -17,6 +17,7 @@ import { capturedMarkAttributes } from '../scene/svg-mark-emission.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe } from '../scene/svg-emission.ts'
 import type { Geometry, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
+import { publicSceneLowering } from '../scene/lowering-invocation.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -44,6 +45,16 @@ const ER_FONT = {
   attrSize: 11,
   keySize: 9,
 } as const
+
+/** Public lowerings retain the native writable mark contract. The engine's
+ * immutable lowering uses closed recipes to stream its normal SVG output. */
+function erShape<T>(marks: DrawingFactory<T>, fields: Parameters<DrawingFactory<T>['shape']>[0], emission: SvgEmissionRecipe): T {
+  return marks.shape(fields, publicSceneLowering() ? undefined : emission)
+}
+
+function erText<T>(marks: DrawingFactory<T>, fields: Parameters<DrawingFactory<T>['text']>[0], emission: SvgEmissionRecipe): T {
+  return marks.text(fields, publicSceneLowering() ? undefined : emission)
+}
 
 const svgAttr = (name: SvgAttribute['name'], value: SvgAttribute['value']): SvgAttribute => ({ name, value })
 const RECT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
@@ -207,10 +218,10 @@ function renderErGroup<T>(marks: DrawingFactory<T>, group: PositionedErGroup, st
     id: `er-group:${group.id}`, role: 'group',
     emission: { kind: 'group', attributes: [svgAttr('class', v.meta('er-subgraph')), svgAttr('data-id', v.meta(group.id)),
       { ...svgAttr('data-label', v.meta(group.label)), display: true }, ...(group.parentId ? [svgAttr('data-parent-id', v.meta(group.parentId))] : [])] }, children: [
-      { node: marks.shape({ id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx'] as const).map(field => svgAttr(field, v.geometry(field))),
+      { node: erShape(marks, { id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx'] as const).map(field => svgAttr(field, v.geometry(field))),
         svgAttr('fill', v.paint('fill')), svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth'))] }), indent: 2 },
-      { node: marks.shape({ id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx'] as const).map(field => svgAttr(field, v.geometry(field))), svgAttr('fill', v.paint('fill'))] }), indent: 2 },
-      { node: marks.text({ id: `er-group:${group.id}:label`, role: 'label', text: block.text, block, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: block.fontSize, anchor: 'start', paint: { fill: text } }, { kind: 'text', layout: 'multiline', attributes: [svgAttr('text-anchor', v.text('anchor')), svgAttr('font-size', v.text('fontSize')),
+      { node: erShape(marks, { id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx'] as const).map(field => svgAttr(field, v.geometry(field))), svgAttr('fill', v.paint('fill'))] }), indent: 2 },
+      { node: erText(marks, { id: `er-group:${group.id}:label`, role: 'label', text: block.text, block, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: block.fontSize, anchor: 'start', paint: { fill: text } }, { kind: 'text', layout: 'multiline', attributes: [svgAttr('text-anchor', v.text('anchor')), svgAttr('font-size', v.text('fontSize')),
         svgAttr('font-weight', v.text('fontWeight')), svgAttr('letter-spacing', v.text('letterSpacing')), svgAttr('fill', v.paint('fill'))] }), indent: 2 },
     ],
   })
@@ -247,7 +258,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const rectStrokeWidth = Number.isFinite(parsedStrokeWidth) && parsedStrokeWidth > 0 ? parsedStrokeWidth : style.nodeLineWidth
   children.push({
     indent: 2,
-    node: marks.shape({
+    node: erShape(marks, {
       id: `entity-rect:${id}`,
       role: 'entity',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
@@ -260,7 +271,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const headerPath = topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)
   children.push({
     indent: 2,
-    node: marks.shape({
+    node: erShape(marks, {
       id: `entity-header:${id}`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
@@ -274,7 +285,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const displayLabel = labelBlock.text
   children.push({
     indent: 2,
-    node: marks.text({
+    node: erText(marks, {
       id: `entity-name:${id}`,
       role: 'label',
       text: displayLabel, block: labelBlock,
@@ -291,7 +302,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const dividerWidth = Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)
   children.push({
     indent: 2,
-    node: marks.shape({
+    node: erShape(marks, {
       id: `entity-divider:${id}`,
       role: 'chrome',
       geometry: { kind: 'line', x1: x, y1: attrTop, x2: x + width, y2: attrTop },
@@ -315,7 +326,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
     const block = entity.emptyAttributeBlock ?? erEmptyAttributeBlock()
     children.push({
       indent: 2,
-      node: marks.text({
+      node: erText(marks, {
         id: `entity-empty:${id}`,
         role: 'attribute',
         text: block.text,
@@ -375,13 +386,13 @@ function renderAttribute<T>(
     const keyText = attr.keys.join(',')
     keyWidth = blocks.keys.width + 8
     const badgeX = boxX + Math.max(6, style.nodePaddingX / 2)
-    rowNodes.push(marks.shape({
+    rowNodes.push(erShape(marks, {
       id: `${attrId}:key-badge`,
       role: 'chrome',
       geometry: { kind: 'rect', x: badgeX, y: y - 7, width: keyWidth, height: 14, rx: 2, ry: 2 },
       paint: { fill: 'var(--_key-badge)' },
     }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx', 'ry'] as const).map(field => svgAttr(field, v.geometry(field))), svgAttr('fill', v.paint('fill'))] }))
-    rowNodes.push(marks.text({
+    rowNodes.push(erText(marks, {
       id: `${attrId}:key-text`,
       role: 'attribute',
       text: keyText, block: blocks.keys,
@@ -396,7 +407,7 @@ function renderAttribute<T>(
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
   const typeX = boxX + Math.max(8, style.nodePaddingX / 2) + (keyWidth > 0 ? keyWidth + 6 : 0)
-  rowNodes.push(marks.text({
+  rowNodes.push(erText(marks, {
     id: `${attrId}:type`,
     role: 'attribute',
     text: attr.type, block: blocks.type,
@@ -414,7 +425,7 @@ function renderAttribute<T>(
   // entity's comment column when any attribute carries a comment.
   const rightEdge = boxX + boxWidth - Math.max(8, style.nodePaddingX / 2)
   const nameX = rightEdge - commentColumn
-  rowNodes.push(marks.text({
+  rowNodes.push(erText(marks, {
     id: attrId,
     role: 'attribute',
     text: attr.name, block: blocks.name,
@@ -431,7 +442,7 @@ function renderAttribute<T>(
   // Comment (right-aligned in its column, as Mermaid draws it after the name)
   if (attr.comment) {
     const comment = erCommentText(attr.comment, attr.commentContent)
-    rowNodes.push(marks.text({
+    rowNodes.push(erText(marks, {
       id: `${attrId}:comment`,
       role: 'attribute',
       text: comment, block: blocks.comment,
@@ -708,7 +719,7 @@ function renderRelationshipLabel<T>(
   const bgW = metrics.width + 8
   const bgH = metrics.height + 6
 
-  const pill = marks.shape({
+  const pill = erShape(marks, {
     id: `${sceneId}:bg`,
     role: 'chrome',
     geometry: { kind: 'rect', x: mid.x - bgW / 2, y: mid.y - bgH / 2, width: bgW, height: bgH, rx: 2, ry: 2 },
@@ -717,7 +728,7 @@ function renderRelationshipLabel<T>(
   }, RECT_EMISSION)
 
   const labelColor = roleStyle?.textColor ?? style.edgeTextColor ?? 'var(--_text-muted)'
-  const label = marks.text({
+  const label = erText(marks, {
     id: sceneId,
     role: 'label',
     text: displayLabel, block: metrics,
@@ -746,7 +757,7 @@ function renderCardinality<T>(marks: DrawingFactory<T>, rel: PositionedErRelatio
   if (rel.points.length < 2) {
     // Old renderer pushed '' for degenerate relationships — keep the empty
     // slot (a compound shape with no children writes '').
-    return [marks.shape({
+    return [erShape(marks, {
       id: sceneId,
       role: 'cardinality',
       geometry: { kind: 'compound', children: [] },
@@ -784,7 +795,7 @@ function crowsFootMark<T>(
     strokeWidth: String(style.lineWidth + 0.25),
   }
   const pieces = renderCrowsFoot(point, toward, cardinality, paint)
-  return marks.shape({
+  return erShape(marks, {
     id: sceneId,
     role: 'cardinality',
     geometry: { kind: 'compound', children: pieces.map(p => p.geometry) },

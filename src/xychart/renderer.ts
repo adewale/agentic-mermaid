@@ -46,9 +46,11 @@ const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
   { name: 'stroke-linecap', value: v.paint('strokeLinecap') }, { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'opacity', value: v.paint('opacity') },
 ]
 function primitive(geometry: readonly SvgGeometryField[], attributes: readonly SvgAttribute[]): SvgEmissionRecipe {
-  return snapshotSvgEmissionRecipe({ kind: 'primitive', close: '/>', attributes: [
-    ...geometry.map(name => ({ name, value: v.geometry(name) })), ...attributes,
-    ...PAINT_ATTRIBUTES.filter(attribute => !attributes.some(other => other.name === attribute.name)),
+  const hooks = attributes.filter(attribute => attribute.name === 'class' || attribute.name.startsWith('data-'))
+  const paints = PAINT_ATTRIBUTES.map(attribute => attributes.find(other => other.name === attribute.name) ?? attribute)
+  return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+    ...hooks, ...geometry.map(name => ({ name, value: v.geometry(name) })), ...paints,
+    ...attributes.filter(attribute => !hooks.includes(attribute) && !PAINT_ATTRIBUTES.some(paint => paint.name === attribute.name)),
   ] })
 }
 const GRID_EMISSION = primitive(LINE_FIELDS, [{ name: 'class', value: v.meta('xychart-grid') }])
@@ -77,19 +79,22 @@ function fontAttributes(): SvgAttribute[] {
   ]
 }
 const AXIS_TITLE_EMISSIONS = ['x', 'y'].map(axis => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  { name: 'text-anchor', value: v.text('anchor') }, { name: 'transform', value: { source: 'transform', separator: 'comma' } },
-  ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta(`xychart-axis-title xychart-${axis}-axis-title`) },
+  { name: 'class', value: v.meta(`xychart-axis-title xychart-${axis}-axis-title`) }, { name: 'text-anchor', value: v.text('anchor') },
+  ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'transform', value: v.transform() },
 ] }))
 const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  { name: 'text-anchor', value: v.text('anchor') }, ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta('xychart-title') },
+  { name: 'class', value: v.meta('xychart-title') }, { name: 'text-anchor', value: v.text('anchor') }, ...fontAttributes(), { name: 'fill', value: v.paint('fill') },
+  { name: 'data-id', value: v.identity('id') }, { name: 'data-role', value: v.identity('role') },
 ] })
 const LEGEND_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: 0, attributes: [
+  { name: 'class', value: v.meta('xychart-legend-label') },
   { name: 'text-anchor', value: v.text('anchor') }, { name: 'dominant-baseline', value: v.meta('middle') },
-  ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta('xychart-legend-label') },
+  ...fontAttributes(), { name: 'fill', value: v.paint('fill') },
 ] })
 const AXIS_LABEL_EMISSIONS = ['x', 'y'].map(axis => [false, true].map(middle => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: middle ? 0 : 0.35, attributes: [
+  { name: 'class', value: v.meta(`xychart-label xychart-${axis}-label`) },
   { name: 'text-anchor', value: v.text('anchor') }, ...(middle ? [{ name: 'dominant-baseline' as const, value: v.meta('middle') }] : []),
-  ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta(`xychart-label xychart-${axis}-label`) },
+  ...fontAttributes(), { name: 'fill', value: v.paint('fill') },
 ] })))
 
 function dataAttributes(value: number, label?: string): SvgAttribute[] {

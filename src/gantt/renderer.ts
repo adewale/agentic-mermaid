@@ -145,6 +145,9 @@ function textAttributes(className: GanttTextClass, direct: boolean, literal = fa
     { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') }, { name: 'fill', value: v.paint('fill') },
     { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
     ...(literal ? [{ name: 'data-literal-text' as const, value: v.meta(true) }] : []),
+    ...(className === 'gantt-title' || className === 'gantt-section-label' ? [
+      { name: 'data-id' as const, value: v.identity('id') }, { name: 'data-role' as const, value: v.identity('role') },
+    ] : []),
   ]
 }
 
@@ -240,12 +243,12 @@ function inlineRolePaint(style: Readonly<RoleStyleSpec> | undefined): SvgAttribu
 function taskEmission(className: string, milestone: boolean, task: string, style: Readonly<RoleStyleSpec> | undefined, href: string | undefined): SvgEmissionRecipe {
   return { kind: 'primitive', attributes: [
     { name: 'class', value: v.meta(className) },
-    ...(milestone ? ['d'] as const : [...RECT_FIELDS, 'rx', 'ry'] as const).map(name => ({ name, value: v.geometry(name) })),
     { name: 'data-task', value: v.meta(task), escape: 'xml' },
-    ...PAINT_ATTRIBUTES,
-    ...inlineRolePaint(style),
     ...(style?.cue && style.cue !== 'none' ? [{ name: 'data-brand-cue' as const, value: v.meta(style.cue) }] : []),
     ...(href ? [{ name: 'data-href' as const, value: v.meta(href), escape: 'xml' as const }] : []),
+    ...(milestone ? ['d'] as const : [...RECT_FIELDS, 'rx', 'ry'] as const).map(name => ({ name, value: v.geometry(name) })),
+    ...PAINT_ATTRIBUTES,
+    ...inlineRolePaint(style),
   ] }
 }
 
@@ -639,6 +642,7 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         ...(index === lastDeclaration.get(property) ? {} : { shadowed: true as const }),
       })) } }] : []),
       ...LINE_FIELDS.map(name => ({ name, value: v.geometry(name) })),
+      ...PAINT_ATTRIBUTES,
     ] }))
   }
 

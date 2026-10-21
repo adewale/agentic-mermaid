@@ -85,9 +85,10 @@ const HALO_ATTRIBUTES: readonly SvgAttribute[] = [
   { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'paint-order', value: v.paint('paintOrder') },
 ]
 const TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [...TEXT_ATTRIBUTES, ...HALO_ATTRIBUTES] })
-const MENU_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'direct', attributes: [
-  { name: 'class', value: v.meta('sequence-actor-menu') }, { name: 'x', value: v.text('x') }, { name: 'y', value: v.text('y') },
-  { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') }, { name: 'fill', value: v.paint('fill') },
+const MENU_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: 0, attributes: [
+  { name: 'class', value: v.meta('sequence-actor-menu') },
+  { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') },
+  { name: 'font-weight', value: v.text('fontWeight') }, { name: 'fill', value: v.paint('fill') },
 ] })
 const DIVIDER_LABEL_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
   { name: 'class', value: v.meta('sequence-block-divider-labels') }, { name: 'pointer-events', value: v.meta('none') },

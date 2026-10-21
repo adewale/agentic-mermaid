@@ -5,6 +5,8 @@ import { layoutClassDiagram } from '../class/layout.ts'
 import { lowerClassScene } from '../class/renderer.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
 import { layoutC4Diagram } from '../c4/layout.ts'
+import { parseErDiagram } from '../er/parser.ts'
+import { layoutErDiagram } from '../er/layout.ts'
 import { invokeSceneLowering } from '../scene/lowering-invocation.ts'
 import { sceneWithPublicConstruction } from '../browser-lazy/family.ts'
 import type { SceneDoc } from '../scene/ir.ts'
@@ -81,4 +83,24 @@ test('copied and proxied contexts and a second wrapper cannot borrow exact engin
   } })
   expectInternal(invokeSceneLowering(family, lower, ctx))
   expect(entered).toBe(true)
+})
+
+test('public non-Class groups retain data while nested engine lowering retains private views', () => {
+  const er = getFamily('er')!, lowerEr = er.lowerScene!
+  const make = () => ({ positioned: layoutErDiagram(parseErDiagram(['erDiagram', 'A ||--|| B : owns'])),
+    colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })
+  const entity = (doc: SceneDoc) => doc.parts.find(node => node.kind === 'group' && node.role === 'entity')!
+  const outer = make(), entities = outer.positioned.entities
+  let entered = false
+  Object.defineProperty(outer.positioned, 'entities', { get() {
+    if (!entered) {
+      entered = true
+      expect(typeof Object.getOwnPropertyDescriptor(entity(invokeSceneLowering(er, lowerEr, make())), 'open')?.get).toBe('function')
+      expect(Object.getOwnPropertyDescriptor(entity(lowerEr(make())), 'open')?.writable).toBe(true)
+    }
+    return entities
+  } })
+  expect(Object.getOwnPropertyDescriptor(entity(lowerEr(outer)), 'open')?.writable).toBe(true)
+  expect(entered).toBe(true)
+  expect(typeof Object.getOwnPropertyDescriptor(entity(invokeSceneLowering(er, lowerEr, make())), 'open')?.get).toBe('function')
 })

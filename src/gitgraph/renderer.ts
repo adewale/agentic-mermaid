@@ -173,7 +173,7 @@ export function lowerGitGraphDrawing<T>(marks: DrawingFactory<T>, ctx: RenderCon
 
       attributes: { className: `git-edge git-edge-${edge.kind}` },
     }, { kind: 'primitive', attributes: [
-      { name: 'class', value: v.meta(`git-edge git-edge-${edge.kind}`) }, { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
+      { name: 'class', value: v.meta(`git-edge git-edge-${edge.kind}`) },
       { name: 'points', value: v.geometry('points'), format: 'round3' }, ...PAINT_ATTRIBUTES, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
     ] }))
   }
