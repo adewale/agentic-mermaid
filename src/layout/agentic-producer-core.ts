@@ -169,7 +169,7 @@ function selectNativeGraphCandidate(
   let key: string | undefined, choices: NativeResults<NativeOrder> | undefined
   if (eligible && NATIVE_CACHE_ENABLED && !bindings.customTextMeasurementActive()) {
     const serialized = geometryInputKey([graph, options, style,
-      Object.entries(nativeHost.process?.env ?? {}).filter(([name]) => name.startsWith('APL_')).sort()])
+      Object.keys(nativeHost.process?.env ?? {}).filter(name => name.startsWith('APL_')).map(name => [name, nativeHost.process!.env![name]]).sort()])
     if (serialized.length <= 65536) {
       key = serialized
       choices = orderChoices.get(bindings)
