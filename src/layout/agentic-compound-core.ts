@@ -43,6 +43,7 @@ export function layoutCompoundGraph(
     const group = groups[index]!
     if (group.direction !== undefined && !['TD', 'TB', 'BT', 'LR', 'RL'].includes(group.direction)) throw new TypeError('Invalid measured compound direction')
     if (![group.minWidth, ...Object.values(group.padding)].every(value => Number.isFinite(value) && value >= 0)) throw new TypeError('Invalid measured compound dimensions')
+    if (group.headerHeight !== undefined && (!Number.isFinite(group.headerHeight) || group.headerHeight < 0 || group.headerHeight > group.padding.top)) throw new TypeError('Invalid measured compound header')
   }
   for (let index = 0; index < input.edges.length; index++) {
     const edge = input.edges[index]!
@@ -63,7 +64,7 @@ export function layoutCompoundGraph(
     }
     hosted[owner + 1]!.push(index)
   }
-  if (lifted.size && (leafCount > 64 || groups.length > 16 || lifted.size > 16 || input.edges.length > 128)) unsupported('agentic local cross-hierarchy size limit')
+  if (lifted.size && (groups.length > 16 || lifted.size > 16 || input.edges.length > 128)) unsupported('agentic local cross-hierarchy size limit')
   type Scope = { direction: Direction; placed: AgenticLayout; width: number; height: number; dx: number; dy: number }
   const scopes: Scope[] = new Array(groups.length + 1)
   let expandedVertices = 0

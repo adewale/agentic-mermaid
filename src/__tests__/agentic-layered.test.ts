@@ -439,6 +439,7 @@ describe('owned measured layered layout', () => {
     expect(() => layoutAgenticGraph({ ...input, edges: [{ source: 1, target: 3, minSpan: 1 }] })).toThrow('no bounded clear corridor')
     expect(() => layoutAgenticGraph({ ...input, edges: [{ source: 1, target: input.nodes.length + 2, minSpan: 1 }] })).toThrow('cross-hierarchy container endpoints')
     expect(() => layoutAgenticGraph({ ...input, groups: input.groups!.map((group, index) => index === 0 ? { ...group, parent: 1 } : group) })).toThrow(TypeError)
+    expect(() => layoutAgenticGraph({ ...input, groups: input.groups!.map(group => ({ ...group, headerHeight: pad.top + 1 })) })).toThrow('Invalid measured compound header')
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'] as const)('joins cross-scope leaves without entering frame headers in %s', direction => {
@@ -466,6 +467,23 @@ describe('owned measured layered layout', () => {
     const exhausted = { pairs: 0, arcs: 0, swaps: 0 }
     expect(() => layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) }, exhausted))
       .toThrow(GraphLayoutUnsupportedError)
+  })
+
+  test('bounds large-scope direct probes while preserving the shared routing reserve', () => {
+    const groups = Array.from({ length: 4 }, (_, index) => ({ id: `group${index}`, minWidth: 120,
+      headerHeight: 28, padding: { top: 44, right: 20, bottom: 20, left: 20 } }))
+    const nodes = Array.from({ length: 80 }, (_, index) => ({ id: `node${index}`, parent: Math.floor(index / 20), width: 80, height: 36 }))
+    const edges = nodes.flatMap((_, index) => index % 20 ? [{ source: index, target: index - 1, minSpan: 1 }] : [])
+    for (let group = 1; group < 4; group++) edges.push({ source: group * 20 - 1, target: group * 20, minSpan: 1 })
+    const input = measured({ direction: 'LR', padding: 40, nodes, groups, edges })
+    const output = layoutAgenticGraph(input)
+    expect(output.nodes).toHaveLength(80)
+    expect(output.boundaryRoutes).toHaveLength(3)
+    expect(countPolylineCrossings(output.edges)).toBe(0)
+    const work = { pairs: 1024, arcs: 65536, swaps: 1_000_000 }
+    expect(() => layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) }, work))
+      .toThrow('large cross-hierarchy route has no bounded direct corridor')
+    expect(work.pairs).toBeGreaterThan(0)
   })
 
   test('invalid measured endpoints remain defects instead of unsupported capabilities', () => {
