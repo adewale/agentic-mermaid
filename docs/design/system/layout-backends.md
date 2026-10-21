@@ -1206,3 +1206,92 @@ contracts49 /411. Changed-file Biome lint passes. The first lint command
 incorrectly requested an uninstalled ESLint binary; its failure is retained.
 A concurrent canonical geometry check also times out (137s elapsed against the
 unchanged30s limit); its completed record comparison is not a canonical pass.
+
+
+### Bounded private long-edge insertion (qualification in progress)
+
+A long edge's private vertices can be trapped by single-rank switching: moving
+one vertex first adds crossings even when moving the complete chain removes
+them. The compact candidate now tests exact simultaneous insertion positions
+for one private chain while holding all other rank orders fixed. Each adjacent
+rank contributes an inversion cost, so dynamic programming solves this local
+subproblem; it is not a global crossing optimum or a physical-routing proof.
+Only a completed strict improvement is applied. Ties prefer less displacement.
+Already crossing-free chains and partial scores that cannot improve are skipped.
+The existing shared two-million-comparison optional budget remains unchanged,
+including across cycle trials and nested scopes. Exhaustion retains completed
+geometry. Indexed arc buffers avoid allocating tuples in the transition loop.
+
+This search applies to compact13–20-node, at-most64-edge and256-expanded-vertex
+placements. Tiny cyclic graphs retain their existing all-start cycle heuristic.
+The initial unrestricted variant lowers the retained seed228 crossing count
+from15 to11 (ELK12), with75 bends (ELK74), and adds no extra crossings in all256
+development cases. It also regresses the nine-node RL bend contract to58 versus
+ELK55. That adverse version and a failed displacement-tie attempt remain
+retained. The scoped version must pass the unchanged small-graph contract and
+a fresh full population scan before qualification. An initial red-proof command
+accidentally invoked the package-wide test script and was interrupted; only
+the correctly scoped causal check counts as a result.
+
+The local exact solver matches exhaustive simultaneous insertions on128 small
+randomized layered graphs; tests independently count crossings, retain fixed
+vertex order and verify exhaustion cannot apply a partial insertion. The
+public seed228 regression is retained alongside seeds171 and217, and frozen
+as `cyclic-labelled-15-chains.mmd`. Before measurement, the canary retains all25
+inputs and adds this workload:26 inputs (seven official,18 scaling,one fixed
+edit workflow), with the same controls, rounds, repetitions and gates.
+
+[Dobler and Roithinger2025](https://arxiv.org/abs/2502.20896) explicitly studies
+the gaps caused by long edges weaving between layers, extending heuristics and
+exact one-sided crossing minimization with gap constraints. This implementation
+does not implement their gap-constrained model or claim their guarantees. It
+uses standard dummy chains, inversion counting and dynamic programming. Together
+with the earlier global-sifting literature, this is further evidence that
+research beyond a single ELK configuration exists without making ELK obsolete.
+
+Mermaid [#8302](https://github.com/mermaid-js/mermaid/issues/8302), checked
+October21, is closed and taggedv12.0.1. Its report concerns hardcoded spacing,
+label placement and feedback-route detours at a specified old renderer revision;
+it is evidence for adapter/configuration and cross-boundary route tests, not
+proof of an unresolved defect in the ELK algorithm itself.
+
+
+The final scoped/pruned source scan completes all256 development cases:256
+native renders,252 ELK renders (two paint and two geometry rejections). None
+of the252 shared successes adds proper crossings, padded-label conflicts or
+opposing/parallel shared ink. Seed228 is11 crossings /75 bends versus ELK12
+/74. This closes the retained crossing failure on development data; paint
+confidence, broader bend/area parity and a fresh committed holdout remain open.
+The final pruned owners pass11 focused tests /1,085 assertions, including both
+frozen15-node fixtures, all four old nine-node orientations and retained seeds.
+The earlier scoped owning run passes109 /4,526 before adding the frozen fixture
+and pruning; these populations overlap. Disabling chain insertion makes only
+seed228 fail among the three retained-seed contracts (15 versus12 crossings).
+Both typechecks and changed-file lint pass.
+
+The clean Class3715d2d6 artifact completes Node/declarations/IIFE/lazy builds
+and passes all existing transfer limits. Initial lazy transfer is4 requests
+/5,458 gzip /4,917 Brotli bytes. Class ELK34 requests /653,234 gzip /525,579
+Brotli versus native35 /223,468 /198,156. Architecture ELK34 /707,020 /571,882
+versus native34 /275,966 /243,263. Six built browser contracts pass498 assertions,
+including concurrent nested Class rendering with only the selected solver.
+These measurements bind3715d2d6, before chain insertion.
+
+
+The canonical thirty-second baseline update passes (13.33s), adding only the
+new frozen long-edge fixture:317→318 records, with all317 prior records
+unchanged. This update does not bless native geometry changes; the baseline
+tracks default rendering, which still uses the existing ELK policy.
+
+
+The next fresh generated qualification population is predeclared here as
+seeds256–319 inclusive (64 inputs), using the committed existing generator.
+Run it only after this chain-insertion implementation is committed, preserve
+every backend outcome and review the full preference vector. Do not inspect
+or tune against those sources before that checkpoint. Any failure used to
+choose a subsequent refinement makes this population development data.
+
+
+The final combined owning/selection/cache/family/benchmark run passes196 tests
+/6,019 assertions across nine files. Counts include the new frozen fixture and
+exhaustive insertion checks; earlier overlapping runs are not added to them.
