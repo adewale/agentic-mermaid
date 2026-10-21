@@ -8,6 +8,8 @@ Current scope covers:
 
 - `group`, `service`, and `junction`
 - side-anchored edges (`L`, `R`, `T`, `B`)
+- compact or spaced edges (`api:R-->L:db` and `api:R --> L:db`), retaining
+  side and `{group}` boundary semantics through canonical writing
 - `{group}` boundary routing for services inside groups
 - visible `title ...` header furniture, including title-only diagrams
 - `align row|column` directives (upstream v11.16.0) — parsed, modeled,

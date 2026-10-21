@@ -36,12 +36,12 @@ describe('parseArchitectureDiagram', () => {
     })
   })
 
-  it('parses service group-boundary endpoints', () => {
+  it.each(['db{group}:R -[replicates]-> L:cache', 'db{group}:R-[replicates]->L:cache'])('parses service group-boundary endpoints: %s', edge => {
     const diagram = parseArchitectureDiagram(prep(`architecture-beta
       group storage(cloud)[Storage]
       service db(database)[Database] in storage
       service cache(disk)[Cache]
-      db{group}:R -[replicates]-> L:cache`))
+      ${edge}`))
 
     expect(diagram.edges[0]!.source.boundary).toBe('group')
     expect(diagram.edges[0]!.source.id).toBe('db')

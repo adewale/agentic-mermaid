@@ -45,7 +45,7 @@ export const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${ID
 export const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
 export const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
 export const LABELED_ARROW_RE = /^(<)?-\[(.*)\]-(>)?$/s
-const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/s
+const EDGE_RE = new RegExp(`^(${IDENT}(?:\\{group\\})?:[LRTB])\\s*(.+?)\\s*([LRTB]:${IDENT}(?:\\{group\\})?)$`, 's')
 
 // A [title] that is one "…" or '…' string runs to its closing quote across
 // line breaks, which it keeps. A quote elsewhere in a title is text, and a
