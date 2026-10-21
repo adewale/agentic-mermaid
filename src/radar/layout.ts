@@ -10,6 +10,7 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { RadarVisualConfig } from './config.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { layoutTextRows } from '../shared/text-rows.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -256,13 +257,9 @@ export function layoutRadarChart(
     display: 'literal', transform: style.nodeTextTransform, fontSize: legendFont, fontWeight: legendWeight,
     letterSpacing: style.nodeLetterSpacing, maxWidth: legendWrapWidth,
   })) : []
-  const legendLines = legendBlocks.map(block => block.lines)
-  const legendRowHeights = legendBlocks.map(block => Math.max(legendSwatch, block.height))
-  const legendTextWidth = Math.max(0, ...legendBlocks.map(block => block.width))
-  const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendTextWidth : 0
-  const legendHeight = wantLegend
-    ? legendRowHeights.reduce((s, h) => s + h, 0) + Math.max(0, chart.curves.length - 1) * R.legendRowGap
-    : 0
+  const legendRows = layoutTextRows(legendBlocks.map(block => ({ block })), { gap: R.legendRowGap, minRowHeight: legendSwatch })
+  const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendRows.width : 0
+  const legendHeight = legendRows.height
 
   // --- Canvas: grow to contain every final label box -----------------------
   const marginL = visual.marginLeft ?? R.margin
@@ -381,21 +378,20 @@ export function layoutRadarChart(
   const legend: PositionedRadarLegendItem[] = []
   if (wantLegend) {
     const legendX = titleLeftExtra + marginL + extL + extR + R.legendGap
-    let rowTop = cy - legendHeight / 2
+    const legendTop = cy - legendHeight / 2
     chart.curves.forEach((curve, index) => {
-      const rowH = legendRowHeights[index]!
+      const { item: { block }, top, height: rowH, textY } = legendRows.rows[index]!
       legend.push({
         label: curve.label,
-        lines: legendLines[index]!,
-        block: legendBlocks[index],
+        lines: block.lines,
+        block,
         colorIndex: index,
         x: round(legendX),
-        y: round(rowTop + (rowH - legendSwatch) / 2),
+        y: round(legendTop + top + (rowH - legendSwatch) / 2),
         swatchSize: legendSwatch,
         textX: round(legendX + legendSwatch + R.legendSwatchToText),
-        textY: round(rowTop + rowH / 2),
+        textY: round(legendTop + textY),
       })
-      rowTop += rowH + R.legendRowGap
     })
   }
 
