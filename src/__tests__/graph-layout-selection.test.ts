@@ -134,8 +134,11 @@ describe('checked graph layout selection', () => {
     expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
   })
 
-  test.each([171, 217, 228, 296, 319])('retains clear long-edge ordering for holdout seed %s', seed => {
-    const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source
+  test.each([
+    ...[171, 217, 228, 296, 319].map(seed => ({ seed, generator: 'lcg-v1' as const })),
+    { seed: 22, generator: 'sha256-counter-v1' as const },
+  ])('retains clear long-edge ordering for development $generator seed $seed', ({ seed, generator }) => {
+    const source = generatedFlowchartSamples({ start: seed, count: 1 }, generator)[0]!.source
     const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
     const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
     const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
