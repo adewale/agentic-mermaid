@@ -67,4 +67,3 @@ export function orthogonalizeEdgePoints(
 
   return result
 }
-

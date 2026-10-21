@@ -77,4 +77,3 @@ export function handleEditTool(id: number | string | null, args: Record<string, 
     : applyOps({ family: args.family as string, ops })
   return toolResult(id, envelope, !envelope.ok)
 }
-
