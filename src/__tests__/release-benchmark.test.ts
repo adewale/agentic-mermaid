@@ -1,7 +1,7 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { layoutComparisons, layoutCoverage, releaseBenchArgs, report, strictLayoutHealthy, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
@@ -406,6 +406,7 @@ test.each(['off', 'normal'] as const)('consumed %s-cache worker forwards selecti
   expect(stderr).toBe('')
   expect(status).toBe(0)
   const output = JSON.parse(readFileSync(result, 'utf8'))
+  expect(JSON.parse(readFileSync(`${result}.progress.json`, 'utf8'))).toEqual({ mode: 'time', stage: 'event-loop-drained' })
   expect(output.results[0].svg.ok).toBe(true)
   expect(output.results[0].deterministic).toBe(true)
   expect(output.results[0].layout.decisions[0].selected).toBe('agentic')
@@ -417,6 +418,22 @@ test.each(['off', 'normal'] as const)('consumed %s-cache worker forwards selecti
   expect(output.results[1].layout).toBeUndefined()
   expect(output.results[1].quality.status).toBe('unavailable')
 }, 20000)
+
+test.each([
+  { blocked: 'ASCII correctness', ascii: 'for (;;) {}', extra: '', stage: 'correctness-ascii', resultWritten: false },
+  { blocked: 'process shutdown', ascii: "return 'terminal'", extra: 'setInterval(() => {}, 1000)', stage: 'result-written', resultWritten: true },
+])('a blocked $blocked retains its phase and cannot produce a successful worker', async ({ ascii, extra, stage, resultWritten }) => {
+  const directory = temp.dir(), entry = join(directory, 'index.js'), job = join(directory, 'job.json'), result = join(directory, 'result.json')
+  writeFileSync(join(directory, 'package.json'), JSON.stringify({ type: 'module' }))
+  writeFileSync(entry, `export function renderMermaidSVG() { return '<svg xmlns="http://www.w3.org/2000/svg"/>' }\nexport function renderMermaidASCII() { ${ascii} }\n${extra}`)
+  writeFileSync(job, JSON.stringify({ entry, mode: 'time', reps: 1, inputs: [{ id: 'blocked-worker', family: 'flowchart', source: 'flowchart TD\nA --> B' }] }))
+  const child = Bun.spawn(['node', '--no-warnings', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, result], {
+    stdout: 'ignore', stderr: 'ignore', timeout: 3000, killSignal: 'SIGKILL',
+  })
+  expect(await child.exited).not.toBe(0)
+  expect(existsSync(result)).toBe(resultWritten)
+  expect(JSON.parse(readFileSync(`${result}.progress.json`, 'utf8'))).toEqual({ mode: 'time', stage, ...(resultWritten ? {} : { inputId: 'blocked-worker' }) })
+}, 10000)
 
 test('the agent benchmark forwards its selected render policy through verification and final rendering', () => {
   const options = layoutRenderOptions('agentic')!

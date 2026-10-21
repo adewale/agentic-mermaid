@@ -37,6 +37,14 @@ const job = JSON.parse(readFileSync(jobPath!, 'utf8')) as Job
 if (job.consumeReceipt) Object.assign(process.env, layoutCacheEnvironment(job.layoutCache ?? 'off'))
 if (!Number.isSafeInteger(job.reps) || job.reps < 1) throw new Error('reps must be a positive integer')
 
+// Breadcrumbs stay outside timed calls and GC-profiler windows. A killed worker
+// remains a failed measurement; this only identifies the last stage it reached.
+function progress(stage: string, inputId?: string): void {
+  writeFileSync(`${resultPath!}.progress.json`, JSON.stringify({ mode: job.mode, stage, ...(inputId ? { inputId } : {}) }))
+}
+process.once('beforeExit', () => progress('event-loop-drained'))
+
+
 function attempt(render: () => string): Outcome {
   try {
     const output = render()
@@ -69,9 +77,11 @@ function median(values: number[]): number {
   return sorted[sorted.length >> 1]!
 }
 
+progress('module-import')
 const importStart = performance.now()
 const mod = (await import(pathToFileURL(job.entry).href)) as Renderer
 const importMs = performance.now() - importStart
+progress('module-ready')
 const agent = job.inputs.some(input => input.workflow) ? await import(pathToFileURL(job.entry.replace(/index\.js$/, 'agent.js')).href) as Parameters<typeof renderAgentEdit>[0] : undefined
 const renderOptions = layoutRenderOptions(job.layoutMode)
 let lastReceipt: { json: string; value: RenderRequestReceipt } | undefined
@@ -113,6 +123,7 @@ function layoutObservation(): LayoutObservation | undefined {
 const sameReceipt = (a: LayoutObservation | undefined, b: LayoutObservation | undefined) => (!a && !b) || (!!a && !!b && same(a.receipt, b.receipt))
 
 async function timeMode(): Promise<TimeResult> {
+  progress('cold-svg')
   const firstStart = performance.now()
   const first = attempt(() => renderPixelSource('flowchart TD\n  A --> B'))
   const firstRenderMs = performance.now() - firstStart
@@ -122,12 +133,14 @@ async function timeMode(): Promise<TimeResult> {
   // Correctness: render twice to check determinism; ASCII once each way too.
   const svgFingerprints: OutputFingerprint[] = []
   const results: Omit<TimeResult['results'][number], 'ms' | 'samplesMs'>[] = job.inputs.map(input => {
+    progress('correctness-svg', input.id)
     const svg = attempt(() => renderSvg(input))
     const layout = layoutObservation()
     const svgFingerprint = fingerprint(svg)
     svgFingerprints.push(svgFingerprint)
     const again = fingerprint(attempt(() => renderSvg(input)))
     const svgReceiptStable = sameReceipt(layout, layoutObservation())
+    progress('correctness-ascii', input.id)
     const ascii = fingerprint(attempt(() => renderAscii(input)))
     const asciiLayout = layoutObservation()
     const asciiAgain = fingerprint(attempt(() => renderAscii(input)))
@@ -142,6 +155,7 @@ async function timeMode(): Promise<TimeResult> {
   })
 
   // Timing: the passes above warmed every code path; take the median of reps.
+  progress('timing')
   const samples = job.inputs.map(() => [] as number[])
   for (let rep = 0; rep < job.reps; rep++) {
     job.inputs.forEach((input, index) => {
@@ -157,9 +171,11 @@ async function timeMode(): Promise<TimeResult> {
       }
     })
   }
+  progress('timing-complete')
   // This reruns the public layout projection after ALL timed samples. It is
   // evidence for the same request policy, not the retained timed SVG object.
   if (job.collectQuality) {
+    progress('quality-import')
     type QualityApi = Pick<typeof import('../../src/agent/index.ts'), 'layoutMermaidWithReceipt' | 'measureQuality'>
     let qualityApi: QualityApi | undefined
     let unavailable = 'package does not expose public layout quality measurement'
@@ -169,6 +185,7 @@ async function timeMode(): Promise<TimeResult> {
     } catch (error) { unavailable = String(error) }
     for (let index = 0; index < job.inputs.length; index++) {
       const input = job.inputs[index]!, result = results[index]!
+      progress('quality-layout', input.id)
       if (input.workflow || !result.svg.ok || !qualityApi) {
         result.quality = { status: 'unavailable', reason: input.workflow ? 'workflow final mutated source is not retained for independent quality projection'
           : !result.svg.ok ? 'no successful timed SVG for this request' : unavailable }
@@ -239,13 +256,19 @@ function memoryMode(): MemoryResult {
   }
   // The first pass loads lazy modules and fills bounded caches; steady state
   // is what a long-lived host pays, so allocation and retention use later passes.
+  progress('memory-warmup')
   pass()
-  const perInput = job.inputs.map(input => ({ id: input.id, ...measureHeap(() => render(input)) }))
+  const perInput = job.inputs.map(input => {
+    progress('memory-input', input.id)
+    return { id: input.id, ...measureHeap(() => render(input)) }
+  })
   // Keep reporting objects alive before settling so retention covers one pass,
   // without including the per-input measurements or their bookkeeping.
   gc()
   const settled = process.memoryUsage().heapUsed
+  progress('memory-pass')
   const corpusPass = measureHeap(pass)
+  progress('memory-retention')
   gc()
   const retainedGrowthBytes = Math.max(0, process.memoryUsage().heapUsed - settled)
   return {
@@ -258,5 +281,8 @@ function memoryMode(): MemoryResult {
   }
 }
 
-writeFileSync(resultPath!, JSON.stringify({ ...(job.mode === 'memory' ? memoryMode() : await timeMode()),
-  ...(job.consumeReceipt ? { cacheEnvironment: layoutCacheEnvironment(job.layoutCache ?? 'off') } : {}) }))
+const result = { ...(job.mode === 'memory' ? memoryMode() : await timeMode()),
+  ...(job.consumeReceipt ? { cacheEnvironment: layoutCacheEnvironment(job.layoutCache ?? 'off') } : {}) }
+progress('write-result')
+writeFileSync(resultPath!, JSON.stringify(result))
+progress('result-written')
