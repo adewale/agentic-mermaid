@@ -13,6 +13,8 @@ test.each([
   const env: Record<string, string | undefined> = { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '1' }
   delete env.AGENTIC_MERMAID_EXPERIMENTS
   if (!browser && setting !== undefined) env.AGENTIC_MERMAID_EXPERIMENTS = setting
+  // spawnSync blocks the worker, so bun's per-test timeout cannot stop a
+  // stuck child: bound it here, and show its stderr if it fails.
   const child = Bun.spawnSync([process.execPath, '-e', `
     ${browser ? `globalThis.AGENTIC_MERMAID_EXPERIMENTS = ${JSON.stringify(setting)}` : ''}
     const { renderMermaidSVG } = await import('./src/index.ts')
@@ -29,8 +31,8 @@ test.each([
     const forest = layoutGraphSync(parseMermaid('flowchart LR\\nRoot --> Child'))
     console.log(JSON.stringify({ flags: PERFORMANCE_EXPERIMENTS.filter(performanceExperimentEnabled),
       equal: first === second, bytes: Buffer.byteLength(second), elkCalls, strategy: forest.certification.strategy }))
-  `], { cwd: resolve(import.meta.dir, '../..'), stdout: 'pipe', stderr: 'pipe', env })
-  expect(child.exitCode).toBe(0)
+  `], { cwd: resolve(import.meta.dir, '../..'), stdout: 'pipe', stderr: 'pipe', env, timeout: 60_000 })
+  expect(child.exitCode, child.stderr.toString()).toBe(0)
   const result = JSON.parse(child.stdout.toString()) as { flags: string[]; equal: boolean; bytes: number; elkCalls: number; strategy: string }
   expect(result.flags).toEqual([...flags])
   expect(result.equal).toBe(true)
