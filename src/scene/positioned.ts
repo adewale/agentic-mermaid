@@ -40,7 +40,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
  * alternate backends deliberately retain the extension-facing Scene adapter. */
 export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): NativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
-  if (sceneAssertionsEnabled(request) || request.appearance.styled || plan.family.id.startsWith('family:')
+  if (sceneAssertionsEnabled(request) || plan.family.id.startsWith('family:')
     || !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')) return undefined
   const producer = nativeDrawingOf(plan.family.lowerScene)
   if (!producer) return undefined
@@ -53,7 +53,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer,
-    { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id))
+    { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   requests.set(request, { drawing })
   return drawing
 }

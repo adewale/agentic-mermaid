@@ -18,10 +18,10 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
       groups++
       return group(fields)
     })
-    for (const id of knownBuiltinFamilies()) {
+    for (const id of knownBuiltinFamilies()) for (const options of [{}, { style: 'tokyo-night' }, { style: 'paper', transparent: true }, { style: { formatVersion: 1, roles: { label: { fontWeight: 600 } } } }]) {
       const stages = []
       const result = withRenderStageObserver(sample => stages.push(sample.stage),
-        () => renderMermaidSVGWithReceipt(getFamily(id).example))
+        () => renderMermaidSVGWithReceipt(getFamily(id).example, options))
       if (!result.svg.startsWith('<svg') || !result.receipt.layoutCertification) throw new Error('missing drawing/proof: ' + id)
       if (stages.includes('scene') || !stages.includes('drawing')) throw new Error('missing native drawing: ' + id)
     }

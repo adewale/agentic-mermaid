@@ -126,7 +126,7 @@ export function composeGroup(
 /** Styled documents carry an explicit page rect after the prelude — resvg
  *  does not paint the root style="background:…" CSS (SPEC §10). Emitted by
  *  every backend when a style is active and the document isn't transparent. */
-export function pageRectFor(doc: SceneDoc, ctx: StyleBackendContext): string {
+export function pageRectFor(doc: Pick<SceneDoc, 'width' | 'height' | 'transparent'>, ctx: StyleBackendContext): string {
   if (!ctx.style || doc.transparent) return ''
   return `<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`
 }

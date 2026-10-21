@@ -1,3 +1,5 @@
+import { pageRectFor } from './backend.ts'
+import type { StyleSpec } from './style-registry.ts'
 import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing.ts'
 import type { PositionedDiagram, RenderContext } from '../types.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
@@ -27,6 +29,7 @@ export function drawNative(
   producer: DrawingProducer,
   context: RenderContext<PositionedDiagram>,
   family: string,
+  style?: StyleSpec,
 ): NativeDrawing {
   const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
   const validator = createNativeSceneValidator(header)
@@ -84,7 +87,8 @@ export function drawNative(
   checked()
   count(document.parts)
   if (document.parts.reduce((sum, part) => sum + part.svg.length + 1, -1) > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
-  const svg = document.parts.map(part => part.svg).join('\n')
+  const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
+  const svg = document.parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n')
   assertFinalSvgByteBudget(svg, 'native drawing output')
   const entries = document.parts.flatMap((part, index) => part.entries.map(entry => ({ ...entry, key: `scene.${index}${entry.key ? `.${entry.key}` : ''}` })))
   return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText: document.parts.every(part => part.prepared), paint: inspectNativePaintGeometry(document, entries) })
