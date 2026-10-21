@@ -53,7 +53,7 @@
       "requests": 35,
       "raw": 2318000,
       "gzip": 709000,
-      "brotli": 573500
+      "brotli": 574000
     },
     "xychart": {
       "requests": 33,
@@ -101,7 +101,7 @@
       "requests": 33,
       "raw": 624000,
       "gzip": 203000,
-      "brotli": 178000
+      "brotli": 178500
     },
     "c4": {
       "requests": 33,

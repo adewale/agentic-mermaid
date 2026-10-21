@@ -42,8 +42,8 @@ function specSource(file: string, title: string): string {
     if (ts.isCallExpression(node) && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) && node.arguments[0].text === title) {
       function findInput(child: ts.Node): void {
         if (source) return
-        if (ts.isCallExpression(child) && child.arguments[0] && ts.isStringLiteralLike(child.arguments[0]) && /^(?:flowchart|graph|stateDiagram)\b/.test(child.arguments[0].text)) source = child.arguments[0].text
-        if (ts.isVariableDeclaration(child) && child.initializer && ts.isStringLiteralLike(child.initializer) && /^(?:flowchart|graph|stateDiagram)\b/.test(child.initializer.text)) source = child.initializer.text
+        if (ts.isCallExpression(child) && child.arguments[0] && ts.isStringLiteralLike(child.arguments[0]) && /^\s*(?:flowchart|graph|stateDiagram|sequenceDiagram|gitGraph)\b/.test(child.arguments[0].text)) source = child.arguments[0].text
+        if (ts.isVariableDeclaration(child) && child.initializer && ts.isStringLiteralLike(child.initializer) && /^\s*(?:flowchart|graph|stateDiagram|sequenceDiagram|gitGraph)\b/.test(child.initializer.text)) source = child.initializer.text
         ts.forEachChild(child, findInput)
       }
       ts.forEachChild(node, findInput)
@@ -85,6 +85,84 @@ function upstreamClasses(reply: Extract<ReferenceReply, { ok: true }>, id: strin
 }
 
 const FLOW_DB = 'packages/mermaid/src/diagrams/flowchart/flowDb.spec.ts'
+semantic('Flowchart block-scalar labels from the pinned parser spec render without losing their lines', 'packages/mermaid/src/diagrams/flowchart/parser/flow-node-data.spec.js: Multi line strings should be supported', async () => {
+  const source = specSource('packages/mermaid/src/diagrams/flowchart/parser/flow-node-data.spec.js', 'Multi line strings should be supported')
+  const before = await accepted(source)
+  const vertices = before.snapshot.data.getVertices as unknown as Array<[string, { text: string }]>
+  const label = vertices.find(([id]) => id === 'A')![1].text.trimEnd()
+  expect(label).toBe('This is a\nmultiline string')
+  const parsed = am.parseRegisteredMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  await accepted(am.serializeMermaid(parsed.value))
+  for (const output of [am.renderMermaidSVG(source), am.renderMermaidASCII(source)]) {
+    for (const line of label.split('\n')) expect(output).toContain(line)
+  }
+})
+
+semantic('Sequence spaced participant metadata retains the actor types through editing', 'packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js: should parse a participant config object separated from the name by whitespace', async () => {
+  const source = specSource('packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js', 'should parse a participant config object separated from the name by whitespace')
+  await accepted(source)
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const diagram = am.asSequence(parsed.value)
+  expect(diagram).not.toBeNull()
+  if (!diagram) throw new Error('Expected editable participants')
+  expect(diagram.body.participants).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: 'Gina', kind: 'database' }),
+    expect.objectContaining({ id: 'Harry', kind: 'database' }),
+  ]))
+  const edited = am.mutate(diagram, { kind: 'set_participant_label', id: 'Harry', label: 'Orders' })
+  if (!edited.ok) throw new Error(edited.error.message)
+  const actors = (await accepted(am.serializeMermaid(edited.value))).snapshot.data.getActors as unknown as Array<[string, { type: string; description: string }]>
+  expect(actors.find(([id]) => id === 'Harry')?.[1]).toMatchObject({ type: 'database', description: 'Orders' })
+  expect(am.renderMermaidSVG(edited.value)).toContain('Orders')
+})
+
+semantic('Class punctuation and Unicode names retain their endpoints after typed edits', 'mermaid-js/mermaid#3423; pinned classDiagram.jison className/alphaNumToken grammar', async () => {
+  for (const id of ['Bugs-Bunny', 'domain.Order', '注文']) {
+    const source = `classDiagram\nAnimal <|-- ${id}`
+    const before = await accepted(source)
+    const relations = before.snapshot.data.getRelations
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = am.asClass(parsed.value)
+    expect(diagram).not.toBeNull()
+    if (!diagram) throw new Error('Expected editable Class endpoints')
+    expect(diagram.body.relations).toEqual([expect.objectContaining({ from: 'Animal', to: id })])
+    const edited = am.mutate(diagram, { kind: 'add_member', class: id, text: '+String name' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    expect((await accepted(am.serializeMermaid(edited.value))).snapshot.data.getRelations).toEqual(relations)
+    expect(am.renderMermaidSVG(edited.value)).toContain(`data-id="${id}"`)
+  }
+})
+
+semantic('Architecture compact edges retain sides and boundary identity', 'packages/parser/src/language/architecture/architecture.langium Edge grammar; Pele architecture parser', async () => {
+  const source = 'architecture-beta\ngroup cloud(cloud)[Cloud]\nservice api(server)[API] in cloud\nservice db(database)[DB]\napi{group}:R-->L:db'
+  const expected = (await accepted(source)).snapshot.data.getEdges
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  expect(am.asArchitecture(parsed.value)).not.toBeNull()
+  expect((await accepted(am.serializeMermaid(parsed.value))).snapshot.data.getEdges).toEqual(expected)
+  expect(am.renderMermaidSVG(source)).toContain('API')
+  expect(am.renderMermaidASCII(source)).toContain('DB')
+})
+
+semantic('GitGraph can pick the same merge relative to different parents', 'packages/mermaid/src/diagrams/git/gitGraph.spec.ts: should support cherry-picking of merge commits with empty tag', async () => {
+  const source = specSource('packages/mermaid/src/diagrams/git/gitGraph.spec.ts', 'should support cherry-picking of merge commits with empty tag')
+  await accepted(source)
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const diagram = am.asGitGraph(parsed.value)
+  expect(diagram).not.toBeNull()
+  if (!diagram) throw new Error('Expected editable GitGraph')
+  const picked = diagram.body.commits.filter(commit => commit.source === 'cherry-pick')
+  expect(picked).toHaveLength(2)
+  expect(picked.map(commit => commit.cherryParent)).toEqual(['ZERO', 'B'])
+  await accepted(am.serializeMermaid(diagram))
+  expect(am.renderMermaidSVG(diagram)).toContain('type-cherry_pick')
+})
+
 const REPEATED_TITLE = 'keeps the title of the first declaration'
 const NESTED_REDECLARATION = 'flattens a subgraph redeclared inside its own body instead of creating a cycle'
 const subgraphWitnesses = [{ testTitle: REPEATED_TITLE, label: 'First' }, { testTitle: NESTED_REDECLARATION, label: 'S' }]
