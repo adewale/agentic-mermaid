@@ -2257,3 +2257,42 @@ worker and480s total. Its symmetric A/A limit is reciprocal1.1 per input and
 aggregate; it is never a normalization divisor. No ELK or full-population cost
 claim follows from this source-bundle probe. Production adoption requires
 further output and shipped-package evidence.
+
+
+At published `f008a304`, full generated CI artifact12330180304 retains512 sources:
+512 native and506 ELK successes. No additional proper crossings, padded-label
+conflicts or parallel/opposing spans occur on the506 shared successes. All506
+shared paint certificates remain unverified:7004 native issues versus6556 ELK
+issues. The advisory failure is retained and does not establish complete paint
+parity. Full browser, payload, quality, consumer and semantic CI lanes pass.
+Unit shard1 fails one hosted MCP description ceiling:15040 bytes against the
+unchanged strict15000 bound. Removing two redundant prose sentences, while
+retaining the complete declarations and security constraints, yields14987.
+All66 hosted MCP tests /298 assertions and three focused discovery/declaration
+checks pass; no limit or type field is removed. The fix awaits its own CI head.
+
+The closure-free crossing diagnostic completes36/36 workers with identical
+before/A/A/after SVG/receipt fingerprints.15-node median sampled allocation is
+76,295,480→75,927,408 bytes,19-node112,579,936→111,206,424. Median whole-worker RSS
+is130716→219408 KiB on15 and144012→142864 on19. Medians of the three25-repeat
+time medians are330.38→323.93ms and407.25→487.29ms. Both native-before A/A timing
+controls are unhealthy: per-input round-ratio geomeans0.85484 and0.88815,
+aggregate0.87134. No speed result qualifies, no unchanged retry is made, and
+the15-node RSS and19-node timing are adverse. The probe is not adopted and its
+full750-output run is unnecessary after rejection. Direct metric equivalence
+alone did not prove a useful engine optimization.
+
+The next private prototype checks a larger source of repeated work: native
+small-graph refinement certifies the chosen geometry, then the outer native
+entry certifies that same object again without an intervening geometry edit.
+A request-local returned certificate may avoid only that second assessment.
+Public attached receipts are never accepted as proof; cached order choices,
+uncertified/large/compound candidates and every new alternative still execute
+strict mandatory certification. The final retained metadata must be identical.
+The declared750-input comparison retains238 source/workload inputs and all512
+existing development generated sources, including errors. It executes Node on
+fixed JSON inputs; an initial scanner import fails before any row because the
+Bun fixture extractor uses `import.meta.dir`, so extraction is moved to Bun
+before the Node comparison. Neither data nor solver is changed to rescue an
+outcome. A separate36-worker before/A/A/after diagnostic retains the preceding
+three-round/25-repeat/60s/480s protocol, with no ELK or whole-workload win claim.
