@@ -1052,4 +1052,12 @@ describe('declarative local editing and script results', () => {
     const rejected = await call('mutate', { source: built.source, ops: [{ kind: 'remove_node', id: 'missing' }] })
     expect(rejected).toMatchObject({ ok: false, opIndex: 0 })
   })
+  test.each([
+    'const x = 41; x + 1;',
+    'const x = 41; x + 1; // done',
+    'const x = 41; return x + 1; // done',
+    'const x = 41; ({ answer: x + 1 }).answer // done',
+  ])('captures a result with a trailing comment: %s', async code => {
+    expect(await executeInSandbox(code)).toMatchObject({ ok: true, value: 42 })
+  })
 })

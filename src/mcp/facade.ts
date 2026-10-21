@@ -467,6 +467,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           call.output = idOf(r.value)
           call.fingerprint = fingerprint(r.value)
         }
+        if (!r.ok && Array.isArray(opForHost)) {
+          return harden({ ...r, error: { ...r.error, message: r.error.message.replace('applyOps({ source, family, ops }) to edit source', 'the declarative mutate tool to edit source') } })
+        }
         return harden(r)
       })
     else if (prop === 'verifyMermaid')
@@ -700,6 +703,20 @@ function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
   return family
 }
 
+/** Preserve statement semantics and capture only a final top-level expression. */
+export function codeModeStatementBody(code: string): string {
+  try {
+    const ast = parseJavaScript(code, { ecmaVersion: 'latest', sourceType: 'script', allowReturnOutsideFunction: true })
+    const last = ast.body.at(-1)
+    if (last?.type === 'ExpressionStatement') {
+      return `${code.slice(0, last.start)}return (\n${code.slice(last.expression.start, last.expression.end)}\n);${code.slice(last.end)}`
+    }
+  } catch {
+    // The execution boundary owns syntax errors; do not repair invalid code.
+  }
+  return code
+}
+
 /**
  * Generate candidate wrappings in order of preference: expression form first
  * (handles bare expressions including objects/arrows/templates), then
@@ -712,7 +729,7 @@ export function expressionFirstWraps(code: string): string[] {
   const t = code.trim()
   const stripped = t.replace(/;\s*$/, '') // drop a single trailing semicolon
   const expressionWrapped = `(() => { return (\n${stripped}\n) })()`
-  const statementWrapped = `(() => { ${code} })()`
+  const statementWrapped = `(() => {\n${codeModeStatementBody(code)}\n})()`
   // Expression form handles bare expressions including objects/arrows/templates.
   // Pick it only if host parsing succeeds; never retry based on sandbox-thrown
   // values, because their getters/proxy traps are attacker-controlled.
