@@ -161,3 +161,16 @@ gzip 711,299 / 711,500 and Brotli 576,103 / 576,500; Architecture Brotli
 These are measured costs of the combined changes, not a size reduction claim. The follow-up integrates main `e951d22`, including its conditional rendering
 dependencies and authored-line grammar handling. Full final-revision CI and
 its retained same-input render artifacts are the PR's integration evidence.
+
+## Rebase onto native crisp drawing
+
+The rebase onto main `bd0ccbe` retains its native crisp drawing path alongside
+the authored paint, numeric and preservation fixes. Local typecheck, lint and
+116 independent reference checks pass on the combined candidate. The changed
+crisp/Scene paths are also exercised by the owning drawing and paint tests.
+The old `155ded4` size measurements above are historical. On the rebased build,
+13 encoding ceilings cross main’s limits; the same measured 500-byte ratchet
+applies. The largest increase is Flowchart gzip, 712,000 to 713,000 bytes,
+against an actual 712,535. Request limits stay unchanged; initial transfer is
+5,493 bytes gzip. These costs do not establish layout continuity or a complete
+portable-export verdict. Final rebased CI is linked from PR #456.
