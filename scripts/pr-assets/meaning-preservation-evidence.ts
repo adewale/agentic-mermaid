@@ -84,6 +84,37 @@ const stableRepresentativeCues = {
 } as const
 const fixtures: Fixture[] = [
   {
+    id: 'compat-flowchart-block-label',
+    title: 'Flowchart block-scalar metadata retains physical indentation',
+    source: 'flowchart TD\n  A@{\n    shape: rect\n    label: |\n      First line\n      Second line\n  }\n  A --> B[Done]',
+    cue: 'The baseline refuses this valid metadata block. Inspect both label lines and the unchanged relationship to Done after the fix; this does not establish arbitrary YAML field support.',
+  },
+  {
+    id: 'compat-sequence-spaced-metadata',
+    title: 'Sequence participant metadata may follow whitespace',
+    source: 'sequenceDiagram\nparticipant Gina@{ "type": "database" }\nparticipant Harry @{ "type": "database", "alias": "Orders" }\nGina->>Harry: Save',
+    cue: 'The baseline refuses the spaced declaration. Both database participants, the Orders alias and the Save message must survive; the unspaced Gina declaration is a control.',
+  },
+  {
+    id: 'compat-class-identifiers',
+    title: 'Class relationships retain hyphenated and dotted identities',
+    source: 'classDiagram\nAnimal <|-- Bugs-Bunny\nBugs-Bunny --> domain.Order',
+    cue: 'The baseline refuses these ordinary identifiers. Inspect all three complete class names and the distinct inheritance/association endpoints; this does not establish every possible identifier token.',
+  },
+  {
+    id: 'compat-architecture-compact-edge',
+    title: 'Architecture compact edges retain group-boundary anchors',
+    source: 'architecture-beta\ngroup cloud(cloud)[Cloud]\nservice api(server)[API] in cloud\nservice db(database)[DB]\napi{group}:R-->L:db',
+    cue: 'The baseline refuses the compact edge. The arrow must leave the Cloud boundary at the right and enter DB at the left, while API remains inside Cloud.',
+  },
+  {
+    id: 'compat-gitgraph-repeated-pick',
+    title: 'GitGraph can copy a merge relative to each parent',
+    source: 'gitGraph\ncommit id: "ZERO"\nbranch feature\nbranch release\ncheckout feature\ncommit id: "A"\ncommit id: "B"\ncheckout main\nmerge feature id: "M"\ncheckout release\ncommit id: "C"\ncherry-pick id:"M" parent: "ZERO" tag:""\ncommit id: "D"\ncherry-pick id:"M" tag:"" parent: "B"',
+    captureLayout: true,
+    cue: 'The baseline incorrectly refuses the second pick as an ancestor. Inspect both cherry-pick marks on release and the retained copy-provenance edges; ancestry correctness is checked separately against the pinned upstream test.',
+  },
+  {
     id: 'agent-flat-namespace',
     title: 'Flat Class namespaces retain distinguishing paths',
     source: '---\nconfig:\n  class:\n    hierarchicalNamespaces: false\n---\nclassDiagram\nnamespace Company.Platform {\nclass API\n}\nnamespace Vendor.Platform {\nclass Worker\n}\nAPI --> Worker : invokes',
