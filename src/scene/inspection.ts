@@ -93,18 +93,24 @@ function nonPainting(node: SceneNode): boolean {
  * Opaque content and missing geometry remain explicit missing evidence.
  */
 export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
-  return inspectScene(scene, true) as ScenePaintInspection
+  return inspectScene(scene, (text, block, includeFont) => ({
+    source: block?.prepared.source ?? text,
+    displayed: block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : text,
+    ...(includeFont && block?.fontFamily ? { fontFamily: block.fontFamily } : {}),
+  })) as ScenePaintInspection
 }
 
 export function inspectScenePaintGeometry(scene: SceneDoc): ScenePaintGeometryInspection {
-  return inspectScene(scene, false)
+  return inspectScene(scene)
 }
 
 function hasDisplayedText(block: Extract<SceneNode, { kind: 'text' }>['block'], text: string): boolean {
   return block ? block.lineBlocks.some(line => line.runs.some(run => run.text.trim() !== '')) : text.trim() !== ''
 }
 
-function inspectScene(scene: SceneDoc, retainText: boolean): ScenePaintGeometryInspection {
+type TextDetails = (text: string, block: Extract<SceneNode, { kind: 'text' }>['block'], includeFont?: true) => Omit<NonNullable<ScenePaintPrimitive['text']>, 'measurement'>
+
+function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeometryInspection {
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
   const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
@@ -131,7 +137,7 @@ function inspectScene(scene: SceneDoc, retainText: boolean): ScenePaintGeometryI
         ...(groupOpacity < 1 ? { groupOpacity } : {}),
         ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
         ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
-        ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...(retainText ? { source: node.block?.prepared.source ?? node.text, displayed: node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) } : {}) }) } : {}),
+        ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
       })
       sources.set(primitive, node)
       worldMatrices.set(primitive, composeMatrices(parent, transformMatrix(node.transform)))
@@ -145,7 +151,6 @@ function inspectScene(scene: SceneDoc, retainText: boolean): ScenePaintGeometryI
       }
       if (node.kind === 'connector') node.labels.forEach((label, labelIndex) => {
         if (label.visual?.kind !== 'inline') return
-        const displayed = retainText ? label.block ? label.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : label.text : undefined
         const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
         const hidden = groupOpacity === 0 || !textPaints(hasDisplayedText(label.block, label.text) ? 'x' : '', paint)
         const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
@@ -159,7 +164,7 @@ function inspectScene(scene: SceneDoc, retainText: boolean): ScenePaintGeometryI
           ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
           ...(groupOpacity < 1 ? { groupOpacity } : {}),
           ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
-          text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...(retainText ? { source: label.block?.prepared.source ?? label.text, displayed: displayed! } : {}) }),
+          text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
         })
         sources.set(inline, node)
         worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
