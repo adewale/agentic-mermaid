@@ -386,7 +386,14 @@ async function copySourceAsset(rel: string, destRel = rel) {
 // display-face subsets retain their existing dual-source declarations.
 const DISPLAY_SUBSET_FONT_STEMS = ['Caveat', 'EBGaramond', 'ShareTechMono', 'ArchitectsDaughter']
 async function emitStylesheet() {
-  const css = await Bun.file(join(SOURCE_ASSETS, 'styles.css')).text()
+  const stylesheet = await Bun.build({
+    entrypoints: [join(SOURCE_ASSETS, 'styles.css')],
+    target: 'browser',
+    minify: { whitespace: true, syntax: false, identifiers: false },
+    external: ['*'],
+  })
+  if (!stylesheet.success || stylesheet.outputs.length !== 1) throw new AggregateError(stylesheet.logs, 'Public stylesheet build failed')
+  const css = await stylesheet.outputs[0]!.text()
   let fontFace = hostedFontFaceCss('/fonts/')
   for (const [source, output] of INTER_SUBSET_BY_SOURCE) {
     const fullSource = `src: url('/fonts/${source}') format('truetype');`
