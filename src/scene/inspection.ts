@@ -41,11 +41,20 @@ export interface ScenePaintInspection {
   }
 }
 
-const sources = new WeakMap<ScenePaintPrimitive, SceneNode>()
-const worldMatrices = new WeakMap<ScenePaintPrimitive, AffineMatrix>()
-export function scenePrimitiveMatrix(primitive: ScenePaintPrimitive): AffineMatrix | undefined { return worldMatrices.get(primitive) }
+/** Geometry needed for mandatory paint safety, without the retained text
+ * read-back strings used only by inspection consumers. */
+export type ScenePaintGeometry = Omit<ScenePaintPrimitive, 'text'> & {
+  readonly text?: Pick<NonNullable<ScenePaintPrimitive['text']>, 'measurement'>
+}
+export type ScenePaintGeometryInspection = Omit<ScenePaintInspection, 'primitives'> & {
+  readonly primitives: readonly ScenePaintGeometry[]
+}
 
-export function scenePrimitiveSource(primitive: ScenePaintPrimitive): SceneNode | undefined {
+const sources = new WeakMap<ScenePaintGeometry, SceneNode>()
+const worldMatrices = new WeakMap<ScenePaintGeometry, AffineMatrix>()
+export function scenePrimitiveMatrix(primitive: ScenePaintGeometry): AffineMatrix | undefined { return worldMatrices.get(primitive) }
+
+export function scenePrimitiveSource(primitive: ScenePaintGeometry): SceneNode | undefined {
   return sources.get(primitive)
 }
 
@@ -68,7 +77,7 @@ export function shapeSurfacePaint(node: ShapeMark): MarkPaint {
 
 function nonPainting(node: SceneNode): boolean {
   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
-  if (node.kind === 'text') return !textPaints(node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, node.paint)
+  if (node.kind === 'text') return !textPaints(hasDisplayedText(node.block, node.text) ? 'x' : '', node.paint)
   if (node.kind === 'connector') return node.lineStyle === 'invisible'
   if (node.kind === 'shape') {
     if (node.conditionalPaint) return false
@@ -84,7 +93,19 @@ function nonPainting(node: SceneNode): boolean {
  * Opaque content and missing geometry remain explicit missing evidence.
  */
 export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
-  const primitives: ScenePaintPrimitive[] = []
+  return inspectScene(scene, true) as ScenePaintInspection
+}
+
+export function inspectScenePaintGeometry(scene: SceneDoc): ScenePaintGeometryInspection {
+  return inspectScene(scene, false)
+}
+
+function hasDisplayedText(block: Extract<SceneNode, { kind: 'text' }>['block'], text: string): boolean {
+  return block ? block.lineBlocks.some(line => line.runs.some(run => run.text.trim() !== '')) : text.trim() !== ''
+}
+
+function inspectScene(scene: SceneDoc, retainText: boolean): ScenePaintGeometryInspection {
+  const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
   const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
     nodes.forEach((node, index) => {
@@ -92,7 +113,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
       const owner = node.owner ?? (ancestors.at(-1) || node.identity || { id: node.id, role: node.role })
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), [...ancestors, own], conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, Object.freeze({ id: own.id, role: own.role })]), conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
         return
       }
       const hidden = groupOpacity === 0 || nonPainting(node)
@@ -101,16 +122,16 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
       const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
       const measured = !!bounds && finite(bounds)
       const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
-      const primitive: ScenePaintPrimitive = Object.freeze({
+      const primitive: ScenePaintGeometry = Object.freeze({
         key, id: node.id, kind: node.kind, role: node.role,
         owner: Object.freeze({ id: owner.id, role: owner.role }),
-        ancestors: Object.freeze(ancestors.map(value => Object.freeze({ ...value }))),
+        ancestors,
         order: primitives.length, coverage: status,
         ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
         ...(groupOpacity < 1 ? { groupOpacity } : {}),
         ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
         ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
-        ...(node.kind === 'text' ? { text: Object.freeze({ source: node.block?.prepared.source ?? node.text, displayed: node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, measurement: node.measurement ?? 'unavailable', ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) }) } : {}),
+        ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...(retainText ? { source: node.block?.prepared.source ?? node.text, displayed: node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) } : {}) }) } : {}),
       })
       sources.set(primitive, node)
       worldMatrices.set(primitive, composeMatrices(parent, transformMatrix(node.transform)))
@@ -124,21 +145,21 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
       }
       if (node.kind === 'connector') node.labels.forEach((label, labelIndex) => {
         if (label.visual?.kind !== 'inline') return
-        const displayed = label.block ? label.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : label.text
+        const displayed = retainText ? label.block ? label.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : label.text : undefined
         const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
-        const hidden = groupOpacity === 0 || !textPaints(displayed, paint)
+        const hidden = groupOpacity === 0 || !textPaints(hasDisplayedText(label.block, label.text) ? 'x' : '', paint)
         const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
         const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
         const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
         const measured = !!bounds && finite(bounds)
-        const inline: ScenePaintPrimitive = Object.freeze({
+        const inline: ScenePaintGeometry = Object.freeze({
           key: `${key}.label.${labelIndex}`, id: label.id ?? `${node.id}:label:${labelIndex}`, kind: 'text', role: 'label',
           owner: primitive.owner, ancestors: primitive.ancestors, order: primitives.length,
           coverage: hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured',
           ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
           ...(groupOpacity < 1 ? { groupOpacity } : {}),
           ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
-          text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed, measurement: label.block ? 'prepared' : 'fallback' }),
+          text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...(retainText ? { source: label.block?.prepared.source ?? label.text, displayed: displayed! } : {}) }),
         })
         sources.set(inline, node)
         worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
@@ -153,6 +174,6 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
       })
     })
   }
-  walk(scene.parts, 'scene', IDENTITY_MATRIX, [])
+  walk(scene.parts, 'scene', IDENTITY_MATRIX, Object.freeze([]))
   return Object.freeze({ version: 1, family: scene.family, bounds: Object.freeze({ width: scene.width, height: scene.height }), primitives: Object.freeze(primitives), coverage: Object.freeze(coverage) })
 }

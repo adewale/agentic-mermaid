@@ -557,11 +557,11 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
  * re-proves nothing. Only this module records documents, so a caller cannot
  * forge membership.
  */
-const ADMITTED_SCENES = new WeakMap<object, 'internal' | 'external'>()
+const ADMITTED_SCENES = new WeakMap<object, { mode: 'internal' | 'external'; crossChecks: boolean }>()
 
 /** Record a document this module froze that passed `mode` admission. */
-export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external'): void {
-  ADMITTED_SCENES.set(scene, mode)
+export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external', crossChecks = true): void {
+  ADMITTED_SCENES.set(scene, { mode, crossChecks })
 }
 
 /** The sole public-backend Scene admission waist. Direct backend consumers
@@ -577,7 +577,15 @@ export function admitBackendSceneDocument(value: unknown): SceneDoc {
 export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external', crossChecks = sceneAssertionsEnabled()): SceneDoc {
   // Look up before reading any property: a caller Proxy sees no trap here.
   const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
-  if (prior !== undefined && prior === (mode ?? sceneValidationMode(value))) return value as SceneDoc
+  const requiredChecks = mode !== 'internal' || crossChecks
+  if (prior !== undefined && prior.mode === (mode ?? sceneValidationMode(value))) {
+    // A prior cheap admission cannot stand in for a later strict request.
+    if ((prior.mode === 'external' || crossChecks) && !prior.crossChecks) {
+      assertAdmissibleSceneDoc(value, prior.mode, true)
+      recordAdmittedScene(value as SceneDoc, prior.mode, true)
+    }
+    return value as SceneDoc
+  }
   // Only built-in family admission names 'internal': its document is our own
   // lowering output, frozen in place. An inferred mode copies through the
   // full descriptor path. The test-only replaceFamilyForTest installs lowering
@@ -587,6 +595,6 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
     ? freezeBoundedFirstPartyData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
     : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
   assertAdmissibleSceneDoc(admitted, mode, mode !== 'internal' || crossChecks)
-  recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted))
+  recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), requiredChecks)
   return admitted as SceneDoc
 }

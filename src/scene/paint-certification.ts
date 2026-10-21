@@ -5,7 +5,7 @@ import { inlineResolvedColors } from '../theme.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
-import { inspectScenePrimitives, scenePrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintPrimitive } from './inspection.ts'
+import { inspectScenePaintGeometry, scenePrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { ConnectorMark, Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
@@ -167,7 +167,7 @@ const ENDPOINT_ROLES = new Set([...CARD_ROLES, 'group', 'note', 'actor', 'juncti
  * or arbitrary CSS/backend changes. It never treats path-hull overlap as proof.
  */
 export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLayout, 'nodes' | 'labels'>, options: { outputSupported?: boolean } = {}): PaintLayoutCertification {
-  const inspection = inspectScenePrimitives(scene)
+  const inspection = inspectScenePaintGeometry(scene)
   const issues: PaintCertificationIssue[] = []
   let failed = false, unverified = false
   const issue = (value: PaintCertificationIssue, failure = false): void => {
