@@ -152,7 +152,7 @@ painted-ink certification by itself.
 ## Validation and loading cost
 
 Compared with merged main `1133266ffe07367ce8ed359be15886a8c05e0c39`, the
-implementation at `fda087f69a2e448f166024e9fd0e3ce3332a4134` passes the existing
+audited implementation at `e0c556cb5b9a8438bbfbb469ffd1eed053fc8136` passes the existing
 303-diagram exact geometry gate. A supplementary 128-case comparison across
 the six affected families retained identical public layouts, SVG strings and
 terminal output, including the same rejected negative Kanban input. Eight
@@ -169,23 +169,33 @@ text alignment, explicit origins and disjoint regions under wrapped/wide text;
 they are regression guards for the shared contract, not evidence of a newly
 fixed rendering bug.
 
+Adversarial review added 2,294 Requirement/Kanban layout comparisons and 1,608
+Class/ER configuration comparisons. No substantive drift was found in those
+scopes; fractional arithmetic tails below 1e-9 are not universal byte-identity
+evidence. The Pie/Radar review found a 0.01px rounded-coordinate change at
+fractional font sizes because relative row offsets regrouped additions. Both
+families now allocate at the absolute legend origin. All 1,224 legend cases
+then match the baseline exactly. Two focused tests fail on the unaudited
+refactor and pass with the correction; this repairs a regression introduced
+by the refactor rather than an existing main-branch bug.
+
 The same Bun 1.4.2 browser build/report measures these changes to each complete
 budgeted family load, including dependencies:
 
 | Family | Gzip delta (bytes) | Brotli delta (bytes) | Request delta |
 | --- | ---: | ---: | ---: |
-| Class | -685 | -867 | 0 |
-| ER | -6,421 | -5,949 | 0 |
-| Requirement | +318 | +288 | +1 |
-| Kanban | +280 | +247 | +1 |
-| Pie | +253 | +211 | +1 |
-| Radar | +272 | +221 | +1 |
+| Class | -682 | -856 | 0 |
+| ER | -6,418 | -5,938 | 0 |
+| Requirement | +321 | +299 | +1 |
+| Kanban | +283 | +258 | +1 |
+| Pie | +266 | +265 | +1 |
+| Radar | +291 | +213 | +1 |
 
 The shared row module remains lazy and appears only in its four consumers'
 loads. The initial module graph stays at four requests and 14,233 raw bytes;
-gzip measures 5,493 → 5,490 bytes, which is not claimed as an optimization.
-Other families retain their request counts. Kanban's 195,177-byte gzip closure
-crosses its 195,000-byte ceiling; Radar's 180,510-byte Brotli closure crosses
+gzip remains 5,493 bytes; Brotli moves from 4,928 to 4,936 bytes.
+Other families retain their request counts. Kanban's 195,180-byte gzip closure
+crosses its 195,000-byte ceiling; Radar's 180,502-byte Brotli closure crosses
 its 180,500-byte ceiling. Only those ceilings advance to the next 500-byte
 step, 195,500 and 181,000. The extra lazy request and compressed bytes are the
 cost of source reuse here, rather than a download reduction for these four
