@@ -166,7 +166,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
   // Capture source evidence before any config/layout/render early return.
   // Result branches and diagnostic suppression cannot revoke an observed loss.
   const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value)] : []
-  const result = verifyMermaidInternal(input, opts, parsed)
+  const result = verifyParsedMermaid(input, opts, parsed, shared)
   const suppressed = new Set(opts.suppress ?? [])
   const warnings = dedupedConcat(result.warnings, sourceEvidence.filter(warning => !suppressed.has(warning.code)))
   const suppressedErrors = (opts.suppress ?? []).some(code => WARNING_SEVERITY[code] === 'error')
@@ -178,7 +178,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
   } }
 }
 
-function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>): VerifyResult {
+function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>, shared?: SharedVerificationRender): VerifyResult {
   if (!parsed.ok) {
     // Strict parsing must fail closed, but source-level repair diagnostics are
     // still valuable (and were historically part of verify's contract).
