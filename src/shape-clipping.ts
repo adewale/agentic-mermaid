@@ -111,7 +111,26 @@ function clipPolygon(endpoint: Point, adjacent: Point, points: Point[]): Point {
     // diagonal; projecting it onto an axis must not slide its valid port.
     const dx = second.x - first.x, dy = second.y - first.y
     const ex = endpoint.x - first.x, ey = endpoint.y - first.y
-    if (Math.abs(ex * dy - ey * dx) < 1e-6 && ex * (endpoint.x - second.x) + ey * (endpoint.y - second.y) <= 1e-6) return endpoint
+    if (Math.abs(ex * dy - ey * dx) < 1e-6 && ex * (endpoint.x - second.x) + ey * (endpoint.y - second.y) <= 1e-6) {
+      // A far-side contact can already be on the outline while its shaft
+      // crosses the node. Preserve only contacts that depart outside it.
+      const length = Math.hypot(adjacent.x - endpoint.x, adjacent.y - endpoint.y)
+      const step = length > 0 ? Math.min(0.0001 / length, 0.5) : 0
+      const probe = { x: endpoint.x + (adjacent.x - endpoint.x) * step, y: endpoint.y + (adjacent.y - endpoint.y) * step }
+      let inside = false, crosses = false
+      for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const a = points[i]!, b = points[j]!
+        const vx = adjacent.x - endpoint.x, vy = adjacent.y - endpoint.y
+        const sx = b.x - a.x, sy = b.y - a.y, determinant = vx * sy - vy * sx
+        if (Math.abs(determinant) > 1e-9) {
+          const ax = a.x - endpoint.x, ay = a.y - endpoint.y
+          const t = (ax * sy - ay * sx) / determinant, u = (ax * vy - ay * vx) / determinant
+          if (t * length > 1e-6 && t <= 1 && u >= 0 && u <= 1) crosses = true
+        }
+        if ((a.y > probe.y) !== (b.y > probe.y) && probe.x < (b.x - a.x) * (probe.y - a.y) / (b.y - a.y) + a.x) inside = !inside
+      }
+      if (!inside && !crosses) return endpoint
+    }
     const hit = vertical
       ? intersectVertical(endpoint.x, first, second)
       : intersectHorizontal(endpoint.y, first, second)

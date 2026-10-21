@@ -129,6 +129,31 @@ describe('canonical shape outline authority', () => {
     }
   })
 
+  test('polygon clipping preserves outward contacts and repairs contacts across the node', () => {
+    const hexagon = { ...node('hexagon'), x: 0, y: 0, width: 100, height: 60 }
+    for (const [contact, adjacent, expected] of [
+      [{ x: 100, y: 30 }, { x: 130, y: 10 }, { x: 100, y: 30 }],
+      [{ x: 0, y: 30 }, { x: -30, y: 10 }, { x: 0, y: 30 }],
+      [{ x: 0, y: 30 }, { x: 150, y: 30 }, { x: 100, y: 30 }],
+      [{ x: 100, y: 30 }, { x: -50, y: 30 }, { x: 0, y: 30 }],
+    ]) {
+      expect(clipEdgeToShape([contact!, adjacent!], hexagon, true)[0]).toEqual(expected)
+      expect(clipEdgeToShape([adjacent!, contact!], hexagon, false)[1]).toEqual(expected)
+    }
+  })
+
+  test('polygon clipping repairs a contact whose shaft re-enters a concave outline', () => {
+    const hourglass = { ...node(FLOWCHART_V11_SHAPES.hourglass!.geometry, 'hourglass'), x: 0, y: 0, width: 100, height: 60 }
+    for (const [contact, adjacent, expected] of [
+      [{ x: 81, y: 15 }, { x: 81, y: 160 }, { x: 81, y: 60 }],
+      [{ x: 81, y: 45 }, { x: 81, y: -100 }, { x: 81, y: 0 }],
+      [{ x: 81, y: 15 }, { x: 90, y: 160 }, { x: 81, y: 60 }],
+    ]) {
+      expect(clipEdgeToShape([contact!, adjacent!], hourglass, true)[0]).toEqual(expected)
+      expect(clipEdgeToShape([adjacent!, contact!], hourglass, false)[1]).toEqual(expected)
+    }
+  })
+
   test('an explicit zero corner radius remains square on rounded nodes', () => {
     const rounded = node('rounded')
     expect(shapeOutline(rounded, PAINT).geometry).toEqual({
