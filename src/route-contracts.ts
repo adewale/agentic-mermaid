@@ -1313,6 +1313,14 @@ export function laneContextFor(
   return { ctx: { nodes, edges, axis, style }, axis }
 }
 
+function markStraightDraft(cert: DraftRouteCertificate, mutated = false): void {
+  cert.invariant = 'straight'
+  cert.bendCount = 0
+  cert.directLaneClear = true
+  if (mutated) cert.straightened = true
+  cert.directLaneBlockedBy = undefined
+}
+
 /**
  * The route-contract pass: simplify every polyline (proof-free), straighten
  * primary-forward and feedback staircases whose direct lane proves clear
@@ -1371,14 +1379,13 @@ export function applyRouteContracts(
     // A valid native contact need not move to a preferred diamond vertex.
     // Preserve its straight lane only after checking current obstacles and
     // actual endpoint approaches; blocked or invalid routes still need repair.
-    if (options?.preserveStraightRoutes && edge.points.length === 2 && source && target
-      && edge.points[0]![axis.cross] === edge.points[1]![axis.cross]
-      && invalidEndpointApproaches(edge, source, target) === 0
-      && !hasDirectLaneBlocker(edge, edge.points[0]![axis.cross],
-        Math.min(edge.points[0]![axis.main], edge.points[1]![axis.main]),
-        Math.max(edge.points[0]![axis.main], edge.points[1]![axis.main]), ctx, edgeAxis)) {
-      cert.invariant = 'straight'; cert.bendCount = 0; cert.directLaneClear = true; cert.directLaneBlockedBy = undefined
-      return { applied: true, mutated: false }
+    if (options?.preserveStraightRoutes && edge.points.length === 2) {
+      const start = edge.points[0]!, end = edge.points[1]!, main = axis.main, cross = axis.cross
+      if (start[cross] === end[cross] && invalidEndpointApproaches(edge, source!, target!) === 0
+        && !hasDirectLaneBlocker(edge, start[cross], Math.min(start[main], end[main]), Math.max(start[main], end[main]), ctx, edgeAxis)) {
+        markStraightDraft(cert)
+        return { applied: true, mutated: false }
+      }
     }
     // Port ranking, hard case: a diamond side carrying exactly ONE line
     // always emits from its vertex (the user-facing convention dot and
@@ -1395,11 +1402,7 @@ export function applyRouteContracts(
       const direct = tryStraighten(edge, source!, target!, ctx, edgeAxis, vertexLane)
       if (direct.applied) {
         const mutated = JSON.stringify(edge.points) !== beforeGeometry
-        cert.invariant = 'straight'
-        cert.bendCount = 0
-        cert.directLaneClear = true
-        if (mutated) cert.straightened = true
-        cert.directLaneBlockedBy = undefined
+        markStraightDraft(cert, mutated)
         return { applied: true, mutated }
       }
       // Next-best after the straight vertex lane: the 1-bend hook into the
@@ -1433,11 +1436,7 @@ export function applyRouteContracts(
     const attempt = tryStraighten(edge, source!, target!, ctx, edgeAxis)
     if (attempt.applied) {
       const mutated = JSON.stringify(edge.points) !== beforeGeometry
-      cert.invariant = 'straight'
-      cert.bendCount = 0
-      cert.directLaneClear = true
-      if (mutated) cert.straightened = true
-      cert.directLaneBlockedBy = undefined
+      markStraightDraft(cert, mutated)
       return { applied: true, mutated, upgradeable: (attempt.usedCandidateIndex ?? 0) > 0 }
     }
     cert.invariant = feedbackDetourKind(edge, cert.routeClass, source, target, ctx.axis) ?? 'explained-detour'
