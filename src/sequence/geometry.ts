@@ -598,6 +598,20 @@ export function positionSequenceBlock(
     const noteIndex = sequenceDividerLeadingNote(block, scope, diagram, di)
     const leadingNote = noteIndex === undefined ? undefined : notes[noteIndex]
     const msg = divSpec.index < scope.endMessageExclusive ? messages[divSpec.index] : undefined
+    if (block.type === 'par_over') {
+      if (!divSpec.label) return { y: blockTop + spec.tabHeight, label: '' }
+      let content: SequenceBounds | undefined = leadingNote ?? msg?.bounds
+      for (const [childIndex, ci] of scope.childBlockIndices.entries()) {
+        const child = positionedBlocks[ci]
+        if (child && scope.childSectionIndices[childIndex] === di + 1 && diagram.blocks[ci]!.startIndex === divSpec.index && (!content || child.y < content.y)) content = child
+      }
+      const x = content?.x ?? blockLeft + 8
+      const top = content ? content.y - divSpec.metrics.height - 8 : blockTop + spec.tabHeight + 8 + di * (divSpec.metrics.height + 8)
+      const measured = createSequenceLabelGeometry(divSpec.displayLabel, x, top + divSpec.metrics.height / 2, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing, divSpec.block)
+      blockRight = Math.max(blockRight, measured.bounds.x + measured.bounds.width + style.groupPaddingX)
+      blockBottom = Math.max(blockBottom, measured.bounds.y + measured.bounds.height + style.groupPaddingY)
+      return { y: top, label: divSpec.label, labelPosition: measured }
+    }
     const msgY = msg?.y ?? fallbackY
     let offset = 28 + divSpec.extraLinesHeight + divSpec.extraFontOffset
 

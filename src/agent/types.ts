@@ -128,7 +128,7 @@ export interface SequenceMessage {
   deactivate?: boolean
 }
 
-export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
+export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
 export interface SequenceFragmentBranch {
   /** `else` / `and` caption. The first branch normally omits it. */
   label?: string

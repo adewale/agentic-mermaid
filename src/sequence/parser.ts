@@ -411,15 +411,8 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // --- Block start: loop, alt, opt, par, critical, break, rect ---
       case 'block': {
       const { opener } = statement
-      // Keep the pre-existing `par_over` render disposition until that
-      // separate upstream construct receives its own semantic slice.
-      const blockType = opener.type === 'par_over' ? 'par' : opener.type
-      // The old `par` prefix match exposed the untouched `_over...` suffix as
-      // its label. Keep that exact spacing/punctuation until `par_over` gains
-      // its own native semantics; the shared classifier trims opener labels.
-      const text = readSequenceLabel(opener.type === 'rect'
-        ? ''
-        : opener.type === 'par_over' ? `_over${line.slice(8)}`.trim() : opener.label)
+      const blockType = opener.type
+      const text = readSequenceLabel(opener.type === 'rect' ? '' : opener.label)
       // Mermaid permits a bare `rect` (default fill). A hash comment after
       // the keyword also leaves the color empty; the shared statement scanner
       // already keeps its remainder out of the message stream.
