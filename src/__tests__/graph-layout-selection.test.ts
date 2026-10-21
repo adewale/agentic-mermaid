@@ -330,6 +330,19 @@ describe('checked graph layout selection', () => {
     expect(terminal.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
   })
 
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('routes to and from a nested frame in %s without substituting a child', direction => {
+    for (const [from, to] of [['Outside', 'Inner'], ['Inner', 'Outside']]) {
+      const source = `flowchart ${direction}\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\n${from} --> ${to}`
+      const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
+      const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+      expect(result.layout.edges).toHaveLength(2)
+      expect(result.layout.edges.find(edge => edge.from === from && edge.to === to)).toBeDefined()
+      expect(result.layout.groups.find(group => group.id === 'Inner')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
+      expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
+      expect(result.layout.paintCertification?.status).toBe('passed')
+    }
+  })
+
   test('declines ancestor frame endpoints and attributes a requested ELK fallback consistently across cache states', () => {
     const compound = 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\nOuter --> A'
     expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)

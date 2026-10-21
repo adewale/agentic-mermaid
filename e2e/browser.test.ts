@@ -311,13 +311,16 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
         const result = await api.renderMermaidSVGWithReceipt(source, { graphLayout: { backend } })
         selections.push({ selected: result.receipt.layoutDecisions?.[0]?.selected, verified: result.verification.ok })
       }
-      const fallback = await api.renderMermaidSVGWithReceipt('flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nOne --> C', {
+      const compound = 'flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nOne --> C'
+      const promoted = await api.renderMermaidSVGWithReceipt(compound, { graphLayout: { backend: 'agentic' } })
+      const fallback = await api.renderMermaidSVGWithReceipt(compound.replace('One --> C', 'One --> A'), {
         graphLayout: { backend: 'agentic', fallback: 'elk' },
       })
-      return { checks: artifact.verification.checks, selections, fallback: fallback.receipt.layoutDecisions?.[0] }
+      return { checks: artifact.verification.checks, selections, promoted: promoted.receipt.layoutDecisions?.[0], fallback: fallback.receipt.layoutDecisions?.[0] }
     })
     expect(preview.checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
     expect(preview.selections).toEqual([{ selected: 'elk', verified: true }, { selected: 'agentic', verified: true }])
+    expect(preview.promoted).toMatchObject({ requested: 'agentic', selected: 'agentic' })
     expect(preview.fallback).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
     // The self-contained module has its own compression path. Exercise every
     // registered family through that emitted worker against the source renderer.
