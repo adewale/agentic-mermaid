@@ -351,7 +351,7 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
 // Release attests the entire canonical run, including independent semantics.
 describe('canonical CI: semantic conformance is required for release approval', () => {
   const complete = step('ci-complete', 'Require every CI lane to pass', ciWorkflow)
-  const passing = { SEMANTIC_RESULT: 'success', TEST_RESULT: 'success', E2E_RESULT: 'success', RED_GREEN_RESULT: 'skipped', EXPIRE_RESULT: 'skipped' }
+  const passing = { SEMANTIC_RESULT: 'success', CONSUMER_RESULT: 'success', TEST_RESULT: 'success', E2E_RESULT: 'success', RED_GREEN_RESULT: 'skipped', EXPIRE_RESULT: 'skipped' }
 
   test('accepts the completed lanes and expected non-PR skips', () => {
     expect(execute(complete, tempDir(), passing).status).toBe(0)
@@ -359,5 +359,9 @@ describe('canonical CI: semantic conformance is required for release approval', 
 
   test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when independent semantics is %s', result => {
     expect(execute(complete, tempDir(), { ...passing, SEMANTIC_RESULT: result }).status).not.toBe(0)
+  })
+
+  test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when installed quickstarts is %s', result => {
+    expect(execute(complete, tempDir(), { ...passing, CONSUMER_RESULT: result }).status).not.toBe(0)
   })
 })
