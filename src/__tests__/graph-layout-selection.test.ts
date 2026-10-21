@@ -102,6 +102,7 @@ describe('checked graph layout selection', () => {
     { nodes: 15, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8') },
     { nodes: 19, edges: 44, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
     { nodes: 13, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
+    { nodes: 15, edges: 34, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
     { nodes: 9, edges: 23, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
   ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges }) => {
     const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
@@ -133,7 +134,7 @@ describe('checked graph layout selection', () => {
     expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
   })
 
-  test.each([171, 217])('retains clear long-edge ordering for holdout seed %s', seed => {
+  test.each([171, 217, 228])('retains clear long-edge ordering for holdout seed %s', seed => {
     const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source
     const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
     const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })

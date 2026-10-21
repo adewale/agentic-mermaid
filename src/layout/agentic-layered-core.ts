@@ -1,3 +1,4 @@
+import { refinePrivateChainOrder } from './chain-insertion-order.ts'
 import { minimumSpanRanks, privateRankSpan } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
 import type { Direction, Point } from '../types.ts'
@@ -409,6 +410,12 @@ export function layoutLayeredGraph(
       value = best
       if (exhausted) break
     }
+  }
+  // Tiny cyclic graphs already enumerate every cycle-search start. Keep that
+  // tuned policy: chain inversion gains there can add physical route bends.
+  // Use chain insertion where larger graphs sample only a few cycle starts.
+  if (input.compactPrivateRanks && nodes.length > 12 && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+    refinePrivateChainOrder(bands, vertices, chains, searchWork)
   }
   // On a DAG, joint moves can make previously blocked local swaps improving
   // again. Keep the separately validated cycle-placement policy intact.
