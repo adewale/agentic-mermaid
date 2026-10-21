@@ -92,8 +92,9 @@ advisory, while measured `CONTENT_OCCLUDED` and an explicit error policy fail ve
 Alongside it sit the **contract gates**: `am capabilities --json` schema
 tests, the `agent-doc-sync` tests, and the behavioural
 diagram-family citizenship loop. For an agent-native product the docs, schemas, CLI
-help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
-like code, not treated as prose.
+help, and live generated discovery *are* runtime surfaces (Loop 14), so their
+behavior is tested like code. The repository `llms.txt` is an authored pointer
+to those live surfaces.
 
 Citizenship requires a small smoke input and a domain-rich scenario for every
 registered built-in family. Required witnesses in the existing closed

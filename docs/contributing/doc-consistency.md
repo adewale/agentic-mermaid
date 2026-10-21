@@ -26,7 +26,7 @@ takes a family id (`noop-keys:sequence`), and `warning-table` and
 descriptions in `src/agent/warning-catalog.ts`, which also feeds the
 per-code pages on the website. `src/__tests__/doc-blocks.test.ts`
 fails when a block is stale or names an unknown renderer. Code-generated
-surfaces (`llms.txt`, the `init-agent` bundle, the Code Mode SDK declaration,
+surfaces (`am llms-txt`, the `init-agent` bundle, the Code Mode SDK declaration,
 `am verify --help`) import the same constants instead.
 
 Leave a list hand-written when each item carries its own annotation, and

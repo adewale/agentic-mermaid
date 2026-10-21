@@ -258,7 +258,7 @@ family docs, and `TODO.md`.
 - **A combinatorial estimate must respect its mathematical lower bound.** The planned 350–600-row Style portfolio could never satisfy the declared Look × Palette × three-background obligation: that triple alone requires 900 rows. Keep the obligation and report the miss; never tune a covering-array budget by silently dropping the tuple that made it valuable.
 - **Complexity is a vector and a registration obligation, not one score.** Entity count cannot stand in for nesting, reciprocal/parallel routes, cycles, Unicode classes, authored text volume, configuration, or family-risk syntax. Every family now supplies minimal, representative, dense, text-stress, risk, and real-corpus-outlier sources; adding a family without those witnesses fails closure rather than reducing its test depth invisibly.
 - **Contact sheets are Cynefin probes, not visual proof.** A diversity-selected overview lets a reviewer sense repeated patterns and surprising outliers in a complex aesthetic space, while native-size cells answer readability questions. Bind the selection, source, dimensions, and HTML bytes in a manifest; keep model sanity separate from independent human approval, and leave optional review evidence pending rather than inventing reviewer identity or minutes.
-- **Receipt dependencies should follow the build graph, not the repository tree.** Hashing every `src/**/*.ts` file invalidated four visual receipts after unrelated test-only edits while every output byte stayed unchanged; merge-ref CI then found three more broad visual authorities after a script-only package change. A fail-closed transitive local-import graph reduced the seven input sets by 59.9–98.5%, still invalidates true renderer dependencies, and turns receipt churn into causal evidence instead of source-tree noise. *Superseded by #357, which removed input-hash receipts: the current rule is that a generated artifact's unit test compares it against current code, not against recorded input hashes.*
+- **Receipt dependencies should follow the build graph, not the repository tree.** Hashing every `src/**/*.ts` file invalidated four visual receipts after unrelated test-only edits while every output byte stayed unchanged; merge-ref CI then found three more broad visual authorities after a script-only package change. A fail-closed transitive local-import graph reduced the seven input sets by 59.9–98.5%, still invalidates true renderer dependencies, and turns receipt churn into causal evidence instead of source-tree noise. *Superseded by #357, which removed input-hash receipts: generate derived views at delivery, and retain committed runtime modules or deliberately reviewed behavior goldens only. Do not replace input-hash receipts with blanket snapshot-freshness tests.*
 - **Run generators after the final source/test edit and final rebase.**
   Dependency-complete receipts correctly became stale after late test changes and
   again when a moving base changed the merge-ref input tree. The reliable order is
@@ -266,8 +266,9 @@ family docs, and `TODO.md`.
   freshness gates → merge-ref CI. Receipts should include package and lock inputs,
   but still disclose environmental fonts, browser binaries, and rasterizers they
   cannot pin. *The receipt half is superseded by #357 (there are no input-hash
-  receipts); the current rule is to regenerate with `bun run generate` after the
-  final edit and rebase, and let the stale-output unit tests catch drift.*
+  receipts); generate runtime inputs when their sources change, run behavior
+  checks at the owning boundary, and produce review images on demand. A source
+  edit does not require a new receipt or a committed copy of a derived view.*
 - **Conditional skips are capability gaps, not passes.** A skipped positive-path
   integration test must name the missing external capability, retain adjacent
   deterministic coverage for behavior available everywhere, and be reported
@@ -277,8 +278,8 @@ family docs, and `TODO.md`.
   package surfaces were sound while separate reviewers found backend fidelity,
   terminal atomicity, locale ordering, dependency direction, archive integrity,
   and evidence-coordinate defects. Partition reviews by failure domain, require
-  exact reproductions, remediate all Blocker/P1/P2 findings, then rerun freshness
-  and resulting-head gates instead of treating an earlier acceptance as durable.
+  exact reproductions, remediate all Blocker/P1/P2 findings, then rerun affected
+  behavior checks and resulting-head gates instead of treating an earlier acceptance as durable.
 - **Boundary configuration is part of the contract.** Loopback-origin tests
   proved the local MCP server rejected an attacker, but never exercised the
   configured reverse-proxy origin. Test both halves of an allow-list: known-bad
@@ -367,9 +368,9 @@ family docs, and `TODO.md`.
 
 - Start with the smallest failing characterization or invariant test.
 - Make one behavior-preserving change at a time; keep one writer per worktree.
-- Run the focused test red→green, then adjacent suites, typecheck, generated
-  freshness gates, full unit/E2E gates, and quality trackers appropriate to the
-  touched surface.
+- Run the focused test red→green, then adjacent suites, typecheck, full
+  unit/E2E gates, and quality trackers appropriate to the touched surface.
+  Regenerate imported runtime modules when their inputs change.
 - For visual changes, provide captioned generated evidence and state honestly
   when the baseline hard-failed rather than fabricating a “before” render.
 - Before a pull request, use the repository’s `good-pr` skill and report residual
