@@ -300,7 +300,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         id: `legend-swatch:${item.colorIndex}`,
         role: 'legend',
         geometry: { kind: 'rect', x: item.x, y: item.y, width: item.swatchSize, height: item.swatchSize, rx: 2, ry: 2 },
-        paint: { fill, fillOpacity: String(curveOpacity), stroke, strokeWidth: String(strokeWidth) },
+        paint: { fill, fillOpacity: '1', stroke, strokeWidth: String(strokeWidth) },
         channels,
         attributes: { className: 'radar-legend-swatch' },
       },

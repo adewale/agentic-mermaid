@@ -156,21 +156,16 @@ prints its fast-check seed; `AM_FC_SEED=<seed>` reproduces it (see
 
 These were measured and are tracked in [`TODO.md`](../../../TODO.md):
 
-- **H5 as drawn (BUILD-34).** A census keyed by scene categories, over every
-  family's honesty corpus in every style, found three cases where drawn
-  colors compress below the palette's separation:
-  - The watercolor wash glazes pie slices at 30%, which leaves ΔE_OK 0.03
-    between slices, while their legend keys stay opaque.
-  - Journey actor dots under watercolor are 0.049 apart.
-  - Radar legend keys are drawn at the curve opacity with a neutral border,
-    0.06–0.09 apart in most palettes. The curves themselves separate by their
-    opaque outlines.
-
-  The next step is an as-drawn oracle keyed by legend categories: keys must
-  be distinguishable, and each key must match the marks it names.
-- **H6 for radar (BUILD-35).** An authored `min` above zero draws radii
-  proportional to `value − min`, and out-of-range values are clamped, with no
-  report.
+- **H5 as drawn (BUILD-34).** Keyed pie slices and Journey actor dots retain
+  opaque category paint under watercolor; Radar legend keys use opaque curve
+  colors. Authored opacity still wins. The emitted-color regression in
+  `categorical-palette-rollout.test.ts` checks matching pie keys/marks and
+  perceptual separation. A census over every family/style/category remains
+  a separate coverage expansion.
+- **H6 for radar.** Non-zero minima emit `SCALE_RANGE_EXCLUDES_ZERO`; values
+  outside the authored domain emit `VALUES_OUTSIDE_RANGE` with curve identity,
+  values, and range. Authored values remain unchanged; the drawing still clips
+  deliberately to that range.
 - **Edges over group titles.** Edges are drawn above groups, so an edge can
   cross a group's header text. This predates the contract and belongs to
   layout, not paint.

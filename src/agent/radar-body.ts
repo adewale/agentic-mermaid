@@ -389,6 +389,14 @@ export function verifyRadar(body: RadarBody, opts: VerifyOptions): LayoutWarning
   // Labels are drawn as written (upstream sets them as text), so they are
   // measured literally.
   const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
+  const max = body.max ?? Math.max(1, ...body.curves.flatMap(curve => curve.values))
+  const range = { min: body.min, max }
+  if (body.min > 0) warnings.push({ code: 'SCALE_RANGE_EXCLUDES_ZERO', range, baseline: body.min, message: 'Radar radii use value minus min; a non-zero baseline exaggerates relative differences.' })
+  for (const curve of body.curves) {
+    const values = curve.values.filter(value => value < range.min || value > range.max)
+    if (values.length) warnings.push({ code: 'VALUES_OUTSIDE_RANGE', series: curve.id, values, range, message: 'Radar values outside the authored range are clipped to its boundary.' })
+  }
+
   if (body.axes.length === 0 && body.curves.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   for (const a of body.axes) overflow(a.id, a.label)

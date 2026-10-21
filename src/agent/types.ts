@@ -1581,6 +1581,7 @@ export type Tier3WarningCode =
   | 'INEFFECTIVE_CONFIG'
   | 'LOW_CONTRAST'
   | 'LABELS_HIDDEN'
+  | 'SCALE_RANGE_EXCLUDES_ZERO'
   | 'BAR_RANGE_EXCLUDES_ZERO'
   | 'VALUES_OUTSIDE_RANGE'
   | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
@@ -1677,6 +1678,7 @@ export type LayoutWarning =
    * bars start at `baseline` and their lengths are not proportional to their
    * values. Advisory: the authored range is kept; never flips verify.ok.
    */
+  | { code: 'SCALE_RANGE_EXCLUDES_ZERO'; range: { min: number; max: number }; baseline: number; message: string }
   | { code: 'BAR_RANGE_EXCLUDES_ZERO'; range: { min: number; max: number }; baseline: number; message: string }
   /**
    * A series has values outside the authored value-axis range. A bar stops at
@@ -1732,6 +1734,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   INEFFECTIVE_CONFIG: 'warning',
   LOW_CONTRAST: 'warning',
   LABELS_HIDDEN: 'warning',
+  SCALE_RANGE_EXCLUDES_ZERO: 'warning',
   BAR_RANGE_EXCLUDES_ZERO: 'warning',
   VALUES_OUTSIDE_RANGE: 'warning',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.severity,
@@ -1769,6 +1772,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   INEFFECTIVE_CONFIG: 'lint',
   LOW_CONTRAST: 'lint',
   LABELS_HIDDEN: 'lint',
+  SCALE_RANGE_EXCLUDES_ZERO: 'lint',
   BAR_RANGE_EXCLUDES_ZERO: 'lint',
   VALUES_OUTSIDE_RANGE: 'lint',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.tier,

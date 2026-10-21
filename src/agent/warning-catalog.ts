@@ -271,6 +271,14 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     example: 'xychart-beta\n  x-axis ["North region", "South region", "East region", "West region", "Central region", "Coastal region", "Mountain region", "Desert region", "Island region", "Border region"]\n  bar [12, 18, 9, 22, 15, 11, 7, 5, 3, 8]',
     origins: ['source', 'config'],
   },
+  SCALE_RANGE_EXCLUDES_ZERO: {
+    summary: 'The radial scale excludes zero.',
+    what: 'Radar radii are measured from an authored non-zero minimum.',
+    triggers: 'A radar chart sets min above zero.',
+    fix: 'Use min 0 for proportional radii, or retain the deliberate truncation and disclose the scale.',
+    example: 'radar-beta\n  axis a, b, c\n  curve x{95, 96, 99}\n  min 90\n  max 100',
+    origins: ['source'],
+  },
   BAR_RANGE_EXCLUDES_ZERO: {
     summary: 'An XY chart with bar series has an authored y-axis range that excludes zero. Bars grow from zero clamped into the range, so they start at the reported `baseline` and their lengths stop being proportional to their values (a truncated axis). The authored range is kept. Include zero with `set_y_axis`, or draw the series as a line.',
     guideNote: 'an XY chart with bar series has an authored y-axis range that excludes zero, so bars start at the reported `baseline` and their lengths are not proportional to their values; include zero with `set_y_axis`, or draw the series as a line',

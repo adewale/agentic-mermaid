@@ -288,3 +288,11 @@ function expectOk<T>(r: { ok: true; value: T } | { ok: false; error: unknown }):
   if (!r.ok) throw new Error(`mutation failed: ${JSON.stringify(r.error)}`)
   return r.value
 }
+
+
+test('reports truncated radar baselines and clipped authored values', () => {
+  const source = 'radar-beta\n axis a["A"], b["B"], c["C"]\n curve sample["Sample"]{85, 95, 150}\n min 90\n max 100'
+  const result = verifyMermaid(source)
+  expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'VALUES_OUTSIDE_RANGE', series: 'sample', values: [85, 150], range: { min: 90, max: 100 } }))
+  expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'SCALE_RANGE_EXCLUDES_ZERO', range: { min: 90, max: 100 } }))
+})
