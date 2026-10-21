@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
-import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
+import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
@@ -67,10 +67,27 @@ describe('Architecture layout backends', () => {
     expect(renderMermaidSVGWithReceipt(fixture, { graphLayout: { backend: 'elk' } }).svg).toBe(renderMermaidSVGWithReceipt(fixture).svg)
   })
 
-  test('attributes compound declines while retaining native empty diagrams', () => {
-    const grouped = 'architecture-beta\ngroup g[Group]\nservice a(server)[A] in g'
-    expect(() => renderMermaidSVGWithReceipt(grouped, native)).toThrow(GraphLayoutUnsupportedError)
-    expect(renderMermaidSVGWithReceipt(grouped, { graphLayout: { backend: 'agentic', fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', reason: 'Architecture compound child order and boundary placement', attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'unsupported' }), { backend: 'elk', outcome: 'selected' }] })])
+  const compounds = JSON.parse(readFileSync(new URL('../../eval/mermaid-docs-corpus/corpus.json', import.meta.url), 'utf8')) as Array<{ family: string; index: number; source: string }>
+  test.each(compounds.filter(entry => entry.family === 'architecture'))('retains all authored Architecture relationships and certifies final compound paint: $index', ({ source }) => {
+    const model = parseArchitectureDiagram(toMermaidLines(source)), original = structuredClone(model)
+    const placed = layoutArchitectureDiagram(model, native)
+    expect(model).toEqual(original)
+    expect(placed.edges.map(edge => [edge.source, edge.target])).toEqual(model.edges.map(edge => [edge.source, edge.target]))
+    expect(placed.services.map(service => [service.id, service.parentId])).toEqual(model.services.map(service => [service.id, service.parentId]))
+    const rendered = withRenderStageObserver(sample => { expect(sample.stage).not.toBe('elk') }, () => renderMermaidSVGWithReceipt(source, native))
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('corpus input must parse')
+    expect(renderMermaidSVGWithReceipt(parsed.value, native).svg).toBe(rendered.svg)
+  })
+
+  test('retains native empty frames and empty diagrams without fetching ELK', () => {
+    const grouped = 'architecture-beta\ngroup g[Group]'
+    const framed = withRenderStageObserver(sample => { expect(sample.stage).not.toBe('elk') }, () => renderMermaidSVGWithReceipt(grouped, native))
+    expect(framed.svg).toContain('Group')
+    expect(framed.receipt.layoutCertification?.status).toBe('passed')
+    expect(renderMermaidSVGWithReceipt(grouped, { graphLayout: { backend: 'agentic', fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
     expect(renderMermaidSVGWithReceipt('architecture-beta', native).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
   })
 })

@@ -29,6 +29,7 @@ import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts
 import { namespaceSvgIds } from '../../src/renderer.ts'
 import { FamilyLayoutError } from '../../src/agent/family-layouts.ts'
 import { generatedFlowchartSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
+import { releaseBenchCases } from '../benchmark/release-bench-cases.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -99,7 +100,7 @@ export function snapshotSample(input: SampleInput, idPrefix: string, options: Re
   }
 }
 
-export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind } = {}): Snapshot {
+export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind; includeWorkloads?: boolean } = {}): Snapshot {
   let rev = 'unknown'
   let dirty = true
   try {
@@ -107,7 +108,9 @@ export function buildSnapshot(label: string, options: { renderOptions?: RenderOp
     dirty = execSync('git status --porcelain', { cwd: ROOT, encoding: 'utf8' }).length > 0
   } catch { /* not a repo */ }
   if (options.generated && !options.renderOptions?.graphLayout) throw new RangeError('Generated comparisons require an explicit graphLayout.backend')
-  const all = options.generated ? generatedFlowchartSamples(options.generated, options.generatedKind) : collectSamples()
+  const all = options.generated ? generatedFlowchartSamples(options.generated, options.generatedKind) : [...collectSamples(),
+    ...(options.includeWorkloads ? releaseBenchCases().map(sample => ({ ...sample, id: `workload-source/${sample.id}` })) : []),
+  ]
   if (options.families?.some(family => !all.some(sample => sample.family === family))) throw new RangeError('Unknown snapshot family')
   const samples = all.filter(sample => !options.families || options.families.includes(sample.family))
     .map((s, i) => snapshotSample(s, `lc${i}-`, options.renderOptions, { includeAscii: !options.generated }))
@@ -151,11 +154,18 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   const id = (after ?? before)!.id
   const family = (after ?? before)!.family
   const notes: string[] = []
-  if (!before || !after || before.ok !== after.ok) {
+  if (!before || !after) {
     notes.push(`status: before=${before ? (before.ok ? 'ok' : 'error') : 'missing'} after=${after ? (after.ok ? 'ok' : 'error') : 'missing'}`)
     return { id, family, verdict: 'status-changed', notes, before, after }
   }
-  if (!before.ok) return { id, family, verdict: 'unchanged', notes: ['both error'], before, after }
+  if (before.ok !== after.ok) {
+    notes.push(after.ok ? 'support gained: error → render' : 'support lost: render → error')
+    return { id, family, verdict: after.ok ? 'improvement' : 'regression', notes, before, after }
+  }
+  if (!before.ok) {
+    const sameFailure = before.errorCode === after.errorCode && before.error === after.error
+    return { id, family, verdict: sameFailure ? 'unchanged' : 'changed', notes: [sameFailure ? 'both error' : 'failure changed; inspect retained outcomes'], before, after }
+  }
 
   const mb = before.metrics!
   const ma = after.metrics!
@@ -186,6 +196,11 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
     track('same-endpoint shared spans', mb.routeOverlaps.parallel, ma.routeOverlaps.parallel, false)
   }
   track('labelLegibility', mb.labelLegibility, ma.labelLegibility, true, LEGIBILITY_EPS)
+  if (mb.routeGeometry && ma.routeGeometry) {
+    track('polyline bends', mb.routeGeometry.bends, ma.routeGeometry.bends, false)
+    track('route length', mb.routeGeometry.length, ma.routeGeometry.length, false, 0.01)
+    track('canvas area', mb.routeGeometry.area, ma.routeGeometry.area, false, 0.01)
+  }
   if (mb.nodeCount !== ma.nodeCount) {
     if (transitionedToMeasured) { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✓ (empty→measured)`); improved = true }
     else { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✗`); regressed = true }
@@ -323,8 +338,12 @@ after options: <code>${esc(JSON.stringify(after.renderOptions ?? {}))}</code>${a
 <table><thead><tr><th>family</th><th>samples</th><th>status</th><th>regressions</th><th>improvements</th><th>changed</th><th>unchanged</th><th>adverse</th></tr></thead>
 <tbody>${familyRows}</tbody></table></details>
 <p>Unchanged samples are hidden. Verdicts: metric deltas use measureQuality
-(edge crossings, padded label conflicts and shared spans when available, label legibility) plus node/edge-count faithfulness;
+(edge crossings, measured label conflicts and shared spans when available, label legibility,
+polyline bends, route length and canvas area) plus node/edge-count faithfulness;
 "changed" means bytes or backend decisions differ with no metric movement.</p>
+<p>Support gains are improvements; support losses are regressions. Missing population members
+remain adverse status changes. A regression in any measured dimension remains visible even
+when another improves. Smaller area or fewer bends alone does not establish human preference.</p>
 <p>Quality comes from a separate public-layout call, not the retained SVG artifact.
 Preview IDs are scoped per panel; original SVG bytes and digests remain in the JSON snapshots.
 Full measurements and actual backend choices are expandable for each rendered
@@ -355,7 +374,7 @@ if (import.meta.main) {
     if (generatedKind && count === undefined) throw new RangeError('--generated-kind requires --generated-count')
     if (start !== undefined && count === undefined) throw new RangeError('--generated-start requires --generated-count')
     const generated = count === undefined ? undefined : { start: start === undefined ? 0 : Number(start), count: Number(count) }
-    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated, generatedKind })
+    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(','), generated, generatedKind, includeWorkloads: process.argv.includes('--workloads') })
     writeFileSync(out, JSON.stringify(snap))
     const failed = snap.samples.filter(s => !s.ok).length
     console.log(`wrote ${out}: ${snap.samples.length} samples (${failed} errored) at ${snap.rev}`)
