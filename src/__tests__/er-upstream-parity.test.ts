@@ -170,9 +170,11 @@ describe('ER source Mermaid rejects, read generously', () => {
       draws: renderMermaidSVG(source).includes(drawn),
       reported: warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []),
     }).toEqual({ typed, draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
-    // Canonical typed output drops only the generous inline comment, not its
-    // statement. The existing public comment policy must account for that loss.
-    if (syntax === 'er_trailing_comment') expect(warnings).toContainEqual(expect.objectContaining({ code: 'COMMENT_DROPPED', count: 1, lines: [line] }))
+    if (syntax === 'er_trailing_comment') {
+      expect(warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
+      if (!parsed.ok) throw new Error('parse failed')
+      expect(serializeMermaid(parsed.value)).toContain('%%')
+    }
   })
 
   // Mermaid lexes an attribute comment inside the block, where `.*direction`

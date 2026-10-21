@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-10-17",
-  "reviewer": "Codex agent, reviewing native deterministic cookbook renders for PR #394",
-  "scope": "Agent visual review at native 900px width of all six existing cookbook screenshots, including before/after inspection of the three documentation-only prototypes named below. Cupertino changes from 900\u00d7192 to 900\u00d7191 after canonical text geometry; its topology, readable labels and marker contact remain intact. Vercel remains 900\u00d7643 with 22220 changed pixels as the title reserves its full text band and plot/legend positions adjust; values, series identity and complete legend labels remain visible. Cloudflare remains 900\u00d7339 with 7475 changed pixels in title/label projection; task ranges, milestone, section bindings and non-color cues remain intact. Transit Route Map, Mid-century Report and Star Chart Atlas are pixel-identical to their previous committed screenshots. This records an agent review, not human approval, endorsement or exhaustive design-system equivalence.",
+  "reviewedAt": "2026-10-21",
+  "reviewer": "Codex agent, reviewing native before/after cookbook renders for PR #456",
+  "scope": "Agent visual review at native 900px width of the changed Vercel prototype before/after pair. Both images remain 900×643; exactly 357 pixels change within (821, 52)–(841, 97), covering the two legend samples. The bar key now matches the off-white bars, and the line key matches the blue bound series. Plot geometry, values, labels, axes and the rest of the image are pixel-identical. All five other cookbook screenshots are byte-identical to their previously reviewed versions and retain their prior approval. This records an agent review, not human approval, endorsement or exhaustive design-system equivalence.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
@@ -13,7 +13,7 @@
     {
       "id": "vercel-inspired-prototype",
       "path": "docs/assets/style-cookbook/vercel-inspired-prototype.png",
-      "sha256": "a52bfa502a1f099eecdb90291056f43711d749a720f696f0358b52d0159989e4"
+      "sha256": "7183bb0113aa968609459818cd682553f31662767921095da3dbe1bd2f71305e"
     },
     {
       "id": "cloudflare-workers-inspired-prototype",

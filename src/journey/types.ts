@@ -80,6 +80,8 @@ export interface PositionedJourneySection {
 
 export interface PositionedJourneyActor {
   block?: PixelTextBlock
+  /** Authored actor identity, independent of the displayed label's casing. */
+  category: string
   label: string
   x: number
   y: number

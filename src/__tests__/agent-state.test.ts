@@ -462,7 +462,7 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     // themselves are proven on a doctored state layout below.
     const body = '  [*] --> A\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
     const expected: LayoutWarning[] = [
-      { code: 'DUPLICATE_EDGE', edge: 'A->B#2', duplicateOf: 'A->B#1', from: 'A', to: 'B' },
+      { code: 'DUPLICATE_EDGE', edge: 'A->B#1', duplicateOf: 'A->B#0', from: 'A', to: 'B' },
       { code: 'UNREACHABLE_NODE', node: 'C' },
       { code: 'UNREACHABLE_NODE', node: 'D' },
     ]

@@ -43,7 +43,7 @@ queues. Retired IDs are not reused.
   [PR #416](https://github.com/adewale/agentic-mermaid/pull/416) is a separate
   candidate, not a dependency of those text decisions. Qualify release claims
   with [the remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
-  and the preexisting Sequence terminal omission under CONS-45. REL-1 still
+  and output-specific projection limits. REL-1 still
   requires final-candidate CI and artifact/delivery verification.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
@@ -122,20 +122,7 @@ queues. Retired IDs are not reused.
   and privacy-policy URLs, screenshots, test prompts/responses, localization,
   and review notes. Submit through the plugin portal only when the live endpoint
   and UI are stable enough to preserve the reviewed metadata contract.
-- [ ] **BUILD-24 — Layout hints: rank/group pinning and edge-length
-  preferences** (`todo`). Direct agent feedback (2026-07): an agent deleted a
-  real edge because the auto-layout drew its feedback loop as a long,
-  confusing route — the only lever it had was removing information. Give
-  agents structural levers instead: per-node rank/layer pinning, "keep these
-  nodes adjacent" grouping hints, and a "keep this edge short" preference,
-  carried as typed metadata (not source hacks) and honored by the ELK
-  pipeline deterministically. This is not manual positioning and does not add
-  Agentic-only Mermaid syntax: the first contract is typed render/mutation
-  metadata, kept in the request digest and source-preservation receipt when an
-  agent workflow persists it. Design questions: interaction with
-  the determinism contract (hints must be explicit input, never ambient);
-  which ELK knobs (`org.eclipse.elk.layered.layering.*`, `priority`,
-  `desiredEdgeLength`) map cleanly. Scope the first slice to flowchart/state.
+
 - [ ] **BUILD-2 — `process --mode validate|canonicalize` triage** (`todo`).
   Current verbs are `verify` and `format`; do not add another command until it
   proves agent value. Needed: inventory overlap with `verify`, `format`,
@@ -164,24 +151,6 @@ queues. Retired IDs are not reused.
   Native C4 from [#387](https://github.com/adewale/agentic-mermaid/issues/387)
   is implemented in source; see [its dispositions and validation](docs/design/families/c4.md).
   Native admission does not imply a published package or deployed site update.
-- [ ] **BUILD-34 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
-  Palettes separate peers where colors are generated (`categoricalPalette`,
-  ΔE_OK ≥ 0.10), but a scene-keyed census of every family's honesty corpus in
-  every style found three cases where the drawn colors compress: the
-  watercolor wash glazes pie slices at 30% (ΔE_OK 0.03 between slices) while
-  their legend keys stay opaque; journey actor dots under watercolor (0.049);
-  and radar legend keys, drawn at the curve opacity with a neutral border
-  (0.06–0.09 between keys in most palettes — the curves themselves separate by
-  their opaque outlines). Build an as-drawn oracle keyed by legend categories
-  (keys distinguishable; each key matches the marks it names), then decide the
-  look policy for keyed marks. See
-  [`docs/design/system/chart-honesty.md`](docs/design/system/chart-honesty.md).
-- [ ] **BUILD-35 — Report radar scales that exclude zero (chart honesty H6)**
-  (`todo`). An authored radar `min` above zero draws radii proportional to
-  `value − min` (`radarValueRatio`), and values outside `[min, max]` are
-  clamped, so a curve can misstate its values with no report. XY charts report
-  the same distortion as `BAR_RANGE_EXCLUDES_ZERO`; give radar the equivalent
-  verify warning (or a shared scale-baseline code).
 - [ ] **BUILD-1 — Collapsible subgraphs (#7785)** (`todo`). Track Mermaid PR
   <https://github.com/mermaid-js/mermaid/pull/7785> (`@{ view: collapsed }`
   metadata syntax) and stay syntax-compatible. Large, but a real readability
@@ -192,15 +161,21 @@ queues. Retired IDs are not reused.
 
 - [ ] **EVAL-3 — Eval the `agentic-mermaid-diagram-workflow` skill for
   helpfulness** (`todo`). The public skill
-  (`website/public/skills/agentic-mermaid-diagram-workflow/SKILL.md` +
+  (`skills/agentic-mermaid-diagram-workflow/SKILL.md` +
   `references/`) is the site's main agent call-to-action, now linked from the
   footer. Verify it actually improves outcomes: run agent-usage cases with vs.
   without the skill loaded and compare on task success, verify-before-return
   discipline, Code-Mode vs. prose answers, and source-level-vs-structured edit
   choice — reuse the existing `eval/agent-usage/` sandbox, task oracle, and
   trace linter.
-  Fold any skill gaps back into `SKILL.md`/`references/`; keep or cut the
-  footer link based on whether it demonstrably helps.
+  A two-task fresh-agent comparison on 2026-10-21 produced correct diagrams
+  in both conditions (2/2 each); skill-guided runs used the hosted typed edit
+  and verify path. This small sample supplies no efficacy or cost estimate.
+  The API runner now captures usage (including Anthropic cache tokens), actual
+  execution timing and paired skill/no-skill results, but model credentials
+  were unavailable and the existing Codex CLI could not initialize on its
+  read-only state directory. Finish a larger instrumented comparison, fold any
+  gaps into the skill, and make the footer decision from that evidence.
 
 
 ## Parked / evidence-required ideas
@@ -261,48 +236,37 @@ queues. Retired IDs are not reused.
   separately from the 2,800-case pathological corpus. Keep it non-blocking and
   make no route repair unless the issue's representative-witness and
   non-regression decision gate passes.
-- [ ] **TEST-8 — Label-text census** (`todo`). For every case in the docs
-  corpus, the upstream bench and the official fences, record each label's text
-  on every surface (model, SVG, ASCII, meta, facts, metrics) and upstream's DB
-  text. Assert the surfaces agree and match upstream, replace the bench's
-  self-harvested `labelsContain` values with upstream-harvested ones, and post a
-  base-vs-head diff of changed label text on pull requests. It flags BUG-19 and
-  BUG-20 on existing corpus cases, and would have flagged the untrimmed labels
-  fixed in #359; image contact sheets would not, because most of these defects
-  render identically before and after a change.
-- [ ] **TEST-9 — Widen the upstream differentials** (`todo`). The seeded
-  grammar comparison now also mutates with fixed lexer-boundary fragments
+- [ ] **TEST-8 — Complete identity-aware label correspondence** (`todo`).
+  The independent reference census now records raw labels and model, layout,
+  SVG, terminal metadata, ASCII, facts and describe surfaces for the docs,
+  official fences, upstream bench and authored witnesses; it supports paired
+  base/head reports. This is existential text-presence evidence, not a proof
+  of label identity, multiplicity or complete equality. Extend its scoped
+  projections to Class/ER member signatures, accessibility and Sequence
+  note/control text. Preserve explicit unavailable results and documented
+  display/configuration differences. Metrics expose aggregate counts rather
+  than per-label text. The bench's self-harvested `labelsContain` admission
+  hints still need independent replacement; do not treat them as the oracle.
+- [ ] **TEST-9 — Finish display-oriented grammar differentials** (`todo`).
+  The seeded grammar comparison mutates with fixed lexer-boundary fragments
   (`eval/mermaid-modern-compat/grammar-fragments.ts`: entity codes, directives,
   keyword and digit-led names, `@`, `||`, `:::`, Unicode blanks), reports silent
-  reads per family with reduced examples, and a nightly rolling-seed lane files
-  them in one issue. Left: the fast-check flowchart and sequence generators still
-  omit those spellings, `\n`, markdown strings, `@{}`, `style` lines and subgraph
-  membership (flowchart); `* # \ < >`, `activate`, `box`, `properties` and
-  `links` (sequence). Add ER, class and state DBs to the upstream worker, and
-  compare what upstream displays (the Pie browser oracle's approach), not only
-  its DB. Triage each finder report by real-world use before adding code (see
-  the likelihood paragraph in `docs/project/divergences.md`): most mutated
+  reads per family with reduced examples, and a nightly rolling-seed lane
+  records them in one issue. Flowchart properties cover additional entity
+  codes, literal `\n`, styles and nested membership; Sequence generates boxes,
+  properties, activation, metadata, aliases and punctuation. The reference
+  worker observes Class, ER and State DBs. Remaining work is broader Markdown
+  and `@{}` combinations plus browser-displayed text for families where DB
+  text differs from display. Source admission differences alone are not bugs.
+  Triage finder reports by real-world use before adding code (see the
+  likelihood paragraph in `docs/project/divergences.md`): most mutated
   spellings occur in no real diagram.
-- [ ] **TEST-10 — Random-order, fresh-process finder lane** (`todo`). Two
-  order-dependent failures (resvg initialization, the Bun `node:vm` timer)
-  surfaced only by accident. Run the suite nightly in shuffled file order and
-  each file alone. The existing `nightly-finder.yml` already randomizes property
-  seeds and reports to #362; shuffled order and file isolation are the additional
-  work here, not a second random-seed finder.
-- [ ] **TEST-11 — Run the CJK font tests in CI** (`todo`). The two CJK cases in
-  `png-fonts.test.ts` skip unless `fonts-wqy` is installed, and no workflow
-  installs it, so they never run. Install the font in the unit job and make the
-  skip fail when `CI=true`.
+
 - [ ] **TEST-12 — Sweep for Bun's asymmetric-matcher write-back** (`todo`). In
   Bun 1.4.2, `toMatchObject`/`toEqual` with `expect.any`, `arrayContaining` or
   `closeTo` overwrite the checked field of the received object with the matcher,
   so a later read of that field sees the matcher, not the data. Find tests that
   read an object after such an assertion, and report the bug upstream.
-- [ ] **TEST-13 — Execute installed-package quickstarts** (`todo`,
-  [#377](https://github.com/adewale/agentic-mermaid/issues/377)). Run the documented
-  Getting Started commands against a packed, installed tarball in a clean
-  consumer directory. Existing command-vocabulary checks do not execute those
-  commands or prove package-runner resolution.
 
 ## Consolidation / dedup backlog
 
@@ -326,12 +290,7 @@ queues. Retired IDs are not reused.
   remains pending. This PR is not a
   dependency of the #363 dispositions or CONS-46 text
   implementation; release delivery remains under REL-1.
-- [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
-  17 hand-written quote/bracket scanners lex the flowchart line (parser,
-  statement splitter, unsupported-syntax gate, analyze masks, source map), and a
-  rule change reaches only some of them (BUG-21, 22, 26). Emit tokens with spans
-  once; derive the source map from spans instead of re-lexing, and lint against
-  new ad-hoc quote scanners.
+
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry. Build on the
@@ -341,11 +300,7 @@ queues. Retired IDs are not reused.
   State-note/atomic-route fixes in #401/#405. The old pre-merge reconciliation
   is complete. Promote a remaining adapter extraction only with a concrete
   repeated behavior; this is not a request to redo those delivered contracts.
-  A preexisting combined Sequence box/`alt` case omits the header and divider
-  from terminal ink while SVG retains them. The exact witness and baseline are
-  recorded in [divergences](docs/project/divergences.md#preexisting-sequence-terminal-limit);
-  separate box and fragment tests do not prove that composition. CONS-46 does
-  not fix or qualify this geometry as complete.
+
 
 ## Contribution governance backlog
 
@@ -364,7 +319,6 @@ queues. Retired IDs are not reused.
 ## Source-preservation defects
 
 - [ ] **SRC-1 — Segment-preserving Class and Timeline bodies** (`todo`). Preserve typed mutation around unmodeled statements without violating byte-for-byte opaque fallback. Add parser/serializer closure and adversarial reorder tests before promotion.
-- [ ] **SRC-2 — Positional comments for Flowchart and State** (`todo`). Replace announced `COMMENT_DROPPED` loss with positionally anchored opaque segments that survive typed mutation.
 
 ## Documentation / issue triage
 
@@ -380,7 +334,7 @@ favor of read-and-warn, and the Sequence proposal is replaced by context codecs.
 State/Mindmap text handling is implemented in this candidate. CONS-46's source
 implementation is complete and leaves the active backlog; final combined CI,
 merge and #372's dependency on PR #418 remain tracked under REL-1. Terminal
-geometry and Flowchart source-map tokenization remain under CONS-45 and CONS-47.
+geometry remains under CONS-45; Flowchart tokenization is shared already.
 
 ## Known defects
 
@@ -401,7 +355,6 @@ BUG-19/23/30/31/32 source/display work; its final checks and merge are tracked
 under REL-1.
 
 - [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
-- [ ] **BUG-26 — Flowchart source-map scanners still honour `\` escapes and `'` quotes** (`todo`). `flowchart-body.ts` and `source-map-spans.ts` disagree with the parser on those lines, so spans can be wrong.
 - [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
 - [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
 - [ ] **BUG-42 — ELK throws on an edge between a nested subgraph's node and its enclosing subgraph** (`todo`). With `direction TB` overrides, `B --> Outer` or `Outer --> B` (B inside Inner inside Outer) raises `UnsupportedGraphException` and the render fails. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
@@ -410,16 +363,7 @@ under REL-1.
 - [ ] **BUG-54 — Quote Quadrant text in its grammar context** (`todo`; #363). Clear keyword and semicolon labels draw, but some lack portability warnings and serialize to rejected source. Keep generous reading; finish canonical quoting and warnings at the Quadrant reader/writer.
 - [ ] **BUG-56 — Close accepted-source reader gaps** (`todo`; #363). Class style comments and `classDiagram-v2`, Quadrant empty far-axis labels and statement separators, and Architecture declaration text/spacing remain unsupported or fail rendering. The lollipop case is already fixed by #410. Work belongs in the existing family readers; completed grammar-consolidation issues stay closed.
 - [ ] **BUG-58 — Enforce portable Quadrant style authoring** (`todo`; #363). Functional colors, variables, fractional radii and unknown properties can produce rejected structured output. Keep clear source extensions with warnings; refuse regeneration without a meaning-preserving portable spelling. The initial strict subset is supported hexadecimal colors and integer radii, as specified in the decision record; do not round, resolve page variables or drop fields.
-- [ ] **BUG-61 — Code Mode trailing line comments break the wrapper** (`todo`,
-  [#366](https://github.com/adewale/agentic-mermaid/issues/366)). Protect
-  multi-statement snippets ending in `//` from swallowing wrapper syntax.
-  PR #365 addresses #274/#275, not this case.
-- [ ] **BUG-68 — Code Mode result capture and ops-array recovery hint** (`todo`,
-  [#274](https://github.com/adewale/agentic-mermaid/issues/274),
-  [#275](https://github.com/adewale/agentic-mermaid/issues/275)). PR #365 proposes
-  returning a final expression after preceding statements and replacing the
-  nonexistent `applyOps` recovery hint. Verify the public behavior at merge;
-  this does not close BUG-61's trailing-comment case.
+
 
 The #363 record also retains two export limits: unsupported Architecture IDs
 and icons may draw with warnings but still emit rejected structured source;

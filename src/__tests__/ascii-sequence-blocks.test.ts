@@ -286,3 +286,22 @@ Note over A,B: 注記です 👩‍💻 é`, { useAscii: false })
     expect(result).toContain('│ 注記です 👩‍💻 é │')
   })
 })
+
+
+it.each([true, false])('retains fragment labels inside a wide participant box (ASCII=%s)', useAscii => {
+  const source = `sequenceDiagram
+ title [b]Title[/b]
+ box transparent [b]Box[/b]
+ participant A@{ "type": "boundary" } as [b]Alias[/b]
+ participant B
+ end
+ autonumber
+ alt [b]Header[/b]
+ A->>B: [b]Message[/b]
+ Note over A: [b]Note[/b]
+ else [b]Divider[/b]
+ B->>A: done
+ end`
+  const text = renderMermaidASCII(source, { useAscii })
+  for (const label of ['Title', 'Box', 'Alias', 'Header', 'Message', 'Note', 'Divider', 'done']) expect(text).toContain(label)
+})

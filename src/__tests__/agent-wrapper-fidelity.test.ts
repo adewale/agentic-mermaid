@@ -6,8 +6,8 @@
 // through parse → serialize and through mutation. Canonical wrapper synthesis
 // (Mermaid's documented config-nested shape) is opt-in.
 //
-// 2C: in-body %% comments are not modeled by structured bodies; their loss is
-// announced by the Tier 3 COMMENT_DROPPED lint instead of being silent.
+// 2C: Structured families retain parser-identified body comments. Statements
+// with stable identities keep anchors; otherwise the comment follows the body.
 // Opaque bodies and preserved opaque segments keep comments and never warn.
 //
 // Each round-trip test also asserts the PREVIOUS bug shape is gone (flattened
@@ -19,7 +19,7 @@ import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import {
-  parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidSVG,
+  parseRegisteredMermaid as parseMermaid, synthesizeFromGraph, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidSVG,
 } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -330,19 +330,20 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
   })
 })
 
-describe('comment policy (2C): announced, never silent', () => {
-  test('in-body comments in a structured flowchart raise COMMENT_DROPPED with count and lines', () => {
+describe('body comment preservation', () => {
+  test('in-body Flowchart comments survive serialization without a loss warning', () => {
     const src = 'flowchart TD\n  %% do not reorder\n  A --> B\n  %% another note\n  B --> C'
     const p = parseMermaid(src)
     if (!p.ok) throw new Error('parse failed')
     const v = verifyMermaid(p.value)
     expect(v.ok).toBe(true)  // lint never flips ok
     const w = v.warnings.find(x => x.code === 'COMMENT_DROPPED')
-    expect(w).toMatchObject({ code: 'COMMENT_DROPPED', count: 2 })
-    expect((w as { lines: number[] }).lines.length).toBe(2)
+    expect(w).toBeUndefined()
+    expect(serializeMermaid(p.value)).toContain('%% do not reorder')
+    expect(serializeMermaid(p.value)).toContain('%% another note')
   })
 
-  test('mutation retains the dropped-comment loss receipt from the original artifact', () => {
+  test('mutation retains the original comment text', () => {
     const parsed = parseMermaid('flowchart LR\n  %% keep context\n  A --> B')
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
@@ -351,12 +352,8 @@ describe('comment policy (2C): announced, never silent', () => {
     const next = mutate(flow!, { kind: 'add_node', id: 'C', label: 'Cache' })
     expect(next.ok).toBe(true)
     if (!next.ok) return
-    expect(next.value.meta.droppedComments).toEqual([{ text: 'keep context', line: 2 }])
-    expect(verifyMermaid(next.value).warnings).toContainEqual({
-      code: 'COMMENT_DROPPED',
-      count: 1,
-      lines: [2],
-    })
+    expect(next.value.meta.droppedComments).toBeUndefined()
+    expect(serializeMermaid(next.value)).toContain('%% keep context')
   })
 
   test('wrapper comments do not raise COMMENT_DROPPED (they are preserved verbatim)', () => {
@@ -365,13 +362,13 @@ describe('comment policy (2C): announced, never silent', () => {
     expect(verifyMermaid(p.value).warnings.filter(w => w.code === 'COMMENT_DROPPED')).toEqual([])
   })
 
-  test('duplicate comment text is occurrence-counted, so a preserved wrapper comment does not mask a dropped body comment', () => {
+  test('duplicate comments retain their occurrence counts across wrapper and body', () => {
     const src = '%% same\nflowchart TD\n  %% same\n  A --> B'
     const p = parseMermaid(src)
     if (!p.ok) throw new Error('parse failed')
-    expect(serializeMermaid(p.value)).toBe('%% same\nflowchart TD\n  A --> B\n')
+    expect(serializeMermaid(p.value).match(/%% same/g)).toHaveLength(2)
     const w = verifyMermaid(p.value).warnings.find(w => w.code === 'COMMENT_DROPPED')
-    expect(w).toMatchObject({ code: 'COMMENT_DROPPED', count: 1, lines: [3] })
+    expect(w).toBeUndefined()
   })
 
   test('Sequence comments remain preserved both before and inside opaque blocks', () => {
@@ -396,4 +393,75 @@ describe('comment policy (2C): announced, never silent', () => {
     expect(serializeMermaid(p.value)).toContain('%% opaque-preserved note')
     expect(verifyMermaid(p.value).warnings.filter(w => w.code === 'COMMENT_DROPPED')).toEqual([])
   })
+})
+
+
+test('structured edits retain repeated body comments and rationale', () => {
+  for (const source of [
+    'flowchart TD\n  %% keep this reason\n  A --> B\n  %% endpoint rationale\n  %% keep this reason\n  B --> C',
+    'stateDiagram-v2\n  %% keep this reason\n  A --> B: start %% endpoint rationale\n  %% keep this reason\n  B --> C: done',
+  ]) {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('parse failed')
+    const out = serializeMermaid(parsed.value)
+    expect(out.match(/%% keep this reason/g)).toHaveLength(2)
+    expect(out).toContain('%% endpoint rationale')
+    const edited = parsed.value.kind === 'flowchart' ? mutate(parsed.value, { kind: 'add_node', id: 'D', label: 'Extra' }) : mutate(parsed.value, { kind: 'add_state', id: 'D' })
+    if (parsed.value.kind === 'flowchart') {
+      if (!edited.ok) throw new Error(edited.error.message)
+      expect(serializeMermaid(edited.value)).toContain('%% endpoint rationale')
+    }
+    const reloaded = parseMermaid(out)
+    if (!reloaded.ok) throw new Error('reload failed')
+    expect(serializeMermaid(reloaded.value)).toBe(out)
+  }
+})
+
+
+test('comment anchors survive renaming and JSON transport; metadata cannot introduce statements', () => {
+  const parsed = parseMermaid('flowchart LR\n %% name rationale\n A[Before]\n B[Other]')
+  if (!parsed.ok) throw new Error('parse failed')
+  const renamed = mutate(parsed.value, { kind: 'rename_node', from: 'A', to: 'Renamed' })
+  if (!renamed.ok) throw new Error(renamed.error.message)
+  const source = serializeMermaid(renamed.value)
+  expect(source.indexOf('%% name rationale')).toBeLessThan(source.indexOf('Renamed['))
+  const payload = JSON.parse(JSON.stringify(renamed.value, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value))
+  const restored = synthesizeFromGraph(payload)
+  if (!restored.ok) throw new Error('JSON reload failed')
+  expect(serializeMermaid(restored.value)).toContain('%% name rationale')
+  payload.meta.bodyComments[0].raw = 'Injected --> Other'
+  expect(synthesizeFromGraph(payload).ok).toBe(false)
+})
+
+test('State comments stay before their authored state through serialization and renaming', () => {
+  const parsed = parseMermaid('stateDiagram-v2\n  %% state rationale\n  state "Start" as A')
+  if (!parsed.ok) throw new Error('parse failed')
+  const source = serializeMermaid(parsed.value)
+  expect(source).toMatch(/%% state rationale\n\s*state "Start" as A/)
+  const renamed = mutate(parsed.value, { kind: 'rename_state', from: 'A', to: 'Renamed' })
+  if (!renamed.ok) throw new Error(renamed.error.message)
+  expect(serializeMermaid(renamed.value)).toMatch(/%% state rationale\n\s*state "Start" as Renamed/)
+})
+
+test.each([
+  ['stateDiagram-v2\n  state "A %% quoted" as A %% real comment\n  A --> B', 'state "A %% quoted" as A'],
+  ['stateDiagram-v2\n  state "A\nB" as A %% real comment\n  A --> C', 'state "A<br/>B" as A'],
+])('State inline comments follow their complete quoted alias: %s', (authored, alias) => {
+  const parsed = parseMermaid(authored)
+  if (!parsed.ok) throw new Error('parse failed')
+  const source = serializeMermaid(parsed.value)
+  expect(source).toContain(`${alias}\n%% real comment\n`)
+  const reparsed = parseMermaid(source)
+  if (!reparsed.ok) throw new Error('reload failed')
+  expect(serializeMermaid(reparsed.value)).toBe(source)
+})
+
+test.each([
+  ['stateDiagram-v2\n%% rationale\nstate "Actual" as stateDiagram-v2', 'state "Actual" as stateDiagram-v2'],
+  ['stateDiagram-v2\nnote left of A\nB\nend note\n%% rationale\nstate "Actual" as B', 'state "Actual" as B'],
+  ['---\ntitle: B\n---\nstateDiagram-v2\naccTitle: Heading\n%% rationale\nstate "Actual" as B', 'state "Actual" as B'],
+])('State comments anchor to declarations rather than document or note text: %s', (authored, declaration) => {
+  const parsed = parseMermaid(authored)
+  if (!parsed.ok) throw new Error('parse failed')
+  expect(serializeMermaid(parsed.value)).toContain(`%% rationale\n  ${declaration}`)
 })

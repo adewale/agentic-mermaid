@@ -24,7 +24,7 @@ export function parseMindmap(source: string): MindmapDiagram {
   // Accessibility directives use the ordinary inline-comment rule. Shaped
   // node labels have their own lexer state, where %% remains literal text.
   const accessibilityLines = sourceLines.map(line =>
-    parseAccessibilityDirective([line], 0)?.form === 'inline' ? stripInlineComment(line, false) : line)
+    parseAccessibilityDirective([line], 0)?.form === 'inline' ? stripMindmapComment(line, false) : line)
   const scanned = scanAccessibilityDirectives(accessibilityLines, mindmapStatementEnds(accessibilityLines))
   if (scanned.unclosedIndex !== undefined) {
     throw new MindmapParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
@@ -148,7 +148,7 @@ function* mindmapStatements(rawLines: readonly string[], from: number): Generato
         index = end
       }
     }
-    yield { raw: stripInlineComment(raw), start, end: index }
+    yield { raw: stripMindmapComment(raw), start, end: index }
   }
 }
 
@@ -220,7 +220,7 @@ function scanNodeFrame(source: string): NodeFrame | 'open' | null {
   return { id: opening[1]!.trim(), label, shape, end: end + closer.length }
 }
 
-function stripInlineComment(line: string, shapedLabel = true): string {
+export function stripMindmapComment(line: string, shapedLabel = true): string {
   if (line.trimStart().startsWith(':::')) return line
   const inlineDirective = parseAccessibilityDirective([line], 0)?.form === 'inline'
   const trimmed = line.trimStart()

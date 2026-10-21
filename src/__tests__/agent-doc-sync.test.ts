@@ -16,7 +16,7 @@ import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } f
 import * as agentTypes from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
-import { buildCapabilities, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { buildCapabilities, buildLlmsTxt, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
@@ -419,15 +419,15 @@ describe('documented package usage works', () => {
       'README.md',
       'AGENT_NATIVE.md',
       'Instructions_for_agents.md',
-      'llms.txt',
       'website/source/start.md',
       ...readdirSync(join(REPO, 'docs'))
         .filter(file => file.endsWith('.md'))
         .map(file => `docs/${file}`),
     ]
     const invocations: Array<{ file: string; pkg: string; sub: string }> = []
-    for (const file of docs) {
-      const text = readFileSync(join(REPO, file), 'utf8')
+    const sources = docs.map(file => ({ file, text: readFileSync(join(REPO, file), 'utf8') }))
+    sources.push({ file: 'am llms-txt', text: buildLlmsTxt() })
+    for (const { file, text } of sources) {
       for (const match of text.matchAll(/\bnpx\s+(?:-y\s+)?(agentic-mermaid[\w-]*)(?:\s+([a-z][\w-]*))?/g)) {
         invocations.push({ file, pkg: match[1]!, sub: match[2] ?? '' })
       }

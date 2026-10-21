@@ -219,12 +219,11 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   COMMENT_DROPPED: {
-    summary: "The source contains in-body `%%` comments that this diagram's structured serialization does not preserve (reported with `count` and `lines`). The leading wrapper — frontmatter, `%%{init}%%` directives, comments before the header — always round-trips byte-verbatim; in-body comments survive only in opaque bodies or preserved opaque segments. Re-home load-bearing comments into the wrapper, or accept the loss as canonicalization.",
-    guideNote: 'in-body `%%` comments will not survive structured serialization; the leading wrapper (frontmatter, `%%{init}%%` directives, comments before the header) always round-trips byte-verbatim',
-    what: 'in-body %% comments will not survive structured serialization; the loss is announced, not silent.',
-    triggers: 'Comments between statements in a structurally-modeled body: the typed tree does not model them, so <code>serializeMermaid</code> writes the body back without them. The warning carries the count and line numbers.',
-    fix: 'Move essential comment content into a label or title before mutating, keep a source-level edit instead of a typed mutation when comments must survive, or accept the loss knowingly.',
-    example: 'flowchart LR\n  %% review note that structured serialization drops\n  A[Start] --> B[Done]',
+    summary: 'A parsed payload carries a known comment-loss receipt, including payloads produced by older serializers. Current built-in serializers retain detected comments; Flowchart and State anchor them to statements, and other structured families append unassociated comments. The warning carries occurrence count and original line numbers.',
+    guideNote: 'a payload carries known comment loss; current serializers retain detected comments, but cannot recover text already omitted from an older payload',
+    what: 'a record of comments already lost from a parsed artifact.',
+    triggers: 'Parsed metadata records a missing comment occurrence. No current built-in source-only reproducer is known; legacy or externally assembled payloads can still carry this receipt.',
+    fix: 'Recover the named comment text from the original source before committing the edit. Do not treat an ok flag as a losslessness certificate.',
     origins: ['source'],
   },
   UNSUPPORTED_SYNTAX: {
@@ -270,6 +269,14 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     fix: 'Shorten the category names, flip the chart with <code>set_orientation {horizontal: true}</code> so categories run down the side, or widen the value range so labels have room beyond the bars. For a quadrant chart, spread the points, shorten the names, or enlarge the chart.',
     example: 'xychart-beta\n  x-axis ["North region", "South region", "East region", "West region", "Central region", "Coastal region", "Mountain region", "Desert region", "Island region", "Border region"]\n  bar [12, 18, 9, 22, 15, 11, 7, 5, 3, 8]',
     origins: ['source', 'config'],
+  },
+  SCALE_RANGE_EXCLUDES_ZERO: {
+    summary: 'The radial scale excludes zero.',
+    what: 'Radar radii are measured from an authored non-zero minimum.',
+    triggers: 'A radar chart sets min above zero.',
+    fix: 'Use min 0 for proportional radii, or retain the deliberate truncation and disclose the scale.',
+    example: 'radar-beta\n  axis a, b, c\n  curve x{95, 96, 99}\n  min 90\n  max 100',
+    origins: ['source'],
   },
   BAR_RANGE_EXCLUDES_ZERO: {
     summary: 'An XY chart with bar series has an authored y-axis range that excludes zero. Bars grow from zero clamped into the range, so they start at the reported `baseline` and their lengths stop being proportional to their values (a truncated axis). The authored range is kept. Include zero with `set_y_axis`, or draw the series as a line.',

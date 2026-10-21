@@ -25,7 +25,7 @@ function plain(value, seen = new Set(), depth = 0) {
   if (typeof value === 'function' || typeof value === 'undefined') return undefined;
   if (depth > 14) return '<depth-limit>';
   if (typeof value === 'number' && !Number.isFinite(value)) return String(value);
-  if (typeof value === 'string') return value.replace(/\b\d+-[0-9a-f]{7}\b/g, '<generated-commit>');
+  if (typeof value === 'string') return value;
   if (!value || typeof value !== 'object') return value;
   if (value instanceof Date) return value.toISOString();
   if (seen.has(value)) return '<circular>';
@@ -58,7 +58,10 @@ function snapshot(db) {
     if (!/^get[A-Z]|^(?:topAxisEnabled|inclusiveEndDates)$/.test(name)) continue;
     if (/Config|Logger|DomId|Tooltip|Mapping|Position/.test(name)) continue;
     const getter = db[name];
-    if (typeof getter !== 'function' || getter.length !== 0) continue;
+    // These C4 getters take an optional parent filter. Calling them without
+    // one returns the complete authored collection, needed for label census.
+    const optionalFilter = name === 'getC4ShapeArray' || name === 'getBoundaries';
+    if (typeof getter !== 'function' || (getter.length !== 0 && !optionalFilter)) continue;
     try {
       const value = getter.call(db);
       if (value && typeof value.then === 'function') continue;

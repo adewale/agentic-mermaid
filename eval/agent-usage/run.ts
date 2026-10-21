@@ -30,7 +30,7 @@ import {
   type DiagramKind,
   type ParsedDiagram,
 } from '../../src/agent/types.ts'
-import { executeInSandbox } from '../../src/mcp/sandbox.ts'
+import { executeInSandbox, type ExecutionTraceCall } from '../../src/mcp/sandbox.ts'
 import { type AntiPattern, lintAgentTrace, type SdkCall } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
 
@@ -807,11 +807,11 @@ export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
   },
 ]
 
-export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CASES): Promise<AgentUsageEvalSummary> {
+export async function runAgentUsageEval(cases: AgentUsageEvalCase[] = DEFAULT_CASES, opts: { onTraceCall?: (call: ExecutionTraceCall) => void } = {}): Promise<AgentUsageEvalSummary> {
   const results: AgentUsageEvalResult[] = []
   for (const c of cases) {
     const input = c.input ?? defaultInput(c.id)
-    const exec = await executeInSandbox(c.script, { trace: true })
+    const exec = await executeInSandbox(c.script, { trace: true, onTraceCall: opts.onTraceCall })
     const trace = (exec.trace ?? []) as SdkCall[]
     const findings = lintAgentTrace(trace)
     const taskOk = exec.ok ? checkTask(c.id, input, exec.value, trace) : false

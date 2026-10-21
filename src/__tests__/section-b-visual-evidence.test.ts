@@ -29,7 +29,10 @@ describe('Section B reviewed rendering golden', () => {
 
   test('byte-matches the registry-driven renderer output and is reviewable at native size', () => {
     const checked = readFileSync(PNG)
-    expect(buildSectionBBrandEvidence()).toEqual(checked)
+    expect(
+      Buffer.from(buildSectionBBrandEvidence()).equals(checked),
+      'Section B PNG differs from the reviewed golden; inspect the candidate before updating visual-approval.json',
+    ).toBe(true)
     expect(pngDimensions(checked)).toEqual({ width: 1560, height: 12504 })
     expect(checked.byteLength).toBeGreaterThan(500_000)
   }, 120_000)

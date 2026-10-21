@@ -861,7 +861,10 @@ describe('eval metric split (taskOk primary) + observed tool-use', () => {
     // OBSERVED tool-use log for the cache case only (a real mutate + verify).
     fsWriteFileSync(join(runDir, 'traces', 'cache_between_api_and_db.jsonl'), '{"verb":"mutate"}\n{"verb":"verify"}\n')
 
+    const discovery = { turnsBeforeFirstProductiveCall: 2, inputTokensBeforeFirstProductiveCall: 1200, outputTokensBeforeFirstProductiveCall: 300, elapsedMsToFirstProductiveCall: 1800 }
+    fsWriteFileSync(join(runDir, 'observations', 'cache_between_api_and_db.json'), JSON.stringify(discovery))
     const summary = await finalizeSubagentPromptEval({ runDir })
+    expect(summary.discovery).toEqual({ observedCases: 1, unavailableCases: 1, observations: [{ caseId: 'cache_between_api_and_db', metrics: discovery }] })
     // Correctness gate passes: both diagrams are right, regardless of narration.
     expect({ ok: summary.ok, taskOk: summary.taskOk, total: summary.total }).toEqual({ ok: true, taskOk: 2, total: 2 })
     expect(summary.taskOkRate).toBe(1)

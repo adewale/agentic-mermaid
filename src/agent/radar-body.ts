@@ -31,6 +31,7 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { MAX_RADAR_TICKS, parseRadarChart, radarStatementEnds } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
+import { mermaidNumber as formatNumber } from '../shared/mermaid-number.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
@@ -40,7 +41,6 @@ import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
 const HEADER_RE = /^radar-beta\s*:?\s*$/i
 const ID_RE = /^[\w](?:[\w-]*[\w])?$/
 
-function formatNumber(n: number): string { return String(n) }
 
 // ---- Parser (structured-or-opaque) ------------------------------------------
 
@@ -389,6 +389,13 @@ export function verifyRadar(body: RadarBody, opts: VerifyOptions): LayoutWarning
   // Labels are drawn as written (upstream sets them as text), so they are
   // measured literally.
   const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
+  const range = resolveRadarScale(body)
+  if (body.min > 0) warnings.push({ code: 'SCALE_RANGE_EXCLUDES_ZERO', range, baseline: body.min, message: 'Radar radii use value minus min; a non-zero baseline exaggerates relative differences.' })
+  for (const curve of body.curves) {
+    const values = curve.values.filter(value => value < range.min || value > range.max)
+    if (values.length) warnings.push({ code: 'VALUES_OUTSIDE_RANGE', series: curve.id, values, range, message: 'Radar values outside the authored range are clipped to its boundary.' })
+  }
+
   if (body.axes.length === 0 && body.curves.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   for (const a of body.axes) overflow(a.id, a.label)

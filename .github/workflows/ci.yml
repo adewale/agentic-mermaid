@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install the CJK coverage fixture
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
+
       - name: Build the Node bundle for cross-runtime determinism contracts
         run: bunx --no-install tsup
 
@@ -122,6 +125,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Install the CJK coverage fixture
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
 
       - name: Run changed tests against the base branch's production code
         env:
@@ -228,6 +234,27 @@ jobs:
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         run: bunx playwright install ${{ matrix.suite == 'browser' && 'chromium firefox webkit' || 'chromium' }} --with-deps
 
+      - name: Render affected label and category witnesses before and after
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/class src/pie src/journey src/gitgraph src/radar src/xychart; then
+            exit 0
+          fi
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation agent-flat-namespace agent-category-role agent-journey-visibility agent-gitgraph-rails agent-small-values
+
+      - name: Retain diagram review images
+        if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: meaning-preservation-${{ github.event.pull_request.head.sha }}
+          path: bench-report/meaning-preservation/
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Run CLI E2E tests
         if: ${{ matrix.suite == 'cli' }}
         run: cd e2e && bun test cli-smoke.e2e.test.ts cli.e2e.test.ts fresh-checkout.e2e.test.ts --timeout 120000
@@ -323,13 +350,14 @@ jobs:
   ci-complete:
     name: CI complete
     runs-on: ubuntu-latest
-    needs: [test, e2e, red-green, expire-label-approvals, semantic]
+    needs: [test, e2e, red-green, expire-label-approvals, semantic, consumer-quickstarts]
     if: ${{ always() }}
     timeout-minutes: 5
     steps:
       - name: Require every CI lane to pass
         env:
           SEMANTIC_RESULT: ${{ needs.semantic.result }}
+          CONSUMER_RESULT: ${{ needs.consumer-quickstarts.result }}
           TEST_RESULT: ${{ needs.test.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           RED_GREEN_RESULT: ${{ needs.red-green.result }}
@@ -337,7 +365,24 @@ jobs:
         run: |
           # red-green runs only for pull requests, and label expiry only when a
           # push adds commits to one; other events skip them.
-          if [[ "$SEMANTIC_RESULT" != "success" || "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || ( "$RED_GREEN_RESULT" != "success" && "$RED_GREEN_RESULT" != "skipped" ) || ( "$EXPIRE_RESULT" != "success" && "$EXPIRE_RESULT" != "skipped" ) ]]; then
-            echo "semantic=$SEMANTIC_RESULT test=$TEST_RESULT e2e=$E2E_RESULT red-green=$RED_GREEN_RESULT expire-label-approvals=$EXPIRE_RESULT"
+          if [[ "$CONSUMER_RESULT" != "success" || "$SEMANTIC_RESULT" != "success" || "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || ( "$RED_GREEN_RESULT" != "success" && "$RED_GREEN_RESULT" != "skipped" ) || ( "$EXPIRE_RESULT" != "success" && "$EXPIRE_RESULT" != "skipped" ) ]]; then
+            echo "consumer=$CONSUMER_RESULT semantic=$SEMANTIC_RESULT test=$TEST_RESULT e2e=$E2E_RESULT red-green=$RED_GREEN_RESULT expire-label-approvals=$EXPIRE_RESULT"
             exit 1
           fi
+
+  consumer-quickstarts:
+    name: Installed-package quickstarts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: node scripts/ci/installed-quickstarts.mjs

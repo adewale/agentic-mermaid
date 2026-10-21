@@ -127,6 +127,7 @@ the SVG cannot phone home.
 ```ts
 import { renderMermaidSVG } from 'agentic-mermaid'
 
+const userProvidedSource = 'flowchart TD\n  A --> B' // replace with input from your application
 const safe = renderMermaidSVG(userProvidedSource, { security: 'strict' })
 ```
 

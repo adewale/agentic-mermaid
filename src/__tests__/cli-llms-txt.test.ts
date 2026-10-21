@@ -1,10 +1,12 @@
 // Loop 11 M4 (#6430): llms.txt agent-discovery digest.
 
 import { describe, test, expect } from 'bun:test'
-import { buildLlmsTxt, buildCapabilities, COMMAND_FLAGS } from '../cli/index.ts'
+import { buildLlmsTxt, buildCapabilities, COMMAND_FLAGS, runCli } from '../cli/index.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
+import pkg from '../../package.json'
+import { captureCli } from './helpers/cli-capture.ts'
 
 describe('#6430 llms.txt', () => {
   // The verb set comes from the CLI's own command table, and each verb must
@@ -68,5 +70,11 @@ describe('#6430 llms.txt', () => {
     expect(txt).toContain('skill-evals/')
   })
 
-
+  test('the CLI emits the discovery digest with the published package version', () => {
+    const result = captureCli(() => runCli(['llms-txt']))
+    expect(result.code).toBe(0)
+    expect(result.err).toBe('')
+    expect(result.out.startsWith('# Agentic Mermaid\n')).toBe(true)
+    expect(result.out).toContain(`\nVersion: ${pkg.version}\n`)
+  })
 })

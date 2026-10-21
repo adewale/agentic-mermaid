@@ -23,6 +23,7 @@ import { isSequenceCommentLine } from '../sequence/statements.ts'
 import { readSequenceText } from '../sequence/text.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
+import { edgeEndpointSelectors, edgeSelectorIndices } from '../shared/edge-selectors.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import type { PositionedGraph } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
@@ -114,12 +115,12 @@ function sourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolea
  * helper so it now runs on EVERY verify, for every family. Opaque bodies carry
  * no structured arrays (their faithfulness is byte-verbatim) and are skipped.
  */
-function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
+function roundtripFaithfulnessWarnings(d: ParsedDiagram): LayoutWarning[] {
   // Thin I/O wrapper: do the parse → serialize → re-parse, then defer the
   // verdict to the pure (mutation-gated, unit-tested) faithfulnessWarning.
-  const before = countStructuralElements(d)
-  if (!before) return []
   try {
+    const before = countStructuralElements(d)
+    if (!before) return []
     const reparsed = parseRegisteredMermaid(serializeMermaid(d))
     if (!reparsed.ok) return faithfulnessWarning(before, null) // total loss
     const after = countStructuralElements(reparsed.value)
@@ -132,9 +133,26 @@ function roundtripFaithfulnessWarnings(d: ValidDiagram): LayoutWarning[] {
   }
 }
 
+/** The legacy ok flag is an error gate, never a task-correctness certificate. */
 export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions = {}): VerifyResult {
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
+  // Capture source evidence before any config/layout/render early return.
+  // Result branches and diagnostic suppression cannot revoke an observed loss.
+  const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value)] : []
+  const result = verifyMermaidInternal(input, opts, parsed)
+  const suppressed = new Set(opts.suppress ?? [])
+  const warnings = dedupedConcat(result.warnings, sourceEvidence.filter(warning => !suppressed.has(warning.code)))
+  const suppressedErrors = (opts.suppress ?? []).some(code => WARNING_SEVERITY[code] === 'error')
+  const renderFailed = warnings.some(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
+  return { ...result, warnings, checks: {
+    renderability: renderFailed ? 'failed' : result.ok && !suppressedErrors ? 'passed' : 'not-checked',
+    sourceLoss: sourceEvidence.length > 0 || result.checks?.sourceLoss === 'detected' ? 'detected' : 'not-detected',
+    taskCorrectness: 'not-checked',
+  } }
+}
+
+function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>): VerifyResult {
   if (!parsed.ok) {
     // Strict parsing must fail closed, but source-level repair diagnostics are
     // still valuable (and were historically part of verify's contract).
@@ -157,7 +175,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   }
   const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
   // Check the merged source/options theme and family config colors before all
-  // verification tiers, so a refused color is the whole finding.
+  // geometry tiers, while retaining any source loss already known at parse time.
   try {
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
@@ -619,6 +637,12 @@ export function configWarningsForMermaid(source: string): LayoutWarning[] {
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
+function commentLossWarnings(parsed: ParsedDiagram): LayoutWarning[] {
+  return parsed.meta.droppedComments?.length
+    ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(comment => comment.line) }]
+    : []
+}
+
 function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact, authored?: string): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
@@ -626,13 +650,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // hook gets a chance to contribute warnings. Runs ahead of per-body branches
   // so descriptors can hook into any body kind (structured or opaque). Closes the
   // dead-code gap where `FamilyDescriptor.verify` was declared but never invoked.
-  // 2C comment policy: in-body comments that structured serialization drops
-  // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
-  // so the loss is announced rather than silent.
-  const metaWarnings: LayoutWarning[] = [
-    ...(parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED' as const, count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []),
-    ...cleanupWarningsForDiagram(parsed, authored),
-  ]
+  const metaWarnings = cleanupWarningsForDiagram(parsed, authored)
   const dispatchedWarnings = dispatchFamilyVerify(parsed, opts, positioned)
   const configWarnings = configWarningsForDiagram(parsed)
   if (parsed.body.kind === 'extension') {
@@ -643,12 +661,11 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   const familySourceWarnings =
     d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
-  const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
   // The header starts the body, on the line after the authored wrapper.
   const wrapperLines = d.meta.wrapperSource?.match(/\n/g)?.length ?? 0
   const hookWarnings = atAuthoredLines(dispatchedWarnings, line => line + wrapperLines)
-  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, hookWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
+  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, hookWarnings), sourceWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
   // Mermaid treats universal accessibility metadata as renderable document
   // furniture. A classDiagram containing only accTitle/accDescr therefore is
   // not an empty source even though its structural layout has zero classes.
@@ -1018,7 +1035,10 @@ function mergeFinalize(prev: VerifyResult, extra: LayoutWarning[], opts: VerifyO
   if (merged === prev.warnings) return prev
   // prev already went through the caller's guardEmptyLayout choice — don't
   // second-guess it here.
-  return finalize(merged, prev.layout, opts, false)
+  const result = finalize(merged, prev.layout, opts, false)
+  return prev.checks?.sourceLoss === 'detected'
+    ? { ...result, checks: { ...result.checks!, sourceLoss: 'detected' } }
+    : result
 }
 
 function warningKey(w: LayoutWarning): string {
@@ -1036,6 +1056,11 @@ function warningKey(w: LayoutWarning): string {
 
 function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
+  const selectors = edgeSelectorIndices(graph.edges)
+  const edgeIds = edgeEndpointSelectors(graph.edges).map((selector, index) => {
+    const authored = graph.edges[index]!.id
+    return authored && selectors.get(authored) === index ? authored : selector
+  })
   const firstBySignature = new Map<string, { edge: string; from: string; to: string; label?: string }>()
   graph.edges.forEach((edge, index) => {
     const signature = JSON.stringify({
@@ -1048,7 +1073,7 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
       startMarker: edge.startMarker ?? 'arrow',
       endMarker: edge.endMarker ?? 'arrow',
     })
-    const id = `${edge.source}->${edge.target}#${index}`
+    const id = edgeIds[index]!
     const first = firstBySignature.get(signature)
     if (first) {
       warnings.push({ code: 'DUPLICATE_EDGE', edge: id, duplicateOf: first.edge, from: edge.source, to: edge.target, label: edge.label })
@@ -1066,7 +1091,7 @@ function lintFlowchartGraph(graph: import('../types.ts').MermaidGraph): LayoutWa
     if (!node || node.shape !== 'diamond' || edge.source === edge.target) return
     const entry = outEdges.get(edge.source) ?? { labeled: 0, unlabeled: [] }
     if (edge.label && edge.label.trim().length > 0) entry.labeled++
-    else entry.unlabeled.push(`${edge.source}->${edge.target}#${index}`)
+    else entry.unlabeled.push(edgeIds[index]!)
     outEdges.set(edge.source, entry)
   })
   for (const [nodeId, entry] of outEdges) {
@@ -1213,6 +1238,11 @@ function isPositionedGraph(positioned: import('../types.ts').PositionedDiagram):
 }
 
 function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: VerifyOptions, guardEmptyLayout = true): VerifyResult {
+  const checks: NonNullable<VerifyResult['checks']> = {
+    renderability: 'not-checked',
+    sourceLoss: warnings.some(warning => warning.code === 'COMMENT_DROPPED' || warning.code === 'CONTENT_DROPPED_ON_ROUNDTRIP') ? 'detected' : 'not-detected',
+    taskCorrectness: 'not-checked',
+  }
   const suppress = new Set<WarningCode>(opts.suppress ?? [])
   const kept = warnings.filter(w => !suppress.has(w.code))
   const ok = !kept.some(w => WARNING_SEVERITY[w.code] === 'error')
@@ -1244,11 +1274,12 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   ) {
     return {
       ok,
+      checks,
       warnings: [...kept, { code: 'UNSUPPORTED_SYNTAX', syntax: 'empty_layout', message: 'The source carries content, but the local layout renders nothing (0x0 canvas with no nodes, edges, or groups).' }],
       layout,
     }
   }
-  return { ok, warnings: kept, layout }
+  return { ok, warnings: kept, layout, checks }
 }
 
 function rectIntersection(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): number {

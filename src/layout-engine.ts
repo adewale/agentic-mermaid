@@ -1,3 +1,4 @@
+import { applyLayoutHints } from './layout/layout-hints.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
@@ -76,6 +77,8 @@ import {
   layoutEnvFlag,
 } from './layout/geometry.ts'
 import type { MarginInfo } from './layout/geometry.ts'
+import { directionToElk } from './layout/direction.ts'
+export { directionToElk } from './layout/direction.ts'
 import {
   translateGeometryToNonNegativeOrigin,
   extractEdgesRecursively,
@@ -121,26 +124,11 @@ interface LayoutEngineOptions extends RenderOptions {
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn'> & { stateVisual?: ResolvedStateVisualConfig }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints'> & { stateVisual?: ResolvedStateVisualConfig }
 
 // ============================================================================
 // Layout options
 // ============================================================================
-
-/** Default render options (layout-only) */
-/** Convert Mermaid direction to ELK direction. Exported so the class/ER
- *  layouts wire their `direction` statements through the SAME mapping the
- *  flowchart engine uses (no parallel copy to drift). */
-export function directionToElk(dir: MermaidGraph['direction']): string {
-  switch (dir) {
-    case 'LR': return 'RIGHT'
-    case 'RL': return 'LEFT'
-    case 'BT': return 'UP'
-    case 'TD':
-    case 'TB':
-    default: return 'DOWN'
-  }
-}
 
 /**
  * ELK's model-order options are useful for keeping feedback-loop diagrams
@@ -690,6 +678,7 @@ function mermaidToElk(
     elkGraph.edges!.push(crossHierarchyElkEdge(info, style, balancingLabels))
   }
 
+  applyLayoutHints(elkGraph, graph, opts.layoutHints)
   return elkGraph
 }
 

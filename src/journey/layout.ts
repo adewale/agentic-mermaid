@@ -349,6 +349,7 @@ export function layoutJourneyDiagram(
   const actors: PositionedJourneyActor[] = actorLabels.map((actor, index) => {
     const metric = legendLabelMetrics[index]!
     const positioned = {
+      category: actor.raw,
       label: actor.label,
       block: actor.block,
       x: visual.paddingX + JY.legendDotRadius,

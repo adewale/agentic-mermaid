@@ -2,6 +2,41 @@
 
 This opt-in evaluation uses an independently installed Mermaid **12 or newer** as a parser/DB reference. It borrows Pele's combination of upstream documentation/spec corpora and seeded mutation testing. It does not compare layout or pixels against Mermaid.
 
+The label census observes the current upstream docs, retained official fences,
+legacy docs corpus, imported upstream benchmark and every registered family
+example. Its expectations come from the independent reference's actual DB
+getters; the benchmark's older `labelsContain` fixtures are not its oracle.
+
+```sh
+AM_MODERN_TARGET_DIR=/path/to/base bun eval/mermaid-modern-compat/run.ts \
+  --mermaid-dir ../mermaid --reference-dir ../mermaid-reference --labels \
+  --output /tmp/labels-base
+bun eval/mermaid-modern-compat/run.ts \
+  --mermaid-dir ../mermaid --reference-dir ../mermaid-reference --labels \
+  --label-baseline /tmp/labels-base/label-census.json --output /tmp/labels-head
+```
+
+`label-census.json` retains every input's status, raw reference labels, model,
+facts, describe tree, layout, SVG text, ASCII text and terminal-region text.
+It reports text-presence candidates and base/head changes. Presence does not
+establish identity, multiplicity, formatting, or equivalent drawings. Missing
+text needs review: Markdown interpretation, documented generous-read choices,
+intentional hidden labels, and source-preserved syntax can differ. The current
+selected-field scope excludes Class/ER member signatures, sequence notes and
+control captions, accessibility text, and Block space and composite identifiers.
+XY point labels are included; visibility settings require semantic review.
+Quality metrics expose aggregate label counts,
+which are recorded separately rather than presented as per-label evidence.
+Rejected inputs, unsupported families, and missing projections remain explicit
+unavailable observations. Add `--specs` to include the broader parser-spec
+literal harvest too.
+
+The semantic gate checks independent label presence on model, facts, SVG,
+ASCII and terminal metadata for every registry example. It also generates
+Sequence edits combining boxes, activation, properties, unknown metadata and
+punctuation, with explicit expected messages and independent reference actors.
+That gate protects the named behavior; the broader census is a diagnostic.
+
 `bun run eval:mermaid-grammar` runs the more detailed grammar assessment over
 **every modern core family**, with **5,000 seeded mutations per family** by
 default. It uses the same documentation/spec harvest as the rendering runner:

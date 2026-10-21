@@ -50,8 +50,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 36,
     // Optional sketch code stays out of the default Timeline delivery graph.
     // Includes the shared native drawing writer, bounded admission and flat paint evidence.
-    maxRawBytes: 787_000,
-    maxGzipBytes: 302_100,
+    // Rebased edit contracts measure 787,643 raw / 302,191 gzip bytes.
+    maxRawBytes: 788_000,
+    maxGzipBytes: 302_500,
     // Shared cleanup provenance adds about 2.5 KB gzip; the per-PR delta
     // remains below 2%. Retain the same request graph and growth gate.
     maxBrotliBytes: 276_000,

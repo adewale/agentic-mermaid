@@ -266,6 +266,11 @@ A family-scoped value that a renderer cannot consume receives
 `RENDER_OPTION_NOT_APPLICABLE` in its receipt. External descriptors opt into
 such fields through `applicableRenderOptions`.
 
+`layoutHints` accepts relative `ranks`, sibling `adjacent` groups, and
+`shortEdges` references for Flowchart and State graphical layout. These are
+layout preferences: they do not guarantee coordinates, absolute adjacency,
+or shortest paths. Terminal layout does not consume them.
+
 `onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void` is deliberately
 outside the serializable field set. Library callers can collect qualified
 `INEFFECTIVE_CONFIG` warnings without changing output bytes; CLI, MCP, editor,
@@ -387,6 +392,17 @@ for the current roster and field schemas, or call `describeOps(family)` and
 `opSignatures(family)` at runtime. The generated SDK declaration projects the
 same descriptors; this reference deliberately does not copy an exhaustive
 family/operation table.
+
+### Preserved Sequence and XY label facts
+
+Sequence facts include recognized messages inside preserved segments as
+`preserved-message#<segment>.<statement> ...` and their title directives.
+These identifiers do not change the typed `message#<index>` mutation indexes.
+XY facts include authored point labels as `series#<index> point#<index> : <label>`;
+the point index stays aligned with the data even when labels are sparse.
+Consumers using `exact: true` must add these facts to their reviewed expected
+inventory. Subset checks can keep their existing required facts. Do not build
+an expected inventory by copying the output being checked.
 
 ### Class relation facts and `exact: true`
 
@@ -533,10 +549,20 @@ PNG is single-input and requires `--output` so binary bytes are never accidental
 The published package exposes Node-runnable bins: `am`, the package-runner
 alias `agentic-mermaid`, and `agentic-mermaid-mcp`.
 
-Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
+Local `agentic-mermaid-mcp` supports declarative editing and custom Code Mode:
 
 <!-- complete: local-mcp-tools -->
-- `execute(code)` — primary Code Mode tool with global `mermaid.*` SDK.
+- `mutate({ source, ops })` and `build({ family, ops })` — atomic JSON edits, verified before source is emitted.
+- `execute(code)` — custom synchronous logic with global `mermaid.*` SDK.
+
+Local and hosted Code Mode execute a strict JavaScript function body with
+`mermaid` and `console` parameters. Bare expressions return their value; a
+statement body captures its final top-level expression, ignoring trailing empty
+statements and comments. An explicit `return` follows normal JavaScript rules.
+At the outer body, `this` and `new.target` are undefined; undeclared variable
+writes fail. Async work, dynamic imports, blocking/realm-creating globals and
+runtime code generation are unsupported. Host timeouts and hosted strict render
+security remain environment-specific.
 - `describe_sdk({ family, detail })` — version-matched compact signatures or exact mutation fields for one family.
 - `render_png` — narrow helper returning base64 PNG bytes, or managed file/URL artifacts via `output: "file"|"url"`; accepts portable `scale`/`background`/`fitTo`/`minLabelPx`, plus local-only `fontDirs`/`loadSystemFonts`, and returns configuration, glyph-coverage, and raster-legibility warnings with every output mode.
 - `describe` — narrow summary helper; pass `format: "facts"` for deterministic semantic fact lines.
@@ -544,3 +570,35 @@ Local `agentic-mermaid-mcp` is Code Mode-first and exposes:
 Use Code Mode for multi-step parse/narrow/mutate/verify/serialize loops. Use `render_png` or host/library code for binary PNG output. The default transport is stdio; `agentic-mermaid-mcp --transport http --host 127.0.0.1 --port 3000` starts the HTTP/SSE transport. HTTP mode serves managed artifacts from `/artifacts/<name>` with MIME type, byte count, and SHA-256 metadata in tool responses. Non-loopback HTTP binding requires `--auth-token`; that bearer token protects `/rpc`, `/sse`, `/message`, and `/artifacts/*`.
 
 A hosted Streamable HTTP endpoint also runs at `https://agentic-mermaid.dev/mcp`. It is MCP JSON-RPC only (not REST), stateless, public/unauthenticated, and capped at 64 KB inputs. Hosted tools are <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->; `describe_sdk` returns compact signatures or exact mutation fields for one family, hosted `execute` uses a Cloudflare Dynamic Worker isolate with no network, and hosted `render_png` returns base64 only while retaining portable `scale`/`background`/`fitTo`/`minLabelPx`. Prefer local CLI/library/MCP for sensitive diagrams, offline work, larger inputs, native font controls, or file/URL PNG artifacts. See [`mcp-http-transport.md`](./mcp-http-transport.md) for JSON-RPC examples and option details.
+
+## Verification scope
+
+`verify.ok` remains the backward-compatible error gate. The additive `checks`
+object distinguishes `renderability` (`passed`, `failed`, or `not-checked`),
+`sourceLoss` (`detected` or `not-detected`), and `taskCorrectness` (always
+`not-checked`). No detected loss is not a general losslessness proof. Read warnings
+and compare semantic facts to the requested edit before publishing a diagram.
+Suppressing error codes makes renderability `not-checked`.
+
+## Graph layout hints
+
+Flowchart and State graphical renders accept explicit deterministic preferences:
+
+```ts
+const options = {
+  layoutHints: {
+    ranks: { UI: 0, API: 1, Cache: 2, DB: 3 },
+    adjacent: [['Cache', 'DB']],
+    shortEdges: ['API->Cache'],
+  },
+}
+```
+
+Ranks are ordered ELK partitions, with unlisted nodes in partition zero; they
+are not absolute pixel positions. Adjacency prefers consecutive sibling model
+order within one container. Short-edge preferences use authored IDs or
+`from->to` / `from->to#k` occurrence IDs. All references are checked; unknown
+identities and conflicting adjacency groups fail explicitly. These preferences
+never delete relationships, remain subject to geometry certification, and do not
+guarantee a shortest route or fixed positions. Retain render options beside the
+Mermaid source; hints participate in request digests, editor config, and receipts.

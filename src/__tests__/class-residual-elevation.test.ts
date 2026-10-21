@@ -2,13 +2,13 @@ import { describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { asClass, type ClassMutationOp, type ClassValidDiagram } from '../agent/types.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
-import { verifyMermaid } from '../agent/verify.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const lines = (source: string) => source.split('\n').map(line => line.trim()).filter(Boolean)
@@ -127,6 +127,9 @@ ${body}`
     const compact = renderMermaidSVG(compactSource)
     expect(nested).toContain('data-parent-id="Company"')
     expect(compact).not.toContain('data-parent-id="Company"')
+    expect(compact).toContain('data-label="Company.Platform"')
+    expect(compact.replace(/<[^>]*>/g, '')).toContain('Company.Platform')
+    expect(compact).not.toContain('data-id="Company"')
   })
 
   test('c5-stress allocates every cardinality box without card/card or card/node overlap', () => {
@@ -150,6 +153,83 @@ ${body}`
       for (const node of positioned.classes) {
         const nodeBox = { id: node.id, x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height }
         expect(overlaps(boxes[left]!, nodeBox), `${boxes[left]!.id} overlaps ${node.id}`).toBe(false)
+      }
+    }
+  })
+
+  test('external relationships keep flattened namespace headers clear while retaining orthogonal class endpoints', () => {
+    for (const [company, vendor] of [['Company.Platform', 'Vendor.Platform'], ['Company.Engineering.Backend', 'Vendor.Engineering.Backend']]) for (const direction of ['TB', 'BT', 'LR', 'RL']) for (const relationship of ['API --> Worker', 'Worker --> API']) {
+      const source = `classDiagram\n direction ${direction}\n namespace ${company} { class API }\n namespace ${vendor} { class Worker }\n ${relationship} : invokes`
+      const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), { class: { hierarchicalNamespaces: false } })
+      expect(positioned.namespaces.map(ns => ns.label).sort()).toEqual([company!, vendor!])
+      for (const relation of positioned.relationships) {
+        const source = positioned.classes.find(node => node.id === relation.from)!
+        const target = positioned.classes.find(node => node.id === relation.to)!
+        for (const [point, node] of [[relation.points[0]!, source], [relation.points.at(-1)!, target]] as const) {
+          const onVerticalSide = (Math.abs(point.x - node.x) < 0.01 || Math.abs(point.x - node.x - node.width) < 0.01) && point.y >= node.y - 0.01 && point.y <= node.y + node.height + 0.01
+          const onHorizontalSide = (Math.abs(point.y - node.y) < 0.01 || Math.abs(point.y - node.y - node.height) < 0.01) && point.x >= node.x - 0.01 && point.x <= node.x + node.width + 0.01
+          expect(onVerticalSide || onHorizontalSide, `${direction} ${relationship} endpoint on ${node.id}`).toBe(true)
+        }
+        for (let index = 1; index < relation.points.length; index++) {
+          const a = relation.points[index - 1]!, b = relation.points[index]!
+          expect([a.x, a.y, b.x, b.y].every(Number.isFinite)).toBe(true)
+          expect([a, b].every(point => point.x >= 0 && point.y >= 0 && point.x <= positioned.width && point.y <= positioned.height)).toBe(true)
+          expect(a.x === b.x || a.y === b.y).toBe(true)
+          for (const namespace of positioned.namespaces) {
+            const crossesHeader = a.x === b.x
+              ? a.x > namespace.x && a.x < namespace.x + namespace.width && Math.max(a.y, b.y) > namespace.y && Math.min(a.y, b.y) < namespace.y + namespace.headerHeight
+              : a.y > namespace.y && a.y < namespace.y + namespace.headerHeight && Math.max(a.x, b.x) > namespace.x && Math.min(a.x, b.x) < namespace.x + namespace.width
+            expect(crossesHeader, `${direction} ${relationship} crosses ${namespace.id} header`).toBe(false)
+          }
+        }
+      }
+    }
+  })
+
+  test('a flattened header with no safe detour is a diagnosed layout failure', () => {
+    const source = 'classDiagram\n namespace Company.Platform { class API }\n namespace Vendor.Platform { class Worker }\n API --> Worker : invokes'
+    const options = { class: { hierarchicalNamespaces: false }, style: { roles: { group: { paddingY: 0 } } } }
+    expect(() => renderMermaidSVG(source, options)).toThrow('cannot safely avoid namespace header Vendor.Platform')
+    const result = verifyMermaid(source, { renderOptions: options })
+    expect(result.ok).toBe(false)
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'INTERNAL_ERROR', reason: expect.stringContaining('cannot safely avoid namespace header Vendor.Platform'), defaultRender: 'fails' }))
+  })
+
+  test('official flattened namespace fanout renders and keeps rounded ELK shafts outside headers', () => {
+    for (const direction of ['TB', 'BT', 'LR', 'RL']) {
+      const source = `classDiagram
+direction ${direction}
+namespace Company.Engineering.Backend {
+  class Developer {
+    +writeCode()
+  }
+}
+namespace Company.Engineering.Frontend {
+  class Designer {
+    +createMockup()
+  }
+}
+namespace Company {
+  class CEO {
+    +makeDecisions()
+  }
+}
+CEO --> Developer : oversees
+CEO --> Designer : oversees`
+      const positioned = layoutClassDiagram(parseClassDiagram(lines(source)), { class: { hierarchicalNamespaces: false } })
+      const svg = renderMermaidSVG(source, { class: { hierarchicalNamespaces: false } })
+      for (const label of ['Developer', 'Designer', 'CEO', 'writeCode()', 'createMockup()', 'makeDecisions()']) expect(svg.replace(/<[^>]*>/g, '')).toContain(label)
+      expect(positioned.relationships.map(relation => [relation.from, relation.to])).toEqual([['CEO', 'Developer'], ['CEO', 'Designer']])
+      for (const relation of positioned.relationships) for (let index = 1; index < relation.points.length; index++) {
+        const a = relation.points[index - 1]!, b = relation.points[index]!
+        expect([a.x, a.y, b.x, b.y].every(Number.isFinite)).toBe(true)
+        expect(Math.abs(a.x - b.x) < 0.01 || Math.abs(a.y - b.y) < 0.01).toBe(true)
+        for (const namespace of positioned.namespaces) {
+          const crossesHeader = Math.abs(a.x - b.x) < 0.01
+            ? a.x > namespace.x + 0.01 && a.x < namespace.x + namespace.width - 0.01 && Math.max(a.y, b.y) > namespace.y + 0.01 && Math.min(a.y, b.y) < namespace.y + namespace.headerHeight - 0.01
+            : a.y > namespace.y + 0.01 && a.y < namespace.y + namespace.headerHeight - 0.01 && Math.max(a.x, b.x) > namespace.x + 0.01 && Math.min(a.x, b.x) < namespace.x + namespace.width - 0.01
+          expect(crossesHeader, `${direction}: ${relation.from} -> ${relation.to} crosses ${namespace.id}`).toBe(false)
+        }
       }
     }
   })

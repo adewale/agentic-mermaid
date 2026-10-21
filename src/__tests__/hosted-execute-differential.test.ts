@@ -9,11 +9,12 @@
 // are the engine's either way). The real loader wiring is covered by the
 // wrangler e2e (website/e2e-mcp.sh).
 //
-// Documented divergence (asserted explicitly at the bottom, not hidden):
-// sloppy-mode implicit globals (`x = 1`) work in the vm context but throw in
-// strict ES modules. Timeout wording also differs by host budget mechanism.
+// Both runtimes use strict function-body semantics. Timeout wording and
+// host-owned render security still differ by execution environment.
 
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { executeInSandbox, type ExecuteResult } from '../mcp/sandbox.ts'
 import { unsupportedCodeReason } from '../mcp/facade.ts'
 import { runUserCode, userModuleSources, formatHarnessError, MAX_LOG_ENTRIES, MAX_RESULT_BYTES, LOGS_TRUNCATED_MARKER } from '../mcp/harness-runtime.ts'
@@ -55,10 +56,19 @@ async function executeHosted(code: string): Promise<ExecuteResult> {
 const PARSE = "const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')"
 
 // Each case must produce identical results through both implementations.
-const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
+const EQUIVALENT_CASES: Array<[label: string, code: string, expectedValue?: unknown]> = [
   ['bare arithmetic expression', '1 + 1'],
+  ['new.target is undefined in a normal call', 'new.target === undefined', true],
+  ['new.target in a statement body', 'const target = new.target; target === undefined', true],
+  ['strict this is undefined', 'this === undefined', true],
+  ['wrapper arguments match the public SDK parameters', 'arguments.length === 2 && arguments[0] === mermaid && arguments[1] === console', true],
+  ['ordinary nested functions retain their own arguments', 'function count() { return arguments.length }; count(1, 2, 3)', 3],
+  ['constructor new.target remains local to its constructor', 'class C { constructor() { this.ok = new.target === C } }; new C().ok', true],
+  ['return followed by a newline follows automatic semicolon insertion', 'return\n42', null],
+  ['trailing comment stays outside a captured expression', 'const value = 42; value // comment\n;;', 42],
   ['bare object literal', '{ answer: 42 }'],
   ['multi-statement body with return', 'const x = 2; return x * 21'],
+  ['final expression before empty statements and a comment', 'const x = 41; x + 1;; // done', 42],
   ['no explicit return promotes undefined to null', 'const unused = 1'],
   ['console coercion of strings and objects', "console.log('hi', { x: 1 }, [1, 'two']); console.warn(7); return 'done'"],
   ['SDK parse ok flag', `${PARSE}; return r.ok`],
@@ -89,12 +99,40 @@ const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
 ]
 
 describe('hosted execute ≡ vm sandbox', () => {
-  for (const [label, code] of EQUIVALENT_CASES) {
+  for (const code of ['with ({ x: 1 }) { return x }', 'function f(a, a) { return a }; f(1, 2)', 'return 010', 'return arguments.callee']) {
+    test(`strict-mode rejection: ${code}`, async () => {
+      for (const result of [await executeInSandbox(code), await executeHosted(code)]) expect(result.ok).toBe(false)
+    })
+  }
+  test('generated bodies capture the expected expression across grammar boundaries', async () => {
+    await fc.assert(fc.asyncProperty(
+      fc.integer({ min: -1000, max: 1000 }), fc.integer({ min: -1000, max: 1000 }),
+      fc.constantFrom('plain', 'function', 'arrow', 'loop', 'newTarget'),
+      fc.integer({ min: 0, max: 5 }), fc.constantFrom('', '// trailing', '/* trailing */', '// newline\n'),
+      async (a, b, form, emptyStatements, comment) => {
+        const expressions = {
+          plain: `const a = ${a}; const b = ${b}; a + b`,
+          function: `function sum(a, b) { return a + b }; sum(${a}, ${b})`,
+          arrow: `const sum = (a, b) => a + b; sum(${a}, ${b})`,
+          loop: `let sum = ${a}; for (const n of [${b}]) { sum += n }; sum`,
+          newTarget: `const target = new.target; target === undefined ? ${a} + ${b} : -999999`,
+        }
+        const code = `"use strict";\n${expressions[form]};${';'.repeat(emptyStatements)} ${comment}`
+        for (const result of [await executeInSandbox(code), await executeHosted(code)]) {
+          expect(result.ok).toBe(true)
+          expect(result.value).toBe(a + b)
+          expect(result.logs).toEqual([])
+        }
+      },
+    ), fcParameters({ numRuns: 150 }))
+  })
+  for (const [label, code, expectedValue] of EQUIVALENT_CASES) {
     test(label, async () => {
       const local = await executeInSandbox(code)
       const hosted = await executeHosted(code)
       expect(hosted.ok).toBe(local.ok)
       expect(hosted.value).toEqual(local.value as never)
+      if (expectedValue !== undefined) expect(hosted.value).toEqual(expectedValue as never)
       expect(hosted.logs).toEqual(local.logs ?? [])
       // Error strings must agree except for engine-authored messages
       // (syntax/serialization errors), where both sides still must fail with
@@ -248,13 +286,14 @@ describe('bounded local/hosted Code Mode output', () => {
     expect(result.logs).toEqual(['🙂', LOGS_TRUNCATED_MARKER])
   })
 
-  test('sloppy-mode implicit globals: vm allows, strict modules throw', async () => {
+  test('implicit global writes fail in both strict execution bodies', async () => {
     const code = 'x = 1; return x'
     const local = await executeInSandbox(code)
     const hosted = await executeHosted(code)
-    expect(local).toEqual({ ok: true, value: 1, logs: [] })
-    expect(hosted.ok).toBe(false)
-    expect(hosted.error).toContain('x')
+    for (const result of [local, hosted]) {
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('x')
+    }
   })
 })
 

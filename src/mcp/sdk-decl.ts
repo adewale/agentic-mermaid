@@ -193,7 +193,7 @@ ${CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS}
 
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }
-interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':')
 
 const CODE_MODE_RENDER_METHOD_DECLARATIONS = codeModeRenderMethodDeclarations()
 
@@ -1034,7 +1034,7 @@ type GanttMutationOp =
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE,
 // DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN,
-// BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
+// SCALE_RANGE_EXCLUDES_ZERO, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
 type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
 type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
@@ -1051,10 +1051,11 @@ type WarningCode =
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
   | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO'
-  | 'VALUES_OUTSIDE_RANGE'
+  | 'SCALE_RANGE_EXCLUDES_ZERO' | 'VALUES_OUTSIDE_RANGE'
   | 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR'
 
 interface VerifyResult {
+  checks?: { renderability: 'passed' | 'failed' | 'not-checked'; sourceLoss: 'detected' | 'not-detected'; taskCorrectness: 'not-checked' }
   ok: boolean
   warnings: { code: WarningCode; [field: string]: unknown }[]
   layout: RenderedLayout

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
-import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
+import { applyOps, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { getFamily, replaceFamilyForTest, BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -306,4 +306,25 @@ describe('ER label-less relation round-trip', () => {
       expect(reparsed.value.body.relations[0]!.label).toBeUndefined()
     }
   })
+})
+
+
+test('a checked batch commits once and an invalid operation emits no partial source', () => {
+  const descriptor = getFamily('flowchart')!
+  let parses = 0
+  const restore = replaceFamilyForTest('flowchart', { ...descriptor, parse: context => { parses++; return descriptor.parse!(context) } })
+  try {
+    const source = 'flowchart LR\n A --> B'
+    const ops = Array.from({ length: 12 }, (_, index) => ({ kind: 'add_node', id: `Extra${index}`, label: `Extra ${index}` }))
+    const result = applyOps({ source, ops })
+    expect(result.ok).toBe(true)
+    // Input admission, transaction closure and final faithfulness verification;
+    // the parse budget must not grow with the number of operations.
+    expect(parses).toBeLessThanOrEqual(3)
+    if (result.ok) for (let index = 0; index < 12; index++) expect(result.source).toContain(`Extra ${index}`)
+    const rejected = applyOps({ source, ops: [...ops, { kind: 'remove_node', id: 'absent' }] })
+    expect(rejected).toMatchObject({ ok: false, opIndex: 12 })
+    expect('source' in rejected).toBe(false)
+    expect(source).toBe('flowchart LR\n A --> B')
+  } finally { restore() }
 })
