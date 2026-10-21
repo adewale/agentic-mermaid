@@ -387,15 +387,20 @@ under `eval/`, or deliberate `AM_FC_SEED=random` sweeps.
 
 The nightly finder rolls fresh seeds across every fast-check file with
 `AM_FC_NUM_RUNS=300` (at least 300 cases, including locally pinned properties).
-It never blocks a pull request. A failure files or comments on one
-issue carrying the seed, path, and counterexample
-(`scripts/ci/nightly-finder-report.ts`). Fix a real counterexample and keep it
-forever as a fast-check `examples` entry on the property: seeds and paths do not
+It never blocks a pull request. A newly failing property files or comments on one
+collector issue with its owning test file and replay command
+(`scripts/ci/nightly-finder-report.ts`). Repeated properties do not notify the
+collector again while it remains open. Every failing run retains the complete
+`sweep.log` and JSON seeds, paths and untruncated counterexamples in the
+`property-finder-evidence` artifact for 30 days, including repeated findings.
+Review those artifacts when investigating another input from a known property.
+Fix a real counterexample and keep it forever as a fast-check `examples` entry on the property: seeds and paths do not
 survive fast-check upgrades, `examples` do. Its first local run found a real
 Architecture routing counterexample (`AM_FC_SEED=1102132276` in
-`architecture-layout.test.ts`) that the pinned seed never reached. It is not
-fixed yet: the shrunk case is an `examples` entry inside an `it.failing` pin
-that names BUG-37 in `TODO.md`.
+`architecture-layout.test.ts`) that the pinned seed never reached. Its fixed exit
+distance could enter a neighboring card’s clearance envelope; exits now stop at that envelope before the visibility
+search. The reduced input and the other recovered #362 Architecture cases are
+permanent passing `examples` entries in the grouped-layout property.
 
 The workflow's second job does the same for the Mermaid grammar comparison,
 which keeps seed 7 in the PR gate: it runs the native families at a fresh seed
