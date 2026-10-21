@@ -88,7 +88,7 @@ export function layoutCyclicGraph(
   // Scarce larger-graph trials should explore cuts beyond the same greedy
   // orientation. For nearly acyclic compact graphs, enumerate small cuts and
   // try opposite span extremes with authored node/edge order intact.
-  const cuts = diversify && feedbackCount(primary) <= 2 ? smallFeedbackCuts(input, search) : []
+  const cuts = diversify && feedbackCount(primary) <= 3 ? smallFeedbackCuts(input, search, 3) : []
   cuts.sort((a, b) => b.span - a.span)
   const cutOrders = cuts.length > 1 ? [cuts[0]!.order, cuts.at(-1)!.order, ...cuts.slice(1, -1).map(cut => cut.order)] : cuts.map(cut => cut.order)
   const orders = [...cutOrders, greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]

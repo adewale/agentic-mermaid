@@ -16,21 +16,21 @@ function cyclic(extra: readonly { source: number; target: number }[]): MeasuredG
 }
 
 describe('bounded small feedback cuts', () => {
-  test('matches exhaustive minimum reversal cuts of cyclic multigraphs', () => {
+  test.each([2, 3] as const)('matches exhaustive minimum reversal cuts of cyclic multigraphs up to %s edges', maximum => {
     fc.assert(fc.property(fc.array(fc.record({ source: fc.integer({ min: 0, max: 4 }), target: fc.integer({ min: 0, max: 4 }) }), { maxLength: 6 }), extra => {
       const input = cyclic(extra), before = structuredClone(input)
       const keys = orders.map(order => cutKey(input, order))
       const count = (key: string) => [...key].filter(bit => bit === '1').length
       const minimum = Math.min(...keys.map(count))
-      const expected = minimum <= 2 ? [...new Set(keys.filter(key => count(key) === minimum))].sort() : []
-      const cuts = smallFeedbackCuts(input, { blockPairs: 2_000_000 })
+      const expected = minimum <= maximum ? [...new Set(keys.filter(key => count(key) === minimum))].sort() : []
+      const cuts = smallFeedbackCuts(input, { blockPairs: 2_000_000 }, maximum)
       expect(cuts.map(cut => cutKey(input, cut.order)).sort()).toEqual(expected)
       expect(input).toEqual(before)
       for (const cut of cuts) {
         expect([...cut.order].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4])
         expect(cut.span).toBeGreaterThanOrEqual(input.edges.length)
       }
-    }), fcParameters({ numRuns: 128 }))
+    }), fcParameters({ numRuns: 128, examples: [[[{ source: 1, target: 0 }, { source: 2, target: 1 }, { source: 3, target: 2 }]]] }))
   })
 
   test('exhaustion returns only completed orders without changing the graph', () => {
@@ -47,4 +47,20 @@ describe('bounded small feedback cuts', () => {
     }
     expect(input).toEqual(before)
   })
+
+  test('three-cut cycle branching retains complete feasible orders on exhaustion', () => {
+    const input = cyclic([{ source: 1, target: 0 }, { source: 2, target: 1 }, { source: 3, target: 2 }])
+    const before = structuredClone(input)
+    for (const budget of [1, 40, 200, 1000, 3000, 10000]) {
+      const work = { blockPairs: budget }, cuts = smallFeedbackCuts(input, work, 3)
+      expect(work.blockPairs).toBeGreaterThanOrEqual(0)
+      expect(work.blockPairs).toBeLessThanOrEqual(budget)
+      for (const cut of cuts) {
+        expect([...cut.order].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4])
+        expect([...cutKey(input, cut.order)].filter(bit => bit === '1')).toHaveLength(3)
+      }
+    }
+    expect(input).toEqual(before)
+  })
+
 })
