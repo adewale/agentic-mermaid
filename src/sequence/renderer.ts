@@ -1,18 +1,17 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedBlockHeader, PositionedNote, PositionedBoxGroup, LifelineCross, SequenceBounds } from './types.ts'
 import { boxColorToHex } from './colors.ts'
 import { contrastTextColor, toneOnFill } from '../color-resolver.ts'
 import { compositeCssColor, legibleInk, toHex, tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type DiagramColors } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
-import type { Geometry, MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
-import { pathArtwork } from '../scene/marks.ts'
+import type { Geometry, MarkerDescriptor } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
-import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -53,16 +52,17 @@ export function renderSequenceSvg(
 }
 
 /**
- * Lower a positioned sequence diagram to the SceneGraph IR in canonical mark order.
+ * Draw a positioned sequence diagram in canonical mark order.
  */
-export function lowerSequenceScene(
+export function lowerSequenceDrawing<T>(
+  marks: DrawingFactory<T>,
   ctx: RenderContext<PositionedSequenceDiagram>,
-): SceneDoc {
+): DrawingDocument<T> {
   const { positioned: diagram, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
-  const parts: SceneNode[] = []
+  const parts: T[] = []
   const style = resolveRenderStyle(options, SEQUENCE_STYLE_DEFAULTS, resolved.styleFace)
   const uid = `seq-${hashId(diagram.width, diagram.height, diagram.actors.length, diagram.messages.length)}`
   const titleId = `${uid}-title`
@@ -112,7 +112,7 @@ export function lowerSequenceScene(
   const inkAt = surfaceInk(diagram.boxes, backgroundOrder, style, colors)
 
   // The diagram's title, in the band layout reserved above the participants.
-  if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
+  if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, style)))
 
   // 0. Box group frames (behind everything, including block backgrounds)
   const boxOccurrence = new Map<string, number>()
@@ -120,7 +120,7 @@ export function lowerSequenceScene(
     const boxKey = box.label ?? ''
     const k = boxOccurrence.get(boxKey) ?? 0
     boxOccurrence.set(boxKey, k + 1)
-    parts.push(renderBoxGroup(box, style, `box:${boxKey}#${k}`))
+    parts.push(renderBoxGroup(marks, box, style, `box:${boxKey}#${k}`))
   }
 
   // 1. Block backgrounds, in backgroundOrder.
@@ -132,7 +132,7 @@ export function lowerSequenceScene(
     blockSceneIds.set(block, `block:${block.type}#${k}`)
   }
   for (const block of backgroundOrder) {
-    parts.push(renderBlock(block, style, blockSceneIds.get(block)!, hasRect ? 'background' : 'all'))
+    parts.push(renderBlock(marks, block, style, blockSceneIds.get(block)!, hasRect ? 'background' : 'all'))
   }
   // A nested opaque rect must not overpaint its parent's frame or else/and
   // divider. Keep decorations above every block fill, but below lifelines.
@@ -140,10 +140,10 @@ export function lowerSequenceScene(
   // SVG bytes and Scene grouping stay unchanged.
   if (hasRect) {
     for (const block of backgroundOrder) {
-      if (block.type !== 'rect') parts.push(renderBlock(block, style, blockSceneIds.get(block)!, 'frame'))
+      if (block.type !== 'rect') parts.push(renderBlock(marks, block, style, blockSceneIds.get(block)!, 'frame'))
     }
     for (const block of diagram.blocks) {
-      if (block.dividers.length > 0) parts.push(renderBlock(block, style, blockSceneIds.get(block)!, 'dividers'))
+      if (block.dividers.length > 0) parts.push(renderBlock(marks, block, style, blockSceneIds.get(block)!, 'dividers'))
     }
   }
 
@@ -151,7 +151,7 @@ export function lowerSequenceScene(
   const visibleSpans = messageLabelOcclusion(diagram.messages)
   for (const lifeline of diagram.lifelines) {
     const width = Math.max(0.75, style.lineWidth * 0.75)
-    parts.push(renderLifeline(lifeline, style, visibleSpans({
+    parts.push(renderLifeline(marks, lifeline, style, visibleSpans({
       x: lifeline.x - width / 2, y: lifeline.topY,
       width, height: lifeline.bottomY - lifeline.topY,
     }, 'x')))
@@ -162,7 +162,7 @@ export function lowerSequenceScene(
   for (const activation of diagram.activations) {
     const k = activationOccurrence.get(activation.actorId) ?? 0
     activationOccurrence.set(activation.actorId, k + 1)
-    parts.push(renderActivation(activation, style, `activation:${activation.actorId}#${k}`, visibleSpans({
+    parts.push(renderActivation(marks, activation, style, `activation:${activation.actorId}#${k}`, visibleSpans({
       x: activation.x - STROKE_WIDTHS.innerBox / 2, y: activation.topY,
       width: activation.width + STROKE_WIDTHS.innerBox, height: activation.bottomY - activation.topY,
     }, 'y')))
@@ -176,7 +176,7 @@ export function lowerSequenceScene(
   for (const block of diagram.blocks) {
     const k = blockHeaderOccurrence.get(block.type) ?? 0
     blockHeaderOccurrence.set(block.type, k + 1)
-    if (block.type !== 'rect' && block.header) parts.push(renderBlockHeader(block.header, style, blockSceneIds.get(block)!))
+    if (block.type !== 'rect' && block.header) parts.push(renderBlockHeader(marks, block.header, style, blockSceneIds.get(block)!))
   }
 
   // 3b. Fragment section labels, above the lifelines and activation bars that
@@ -185,7 +185,7 @@ export function lowerSequenceScene(
   for (const block of diagram.blocks) {
     const k = dividerLabelOccurrence.get(block.type) ?? 0
     dividerLabelOccurrence.set(block.type, k + 1)
-    if (block.dividers.some(divider => divider.label)) parts.push(renderBlockDividerLabels(block, style, `block:${block.type}#${k}`, inkAt))
+    if (block.dividers.some(divider => divider.label)) parts.push(renderBlockDividerLabels(marks, block, style, `block:${block.type}#${k}`, inkAt))
   }
 
   // 4. Messages (horizontal arrows with labels)
@@ -194,7 +194,7 @@ export function lowerSequenceScene(
     const pairKey = `${message.from}->${message.to}`
     const k = messageOccurrence.get(pairKey) ?? 0
     messageOccurrence.set(pairKey, k + 1)
-    parts.push(renderMessage(message, style, `message:${pairKey}#${k}`, inkAt, markerResources))
+    parts.push(renderMessage(marks, message, style, `message:${pairKey}#${k}`, inkAt, markerResources))
   }
 
   // 5. Notes
@@ -203,18 +203,18 @@ export function lowerSequenceScene(
     const noteKey = `${(note.actors ?? []).join(',')}@${note.position ?? 'over'}`
     const k = noteOccurrence.get(noteKey) ?? 0
     noteOccurrence.set(noteKey, k + 1)
-    parts.push(renderNote(note, style, colors, `note:${noteKey}#${k}`))
+    parts.push(renderNote(marks, note, style, colors, `note:${noteKey}#${k}`))
   }
 
   // 5b. Destroy crosses (X where a destroyed lifeline ends) — drawn above
   //     messages/lifelines so the cross stays legible.
   for (const cross of diagram.destructions) {
-    parts.push(renderDestroyCross(cross, style))
+    parts.push(renderDestroyCross(marks, cross, style))
   }
 
   // 6. Actor boxes at top (rendered last so they're on top)
   for (const actor of diagram.actors) {
-    parts.push(renderActor(actor, style, colors, resolved.styleFace, options.security !== 'strict', inkAt))
+    parts.push(renderActor(marks, actor, style, colors, resolved.styleFace, options.security !== 'strict', inkAt))
   }
 
   parts.push(marks.documentClose())
@@ -338,16 +338,17 @@ function sequenceMarkerFor(markerResources: readonly MarkerDescriptor[], head: P
  * Render an actor box (participant = rectangle, actor = stick figure).
  * Wrapped in <g class="actor"> with semantic data attributes.
  */
-function renderActor(
+function renderActor<T>(
+  marks: DrawingFactory<T>,
   actor: PositionedActor,
   style: ResolvedRenderStyle,
   colors: DiagramColors,
   styleFace: Readonly<InternalStyleFace> | undefined,
   includeInteraction: boolean,
   inkAt: SurfaceInk,
-): SceneNode {
+): T {
   const { id, x, y, width, height, label, type } = actor
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
   const roleStyle = resolveRoleStyle(styleFace, 'actor', { category: id }, { includeFallback: false })
   const fontSize = roleStyle?.fontSize ?? style.nodeLabelFontSize
   const fontWeight = roleStyle?.fontWeight ?? style.nodeLabelFontWeight
@@ -384,7 +385,7 @@ function renderActor(
 
     children.push({
       indent: 2,
-      node: pathArtwork({ id: `actor:${id}:icon`, owner: { id, role: 'actor' }, channels: { category: id },
+      node: marks.pathArtwork({ id: `actor:${id}:icon`, owner: { id, role: 'actor' }, channels: { category: id },
         open: `<g transform="translate(${tx},${ty}) scale(${s})">`,
         transform: { kind: 'matrix', a: s, b: 0, c: 0, d: s, e: tx, f: ty },
         paint: { fill: 'none', stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(sw) },
@@ -419,7 +420,7 @@ function renderActor(
     const top = y + 2
     const w = width
     const h = Math.max(24, height - 4)
-    const glyphs: SceneNode[] = []
+    const glyphs: T[] = []
     const owner = { id, role: 'actor' as const }
     const paint = { fill: rawFillColor, stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(lineWidth) }
     // Each glyph piece carries the paint; the group holds the hook classes.
@@ -514,7 +515,7 @@ function renderActor(
  * Render a lifeline (dashed vertical line from actor to bottom).
  * Includes data-actor to link to its actor.
  */
-function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle, spans: VisibleSpan[]): SceneNode {
+function renderLifeline<T>(marks: DrawingFactory<T>, lifeline: Lifeline, style: ResolvedRenderStyle, spans: VisibleSpan[]): T {
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const strokeWidth = Math.max(0.75, style.lineWidth * 0.75)
   const owner = `lifeline:${lifeline.actorId}`
@@ -549,11 +550,11 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle, spans: V
  * Render an activation box (narrow filled rectangle on lifeline).
  * Includes data-actor to link to its actor.
  */
-function renderActivation(activation: Activation, style: ResolvedRenderStyle, sceneId: string, spans: VisibleSpan[]): SceneNode {
+function renderActivation<T>(marks: DrawingFactory<T>, activation: Activation, style: ResolvedRenderStyle, sceneId: string, spans: VisibleSpan[]): T {
   const rawFill = style.nodeFillColor ?? 'var(--_node-fill)'
   const rawStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   if (spans.length !== 1 || spans[0]!.top !== activation.topY || spans[0]!.bottom !== activation.bottomY) {
-    const children: Array<{ node: SceneNode; indent: number }> = []
+    const children: Array<{ node: T; indent: number }> = []
     const fills: string[] = []
     const borders: string[] = []
     for (const span of spans) {
@@ -604,14 +605,15 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
  * Wrapped in <g class="message"> with presentation metadata. The child
  * ConnectorMark is the sole authority for relation endpoints.
  */
-function renderMessage(
+function renderMessage<T>(
+  marks: DrawingFactory<T>,
   msg: PositionedMessage,
   style: ResolvedRenderStyle,
   sceneId: string,
   inkAt: SurfaceInk,
   markerResources: readonly MarkerDescriptor[],
-): SceneNode {
-  const children: Array<{ node: SceneNode; indent: number }> = []
+): T {
+  const children: Array<{ node: T; indent: number }> = []
   const startMarker = sequenceMarkerFor(markerResources, msg.startHead)
   const endMarker = sequenceMarkerFor(markerResources, msg.endHead)
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
@@ -742,8 +744,8 @@ function blockBackground(block: PositionedBlock, style: ResolvedRenderStyle): st
  * Render a block background (loop/alt/opt).
  * Wrapped in <g class="block"> with semantic data attributes.
  */
-function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string, part: 'all' | 'background' | 'frame' | 'dividers' = 'all'): SceneNode {
-  const children: Array<{ node: SceneNode; indent: number }> = []
+function renderBlock<T>(marks: DrawingFactory<T>, block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string, part: 'all' | 'background' | 'frame' | 'dividers' = 'all'): T {
+  const children: Array<{ node: T; indent: number }> = []
 
   // Semantic wrapper with block metadata
   const labelAttr = block.label ? ` data-label="${escapeDisplayAttr(block.label)}"` : ''
@@ -802,9 +804,9 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
  * lifelines and activation bars, which cross a fragment's left edge, with a
  * halo in the surface beneath them so neither hides the text.
  */
-function renderBlockDividerLabels(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string, inkAt: SurfaceInk): SceneNode {
+function renderBlockDividerLabels<T>(marks: DrawingFactory<T>, block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string, inkAt: SurfaceInk): T {
   const rawDividerText = style.edgeTextColor ?? 'var(--_text-muted)'
-  const children: Array<{ node: SceneNode; indent: number }> = []
+  const children: Array<{ node: T; indent: number }> = []
   block.dividers.forEach((divider, dividerIndex) => {
     if (!divider.label || !divider.labelPosition) return
     const { text: label, x: labelX, y: labelY, bounds } = divider.labelPosition
@@ -836,7 +838,7 @@ function renderBlockDividerLabels(block: PositionedBlock, style: ResolvedRenderS
   })
 }
 
-function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderBlockHeader<T>(marks: DrawingFactory<T>, header: PositionedBlockHeader, style: ResolvedRenderStyle, sceneId: string): T {
   const { x: tabX, y: tabY, width: tabWidth, height: tabHeight, label } = header
   const { text: labelText, x: labelX, y: labelY } = label
   const fill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
@@ -888,8 +890,8 @@ function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderS
  * to a concrete hex, the default ink is WCAG-guarded (>= 4.5:1) and flips to
  * the black/white contrast pick when it can't be proven safe.
  */
-function renderBoxGroup(box: PositionedBoxGroup, style: ResolvedRenderStyle, sceneId: string): SceneNode {
-  const children: Array<{ node: SceneNode; indent: number }> = []
+function renderBoxGroup<T>(marks: DrawingFactory<T>, box: PositionedBoxGroup, style: ResolvedRenderStyle, sceneId: string): T {
+  const children: Array<{ node: T; indent: number }> = []
   const labelAttr = box.label ? ` data-label="${escapeDisplayAttr(box.label)}"` : ''
   const open = `<g class="box"${labelAttr}>`
 
@@ -956,7 +958,7 @@ function boxTitleInk(fill: string | undefined, style: ResolvedRenderStyle): stri
 /**
  * Render the X cross ending a destroyed lifeline (`destroy` directive).
  */
-function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): SceneNode {
+function renderDestroyCross<T>(marks: DrawingFactory<T>, cross: LifelineCross, style: ResolvedRenderStyle): T {
   const r = 8
   const stroke = style.edgeStrokeColor ?? 'var(--_line)'
   const strokeWidth = Math.max(1.5, style.lineWidth)
@@ -975,7 +977,7 @@ function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): S
  * Render a note box.
  * Wrapped in <g class="note"> with semantic data attributes.
  */
-function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: DiagramColors, sceneId: string): SceneNode {
+function renderNote<T>(marks: DrawingFactory<T>, note: PositionedNote, style: ResolvedRenderStyle, colors: DiagramColors, sceneId: string): T {
   const { x, y, width: w, height: h } = note
 
   const actorsAttr = note.actors && note.actors.length > 0
@@ -1023,3 +1025,5 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: Di
     ],
   })
 }
+
+export const lowerSequenceScene = sceneLowering<PositionedSequenceDiagram>(lowerSequenceDrawing)

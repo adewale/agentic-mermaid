@@ -29,7 +29,7 @@ import type {
   SceneOwner,
 } from './ir.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
-import { deferredTerminalProjectionInput, hasReservedDeferredTerminalProjection } from './deferred-terminal-projection.ts'
+import { deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
 import {
   connectorContourSemantics,
   connectorEndpointAnchors,
@@ -1212,12 +1212,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       }
     }
   } else add(state.diagnostics, 'SCENE_MARKER', `${path}.markers`, 'must be a typed marker set')
-  // Public Scenes require a bounded immutable reservation. A native mark is
-  // transient: its source fields above were checked and its derived payload
-  // never escapes admission. Only the exact registered getter is trusted;
-  // external Scenes and explicit checks always materialize and inspect it.
+  // A native mark is transient: its source fields above were checked and
+  // its derived payload never escapes admission. Only the exact registered
+  // getter is trusted; full Scenes and explicit checks materialize it.
   if (!state.external && !state.crossChecks
-    && (hasReservedDeferredTerminalProjection(value) || (state.native && deferredTerminalProjectionInput(value) !== undefined))) return
+    && state.native && deferredTerminalProjectionInput(value) !== undefined) return
   if (record(value.terminalProjection)) {
     if (!['native', 'emulated', 'projected', 'lossy', 'unsupported'].includes(String(value.terminalProjection.realization))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.terminalProjection.realization`, 'has an unknown realization')

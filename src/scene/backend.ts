@@ -202,6 +202,13 @@ function lazyBuiltInConformance(backend: StyleBackend, id: string): BuiltInConfo
  * as `DefaultBackend.render`, are covered too. Calls made while its
  * conformance runs pass through: that run executes only the conformance
  * fixtures and never calls host code, so no caller sees unproven output. */
+export function assertBackendConformance(report: BackendConformanceReport, inputName: string): void {
+  if (report.passed) return
+  const failures = report.checks.filter(check => !check.passed)
+    .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
+  throw new Error(`Built-in backend "${inputName}" failed SVG conformance: ${failures.join('; ')}`)
+}
+
 function refuseUntilConforming(backend: StyleBackend, inputName: string, conformance: BuiltInConformance): StyleBackend {
   const methods = backend as { drawNode: StyleBackend['drawNode']; render: StyleBackend['render'] }
   const { drawNode, render } = backend
@@ -209,12 +216,7 @@ function refuseUntilConforming(backend: StyleBackend, inputName: string, conform
   const prove = (): void => {
     if (proven || conformance.running()) return
     const report = conformance.report()
-    if (!report.passed) {
-      const failures = report.checks
-        .filter(check => !check.passed)
-        .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
-      throw new Error(`Built-in backend "${inputName}" failed SVG conformance: ${failures.join('; ')}`)
-    }
+    assertBackendConformance(report, inputName)
     proven = true
   }
   methods.drawNode = (node, ctx) => {

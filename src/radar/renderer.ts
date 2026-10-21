@@ -1,3 +1,4 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedRadarChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -7,8 +8,7 @@ import { radarStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
+import type { SceneNode } from '../scene/ir.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
@@ -63,13 +63,13 @@ export function renderRadarSvg(ctx: RenderContext<PositionedRadarChart>): string
   return DefaultBackend.render(lowerRadarScene(ctx), { seed: 0 })
 }
 
-export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): SceneDoc {
+export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedRadarChart>): DrawingDocument<T> {
   const { positioned: chart, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const style = resolveRenderStyle(options, radarStyleDefaults(chart.visual), resolved.styleFace)
-  const parts: SceneNode[] = []
+  const parts: T[] = []
 
   const fills = pieSliceColors(chart.curves.length, {
     accent: colors.accent,
@@ -394,3 +394,5 @@ function occurrenceIdentities(values: readonly string[]): string[] {
   })
 }
 
+
+export const lowerRadarScene = sceneLowering<PositionedRadarChart>(lowerRadarDrawing)

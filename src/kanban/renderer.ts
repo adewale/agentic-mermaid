@@ -1,25 +1,25 @@
+import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { createFillInkResolver } from '../color-resolver.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import type { SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
-import * as marks from '../scene/marks.ts'
-import { sceneDocument } from '../shared/scene-document.ts'
-import { diagramTitleMark, resolveRenderStyle } from '../styles.ts'
+import type { SceneOwner } from '../scene/ir.ts'
+import { drawingDocument } from '../shared/scene-document.ts'
+import { diagramTitleFields, resolveRenderStyle } from '../styles.ts'
 import type { RenderContext } from '../types.ts'
 import type { KanbanText, PositionedKanbanDiagram } from './types.ts'
 
-export function lowerKanbanScene({ positioned: diagram, colors, resolved }: RenderContext<PositionedKanbanDiagram>): SceneDoc {
+export function lowerKanbanDrawing<T>(marks: DrawingFactory<T>, { positioned: diagram, colors, resolved }: RenderContext<PositionedKanbanDiagram>): DrawingDocument<T> {
   const style = resolveRenderStyle(resolved.renderOptions, undefined, resolved.styleFace)
   const inkOnFill = createFillInkResolver(colors)
   const transparent = resolved.renderOptions.transparent ?? false
-  const parts: SceneNode[] = []
-  if (diagram.title) parts.push(diagramTitleMark(diagram.title, style))
-  const textMark = (id: string, text: KanbanText, fill: string, owner: SceneOwner): SceneNode =>
+  const parts: T[] = []
+  if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, style)))
+  const textMark = (id: string, text: KanbanText, fill: string, owner: SceneOwner): T =>
     marks.text({ id, role: 'label', owner, text: text.block.text, block: text.block, x: text.x, y: text.y, fontSize: text.block.fontSize, fontWeight: text.block.fontWeight, letterSpacing: text.block.letterSpacing, anchor: 'start', paint: { fill } })
   for (const column of diagram.columns) {
     const columnFill = style.groupFillColor ?? 'var(--_group-fill)',
       headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
-    const children: SceneNode[] = [
+    const children: T[] = [
       marks.shape({
         id: `${column.id}:surface`,
         role: 'group',
@@ -35,7 +35,7 @@ export function lowerKanbanScene({ positioned: diagram, colors, resolved }: Rend
     for (const task of column.tasks) {
       const fill = style.nodeFillColor ?? 'var(--_node-fill)',
         ink = style.nodeTextColor ?? inkOnFill('var(--_text)', fill)
-      const nodes: SceneNode[] = [
+      const nodes: T[] = [
         marks.shape({
           id: `${task.id}:surface`,
           role: 'node',
@@ -59,8 +59,10 @@ export function lowerKanbanScene({ positioned: diagram, colors, resolved }: Rend
       .join(' ')
     parts.push(marks.group({ id: column.id, role: 'group', open: `<g data-id="${escapeAttr(column.id)}"${classes ? ` class="${escapeAttr(classes)}"` : ''}>`, close: '</g>', children: children.map(node => ({ node, indent: 2 })) }))
   }
-  return sceneDocument('kanban', diagram, colors, transparent, parts)
+  return drawingDocument(marks, 'kanban', diagram, colors, transparent, parts)
 }
 export function renderKanbanSvg(context: RenderContext<PositionedKanbanDiagram>): string {
   return DefaultBackend.render(lowerKanbanScene(context), { seed: 0 })
 }
+
+export const lowerKanbanScene = sceneLowering<PositionedKanbanDiagram>(lowerKanbanDrawing)
