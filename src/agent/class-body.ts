@@ -33,11 +33,12 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 
 import { decodeXML } from 'entities'
 import type { ClassStatementNode } from '../class/parser.ts'
-import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
 import { classTextLabel, decodeClassText, memberToString, writeClassText } from '../class/text.ts'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -327,7 +328,8 @@ function arrowForRelation(relation: ClassRelation): string {
 }
 
 function quoteIfNeeded(id: string): string {
-  if (/^[\w$]+$/.test(id) && supportedRelationEndpoint(id, id)) {
+  // Mermaid reads `call` before a blank as a callback where a statement starts.
+  if (/^[\w$]+$/.test(id) && id !== 'call' && supportedRelationEndpoint(id, id)) {
     const relation = `${id} -- __endpoint`
     const statements = readClassStatements([id, relation]).statements
     if (parseAccessibilityDirective([relation], 0) === null && statements[0]?.value.kind !== 'header' && statements[1]?.value.kind === 'relationship') return id
@@ -432,7 +434,9 @@ export function renderClass(body: ClassBody): string {
   // Notes can introduce a class on read. Emit them after declarations so a
   // reload cannot move their target ahead of the authored class identities.
   for (const n of body.notes) {
-    const text = n.textContent || /#\w+;/.test(n.text) ? writeClassText(n.text, n.textContent, '"&\\') : n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;')
+    const text = n.textContent || /#\w+;/.test(n.text)
+      ? writeClassText(n.text, n.textContent, '"&\\')
+      : n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;').replace(/%%\{/g, '%%#123;')
     if (n.for) lines.push(`  note for ${quoteIfNeeded(n.for)} "${text}"`)
     else lines.push(`  note "${text}"`)
   }
@@ -510,6 +514,13 @@ function normalizeGeneric(value: unknown): Result<string, MutationError> {
   return ok(generic)
 }
 
+/** An id the writer can spell: Mermaid's class lexer reads some words as
+ *  keywords even in backticks, so no class can be named so. */
+function validateClassId(id: string): MutationError | undefined {
+  if (readsAsClassName(id, true, false)) return undefined
+  return { code: 'INVALID_OP', message: `Class id "${id}" is a keyword to Mermaid's class lexer, which reads \`${id}\` as a keyword even in backticks; choose another id` }
+}
+
 function validateClassMembers(members: readonly string[]): MutationError | undefined {
   for (const member of members) {
     const decoded = typeof member === 'string' ? decodeXML(member) : undefined
@@ -521,6 +532,9 @@ function validateClassMembers(members: readonly string[]): MutationError | undef
     }
     if (parseAccessibilityDirective([decoded], 0) !== null) {
       return { code: 'INVALID_OP', message: 'Class members cannot be accessibility directives' }
+    }
+    if (new RegExp(MERMAID_DIRECTIVE_RE.source, 'i').test(decoded)) {
+      return { code: 'INVALID_OP', message: 'Class members cannot hold a %%{…}%% directive, which Mermaid removes from the source' }
     }
   }
 }
@@ -576,6 +590,8 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
     }
     case 'add_class': {
       if (findClass(op.id)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.id} already exists` })
+      const invalidId = validateClassId(op.id)
+      if (invalidId) return err(invalidId)
       const invalidMembers = validateClassMembers(op.members ?? [])
       if (invalidMembers) return err(invalidMembers)
       if (op.namespace !== undefined && !NAMESPACE_PATH_RE.test(op.namespace)) {
@@ -654,6 +670,8 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       const c = findClass(op.from)
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.from} not found` })
       if (findClass(op.to)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.to} already exists` })
+      const invalidId = validateClassId(op.to)
+      if (invalidId) return err(invalidId)
       c.id = op.to
       for (const r of b.relations) {
         if (r.from === op.from) r.from = op.to
@@ -842,36 +860,81 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           message: "A :::style class before an inline <<annotation>> is read as the class's style class. Pinned Mermaid rejects this; put the annotation inside the class body or on a line of its own.",
         })
       for (const id of declares(value)) declaredSoFar.add(id)
-      if (value.kind === 'assignment' && value.form === 'cssClass' && value.references.some(ref => declaredAnywhere.has(ref.id) && !declaredSoFar.has(ref.id)))
-        warnings.push({
-          code: 'UNSUPPORTED_SYNTAX',
-          syntax: 'class_css_class_before_class',
-          line: header + 1 + node.source.line,
-          message: 'A cssClass before the class it names is applied to that class. Pinned Mermaid applies a cssClass only to classes declared before it, and draws this one unstyled; put the cssClass after the class.',
+      if (value.kind === 'assignment' && value.form === 'cssClass' && value.references.some(ref => declaredAnywhere.has(ref.id) && !declaredSoFar.has(ref.id))) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_css_class_before_class', line: header + 1 + node.source.line,
+        message: 'A cssClass before the class it names is applied to that class. Pinned Mermaid applies a cssClass only to classes declared before it, and draws this one unstyled; put the cssClass after the class.',
+      })
+      if (value.kind === 'assignment' && value.form !== 'cssClass') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_assignment', line: header + 1 + node.source.line,
+        message: value.form === 'class'
+          ? `\`class A c\` is read as style class c on A. Pinned Mermaid reads it as one class named \`Ac\`; write \`cssClass "A" c\` or \`class A:::c\`.`
+          : value.form === 'shorthand'
+            ? 'A `:::style` class on a line of its own is read as the class\'s style class. Pinned Mermaid rejects it; write `cssClass "A" c` or `class A:::c`.'
+            : 'A cssClass whose class list is not quoted is read as written. Pinned Mermaid rejects it; quote the list: `cssClass "A,B" c`.',
+      })
+      // Mermaid reads `A : text` as a LABEL token, `":"[^:\n;]+`, after it
+      // removes `%%{…}%%` directives and runs its entity prepass: a colon or
+      // `;` in the text ends it.
+      if (value.kind === 'member' && value.reference) {
+        const lexed = mermaidEntityPrepass(node.text.replace(/%%\{\s*\w+(?:(?!\}%%)[\s\S])*(?:\}%%)?/g, '')).replace(/#\w+;/g, '#')
+        if (/[:;]/.test(lexed.slice(lexed.indexOf(':') + 1))) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_text', line: header + 1 + node.source.line,
+          message: 'A colon or `;` in the text after `Class :` is read as part of the member. Pinned Mermaid ends that text at either and rejects the line. The writer writes the member in the class body, `class A { … }`, which Mermaid reads.',
         })
-      if (value.kind === 'assignment' && value.form !== 'cssClass')
-        warnings.push({
-          code: 'UNSUPPORTED_SYNTAX',
-          syntax: 'class_style_assignment',
-          line: header + 1 + node.source.line,
-          message:
-            value.form === 'class'
-              ? `\`class A c\` is read as style class c on A. Pinned Mermaid reads it as one class named \`Ac\`; write \`cssClass "A" c\` or \`class A:::c\`.`
-              : value.form === 'shorthand'
-                ? 'A `:::style` class on a line of its own is read as the class\'s style class. Pinned Mermaid rejects it; write `cssClass "A" c` or `class A:::c`.'
-                : 'A cssClass whose class list is not quoted is read as written. Pinned Mermaid rejects it; quote the list: `cssClass "A,B" c`.',
+      }
+      // Before the first colon of `classDef` and `style`, Mermaid's class
+      // grammar takes only ALPHA (`\w+`), `#`, `%` and commas; a colon then
+      // starts a LABEL token, which reads on to the next colon.
+      if ((value.kind === 'classDef' || value.kind === 'style') && /[^\w\s#%,]/.test(node.text.replace(/^\S+/, '').split(':')[0]!)) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text', line: header + 1 + node.source.line,
+        message: `\`${value.kind}\` is read with its names and CSS as written. Pinned Mermaid's class grammar reads only letters, digits, \`_\`, \`#\`, \`%\` and commas before the line's first colon, and rejects any other character there, such as the \`-\` of \`stroke-width\` or a \`-\` in a name. After a colon it reads any text up to the next colon, so such a property is portable after another: \`fill:#fff,stroke-width:2px\`.`,
+      })
+      // Mermaid's class DB reads a member holding `)` as a method, and its
+      // method split, `([#+~-])?(.+)\((.*)\)…`, leaves one it cannot split
+      // without a name, which fails the render (classTypes.ts parseMember).
+      if (value.kind === 'member') {
+        const member = value.text.replace(/#\w+;/g, '#').trim()
+        if (!(member.startsWith('<<') && member.endsWith('>>')) && member.indexOf(')') > 0 && !/^[#+~-]?.+\(.*\)/.test(member)) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_parenthesis', line: header + 1 + node.source.line,
+          message: 'A member holding a `)` with no name and `(…)` before it is read as written. Pinned Mermaid reads a member holding `)` as a method, and fails on one it cannot split into a name and `(…)`: it draws no diagram. Write the `)` as `#41;`, or the method as `name(…)`.',
         })
-      if (node.value.kind === 'note' && node.value.escapedQuotes)
-        warnings.push({
-          code: 'UNSUPPORTED_SYNTAX',
-          syntax: 'class_escaped_note_quotes',
-          line: header + 1 + node.source.line,
-          message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',
+      }
+      // Mermaid's class grammar reads a link as `click A href "…"` or
+      // `link A "…"`: its keywords in lower case, the URL quoted.
+      if (value.kind === 'interaction') {
+        const form = /^(click|link)\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+(href\s+)?(")?/.exec(node.text.trim())
+        if (!form || (form[1] === 'click') !== (form[2] !== undefined) || form[3] === undefined) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_link_form', line: header + 1 + node.source.line,
+          message: 'This link is read as a link to its URL. Pinned Mermaid reads a link only as `click A href "…"` or `link A "…"`, its keyword in lower case and its URL quoted, and rejects this line. The writer writes `click A href "…"`.',
         })
+      }
+      if (value.kind === 'header') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_repeated_header', line: header + 1 + node.source.line,
+        message: 'A second `classDiagram` header is read as nothing, and the writer leaves it out. Pinned Mermaid rejects it. Remove it.',
+      })
+      if ((value.kind === 'classDef' || value.kind === 'style') && withoutStyleComment(node.text) !== node.text) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_comment', line: header + 1 + node.source.line,
+        message: `A \`%%\` comment after \`${value.kind}\` paint is read as a comment, and the paint before it is drawn. Pinned Mermaid reads the comment into the last property's value, which CSS then drops, so it draws that property's default. Put the comment on a line of its own.`,
+      })
+      if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
+        message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',
+      })
       if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
     }
   }
-  extensionWarnings(readClassStatements(bodyLines).statements)
+  // An accTitle or accDescr is Mermaid's own statement, not a member: read
+  // the statements around it, its lines left blank.
+  const statementLines = [...bodyLines]
+  for (let index = 0; index < statementLines.length; index++) {
+    const directive = parseAccessibilityDirective(statementLines, index)
+    if (directive === undefined) break
+    if (directive === null) continue
+    for (let at = index; at <= directive.endIndex; at++) statementLines[at] = ''
+    if (directive.suffixLine) statementLines[directive.endIndex] = directive.suffixLine
+    index = directive.endIndex
+  }
+  extensionWarnings(readClassStatements(statementLines).statements)
   return warnings
 }
 

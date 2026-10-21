@@ -5,6 +5,12 @@ import { dirname, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 
+/** One JSON request line to a reference worker. JSON leaves U+2028/U+2029
+ * raw, and Node 24's readline (unlike Node 22's) ends a line at either, so a
+ * source holding one would reach the worker split in two. */
+export const wireLine = (value: unknown): string =>
+  JSON.stringify(value).replace(/[\u2028\u2029]/g, c => `\\u${c.charCodeAt(0).toString(16)}`) + '\n'
+
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 export type ReferenceReply = { ok: false; error: string } | { ok: true; type: string; snapshot: { data: Record<string, Json>; errors: Record<string, string> } }
 
@@ -95,7 +101,7 @@ export function startModernReference(referenceDir: string): { parse(source: stri
           child.kill()
         }, 30_000)
         pending.push({ resolve: resolveReply, reject, timer })
-        child.stdin.write(JSON.stringify({ source }) + '\n')
+        child.stdin.write(wireLine({ source }))
       })
     },
     close() {

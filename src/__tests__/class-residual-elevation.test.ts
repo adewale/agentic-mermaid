@@ -8,6 +8,8 @@ import { layoutClassDiagram } from '../class/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { verifyMermaid } from '../agent/verify.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const lines = (source: string) => source.split('\n').map(line => line.trim()).filter(Boolean)
 
@@ -48,6 +50,21 @@ describe('Class residual elevation (B08/B10)', () => {
     const reparsed = classDiagram(serializeMermaid(diagram))
     expect(reparsed.body.classDefs?.cool?.fill).toBe('#abcdef')
     expect(reparsed.body.classes.find(item => item.id === 'B')).toEqual(expect.objectContaining({ className: 'cool', style: { color: '#010203' } }))
+  })
+
+  test('a %% comment after classDef or style paint is a comment, and the paint before it is drawn (BUG-56)', async () => {
+    const sources = ['classDiagram\n  class A:::hot\n  classDef hot fill:#f00 %% c', 'classDiagram\n  class A\n  style A fill:#f00 %% c']
+    const typed = sources.map(classDiagram)
+    expect([typed[0]!.body.classDefs?.hot, typed[1]!.body.classes[0]?.style]).toEqual([{ fill: '#f00' }, { fill: '#f00' }])
+    for (const source of sources) expect(renderMermaidSVG(source)).toContain('fill="#f00"')
+    expect(sources.map(source => verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])))
+      .toEqual([['class_style_comment@3'], ['class_style_comment@3']])
+    // Mermaid reads the comment into the value, which CSS drops; the output has no comment.
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.projectAll([sources[1]!, serializeMermaid(typed[1]!)], diagram => diagram.db.getClasses().get('A').styles))
+        .toEqual([['fill:#f00 %% c'], ['fill:#f00']])
+    } finally { upstream.close() }
   })
 
   test('a class named like an Object.prototype key is an ordinary class', () => {

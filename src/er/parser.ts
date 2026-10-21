@@ -154,6 +154,47 @@ export function parseErGroupHeader(line: string, report?: ErQuotedTextReport): {
   return { id, title: ER_QUOTED_NAME_RE.test(title) ? readErQuotedName(title, 'ER subgraph title', report) : title }
 }
 
+// What Mermaid's ER style lexer cannot read: it takes only letters of any
+// script, digits, `_`, `-`, `*`, `#`, `:`, `,`, `;` and blanks.
+const ER_STYLE_UNREAD_RE = /[^\x80-\uFFFF\w\s*#:,;-]/
+
+// A two-digit decimal entity code in ER style text (`#46;` for `.`). Mermaid's
+// entity prepass keeps it as a code when a later `;` ends the line, and the
+// SVG it writes resolves it, so it spells what the ER style lexer cannot read.
+// Two digits are never a hex colour: `fill:#333;` keeps its colour.
+const ER_STYLE_ENTITY_RE = /#(\d{2});/g
+
+function erStyleEntity(char: string): string | undefined {
+  const code = char.charCodeAt(0)
+  return code >= 10 && code <= 99 ? `#${code};` : undefined
+}
+
+/** ER `style`/`classDef` properties, their entity codes read as characters. */
+function readErStyleText(text: string): Record<string, string> {
+  return parseStyleProps(text.replace(ER_STYLE_ENTITY_RE, (_, code: string) => String.fromCharCode(Number(code))))
+}
+
+/** ER style properties as Mermaid's ER style lexer reads them: a character it
+ * cannot read, and a comma inside a value, as an entity code, the text then
+ * ending in `;` so Mermaid's prepass keeps the last code. Undefined when such
+ * a character has no two-digit code (`{|}~`). */
+export function writeErStyleText(style: Readonly<Record<string, string>>): string | undefined {
+  let encoded = false
+  const pairs: string[] = []
+  for (const [key, value] of Object.entries(style)) {
+    let written = ''
+    for (const char of value) {
+      if (!ER_STYLE_UNREAD_RE.test(char) && char !== ',') { written += char; continue }
+      const entity = erStyleEntity(char)
+      if (!entity) return undefined
+      written += entity
+      encoded = true
+    }
+    pairs.push(`${key}:${written}`)
+  }
+  return pairs.join(',') + (encoded ? ';' : '')
+}
+
 /** A `direction` statement. Upstream's lexer reads it to the end of its
  * line, so a `%%` after it is not a comment but part of the statement. */
 export function readErDirection(line: string): Direction | undefined {
@@ -203,7 +244,7 @@ export function readErStatement(line: string, inGroup: boolean, report?: ErQuote
   // --- Entity paint directives (upstream ER grammar) ---
   const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/i)
   if (classDef) {
-    return { kind: 'class-def', names: classDef[1]!.split(',').map(value => value.trim()).filter(Boolean), props: parseStyleProps(classDef[2]!) }
+    return { kind: 'class-def', names: classDef[1]!.split(',').map(value => value.trim()).filter(Boolean), props: readErStyleText(classDef[2]!) }
   }
   const classAssignment = parseErClassAssignment(line, report)
   if (classAssignment) return { kind: 'class', ...classAssignment }
@@ -213,7 +254,7 @@ export function readErStatement(line: string, inGroup: boolean, report?: ErQuote
     const references = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim(), report))
     if (references.some(reference => reference === null)) throw new Error(`Invalid ER style assignment: ${line}`)
     const ids = references.map(reference => reference!.id)
-    return { kind: 'style', ids, props: parseStyleProps(inlineStyle[2]!) }
+    return { kind: 'style', ids, props: readErStyleText(inlineStyle[2]!) }
   }
 
   // --- Relationship: `ENTITY1 cardinality1--cardinality2 ENTITY2 : label` ---

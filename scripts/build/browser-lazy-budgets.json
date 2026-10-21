@@ -10,14 +10,14 @@
     "flowchart": {
       "requests": 36,
       "raw": 2304000,
-      "gzip": 709000,
-      "brotli": 574000
+      "gzip": 710500,
+      "brotli": 575500
     },
     "state": {
       "requests": 35,
       "raw": 2302000,
-      "gzip": 709000,
-      "brotli": 574000
+      "gzip": 710500,
+      "brotli": 575000
     },
     "sequence": {
       "requests": 34,
@@ -40,7 +40,7 @@
     "er": {
       "requests": 40,
       "raw": 2311000,
-      "gzip": 716000,
+      "gzip": 716500,
       "brotli": 581000
     },
     "journey": {

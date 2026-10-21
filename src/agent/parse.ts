@@ -8,7 +8,7 @@
 // ============================================================================
 
 import { MermaidFrontmatterError, normalizeMermaidSource } from '../mermaid-source.ts'
-import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { stripStateComment } from '../state/comment.ts'
 import { statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { statementEndAt } from '../shared/accessibility-directives.ts'
@@ -392,7 +392,11 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
   // whole-body opaque Sequence and wrapper comments are preserved as before.
   if (diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
 
-  const sourceLines = authoredSource.split(/\r?\n/).map(line => line.trim())
+  // A `%%{…}%%` directive is not a comment: normalization applies or removes
+  // it, as Mermaid does, and the writer keeps what it configures.
+  const blank = (directive: string): string => directive.replace(/[^\r\n]/g, ' ')
+  const sourceLines = authoredSource.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), blank).replace(MERMAID_DIRECTIVE_REGEX, blank)
+    .split(/\r?\n/).map(line => line.trim())
   // A `%%` comment after a statement is a comment only where the family's
   // grammar ends that statement there; elsewhere it is text the serializer
   // keeps. So a trailing comment counts as dropped when its bytes are gone.

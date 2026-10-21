@@ -55,8 +55,12 @@ describe('verify — unclosed flowchart delimiters are reported, not silent', ()
     expect(syntaxes("flowchart TD\n  A[Don't panic] --> B")).toEqual([])     // apostrophe is not a quote
     expect(syntaxes('flowchart TD\n  A["says [hi]"] --> B')).toEqual([])     // brackets inside quotes
     expect(syntaxes('flowchart TD\n  A["(a\\"] --> B')).toEqual([])          // `\` is literal; the `"` closes
-    expect(syntaxes('flowchart TD\n  subgraph Photos (2024\n    A --> B\n  end')).toEqual([]) // free-text subgraph label
     expect(syntaxes('flowchart TD\n  accDescr {\n    a "b\n  }\n  A --> B')).toEqual([])  // accessibility text, not a statement
+  })
+
+  test('a free-text subgraph title is no unclosed bracket', () => {
+    // Mermaid rejects the `(` in a title without quotes, which verify names.
+    expect(syntaxes('flowchart TD\n  subgraph Photos (2024\n    A --> B\n  end')).toEqual(['flowchart_subgraph_title'])
   })
 })
 

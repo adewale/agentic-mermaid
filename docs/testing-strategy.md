@@ -236,7 +236,12 @@ sources we did not write:
   authored strings are not globally rewritten. None of these selected scopes
   proves full semantic fidelity. The default is 5,000
   seeded mutations per family; CI uses 100 per family on PRs/main and the full
-  default weekly and on manual dispatch. Per-input JSONL and detailed counterexamples are
+  default weekly and on manual dispatch, all at seed 7. Mutations draw on the
+  corpus's own token images and on fixed lexer-boundary fragments
+  (`grammar-fragments.ts`). Each run counts **silent reads** per family (pinned
+  Mermaid rejects, ours reads, verify names no problem) and lists them reduced;
+  the nightly finder runs the native families at a fresh seed and files new
+  ones in one issue. Per-input JSONL and detailed counterexamples are
   ignored build artifacts. This measures native admission and reference grammar
   round trips as well as the scoped native semantics/operations. Agentic has
   no homologous Mermaid token/`yy` interface, so exact protocol equality
@@ -383,6 +388,11 @@ Architecture routing counterexample (`AM_FC_SEED=1102132276` in
 `architecture-layout.test.ts`) that the pinned seed never reached. It is not
 fixed yet: the shrunk case is an `examples` entry inside an `it.failing` pin
 that names BUG-37 in `TODO.md`.
+
+The workflow's second job does the same for the Mermaid grammar comparison,
+which keeps seed 7 in the PR gate: it runs the native families at a fresh seed
+and lists each new silent read, reduced, with its seed in one issue
+(`scripts/ci/grammar-finder-report.ts`).
 
 Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with

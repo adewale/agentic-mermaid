@@ -62,6 +62,15 @@ describe('er subgraph native rendering (#103)', () => {
   })
 
   for (const [name, source] of Object.entries({
+    // Separating the compound from the components below it moves one end of
+    // V's relationship, so its route is rebuilt past X and T.
+    'an entity relationship into a group past separated components': `erDiagram
+X
+subgraph g
+N C1 ||--|| C2 : r
+end
+T ||--|| U : r
+V ||--|| C2 : r`,
     'nested group beside an unrelated group': `erDiagram
 subgraph title1
 CUSTOMER

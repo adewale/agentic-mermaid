@@ -1239,7 +1239,8 @@ export type FlowchartMutationOp =
   | { kind: 'remove_node'; id: NodeId }
   | { kind: 'rename_node'; from: NodeId; to: NodeId }
   // target/id accept a node id, an authored v11.6 edge ID (`e1@-->`), or the
-  // endpoint forms `from->to` / `from->to#k`.
+  // endpoint forms `from->to` / `from->to#k`. An id a node and an edge share
+  // names the node; the endpoint forms name that edge.
   | { kind: 'set_label'; target: NodeId | EdgeId; label: string }
   | { kind: 'add_edge'; from: NodeId; to: NodeId; label?: string; style?: EdgeStyle }
   | { kind: 'remove_edge'; id: EdgeId }
