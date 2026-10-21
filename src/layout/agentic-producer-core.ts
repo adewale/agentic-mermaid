@@ -7,6 +7,22 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
 
+/** Architecture owns its final side-constrained paths. A bounded retry keeps
+ * in-scope rank constraints without requiring temporary cross-scope routes.
+ * Every original relationship remains in the adapter's authored model. */
+export function layoutNativeCompoundPlacement(graph: MermaidGraph, place: (input: MermaidGraph) => PositionedGraph): PositionedGraph {
+  try { return place(graph) } catch (error) {
+    if (!(error instanceof GraphLayoutUnsupportedError) || !graph.subgraphs.length) throw error
+    const owner = new Map<string, string>()
+    const visit = (group: MermaidSubgraph): void => {
+      for (const id of group.nodeIds) owner.set(id, group.id)
+      group.children.forEach(visit)
+    }
+    graph.subgraphs.forEach(visit)
+    return place({ ...graph, edges: graph.edges.filter(edge => owner.get(edge.source) === owner.get(edge.target)) })
+  }
+}
+
 // Keep cache storage inside the optional solver chunk: importing shared
 // request helpers here creates extra requests for families selecting ELK.
 class NativeResults<T> {

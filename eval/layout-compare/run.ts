@@ -391,7 +391,7 @@ if (import.meta.main) {
     console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] [--workloads] [--generated-start 0 --generated-count 160] [--generated-kind lcg-v1|sha256-counter-v1] | report --before a.json --after b.json --out report.html')
     process.exit(2)
   }
 }
