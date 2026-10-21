@@ -281,7 +281,9 @@ export function layoutLayeredGraph(
   const cross = new Float64Array(vertices.length)
   const assignBand = (index: number): void => {
     let start = (crossExtent - bandWidths[index]!) / 2
-    for (const vertexIndex of bands[index]!) {
+    const band = bands[index]!
+    for (let slot = 0; slot < band.length; slot++) {
+      const vertexIndex = band[slot]!
       const width = vertices[vertexIndex]!.crossSize
       cross[vertexIndex] = start + width / 2
       start += width + nodeSpacing
@@ -291,13 +293,29 @@ export function layoutLayeredGraph(
   const barycenters = new Float64Array(vertices.length)
   const reorder = (index: number, forward: boolean): void => {
     const band = bands[index]!
-    for (const vertexIndex of band) {
+    let finite = true
+    for (let slot = 0; slot < band.length; slot++) {
+      const vertexIndex = band[slot]!
       const neighbors = forward ? vertices[vertexIndex]!.incoming : vertices[vertexIndex]!.outgoing
       let sum = 0
-      for (const neighbor of neighbors) sum += cross[neighbor]!
-      barycenters[vertexIndex] = neighbors.length ? sum / neighbors.length : cross[vertexIndex]!
+      for (let neighbor = 0; neighbor < neighbors.length; neighbor++) sum += cross[neighbors[neighbor]!]!
+      const value = neighbors.length ? sum / neighbors.length : cross[vertexIndex]!
+      barycenters[vertexIndex] = value
+      finite &&= Number.isFinite(value)
     }
-    band.sort((a, b) => barycenters[a]! - barycenters[b]! || a - b)
+    if (band.length <= 16 && finite) {
+      // At most 120 comparisons, with the exact barycenter/identity order.
+      for (let slot = 1; slot < band.length; slot++) {
+        const vertex = band[slot]!, value = barycenters[vertex]!
+        let cursor = slot
+        while (cursor > 0) {
+          const previous = band[cursor - 1]!
+          if ((barycenters[previous]! - value || previous - vertex) <= 0) break
+          band[cursor--] = previous
+        }
+        band[cursor] = vertex
+      }
+    } else band.sort((a, b) => barycenters[a]! - barycenters[b]! || a - b)
     assignBand(index)
   }
   const orderSlots = new Uint32Array(vertices.length)
@@ -432,6 +450,7 @@ export function layoutLayeredGraph(
     prior = -1
     for (let cursor = band.length - 1; cursor >= 0; cursor--) { const id = band[cursor]!; nextReal[id] = prior; if (id < nodes.length) prior = id }
   }
+  let medianScratch = new Float64Array(0)
   const coordinateGap = Math.min(4, nodeSpacing)
   for (let sweep = 0; sweep < 4; sweep++) for (const forward of [true, false]) {
     for (let row = 0; row < bands.length; row++) {
@@ -450,8 +469,20 @@ export function layoutLayeredGraph(
           const first = cross[firstNeighbor]!, second = cross[secondNeighbor]!
           median = forward ? Math.min(first, second) : Math.max(first, second)
         } else {
-          const peers = [...vertex.incoming, ...vertex.outgoing].map(peer => cross[peer]!).sort((a,b)=>a-b)
-          median = peers[Math.floor((peers.length - Number(forward)) / 2)]!
+          if (medianScratch.length < degree) medianScratch = new Float64Array(degree)
+          const peers = medianScratch.subarray(0, degree)
+          let cursor = 0, numeric = true
+          for (let neighbor = 0; neighbor < vertex.incoming.length; neighbor++) {
+            const value = cross[vertex.incoming[neighbor]!]!
+            peers[cursor++] = value; numeric &&= Number.isFinite(value) && !Object.is(value, -0)
+          }
+          for (let neighbor = 0; neighbor < vertex.outgoing.length; neighbor++) {
+            const value = cross[vertex.outgoing[neighbor]!]!
+            peers[cursor++] = value; numeric &&= Number.isFinite(value) && !Object.is(value, -0)
+          }
+          // Typed sorting treats signed zero and non-finite ties differently.
+          const sorted = numeric ? peers.sort() : Array.from(peers).sort((a,b)=>a-b)
+          median = sorted[Math.floor((degree - Number(forward)) / 2)]!
         }
         const before = band[slot - 1], after = band[slot + 1]
         let lo = before === undefined ? vertex.crossSize / 2 : cross[before]! + (vertices[before]!.crossSize + vertex.crossSize) / 2 + coordinateGap

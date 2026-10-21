@@ -1841,3 +1841,75 @@ all nine retained dense cyclic Flowchart fixtures produce three distinct raw
 geometry results in their three final-candidate trials. Memoizing duplicate
 raw results would add key/cache overhead without removing a trial on this
 cohort. Keep that diagnostic; do not add speculative result deduplication.
+
+On published73cb5e4f, all required CI39543898268 lanes pass. The generated
+artifact12320503357 retains512 native completions and506 ELK completions,
+with no additional native crossings, padded-label conflicts or opposing/
+parallel shared spans in any of the five retained windows. All506 shared
+successes have unverified paint on both backends. The native certificates
+contain7,004 issues versus6,556 for ELK on that same shared population;
+do not suppress that adverse uncertainty count or turn it into a claim of
+known painted failures. The six reference rejections stay enrolled.
+
+An unshipped invocation-scoped prepared-segment cache preserves10,000
+direct score/rejection cases and134,511 pair counts, including diagonal,
+degenerate and non-finite fallback cases. Its predeclared three-pair,
+25-repeat diagnostics are mixed:15-node per-worker median time219.00→229.83ms
+and19-node703.33→402.08ms. Separate median allocations are88,515,440→
+89,086,616 bytes and121,632,840→121,691,576 bytes, respectively. Both
+allocation medians are slightly worse. All12 timing and12 memory workers
+complete with identical output fingerprints. With no independent A/A and no
+allocation benefit, retain the prototype without adopting it. A sorted-cache
+variant is only a proposal, not measured evidence.
+
+A fresh allocation profile of the actual clean891bcb7d Node distribution
+now points toward rank ordering: iterator steps under `reorder` account for
+about2.44MB in one sampled consumed19-node call, with another2.12MB under its
+sort comparator. These are sampled allocation locations, not qualified time
+or memory comparisons. The next prototype preserves neighbor summation order,
+uses indexed traversal, bounds insertion sorting to finite bands of at most16
+vertices (at most120 data comparisons), and reuses typed numeric median
+scratch. Large/non-finite bands and non-finite/negative-zero median inputs
+retain the original comparator behavior. No search candidate or resource
+ceiling changes.
+
+The73cb5e4f cost artifact12321213053 is not a qualified improvement. Both
+27-input comparisons exhaust the unchanged480,000ms overall budget.
+Cache-off A/A completes healthy at1.0084910; the native comparison has zero
+fully paired corpus results and no memory observations. Its first expired
+worker is native11-node correctness-ASCII, given only1,133ms remaining
+(1,145.8ms wall time). Normal-cache A/A completes but fails an individual
+large-case reciprocal1.1 bound, despite its aggregate0.9722344. The native
+normal comparison then expires in19-node correctness-SVG with425ms remaining
+(434.1ms wall time), and has no matched memory observations. Its partial
+official-corpus ratio0.9931414 is unqualified. Preserve the adverse control,
+all missing cases and both incomplete campaigns; do not normalize, retry the
+unchanged controls, shrink the population or increase deadlines.
+
+The ordering-allocation prototype preserves all750 full native SVG/receipt/
+error-name-message outcomes, including all15 capability declines. Its new
+three-pair,25-repeat consumed-render diagnostic has per-worker median times
+194.98→172.89ms on15 nodes and315.06→193.31ms on19. The second15-node pair
+is adverse (183.19→183.64ms); retain it. Separate median allocated bytes are
+88,281,776→75,899,288 and121,169,960→111,540,296. All12 timing and12 memory
+workers complete, with one output fingerprint per fixture across both arms.
+These fresh-process two-case diagnostics have no independent A/A, and do not
+qualify the full canary. The adopted source passes145 owning tests /4,830
+assertions across raw/native/cached placement, public selection and all six
+family adapters. Node sorting scratch uses external ArrayBuffer storage;
+V8 allocation, whole-process RSS and retained memory remain separate metrics.
+
+Wall-time accounting explains why passing required CI is insufficient for
+this cost target. In73cb5e4f's cache-off A/A alone,126 time workers take
+411.74s and42 memory workers46.11s. Timed SVG calls account for210.03s,
+renderer import23.31s, first SVG36.16s, and the other time-worker work142.24s.
+That residual includes startup, correctness, ASCII, quality and shutdown;
+it is not attributed to a specific cause without more instrumentation.
+Normal A/A's corresponding totals are254.22s time and39.75s memory.
+The shared480s comparison budget leaves very little cold native work. This
+is an observed measurement constraint, not permission to weaken its protocol.
+
+The adopted ordering change also passes the unchanged319-record default
+geometry gate (two tests,28.26s total; comparison20.10s) and repository lint.
+Freeze its complete build and verify real-browser loading before publishing
+the next code revision; the prior code revision's cost failures stay recorded.
