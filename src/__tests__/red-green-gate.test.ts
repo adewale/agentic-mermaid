@@ -4,15 +4,18 @@ import { describe, expect, test } from 'bun:test'
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs('am-red-green-contract-')
 const gate = join(import.meta.dir, '../../scripts/ci/red-green.ts')
 
-function check(testSource: string, baseSource = 'export const value = 1\n') {
+async function check(testSource: string, baseSource = 'export const value = 1\n') {
   const root = temp.dir()
   const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GITHUB_ACTIONS: 'false' }
   const git = (...args: string[]) => {
-    const result = Bun.spawnSync(['git', ...args], { cwd: root, stdout: 'pipe', stderr: 'pipe', env })
+    const result = Bun.spawnSync(['git', ...args], { timeout: 20_000, killSignal: 'SIGKILL', cwd: root, stdout: 'pipe', stderr: 'pipe', env })
     if (result.exitCode !== 0) throw new Error(result.stderr.toString())
     return result.stdout.toString().trim()
   }
@@ -34,33 +37,30 @@ function check(testSource: string, baseSource = 'export const value = 1\n') {
   put('src/__tests__/behavior.test.ts', testSource)
   git('add', '.')
   git('commit', '--quiet', '-m', 'candidate')
-  const result = Bun.spawnSync([process.execPath, 'run', 'scripts/ci/red-green.ts', '--base', base], {
-    cwd: root, stdout: 'pipe', stderr: 'pipe',
-    env,
-  })
-  return { exitCode: result.exitCode, output: result.stdout.toString() + result.stderr.toString() }
+  const result = await runChild(process.execPath, ['run', 'scripts/ci/red-green.ts', '--base', base], { cwd: root, env })
+  return { status: result.status, output: result.stdout.toString() + result.stderr.toString() }
 }
 
 const imports = "import { beforeAll, expect, test } from 'bun:test'\nimport { value } from '../value.ts'\n"
 
 describe('CI red→green proves a behavioral regression', () => {
-  test('accepts a changed assertion that fails against base production', () => {
-    const result = check(imports + "test('new behavior', () => expect(value).toBe(2))\n")
-    expect(result.exitCode, result.output).toBe(0)
+  test('accepts a changed assertion that fails against base production', async () => {
+    const result = await check(imports + "test('new behavior', () => expect(value).toBe(2))\n")
+    expect(result.status, result.output).toBe(0)
     expect(result.output).toContain('1 assertion failure')
   })
 
-  test('rejects changed tests that still pass on base', () => {
-    const result = check(imports + "test('not discriminating', () => expect(value).toBeGreaterThan(0))\n")
-    expect(result.exitCode, result.output).not.toBe(0)
+  test('rejects changed tests that still pass on base', async () => {
+    const result = await check(imports + "test('not discriminating', () => expect(value).toBeGreaterThan(0))\n")
+    expect(result.status, result.output).not.toBe(0)
     expect(result.output).toContain('Every changed test passes')
   })
 
-  test('located per-test hook assertions remain reviewable evidence, not phase-aware proof', () => {
+  test('located per-test hook assertions remain reviewable evidence, not phase-aware proof', async () => {
     // Bun JUnit attributes beforeEach assertions to the test's location. The
     // gate cannot infer whether that assertion checks behavior or just setup.
-    const result = check("import { beforeEach, expect, test } from 'bun:test'\nimport { value } from '../value.ts'\nbeforeEach(() => expect(value).toBe(2))\ntest('behavior', () => expect(value).toBeGreaterThan(0))\n")
-    expect(result.exitCode, result.output).toBe(0)
+    const result = await check("import { beforeEach, expect, test } from 'bun:test'\nimport { value } from '../value.ts'\nbeforeEach(() => expect(value).toBe(2))\ntest('behavior', () => expect(value).toBeGreaterThan(0))\n")
+    expect(result.status, result.output).toBe(0)
     expect(result.output).toContain('review assertion meaning')
   })
 
@@ -70,9 +70,9 @@ describe('CI red→green proves a behavioral regression', () => {
     ['setup assertion after a passing test', "import { beforeAll, describe, expect, test } from 'bun:test'\nimport { value } from '../value.ts'\ntest('unrelated pass', () => expect(value).toBeGreaterThan(0))\ndescribe('fixture', () => { beforeAll(() => expect(value).toBe(2)); test('never executes', () => {}) })\n"],
     ['timeout', imports + "test('no completed assertion', async () => { if (value === 1) await new Promise(() => {}); expect(value).toBe(2) }, 1)\n"],
     ['aborted runner', imports + "process.exit(42)\n"],
-  ])('does not count %s as behavioral proof', (_name, source) => {
-    const result = check(source)
-    expect(result.exitCode, result.output).not.toBe(0)
+  ])('does not count %s as behavioral proof', async (_name, source) => {
+    const result = await check(source)
+    expect(result.status, result.output).not.toBe(0)
     expect(result.output).toContain('No completed assertion failure')
   })
 })

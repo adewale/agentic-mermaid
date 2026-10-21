@@ -161,7 +161,7 @@ describe('production website smoke deployment wiring', () => {
       writeFileSync(join(dir, 'bin', 'bun'), `#!/usr/bin/env bash\nexit ${smokeStatus}\n`)
       chmodSync(join(dir, 'bin', 'bun'), 0o755)
       writeFileSync(join(dir, 'output'), '')
-      spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', promoted.run!], {
+      spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', promoted.run!], { timeout: 20_000, killSignal: 'SIGKILL',
         cwd: dir,
         env: { ...process.env, GITHUB_OUTPUT: join(dir, 'output'), PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
       })

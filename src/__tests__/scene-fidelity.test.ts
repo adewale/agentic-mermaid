@@ -10,7 +10,6 @@
 // unfaithful mark, not just the first.
 
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
@@ -27,6 +26,9 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { SECTION_B_FAMILY_CENSUS_FIXTURES } from '../scene/section-b-census-fixtures.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import type { RenderOptions } from '../types.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 interface Lowered {
   id: string
@@ -288,15 +290,15 @@ describe('built-in Scene cross-checks', () => {
     expect(() => admitSceneDocument(admitted, 'internal', true)).toThrow(/terminalProjection/)
   })
 
-  test('render skips them unless scene assertions are on; verify, strict renders and ASCII always run them', () => {
+  test('render skips them unless scene assertions are on; verify, strict renders and ASCII always run them', async () => {
     // A lowering that stores a connector projection disagreeing with the one
     // derived from its own semantics. Fresh processes control the variable the
     // test preload sets.
-    const probe = (assertions: boolean) => {
+    const probe = async (assertions: boolean) => {
       const env = { ...process.env }
       if (assertions) env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
       else delete env.AGENTIC_MERMAID_SCENE_ASSERTIONS
-      const result = spawnSync(
+      const result = await runChild(
         process.execPath,
         [
           '--eval',
@@ -322,7 +324,7 @@ describe('built-in Scene cross-checks', () => {
         console.log(JSON.stringify({ render, strict, verify, ascii }))
       `,
         ],
-        { cwd: join(import.meta.dir, '..', '..'), env, encoding: 'utf8' },
+        { cwd: join(import.meta.dir, '..', '..'), env },
       )
       expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
       return JSON.parse(result.stdout) as { render: string; strict: string; verify: unknown[]; ascii: string[] }
@@ -331,14 +333,14 @@ describe('built-in Scene cross-checks', () => {
     // The mismatch is a lowering defect, never the source's: verify reports it
     // as INTERNAL_ERROR and says whether an ordinary render still draws.
     const defect = (defaultRender: string) => [{ code: 'INTERNAL_ERROR', reason: expect.stringMatching(projectionMismatch), defaultRender }]
-    const off = probe(false)
+    const off = await probe(false)
     expect(off.render).toBe('rendered')
     // Strict layout safety, verify and the ASCII connector projection, which
     // all rely on the derived facts, still cross-check them.
     expect(off.strict).toMatch(projectionMismatch)
     expect(off.verify).toEqual(defect('succeeds-unchecked'))
     expect(off.ascii).toContain('TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE')
-    const on = probe(true)
+    const on = await probe(true)
     expect(on.render).toMatch(projectionMismatch)
     expect(on.verify).toEqual(defect('fails'))
   })
