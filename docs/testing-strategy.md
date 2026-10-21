@@ -664,8 +664,11 @@ table here, which would drift. In broad strokes:
   and a real Canvas PNG, with heap checkpoints before/after preview and exports.
   `--case tree-5,tree-50,tree-150,nested-crosslinks,sequence-40,class-20,er-20,state-25,mindmap-30,gantt-20,pie-12`
   expands it to the full editor portfolio; `--style hand-drawn` measures a seeded
-  alternate backend. The runner requires matching SVG/ASCII/Unicode/PNG output
-  identities for every selected input across variants and repetitions.
+  alternate backend. The runner attempts every format even after a render
+  rejection, retains incremental samples and reports per-format acceptance.
+  Successful SVG/ASCII/Unicode/PNG bytes and request identities must match
+  across variants and repetitions; rejected outputs must have matching errors.
+  Report rejected attempts separately from successful-operation latency.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
