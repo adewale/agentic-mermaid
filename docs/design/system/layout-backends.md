@@ -1913,3 +1913,31 @@ The adopted ordering change also passes the unchanged319-record default
 geometry gate (two tests,28.26s total; comparison20.10s) and repository lint.
 Freeze its complete build and verify real-browser loading before publishing
 the next code revision; the prior code revision's cost failures stay recorded.
+
+Frozenb25aa100 passes the complete Node/declaration/IIFE/catalog/lazy build,
+both typechecks, all current browser budgets and seven real-browser checks /
+531 assertions (20.63s). Flowchart closure costs711,545 gzip /576,508 Brotli
+with ELK and282,722 /249,948 with native, each33 requests. Architecture is
+572,952 Brotli against the inherited573,000 limit. No budget file changes.
+
+A predeclared actual-package diagnostic then uses the unchanged canonical
+Node worker on the frozen891bcb7d andb25aa100 distributions: two dense
+development inputs, three rounds,25 repetitions, separate memory workers,
+two ELK arms and the two native revisions, with a shared480s diagnostic cap
+and60s per-worker cap. Of48 workers,47 complete; old-native19-node round2
+expires during timing at60,045ms without a result. Keep that failure.
+The15-node ELK A/A time ratios are0.846/1.405/0.776;19-node ratios are
+1.284/1.175/1.510. This control is unhealthy; do not claim a speed winner or
+retry it unchanged. Every completed time row preserves expected text and
+deterministic output; the two native revisions have identical SVG and receipt
+fingerprints on their completed rows.
+
+Actual-package median pass allocations (ELK reference /old native /new native)
+are49,443,944 /90,085,928 /77,267,776 bytes on15 nodes and100,187,800 /
+120,036,232 /113,084,112 on19. Native still allocates more than ELK in both.
+New-native peak RSS medians are147,030,016 and157,278,208 bytes versus ELK
+158,900,224 and166,350,848; the old-native medians are lower than new-native
+at138,936,320 and156,893,184. Preserve that RSS tradeoff. New-native retained
+growth is425,096 /420,504 bytes versus ELK491,888 /356,424. Allocation, RSS
+and retention do not tell one uniformly favorable story, and this incomplete
+two-case experiment cannot qualify the27-input comparison.
