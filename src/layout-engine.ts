@@ -1,4 +1,5 @@
 import { applyLayoutHints } from './layout/layout-hints.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
@@ -43,18 +44,18 @@ import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/conf
 import { elkLayoutSync } from './elk-instance.ts'
 import { layoutAgenticCandidate } from './layout/agentic-layered.ts'
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
-import { AGENTIC_LAYERED_IMPLEMENTATION, DeferredDependencyError, directionToElk, emitGraphLayoutDecision, GraphLayoutUnsupportedError, type GraphLayoutDecision } from './layout/backend.ts'
+import { DeferredDependencyError, directionToElk, runMeasuredGraphBackend, GraphLayoutUnsupportedError } from './layout/backend.ts'
 export { directionToElk } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
+import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyOwnedLayoutCandidate, refineOwnedLayoutCandidate, certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -1962,7 +1963,12 @@ function layoutCandidate(
 export type AgenticGraphOptions = LayoutEngineOptions
 export type AgenticGraphBindings = {
   customTextMeasurementActive: typeof customTextMeasurementActive
-  refineOwnedLayoutCandidate: typeof refineOwnedLayoutCandidate
+  certifyCandidate: typeof certifyCandidate
+  retainSelection: typeof retainSelection
+  countOpposingRouteOverlaps: typeof countOpposingRouteOverlaps
+  countParallelRouteOverlaps: typeof countParallelRouteOverlaps
+  measureLabelConflicts: typeof measureLabelConflicts
+  countEdgeCrossings: typeof countEdgeCrossings
   DEFAULTS: typeof DEFAULTS
   LABEL_PILL_PADDING: typeof LABEL_PILL_PADDING
   measureRenderStage: typeof measureRenderStage
@@ -1978,49 +1984,19 @@ export type AgenticGraphBindings = {
   unsupported: (reason: string) => never
 }
 const agenticGraphBindings: AgenticGraphBindings = {
-  customTextMeasurementActive,
-  refineOwnedLayoutCandidate,
+  customTextMeasurementActive, certifyCandidate, retainSelection, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts,
   DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry,
   unsupported: reason => { throw new GraphLayoutUnsupportedError(reason) },
 }
 
 function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
-  const policy = options.graphLayout
   // Preserve existing bytes, receipts and the explicitly enabled legacy forest
-  // experiment when no new selector was supplied.
-  if (!policy) return layoutElkGraph(graph, options)
-  const attempts: Array<GraphLayoutDecision['attempts'][number]> = []
-  let positioned: PositionedGraph
-  let selected: GraphLayoutDecision['selected'] = policy.backend
-  let reason: string | undefined
-  if (policy.backend === 'agentic') {
-    try {
-      // Produce outside the legacy certifier's exception-catching boundary:
-      // unexpected solver/pass errors must remain engine failures.
-      const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
-      const candidate = layoutAgenticCandidate(graph, options, style, agenticGraphBindings)
-      positioned = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate })
-      attempts.push({ backend: 'agentic', outcome: 'selected' })
-    } catch (error) {
-      if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
-      if (policy.fallback !== 'elk') throw error
-      reason = error instanceof GraphLayoutUnsupportedError ? error.reason : 'candidate failed mandatory geometry certification'
-      attempts.push({ backend: 'agentic', outcome: error instanceof GraphLayoutUnsupportedError ? 'unsupported' : 'candidate-rejected', reason })
-      selected = 'elk'
-      positioned = layoutElkGraph(graph, options)
-      attempts.push({ backend: 'elk', outcome: 'selected' })
-    }
-  } else {
-    positioned = layoutElkGraph(graph, options)
-    attempts.push({ backend: 'elk', outcome: 'selected' })
-  }
-  const decision: GraphLayoutDecision = {
-    requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}),
-  }
-  positioned.layoutDecision = decision
-  emitGraphLayoutDecision(decision)
-  return positioned
+  // experiment when no selector was supplied.
+  if (!options.graphLayout) return layoutElkGraph(graph, options)
+  return runMeasuredGraphBackend(options, () => {
+    const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
+    return layoutAgenticCandidate(graph, options, style, agenticGraphBindings)
+  }, () => layoutElkGraph(graph, options), true, (positioned, decision) => { positioned.layoutDecision = decision })
 }
 
 /** Four deterministic strategy combinations, each with the existing bounded

@@ -1,6 +1,9 @@
+import { measureLabelConflicts } from '../layout/label-conflicts.ts'
+import { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+import { refineOwnedLayoutCandidate as refineNative, certifyOwnedLayoutCandidate as certifyNative } from '../layout/agentic-producer-core.ts'
 import '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyOwnedLayoutCandidate, refineOwnedLayoutCandidate, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyCandidate, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, GraphLayoutUnsupportedError } from '../layout/backend.ts'
@@ -23,6 +26,12 @@ function routeWitness(graph: MermaidGraph, positions: Record<string, [number, nu
     edges: graph.edges.map((edge, index) => ({ ...edge, edgeIndex: index, points: routes[index]!.map(([x, y]) => ({ x, y })) })),
   }
 }
+
+const certifyOwnedLayoutCandidate = (...args: [Parameters<typeof certifyNative>[0], Parameters<typeof certifyNative>[1], Parameters<typeof certifyNative>[2]]) =>
+  certifyNative(...args, { certifyCandidate, retainSelection })
+
+const refineOwnedLayoutCandidate = (...args: [Parameters<typeof refineNative>[0], Parameters<typeof refineNative>[1], Parameters<typeof refineNative>[2], Parameters<typeof refineNative>[3]]) =>
+  refineNative(...args, { certifyCandidate, retainSelection, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts })
 
 describe('bounded final layout certification', () => {
   const crossingWitness = () => {

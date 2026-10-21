@@ -1,3 +1,5 @@
+import type { LayoutCertificationCandidate } from './certification.ts'
+import { GraphLayoutUnsupportedError, LayoutCertificationError } from './backend.ts'
 import type { Direction, MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine.ts'
@@ -157,7 +159,7 @@ function placeNativeGraphCandidate(
 
 /** Compare bounded alternatives after shared cleanup, so early routing
  * scores cannot conceal final label conflicts or lost terminal clearance. */
-export function layoutNativeGraphCandidate(
+function selectNativeGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
 ): PositionedGraph {
@@ -183,9 +185,67 @@ export function layoutNativeGraphCandidate(
     produce: () => placeNativeGraphCandidate(graph, options, style, input => layoutAgenticGraph({ ...input, authoredCycleOrder: true }), bindings) }]
   if (graph.edges.some(edge => !edge.label)) candidates.push({ strategy: 'agentic-compact-ranks',
     produce: () => placeNativeGraphCandidate(graph, options, style, input => layoutAgenticGraph({ ...input, compactPrivateRanks: true }), bindings) })
-  const selected = bindings.refineOwnedLayoutCandidate(graph, style, first, candidates)
+  const selected = refineOwnedLayoutCandidate(graph, style, first, candidates, bindings)
   const chosen = selected === first ? 'primary' : selected.certification?.strategy === 'agentic-authored-order' ? 'authored'
     : selected.certification?.strategy === 'agentic-compact-ranks' ? 'compact' : undefined
   if (key && choices && chosen) choices.set(key, chosen, key.length * 2 + 128)
   return selected
+}
+
+/** A bounded owned refinement preserves the feasible primary result. Producer
+ * defects, meaning changes, deferred dependencies and global limits propagate. */
+export function refineOwnedLayoutCandidate(
+  graph: MermaidGraph, style: ResolvedRenderStyle, first: PositionedGraph,
+  alternatives: (() => PositionedGraph) | readonly Pick<LayoutCertificationCandidate, 'strategy' | 'produce'>[],
+  bindings: Pick<AgenticGraphBindings, 'certifyCandidate' | 'retainSelection' | 'countEdgeCrossings' | 'countOpposingRouteOverlaps' | 'countParallelRouteOverlaps' | 'measureLabelConflicts'>,
+): PositionedGraph {
+  const { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts } = bindings
+  const points = (placed: PositionedGraph) => placed.edges.reduce((sum, edge) => sum + edge.points.length, 0)
+  if (graph.subgraphs.length || graph.nodes.size > 20 || graph.edges.length > 64
+    || graph.edges.reduce((sum, edge) => sum + (edge.length ?? 1), 0) > 128 || points(first) > 2048
+    || countEdgeCrossings(first.edges) === 0) return first
+  certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => first }, bindings)
+  const score = (placed: PositionedGraph) => [
+    measureLabelConflicts(placed, style).total, countOpposingRouteOverlaps(placed.edges), countParallelRouteOverlaps(placed.edges),
+    countEdgeCrossings(placed.edges), placed.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : Math.max(0, edge.points.length - 2)), 0),
+    placed.width * placed.height,
+  ]
+  let best = first, before = score(first)
+  const candidates = typeof alternatives === 'function' ? [{ strategy: 'agentic-authored-order', produce: alternatives }] : alternatives
+  for (const candidate of candidates.slice(0, 2)) {
+    let other: PositionedGraph
+    try {
+      other = certifyOwnedLayoutCandidate(graph, style, candidate, bindings)
+    } catch (error) {
+      if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
+      continue
+    }
+    if (points(other) > 2048) continue
+    const after = score(other)
+    for (let index = 0; index < before.length; index++) {
+      if (after[index]! < before[index]!) { best = other; before = after; break }
+      if (after[index]! > before[index]!) break
+    }
+    if (before[3] === 0) break
+  }
+  return best
+}
+
+/** Owned producers may decline geometry, but cannot disguise meaning changes
+ * or unexpected checker/producer exceptions as an ordinary fallback. */
+export function certifyOwnedLayoutCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, bindings: Pick<AgenticGraphBindings, 'certifyCandidate' | 'retainSelection'>): PositionedGraph {
+  const result = bindings.certifyCandidate(graph, style, candidate, true)
+  if (!result.certified) throw new LayoutCertificationError([result.attempt])
+  return bindings.retainSelection(graph, {
+    selected: result.certified, reason: 'first-certified', attempts: 1,
+    compared: [{ strategy: result.certified.strategy, score: result.certified.score }],
+  })
+}
+
+export function layoutNativeGraphCandidate(
+  graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
+  layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
+): PositionedGraph {
+  const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
+  return certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
 }
