@@ -815,41 +815,46 @@ export function directLaneBlockers(
 function hasDirectLaneBlocker(
   edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis,
 ): boolean {
-  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true).length > 0
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true)
 }
 
+function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: true): boolean
+function collectLaneBlockers(edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: false): RouteBlocker[]
 function collectLaneBlockers(
   edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: boolean,
-): RouteBlocker[] {
-  const blockers: RouteBlocker[] = []
-  const overlaps = (lo: number, hi: number, lo2: number, hi2: number) =>
-    Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
+): RouteBlocker[] | boolean {
+  const blockers: RouteBlocker[] | undefined = firstOnly ? undefined : []
 
-  for (const node of ctx.nodes) {
+  for (let nodeIndex = 0; nodeIndex < ctx.nodes.length; nodeIndex++) {
+    const node = ctx.nodes[nodeIndex]!
     if (node.id === edge.source || node.id === edge.target) continue
     const nMainLo = node[axis.main] - CLEARANCE
     const nMainHi = node[axis.main] + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
     const nCrossLo = node[axis.cross] - CLEARANCE
     const nCrossHi = node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
-    if (c > nCrossLo && c < nCrossHi && overlaps(mainLo, mainHi, nMainLo, nMainHi)) {
-      blockers.push({ kind: 'node', id: node.id })
-      if (firstOnly) return blockers
+    if (c > nCrossLo && c < nCrossHi && Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
+      if (firstOnly) return true
+      blockers!.push({ kind: 'node', id: node.id })
     }
   }
 
-  for (const other of ctx.edges) {
+  for (let edgeIndex = 0; edgeIndex < ctx.edges.length; edgeIndex++) {
+    const other = ctx.edges[edgeIndex]!
     // Compare by edgeIndex as well as identity: validation proves lanes on a
     // copy of the edge, and the original must not block its own lane.
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-    const rect = isMovableReciprocalLabel(edge, other, ctx) ? null : labelRect(other, ctx.style)
-    if (rect) {
-      const rMainLo = (axis.main === 'x' ? rect.x : rect.y) - CLEARANCE
-      const rMainHi = rMainLo + (axis.main === 'x' ? rect.w : rect.h) + 2 * CLEARANCE
-      const rCrossLo = (axis.cross === 'y' ? rect.y : rect.x) - CLEARANCE
-      const rCrossHi = rCrossLo + (axis.cross === 'y' ? rect.h : rect.w) + 2 * CLEARANCE
-      if (c > rCrossLo && c < rCrossHi && overlaps(mainLo, mainHi, rMainLo, rMainHi)) {
-        blockers.push({ kind: 'label', id: edgeId(other) })
-        if (firstOnly) return blockers
+    const block = !isMovableReciprocalLabel(edge, other, ctx) && other.label && other.labelPosition
+      ? other.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(other.label, other.labelContent), ctx.style) : undefined
+    if (block) {
+      const width = block.width + 2 * LABEL_PILL_PADDING, height = block.height + 2 * LABEL_PILL_PADDING
+      const x = other.labelPosition!.x - width / 2, y = other.labelPosition!.y - height / 2
+      const rMainLo = (axis.main === 'x' ? x : y) - CLEARANCE
+      const rMainHi = rMainLo + (axis.main === 'x' ? width : height) + 2 * CLEARANCE
+      const rCrossLo = (axis.cross === 'y' ? y : x) - CLEARANCE
+      const rCrossHi = rCrossLo + (axis.cross === 'y' ? height : width) + 2 * CLEARANCE
+      if (c > rCrossLo && c < rCrossHi && Math.min(mainHi, rMainHi) - Math.max(mainLo, rMainLo) > EPS) {
+        if (firstOnly) return true
+        blockers!.push({ kind: 'label', id: edgeId(other) })
       }
     }
     // Collinear overlap with another edge's flow-axis segment would merge the
@@ -863,13 +868,13 @@ function collectLaneBlockers(
       if (Math.abs(a[axis.cross] - c) >= CLEARANCE) continue
       const sLo = Math.min(a[axis.main], b[axis.main])
       const sHi = Math.max(a[axis.main], b[axis.main])
-      if (overlaps(mainLo, mainHi, sLo, sHi)) {
+      if (Math.min(mainHi, sHi) - Math.max(mainLo, sLo) > EPS) {
         if (other.target === edge.target && other.source !== edge.source &&
           Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
           continue
         }
-        blockers.push({ kind: 'channel', id: edgeId(other) })
-        if (firstOnly) return blockers
+        if (firstOnly) return true
+        blockers!.push({ kind: 'channel', id: edgeId(other) })
         break
       }
     }
@@ -879,11 +884,12 @@ function collectLaneBlockers(
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
     const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {
-      blockers.push({ kind: 'label', id: edgeId(edge) })
+      if (firstOnly) return true
+      blockers!.push({ kind: 'label', id: edgeId(edge) })
     }
   }
 
-  return dedupeBlockers(blockers)
+  return firstOnly ? false : dedupeBlockers(blockers!)
 }
 
 /**
