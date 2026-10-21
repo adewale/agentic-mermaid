@@ -171,6 +171,16 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   const ma = after.metrics!
   let regressed = false
   let improved = false
+  let measurementChanged = false
+  for (const dimension of ['labelConflicts', 'routeOverlaps', 'routeGeometry'] as const) {
+    if (mb[dimension] && !ma[dimension]) {
+      notes.push(`${dimension}: measurement lost`)
+      regressed = true
+    } else if (!mb[dimension] && ma[dimension]) {
+      notes.push(`${dimension}: measurement gained; geometry not compared`)
+      measurementChanged = true
+    }
+  }
   // QUAL-1: a family that previously had an EMPTY layout (nodeCount 0 — the
   // perceptual metrics were blind to it) gaining real geometry is an
   // IMPROVEMENT, never a faithfulness regression. While transitioning out of an
@@ -217,7 +227,7 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   if (asciiChanged) notes.push('ascii bytes changed')
   if (backendChanged) notes.push('backend execution changed')
 
-  const verdict: Verdict = regressed ? 'regression' : improved ? 'improvement' : (svgChanged || asciiChanged || backendChanged) ? 'changed' : 'unchanged'
+  const verdict: Verdict = regressed ? 'regression' : improved ? 'improvement' : (svgChanged || asciiChanged || backendChanged || measurementChanged) ? 'changed' : 'unchanged'
   return { id, family, verdict, notes, before, after }
 }
 
