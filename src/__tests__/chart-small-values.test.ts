@@ -84,6 +84,24 @@ test('overflowing Pie totals refuse a misleading zero-share drawing in either ou
   expect(verifyMermaid(source).ok).toBe(false)
 })
 
+test('mixed-magnitude positive Pie entries never verify a zero percentage caused by numeric underflow', () => {
+  fc.assert(fc.property(fc.integer({ min: 300, max: 323 }), fc.integer({ min: 0, max: 100 }), fc.boolean(), (decimals, magnitude, reverse) => {
+    const entries = [`"Tiny": 0.${'0'.repeat(decimals - 1)}1`, `"Large": 1${'0'.repeat(magnitude)}`]
+    if (reverse) entries.reverse()
+    const source = `pie showData\n${entries.join('\n')}`
+    let svg: string
+    try { svg = renderMermaidSVG(source) }
+    catch (error) {
+      expect(String(error)).toContain('Pie slice share underflows the finite numeric range')
+      expect(() => renderMermaidASCII(source)).toThrow('Pie slice share underflows the finite numeric range')
+      expect(verifyMermaid(source).ok).toBe(false)
+      return
+    }
+    expect(svg).not.toContain('(0.0%)')
+    expect(renderMermaidASCII(source)).not.toContain(' 0.0%')
+  }), fcParameters({ numRuns: 60, examples: [[323, 1, false], [323, 1, true]] }))
+})
+
 test('large safe integers retain their exact value in visible Pie and Radar labels', () => {
   fc.assert(fc.property(fc.integer({ min: 2 ** 50, max: Number.MAX_SAFE_INTEGER }), value => {
     const pie = renderMermaidSVG(`pie showData\n"Sample": ${value}`)
