@@ -353,7 +353,7 @@ describe('editor verify panel', () => {
     const { api, nodes } = verifyPanel(() => { calls++; return { ok: false, warnings: [{ code: 'RENDER_FAILED' }] } })
     api.updateVerifyPanel('flowchart TD\n  A --> B', {}, { ok: true, warnings: [] })
     expect(calls).toBe(0)
-    expect(nodes.verifySummary.textContent).toBe('Verified: no warnings')
+    expect(nodes.verifySummary.textContent).toBe('Render checks passed: no warnings')
   })
 
   test('every canonical warning code is counted in its canonical tier', () => {
