@@ -1824,3 +1824,20 @@ canonical default-geometry gate passes all319 records without a golden edit
 (two tests,17.45s total; geometry comparison12.96s), and repository lint passes.
 Run the complete build, both typechecks and real-browser request checks on
 the frozen combined revision before publishing its next cost campaign.
+
+Frozen891bcb7d now passes the complete Node/declaration/IIFE/catalog/lazy
+build and every compressed browser budget, plus both typechecks and seven
+real-browser checks /531 assertions. Architecture is572,901 Brotli against
+main's573,000 limit. The Flowchart closure is711,547 gzip /576,472 Brotli
+with ELK and282,545 /249,762 with the selected native solver; each has33
+requests. Class and Requirement native closures need one more request than
+their ELK counterparts (34 vs33 and29 vs28); do not call this a request-count
+win. Browser execution confirms that strict native selection fetches no ELK,
+and explicit ELK and actual fallback still load it. These download results
+do not apply to the all-in-one synchronous bundle.
+
+A separate raw-geometry observation rejects another proposed optimization:
+all nine retained dense cyclic Flowchart fixtures produce three distinct raw
+geometry results in their three final-candidate trials. Memoizing duplicate
+raw results would add key/cache overhead without removing a trial on this
+cohort. Keep that diagnostic; do not add speculative result deduplication.
