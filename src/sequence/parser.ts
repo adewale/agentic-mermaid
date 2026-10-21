@@ -723,7 +723,7 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
 export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
 
 export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {
-  const metadata = line.match(/^(participant|actor)\s+([^\s@]+)@\{/i)
+  const metadata = line.match(/^(participant|actor)\s+([^\s@]+)\s*@\{/i)
   if (metadata) {
     const baseType = metadata[1]!.toLowerCase() as 'participant' | 'actor'
     const id = metadata[2]!
