@@ -159,12 +159,15 @@ jobs:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
           mkdir -p "$EVIDENCE_DIR"
-          for start in 0 256; do
+          for start in 0 256 320; do
             count=256
             directory="$EVIDENCE_DIR"
             if [ "$start" = 256 ]; then
               count=64
               directory="$EVIDENCE_DIR/development-256-319"
+            elif [ "$start" = 320 ]; then
+              count=64
+              directory="$EVIDENCE_DIR/development-320-383"
             fi
             mkdir -p "$directory"
             for backend in elk agentic; do
@@ -173,12 +176,18 @@ jobs:
                 --out "$directory/$backend.json"
             done
           done
+          mkdir -p "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63"
+          for backend in elk agentic; do
+            bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
+              --generated-kind sha256-counter-v1 --generated-start 0 --generated-count 64 --label "$backend" \
+              --out "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63/$backend.json"
+          done
       - name: Compare final quality without declaring a performance winner
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
           failed=0
-          for directory in "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319"; do
+          for directory in "$EVIDENCE_DIR" "$EVIDENCE_DIR/development-256-319" "$EVIDENCE_DIR/development-320-383" "$EVIDENCE_DIR/independent-sha256-counter-v1-0-63"; do
             if ! bun run eval/layout-compare/run.ts report --before "$directory/elk.json" \
               --after "$directory/agentic.json" --out "$directory/report.html"; then
               failed=1
