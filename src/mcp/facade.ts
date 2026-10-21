@@ -703,11 +703,11 @@ function narrowerFamily(prop: string | symbol): TraceNarrowFamily {
   return family
 }
 
-/** Preserve statement semantics and capture only a final top-level expression. */
+/** Preserve statement semantics and capture the final meaningful top-level expression. */
 export function codeModeStatementBody(code: string): string {
   try {
     const ast = parseJavaScript(code, { ecmaVersion: 'latest', sourceType: 'script', allowReturnOutsideFunction: true })
-    const last = ast.body.at(-1)
+    const last = ast.body.findLast(statement => statement.type !== 'EmptyStatement')
     if (last?.type === 'ExpressionStatement') {
       return `${code.slice(0, last.start)}return (\n${code.slice(last.expression.start, last.expression.end)}\n);${code.slice(last.end)}`
     }

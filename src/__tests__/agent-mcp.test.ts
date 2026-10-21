@@ -1055,6 +1055,8 @@ describe('declarative local editing and script results', () => {
   test.each([
     'const x = 41; x + 1;',
     'const x = 41; x + 1; // done',
+    'const x = 41; x + 1;;',
+    'const x = 41; x + 1;; // done',
     'const x = 41; return x + 1; // done',
     'const x = 41; ({ answer: x + 1 }).answer // done',
   ])('captures a result with a trailing comment: %s', async code => {

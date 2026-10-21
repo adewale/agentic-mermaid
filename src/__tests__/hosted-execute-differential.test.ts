@@ -55,10 +55,11 @@ async function executeHosted(code: string): Promise<ExecuteResult> {
 const PARSE = "const r = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')"
 
 // Each case must produce identical results through both implementations.
-const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
+const EQUIVALENT_CASES: Array<[label: string, code: string, expectedValue?: unknown]> = [
   ['bare arithmetic expression', '1 + 1'],
   ['bare object literal', '{ answer: 42 }'],
   ['multi-statement body with return', 'const x = 2; return x * 21'],
+  ['final expression before empty statements and a comment', 'const x = 41; x + 1;; // done', 42],
   ['no explicit return promotes undefined to null', 'const unused = 1'],
   ['console coercion of strings and objects', "console.log('hi', { x: 1 }, [1, 'two']); console.warn(7); return 'done'"],
   ['SDK parse ok flag', `${PARSE}; return r.ok`],
@@ -89,12 +90,13 @@ const EQUIVALENT_CASES: Array<[label: string, code: string]> = [
 ]
 
 describe('hosted execute ≡ vm sandbox', () => {
-  for (const [label, code] of EQUIVALENT_CASES) {
+  for (const [label, code, expectedValue] of EQUIVALENT_CASES) {
     test(label, async () => {
       const local = await executeInSandbox(code)
       const hosted = await executeHosted(code)
       expect(hosted.ok).toBe(local.ok)
       expect(hosted.value).toEqual(local.value as never)
+      if (expectedValue !== undefined) expect(hosted.value).toEqual(expectedValue as never)
       expect(hosted.logs).toEqual(local.logs ?? [])
       // Error strings must agree except for engine-authored messages
       // (syntax/serialization errors), where both sides still must fail with
