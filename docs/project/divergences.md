@@ -34,11 +34,20 @@ checks identities and source semantics; our own geometry assertions check
 these placement contracts. Portable extension authoring and the generated
 writer failures remain outside this work.
 
-The same-toolchain browser comparison against main `297eaaf` measures
+The reader-only browser comparison at `58b4209` against main `297eaaf` measures
 Architecture's budgeted Brotli closure at 573,473 → 573,513 bytes and Sankey's
 at 177,998 → 178,004. Their ceilings move to the next 500-byte step, 574,000
 and 178,500. Request ceilings stay unchanged. Initial transfer is 5,493 bytes
 gzip (5,494 on the base); this is a measured cost accounting, not a size win.
+
+Adding the three features at `eb3221d`, compared with the reader-fix revision
+`324ddcb`, adds 3 Brotli bytes to Flowchart, 704 to Sequence and 364 to
+Architecture's budgeted closures. Initial gzip stays at 5,493 bytes and every
+request count stays unchanged. The affected ceilings advance to the next
+500-byte step only where measured closures cross them. CI's compression of
+XYChart crosses its old Brotli ceiling by 31 bytes; that ceiling moves from
+186,000 to 186,500. These byte measurements describe the named revisions,
+not a promise that compression remains identical across toolchains.
 
 ### Stable-family semantic choices (Mermaid 12.2.0)
 
