@@ -27,7 +27,7 @@ const STOP = new Uint8Array(128)
 for (const ch of ':,\r\n{<>-=') STOP[ch.charCodeAt(0)]! = 1
 // Produces the token stream of Mermaid's requirement lexer. Its rules are tried in order and
 // the first match wins, so a line that holds a direction statement anywhere is one token.
-export function tokenize(src: string): Tokens {
+export function tokenize(src: string, onComment?: (start: number, end: number) => void): Tokens {
   const n = src.length
   const types: number[] = []
   const texts: string[] = []
@@ -140,6 +140,7 @@ export function tokenize(src: string): Tokens {
       return true
     }
     if (c === 35 || c === 37) {
+      if (src.startsWith('%%', p)) onComment?.(p, lineBreak(p))
       p = lineBreak(p)
       return true
     }

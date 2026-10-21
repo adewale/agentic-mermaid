@@ -9,7 +9,7 @@ import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isDescribeFormat } from '../agent/describe.ts'
-import { COMMAND_FLAGS, COMMAND_HELP, parseArgs, runCli } from '../cli/index.ts'
+import { buildLlmsTxt, COMMAND_FLAGS, COMMAND_HELP, parseArgs, runCli } from '../cli/index.ts'
 import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { runAmCli } from '../cli/run-entrypoint.ts'
 import { MCP_CLI_HELP, MCP_FLAG_SPECS, parseMcpCliOptions } from '../mcp/mcp-cli.ts'
@@ -240,10 +240,10 @@ function problemsOf(invocation: Invocation): string[] {
 
 function docSources(): Array<{ file: string; snippets: string[] }> {
   const read = (file: string) => readFileSync(join(REPO_ROOT, file), 'utf8')
-  const llms = read('llms.txt')
+  const llms = buildLlmsTxt()
   return [
     ...maintainedMarkdownFiles().map(file => ({ file, snippets: markdownSnippets(handMaintainedText(read(file))) })),
-    { file: 'llms.txt', snippets: [...markdownSnippets(llms), ...llmsTxtVerbLines(llms)] },
+    { file: 'am llms-txt', snippets: [...markdownSnippets(llms), ...llmsTxtVerbLines(llms)] },
     { file: 'src/cli/init-agent.ts AGENTS_SNIPPET', snippets: markdownSnippets(AGENTS_SNIPPET) },
     { file: 'src/cli/init-agent.ts INIT_SKILL_MD', snippets: markdownSnippets(INIT_SKILL_MD) },
     ...Object.entries(COMMAND_HELP).map(([verb, help]) => ({ file: `src/cli/index.ts COMMAND_HELP.${verb}`, snippets: helpTextSnippets(help) })),

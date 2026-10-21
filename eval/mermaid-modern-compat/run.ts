@@ -3,9 +3,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
-import { knownBuiltinFamilies, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../../src/agent/core.ts'
 import { canonical, harvestModernCorpus, type Sample } from './corpus.ts'
 import { admitModernReference, type ReferenceReply as Reference, startModernReference } from './reference.ts'
+import { labelCensus } from './label-census.ts'
+import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
+import { officialCorpusInventory } from '../shared/official-fences.ts'
+import type { ParsedDiagram } from '../../src/agent/types.ts'
 
 interface Local {
   parseOk: boolean
@@ -28,6 +31,7 @@ interface Local {
   snapshotExcludedGetters?: string[]
   snapshotComparison?: 'same' | 'drift-candidate' | 'unavailable'
   sameReferenceFamily?: boolean
+  labelCensus?: ReturnType<typeof labelCensus>
 }
 interface Outcome extends Sample {
   family: string
@@ -58,6 +62,8 @@ interface FamilySummary {
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '../..')
+const target = resolve(process.env.AM_MODERN_TARGET_DIR ?? ROOT)
+const { knownBuiltinFamilies, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } = await import(pathToFileURL(join(target, 'src/agent/core.ts')).href) as typeof import('../../src/agent/core.ts')
 const nativeFamilies = new Set<string>(knownBuiltinFamilies())
 const argv = process.argv.slice(2)
 function option(name: string, fallback?: string): string {
@@ -71,7 +77,7 @@ function option(name: string, fallback?: string): string {
   return value
 }
 if (argv.includes('--help')) {
-  console.log('bun run eval/mermaid-modern-compat/run.ts --mermaid-dir PATH --reference-dir PATH [--pele-dir PATH] [--specs] [--fuzz 100] [--seed 7] [--output PATH]')
+  console.log('bun run eval/mermaid-modern-compat/run.ts --mermaid-dir PATH --reference-dir PATH [--pele-dir PATH] [--specs] [--labels] [--label-baseline PATH] [--fuzz 100] [--seed 7] [--output PATH]')
   process.exit(0)
 }
 const upstream = resolve(option('--mermaid-dir'))
@@ -84,12 +90,26 @@ if (!Number.isSafeInteger(seed)) throw new Error('--seed must be an integer')
 const referenceAdmission = admitModernReference(upstream, referenceDir)
 const referencePackage = { version: referenceAdmission.version }
 const git = (dir: string, ...args: string[]): string => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8' }).trim()
-const agenticCommit = git(ROOT, 'rev-parse', 'HEAD')
-const agenticDirty = Boolean(git(ROOT, 'status', '--porcelain'))
+const agenticCommit = git(target, 'rev-parse', 'HEAD')
+const agenticDirty = Boolean(git(target, 'status', '--porcelain'))
 const upstreamCommit = referenceAdmission.commit
 const upstreamTags = referenceAdmission.tags
 
 const { corpus, expectedFamilies, docFiles, skippedInterpolatedTemplates } = harvestModernCorpus(upstream, argv.includes('--specs'))
+if (argv.includes('--labels')) {
+  const bySource = new Map([...corpus.values()].map(sample => [sample.source.trim(), sample]))
+  const enroll = (sample: Sample): void => {
+    const previous = bySource.get(sample.source.trim())
+    if (previous) previous.provenance.push(...sample.provenance)
+    else { corpus.set(sample.id, sample); bySource.set(sample.source.trim(), sample) }
+  }
+  for (const family of BUILTIN_FAMILY_METADATA) enroll({ id: `registry-${family.id}`, source: family.example, provenance: [{ kind: 'authored', file: 'FamilyDescriptor.example', line: 1, familyHint: family.id }] })
+  for (const fence of officialCorpusInventory().occurrences) enroll({ id: `official-${fence.id}`, source: fence.source, provenance: [{ kind: 'docs', file: fence.file, line: fence.line, familyHint: fence.family }] })
+  const bench = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-upstream-suite-bench/cases.json'), 'utf8')) as Array<{ id: string; family: string; source: string }>
+  for (const sample of bench) enroll({ id: `bench-${sample.id}`, source: sample.source, provenance: [{ kind: 'spec', file: 'eval/mermaid-upstream-suite-bench/cases.json', line: 1, familyHint: sample.family }] })
+  const legacy = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-docs-corpus/corpus.json'), 'utf8')) as Array<{ family: string; source: string; origin: string; index: number }>
+  for (const sample of legacy) enroll({ id: `legacy-docs-${sample.family}-${sample.index}`, source: sample.source, provenance: [{ kind: 'docs', file: sample.origin, line: sample.index, familyHint: sample.family }] })
+}
 
 const oracle = startModernReference(referenceDir)
 let pele: { render(source: string): { svg: string } } | undefined
@@ -104,7 +124,7 @@ function finiteSvg(svg: string): boolean {
   // Check coordinate-bearing attributes, not label text containing words such as Infinity.
   return !/\b(?:d|points|transform|viewBox|x|y|x1|x2|y1|y2|width|height|cx|cy|rx|ry|r)\s*=\s*["'][^"']*\b(?:NaN|[-+]?Infinity)\b/i.test(svg)
 }
-function assessStandaloneRender(sample: Sample, local: Local): void {
+function assessStandaloneRender(sample: Sample, local: Local): string | undefined {
   try {
     const svg = renderMermaidSVG(sample.source, { security: 'strict' })
     local.renderOk = true
@@ -116,6 +136,7 @@ function assessStandaloneRender(sample: Sample, local: Local): void {
       const labels = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => decodeXML(match[1]!.replace(/<[^>]*>/g, '')).trim())
       local.missingSvgLabels = sample.expectedSvgLabels.filter(label => !labels.includes(label))
     }
+    return svg
   } catch (error) {
     local.renderOk = false
     local.renderError = errorText(error)
@@ -128,12 +149,14 @@ async function assess(sample: Sample): Promise<Outcome> {
   const referenceRepeat = reference.ok ? await oracle.parse(sample.source) : undefined
   const family = reference.ok ? canonical(reference.type) : sample.provenance[0]!.familyHint
   const local: Local = { parseOk: false }
+  let diagram: ParsedDiagram | undefined
   try {
     const parsed = parseRegisteredMermaid(sample.source)
     local.parseOk = parsed.ok
     if (!parsed.ok) local.error = parsed.error.map(error => `${error.code}: ${error.message}`).join('; ')
     else {
       const value = parsed.value
+      diagram = value
       local.kind = value.kind
       local.representation = value.body.kind === 'preserved' ? 'preserved' : value.body.kind === 'opaque' ? 'opaque' : 'structured'
       try {
@@ -166,7 +189,8 @@ async function assess(sample: Sample): Promise<Outcome> {
   }
   // Public SVG rendering has its own contract. A structured-parser rejection
   // must not prevent us from checking the standalone renderer.
-  assessStandaloneRender(sample, local)
+  const svg = assessStandaloneRender(sample, local)
+  if (argv.includes('--labels') && diagram) local.labelCensus = labelCensus(family, reference, diagram, svg)
   const outcome: Outcome = { ...sample, family, reference, ...(referenceRepeat ? { referenceRepeat } : {}), agentic: local }
   if (pele) {
     try {
@@ -255,8 +279,9 @@ const summary = {
     upstreamTags,
     agenticCommit,
     agenticDirty,
-    agenticCommitAtCompletion: git(ROOT, 'rev-parse', 'HEAD'),
-    agenticDirtyAtCompletion: Boolean(git(ROOT, 'status', '--porcelain')),
+    agenticTarget: target,
+    agenticCommitAtCompletion: git(target, 'rev-parse', 'HEAD'),
+    agenticDirtyAtCompletion: Boolean(git(target, 'status', '--porcelain')),
     peleCommit: peleDir ? git(peleDir, 'rev-parse', 'HEAD') : null,
     referenceDom: 'jsdom; real DOMPurify; parser/DB only, no reference rendering',
     args: argv,
@@ -301,6 +326,36 @@ const summary = {
 }
 writeFileSync(join(output, 'cases.json'), JSON.stringify(outcomes, null, 2) + '\n')
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
+if (argv.includes('--labels')) {
+  const cases = outcomes.map(result => ({ id: result.id, family: result.family, source: result.source, provenance: result.provenance, referenceAccepted: result.reference.ok, census: result.agentic.labelCensus ?? { status: 'unavailable', reason: result.agentic.error ?? 'Local source was not parsed' } }))
+  const baseline = argv.includes('--label-baseline') ? JSON.parse(readFileSync(resolve(option('--label-baseline')), 'utf8')) as { cases: typeof cases } : undefined
+  const before = new Map(baseline?.cases.map(result => [result.source.trim(), result]) ?? [])
+  const changes = cases.flatMap(result => {
+    const previous = before.get(result.source.trim())
+    if (!previous || previous.census.status !== 'measured' || result.census.status !== 'measured') return []
+    const old = new Map(previous.census.labels.map(label => [label.path, label]))
+    return result.census.labels.flatMap(label => {
+      const prior = old.get(label.path)
+      return prior && JSON.stringify(prior) !== JSON.stringify(label) ? [{ id: result.id, family: result.family, path: label.path, before: prior, after: label }] : []
+    })
+  })
+  const surfaceChanges = cases.flatMap(result => {
+    const previous = before.get(result.source.trim())
+    if (!previous || previous.census.status !== 'measured' || result.census.status !== 'measured') return []
+    const previousSurfaces = previous.census.surfaces
+    return Object.entries(result.census.surfaces).flatMap(([surface, value]) => {
+      const prior = previousSurfaces[surface]
+      return JSON.stringify(prior) === JSON.stringify(value) ? [] : [{ id: result.id, family: result.family, surface, before: prior, after: value }]
+    })
+  })
+  writeFileSync(join(output, 'label-census.json'), JSON.stringify({
+    schemaVersion: 1, provenance: summary.provenance,
+    methodology: 'Every enrolled docs, official-fence, upstream-bench and registry input is retained, including rejected and unsupported cases. Raw independent getter labels and local surface values accompany existential text-presence diagnostics. Missing text requires semantic review; presence does not prove identity, multiplicity or equivalent drawing. Metrics expose aggregate counts only.',
+    totals: { cases: cases.length, referenceAccepted: cases.filter(result => result.referenceAccepted).length, measured: cases.filter(result => result.census.status === 'measured').length, unavailable: cases.filter(result => result.census.status !== 'measured').length },
+    comparison: baseline ? { status: 'measured', baseline: resolve(option('--label-baseline')), changes, surfaceChanges } : { status: 'unavailable', reason: 'No --label-baseline report supplied' },
+    cases,
+  }, null, 2) + '\n')
+}
 console.table(families.map(row => ({ family: row.family, valid: row.upstreamAccepted, invalid: row.upstreamRejected, structured: row.structured, opaque: row.opaque, rendered: row.rendered, serializedValid: row.serializedAccepted, drift: row.snapshotDriftCandidates, ...(pele ? { pele: row.peleRendered } : {}) })))
 console.log(`${summary.totals.rendered}/${valid.length} upstream-valid inputs rendered; ${summary.totals.structured} structured, ${summary.totals.opaque} opaque, ${summary.totals.preserved} preserved; ${summary.totals.upstreamRejected} upstream-rejected inputs excluded from support denominator`)
 console.log(`Saved ${join(output, 'summary.json')} and cases.json`)

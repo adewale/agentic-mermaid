@@ -491,7 +491,18 @@ export interface ConfigDiagnostic {
   message: string
 }
 
+export interface GraphLayoutHints {
+  /** Ordered ELK partitions; unlisted nodes use partition zero. These are relative ranks, not pixel coordinates. */
+  ranks?: Record<string, number>
+  /** Preferred consecutive model order within one container; geometry remains certified. */
+  adjacent?: readonly (readonly string[])[]
+  /** Authored edge IDs or from->to / from->to#k occurrence IDs to prioritize for short routes. */
+  shortEdges?: readonly string[]
+}
+
 export interface RenderOptions {
+  /** Explicit deterministic Flowchart/State placement preferences; included in render receipts. */
+  layoutHints?: GraphLayoutHints
   /** Require complete native layout evidence, or report explicit limitations. */
   layoutSafety?: 'report' | 'strict'
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */

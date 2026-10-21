@@ -23,7 +23,7 @@ import './scene/builtin-backends.ts'
 
 export type { LabelContent, PreparedDisplayText, DisplayRun } from './shared/display-text.ts'
 
-export type { RenderOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
+export type { GraphLayoutHints, RenderOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
 export type { ArchitectureVisualOverrides } from './architecture/config.ts'
 export type { DiagramColors, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'

@@ -124,7 +124,16 @@ H5–H7 are enforced where the colors, scales, and styles are generated:
 
 - H5: [`property-categorical-palette-contract`](../../../src/__tests__/property-categorical-palette-contract.test.ts)
   holds every peer pair ≥ 0.10 apart and visible on the page, for any accent,
-  background, and count. [`scene-effective-paint-contract`](../../../src/__tests__/scene-effective-paint-contract.test.ts)
+  background, and count within the documented 24-category guarantee.
+  [`category-paint`](../../../src/__tests__/category-paint.test.ts) carries
+  the paint through the selected backend and resvg: each category-generating
+  family's full honesty corpus runs in every registered style. Category
+  channels associate keys with marks independently of ordering and displayed
+  label casing. The matrix also crosses 2, 6, 7 and 24 categories with white,
+  black and middle-gray backgrounds through crisp, watercolor and hatching.
+  It measures separation and page visibility of the resulting ink, and checks
+  that keys follow effective mark paint after semantic role overrides.
+  [`scene-effective-paint-contract`](../../../src/__tests__/scene-effective-paint-contract.test.ts)
   re-checks translucent connectors where their opacity is applied.
 - H6: [`property-xychart-bar-encoding`](../../../src/__tests__/property-xychart-bar-encoding.test.ts)
   holds bars to a shared zero baseline in SVG and ASCII.
@@ -156,21 +165,26 @@ prints its fast-check seed; `AM_FC_SEED=<seed>` reproduces it (see
 
 These were measured and are tracked in [`TODO.md`](../../../TODO.md):
 
-- **H5 as drawn (BUILD-34).** A census keyed by scene categories, over every
-  family's honesty corpus in every style, found three cases where drawn
-  colors compress below the palette's separation:
-  - The watercolor wash glazes pie slices at 30%, which leaves ΔE_OK 0.03
-    between slices, while their legend keys stay opaque.
-  - Journey actor dots under watercolor are 0.049 apart.
-  - Radar legend keys are drawn at the curve opacity with a neutral border,
-    0.06–0.09 apart in most palettes. The curves themselves separate by their
-    opaque outlines.
-
-  The next step is an as-drawn oracle keyed by legend categories: keys must
-  be distinguishable, and each key must match the marks it names.
-- **H6 for radar (BUILD-35).** An authored `min` above zero draws radii
-  proportional to `value − min`, and out-of-range values are clamped, with no
-  report.
+- **H5 scope.** The as-drawn paint census covers Pie slices, Radar vertex dots,
+  XY series and point dots, Journey actors, Mindmap branches, GitGraph rails, Sankey nodes and
+  Treemap categories. Other families identify peers through labels, position,
+  shapes and connectivity; their decorative tints and authored status palettes
+  do not acquire a generated categorical-color guarantee. The census normalizes
+  geometry into non-overlapping atlas cells, preserves role/paint/category and
+  the selected backend, and measures fully covered ink after compositing.
+  It does not prove visibility under arbitrary overlap, clipping, very thin
+  antialiased geometry or external CSS. Radar's overlapping area washes have
+  opaque vertex dots as the primary category cue. Authored opacity, palette
+  overrides and static emphasis can intentionally reduce separation; the
+  authored emphasis corpus still requires keys to match its dimmed marks.
+  XY labeled and interactive dots inherit effective series paint; explicit
+  point paint can intentionally differ, while an authored plot palette retains
+  its established precedence. Pairwise separation beyond 24 categories remains
+  best effort.
+- **H6 for radar.** Non-zero minima emit `SCALE_RANGE_EXCLUDES_ZERO`; values
+  outside the authored domain emit `VALUES_OUTSIDE_RANGE` with curve identity,
+  values, and range. Authored values remain unchanged; the drawing still clips
+  deliberately to that range.
 - **Edges over group titles.** Edges are drawn above groups, so an edge can
   cross a group's header text. This predates the contract and belongs to
   layout, not paint.

@@ -338,7 +338,7 @@ function updateVerifyPanel(source, renderOptions, providedResult) {
     markTierCleared(verifyTierGeometric, "geometric", counts.geometric);
     markTierCleared(verifyTierLint, "lint", counts.lint);
     if (verifySummary) {
-      if (result.ok && warnings.length === 0) verifySummary.textContent = "Verified: no warnings";
+      if (result.ok && warnings.length === 0) verifySummary.textContent = "Render checks passed: no warnings";
       else if (result.ok) verifySummary.textContent = "Verified with review notes";
       else verifySummary.textContent = "Fix verification errors before export";
     }

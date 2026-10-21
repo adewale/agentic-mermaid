@@ -24,6 +24,9 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const SRC = `gantt
   title Release plan
@@ -811,8 +814,7 @@ describe('gantt CLI mutate dispatch', () => {
   // Regression: mutateAny in src/cli/index.ts keeps its own narrower chain;
   // a new family that misses it returns UNSUPPORTED_FAMILY from `am mutate`
   // even though the library mutate works.
-  test('am mutate applies a gantt op end-to-end', () => {
-    const { spawnSync } = require('node:child_process') as typeof import('node:child_process')
+  test('am mutate applies a gantt op end-to-end', async () => {
     const { writeFileSync, mkdtempSync, rmSync } = require('node:fs') as typeof import('node:fs')
     const { join } = require('node:path') as typeof import('node:path')
     const { tmpdir } = require('node:os') as typeof import('node:os')
@@ -820,7 +822,7 @@ describe('gantt CLI mutate dispatch', () => {
     try {
       const file = join(dir, 'g.mmd')
       writeFileSync(file, 'gantt\n  dateFormat YYYY-MM-DD\n  section Build\n    Core :core, 2024-01-01, 10d\n')
-      const r = spawnSync('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'mutate', file, '--op', '{"kind":"add_task","sectionIndex":0,"label":"Ship","taskId":"ship","start":"after core","end":"2d"}'], { encoding: 'utf8' })
+      const r = await runChild('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'mutate', file, '--op', '{"kind":"add_task","sectionIndex":0,"label":"Ship","taskId":"ship","start":"after core","end":"2d"}'])
       expect({ status: r.status, stderr: r.stderr }).toEqual({ status: 0, stderr: '' })
       expect(r.stdout).toContain('Ship :ship, after core, 2d')
       expect(r.stdout).toContain('dateFormat YYYY-MM-DD')

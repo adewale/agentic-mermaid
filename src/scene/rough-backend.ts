@@ -335,6 +335,11 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
     // solid-crisp (fill:'none' style keeps the region honest via the crisp
     // element) or re-rendered as hachure/solid sketch fill.
     const wantFill = hasFill && p.fill !== 'none' ? fill : undefined
+    const opacity = elementOpacity(el.attrs, node.paint) ?? {}
+    // Keyed data and legend marks must retain the same categorical paint.
+    // Explicit authored opacity still wins over this decorative-style default.
+    if (p.fill === 'wash' && node.channels?.category !== undefined && ['pie-slice', 'actor', 'legend', 'point', 'bar'].includes(node.role)) opacity.fill ??= '1'
+
     if (!hasStroke) {
       // Decomposing an outlined surface must not turn its fill-only pieces
       // into semantic color plates. Open-box looks still suppress the default
@@ -343,7 +348,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       // Stroke-less element (gantt bands, halo chips, state-start dots,
       // width-0 borders): never synthesize an outline (Phase 0 lesson b).
       if (wantFill) {
-        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash, undefined, elementOpacity(el.attrs, node.paint))
+        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash, undefined, opacity)
         if (sketchedFill) {
           out.push(transformedStyledGeometry(sketchedFill, node.transform))
           continue
@@ -353,7 +358,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       continue
     }
     const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
-    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash, undefined, elementOpacity(el.attrs, node.paint))
+    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash, undefined, opacity)
     if (!sketched) { out.push(crispElementOf(i)); continue }
     // Value-colored solid fills stay: when the style suppresses sketch fills
     // but the element carries a non-default fill, under-paint it crisply so

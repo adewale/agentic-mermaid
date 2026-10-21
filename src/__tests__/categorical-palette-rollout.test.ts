@@ -291,3 +291,27 @@ describe('controlled {1,2,3} categorical palette rollout', () => {
     expect(new Set(first).size).toBe(24)
   })
 })
+
+it('watercolor keyed marks and legends retain distinguishable categorical paint', () => {
+  const attributes = (tag: string) => new Map([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]))
+  const pie = renderMermaidSVG('pie\n "A": 3\n "B": 2\n "C": 1', { style: 'watercolor' })
+  const marks = [...pie.matchAll(/<path[^>]*data-role="pie-slice"[^>]*>/g)].map(match => attributes(match[0]))
+  const keys = [...pie.matchAll(/<rect[^>]*class="pie-legend-swatch"[^>]*>/g)].map(match => attributes(match[0]))
+  expect(marks).toHaveLength(3)
+  expect(keys).toHaveLength(3)
+  expect(marks.map(mark => mark.get('fill-opacity'))).toEqual(['1', '1', '1'])
+  expect(marks.map(mark => mark.get('fill'))).toEqual(keys.map(key => key.get('fill')))
+  expect(minPairwiseDeltaEOK(marks.map(mark => mark.get('fill')!))).toBeGreaterThanOrEqual(0.10)
+
+  const journey = renderMermaidSVG('journey\n section One\n A:3:Ada\n B:4:Ben\n C:5:Cy', { style: 'watercolor' })
+  const dots = [...journey.matchAll(/<path[^>]*data-role="actor"[^>]*>/g)].map(match => attributes(match[0]))
+  expect(dots).toHaveLength(6)
+  expect(dots.every(dot => dot.get('fill-opacity') === '1')).toBe(true)
+  expect(new Set(dots.map(dot => dot.get('fill'))).size).toBe(3)
+
+  const radar = renderMermaidSVG('radar-beta\n axis a,b,c\n curve A{1,2,3}\n curve B{3,2,1}\n curve C{2,1,3}', { style: 'watercolor' })
+  const radarKeys = [...radar.matchAll(/<rect[^>]*class="radar-legend-swatch"[^>]*>/g)].map(match => attributes(match[0]))
+  expect(radarKeys).toHaveLength(3)
+  expect(radarKeys.every(key => key.get('fill-opacity') === '1')).toBe(true)
+  expect(minPairwiseDeltaEOK(radarKeys.map(key => key.get('fill')!))).toBeGreaterThanOrEqual(0.10)
+})

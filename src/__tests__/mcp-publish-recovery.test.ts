@@ -117,7 +117,7 @@ esac
   const result = spawnSync(
     'bash',
     ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', run],
-    {
+    { timeout: 20_000, killSignal: 'SIGKILL',
       cwd: dir,
       encoding: 'utf8',
       env: {

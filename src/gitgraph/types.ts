@@ -87,6 +87,7 @@ export interface PositionedGitGraphDiagram extends PositionedDiagram {
 }
 
 /** Keep source labels independent of collision-free typed occurrence IDs. */
-export function gitGraphCommitLabel(commit: Pick<GitGraphCommit, 'id' | 'sourceId' | 'message'>): string {
+export function gitGraphCommitLabel(commit: Pick<GitGraphCommit, 'id' | 'sourceId' | 'message' | 'source' | 'customId'>): string {
+  if (commit.source === 'merge' && commit.customId) return commit.sourceId || commit.id
   return commit.message || commit.sourceId || commit.id
 }

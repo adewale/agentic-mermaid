@@ -1,7 +1,6 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
 import { beforeAll, describe, expect, spyOn, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
@@ -15,6 +14,9 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const temp = useTempDirs()
 
@@ -123,7 +125,9 @@ describe('sandbox — isolation + sad paths', () => {
     expect((await executeInSandbox(`const r = mermaid.parseRegisteredMermaid('flowchart TD\\n A --> B'); return r.value.constructor.constructor('return 7')()`)).ok).toBe(false)
     expect((await executeInSandbox(`return globalThis.constructor.constructor('return typeof process')()`)).ok).toBe(false)
     expect((await executeInSandbox(`Error.prepareStackTrace = (_, frames) => frames; return new Error().stack[0].constructor.constructor('return process.cwd()')()`)).ok).toBe(false)
-    expect((await executeInSandbox(`Error.prepareStackTrace = (_, frames) => frames; return Array.isArray(new Error().stack)`)).value).toBe(false)
+    const stackOverride = await executeInSandbox(`try { Error.prepareStackTrace = (_, frames) => frames } catch {} return Array.isArray(new Error().stack)`)
+    expect(stackOverride.ok).toBe(true)
+    expect(stackOverride.value).toBe(false)
     expect((await executeInSandbox(`return typeof mermaid.registerFamily`)).value).toBe('undefined')
     expect((await executeInSandbox(`const d = Object.getOwnPropertyDescriptor(mermaid, 'registerFamily'); return d && d.value.constructor.constructor('return 7')()`)).value).toBeNull()
   })
@@ -545,7 +549,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
     expect(tools).toBe(LOCAL_TOOLS)
-    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'describe_sdk', 'render_png', 'describe'])
+    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'describe_sdk', 'render_png', 'describe', 'mutate', 'build'])
     for (const token of [...BUILTIN_FAMILY_METADATA.map(f => f.narrower), 'MutationOp']) {
       expect(tools[0].description).toContain(token)
     }
@@ -554,7 +558,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
       expect(tools[0].description).toContain(signature)
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
-    expect(tools[0].description).toContain('interface RenderRequestReceipt { version: 2;')
+    expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
     // Includes the compact strict StyleSpec contract; remain bounded.
     expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_000)
   })
@@ -996,27 +1000,27 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   // `am serialize` reads the parse JSON on stdin, so it runs as a subprocess.
-  const amSerialize = (json: string) => {
-    const r = spawnSync('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'serialize'], { input: json, encoding: 'utf8' })
+  const amSerialize = async (json: string) => {
+    const r = await runChild('bun', ['run', join(import.meta.dir, '..', '..', 'bin', 'am.ts'), 'serialize'], { input: json })
     return { code: r.status, out: r.stdout, err: r.stderr }
   }
 
-  test('REGRESSION: am parse | am serialize supports structured payload families', () => {
+  test('REGRESSION: am parse | am serialize supports structured payload families', async () => {
     const sources = ['classDiagram\n  class Animal\n', 'timeline\n  title Plan\n  2024 : Alpha\n', 'erDiagram\n  CUSTOMER {\n    string id\n  }\n']
-    sources.forEach((src, i) => {
+    for (const [i, src] of sources.entries()) {
       const parsed = capture(() => runCli(['parse', tmpFile(`structured-${i}.mmd`, src)]))
       expect(parsed.code).toBe(0)
-      const serialized = amSerialize(parsed.out)
+      const serialized = await amSerialize(parsed.out)
       expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
       expect(serialized.out.trim()).toContain(src.trim().split('\n')[0]!)
-    })
+    }
   })
 
-  test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', () => {
+  test('REGRESSION: am parse | am serialize preserves flowchart styling (lossless)', async () => {
     const tmp = tmpFile('styled.mmd', 'flowchart TD\n  A[Start] --> B[End]\n  classDef hot fill:#f00\n  class A hot\n  style B stroke:#0f0\n  linkStyle 0 stroke:#00f\n')
     const parsed = capture(() => runCli(['parse', tmp]))
     expect(parsed.code).toBe(0)
-    const serialized = amSerialize(parsed.out)
+    const serialized = await amSerialize(parsed.out)
     expect({ code: serialized.code, err: serialized.err }).toEqual({ code: 0, err: '' })
     const out = serialized.out
     expect(out).toContain('classDef hot fill:#f00')
@@ -1034,5 +1038,32 @@ describe('CLI — sad paths via runCli', () => {
     const r3 = capture(() => runCli(['format', tmp]))
     expect(r2.out).toEqual(r1.out)
     expect(r3.out).toEqual(r1.out)
+  })
+})
+
+
+describe('declarative local editing and script results', () => {
+  test('local build and mutate work without generated JavaScript', async () => {
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } })
+      return JSON.parse((response!.result as any).content[0].text)
+    }
+    const built = await call('build', { family: 'flowchart', ops: [{ kind: 'add_node', id: 'A', label: 'Start' }] })
+    expect(built.ok).toBe(true)
+    const edited = await call('mutate', { source: built.source, ops: [{ kind: 'add_node', id: 'B', label: 'Finish' }, { kind: 'add_edge', from: 'A', to: 'B' }] })
+    expect(edited.ok).toBe(true)
+    expect(edited.source).toContain('Finish')
+    const rejected = await call('mutate', { source: built.source, ops: [{ kind: 'remove_node', id: 'missing' }] })
+    expect(rejected).toMatchObject({ ok: false, opIndex: 0 })
+  })
+  test.each([
+    'const x = 41; x + 1;',
+    'const x = 41; x + 1; // done',
+    'const x = 41; x + 1;;',
+    'const x = 41; x + 1;; // done',
+    'const x = 41; return x + 1; // done',
+    'const x = 41; ({ answer: x + 1 }).answer // done',
+  ])('captures a result with a trailing comment: %s', async code => {
+    expect(await executeInSandbox(code)).toMatchObject({ ok: true, value: 42 })
   })
 })

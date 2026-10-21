@@ -33,16 +33,7 @@ import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { parsePieChart } from '../pie/parser.ts'
-
-// ---- Number format ----------------------------------------------------------
-//
-// Pie values are positive numbers (Mermaid supports up to two decimal places).
-// Canonical format is `String(n)` for finite n > 0; `parseFloat(String(n)) === n`
-// for every finite n, and the legacy parser reads values with parseFloat.
-
-function formatNumber(n: number): string {
-  return String(n)
-}
+import { mermaidNumber as formatNumber } from '../shared/mermaid-number.ts'
 
 function isPositiveFinite(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n > 0

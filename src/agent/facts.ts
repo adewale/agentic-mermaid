@@ -13,6 +13,8 @@ import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts } from './sequence-body.ts'
+import { readSequenceStatements } from '../sequence/parser.ts'
+import { readSequenceText } from '../sequence/text.ts'
 import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
@@ -263,6 +265,20 @@ function factsSequence(out: string[], body: SequenceBody): void {
     add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
     if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
   })
+  body.statements.forEach((statement, segment) => {
+    if (statement.kind !== 'opaque-block') return
+    readSequenceStatements(statement.lines).statements.forEach((entry, index) => {
+      const syntax = entry.syntax
+      if (syntax?.kind === 'message') {
+        const m = syntax.message
+        const text = clean(readSequenceText(m.label).value)
+        add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+        // Preserved statements are observable without becoming typed edit
+        // indexes. Keep the existing message# indexes stable for callers.
+        add(out, `preserved-message#${segment}.${index} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+      } else if (syntax?.kind === 'title') add(out, `title ${clean(readSequenceText(syntax.text).value)}`)
+    })
+  })
   const fragments = body.statements.filter(statement => statement.kind === 'fragment')
   fragments.forEach((statement, index) => {
     if (statement.kind !== 'fragment') return
@@ -410,6 +426,9 @@ function factsXyChart(out: string[], body: XyChartBody): void {
     const name = s.name ? clean(dequote(s.name)) : `series#${i}`
     add(out, `series ${name} ${s.kind} [${s.values.map(num).join(',')}]`)
     add(out, `series#${i} ${s.kind} ${name} [${s.values.map(num).join(',')}]`)
+    s.pointLabels?.forEach((label, pointIndex) => {
+      if (label !== undefined) add(out, `series#${i} point#${pointIndex} : ${clean(label)}`)
+    })
   })
 }
 

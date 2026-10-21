@@ -1,4 +1,5 @@
 import { generatedIds } from '../shared/generated-identity.ts'
+import { formatChartValue } from '../shared/chart-value-format.ts'
 import type { SankeyVisualConfig } from './config.ts'
 import type { SankeyDiagram } from './types.ts'
 
@@ -34,5 +35,5 @@ export function sankeyIdentities(diagram: SankeyDiagram): SankeyIdentityPlan {
 
 /** Display-only two-decimal rounding shared by graphical and terminal labels. */
 export function formatSankeyValue(value: number, visual: SankeyVisualConfig): string {
-  return `${visual.prefix}${String(Math.round(value * 100) / 100)}${visual.suffix}`
+  return `${visual.prefix}${formatChartValue(value)}${visual.suffix}`
 }

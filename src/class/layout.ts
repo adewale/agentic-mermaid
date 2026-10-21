@@ -26,7 +26,8 @@ export { memberToString } from './text.ts'
 
 import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
-import { directionToElk } from '../layout-engine.ts'
+import { directionToElk } from '../layout/direction.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -137,7 +138,11 @@ function flattenNamespaces(namespaces: ClassNamespace[], parentPath?: string, hi
   const out: NamespaceInfo[] = []
   for (const ns of namespaces) {
     const path = parentPath ? `${parentPath}.${ns.name}` : ns.name
-    out.push({ path, ...(hierarchical && parentPath ? { parentPath } : {}), ns })
+    // Flattened siblings no longer convey their ancestry through containment.
+    // Keep the full authored path visible unless an explicit label replaces it.
+    if (hierarchical || ns.classIds.length > 0 || ns.label !== undefined || ns.children.length === 0) {
+      out.push({ path, ...(hierarchical && parentPath ? { parentPath } : {}), ns: !hierarchical && ns.label === undefined ? { ...ns, label: path } : ns })
+    }
     out.push(...flattenNamespaces(ns.children, path, hierarchical))
   }
   return out
@@ -449,6 +454,46 @@ function extractClassLayout(result: ElkNode, diagram: ClassDiagram, classSizes: 
   }
 }
 
+/** ELK's compound top padding reserves child space but is traversable by edges.
+ * Keep an external relationship's vertical crossing outside a flattened header,
+ * changing only the crossing segment and retaining both original class ports. */
+function avoidFlatNamespaceHeaders(relationships: PositionedClassRelationship[], classes: PositionedClassNode[], namespaces: PositionedClassNamespace[], style: ResolvedRenderStyle, width: number, height: number): void {
+  const headers = namespaces.map(ns => ({ x: ns.x, y: ns.y, width: ns.width, height: ns.headerHeight }))
+  const labels = relationships.flatMap(relation => {
+    if (!relation.label || !relation.labelPosition) return []
+    const block = classTextBlock(resolveLabelContent(relation.label, relation.labelContent), style, 'edge')
+    return [{ x: relation.labelPosition.x - block.width / 2 - 2, y: relation.labelPosition.y - block.height / 2 - 2, width: block.width + 4, height: block.height + 4 }]
+  })
+  const obstacles = [...classes, ...headers, ...labels]
+  const intersects = (a: Point, b: Point, box: { x: number; y: number; width: number; height: number }): boolean =>
+    Math.min(a.x, b.x) < box.x + box.width - 0.01 && Math.max(a.x, b.x) > box.x + 0.01 && Math.min(a.y, b.y) < box.y + box.height - 0.01 && Math.max(a.y, b.y) > box.y + 0.01
+  for (const relation of relationships) for (let namespaceIndex = 0; namespaceIndex < namespaces.length; namespaceIndex++) {
+    const ns = namespaces[namespaceIndex]!, header = headers[namespaceIndex]!
+    if (ns.classIds.includes(relation.from) === ns.classIds.includes(relation.to)) continue
+    for (let segment = 1; segment < relation.points.length; segment++) {
+      const a = relation.points[segment - 1]!, b = relation.points[segment]!
+      // Compound offsets can differ by floating-point roundoff at the two
+      // ends of an ELK vertical segment (308.8 vs 308.79999999999995).
+      if (Math.abs(a.x - b.x) >= 0.01 || !intersects(a, b, header)) continue
+      const top = ns.y - 4, bottom = ns.y + ns.headerHeight + 4
+      if (Math.min(a.y, b.y) >= top || Math.max(a.y, b.y) <= bottom) continue
+      const before = { x: a.x, y: a.y < b.y ? top : bottom }, after = { x: b.x, y: a.y < b.y ? bottom : top }
+      const lanes = [ns.x - 8, ns.x + ns.width + 8].sort((left, right) => Math.abs(left - a.x) - Math.abs(right - a.x))
+      for (const lane of lanes) {
+        const detour = [before, { x: lane, y: before.y }, { x: lane, y: after.y }, after]
+        if (detour.some((point, index) => point.x < 0 || point.y < 0 || point.x > width || point.y > height || index > 0 && obstacles.some(box => intersects(detour[index - 1]!, point, box)))) continue
+        if (relation.labelPosition && relation.labelPosition.y > top && relation.labelPosition.y < bottom) continue
+        relation.points.splice(segment, 0, ...detour)
+        segment += detour.length
+        break
+      }
+    }
+    if (relation.points.some((point, index) => index > 0 && intersects(relation.points[index - 1]!, point, header))) {
+      throw new LayoutCertificationError([{ strategy: 'class-flat-namespace-header', violations: [`Relationship ${relation.from} -> ${relation.to} cannot safely avoid namespace header ${ns.id}`] }])
+    }
+  }
+}
+
 interface CardinalityBox {
   x0: number
   y0: number
@@ -553,6 +598,10 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
     const wrapped = wrappedNamespaceTitles(positioned.namespaces, style)
     if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title)) break
     titles = wrapped
+  }
+  if (!hierarchicalNamespaces) {
+    avoidFlatNamespaceHeaders(positioned!.relationships, positioned!.classes, positioned!.namespaces, style, positioned!.width, positioned!.height)
+    placeClassCardinalityLabels(positioned!.relationships, positioned!.classes, style, positioned!.width, positioned!.height)
   }
   for (const cls of positioned!.classes) {
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')

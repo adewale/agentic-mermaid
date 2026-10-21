@@ -4,9 +4,14 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
 import ts from 'typescript'
+import fc from 'fast-check'
+import { fcParameters } from '../../src/__tests__/helpers/fc-parameters.ts'
 import { admitCurrentReference, currentReferencePin, startModernReference, type ReferenceReply } from './reference.ts'
 import { startGrammarReference } from './grammar-reference.ts'
 import type { FlowchartValidDiagram } from '../../src/agent/types.ts'
+import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
+import { censusDisplayText, labelCensus } from './label-census.ts'
+import { officialCorpusInventory } from '../shared/official-fences.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '../..')
@@ -25,7 +30,7 @@ function semantic(name: string, origin: string, check: () => Promise<void>): voi
   test(name, async () => {
     try { await check(); results.push({ name, origin, status: 'passed' }) }
     catch (error) { results.push({ name, origin, status: 'failed', error: String(error) }); throw error }
-  })
+  }, 30_000)
 }
 
 /** Select the actual static input of a reviewed upstream test; never eval its body. */
@@ -157,6 +162,8 @@ for (const title of ['Different Colors in xyChart', 'Smallest AI models scoring 
     if (!chart) throw new Error('Expected structured XY chart')
     expect(chart.body.title).toBe(title)
     expect(chart.body.series.map(series => series.values)).toEqual(expected.plots.map(plot => plot.data.map(point => point[1])))
+    const expectedLabels = expected.plots.flatMap((plot, series) => plot.pointLabels?.flatMap((label, point) => label ? [`series#${series} point#${point} : ${label}`] : []) ?? [])
+    expect(am.describeMermaidFacts(chart).filter(fact => fact.includes(' point#'))).toEqual(expectedLabels.sort())
     expect(xySemantics(await accepted(am.serializeMermaid(chart)))).toEqual(expected)
     const changedTitle = `${title} updated`
     const edited = am.mutate(chart, { kind: 'set_title', title: changedTitle })
@@ -262,4 +269,97 @@ afterAll(async () => {
     writeFileSync(reportPath, JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(), reference: admittedReference ?? PIN, target, assertions: results, diagnostics, note: 'Only the selected semantic assertions gate success. Diagnostic syntax gaps and upstream-negative acceptance are informational. SVG checks assert authored identity and content, not Mermaid layout or appearance.' }, null, 2) + '\n')
     console.log(`Modern semantic assertions: ${results.filter(result => result.status === 'passed').length}/${results.length}; diagnostic probes: ${diagnostics.length}; ${reportPath}`)
   } finally { oracle?.close() }
+})
+
+
+for (const source of [
+  'flowchart LR\n Login["Login / SSO"] -->|accepted| Store["Store & index"]',
+  'sequenceDiagram\n participant Login as Login / SSO\n participant Store as Store & index\n Login->>Store: accepted',
+  'classDiagram\n class Login["Login / SSO"]\n class Store["Store & index"]\n Login --> Store : accepted',
+  'erDiagram\n Login["Login / SSO"]\n Store["Store & index"]\n Login ||--o{ Store : accepted',
+  'stateDiagram-v2\n state "Login / SSO" as Login\n state "Store & index" as Store\n Login --> Store: accepted',
+]) {
+  semantic(`independent authored label census: ${source.split('\n')[0]}`, 'portable authored labels', async () => {
+    if (!oracle) throw new Error('Independent reference not installed')
+    const reply = await oracle.parse(source)
+    if (!reply.ok) throw new Error(reply.error)
+    const data = reply.snapshot.data
+    const diagramData = data.getData as { nodes?: Array<{ label?: string }>; edges?: Array<{ label?: string }> } | undefined
+    const actorLabels = Array.isArray(data.getActors) ? data.getActors.map(entry => (entry as unknown as [string, { description: string }])[1].description) : []
+    const messageLabels = Array.isArray(data.getMessages) ? data.getMessages.map(entry => (entry as { message?: string }).message) : []
+    const expected = [...(diagramData?.nodes ?? []).map(node => node.label), ...(diagramData?.edges ?? []).map(edge => edge.label), ...actorLabels, ...messageLabels].filter((label): label is string => typeof label === 'string' && label.length > 0)
+    expect(expected.length).toBeGreaterThan(0)
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('Source failed to parse')
+    const facts = am.describeMermaidFacts(parsed.value).join('\n')
+    for (const label of expected) expect(facts).toContain(label)
+  })
+}
+
+for (const family of BUILTIN_FAMILY_METADATA) {
+  semantic(`independent label surfaces: ${family.id}`, 'FamilyDescriptor.example parsed by the independently installed reference DB', async () => {
+    const reference = await accepted(family.example)
+    const parsed = am.parseRegisteredMermaid(family.example)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const census = labelCensus(family.id, reference, parsed.value, am.renderMermaidSVG(parsed.value))
+    if (census.status !== 'measured') throw new Error(census.reason)
+    expect(census.labels.length).toBeGreaterThan(0)
+    for (const label of census.labels) {
+      for (const surface of ['model', 'facts', 'svg', 'ascii', 'meta']) {
+        expect({ family: family.id, path: label.path, text: label.text, surface, present: label.presence[surface] }).toEqual({ family: family.id, path: label.path, text: label.text, surface, present: true })
+      }
+    }
+  })
+}
+
+semantic('generated sequence edits retain boxes, activation, properties and punctuation', 'Mermaid 12.2.0 sequence DB with real DOM color admission; public typed edit and roundtrip', async () => {
+  await fc.assert(fc.asyncProperty(
+    fc.array(fc.constantFrom('literal * star', 'literal # comment', 'literal \\ slash', 'a < b > c'), { minLength: 1, maxLength: 5 }),
+    fc.array(fc.constantFrom('A', 'Alice', 'Updated', 'Client', '}', '"quoted"', '{braces}', 'style:x}'), { minLength: 1, maxLength: 3 }).map(words => words.join(' ')),
+    fc.constantFrom('participant A as Alice', 'participant A', 'participant A@{type: database, alias: Alice}', 'participant A@{type: database, alias: Alice, future: keep-me}'),
+    async (messages, renamed, declaration) => {
+      const controls = ['box transparent Crew', 'properties A: {"color":"red"}', 'activate A', 'deactivate A']
+      const source = `sequenceDiagram\n  ${controls[0]}\n    ${declaration}\n    actor B as Bob\n  end\n  ${controls[1]}\n  ${controls[2]}\n${messages.map(message => `  A->>B: ${message}`).join('\n')}\n  ${controls[3]}`
+      const before = await accepted(source)
+      const messageText = (reply: typeof before) => (reply.snapshot.data.getMessages as unknown as Array<{ type: number; message: string }>).filter(message => message.type === 0).map(message => message.message)
+      const expectedMessages = messages.map(message => message.split('#')[0]!.trim())
+      expect(messageText(before)).toEqual(expectedMessages)
+      const parsed = am.parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      const edited = am.mutate(parsed.value, { kind: 'set_participant_label', id: 'A', label: renamed })
+      if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+      const output = am.serializeMermaid(edited.value)
+      for (const control of controls) expect(output).toContain(control)
+      if (declaration.includes('future:')) expect(output).toContain('keep-me')
+      const after = await accepted(output)
+      expect(messageText(after)).toEqual(expectedMessages)
+      const actors = after.snapshot.data.getActors as unknown as Array<[string, { description: string; type: string; properties: unknown }]>
+      expect(actors.map(([id, actor]) => [id, actor.type, actor.description])).toEqual([['A', declaration.includes('database') ? 'database' : 'participant', renamed], ['B', 'actor', 'Bob']])
+      expect(actors[0]![1].properties).toEqual({ color: 'red' })
+      expect(after.snapshot.data.getBoxes).toEqual(before.snapshot.data.getBoxes)
+      const reparsed = am.parseRegisteredMermaid(output)
+      if (!reparsed.ok || reparsed.value.body.kind !== 'sequence') throw new Error('Expected structured Sequence')
+      expect(reparsed.value.body.participants.map(actor => [actor.id, actor.kind, actor.label])).toEqual([['A', declaration.includes('database') ? 'database' : 'participant', renamed], ['B', 'actor', 'Bob']])
+      expect(reparsed.value.body.messages.map(message => message.text)).toEqual(expectedMessages)
+    },
+  ), fcParameters({ numRuns: 100, examples: [[['ping'], 'New } "label"', 'participant A@{type: database, alias: Alice, future: keep-me}'], [['ping'], 'style:x}', 'participant A@{type: database, alias: Alice}']] }))
+})
+
+semantic('recognized Sequence messages survive semantic read-back throughout the official corpus', 'Retained official Sequence fences and independent reference DB messages, including preserved controls', async () => {
+  let compared = 0
+  for (const sample of officialCorpusInventory().occurrences.filter(sample => sample.family === 'sequence')) {
+    if (!oracle) throw new Error('Independent reference did not start')
+    const reference = await oracle.parse(sample.source)
+    if (!reference.ok) continue
+    const parsed = am.parseRegisteredMermaid(sample.source)
+    if (!parsed.ok || parsed.value.body.kind !== 'sequence') continue
+    const facts = am.describeMermaidFacts(parsed.value).map(censusDisplayText)
+    const messages = reference.snapshot.data.getMessages as unknown as Array<{ type: number; from?: string; to?: string; message: string }>
+    for (const message of messages.filter(message => message.type !== 2 && typeof message.from === 'string' && typeof message.to === 'string')) {
+      const expected = censusDisplayText(`message ${message.from} -> ${message.to} : ${message.message}`)
+      expect({ sample: sample.id, expected, present: facts.includes(expected) }).toEqual({ sample: sample.id, expected, present: true })
+      compared++
+    }
+  }
+  expect(compared).toBeGreaterThan(0)
 })

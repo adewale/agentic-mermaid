@@ -812,6 +812,9 @@ export interface ValidDiagramMeta {
    * `canonicalSource`.
    */
   droppedComments?: SourceComment[]
+  /** Parser-identified body comments, anchored where the family exposes a
+   * stable statement identity; unassociated/deleted anchors follow the body. */
+  bodyComments?: Array<{ raw: string; anchor?: { collection: 'nodes' | 'edges' | 'groups'; id: string }; placement: 'before' | 'after' }>
 }
 
 export interface SourceLocation {
@@ -1580,6 +1583,7 @@ export type Tier3WarningCode =
   | 'INEFFECTIVE_CONFIG'
   | 'LOW_CONTRAST'
   | 'LABELS_HIDDEN'
+  | 'SCALE_RANGE_EXCLUDES_ZERO'
   | 'BAR_RANGE_EXCLUDES_ZERO'
   | 'VALUES_OUTSIDE_RANGE'
   | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
@@ -1676,6 +1680,7 @@ export type LayoutWarning =
    * bars start at `baseline` and their lengths are not proportional to their
    * values. Advisory: the authored range is kept; never flips verify.ok.
    */
+  | { code: 'SCALE_RANGE_EXCLUDES_ZERO'; range: { min: number; max: number }; baseline: number; message: string }
   | { code: 'BAR_RANGE_EXCLUDES_ZERO'; range: { min: number; max: number }; baseline: number; message: string }
   /**
    * A series has values outside the authored value-axis range. A bar stops at
@@ -1731,6 +1736,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   INEFFECTIVE_CONFIG: 'warning',
   LOW_CONTRAST: 'warning',
   LABELS_HIDDEN: 'warning',
+  SCALE_RANGE_EXCLUDES_ZERO: 'warning',
   BAR_RANGE_EXCLUDES_ZERO: 'warning',
   VALUES_OUTSIDE_RANGE: 'warning',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.severity,
@@ -1768,6 +1774,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   INEFFECTIVE_CONFIG: 'lint',
   LOW_CONTRAST: 'lint',
   LABELS_HIDDEN: 'lint',
+  SCALE_RANGE_EXCLUDES_ZERO: 'lint',
   BAR_RANGE_EXCLUDES_ZERO: 'lint',
   VALUES_OUTSIDE_RANGE: 'lint',
   [BRAND_CONSTRAINT_WARNING_POLICY.warn.code]: BRAND_CONSTRAINT_WARNING_POLICY.warn.tier,
@@ -1885,7 +1892,16 @@ export interface RenderedLayout {
   bounds: { w: Finite; h: Finite }
 }
 
+export interface VerificationChecks {
+  renderability: 'passed' | 'failed' | 'not-checked'
+  /** No detected loss is not a general losslessness proof. */
+  sourceLoss: 'detected' | 'not-detected'
+  taskCorrectness: 'not-checked'
+}
+
 export interface VerifyResult {
+  /** Explicit check scope; ok remains the backward-compatible error gate. */
+  checks?: VerificationChecks
   /** Final graphical proof or its explicit coverage limitations. */
   layoutCertification?: import('../scene/paint-certification.ts').PaintLayoutCertification
   ok: boolean

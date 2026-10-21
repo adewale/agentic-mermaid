@@ -6,7 +6,7 @@
 // must agree through both the typed parse and the rendered SVG.
 
 import { afterAll, describe, expect, test } from 'bun:test'
-import { parseRegisteredMermaid, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const upstream = startUpstreamMermaid()
@@ -97,8 +97,10 @@ describe('a trailing %% comment, as pinned Mermaid reads it', () => {
     }).toEqual({ mermaid: true, typed: true, renders: true, dropped: false })
   })
 
-  test('a comment the typed serialization drops is announced, not silently lost', () => {
-    const verdict = verifyMermaid(`pie\n  "Dogs" : 3 ${COMMENT}`)
-    expect(verdict.warnings).toContainEqual({ code: 'COMMENT_DROPPED', count: 1, lines: [2] })
+  test('a trailing comment survives typed serialization exactly once', () => {
+    const parsed = parseRegisteredMermaid(`pie\n  "Dogs" : 3 ${COMMENT}`)
+    if (!parsed.ok) throw new Error('parse failed')
+    expect(serializeMermaid(parsed.value).split(COMMENT)).toHaveLength(2)
+    expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
   })
 })

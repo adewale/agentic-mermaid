@@ -19,7 +19,7 @@
 import { parseRegisteredMermaid } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { createMermaid, type CreateMermaidOptions } from './create.ts'
-import { mutateChecked } from './mutate.ts'
+import { applyMutationBatch } from './mutate.ts'
 import { renderFailureWarning, verifyMermaid } from './verify.ts'
 import { hasOpSchema, type OpFamily, type OpValidationError } from './op-schema.ts'
 import type { MutableValidDiagram, VerifyResult, DiagramKind, LayoutWarning, MutationError, Result } from './types.ts'
@@ -35,6 +35,7 @@ import { isPlainRecord } from '../shared/plain-data.ts'
 export interface VerifySummary {
   ok: boolean
   warnings: VerifyResult['warnings']
+  checks?: VerifyResult['checks']
 }
 
 /** A mutation failure annotated with which op in the list failed. */
@@ -65,7 +66,7 @@ export type OpEnvelope =
 /** Drop the layout proxy graph; keep the model-actionable verdict. The JSON
  *  round-trip guarantees no residual Map / prototype leaks through. */
 export function verifySummary(v: VerifyResult): VerifySummary {
-  return JSON.parse(JSON.stringify({ ok: v.ok, warnings: v.warnings }))
+  return JSON.parse(JSON.stringify({ ok: v.ok, warnings: v.warnings, checks: v.checks }))
 }
 
 // ---- Blank-slate build through the checked core ---------------------------
@@ -108,16 +109,7 @@ export function buildChecked(kind: DiagramKind, ops: unknown[], opts?: CreateMer
   } catch (e) {
     return err({ code: 'INVALID_OP', message: e instanceof Error ? e.message : String(e), opIndex: -1 })
   }
-  for (let i = 0; i < checkedOps.length; i++) {
-    const r = mutateChecked(d, checkedOps[i])
-    if (!r.ok) {
-      let kindLabel: unknown
-      try { kindLabel = (checkedOps[i] as { kind?: unknown } | null)?.kind } catch {}
-      return err({ ...r.error, opIndex: i, message: `op[${i}]${typeof kindLabel === 'string' ? ` (${kindLabel})` : ''}: ${r.error.message}` })
-    }
-    d = r.value
-  }
-  return ok(d)
+  return applyMutationBatch(d, checkedOps) as Result<MutableValidDiagram, CheckedBuildError>
 }
 
 // ---- Declarative batch entrypoint -----------------------------------------
@@ -204,12 +196,12 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
     return { ok: false, family: null, error: { code: 'INVALID_OP', message: 'applyOps requires either `source` (to edit) or `family` (to build)' } }
   }
 
-  // Edit path: fold ops over the parsed diagram.
-  for (let i = 0; i < checkedOps.length; i++) {
-    const r = mutateChecked(d, checkedOps[i])
-    if (!r.ok) return { ok: false, family: d.kind, opIndex: i, error: r.error }
-    d = r.value
+  const edited = applyMutationBatch(d, checkedOps)
+  if (!edited.ok) {
+    const { opIndex, ...error } = edited.error
+    return { ok: false, family: d.kind, opIndex, error }
   }
+  d = edited.value as MutableValidDiagram
   return verifiedEnvelope(d, before)
 }
 
@@ -223,6 +215,7 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
  * edit is accepted and its verification keeps reporting the defect. */
 export function verifyMutationResult(diagram: ParsedDiagram, before?: ParsedDiagram): { accepted: boolean; verification: VerifyResult } {
   const verification = verifyMermaid(diagram)
+  if (verification.checks?.sourceLoss === 'detected') return { accepted: false, verification }
   if (verification.ok) return { accepted: true, verification }
   const blocking = verification.warnings.filter(warning => WARNING_SEVERITY[warning.code] === 'error')
   if (before && blocking.length > 0 && blocking.every(warning => warning.code === 'INTERNAL_ERROR')) {

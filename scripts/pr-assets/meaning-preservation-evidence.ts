@@ -83,6 +83,40 @@ const stableRepresentativeCues = {
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
 const fixtures: Fixture[] = [
+  {
+    id: 'agent-flat-namespace',
+    title: 'Flat Class namespaces retain distinguishing paths',
+    source: '---\nconfig:\n  class:\n    hierarchicalNamespaces: false\n---\nclassDiagram\nnamespace Company.Platform {\nclass API\n}\nnamespace Vendor.Platform {\nclass Worker\n}\nAPI --> Worker : invokes',
+    captureLayout: true,
+    cue: 'Compare Company.Platform and Vendor.Platform: their distinguishing paths must remain visible in flat mode, without empty ancestor frames or orphan headers. This finite witness does not prove arbitrary dense Class layout.',
+  },
+  {
+    id: 'agent-category-role',
+    title: 'Pie legend keys follow authored role paint',
+    source: 'pie\n"Actual": 3\n"Forecast": 2',
+    renderOptions: { style: { roles: { 'pie-slice': { fillColor: '#b42318' } } } },
+    cue: 'The authored role intentionally makes both slices red. Each legend key must match its slice instead of retaining a stale generated blue/teal palette. This checks correspondence, not distinguishability under an intentional single-color override.',
+  },
+  {
+    id: 'agent-journey-visibility',
+    title: 'Small Journey actor palettes remain visible on a gray page',
+    source: 'journey\nsection Team\nTask A:3:Actor A\nTask B:3:Actor B\nTask C:3:Actor C\nTask D:3:Actor D\nTask E:3:Actor E\nTask F:3:Actor F',
+    renderOptions: { style: { colors: { bg: '#808080', fg: '#111111', accent: '#1d4ed8' } } },
+    cue: 'Inspect the six actor dots and their matching keys. Only noncompliant legacy category colors are repaired. The independent raster census measures effective category ink; this image is not an accessibility certificate for all diagram text.',
+  },
+  {
+    id: 'agent-gitgraph-rails',
+    title: 'GitGraph rails retain their category ink',
+    source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/gitgraph-basic.mmd'), 'utf8'),
+    renderOptions: { style: 'architectural-plan' },
+    cue: 'The two branch rails retain opaque category ink, and the authored merge label replaces the generated merge message. Inspect the merge label and its canvas extent; branch and commit identities/connectivity remain. The opacity change is subtle at native size; the raster color-separation oracle is the stronger evidence for paint.',
+  },
+  {
+    id: 'agent-small-values',
+    title: 'Visible Pie values stay nonzero below default rounding precision',
+    source: 'pie showData\n"Actual": 0.0001\n"Forecast": 0.0002',
+    cue: 'Inspect the values in legend brackets: the baseline prints zero for both nonzero entries. Slice ratios stay one to two. Source/value roundtrip and numeric-boundary tests check the corresponding data contract.',
+  },
   ...[1000].map(seed => ({
     id: `feasible-dense-dag-${seed}`, title: `Keep feasible dense DAG geometry: ${seed}`,
     source: denseDag(seed), captureLayout: true as const,

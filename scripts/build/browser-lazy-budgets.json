@@ -10,14 +10,14 @@
     "flowchart": {
       "requests": 36,
       "raw": 2304000,
-      "gzip": 712000,
-      "brotli": 577000
+      "gzip": 713000,
+      "brotli": 577500
     },
     "state": {
       "requests": 35,
       "raw": 2302000,
-      "gzip": 712000,
-      "brotli": 577000
+      "gzip": 712500,
+      "brotli": 577500
     },
     "sequence": {
       "requests": 34,
@@ -53,7 +53,7 @@
       "requests": 35,
       "raw": 2318000,
       "gzip": 709000,
-      "brotli": 573000
+      "brotli": 573500
     },
     "xychart": {
       "requests": 33,
@@ -95,7 +95,7 @@
       "requests": 35,
       "raw": 632000,
       "gzip": 205000,
-      "brotli": 180000
+      "brotli": 180500
     },
     "sankey": {
       "requests": 33,
@@ -111,13 +111,13 @@
     },
     "packet": {
       "requests": 32,
-      "raw": 586000,
+      "raw": 586500,
       "gzip": 192000,
       "brotli": 170000
     },
     "kanban": {
       "requests": 34,
-      "raw": 594000,
+      "raw": 594500,
       "gzip": 195000,
       "brotli": 173000
     },
@@ -129,15 +129,15 @@
     },
     "treemap": {
       "requests": 33,
-      "raw": 605000,
+      "raw": 605500,
       "gzip": 200000,
-      "brotli": 177000
+      "brotli": 177500
     },
     "ishikawa": {
       "requests": 31,
-      "raw": 586000,
-      "gzip": 191000,
-      "brotli": 169100
+      "raw": 586500,
+      "gzip": 191500,
+      "brotli": 169500
     },
     "block": {
       "requests": 30,

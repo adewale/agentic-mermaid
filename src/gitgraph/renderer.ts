@@ -110,7 +110,7 @@ export function lowerGitGraphDrawing<T>(marks: DrawingFactory<T>, ctx: RenderCon
                 id: semanticChildId(branchId, 'line'),
                 role: 'rail',
                 geometry: { kind: 'line', x1: r(branch.x1), y1: r(branch.y1), x2: r(branch.x2), y2: r(branch.y2) },
-                paint: { stroke: branchPaint.line, strokeWidth: '3', opacity: '0.86' },
+                paint: { stroke: branchPaint.line, strokeWidth: '3' },
                 channels: { category: branch.name },
                 attributes: { className: 'git-branch-line', data: { branch: branch.name } },
               }),

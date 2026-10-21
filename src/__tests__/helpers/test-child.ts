@@ -9,6 +9,7 @@ interface ChildOptions {
 
 interface ChildResult {
   status: number | null
+  signal: NodeJS.Signals | null
   stdout: string
   stderr: string
 }
@@ -63,6 +64,7 @@ export function useTestChildren(timeoutMs: number): (
     const maxBuffer = 1024 * 1024
     const output = (): ChildResult => ({
       status: child.exitCode,
+      signal: child.signalCode,
       stdout: Buffer.concat(stdout).toString('utf8'),
       stderr: Buffer.concat(stderr).toString('utf8'),
     })
@@ -76,7 +78,7 @@ export function useTestChildren(timeoutMs: number): (
         void directExit.then(() => { clearTimeout(timer); resolve(true) })
       })
     }
-    const diagnostic = (): string => `${command} ${args.join(' ')} [pid=${child.pid ?? 'unassigned'}, initialGroupLeader=${grouped ? child.pid ?? 'unassigned' : 'not-owned'}, groupSignal=${groupSignalState}, directExit=${exited}, pipesClosed=${closed}, cleanupConfirmed=${cleanupConfirmed}, ownerEnded=${ownerEnded}]${cleanupIssues.length ? ` cleanup failures: ${cleanupIssues.join('; ')}` : ''}`
+    const diagnostic = (): string => `${command} ${args.join(' ')} [pid=${child.pid ?? 'unassigned'}, initialGroupLeader=${grouped ? child.pid ?? 'unassigned' : 'not-owned'}, groupSignal=${groupSignalState}, status=${child.exitCode}, signal=${child.signalCode}, directExit=${exited}, pipesClosed=${closed}, cleanupConfirmed=${cleanupConfirmed}, ownerEnded=${ownerEnded}]${cleanupIssues.length ? ` cleanup failures: ${cleanupIssues.join('; ')}` : ''}`
     const failureDiagnostic = (): string => {
       const captured = output()
       return `${diagnostic()}: ${failureReason ?? 'no failure recorded'}\nstdout:\n${captured.stdout}\nstderr:\n${captured.stderr}`

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test'
+import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from '../agent/gitgraph-body.ts'
 import type { GitGraphBody, GitGraphMutationOp, MutationError, Result } from '../agent/types.ts'
 
@@ -359,7 +360,9 @@ describe('GitGraph typed operations — discriminating replay contract', () => {
     commit(malformed, 'base')!.parents.push('ghost')
     commit(malformed, 'side1')!.message = 'long message'
     const warnings = verifyGitGraph(malformed, { labelCharCap: 5 })
-    expect(warnings.map(warning => warning.code)).toEqual(['LABEL_OVERFLOW', 'EDGE_MISANCHORED', 'LABEL_OVERFLOW', 'LABEL_OVERFLOW'])
+    expect(warnings.map(warning => warning.code)).toEqual(['LABEL_OVERFLOW', 'EDGE_MISANCHORED', 'LABEL_OVERFLOW'])
+    expect(warnings.filter(warning => warning.code === 'LABEL_OVERFLOW').map(warning => warning.target)).toEqual(['base', 'side1'])
+    expect(layoutGitGraph(body()).commits.find(item => item.id === 'merge')?.labelBlock?.text).toBe('merge')
     expect(warnings).toContainEqual({ code: 'EDGE_MISANCHORED', edge: 'ghost->base', to: 'base' })
     expect(verifyGitGraph(body(), { labelCharCap: 100 })).toEqual([])
   })

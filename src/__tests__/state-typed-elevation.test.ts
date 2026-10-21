@@ -30,6 +30,15 @@ function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagr
   return result.value
 }
 
+function expectRetainedComment(diagram: StateValidDiagram, fragment: string): string {
+  const written = serializeMermaid(diagram)
+  expect(written).toContain(fragment)
+  const verification = verifyMermaid(diagram)
+  expect(verification.warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([])
+  expect(verification.checks?.sourceLoss).toBe('not-detected')
+  return written
+}
+
 describe('typed State residual elevation (B07)', () => {
   test('writes accepted State descriptions, notes and reserved endpoint spellings without changing their text', async () => {
     const cases = [
@@ -268,9 +277,9 @@ B --> C %% real comment`
     expect(diagram.body.transitions[0]?.label).toBe('100%% transition')
     expect(diagram.body.notes?.[0]?.text).toBe('100%% inline')
     expect(diagram.meta.comments).toEqual([{ text: 'real comment', line: 6 }])
-    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([{ code: 'COMMENT_DROPPED', count: 1, lines: [6] }])
+    expectRetainedComment(diagram, 'B --> C\n%% real comment\n')
     const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
-    const written = serializeMermaid(edited)
+    const written = expectRetainedComment(edited, 'B --> C\n%% real comment\n')
     expect(describeMermaidFacts(state(written))).toEqual(describeMermaidFacts(edited))
     const upstream = startUpstreamMermaid()
     try {
@@ -308,9 +317,9 @@ end note %% end comment`
     expect(diagram.body.states.map(node => node.id)).toEqual(['A', 'B'])
     expect(parseRenderGraph(source.slice(source.indexOf('stateDiagram'))).stateNotes?.[0]?.text).toBe(expected)
     expect(diagram.meta.comments).toEqual([{ text: 'end comment', line: 11 }])
-    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([{ code: 'COMMENT_DROPPED', count: 1, lines: [11] }])
+    expectRetainedComment(diagram, 'end note\n%% end comment\n')
     const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
-    const written = serializeMermaid(edited)
+    const written = expectRetainedComment(edited, 'end note\n%% end comment\n')
     expect(state(written).body.notes).toEqual(edited.body.notes)
     expect(describeMermaidFacts(state(written))).toEqual(describeMermaidFacts(edited))
     expect(renderMermaidSVG(written)).toContain('%% literal note line')
@@ -337,12 +346,19 @@ end note %% end comment`
       ['A', 'B'],
       ['B', 'C'],
     ])
-    expect(state(serializeMermaid(diagram)).body.transitions).toEqual(diagram.body.transitions)
-    expect(verifyMermaid(diagram).warnings).toContainEqual({ code: 'COMMENT_DROPPED', count: 1, lines: [2] })
+    const written = expectRetainedComment(diagram, 'A --> B\n%% legal trailing comment\n  B --> C')
+    expect(state(written).body.transitions).toEqual(diagram.body.transitions)
+    const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
+    expectRetainedComment(edited, 'A --> B\n%% legal trailing comment\n  B --> C')
   })
 
   test('State header comments and comment-only delimiters never create or erase transitions', () => {
-    for (const source of ['stateDiagram-v2 %% heading; Bogus --> Edge\nA --> B', 'stateDiagram-v2\nA --> B %% ; Bogus --> Edge\nB --> C', 'stateDiagram-v2\nA --> B %% `\nB --> C', 'stateDiagram-v2\nA --> B %% @{\nB --> C']) {
+    for (const [source, comment] of [
+      ['stateDiagram-v2 %% heading; Bogus --> Edge\nA --> B', '%% heading; Bogus --> Edge'],
+      ['stateDiagram-v2\nA --> B %% ; Bogus --> Edge\nB --> C', '%% ; Bogus --> Edge'],
+      ['stateDiagram-v2\nA --> B %% `\nB --> C', '%% `'],
+      ['stateDiagram-v2\nA --> B %% @{\nB --> C', '%% @{'],
+    ] as const) {
       const expected = source.includes('heading')
         ? [['A', 'B']]
         : [
@@ -351,15 +367,16 @@ end note %% end comment`
           ]
       expect(state(source).body.transitions.map(transition => [transition.from, transition.to])).toEqual(expected)
       expect(parseRenderGraph(source).edges.map(edge => [edge.source, edge.target])).toEqual(expected)
-      expect(verifyMermaid(state(source)).warnings).toContainEqual({
-        code: 'COMMENT_DROPPED',
-        count: 1,
-        lines: [source.includes('heading') ? 1 : 2],
-      })
+      const diagram = state(source)
+      const fragment = source.includes('heading') ? `${comment}\n  A --> B` : `A --> B\n${comment}\n  B --> C`
+      expectRetainedComment(diagram, fragment)
+      const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
+      const written = expectRetainedComment(edited, fragment)
+      expect(state(written).body.transitions.map(transition => [transition.from, transition.to])).toEqual(expected)
     }
   })
 
-  test('trailing-comment diagnostics use authored line numbers after frontmatter and init directives', () => {
+  test('retained trailing comments keep authored receipts after frontmatter and init directives', () => {
     const source = `---
 config:
   theme: default
@@ -369,7 +386,8 @@ stateDiagram-v2
   A --> B %% note`
     const diagram = state(source)
     expect(diagram.meta.comments).toEqual([{ text: 'note', line: 7 }])
-    expect(verifyMermaid(diagram).warnings).toContainEqual({ code: 'COMMENT_DROPPED', count: 1, lines: [7] })
+    expectRetainedComment(diagram, 'A --> B\n%% note\n')
+    expectRetainedComment(apply(diagram, { kind: 'add_state', id: 'Added' }), 'A --> B\n%% note\n')
   })
 
   test('spaced comma-separated State class targets retain both paint assignments', () => {

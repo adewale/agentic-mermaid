@@ -247,13 +247,14 @@ describe('open parsed-diagram render composition', () => {
   })
 
   test('advertises the open parser/render envelope while keeping built-in ops closed', async () => {
-    expect(SDK_CORE_DECLARATION).toContain('type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram')
-    expect(SDK_CORE_DECLARATION).toContain('parseRegisteredMermaid(source: string): Result<ParsedDiagram')
-    expect(SDK_CORE_DECLARATION).toContain('renderMermaidSVGWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('renderMermaidASCIIWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('layoutMermaidWithReceipt(input: ParsedDiagram | string')
-    expect(SDK_CORE_DECLARATION).toContain('mutate(diagram: ValidDiagram, op: MutationOp)')
-    expect(SDK_CORE_DECLARATION).not.toContain('mutate(diagram: ParsedDiagram')
+    const declaration = SDK_CORE_DECLARATION.replace(/\s+/g, '')
+    expect(declaration).toContain('typeParsedDiagram=ValidDiagram|ExtensionValidDiagram|PreservedValidDiagram')
+    expect(declaration).toContain('parseRegisteredMermaid(source:string):Result<ParsedDiagram')
+    expect(declaration).toContain('renderMermaidSVGWithReceipt(input:ParsedDiagram|string')
+    expect(declaration).toContain('renderMermaidASCIIWithReceipt(input:ParsedDiagram|string')
+    expect(declaration).toContain('layoutMermaidWithReceipt(input:ParsedDiagram|string')
+    expect(declaration).toContain('mutate(diagram:ValidDiagram,op:MutationOp)')
+    expect(declaration).not.toContain('mutate(diagram:ParsedDiagram')
 
     const unregister = registerFamily(descriptor())
     try {

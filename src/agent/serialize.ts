@@ -1,3 +1,4 @@
+import { restoreBodyComments } from './body-comments.ts'
 // ============================================================================
 // serializeMermaid: ValidDiagram → canonical Mermaid source.
 // synthesizeFromGraph: build a ValidDiagram from a JSON payload (no re-parse).
@@ -57,9 +58,10 @@ export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}):
   // source-preserving extension serializers may still contain the authored
   // directives, so remove them through the same grammar authority before
   // joining the canonical wrapper and family source.
+  const preservedBody = restoreBodyComments(renderedBody, d.kind, d.body, d.meta)
   const bodySource = mode === 'canonical'
-    ? stripMermaidInitDirectives(renderedBody)
-    : renderedBody
+    ? stripMermaidInitDirectives(preservedBody)
+    : preservedBody
   return wrapperPrefix(d.meta, mode, bodySource) + bodySource
 }
 
@@ -266,6 +268,7 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
     accessibility: payload.meta?.accessibility ?? {},
     frontmatter: payload.meta?.frontmatter,
     wrapperSource: payload.meta?.wrapperSource,
+    bodyComments: payload.meta?.bodyComments,
   }
 
   let body: DiagramBody

@@ -374,7 +374,7 @@ describe('editor verify panel', () => {
   test('only a verified result with no warnings is reported as clean', () => {
     const clean = verifyPanel(() => ({ ok: true, warnings: [] }))
     clean.api.updateVerifyPanel('flowchart TD\n  A --> B', {})
-    expect(clean.nodes.verifySummary.textContent).toBe('Verified: no warnings')
+    expect(clean.nodes.verifySummary.textContent).toBe('Render checks passed: no warnings')
     const blocked = verifyPanel(() => ({ ok: false, warnings: [{ code: 'RENDER_FAILED' }] }))
     blocked.api.updateVerifyPanel('flowchart TD', {})
     expect(blocked.nodes.verifySummary.textContent).toBe('Fix verification errors before export')

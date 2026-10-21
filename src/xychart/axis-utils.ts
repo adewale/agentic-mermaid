@@ -47,7 +47,8 @@ export function barBaselineValue(range: { min: number; max: number }): number {
 /** Display text for a bar's value, shared by data labels and tooltips. */
 export function formatBarValue(value: number): string {
   if (Number.isInteger(value)) return String(value)
-  return value.toFixed(Math.abs(value) < 10 ? 1 : 0)
+  const rounded = value.toFixed(Math.abs(value) < 10 ? 1 : 0)
+  return Number(rounded) === 0 && value !== 0 ? String(value) : rounded
 }
 
 export function linearTicks(min: number, max: number, count = 10): number[] {

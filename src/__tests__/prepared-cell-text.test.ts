@@ -2,6 +2,9 @@ import { describe, expect, it } from 'bun:test'
 import { prepareCellText } from '../ascii/prepared-text.ts'
 import { wrapText } from '../ascii/wrap.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 describe('prepared cell text', () => {
   it('preserves interior spaces while recording the separator replaced by wrapping', () => {
@@ -57,15 +60,16 @@ describe('prepared cell text', () => {
     expect(Object.isFrozen(block.lines)).toBe(true)
   })
 
-  it('keeps locale-independent grapheme cells through the public terminal renderer', () => {
+  it('keeps locale-independent grapheme cells through the public terminal renderer', async () => {
     const entry = new URL('../index.ts', import.meta.url).href
     const source = 'flowchart LR\nA["界 é 👩🏽‍💻 🇨🇳"] --> B["Ω Ш"]'
     const code = `import { renderMermaidASCII } from ${JSON.stringify(entry)}; process.stdout.write(renderMermaidASCII(${JSON.stringify(source)}, { colorMode: 'none' }))`
-    const outputs = ['C', 'en_US.UTF-8', 'ja_JP.UTF-8'].map(locale => {
-      const result = Bun.spawnSync([process.execPath, '-e', code], { env: { ...process.env, LANG: locale, LC_ALL: locale }, stdout: 'pipe', stderr: 'pipe' })
-      expect(result.exitCode).toBe(0)
-      return new TextDecoder().decode(result.stdout)
-    })
+    const outputs: string[] = []
+    for (const locale of ['C', 'en_US.UTF-8', 'ja_JP.UTF-8']) {
+      const result = await runChild(process.execPath, ['-e', code], { env: { ...process.env, LANG: locale, LC_ALL: locale } })
+      expect(result.status).toBe(0)
+      outputs.push(result.stdout)
+    }
     expect(outputs[0]).toContain('界 é 👩🏽‍💻 🇨🇳')
     expect(outputs[1]).toBe(outputs[0])
     expect(outputs[2]).toBe(outputs[0])

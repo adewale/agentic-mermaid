@@ -14,6 +14,7 @@ import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { radarValueRatio, resolveRadarScale } from './scale.ts'
+import { formatChartValue as formatTick } from '../shared/chart-value-format.ts'
 import { MAX_RADAR_AXES } from './parser.ts'
 
 // ============================================================================
@@ -301,11 +302,11 @@ export function layoutRadarChart(
   const rings: PositionedRadarRing[] = []
   for (let k = 1; n > 0 && k <= chart.ticks; k++) {
     const rr = (radius * k) / chart.ticks
-    const value = min + ((max - min) * k) / chart.ticks
+    const value = k === chart.ticks ? max : min + (max - min) * (k / chart.ticks)
     const points = chart.graticule === 'polygon'
       ? chart.axes.map((_a, i) => { const p = polar(cx, cy, rr, axisAngle(i, n)); return { x: round(p.x), y: round(p.y) } })
       : []
-    rings.push({ r: round(rr), value: round(value), points, emphasized: k === chart.ticks })
+    rings.push({ r: round(rr), value, points, emphasized: k === chart.ticks })
   }
 
   // Spokes + axis labels (absolute; offsets/leaders from the de-collision pass).
@@ -426,10 +427,6 @@ export function layoutRadarChart(
     },
     visual,
   }
-}
-
-function formatTick(value: number): string {
-  return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100)
 }
 
 /** Historical layout constants (defaults; config overrides via

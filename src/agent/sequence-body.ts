@@ -38,6 +38,7 @@ import { isCharacterReference, sequenceGrammarText } from '../sequence/family-so
 import { isSequenceCommentLine, scanSequenceStatementLines, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 import { normalizeSequenceMessageText, readSequenceText, writeSequenceText } from '../sequence/text.ts'
+import { readMetadataBlock } from '../shared/metadata-yaml.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -523,16 +524,19 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       // As in Mermaid, a participant's first mention places it and its last
       // aliased declaration names it. The label only survives serialize →
       // re-parse through a declaration statement: when the naming declaration
-      // is preserved source (a boxed `participant A as …`), declare the new
-      // label right after it. An implied participant is declared right after
+      // is preserved source (a boxed `participant A as …`), edit that original
+      // declaration in place. An implied participant is declared right after
       // the statement that creates it, where the declaration renames it in
       // place; ahead of that statement it could jump a participant the
       // statement creates first (`A->>B`, relabelling B).
       const ref = participants.indexOf(p)
       const naming = namingDeclaration(statements, ref, p.id)
+      if (naming?.preserved && relabelPreservedDeclaration(statements[naming.index]!, p)) break
       const at = naming === undefined ? creatingStatement(statements, participants, messages, p.id) + 1 : naming.preserved ? naming.index + 1 : undefined
       if (at === undefined) break
+      const actorData = actorDataBefore({ kind: 'sequence', participants, messages, statements: statements.slice(0, at) }, p.id)
       statements.splice(at, 0, { kind: 'participant', ref })
+      if (actorData.length) statements.splice(at + 1, 0, { kind: 'opaque-block', lines: actorData })
       // A naming declaration resets the links in Mermaid (ours keeps them):
       // when it lands after statements that linked the participant, link it
       // again right after, so Mermaid reads them too.
@@ -718,6 +722,51 @@ function namingDeclaration(statements: SequenceStatement[], ref: number, id: str
     if (statement.kind === 'opaque-block' && statement.lines.some(names)) return { index, preserved: true }
   }
   return undefined
+}
+
+/** Update the existing declaration inside a preserved segment. Adding a new
+ * declaration after the entire segment can reset later actor properties or
+ * duplicate box membership, even though every original source line survives. */
+function relabelPreservedDeclaration(statement: SequenceStatement, participant: SequenceParticipant): boolean {
+  if (statement.kind !== 'opaque-block') return false
+  const entries = readSequenceStatements(statement.lines).statements
+  const entry = entries.findLast(candidate => candidate.syntax?.kind === 'declaration'
+    && candidate.syntax.declaration.id === participant.id && candidate.syntax.declaration.aliased)
+  if (!entry || entry.syntax?.kind !== 'declaration') return false
+  const declaration = entry.syntax.declaration
+  const prefix = `${declaration.keyword} ${declaration.id}`
+  const label = writeSequenceText(participant.label, participant.labelContent, `${prefix} as `)
+  const raw = entry.raw.trim()
+  const metadataAt = raw.indexOf('@{')
+  let replacement: string
+  if (metadataAt >= 0) {
+    const block = readMetadataBlock(raw, metadataAt + 1, 'sequence')
+    if (!block.ok) return false
+    // Keep unmodeled metadata values while making this alias authoritative,
+    // including when the new label equals the participant's identity.
+    // CONFIG ends at the first closing brace even inside a quoted scalar.
+    // YAML escapes avoid that boundary without adding Mermaid entity tokens.
+    const metadata = JSON.stringify({ ...Object.fromEntries(block.entries), alias: label })
+      .replace(/"(?:\\.|[^"\\])*"/g, scalar => scalar.replace(/}/g, '\\u007d'))
+    replacement = `${prefix}@${metadata}`
+  } else replacement = `${prefix} as ${label}`
+  const line = statement.lines[entry.line]!
+  const indent = entry.raw.match(/^\s*/)?.[0] ?? ''
+  statement.lines[entry.line] = line.slice(0, entry.column) + indent + replacement + line.slice(entry.endColumn)
+  return true
+}
+
+/** Actor-data writes merge in author order, and an aliased declaration resets
+ * them in Mermaid. Replay only data still live immediately before a newly
+ * inserted naming declaration, as we already do for actor-menu links. */
+function actorDataBefore(body: SequenceBody, id: string): string[] {
+  let data: string[] = []
+  for (const entry of readSequenceStatements(renderSequence(body).split('\n').slice(1)).statements) {
+    const syntax = entry.syntax
+    if (syntax?.kind === 'declaration' && syntax.declaration.id === id && syntax.declaration.aliased) data = []
+    if (syntax?.kind === 'actor-data' && syntax.actorId === id) data.push(entry.raw)
+  }
+  return data
 }
 
 /** Index of the first statement that names participant `id` (and so creates

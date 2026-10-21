@@ -43,7 +43,7 @@ function lines(path: string): string[] {
 
 /** GitHub runs `run:` with `bash --noprofile --norc -eo pipefail {0}`. */
 function execute(target: Step & { run: string }, dir: string, env: Record<string, string> = {}) {
-  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], {
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', target.run], { timeout: 20_000, killSignal: 'SIGKILL',
     cwd: dir,
     encoding: 'utf8',
     env: { ...process.env, ...target.env, ...env, MOCK_ROOT: dir, PATH: `${join(dir, 'bin')}:${process.env.PATH}` },
@@ -57,7 +57,7 @@ function tarball(dir: string, packageJson: Record<string, unknown>, extra: Recor
   writeFileSync(join(staging, 'package', 'package.json'), JSON.stringify(packageJson))
   for (const [file, content] of Object.entries(extra)) writeFileSync(join(staging, 'package', file), content)
   const out = join(dir, 'fixture.tgz')
-  const packed = spawnSync('tar', ['--create', '--gzip', '--file', out, '-C', staging, 'package'], { encoding: 'utf8' })
+  const packed = spawnSync('tar', ['--create', '--gzip', '--file', out, '-C', staging, 'package'], { timeout: 20_000, killSignal: 'SIGKILL', encoding: 'utf8' })
   if (packed.status !== 0) throw new Error(packed.stderr)
   rmSync(staging, { recursive: true, force: true })
   const bytes = readFileSync(out)
@@ -298,7 +298,7 @@ describe('publish-mcp job: pinned publisher binary', () => {
     mkdirSync(staging)
     writeFileSync(join(staging, 'mcp-publisher'), '#!/bin/sh\n')
     const archive = join(dir, 'served.tar.gz')
-    expect(spawnSync('tar', ['--create', '--gzip', '--file', archive, '-C', staging, 'mcp-publisher']).status).toBe(0)
+    expect(spawnSync('tar', ['--create', '--gzip', '--file', archive, '-C', staging, 'mcp-publisher'], { timeout: 20_000, killSignal: 'SIGKILL' }).status).toBe(0)
     servedArchive = readFileSync(archive)
     return servedArchive
   }
@@ -351,7 +351,7 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
 // Release attests the entire canonical run, including independent semantics.
 describe('canonical CI: semantic conformance is required for release approval', () => {
   const complete = step('ci-complete', 'Require every CI lane to pass', ciWorkflow)
-  const passing = { SEMANTIC_RESULT: 'success', TEST_RESULT: 'success', E2E_RESULT: 'success', RED_GREEN_RESULT: 'skipped', EXPIRE_RESULT: 'skipped' }
+  const passing = { SEMANTIC_RESULT: 'success', CONSUMER_RESULT: 'success', TEST_RESULT: 'success', E2E_RESULT: 'success', RED_GREEN_RESULT: 'skipped', EXPIRE_RESULT: 'skipped' }
 
   test('accepts the completed lanes and expected non-PR skips', () => {
     expect(execute(complete, tempDir(), passing).status).toBe(0)
@@ -359,5 +359,9 @@ describe('canonical CI: semantic conformance is required for release approval', 
 
   test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when independent semantics is %s', result => {
     expect(execute(complete, tempDir(), { ...passing, SEMANTIC_RESULT: result }).status).not.toBe(0)
+  })
+
+  test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when installed quickstarts is %s', result => {
+    expect(execute(complete, tempDir(), { ...passing, CONSUMER_RESULT: result }).status).not.toBe(0)
   })
 })
