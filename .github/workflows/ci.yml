@@ -92,6 +92,7 @@ jobs:
               ["cyclic-labelled-9-chains", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd").text()],
               ["architecture-backends", await Bun.file("eval/layout-compare/fixtures/architecture-backends.mmd").text()],
               ["class-backends", await Bun.file("eval/layout-compare/fixtures/class-backends.mmd").text()],
+              ["class-compound-backends", await Bun.file("eval/layout-compare/fixtures/class-compound-backends.mmd").text()],
               ["er-backends", await Bun.file("eval/layout-compare/fixtures/er-backends.mmd").text()],
               ["er-compound-backends", await Bun.file("eval/layout-compare/fixtures/er-compound-backends.mmd").text()],
               ["requirement-backends", await Bun.file("eval/layout-compare/fixtures/requirement-backends.mmd").text()],
@@ -128,7 +129,7 @@ jobs:
             if ! GITHUB_SHA="$HEAD_SHA" bun run eval/benchmark/release-bench.ts \
               --candidate . --layout-modes elk,agentic --layout-cache "$cache" \
               --rounds 3 --reps 25 --budget-ms 480000 \
-              --case 'flowchart:official-syntax/flowchart.md#82,state:official-syntax/stateDiagram.md#16,requirement:official-syntax/requirementDiagram.md#4,flowchart:cyclic-labelled-11,flowchart:cyclic-labelled-10,flowchart:cyclic-labelled-15,flowchart:cyclic-labelled-19,flowchart:cyclic-labelled-9,flowchart:cyclic-labelled-13,flowchart:cyclic-labelled-9-chains,requirement:cyclic-labelled-relations,requirement:100-requirements-99-relations,er:official-syntax/entityRelationshipDiagram.md#24,er:cyclic-labelled-entities,er:40-entities,er:compound-domains,class:official-syntax/classDiagram.md#0,class:cyclic-labelled-members,class:80-classes,architecture:official-syntax/architecture.md#2,architecture:aligned-junction-services,architecture:40-services,agent:edit-flowchart' \
+              --case 'flowchart:official-syntax/flowchart.md#82,state:official-syntax/stateDiagram.md#16,requirement:official-syntax/requirementDiagram.md#4,flowchart:cyclic-labelled-11,flowchart:cyclic-labelled-10,flowchart:cyclic-labelled-15,flowchart:cyclic-labelled-19,flowchart:cyclic-labelled-9,flowchart:cyclic-labelled-13,flowchart:cyclic-labelled-9-chains,requirement:cyclic-labelled-relations,requirement:100-requirements-99-relations,er:official-syntax/entityRelationshipDiagram.md#24,er:cyclic-labelled-entities,er:40-entities,er:compound-domains,class:official-syntax/classDiagram.md#0,class:official-syntax/classDiagram.md#17,class:compound-namespaces,class:cyclic-labelled-members,class:80-classes,architecture:official-syntax/architecture.md#2,architecture:aligned-junction-services,architecture:40-services,agent:edit-flowchart' \
               --out "$LAYOUT_REVIEW/performance-$cache"; then
               failed=1
             fi
