@@ -223,7 +223,7 @@ async function generateEditorHtml(): Promise<string> {
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
-      plugins: [runtimeRenderContractPlugin()],
+      plugins: [runtimeRenderContractPlugin({ conformanceObservations: false })],
       target: 'browser', format: 'esm', minify: true,
       outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js' },
     })
@@ -232,7 +232,7 @@ async function generateEditorHtml(): Promise<string> {
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
-    plugins: [runtimeRenderContractPlugin()],
+    plugins: [runtimeRenderContractPlugin({ conformanceObservations: false })],
     target: 'browser',
     format: 'esm',
     minify: true,
@@ -255,8 +255,9 @@ async function generateEditorHtml(): Promise<string> {
     if (!entry) throw new Error('Hosted editor runtime entry not found')
     bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
   } else {
-    // Compress the complete inline module without dropping schema prose or
-    // either solver. Keep legal comments and escape inline-script delimiters.
+    // Compress the complete inline module after omitting unpublished
+    // conformance observations. Retain schema prose, both solvers and the
+    // terminal adapter; keep legal comments and escape script delimiters.
     const compressed = await minify(await buildResult.outputs[0]!.text(), {
       ecma: 2022, module: true, mangle: true,
       compress: { defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true },
