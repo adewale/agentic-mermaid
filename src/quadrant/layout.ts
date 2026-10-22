@@ -114,6 +114,10 @@ const SPIRAL_ANGLES: readonly number[] = [
   (-5 * Math.PI) / 8, (5 * Math.PI) / 8, (-7 * Math.PI) / 8, (7 * Math.PI) / 8,
 ]
 const SPIRAL_RINGS = 10
+const SPIRAL_DIRECTIONS = SPIRAL_ANGLES.map(angle => {
+  const cos = Math.cos(angle)
+  return { cos, sin: Math.sin(angle), anchor: (cos > 0.38 ? 'start' : cos < -0.38 ? 'end' : 'middle') as Anchor }
+})
 
 /**
  * Candidate label slots for one point, in deterministic preference order.
@@ -121,29 +125,23 @@ const SPIRAL_RINGS = 10
  * sparse charts do not move; the outward spiral only engages when a chart is
  * dense enough that no near slot clears.
  */
-function labelCandidates(cx: number, cy: number, gap: number, w: number, h: number): LabelCandidate[] {
-  const near: LabelCandidate[] = [
-    { x: cx + gap, y: cy, anchor: 'start', far: false, box: { x0: cx + gap, y0: cy - h / 2, x1: cx + gap + w, y1: cy + h / 2 } },
-    { x: cx - gap, y: cy, anchor: 'end', far: false, box: { x0: cx - gap - w, y0: cy - h / 2, x1: cx - gap, y1: cy + h / 2 } },
-    { x: cx, y: cy + gap + h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy + gap, x1: cx + w / 2, y1: cy + gap + h } },
-    { x: cx, y: cy - gap - h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy - gap - h, x1: cx + w / 2, y1: cy - gap } },
-  ]
-  const spiral: LabelCandidate[] = []
+function* labelCandidates(cx: number, cy: number, gap: number, w: number, h: number): Generator<LabelCandidate> {
+  yield { x: cx + gap, y: cy, anchor: 'start', far: false, box: { x0: cx + gap, y0: cy - h / 2, x1: cx + gap + w, y1: cy + h / 2 } }
+  yield { x: cx - gap, y: cy, anchor: 'end', far: false, box: { x0: cx - gap - w, y0: cy - h / 2, x1: cx - gap, y1: cy + h / 2 } }
+  yield { x: cx, y: cy + gap + h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy + gap, x1: cx + w / 2, y1: cy + gap + h } }
+  yield { x: cx, y: cy - gap - h / 2, anchor: 'middle', far: false, box: { x0: cx - w / 2, y0: cy - gap - h, x1: cx + w / 2, y1: cy - gap } }
   for (let ring = 1; ring <= SPIRAL_RINGS; ring++) {
     const dist = gap + ring * (h + 6)
-    for (const angle of SPIRAL_ANGLES) {
-      const px = cx + Math.cos(angle) * dist
-      const py = cy + Math.sin(angle) * dist
-      const cos = Math.cos(angle)
-      const anchor: Anchor = cos > 0.38 ? 'start' : cos < -0.38 ? 'end' : 'middle'
+    for (const { cos, sin, anchor } of SPIRAL_DIRECTIONS) {
+      const px = cx + cos * dist
+      const py = cy + sin * dist
       const x0 = anchor === 'start' ? px : anchor === 'end' ? px - w : px - w / 2
-      spiral.push({
+      yield {
         x: px, y: py, anchor, far: true,
         box: { x0, y0: py - h / 2, x1: x0 + w, y1: py + h / 2 },
-      })
+      }
     }
   }
-  return [...near, ...spiral]
 }
 
 /** Leader line from the circle edge to the label edge for a far slot. */
@@ -355,8 +353,12 @@ export function layoutQuadrantChart(
       const leader = leaderFor(cx, cy, vis.radius, candidate)
       return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
     }
-    const candidates = labelCandidates(cx, cy, gap, w, h)
-    const chosen = candidates.find(clear)
+    let first: LabelCandidate | undefined
+    let chosen: LabelCandidate | undefined
+    for (const candidate of labelCandidates(cx, cy, gap, w, h)) {
+      first ??= candidate
+      if (clear(candidate)) { chosen = candidate; break }
+    }
 
     const positioned: PositionedQuadrantPoint = {
       label,
@@ -366,9 +368,9 @@ export function layoutQuadrantChart(
       cx,
       cy,
       radius: vis.radius,
-      labelX: round((chosen ?? candidates[0]!).x),
-      labelY: round((chosen ?? candidates[0]!).y),
-      labelAnchor: (chosen ?? candidates[0]!).anchor,
+      labelX: round((chosen ?? first!).x),
+      labelY: round((chosen ?? first!).y),
+      labelAnchor: (chosen ?? first!).anchor,
     }
     positioned.tooltip = layoutTooltip(cx, cy - vis.radius, `${label}: [${p.x}, ${p.y}]`)
     if (vis.fill !== undefined) positioned.fill = vis.fill
