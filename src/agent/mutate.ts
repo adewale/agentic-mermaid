@@ -1,4 +1,5 @@
-import { rebaseBodyComments, restoreBodyComments } from './body-comments.ts'
+import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
+import { beginMutationDraft, type MutationDraft } from './mutation-draft.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
@@ -84,7 +85,13 @@ export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagra
   return r
 }
 
-function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerialization = false): Result<ParsedDiagram, MutationError> {
+interface BatchDraft {
+  mutator?: NonNullable<ReturnType<typeof getFamily>>['mutate']
+  body?: ParsedDiagram['body']
+  apply?: MutationDraft
+}
+
+function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerialization = false, draft?: BatchDraft): Result<ParsedDiagram, MutationError> {
   // Every structured family mutates through its FamilyDescriptor hook, then
   // rebuilds canonicalSource from the new body so a mutated diagram never
   // carries stale source. Lookup is by DIAGRAM kind, not body kind. State
@@ -104,9 +111,16 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerializatio
   }
   const plugin = getFamily(d.kind)
   if (plugin?.mutate && plugin.serialize) {
-    const r = plugin.mutate(d.body, op)
+    if (draft && (draft.mutator !== plugin.mutate || draft.body !== d.body)) {
+      draft.mutator = plugin.mutate
+      draft.body = d.body
+      draft.apply = beginMutationDraft(plugin.mutate, d.body)
+    }
+    const before = draft?.apply ? snapshotBodyCommentAnchors(d) : d
+    const r = draft?.apply ? draft.apply(op) : plugin.mutate(d.body, op)
     if (!r.ok) return r
-    d = rebaseBodyComments(d, r.value, op)
+    if (draft) draft.body = r.value
+    d = rebaseBodyComments(before, r.value, op)
     return deferSerialization ? ok({ ...d, body: r.value } as ParsedDiagram) : commitMutation(d, r.value)
   }
 
@@ -170,8 +184,9 @@ export type MutationBatchError = MutationError & { opIndex: number }
 /** Intermediate bodies stay private; public source/maps are rebuilt only at commit. */
 export function applyMutationBatch(d: ParsedDiagram, ops: readonly unknown[]): Result<ParsedDiagram, MutationBatchError> {
   let current = d
+  const draft: BatchDraft = {}
   for (let index = 0; index < ops.length; index++) {
-    const next = checkedMutation(current, ops[index], true)
+    const next = checkedMutation(current, ops[index], true, draft)
     if (!next.ok) return err({ ...next.error, opIndex: index })
     current = next.value
   }
@@ -201,7 +216,7 @@ export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagr
   return checkedMutation(d, op, false)
 }
 
-function checkedMutation(d: ParsedDiagram, op: unknown, deferSerialization: boolean): Result<ParsedDiagram, MutationError> {
+function checkedMutation(d: ParsedDiagram, op: unknown, deferSerialization: boolean, draft?: BatchDraft): Result<ParsedDiagram, MutationError> {
   if (hasOpSchema(d.kind)) {
     const admitted = admitOpRecord(op)
     const checkedOp = admitted.ok ? admitted.value : op
@@ -213,11 +228,11 @@ function checkedMutation(d: ParsedDiagram, op: unknown, deferSerialization: bool
       logToolInvocation('mutate', false)
       return err(invalid)
     }
-    const result = applyOneMutation(d, checkedOp as AnyMutationOp, deferSerialization)
+    const result = applyOneMutation(d, checkedOp as AnyMutationOp, deferSerialization, draft)
     logToolInvocation('mutate', result.ok)
     return result
   }
-  const result = applyOneMutation(d, op as AnyMutationOp, deferSerialization)
+  const result = applyOneMutation(d, op as AnyMutationOp, deferSerialization, draft)
   logToolInvocation('mutate', result.ok)
   return result
 }

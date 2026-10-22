@@ -1,5 +1,6 @@
 import { parseC4Diagram } from '../c4/parser.ts'
 import { buildC4SourceMap, lintC4, mutateC4, parseC4Body, renderC4 } from './c4-body.ts'
+import { withMutationDraft } from './mutation-draft.ts'
 import { STABLE_FAMILY_AGENT_HOOKS } from './stable-family-adapters.ts'
 // ============================================================================
 // Built-in family agent-operation definitions.
@@ -39,7 +40,7 @@ import { mutateClass, parseClassBody, renderClass, verifyClass } from './class-b
 import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
 import type { ExtractedLabel, FamilyOperations } from './families.ts'
 import { extractLabelsGeneric } from './family-labels.ts'
-import { buildFlowchartSourceMap, type FlowchartBody, mutateFlowchart, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
+import { buildFlowchartSourceMap, type FlowchartBody, createFlowchartMutationDraft, mutateFlowchart, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
 import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
 import { mutateGantt, parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
 import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
@@ -49,7 +50,7 @@ import { mutatePie, parsePieBody, renderPie, verifyPie } from './pie-body.ts'
 import { mutateQuadrant, parseQuadrantBody, renderQuadrant, verifyQuadrant } from './quadrant-body.ts'
 import { mutateRadar, parseRadarBody, renderRadar, verifyRadar } from './radar-body.ts'
 import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './sankey-body.ts'
-import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
+import { createSequenceMutationDraft, mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
 import { mutateState, parseStateBody, renderState, verifyOpaqueState, verifyState } from './state-body.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
@@ -126,10 +127,14 @@ function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMa
       if (body.kind !== 'flowchart') throw new Error(`flowchart serializer received body kind ${body.kind}`)
       return renderFlowchart(body.graph, 'flowchart')
     },
-    mutate: (body, op) => {
+    mutate: withMutationDraft((body, op) => {
       if (body.kind !== 'flowchart') return err<MutationError>({ code: 'INVALID_OP', message: `flowchart mutator received body kind ${body.kind}` })
       return mutateFlowchart(body, op as never)
-    },
+    }, body => {
+      if (body.kind !== 'flowchart') return undefined
+      const apply = createFlowchartMutationDraft(body)
+      return op => apply(op as never)
+    }),
   }
 }
 
@@ -231,10 +236,14 @@ const SEQUENCE_AGENT_HOOKS = {
     if (body.kind !== 'sequence') throw new Error(`sequence serializer received body kind ${body.kind}`)
     return renderSequence(body)
   },
-  mutate: (body, op) => {
+  mutate: withMutationDraft((body, op) => {
     if (body.kind !== 'sequence') return err<MutationError>({ code: 'INVALID_OP', message: `sequence mutator received body kind ${body.kind}` })
     return mutateSequence(body, op as never)
-  },
+  }, body => {
+    if (body.kind !== 'sequence') return undefined
+    const apply = createSequenceMutationDraft(body)
+    return op => apply(op as never)
+  }),
 } satisfies FamilyOperations
 
 function sequenceRawBodyLines(opaqueSource: string, expandedLines: string[]): string[] {
