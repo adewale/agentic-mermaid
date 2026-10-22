@@ -31,6 +31,22 @@ The experiments cover:
 - Update-aware ELK repair passes with preserved final geometry.
 - Lazy MCP membrane iteration while preserving #365's execution semantics.
 
+The architecture-wide completeness review also identified work outside those
+initial packages. Evaluate source-order queue preparation, request-local pass
+metadata, shared route classification, forest conversion preparation, and a
+fixed-geometry obstacle query. Family follow-ups cover Gantt calendar and
+dependency traversal, nested Sequence frame/overlay work, and large Quadrant
+collision filtering. Evaluate a private SVG-only installation artifact without
+changing the existing package's PNG installation contract. Persistent peer,
+tail-latency and allocation targets remain coordinated with #433's maintained
+benchmark work.
+
+These are experiments, not preselected implementations. Record a concrete
+disposition for each broader proposal, including ownership or compatibility
+constraints that prevent safely removing work. A narrower optimization does not
+establish completion of a shared workspace, generation-aware proof system or
+placement-before-routing redesign.
+
 Each experiment must remove concrete work at its owner. Rejected private
 recipes, broad memo/index prototypes and removed feature flags need new evidence
 before reconsideration. Independent changes use separate commits; shared files
