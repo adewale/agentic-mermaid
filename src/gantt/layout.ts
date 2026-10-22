@@ -16,6 +16,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderOptions } from '../types.ts'
 import { DAY_MS, dayOfWeek, formatGanttInstant, ganttDependencyEdges, startOfDay, WEEKDAY_INDEX } from './schedule.ts'
+import { groupGanttTasksBySection } from './task-groups.ts'
 import type { EpochMs, GanttBarLayout, GanttDependencyLayout, GanttExcludedBand, GanttLayoutResult, GanttModel, GanttRowLayout, GanttSchedule, GanttSectionBand, GanttTick, GanttTickUnit, GanttVertLayout } from './types.ts'
 
 export const GANTT_MAX_TICKS = 120
@@ -250,6 +251,23 @@ export function resolveTicks(schedule: GanttSchedule, model: GanttModel, targetT
  * overlap-free by construction.
  */
 export function packCompactLanes(tasks: Array<{ start: EpochMs; end: EpochMs }>): number[] {
+  if (tasks.length > 32 && tasks.every(task => Number.isFinite(task.start) && Number.isFinite(task.end))) {
+    let base = 1
+    while (base < tasks.length) base *= 2
+    const minimumEnd = new Array<number>(base * 2).fill(Infinity)
+    let laneCount = 0
+    return tasks.map(task => {
+      // Descend left first: choosing the smallest end would change first-fit.
+      let node = 1
+      if (minimumEnd[node]! <= task.start) {
+        while (node < base) node = minimumEnd[node * 2]! <= task.start ? node * 2 : node * 2 + 1
+      } else node = base + laneCount++
+      const lane = node - base
+      minimumEnd[node] = task.end
+      while ((node >>= 1) > 0) minimumEnd[node] = Math.min(minimumEnd[node * 2]!, minimumEnd[node * 2 + 1]!)
+      return lane
+    })
+  }
   const laneEnds: EpochMs[] = []
   const laneOf: number[] = []
   for (const t of tasks) {
@@ -547,6 +565,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
 
   const vertTasks = schedule.tasks.filter(t => t.tags.includes('vert'))
   const rowTasks = schedule.tasks.filter(t => !t.tags.includes('vert'))
+  const rowTasksBySection = groupGanttTasksBySection(rowTasks)
 
   // ---- label column ---------------------------------------------------------
   // Standard mode wraps task labels to the column budget (item 5); compact
@@ -635,7 +654,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
 
   for (let si = 0; si < model.sections.length; si++) {
     const section = model.sections[si]!
-    const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
+    const sectionTasks = rowTasksBySection.get(si) ?? []
     if (sectionTasks.length === 0 && section.label === undefined) continue
     // Bars/rows reference the BAND index in the emitted sections array (empty
     // implicit sections are skipped, so it can differ from the model index).
