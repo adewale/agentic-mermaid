@@ -169,4 +169,3 @@ without clobbering by default:
 --dir defaults to the current directory. --force overwrites skill/MCP files;
 the AGENTS.md section is always appended only once, guarded by a marker.`,
 }
-

@@ -246,4 +246,3 @@ export function cliRenderFormatHelpLines(indent = '  '): string {
 export function cliRenderFormatJsonSchema(): { type: 'string'; enum: CliRenderFormat[] } {
   return { type: 'string', enum: [...CLI_RENDER_FORMATS] }
 }
-

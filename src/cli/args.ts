@@ -173,4 +173,3 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   return out
 }
-
