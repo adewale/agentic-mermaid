@@ -175,7 +175,7 @@ const EXPECTED_LABELS: Record<WorkloadId, readonly string[]> = {
   state80: range('S', 81),
   packet240: range('Field ', 240),
   kanban240: Array.from({ length: 12 }, (_, stage) => [`Stage ${stage}`, ...Array.from({ length: 20 }, (_, task) => `Task ${stage}.${task}`)]).flat(),
-  requirement100: range('Requirement ', 100),
+  requirement100: range('Text: Requirement ', 100),
   // Leaf labels may be explicitly hidden in small quantitative cells; the
   // release workload's section labels and title remain visible in SVG.
   treemap260: ['Product allocation', ...range('Group ', 20)],
@@ -183,7 +183,7 @@ const EXPECTED_LABELS: Record<WorkloadId, readonly string[]> = {
   block120: range('Component ', 120),
 }
 const WORKLOADS: Record<Output, readonly WorkloadId[]> = {
-  svg: ['flow5', 'tree50', 'mesh50', 'seq20', 'c4', 'class80', 'er40', 'state80'],
+  svg: Object.keys(EXPECTED_LABELS),
   terminal: ['flow5', 'tree50', 'mesh50', 'seq20'],
 }
 
