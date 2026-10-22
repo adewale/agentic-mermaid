@@ -1,11 +1,5 @@
 /** Internal diagnostic observation. No clock reads occur in normal renders. */
-export type RenderStage =
-  | 'request' | 'layout' | 'elk' | 'drawing'
-  | 'scene' | 'scene-lowering' | 'scene-admission' | 'scene-capture' | 'scene-validation'
-  | 'paint-certification' | 'backend'
-  | 'svg-colors' | 'svg-viewport' | 'svg-fonts' | 'svg-namespace' | 'svg-accessibility'
-  | 'svg-style-scope' | 'svg-compact' | 'svg-budget' | 'svg-security'
-  | 'receipt-data' | 'receipt-digest'
+export type RenderStage = 'request' | 'layout' | 'elk' | 'scene' | 'drawing' | 'paint-certification' | 'backend' | 'svg-security'
 export interface RenderStageSample {
   readonly stage: RenderStage
   /** Inclusive time; nested samples are not additional end-to-end work. */
