@@ -1,8 +1,8 @@
 # Adversarial review of PR #465
 
-Reviewed candidate: `082156c237a15d9dd6b37d46491af2ee96e50118`.
+Reviewed candidate: `646100e475dd1f85b3e8b4513f8545ebb4dd7e37`.
 
-Three independent agents reviewed production geometry, proof soundness, and evidence/benchmark provenance. They reviewed the original `bc7ee3a` diff and checked the relevant follow-up changes. The parent verified that `082156c` changes no production source relative to that reviewed head, ran the focused checks, and reviewed the combined diff. No remaining blocker was found in these scopes. CI and final benchmarks are recorded separately.
+Three independent agents reviewed production geometry, proof soundness, and evidence/benchmark provenance. They reviewed the original `bc7ee3a` diff and checked the relevant follow-up changes. The proof changes were independently rechecked at `082156c`; the final `646100e` commit updates only two reviewed terminal goldens. The parent verified unchanged production source, ran the focused checks, and reviewed the combined diff. No remaining blocker was found in these scopes. CI and final benchmarks are recorded separately.
 
 ## Geometry review
 
@@ -24,3 +24,7 @@ The proof reviewer independently reran the clipping, endpoint-reversal, NaN and 
 Hosted image bytes, native widths, sources/configuration and immutable revisions match the local generated evidence. All 11 control PNG and SVG pairs are byte-identical. Historical timing and geometry counts match raw reports; the measured 11% corpus timing increase remains disclosed alongside the noisy identical-build control. A workflow receipt now records both revisions, package SHA256s and measured entry hashes for the final comparison. The reviewer checked the receipt against the actual baseline directory and verified candidate tarball paths.
 
 These are bounded checks of enrolled sources and interactions. They do not prove universal geometry correctness or exact performance equality. Sixteen unchanged conservative native paint warnings remain explicitly recorded; the independent clipped-viewport/tangent checks cover the attached marker bodies in those fixtures.
+
+## Final terminal-golden follow-up
+
+CI exposed two stale `architecture_group_boundary_edge` goldens. Independent review confirmed the legitimate one-column frame/junction projection shift; authored relationships, ports, labels and group membership remain intact. The two ASCII/Architecture test files pass all 174 tests. Raw results are in `audit-geometry/golden-results.json`. An unchanged crossing-marker cell belongs to the bus arrow in both revisions, so this fixture does not establish complete per-edge ink ownership. That limitation was not introduced or worsened by the fix.
