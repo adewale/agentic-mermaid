@@ -1,5 +1,10 @@
 # Benchmark results
 
+For PR #449’s owned layout, use the [current community comparison](../../docs/design/system/layout-community-comparison.md)
+and [full ELK qualification](../../docs/design/system/layout-qualification.md).
+Their pinned renderers, protocols and retained failures are separate from the
+historical measurements below.
+
 Our current numbers below are measured directly in this sandbox (macOS arm64,
 Bun 1.3.13). Competitor numbers are measured live where the tool ran, and
 labeled "from architecture" where it could not. No head-to-head latency is
