@@ -11,6 +11,7 @@ import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const corpus = JSON.parse(readFileSync(new URL('../../eval/mermaid-docs-corpus/corpus.json', import.meta.url), 'utf8')) as Array<{ family: string; index: number; source: string }>
@@ -60,6 +61,23 @@ describe('Architecture final-route sibling slots', () => {
   const edge = (points: Array<[number, number]>): PositionedArchitectureEdge => ({ source: { id: 'a', side: 'R', boundary: 'item' }, target: { id: 'b', side: 'L', boundary: 'item' }, points: points.map(([x, y]) => ({ x, y })), hasArrowStart: false, hasArrowEnd: false, placement: 'satisfied', sourceFacesTarget: true, targetFacesSource: true, obstacleFree: true })
   const crossing = () => [edge([[-20, 0], [20, 0]]), edge([[0, -20], [0, 20]])]
 
+  test('retains multi-crossing inputs without constructing optional routes', () => {
+    const items = services(), before = structuredClone(items)
+    const routes = [edge([[-20, 0], [20, 0]]), edge([[-10, -20], [-10, 20]]), edge([[10, -20], [10, 20]])]
+    expect(countPolylineCrossings(routes)).toBe(2)
+    expect(improveArchitectureSiblingSlots(empty, items, routes, () => { throw new Error('multi-crossing input routed') }, () => true, sharedInk)).toBe(routes)
+    expect(items).toEqual(before)
+  })
+
+  test('returns the first legal zero-crossing repair without spending another trial', () => {
+    const items = services(), routes = crossing()
+    const repaired = [edge([[-20, 0], [20, 0]]), edge([[30, -20], [30, 20]])]
+    let calls = 0
+    expect(improveArchitectureSiblingSlots(empty, items, routes, () => { calls++; return repaired }, () => true, sharedInk)).toBe(repaired)
+    expect(calls).toBe(1)
+    expect(items.map(({ x, y }) => [x, y])).toEqual([[30, 0], [0, 30]])
+  })
+
   test('rejected legality and non-improving trials restore exact coordinates', () => {
     for (const valid of [false, true]) {
       const items = services(), before = structuredClone(items), routes = crossing()
@@ -88,7 +106,10 @@ describe('Architecture final-route sibling slots', () => {
     const shared = () => [edge([[-20, 0], [20, 0]]), edge(direction === 'parallel' ? [[-10, 0], [10, 0]] : [[10, 0], [-10, 0]])]
     expect(improveArchitectureSiblingSlots(empty, items, routes, shared, () => true, sharedInk)).toBe(routes)
     expect(items).toEqual(before)
-    const sharedBaseline = [...crossing(), ...shared()]
+    const distantShared = shared().map(route => ({ ...route, points: route.points.map(point => ({ ...point, y: point.y + 100 })) }))
+    const sharedBaseline = [...crossing(), ...distantShared]
+    expect(countPolylineCrossings(sharedBaseline)).toBe(1)
+    expect(sharedInk(sharedBaseline)).toBeGreaterThan(0)
     expect(improveArchitectureSiblingSlots(empty, items, sharedBaseline, () => { throw new Error('shared baseline routed') }, () => true, sharedInk)).toBe(sharedBaseline)
   })
 })
