@@ -1,0 +1,169 @@
+name: Layout runtime review
+
+# Explicit PR449 review population and bound. This workflow does not change
+# the general CI graph or treat a successful upload as passing qualification.
+on:
+  workflow_call:
+    inputs:
+      baseline-ref:
+        description: Full immutable SHA of the integrated native23 baseline
+        type: string
+        required: true
+      cache-churn:
+        description: Also run memory-only96/129/256 churn and private source hit counters
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: layout-runtime-review-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install frozen candidate dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the immutable integrated23 baseline
+        id: baseline
+        env:
+          BASELINE_REF: ${{ inputs.baseline-ref }}
+        run: |
+          [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]]
+          git fetch --no-tags --depth=1 origin "$BASELINE_REF"
+          git worktree add --detach "$RUNNER_TEMP/layout-native23" "$BASELINE_REF"
+          cd "$RUNNER_TEMP/layout-native23"
+          bun install --frozen-lockfile
+          bunx --no-install tsup
+
+      - name: Build candidate once before all measurements
+        id: candidate
+        run: bunx --no-install tsup
+
+      - name: Preserve exact populations and revisions
+        env:
+          BASELINE_REF: ${{ inputs.baseline-ref }}
+        run: |
+          mkdir -p layout-runtime-evidence
+          bun run eval/benchmark/layout-review-population.ts > layout-runtime-evidence/full27-inputs.json
+          bun run eval/benchmark/layout-review-population.ts --architecture-supplementary > layout-runtime-evidence/architecture-inputs.json
+          git rev-parse HEAD > layout-runtime-evidence/candidate-revision.txt
+          git -C "$RUNNER_TEMP/layout-native23" rev-parse HEAD > layout-runtime-evidence/baseline-revision.txt
+
+      - name: Full27 release qualification with both cache regimes
+        id: release
+        continue-on-error: true
+        timeout-minutes: 17
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          cases="$(bun run eval/benchmark/layout-review-population.ts --case-list)"
+          failed=0
+          for cache in off normal; do
+            if ! bun run eval/benchmark/release-bench.ts --candidate . --layout-modes elk,agentic,agentic-with-elk --layout-cache "$cache" --layout-reference batched --rounds 3 --reps 25 --budget-ms 480000 --case "$cases" --out "layout-runtime-evidence/release-$cache"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+      - name: Direct native23 versus native24 with native23 A/A
+        id: differential
+        continue-on-error: true
+        timeout-minutes: 17
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          failed=0
+          for cache in off normal; do
+            if ! bun run eval/benchmark/layout-runtime-differential.ts --baseline "$RUNNER_TEMP/layout-native23" --candidate . --inputs layout-runtime-evidence/full27-inputs.json --layout-cache "$cache" --rounds 3 --reps 25 --budget-ms 480000 --out "layout-runtime-evidence/native-differential-$cache"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+      - name: Supplementary Architecture junction and icon-size workloads
+        id: architecture
+        continue-on-error: true
+        timeout-minutes: 17
+        run: |
+          cases="$(bun run eval/benchmark/layout-review-population.ts --architecture-supplementary --case-list)"
+          failed=0
+          for cache in off normal; do
+            if ! bun run eval/benchmark/release-bench.ts --candidate . --layout-modes elk,agentic,agentic-with-elk --layout-cache "$cache" --layout-reference batched --rounds 3 --reps 25 --budget-ms 480000 --case "$cases" --out "layout-runtime-evidence/architecture-$cache"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+      - name: Optional bounded cache churn and source counts
+        if: inputs.cache-churn
+        id: churn
+        continue-on-error: true
+        timeout-minutes: 17
+        run: |
+          failed=0
+          for cache in off normal; do
+            if ! bun run eval/benchmark/layout-cache-churn.ts --candidate . --baseline "$RUNNER_TEMP/layout-native23" --population 96,129,256 --layout-cache "$cache" --budget-ms 480000 --diagnostic-source . --out "layout-runtime-evidence/cache-churn-$cache"; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+      - name: Preserve campaign outcomes even on failure
+        if: always()
+        env:
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          DIFFERENTIAL_OUTCOME: ${{ steps.differential.outcome }}
+          ARCHITECTURE_OUTCOME: ${{ steps.architecture.outcome }}
+          CHURN_OUTCOME: ${{ steps.churn.outcome }}
+        run: |
+          mkdir -p layout-runtime-evidence
+          python3 - <<'PY'
+          import json, os, pathlib
+          outcomes = {key: os.environ.get(key) for key in ['RELEASE_OUTCOME', 'DIFFERENTIAL_OUTCOME', 'ARCHITECTURE_OUTCOME', 'CHURN_OUTCOME']}
+          pathlib.Path('layout-runtime-evidence/workflow-outcomes.json').write_text(json.dumps(outcomes, indent=2) + '\n')
+          PY
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: layout-runtime-review-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: layout-runtime-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail the review when a required campaign failed
+        if: always()
+        env:
+          BASELINE_OUTCOME: ${{ steps.baseline.outcome }}
+          CANDIDATE_OUTCOME: ${{ steps.candidate.outcome }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          DIFFERENTIAL_OUTCOME: ${{ steps.differential.outcome }}
+          ARCHITECTURE_OUTCOME: ${{ steps.architecture.outcome }}
+          CHURN_OUTCOME: ${{ steps.churn.outcome }}
+          CHURN_REQUESTED: ${{ inputs.cache-churn }}
+        run: |
+          [[ "$BASELINE_OUTCOME" == success && "$CANDIDATE_OUTCOME" == success ]]
+          [[ "$RELEASE_OUTCOME" == success && "$DIFFERENTIAL_OUTCOME" == success && "$ARCHITECTURE_OUTCOME" == success ]]
+          if [[ "$CHURN_REQUESTED" == true ]]; then
+            [[ "$CHURN_OUTCOME" == success ]]
+          fi

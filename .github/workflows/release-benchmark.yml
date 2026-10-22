@@ -25,6 +25,14 @@ on:
         default: 'off'
   workflow_dispatch:
     inputs:
+      layout-runtime-review:
+        description: Run the fixed full27/native differential review instead of the normal release benchmark
+        type: boolean
+        default: false
+      layout-cache-churn:
+        description: Include bounded96/129/256 cache churn in the runtime review
+        type: boolean
+        default: false
       baseline:
         description: npm version or tag to compare against
         type: string
@@ -53,7 +61,15 @@ permissions:
   actions: read
 
 jobs:
+  runtime-review:
+    if: inputs.layout-runtime-review
+    uses: ./.github/workflows/layout-runtime-review.yml
+    with:
+      baseline-ref: ${{ inputs.baseline-ref }}
+      cache-churn: ${{ inputs.layout-cache-churn }}
+
   benchmark:
+    if: ${{ !inputs.layout-runtime-review }}
     name: Benchmark against agentic-mermaid@${{ inputs.baseline }}
     runs-on: ubuntu-latest
     timeout-minutes: 105
