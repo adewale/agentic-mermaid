@@ -14,7 +14,9 @@
  * lexers ride with the flowchart and sequence parsers.
  */
 
-import YAML, { type ScalarTag, type SchemaOptions, type Tags } from 'yaml'
+// Keep the dependency surface explicit so browser builds can discard unused
+// YAML namespace exports, including CST editing and stream helpers.
+import { Document, Scalar, isMap, isScalar, parseDocument, visit, type ScalarTag, type SchemaOptions, type Tags, type YAMLError } from 'yaml'
 import { stringifyNumber } from 'yaml/util'
 
 // ---- js-yaml JSON_SCHEMA scalar resolution ---------------------------------
@@ -83,24 +85,24 @@ const COMMENT_SPACING = 'Comments must be separated from other tokens by white s
 /** js-yaml reads a `#` right after a flow indicator or a quoted scalar
  * (`a,#c`, `"x"#c`) as a comment. The yaml package parses it the same way but
  * reports it; only after a block scalar header (`|#`) is it an error in both. */
-function jsYamlAccepts(error: YAML.YAMLError, text: string): boolean {
+function jsYamlAccepts(error: YAMLError, text: string): boolean {
   return error.code === 'MISSING_CHAR' && error.message.startsWith(COMMENT_SPACING)
     && !/[|>][-+0-9]*$/.test(text.slice(0, error.pos[0]))
 }
 
 /** js-yaml rejects a block mapping line that starts with `:` (no key); the
  * yaml package reads it as an empty key. A flow mapping allows it in both. */
-function hasEmptyBlockKey(parsed: YAML.Document, text: string): boolean {
+function hasEmptyBlockKey(parsed: Document, text: string): boolean {
   let found = false
-  YAML.visit(parsed, {
+  visit(parsed, {
     Pair(_key, pair, path) {
       const map = path[path.length - 1]
       const key = pair.key
-      const at = YAML.isScalar(key) && key.source === '' && key.range?.[0] === key.range?.[1] ? key.range![0] : -1
-      if (at >= 0 && YAML.isMap(map) && !map.flow && /^[ \t]*:/.test(text.slice(at))
+      const at = isScalar(key) && key.source === '' && key.range?.[0] === key.range?.[1] ? key.range![0] : -1
+      if (at >= 0 && isMap(map) && !map.flow && /^[ \t]*:/.test(text.slice(at))
         && /^[ \t]*$/.test(text.slice(text.lastIndexOf('\n', at - 1) + 1, at))) {
         found = true
-        return YAML.visit.BREAK
+        return visit.BREAK
       }
       return undefined
     },
@@ -161,13 +163,13 @@ function indentQuotedContinuations(text: string): string | undefined {
 }
 
 function readYamlDocument(text: string): MermaidYamlResult {
-  const parsed = YAML.parseDocument(text, { ...MERMAID_YAML_OPTIONS, logLevel: 'silent' })
+  const parsed = parseDocument(text, { ...MERMAID_YAML_OPTIONS, logLevel: 'silent' })
   const problem = parsed.errors.find(error => !jsYamlAccepts(error, text)) ?? parsed.warnings[0]
   if (problem) return { ok: false, message: problem.message.split('\n')[0]! }
   if (hasEmptyBlockKey(parsed, text)) return { ok: false, message: 'a block mapping entry has no key' }
   let numericTagError: string | undefined
   // js-yaml names a null key `null` (String(null)); the yaml package, ``.
-  YAML.visit(parsed, {
+  visit(parsed, {
     Scalar(_key, scalar) {
       const pattern = scalar.tag === JS_YAML_INT.tag ? JS_YAML_INT_RE : scalar.tag === JS_YAML_FLOAT.tag ? JS_YAML_FLOAT_RE : undefined
       if (pattern && (!pattern.test(scalar.source ?? '') || typeof scalar.value !== 'number')) {
@@ -175,7 +177,7 @@ function readYamlDocument(text: string): MermaidYamlResult {
       }
     },
     Pair(_key, pair) {
-      if (YAML.isScalar(pair.key) && pair.key.value === null) pair.key = new YAML.Scalar('null')
+      if (isScalar(pair.key) && pair.key.value === null) pair.key = new Scalar('null')
     },
   })
   if (numericTagError) return { ok: false, message: numericTagError }
@@ -202,13 +204,13 @@ export function parseMermaidYaml(source: string): MermaidYamlResult {
 /** Write a value as YAML that `parseMermaidYaml` (and upstream) reads back:
  * a string that would resolve as a number, boolean or null is quoted. */
 export function stringifyMermaidYaml(value: unknown): string {
-  const document = new YAML.Document(value, MERMAID_YAML_OPTIONS)
-  YAML.visit(document, {
+  const document = new Document(value, MERMAID_YAML_OPTIONS)
+  visit(document, {
     Scalar(_key, node) {
       // Block scalars can discard spaces on otherwise blank lines. Quote only
       // those strings; ordinary multiline text retains readable block syntax.
       if (typeof node.value === 'string' && /(?:^|\n)[ \t]+\r?(?:\n|$)/.test(node.value)) {
-        node.type = YAML.Scalar.QUOTE_DOUBLE
+        node.type = Scalar.QUOTE_DOUBLE
       }
     },
   })
