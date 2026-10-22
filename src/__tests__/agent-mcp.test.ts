@@ -289,6 +289,110 @@ describe('sandbox — isolation + sad paths', () => {
     expect(callbackThisArgEscape).toMatchObject({ ok: true, value: 'blocked' })
     expect(callbackThisArgMutation.error).toContain('read-only')
   })
+  test('owned collection iterators expose hardened methods, entry identity and exhaustion', async () => {
+    const result = await executeInSandbox(`
+      const parsed = mermaid.parseRegisteredMermaid('flowchart LR\\n A[Alpha] --> B[Beta]')
+      const nodes = mermaid.asFlowchart(parsed.value).body.graph.nodes
+      const values = nodes.values()
+      const first = values.next()
+      const pair = nodes.entries().next().value
+      let blocked = 0
+      try { first.value.label = 'Changed' } catch (_) { blocked++ }
+      try { Object.defineProperty(values, 'next', { value: () => ({ done: true }) }) } catch (_) { blocked++ }
+      try { Reflect.construct(values.next, []) } catch (_) { blocked++ }
+      const second = values.next()
+      const done = values.next()
+      return {
+        self: values[Symbol.iterator]() === values,
+        descriptor: Object.getOwnPropertyDescriptor(values, 'next').value === values.next,
+        constructor: typeof values.next.constructor,
+        prototype: Object.getPrototypeOf(values),
+        first: [first.value.id, first.value.label, first.value === nodes.get('A')],
+        second: second.value.id,
+        pair: [pair[0], pair[1] === nodes.get(pair[0])],
+        keys: [...nodes.keys()],
+        entries: [...nodes].map(([key, value]) => [key, value.label]),
+        done: [done.done, done.value === undefined, values.next().done],
+        blocked,
+      }
+    `)
+    expect(result).toMatchObject({ ok: true, value: {
+      self: true, descriptor: true, constructor: 'undefined', prototype: null,
+      first: ['A', 'Alpha', true], second: 'B', pair: ['A', true],
+      keys: ['A', 'B'], entries: [['A', 'Alpha'], ['B', 'Beta']], done: [true, true, true], blocked: 3,
+    } })
+  })
+
+  test('owned Set and array iterators retain pair aliases and sparse index values', async () => {
+    const result = await executeInSandbox(`
+      const parsed = mermaid.parseRegisteredMermaid('flowchart LR\\n A --> B')
+      const graph = mermaid.asFlowchart(parsed.value).body.graph
+      const node = graph.nodes.get('A')
+      const set = graph.edges.map(() => new Set([node]))[0]
+      const pair = set.entries().next().value
+      let blocked = false
+      try { set.values().next().value.label = 'Changed' } catch (_) { blocked = true }
+      const sparse = graph.edges.map(() => { const values = []; values.length = 4; values[1] = node; return values })[0]
+      return {
+        pair: [pair[0] === pair[1], pair[0] === node],
+        values: [...set].map(value => value.id),
+        keys: [...set.keys()].map(value => value.id),
+        indices: [...sparse.keys()],
+        sparse: [...sparse.entries()].map(([index, value]) => [index, value === undefined ? null : value.id]),
+        arrayIdentity: graph.edges.values().next().value === graph.edges[0],
+        blocked,
+      }
+    `)
+    expect(result).toMatchObject({ ok: true, value: {
+      pair: [true, true], values: ['A'], keys: ['A'], indices: [0, 1, 2, 3],
+      sparse: [[0, null], [1, 'A'], [2, null], [3, null]], arrayIdentity: true, blocked: true,
+    } })
+  })
+
+  test('array short-circuit callbacks visit only needed values and preserve holes and reducer seeds', async () => {
+    const result = await executeInSandbox(`
+      const parsed = mermaid.parseRegisteredMermaid('flowchart LR\\n A --> B')
+      const graph = mermaid.asFlowchart(parsed.value).body.graph
+      const values = graph.edges.map(() => {
+        const a = []; a.length = 4; a[1] = graph.nodes.get('A'); a[3] = graph.nodes.get('B'); return a
+      })[0]
+      const calls = []
+      const context = { marker: 'context' }
+      const some = values.some(function (value, index, owner) {
+        calls.push([value.id, index, owner === values, this === context]); return true
+      }, context)
+      const holes = []
+      values.find((value, index) => { holes.push(index); return value === undefined })
+      const reverseHoles = []
+      values.findLast((value, index) => { reverseHoles.push(index); return value === undefined })
+      const mapped = values.map(value => value.id)
+      const reduced = values.reduce((previous, current, index, owner) =>
+        [previous === graph.nodes.get('A'), current === graph.nodes.get('B'), index, owner === values, typeof previous.constructor])
+      const right = values.reduceRight((previous, current, index) => [previous.id, current.id, index])
+      const seed = { count: 0 }
+      const seeded = values.reduce((sum, value) => { sum.count++; return sum }, seed)
+      const empty = graph.edges.map(() => [])[0]
+      let missingSeed = false
+      try { empty.reduce(() => 0) } catch (_) { missingSeed = true }
+      const explicitUndefined = empty.reduce(() => 0, undefined) === undefined
+      const lazy = graph.edges.map(() => {
+        const a = [graph.nodes.get('A')]
+        Object.defineProperty(a, 1, { get() { throw new Error('unvisited value') }, enumerable: true })
+        return a
+      })[0]
+      return {
+        some, calls, holes, reverseHoles, mapped: [0 in mapped, mapped[1], 2 in mapped, mapped[3]],
+        reduced, right, seeded: [seeded.count, seed.count], missingSeed, explicitUndefined,
+        lazy: lazy.some(value => value.id === 'A'),
+      }
+    `)
+    expect(result).toMatchObject({ ok: true, value: {
+      some: true, calls: [['A', 1, true, true]], holes: [0], reverseHoles: [3, 2], mapped: [false, 'A', false, 'B'],
+      reduced: [true, true, 3, true, 'undefined'], right: ['B', 'A', 1], seeded: [2, 2],
+      missingSeed: true, explicitUndefined: true, lazy: true,
+    } })
+  })
+
   test('result getters are rejected instead of running after the VM timeout/commit point', async () => {
     const r = await executeInSandbox(
       `

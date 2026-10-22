@@ -124,17 +124,27 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       const encoded = JSON.stringify(value)
       return (encoded === undefined ? undefined : JSON.parse(encoded)) as T
     })
-  const iteratorOf = (items: unknown[]) => {
-    let index = 0
-    const iterator = {
-      [Symbol.iterator]() {
-        return this
+  const iteratorOf = (source: Iterator<unknown>, project: (value: unknown) => unknown = value => harden(value)) => {
+    let proxy: object
+    const next = harden(() => {
+      const step = source.next()
+      return step.done ? { value: undefined, done: true } : { value: project(step.value), done: false }
+    })
+    const iterator = harden(() => proxy)
+    const target = { next, [Symbol.iterator]: iterator }
+    // Only these owned methods cross the membrane. Ordinary object properties
+    // still hide functions; a native iterator and its prototype never escape.
+    proxy = new Proxy(target, {
+      get(_target, prop) {
+        return prop === 'next' ? next : prop === Symbol.iterator ? iterator : undefined
       },
-      next() {
-        return index < items.length ? { value: items[index++], done: false } : { value: undefined, done: true }
+      has(_target, prop) {
+        return prop === 'next' || prop === Symbol.iterator
       },
-    }
-    return harden(iterator)
+      ...readonlyTraps(),
+    })
+    hardened.set(target, proxy)
+    return rememberRaw(proxy, target)
   }
   function descriptorFor(target: object, prop: string | symbol): PropertyDescriptor | undefined {
     if (forbidden(prop)) return undefined
@@ -199,9 +209,12 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           if (prop === 'get') return harden((key: unknown) => harden(target.get(rawOf(key))))
           if (prop === 'set' || prop === 'delete' || prop === 'clear' || prop === 'getOrInsert' || prop === 'getOrInsertComputed') return harden(readonly)
           if (prop === 'has') return harden((key: unknown) => target.has(rawOf(key)))
-          if (prop === Symbol.iterator || prop === 'entries') return harden(() => iteratorOf(Array.from(target.entries(), ([k, v]) => harden([harden(k), harden(v)]))))
-          if (prop === 'values') return harden(() => iteratorOf(Array.from(target.values(), v => harden(v))))
-          if (prop === 'keys') return harden(() => iteratorOf(Array.from(target.keys(), k => harden(k))))
+          if (prop === Symbol.iterator || prop === 'entries') return harden(() => iteratorOf(target.entries(), entry => {
+            const [key, value] = entry as [unknown, unknown]
+            return [harden(key), harden(value)]
+          }))
+          if (prop === 'values') return harden(() => iteratorOf(target.values()))
+          if (prop === 'keys') return harden(() => iteratorOf(target.keys()))
           if (prop === 'forEach')
             return harden((cb: (value: unknown, key: unknown, map: Map<unknown, unknown>) => unknown, thisArg?: unknown) => {
               for (const [k, v] of target.entries()) cb.call(thisArg, harden(v), harden(k), proxy)
@@ -223,8 +236,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           if (prop === 'size') return target.size
           if (prop === 'add' || prop === 'delete' || prop === 'clear') return harden(readonly)
           if (prop === 'has') return harden((val: unknown) => target.has(rawOf(val)))
-          if (prop === Symbol.iterator || prop === 'values' || prop === 'keys') return harden(() => iteratorOf(Array.from(target.values(), v => harden(v))))
-          if (prop === 'entries') return harden(() => iteratorOf(Array.from(target.values(), v => harden([harden(v), harden(v)]))))
+          if (prop === Symbol.iterator || prop === 'values' || prop === 'keys') return harden(() => iteratorOf(target.values()))
+          if (prop === 'entries') return harden(() => iteratorOf(target.values(), value => {
+            const item = harden(value)
+            return [item, item]
+          }))
           if (prop === 'forEach')
             return harden((cb: (value: unknown, value2: unknown, set: Set<unknown>) => unknown, thisArg?: unknown) => {
               for (const v of target.values()) cb.call(thisArg, harden(v), harden(v), proxy)
@@ -263,32 +279,28 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         if (forbidden(prop)) return undefined
         if (Array.isArray(target)) {
           if (typeof prop === 'string' && arrayMutators.has(prop)) return harden(readonly)
-          if (prop === Symbol.iterator || prop === 'values') return harden(() => iteratorOf(Array.prototype.map.call(target, v => harden(v))))
-          if (prop === 'entries') return harden(() => iteratorOf(Array.prototype.map.call(target, (v, i) => harden([i, harden(v)]))))
-          if (prop === 'keys') return harden(() => iteratorOf(Array.from({ length: target.length }, (_, i) => i)))
+          if (prop === Symbol.iterator || prop === 'values') return harden(() => iteratorOf(Array.prototype.values.call(target)))
+          if (prop === 'entries') return harden(() => iteratorOf(Array.prototype.entries.call(target), entry => {
+            const [index, value] = entry as [number, unknown]
+            return [index, harden(value)]
+          }))
+          if (prop === 'keys') return harden(() => iteratorOf(Array.prototype.keys.call(target)))
           if (typeof prop === 'string' && arrayCallbackMethods.has(prop)) {
             return harden((cb: (value: unknown, index: number, array: unknown) => unknown, thisArg?: unknown) => {
-              const values = Array.prototype.map.call(target, v => harden(v))
-              const call = (v: unknown, i: number) => cb.call(thisArg, v, i, proxy)
+              const call = (v: unknown, i: number) => cb.call(thisArg, harden(v), i, proxy)
               if (prop === 'forEach') {
-                values.forEach(call)
+                Array.prototype.forEach.call(target, call)
                 return undefined
               }
-              if (prop === 'map') return values.map(call)
-              if (prop === 'filter') return values.filter((v, i) => call(v, i))
-              if (prop === 'find') return values.find((v, i) => Boolean(call(v, i)))
-              if (prop === 'findIndex') return values.findIndex((v, i) => Boolean(call(v, i)))
-              if (prop === 'findLast') {
-                for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return values[i]
-                return undefined
-              }
-              if (prop === 'findLastIndex') {
-                for (let i = values.length - 1; i >= 0; i--) if (call(values[i], i)) return i
-                return -1
-              }
-              if (prop === 'some') return values.some((v, i) => Boolean(call(v, i)))
-              if (prop === 'every') return values.every((v, i) => Boolean(call(v, i)))
-              if (prop === 'flatMap') return values.flatMap(call as any)
+              if (prop === 'map') return Array.prototype.map.call(target, call)
+              if (prop === 'filter') return Array.prototype.filter.call(target, call)
+              if (prop === 'find') return Array.prototype.find.call(target, call)
+              if (prop === 'findIndex') return Array.prototype.findIndex.call(target, call)
+              if (prop === 'findLast') return Array.prototype.findLast.call(target, call)
+              if (prop === 'findLastIndex') return Array.prototype.findLastIndex.call(target, call)
+              if (prop === 'some') return Array.prototype.some.call(target, call)
+              if (prop === 'every') return Array.prototype.every.call(target, call)
+              if (prop === 'flatMap') return Array.prototype.flatMap.call(target, call)
             })
           }
           if (prop === 'toSorted') {
@@ -317,9 +329,15 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
             })
           if (prop === 'reduce' || prop === 'reduceRight') {
             return harden(function (cb: (previous: unknown, current: unknown, index: number, array: unknown) => unknown, initial?: unknown) {
-              const values = Array.prototype.map.call(target, v => harden(v))
-              const reducer = (previous: unknown, current: unknown, index: number) => cb(previous, current, index, proxy)
-              return arguments.length >= 2 ? (prop === 'reduce' ? values.reduce(reducer, initial) : values.reduceRight(reducer, initial)) : prop === 'reduce' ? values.reduce(reducer) : values.reduceRight(reducer)
+              const supplied = arguments.length >= 2
+              let unwrappedSeed = !supplied
+              const reducer = (previous: unknown, current: unknown, index: number) => {
+                const accumulator = unwrappedSeed ? harden(previous) : previous
+                unwrappedSeed = false
+                return cb(accumulator, harden(current), index, proxy)
+              }
+              const reduce = prop === 'reduce' ? Array.prototype.reduce : Array.prototype.reduceRight
+              return Reflect.apply(reduce, target, supplied ? [reducer, initial] : [reducer])
             })
           }
         }
