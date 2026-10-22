@@ -373,14 +373,6 @@ export function isSafeActionHref(value: string): boolean {
   return normalized.length > 0
 }
 
-function isUnsafeReference(value: string): boolean {
-  const normalized = normalizedReference(value)
-  // Only same-document fragments are inert in an SVG imported into a host
-  // document. Absolute, protocol-relative, root-relative, and path-relative
-  // values can all fetch or navigate once the XML is attached to a DOM.
-  return normalized !== '' && !normalized.startsWith('#')
-}
-
 function unsafeCssReferences(value: string): string[] {
   const scan = normalizeCssObfuscation(decodeXmlReferences(value))
   const refs: string[] = []
@@ -393,10 +385,6 @@ function unsafeCssReferences(value: string): string[] {
     refs.push(`${match[0].slice(0, -1).trim()}()`)
   }
   return refs
-}
-
-function isActiveReference(value: string): boolean {
-  return /^(?:javascript|vbscript|data|file):/.test(normalizedReference(value))
 }
 
 function unsafeActiveCss(value: string): boolean {
@@ -442,14 +430,16 @@ function inspectAttributeSecurity(qualified: string, value: string, refs: string
   // external document and can fetch after DOM insertion. Reject the base
   // semantic itself so every local-reference check below remains sound.
   if (qualified.toLowerCase() === 'xml:base') refs.push(`xml:base=${value}`)
-  if ((name === 'href' || name === 'src' || name === 'data') && isUnsafeReference(value)) {
-    refs.push(normalizedReference(value).startsWith('javascript:') ? 'javascript-url' : value)
+  if (name === 'href' || name === 'src' || name === 'data') {
+    const normalized = normalizedReference(value)
+    // Only same-document fragments are inert after import into a host SVG.
+    if (normalized !== '' && !normalized.startsWith('#')) refs.push(normalized.startsWith('javascript:') ? 'javascript-url' : value)
+    if (/^(?:javascript|vbscript|data|file):/.test(normalized)) active.push(`${qualified}=${value}`)
   }
-  if ((name === 'href' || name === 'src' || name === 'data') && isActiveReference(value)) active.push(`${qualified}=${value}`)
-  if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeCssOrAnimatedValue(value)) {
-    refs.push(`${qualified}=${value}`)
+  if (CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') {
+    if (unsafeCssOrAnimatedValue(value)) refs.push(`${qualified}=${value}`)
+    if (unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
   }
-  if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
 }
 
 function inspectSecurity(svg: string): SecurityFindings {
