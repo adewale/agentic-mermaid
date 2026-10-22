@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import type { ElkNode } from 'elkjs'
 import { clearElkLayoutCache, elkLayoutSync } from '../elk-instance.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 const graph = (): ElkNode => ({
   id: 'root',
@@ -37,4 +40,60 @@ describe('ELK layout cache', () => {
     wider.children![0]!.width = 90
     expect(geometry(elkLayoutSync(wider))).not.toBe(geometry(down))
   })
+
+  test('owner residency quota rejects large results and preserves key and entry bounds', async () => {
+    const child = await runChild(process.execPath, ['-e', `
+      import assert from 'node:assert/strict'
+      import { spyOn } from 'bun:test'
+      import * as constructors from './src/elk-constructor.ts'
+      let layouts = 0
+      let output = input => ({ ...input, width: 1, height: 1 })
+      const raw = { onmessage: null, dispatcher: { saveDispatch({ data }) {
+        layouts++
+        raw.onmessage({ data: { data: output(data.graph) } })
+      } } }
+      spyOn(constructors, 'elkConstructor').mockReturnValue(class { worker = { worker: raw } })
+      const { elkLayoutSync, clearElkLayoutCache } = await import('./src/elk-instance.ts')
+      const request = (id, padding = '') => ({ id, children: [], edges: [], padding })
+      const solve = (id, padding) => elkLayoutSync(request(id, padding))
+      const reset = () => { clearElkLayoutCache(); layouts = 0 }
+
+      // One output with a short key already exceeds the owner quota. Map
+      // contents must count even though JSON serialization would omit them.
+      output = input => ({ ...input, payload: new Map([['large', 'x'.repeat(2 * 1024 * 1024)]]) })
+      solve('oversized')
+      solve('oversized')
+      assert.equal(layouts, 2)
+
+      // Three individually admissible results exceed 8 MiB together. Reuse
+      // refreshes recency, while the least recently used result is evicted.
+      reset()
+      output = input => ({ ...input, payload: new Map([['large', 'x'.repeat(700 * 1024)]]) })
+      solve('first'); solve('second'); solve('third')
+      solve('second')
+      assert.equal(layouts, 3)
+      solve('first')
+      assert.equal(layouts, 4)
+
+      // Large input keys with tiny outputs still obey the original aggregate
+      // one-million-code-unit bound, independently of result residency.
+      reset()
+      output = input => ({ id: input.id, width: 1, height: 1 })
+      const padding = 'k'.repeat(300 * 1024)
+      for (let index = 0; index < 4; index++) solve('key-' + index, padding)
+      solve('key-3', padding)
+      assert.equal(layouts, 4)
+      solve('key-0', padding)
+      assert.equal(layouts, 5)
+
+      reset()
+      for (let index = 0; index < 65; index++) solve('entry-' + index)
+      solve('entry-64'); solve('entry-1')
+      assert.equal(layouts, 65)
+      solve('entry-0')
+      assert.equal(layouts, 66)
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '1' } })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+  }, 25_000)
 })

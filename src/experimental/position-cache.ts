@@ -1,4 +1,3 @@
-import { rendererCacheBudget } from './cache-budget.ts'
 import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
@@ -7,7 +6,7 @@ const familyIds = new WeakMap<object, number>()
 let nextFamilyId = 0
 interface PositionedSnapshot { result: FamilyLayoutResult; projection?: FamilyPositionedView }
 const MAX_WEIGHT = 16 * 1024 * 1024
-const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, rendererCacheBudget)
+const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT)
 function isolatedKey(family: object, key: string): string {
   let id = familyIds.get(family)
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }

@@ -1,4 +1,3 @@
-import { rendererCacheBudget } from '../experimental/cache-budget.ts'
 import { asciiAdvanceSpans } from '../experimental/ascii-advances.ts'
 import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
@@ -65,7 +64,7 @@ export interface PixelTextBlock {
 
 // This evidence belongs to actual preparation, not to a caller-supplied copy
 // of the metrics. Scene admission carries it across its own immutable snapshot.
-const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024, rendererCacheBudget)
+const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024)
 const preparedBlocks = new WeakSet<object>()
 export function isRetainedPixelText(value: object): boolean { return preparedBlocks.has(value) }
 export function transferRetainedPixelText(source: object, snapshot: object): void {

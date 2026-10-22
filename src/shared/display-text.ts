@@ -1,4 +1,3 @@
-import { rendererCacheBudget } from '../experimental/cache-budget.ts'
 import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
@@ -21,7 +20,7 @@ export interface PreparedDisplayText {
   readonly lineStarts: readonly number[]
 }
 
-const displayPlans = new WeightedLru<string, PreparedDisplayText>(512, 4 * 1024 * 1024, rendererCacheBudget)
+const displayPlans = new WeightedLru<string, PreparedDisplayText>(512, 4 * 1024 * 1024)
 const retainedPlans = new WeakSet<object>()
 function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { retainedPlans.add(plan); return plan }
 
