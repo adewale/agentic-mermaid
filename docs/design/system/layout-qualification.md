@@ -10,6 +10,12 @@ The [follow-up exploration](layout-exploration.md) evaluates subtraction, family
 portfolios, primary community feedback, academic methods and new diagnostic
 CPU/allocation profiles. It identifies experiments, not additional renderer wins.
 
+The [executed follow-up experiments](layout-experiment-results.md) qualify
+`agentic-layered@23`: native ER label conflicts fall from 16 to zero, with
+unchanged ELK output. They separately report pair-query subtraction, final
+artifact checks and remaining ELK deficits. The runtime22 measurements below
+remain historical evidence at their original revision.
+
 ## Research applied
 
 The starting inventory is [Mermaid Community](../../mermaid-community.json).

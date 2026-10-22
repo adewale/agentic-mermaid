@@ -6,6 +6,11 @@ covered academic methods, community feedback, scope/subtraction, profiling, and
 stability/certification. This report adds evidence and an experiment backlog;
 it does not change renderer behavior or claim the proposed fixes have worked.
 
+The subsequent [executed experiments](layout-experiment-results.md) implement
+and measure selected proposals as `agentic-layered@23`, including the ER label
+fix. The investigation and recommendations below remain the runtime22 record;
+their historical ER conflict and cost figures are not updated in place.
+
 ## Recommendation
 
 Keep ELK as the default and native selection explicit. Repair ownership boundaries
