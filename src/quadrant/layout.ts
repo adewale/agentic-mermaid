@@ -90,6 +90,49 @@ function densityPlotSize(pointCount: number): number {
 
 interface Box { x0: number; y0: number; x1: number; y1: number }
 
+/** Request-local broad phase; exact family predicates remain authoritative. */
+class CollisionIndex<T> {
+  private cells = new Map<string, number[]>()
+  private values: T[] = []
+  private wide: number[] = []
+  private visited: number[] = []
+  private query = 0
+  private cellsOf(box: Box): [number, number, number, number] | undefined {
+    const x0 = Math.floor(box.x0 / 64), x1 = Math.floor(box.x1 / 64)
+    const y0 = Math.floor(box.y0 / 64), y1 = Math.floor(box.y1 / 64)
+    if (![x0, x1, y0, y1].every(Number.isSafeInteger) || x1 < x0 || y1 < y0 || (x1 - x0 + 1) * (y1 - y0 + 1) > 256) return undefined
+    return [x0, x1, y0, y1]
+  }
+  add(box: Box, value: T): void {
+    const id = this.values.length
+    this.values.push(value)
+    const cells = this.cellsOf(box)
+    if (!cells) { this.wide.push(id); return }
+    const [x0, x1, y0, y1] = cells
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const key = `${x},${y}`, ids = this.cells.get(key)
+      if (ids) ids.push(id)
+      else this.cells.set(key, [id])
+    }
+  }
+  some(box: Box, predicate: (value: T) => boolean): boolean {
+    const cells = this.cellsOf(box)
+    if (!cells) return this.values.some(predicate)
+    const query = ++this.query
+    const hit = (id: number): boolean => {
+      if (this.visited[id] === query) return false
+      this.visited[id] = query
+      return predicate(this.values[id]!)
+    }
+    for (const id of this.wide) if (hit(id)) return true
+    const [x0, x1, y0, y1] = cells
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      for (const id of this.cells.get(`${x},${y}`) ?? []) if (hit(id)) return true
+    }
+    return false
+  }
+}
+
 const intersects = (a: Box, b: Box): boolean =>
   Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
 
@@ -336,6 +379,14 @@ export function layoutQuadrantChart(
   })
   const canvas: Box = { x0: 2, y0: 2, x1: width - 2, y1: height - 2 }
   const routedLeaders: LeaderSegment[] = []
+  const indexed = chart.points.length >= 128
+  const labelIndex = indexed ? new CollisionIndex<Box>() : undefined
+  const pointIndex = indexed ? new CollisionIndex<Box>() : undefined
+  const leaderIndex = indexed ? new CollisionIndex<LeaderSegment>() : undefined
+  if (labelIndex && pointIndex) {
+    for (const box of placedBoxes) labelIndex.add(box, box)
+    for (const box of pointBoxes) pointIndex.add(box, box)
+  }
   const points: PositionedQuadrantPoint[] = chart.points.map((p, i) => {
     const vis = resolved[i]!
     const cx = round(plotX + p.x * size)
@@ -348,10 +399,15 @@ export function layoutQuadrantChart(
     const clear = (candidate: LabelCandidate): boolean => {
       const b = candidate.box
       if (!(b.x0 >= canvas.x0 && b.y0 >= canvas.y0 && b.x1 <= canvas.x1 && b.y1 <= canvas.y1) ||
-          placedBoxes.some(o => intersects(b, o)) || pointBoxes.some(o => intersects(b, o))) return false
+          (labelIndex ? labelIndex.some(b, o => intersects(b, o)) : placedBoxes.some(o => intersects(b, o))) ||
+          (pointIndex ? pointIndex.some(b, o => intersects(b, o)) : pointBoxes.some(o => intersects(b, o)))) return false
       if (!candidate.far) return true
       const leader = leaderFor(cx, cy, vis.radius, candidate)
-      return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
+      if (!labelIndex || !leaderIndex) return !placedBoxes.some(box => leaderCrossesBox(leader, box)) && !routedLeaders.some(existing => segmentsConflict(leader, existing))
+      const bounds = { x0: Math.min(leader.x1, leader.x2), y0: Math.min(leader.y1, leader.y2), x1: Math.max(leader.x1, leader.x2), y1: Math.max(leader.y1, leader.y2) }
+      const labelQuery = { x0: bounds.x0 - 2, y0: bounds.y0 - 2, x1: bounds.x1 + 2, y1: bounds.y1 + 2 }
+      const leaderQuery = { x0: bounds.x0 - 3, y0: bounds.y0 - 3, x1: bounds.x1 + 3, y1: bounds.y1 + 3 }
+      return !labelIndex.some(labelQuery, box => leaderCrossesBox(leader, box)) && !leaderIndex.some(leaderQuery, existing => segmentsConflict(leader, existing))
     }
     let first: LabelCandidate | undefined
     let chosen: LabelCandidate | undefined
@@ -380,6 +436,7 @@ export function layoutQuadrantChart(
 
     if (chosen) {
       placedBoxes.push(chosen.box)
+      labelIndex?.add(chosen.box, chosen.box)
       const labelBox: QuadrantLabelBox = {
         x0: round(chosen.box.x0), y0: round(chosen.box.y0),
         x1: round(chosen.box.x1), y1: round(chosen.box.y1),
@@ -388,6 +445,8 @@ export function layoutQuadrantChart(
       if (chosen.far) {
         positioned.leader = leaderFor(cx, cy, vis.radius, chosen)
         routedLeaders.push(positioned.leader)
+        const line = positioned.leader
+        leaderIndex?.add({ x0: Math.min(line.x1, line.x2), y0: Math.min(line.y1, line.y2), x1: Math.max(line.x1, line.x2), y1: Math.max(line.y1, line.y2) }, line)
       }
     } else {
       // Priority-based hiding: source order wins; the hidden label stays on
