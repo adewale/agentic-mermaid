@@ -51,6 +51,7 @@ export function layoutSharedFan(
     : { x: input.padding + cross, y: input.padding + (reverse ? mainExtent - main : main) }
   const nodes = input.nodes.map((_, id) => project(crosses[id]! - crossSize(id) / 2, starts[id]! + (reverse ? mainSize(id) : 0)))
   const edges = input.edges.map(edge => {
+    if (input.placementOnly && !input.cycleOriented && !input.loopPorts?.length) return { points: [] }
     const points: Point[] = []
     const junction = crossExtent / 2, join = sourceHeight + gap / 3, fork = sourceHeight + 2 * gap / 3
     for (const [cross, main] of [[crosses[edge.source]!, starts[edge.source]! + mainSize(edge.source)],

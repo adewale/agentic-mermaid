@@ -64,7 +64,7 @@ export function layoutCompoundGraph(
     }
     hosted[owner + 1]!.push(index)
   }
-  if (lifted.size && (groups.length > 16 || lifted.size > 16 || input.edges.length > 128)) unsupported('agentic local cross-hierarchy size limit')
+  if (!input.placementOnly && lifted.size && (groups.length > 16 || lifted.size > 16 || input.edges.length > 128)) unsupported('agentic local cross-hierarchy size limit')
   type Scope = { direction: Direction; placed: AgenticLayout; width: number; height: number; dx: number; dy: number }
   const scopes: Scope[] = new Array(groups.length + 1)
   let expandedVertices = 0
@@ -85,7 +85,7 @@ export function layoutCompoundGraph(
       const endpoints = lifted.get(index) ?? edge
       return { ...edge, source: local.get(endpoints.source)!, target: local.get(endpoints.target)! }
     })
-    const flat: MeasuredGraph = { nodes, edges, padding: 0, direction, nodeSpacing: input.nodeSpacing, layerSpacing: input.layerSpacing, edgeSpacing: input.edgeSpacing }
+    const flat: MeasuredGraph = { nodes, edges, padding: 0, direction, nodeSpacing: input.nodeSpacing, layerSpacing: input.layerSpacing, edgeSpacing: input.edgeSpacing, ...(input.placementOnly ? { placementOnly: true } : {}) }
     if (lifted.size && hosted[scope]!.some(index => lifted.has(index))) flat.compactPrivateRanks = true
     const placed = layout(flat)
     expandedVertices += placed.expandedVertices ?? nodes.length
@@ -120,6 +120,9 @@ export function layoutCompoundGraph(
   }
   project(0, 0, 0)
   const result: AgenticLayout = { topology: 'layered', width: root.width, height: root.height, nodes, groups: frames, edges, expandedVertices }
-  if (!lifted.size) return result
+  // Every cross-scope edge participated at its lowest common scope. The
+  // family owns boundary routing; omitting that work must not omit the edge's
+  // placement influence as the previous filtered retry did.
+  if (!lifted.size || input.placementOnly) return result
   return routeCrossHierarchy(input, result, owners, lifted, scopes.map(scope => scope.direction), routingWork, expansionLimit, unsupported)
 }
