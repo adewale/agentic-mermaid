@@ -140,11 +140,16 @@ function placeNativeGraphCandidate(
     ...edge, ...geometry.edges[index]!, edgeIndex: index, inlineStyle: resolveEdgeInlineStyle(index, graph),
     ...(edge.id && graph.classAssignments.has(edge.id) ? { classNames: graph.classAssignments.get(edge.id)!.split(/\s+/).filter(Boolean) } : {}),
   }))
-  const frames = groupSources.map((source, index): PositionedGroup => ({
-    id: source.id, label: source.label, ...(source.labelContent ? { labelContent: source.labelContent } : {}),
-    ...geometry.groups![index]!, children: [], ...(source.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
-    ...(source.stateComposite ? { inlineStyle: resolveClassInlineStyle(source.id, graph) } : {}),
-  }))
+  const frames = groupSources.map((source, index): PositionedGroup => {
+    const frame: PositionedGroup = {
+      id: source.id, label: source.label, ...(source.labelContent ? { labelContent: source.labelContent } : {}),
+      ...geometry.groups![index]!, children: [], ...(source.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
+      ...(source.stateComposite ? { inlineStyle: resolveClassInlineStyle(source.id, graph) } : {}),
+    }
+    // Family rendering consumes the measured strip without generic cleanup.
+    if (placementOnly) frame.headerHeight = measured.groups[index]!.headerHeight
+    return frame
+  })
   const groups: PositionedGroup[] = []
   frames.forEach((frame, index) => {
     const parent = measured.groups[index]!.parent
