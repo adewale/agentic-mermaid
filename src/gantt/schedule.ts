@@ -298,15 +298,16 @@ function resolveCalendarDays(tokens: GanttCalendarToken[], calendar: GanttCalend
   return { days, weekdays, weekends }
 }
 
-/**
- * Build the day-exclusion predicate: a UTC day is excluded when it matches an
- * `excludes` token and is not explicitly re-included via `includes`.
- */
+interface ExclusionPattern { weekdays: boolean[]; exceptions: number[] }
+const exclusionPatterns = new WeakMap<(day: EpochMs) => boolean, () => ExclusionPattern>()
+
+/** Build the day-exclusion predicate: includes override excludes for the
+ * same UTC day. Long duration walks may reuse its private periodic pattern. */
 export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: EpochMs) => boolean {
   const ex = resolveCalendarDays(calendar.excludes, calendar)
   const inc = resolveCalendarDays(calendar.includes, calendar)
   const weekendDays: number[] = calendar.weekendStart === 'friday' ? [5, 6] : [6, 0]
-  return (dayStartMs: EpochMs): boolean => {
+  const predicate = (dayStartMs: EpochMs): boolean => {
     const day = epochDay(dayStartMs)
     const dow = dayOfWeek(dayStartMs)
     const included = inc.days.has(day) || inc.weekdays.has(dow) || (inc.weekends && weekendDays.includes(dow))
@@ -316,6 +317,17 @@ export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: E
     if (ex.weekends && weekendDays.includes(dow)) return true
     return false
   }
+  if (calendar.excludes.length) {
+    let pattern: ExclusionPattern | undefined
+    exclusionPatterns.set(predicate, () => pattern ??= {
+      weekdays: Array.from({ length: 7 }, (_, dow) => {
+        if (inc.weekdays.has(dow) || (inc.weekends && weekendDays.includes(dow))) return false
+        return ex.weekdays.has(dow) || (ex.weekends && weekendDays.includes(dow))
+      }),
+      exceptions: [...new Set([...ex.days, ...inc.days])].sort((a, b) => a - b),
+    })
+  }
+  return predicate
 }
 
 /**
@@ -336,7 +348,43 @@ function extendOverExcludedDays(start: EpochMs, end: EpochMs, isExcluded: (d: Ep
   let renderEnd = end
   let invalid = false
   let steps = 0
+  // Whole-day integer arithmetic must stay exact, including the legacy walk
+  // limit. Fractional/very large instants retain the original scalar walk.
+  const canSkip = end - start >= 14 * DAY_MS && Number.isSafeInteger(start) && Number.isSafeInteger(end)
+    && Math.max(Math.abs(start), Math.abs(end)) + MAX_CALENDAR_STEPS * DAY_MS < Number.MAX_SAFE_INTEGER
+  const pattern = canSkip ? exclusionPatterns.get(isExcluded)?.() : undefined
   while (cursor <= result) {
+    if (pattern) {
+      const day = epochDay(cursor)
+      let lo = 0, hi = pattern.exceptions.length
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1
+        if (pattern.exceptions[mid]! < day) lo = mid + 1
+        else hi = mid
+      }
+      // No skipped observation may touch an explicit include/exclude date.
+      const beforeException = lo < pattern.exceptions.length ? pattern.exceptions[lo]! - day : Infinity
+      const weeks = Math.floor(Math.min(Math.floor((result - cursor) / DAY_MS) + 1, MAX_CALENDAR_STEPS - steps, beforeException) / 7)
+      if (weeks > 0) {
+        const dow = dayOfWeek(cursor)
+        let excluded = 0, firstUpdate: number | undefined, steadyUpdate: number | undefined
+        let previous = invalid, steadyPrevious = pattern.weekdays[(dow + 6) % 7]!
+        for (let offset = 0; offset < 7; offset++) {
+          if (!previous) firstUpdate = excluded
+          if (!steadyPrevious) steadyUpdate = excluded
+          previous = steadyPrevious = pattern.weekdays[(dow + offset) % 7]!
+          if (previous) excluded++
+        }
+        // renderEnd observes result BEFORE each day after a working day.
+        const update = weeks > 1 && steadyUpdate !== undefined ? (weeks - 1) * excluded + steadyUpdate : firstUpdate
+        if (update !== undefined) renderEnd = result + update * DAY_MS
+        result += weeks * excluded * DAY_MS
+        cursor += weeks * 7 * DAY_MS
+        steps += weeks * 7
+        invalid = previous
+        continue
+      }
+    }
     if (++steps > MAX_CALENDAR_STEPS) {
       throw new GanttError('GANTT_SCHEDULE_OVERFLOW', `Calendar exclusion walk exceeded ${MAX_CALENDAR_STEPS} days (is every day excluded?)`, line)
     }
