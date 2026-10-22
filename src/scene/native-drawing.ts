@@ -62,7 +62,7 @@ function* paintEntries(parts: readonly Fragment[]): Generator<NativePaintEntry> 
         }
         const owner = fragment.node.owner ?? groups[groups.length - 1]!.owner
         yield { node: fragment.node, key, parentMatrix,
-          ancestors: groups.map(group => group.own), ...(owner ? { owner } : {}),
+          ancestors: groups.map(group => group.own), owner,
           conditional, groupOpacity }
       }
     }
@@ -79,20 +79,11 @@ export function drawNative(
 ): NativeDrawing {
   const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
   const validator = createNativeSceneValidator(header)
-  const checked = (): void => {
-    const result = validator.finish()
-    if (!result.valid) throw new SceneValidationError(result.diagnostics)
-  }
   const leaf = (node: LeafNode): Fragment => {
     const svg = validator.node(node)
     return { kind: 'leaf', node, svg, nodeCount: 1, depth: 0,
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined }
-  }
-  const count = (fragments: readonly Fragment[], group = 0): number => {
-    const total = fragments.reduce((sum, fragment) => sum + fragment.nodeCount, group)
-    if (total > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
-    return total
   }
   const factory: DrawingFactory<Fragment> = {
     shape: fields => leaf(marks.shape(fields)),
@@ -132,8 +123,10 @@ export function drawNative(
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }
   const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
-  checked()
-  count(document.parts)
+  const result = validator.finish()
+  if (!result.valid) throw new SceneValidationError(result.diagnostics)
+  const nodeCount = document.parts.reduce((sum, fragment) => sum + fragment.nodeCount, 0)
+  if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
   if (document.parts.reduce((sum, part) => sum + part.svg.length + 1, -1) > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
   const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
   const svg = document.parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n')
