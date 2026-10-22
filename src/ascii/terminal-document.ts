@@ -523,8 +523,14 @@ export class TerminalDocument {
    * Node decorations and non-geometric family projections are not connectors. */
   assertMarkers(visit: () => void = () => {}): void {
     let contracted = false
-    for (const ports of this.ports.values()) for (const port of ports) { visit(); contracted ||= port.markers !== undefined }
+    let neededTextOwners: Set<string> | undefined
+    for (const [key, ports] of this.ports) for (const port of ports) {
+      visit(); contracted ||= port.markers !== undefined
+      if (port.markers && port.markerProjection) (neededTextOwners ??= new Set()).add(key)
+    }
     if (!contracted) return
+    const visibleTextOwners = neededTextOwners ? new Set<string>() : undefined
+    let projectionFeatures: Set<string> | undefined
     const frames = new Map<string, { kind: TerminalOwner['kind']; bounds: TerminalBounds }>()
     const includeFrame = (owner: TerminalOwner, bounds: TerminalBounds, declared = false) => {
       if (!['node', 'group', 'cluster', 'subgraph'].includes(owner.kind ?? 'node')) return
@@ -536,6 +542,14 @@ export class TerminalDocument {
     // allocation wins over inferred ink bounds, which may include annotations.
     for (const [x, y, cell] of this.entries()) {
       visit()
+      if (neededTextOwners?.size && cell.kind === 'text' && cell.glyph.trim()) {
+        for (const owner of cell.owners) {
+          visit()
+          const key = this.ownerKeys.get(owner) ?? ownerKey(owner)
+          if (neededTextOwners.delete(key)) visibleTextOwners!.add(key)
+          if (!neededTextOwners.size) break
+        }
+      }
       if (cell.kind !== 'text') for (const owner of cell.owners) { visit(); includeFrame(owner, { x, y, width: cell.width, height: 1 }) }
     }
     for (const [key, bounds] of this.declared) { visit(); includeFrame(this.elements.get(key)!, bounds, true) }
@@ -553,9 +567,14 @@ export class TerminalDocument {
         const sites = expected.get(key) ?? new Set<string>()
         expected.set(key, sites)
         if (port.markerProjection) {
-          let fallback = false
-          for (const [, , cell] of this.entries()) { visit(); if (cell.kind === 'text' && owns(cell) && cell.glyph.trim()) { fallback = true; break } }
-          if (!this.diagnostics.some(diagnostic => { visit(); return diagnostic.code === 'TERMINAL_FAMILY_PROJECTION' && diagnostic.feature === port.markerProjection }) || !fallback) fail()
+          if (!projectionFeatures) {
+            projectionFeatures = new Set()
+            for (const diagnostic of this.diagnostics) {
+              visit()
+              if (diagnostic.code === 'TERMINAL_FAMILY_PROJECTION') projectionFeatures.add(diagnostic.feature)
+            }
+          }
+          if (!projectionFeatures.has(port.markerProjection) || !visibleTextOwners!.has(key)) fail()
           continue
         }
         if (port.markers.length && port.surface !== 'lifeline') {

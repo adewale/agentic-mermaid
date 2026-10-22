@@ -82,7 +82,21 @@ describe('owned terminal composition', () => {
     expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
     doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'family.r.route', message: 'The route uses an owned endpoint summary.' })
     expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
-    doc.text(0, 3, 'A --> B', { owner: edge })
+    doc.text(0, 3, 'unrelated', { owner: owner('r') })
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    doc.text(0, 4, 'A', { owner: edge })
+    expect(() => doc.serialize()).not.toThrow()
+    // Proof observations must describe the current public cells/diagnostics,
+    // including owners replaced with equivalent non-interned records.
+    const cell = doc.cell(0, 4)!
+    cell.owners = [{ ...edge }] as unknown as typeof cell.owners
+    expect(() => doc.serialize()).not.toThrow()
+    cell.glyph = ' '
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    cell.glyph = 'A'
+    const diagnostic = doc.diagnostics.pop()!
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    doc.diagnostics.push(diagnostic)
     expect(() => doc.serialize()).not.toThrow()
   })
 
