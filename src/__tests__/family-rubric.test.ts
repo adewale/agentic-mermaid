@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import {
-  assessRenderedLayout, assessJourneyLayout, familyHardViolations,
+  assessRenderedLayout, assessRenderedLayoutHardViolations, assessJourneyLayout, familyHardViolations,
   FAMILY_HARD_METRICS,
 } from '../family-rubric.ts'
 import type { RenderedLayout } from '../agent/types.ts'
@@ -41,6 +41,38 @@ function looseLayout(layout: {
 const baseLayout = looseLayout
 
 describe('family rubric hard metrics discriminate', () => {
+  it('reports every hard failure in order without including soft quality findings', () => {
+    const layout = baseLayout({
+      kind: 'class',
+      nodes: [
+        { id: 'invalid', x: Number.NaN, y: 0, w: 10, h: 10, shape: 'rectangle', label: '' },
+        { id: 'a', x: 10, y: 10, w: 50, h: 20, shape: 'rectangle', label: '' },
+        { id: 'mark', x: 20, y: 20, w: 6, h: 6, shape: 'circle', label: '' },
+        { id: 'b', x: 30, y: 15, w: 50, h: 20, shape: 'rectangle', label: 'B' },
+        { id: 'outside', x: 190, y: 10, w: 50, h: 20, shape: 'rectangle', label: 'Outside' },
+      ],
+      groups: [
+        { id: 'first', x: 0, y: 0, w: 100, h: 50, members: ['b'] },
+        { id: 'second', x: 60, y: 10, w: 100, h: 50, members: ['a'] },
+      ],
+    })
+    layout.nodes[1]!.labelBounds = { x: 10, y: -4, w: 20, h: 12 } as NonNullable<RenderedLayout['nodes'][number]['labelBounds']>
+    const expected = [
+      { metric: 'nonFiniteGeometry', detail: 'node invalid' },
+      { metric: 'offCanvas', detail: 'node outside at (190,10) 50×20' },
+      { metric: 'offCanvas', detail: 'label a' },
+      { metric: 'nodeOverlaps', detail: 'a overlaps b' },
+      { metric: 'groupBreaches', detail: 'a outside second' },
+      { metric: 'groupOverlaps', detail: 'first partially overlaps second' },
+    ]
+    expect(assessRenderedLayoutHardViolations(layout)).toEqual(expected)
+    const full = assessRenderedLayout(layout)
+    expect(familyHardViolations(full)).toEqual(expected)
+    expect(full.violations.some(value => value.metric === 'missingLabel')).toBe(true)
+    expect(full.violations.some(value => value.metric === 'regionIntrusions')).toBe(true)
+    expect(full.metrics.markOverlapRate).toBeGreaterThan(0)
+  })
+
   it('scores a healthy layout 100 with zero violations', () => {
     const r = assessRenderedLayout(baseLayout())
     expect(r.score).toBe(100)

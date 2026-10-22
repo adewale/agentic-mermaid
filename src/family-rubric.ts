@@ -201,6 +201,17 @@ function groupOccupants(group: RenderedLayoutGroup, groups: RenderedLayoutGroup[
  * deterministic: identical input produces identical metrics and score.
  */
 export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult {
+  return assessFamilyLayout(layout, false)
+}
+
+/** Final positioning needs hard failures, not the discarded quality score. */
+export function assessRenderedLayoutHardViolations(layout: RenderedLayout): FamilyRubricViolation[] {
+  return assessFamilyLayout(layout, true)
+}
+
+function assessFamilyLayout(layout: RenderedLayout, hardOnly: true): FamilyRubricViolation[]
+function assessFamilyLayout(layout: RenderedLayout, hardOnly: false): FamilyRubricResult
+function assessFamilyLayout(layout: RenderedLayout, hardOnly: boolean): FamilyRubricResult | FamilyRubricViolation[] {
   const violations: FamilyRubricViolation[] = []
 
   let nonFinite = 0
@@ -273,14 +284,15 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   let nodeOverlaps = 0
   let markOverlaps = 0
   let pairs = 0
-  for (let i = 0; i < layout.nodes.length; i++) {
-    for (let j = i + 1; j < layout.nodes.length; j++) {
-      const a = layout.nodes[i]!,
-        b = layout.nodes[j]!
+  const pairNodes = hardOnly ? layout.nodes.filter(isBox) : layout.nodes
+  for (let i = 0; i < pairNodes.length; i++) {
+    for (let j = i + 1; j < pairNodes.length; j++) {
+      const a = pairNodes[i]!,
+        b = pairNodes[j]!
       if (!finiteRect(a.x, a.y, a.w, a.h) || !finiteRect(b.x, b.y, b.w, b.h)) continue
       pairs++
       if (!rectOverlap(a, b)) continue
-      if (isBox(a) && isBox(b)) {
+      if (hardOnly || (isBox(a) && isBox(b))) {
         nodeOverlaps++
         violations.push({ metric: 'nodeOverlaps', detail: `${a.id} overlaps ${b.id}` })
       } else {
@@ -334,6 +346,8 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
       violations.push({ metric: 'groupOverlaps', detail: `${a.id} partially overlaps ${b.id}` })
     }
   }
+
+  if (hardOnly) return violations
 
   // Region-intrusion purity (the dual of groupBreaches): a foreign node whose
   // CENTRE sits strictly inside a group's rect while it is not a member of that

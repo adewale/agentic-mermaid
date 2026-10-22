@@ -9,7 +9,7 @@ import { cachedPositioned, retainPositioned } from './experimental/position-cach
 
 import type { FamilyLayoutResult, FamilyPositionedProjectionOptions, FamilyPositionedView } from './agent/families.ts'
 import type { FamilyId } from './agent/types.ts'
-import { assessRenderedLayout, familyHardViolations } from './family-rubric.ts'
+import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
@@ -69,7 +69,7 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
       // their bounded stronger route certification before reaching this seam.
       try {
         const view = descriptor.projectPositioned!({ positioned: result.positioned, options: projectionOptions })
-        const violations = familyHardViolations(assessRenderedLayout({ ...view, kind: familyId }))
+        const violations = assessRenderedLayoutHardViolations({ ...view, kind: familyId })
         if (violations.length) throw new LayoutCertificationError([{ strategy, violations: violations.map(value => `${value.metric}: ${value.detail}`) }])
         retainedProjections.set(result, view)
       } catch (error) {
