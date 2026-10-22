@@ -69,6 +69,7 @@ export function layoutMeasuredForest(input: MeasuredGraph): AgenticLayout | unde
     height: 2 * padding + (horizontal ? crossExtent : mainExtent),
     nodes: positioned,
     edges: edges.map(edge => {
+      if (input.placementOnly && !input.cycleOriented && !input.loopPorts?.length) return { points: [] }
       const source = positioned[edge.source]!, target = positioned[edge.target]!
       const from = nodes[edge.source]!, to = nodes[edge.target]!
       const start = horizontal

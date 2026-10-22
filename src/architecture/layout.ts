@@ -3,9 +3,8 @@ import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { layoutGraphSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
 import { withGraphLayoutDecisionObserver } from '../layout/backend.ts'
-import { layoutAgenticCompoundPlacement } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -92,8 +91,7 @@ export function layoutArchitectureDiagram(
   }
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
-  const place = (backend: 'elk' | 'agentic', placementGraph = graph) => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(placementGraph, {
-    ...(options.graphLayout ? { graphLayout: { backend } } : {}),
+  const placementOptions = {
     // Keep placement clearance separate from the drawn surface. Larger rings
     // reserve their own footprint instead of borrowing State's fixed size.
     nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
@@ -103,7 +101,6 @@ export function layoutArchitectureDiagram(
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
-    preserveSubgraphChildOrder: backend === 'elk',
     // The graph's temporary routes do not describe the side-constrained paths
     // below. Their cosmetic score cannot rank Architecture's final artifact.
     compareRoutePreferences: false,
@@ -138,12 +135,15 @@ export function layoutArchitectureDiagram(
         lineWidth: metrics.groupLineWidth,
       },
     } : undefined,
-  }))
-  // The adapter below routes every original side-constrained relationship.
-  // Keep the optional native scaffolding retry inside its on-demand module.
+  }
+  // All relationships constrain placement; no filtered scaffolding retry.
+  // Native placement returns no graph route proof for geometry replaced below.
   const positioned = runMeasuredGraphBackend(options,
-    () => layoutAgenticCompoundPlacement(graph, input => place('agentic', input)),
-    () => place('elk'))
+    () => layoutNativeGraphPlacementSync(graph, placementOptions),
+    () => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
+      ...placementOptions, preserveSubgraphChildOrder: true,
+      ...(options.graphLayout ? { graphLayout: { backend: 'elk' } } : {}),
+    })))
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
