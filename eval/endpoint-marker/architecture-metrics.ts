@@ -12,7 +12,13 @@ type Point = { x: number; y: number }
 type Tag = { name: string; start: number; attrs: Record<string, string> }
 type Rect = { x: number; y: number; w: number; h: number }
 
-const numbers = (value: string): number[] => (value.match(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi) ?? []).map(Number)
+function numbers(value: string): number[] {
+  const tokens = value.trim().split(/[\s,]+/)
+  if (!tokens.every(token => /^[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?$/i.test(token) && Number.isFinite(Number(token)))) {
+    throw new Error('Invalid SVG numeric list')
+  }
+  return tokens.map(Number)
+}
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-5
 const length = (a: Point, b: Point): number => Math.hypot(b.x - a.x, b.y - a.y)
 function points(tag: Tag): Point[] {
@@ -20,6 +26,7 @@ function points(tag: Tag): Point[] {
   // curved path. Refuse missing coverage instead of reporting invented zeros.
   if (tag.name !== 'polyline') throw new Error(`Unsupported Architecture carrier: ${tag.name}`)
   const coords = numbers(tag.attrs.points!)
+  if (coords.length % 2) throw new Error('Incomplete carrier coordinate pair')
   const result = Array.from({ length: coords.length / 2 }, (_, i) => ({ x: coords[2 * i]!, y: coords[2 * i + 1]! }))
   if (result.length < 2 || !result.every(p => Number.isFinite(p.x + p.y))) throw new Error('Invalid carrier')
   return result.filter((p, i) => !i || length(p, result[i - 1]!) > 1e-5)
@@ -57,7 +64,9 @@ function markerPlacement(tags: Tag[], carrier: Tag, route: Point[], end: 'start'
   if (!marker) throw new Error(`Missing marker ${markerId}`)
   const shape = tags.find(tag => tag.start > marker.start && tag.name === 'polygon')
   if (!shape) throw new Error(`Missing arrow polygon ${markerId}`)
-  const coords = numbers(shape.attrs.points!), contact = { x: coords[2]!, y: coords[3]! }
+  const coords = numbers(shape.attrs.points!)
+  if (coords.length < 6 || coords.length % 2) throw new Error('Invalid arrow polygon')
+  const contact = { x: coords[2]!, y: coords[3]! }
   const start = end === 'start', anchor = start ? route[0]! : route.at(-1)!
   const neighbour = start ? route[1]! : route.at(-2)!
   const dx = start ? neighbour.x - anchor.x : anchor.x - neighbour.x
@@ -75,12 +84,15 @@ function markerPlacement(tags: Tag[], carrier: Tag, route: Point[], end: 'start'
   if (m.preserveAspectRatio && m.preserveAspectRatio !== 'xMidYMid meet') throw new Error('Unsupported marker viewport alignment')
   const width = Number(m.markerWidth) / viewport, height = Number(m.markerHeight) / viewport
   const x = view ? view[0]! - (width - view[2]!) / 2 : 0, y = view ? view[1]! - (height - view[3]!) / 2 : 0
+  const clipped = m.overflow === undefined || m.overflow === 'hidden'
+  const retainedContact = !clipped || (contact.x >= x - 1e-6 && contact.x <= x + width + 1e-6
+    && contact.y >= y - 1e-6 && contact.y <= y + height + 1e-6)
   // SVG marker viewports default to overflow:hidden. Paint, including the
   // arrow's stroke, is clipped to this box. A separating tangent proves that
   // the entire visible marker stays outside its attached filled rect or disk.
-  const clip = m.overflow === undefined || m.overflow === 'hidden'
+  const clip = clipped
     ? [{ x, y }, { x: x + width, y }, { x: x + width, y: y + height }, { x, y: y + height }].map(project) : undefined
-  return { contact: project(contact), clip }
+  return { contact: project(contact), retainedContact, clip }
 }
 function outsideSurface(points: Point[] | undefined, surface: Tag, side: string): boolean {
   if (!points) return false
@@ -127,7 +139,10 @@ export function architectureSvgMetrics(svg: string, layout: RenderedLayout, pain
         const markerError = surfaceError(placement.contact, surface, side)
         if (!outsideSurface(placement.clip, surface, side)) { unverifiedMarkerBodies++; findings.push(`${index}/${end}: marker viewport has no separating tangent from ${id}`) }
         maxMarkerErrorPx = Math.max(maxMarkerErrorPx, markerError)
-        if (markerError > 0.01) { offOutlineMarkers++; findings.push(`${index}/${end}: marker ${markerError.toFixed(3)}px off ${id}`) }
+        if (!placement.retainedContact || markerError > 0.01) {
+          offOutlineMarkers++
+          findings.push(`${index}/${end}: ${placement.retainedContact ? `marker ${markerError.toFixed(3)}px off ${id}` : 'marker contact clipped by its viewport'}`)
+        }
       }
     }
   }
@@ -184,6 +199,11 @@ export function architectureSvgMetrics(svg: string, layout: RenderedLayout, pain
   }
   if (!paint) throw new Error('Missing native paint certificate coverage')
   return {
+    markerEndpoints: carriers.map(carrier => ({
+      start: carrier.attrs['marker-start'] ?? null,
+      end: carrier.attrs['marker-end'] ?? null,
+      mid: carrier.attrs['marker-mid'] ?? null,
+    })),
     metrics: {
       routes: routes.length, endpointChecks: 2 * routes.length,
       markerChecks: carriers.reduce((n, c) => n + Number(!!c.attrs['marker-start']) + Number(!!c.attrs['marker-end']), 0),

@@ -73,7 +73,8 @@ const regressions = measurements.flatMap(row => row.before && row.after
     const coverage = ['routes', 'endpointChecks', 'markerChecks'].includes(metric)
     return (coverage ? after !== value : after > value + 1e-6) ? [{ id: row.id, metric, before: value, after }] : []
   }) : [])
-const meaningChanges = measurements.filter(row => row.before && row.after && row.before.meaning !== row.after.meaning).map(row => row.id)
+const meaningChanges = measurements.filter(row => row.before && row.after && (row.before.meaning !== row.after.meaning
+  || JSON.stringify(row.before.markerEndpoints) !== JSON.stringify(row.after.markerEndpoints))).map(row => row.id)
 const failedContacts = measurements.filter(row => row.after && (row.after.metrics.offOutlineEndpoints || row.after.metrics.offOutlineMarkers || row.after.metrics.unverifiedMarkerBodies || row.after.metrics.routeCertificateFindings)).map(row => row.id)
 
 // Unchanged final SVG, public geometry and paint/route certificates preserve

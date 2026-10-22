@@ -31,6 +31,13 @@ function visibleContact(svg: Tag[], route: Tag, end: 'start' | 'end', contact: P
   if (start && marker.orient === 'auto-start-reverse') angle += Math.PI
   const view = marker.viewBox ? numbers(marker.viewBox) : undefined
   const viewportScale = view ? Math.min(Number(marker.markerWidth) / view[2]!, Number(marker.markerHeight) / view[3]!) : 1
+  if (marker.overflow === undefined || marker.overflow === 'hidden') {
+    const w = Number(marker.markerWidth) / viewportScale, h = Number(marker.markerHeight) / viewportScale
+    const x = view ? view[0]! - (w - view[2]!) / 2 : 0, y = view ? view[1]! - (h - view[3]!) / 2 : 0
+    if (!(contact.x >= x - 1e-6 && contact.x <= x + w + 1e-6 && contact.y >= y - 1e-6 && contact.y <= y + h + 1e-6)) {
+      throw new Error('Marker contact clipped by its viewport')
+    }
+  }
   const unitScale = marker.markerUnits === 'userSpaceOnUse' ? 1 : Number(route.attrs['stroke-width'] ?? 1)
   const dx = (contact.x - Number(marker.refX)) * viewportScale * unitScale,
     dy = (contact.y - Number(marker.refY)) * viewportScale * unitScale
@@ -132,6 +139,21 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
       }
     })
   }
+
+  test('a shaft reaching the card cannot mask a clipped arrowhead', () => {
+    // Only arrowheads are red: measuring the shaft as well would hide the gap.
+    const original = renderMermaidSVG(source('R', 'L'), { embedFontImport: false, architecture: { visual: { edgeLineWidth: 3 } } })
+      .replace(/<marker\b[\s\S]*?<\/marker>/g, marker => marker.replaceAll('#47474a', '#ff0000'))
+    const clipped = original.replace('id="architecture-arrow-end" markerWidth="8"', 'id="architecture-arrow-end" markerWidth="7"')
+    expect(clipped).not.toBe(original)
+    expect(() => architectureContacts(original)).not.toThrow()
+    expect(() => architectureContacts(clipped)).toThrow('Marker contact clipped by its viewport')
+    const anchor = routePoints(tags(original).find(tag => tag.attrs.class === 'architecture-edge')!).at(-1)!
+    const region = { left: Math.floor(anchor.x - 26), right: Math.ceil(anchor.x + 2), top: Math.floor(anchor.y - 14), bottom: Math.ceil(anchor.y + 14) }
+    const gap = (svg: string) => anchor.x - (colorPixelBox(svg, redPixel, region).right + 1)
+    expect(Math.abs(gap(original))).toBeLessThanOrEqual(1)
+    expect(gap(clipped)).toBeGreaterThanOrEqual(2)
+  })
 
   test('large configured junctions reserve placement space rather than overlap their painted rings', () => {
     const source = 'architecture-beta\njunction a\njunction b'

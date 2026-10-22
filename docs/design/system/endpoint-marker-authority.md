@@ -266,3 +266,32 @@ The initial full report predates enrollment of the three junction workloads;
 their seven-round comparison is recorded separately. Future full runs enroll
 them automatically. The committed follow-up changes measurement tools, browser
 checks and this explanation; production code remains the measured `850860e`.
+
+### Adversarial PR review
+
+Three independent reviewers checked production geometry, measurement proofs,
+and evidence/benchmark provenance. The geometry review compared 192 layouts
+(all 16 authored side pairs, three junction radii, flat/nested groups and
+row/column alignment), 64 ASCII/Unicode renderings and 12 public SVG/layout
+cases with frontmatter-derived, fractional or small radii. No additional
+overlap, clipping, blocked route, terminal diagnostic or render failure was
+found. Architecture terminal output does change: tighter junction bounds affect
+pixel-to-cell projection. It is not covered by the unrelated-family identity
+claim. Fractional public bounds retain the existing 0.5px rounding allowance.
+
+The proof reviewer found that measuring an unclipped polygon tip could falsely
+verify contact when a smaller marker viewport actually clipped that tip. A
+native-size mutation, with only marker ink colored red, demonstrated a 3px
+gap while the shaft still reached the card. Both independent contact checks
+now require the tip to remain inside its viewport. The audit regression rejects
+this mutation; the raster regression prevents shaft ink from hiding it. The
+audit also retains each edge's start/end/mid marker signature when comparing
+meaning and rejects malformed numeric lists instead of silently dropping
+invalid coordinates. The 42 focused public-contact and audit tests pass.
+
+The evidence reviewer verified the hosted image bytes, native dimensions,
+11 unchanged control pairs and historical measurement counts. Final PR
+benchmark results are published separately, after these review fixes, with
+immutable revision and measured-package identities. These reviews support
+the bounded contracts above; they do not establish universal correctness or
+exact performance equality.
