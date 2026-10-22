@@ -421,7 +421,11 @@ jobs:
                   continue
               original = path.read_text()
               updated = original
-              for uri in ('http://azure.archive.ubuntu.com/ubuntu', 'https://azure.archive.ubuntu.com/ubuntu'):
+              for uri in (
+                  'http://azure.archive.ubuntu.com/ubuntu',
+                  'https://azure.archive.ubuntu.com/ubuntu',
+                  'mirror+file:/etc/apt/apt-mirrors.txt',
+              ):
                   changed += updated.count(uri)
                   updated = updated.replace(uri, 'https://archive.ubuntu.com/ubuntu')
               official |= 'https://archive.ubuntu.com/ubuntu' in updated
