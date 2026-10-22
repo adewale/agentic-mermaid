@@ -1,6 +1,6 @@
 {
   "base": "009159f93e6cea53f97ca53e416cf66b130c8e49",
-  "head": "bc7ee3ad3d014cc2b75368ee73ea262cd05696c2",
+  "head": "082156c237a15d9dd6b37d46491af2ee96e50118",
   "bun": "1.4.2",
   "fixtures": [
     "architecture-junction-contact",

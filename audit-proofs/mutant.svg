@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="376" height="128" viewBox="0 0 376 128" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1rbco151wwlgdd">
+<style>
+  svg.am-1rbco151wwlgdd { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1rbco151wwlgdd {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="architecture-arrow-end" markerWidth="7" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="architecture-edge" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="160,64 216,64" fill="none" stroke="#939395" stroke-width="3" stroke-linejoin="round" marker-start="url(#architecture-arrow-start)" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="bidirectional" data-id="edge:a-&gt;b#0" data-role="edge" data-from="a" data-to="b" role="graphics-symbol" aria-roledescription="relation" aria-label="a to b" />
+<g class="architecture-service" data-id="a" data-label="A" data-role="service">
+  <rect class="architecture-service-card" x="40" y="40" width="120" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:a" data-role="service" />
+  <rect class="architecture-service-outline" x="40" y="40" width="120" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:a" data-role="service" />
+  <g class="architecture-icon" data-icon="server">
+  <rect class="architecture-icon-mark" x="65.04" y="59.68" width="7.92" height="8.64" rx="0" ry="0" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 66.12 62.56 H 71.88" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 66.12 65.08 H 71.88" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="92" y="64" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="10.841999999999999" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
+</g>
+<g class="architecture-service" data-id="b" data-label="B" data-role="service">
+  <rect class="architecture-service-card" x="216" y="40" width="120" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:b" data-role="service" />
+  <rect class="architecture-service-outline" x="216" y="40" width="120" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:b" data-role="service" />
+  <g class="architecture-icon" data-icon="database">
+  <ellipse class="architecture-icon-mark" cx="245" cy="61.12" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 240.68 61.12 V 67.6" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 249.32 61.12 V 67.6" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="245" cy="64.36" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="245" cy="67.6" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="268" y="64" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="10.841999999999999" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
+</g>
+</svg>
