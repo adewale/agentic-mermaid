@@ -175,7 +175,7 @@ const EXPECTED_LABELS: Record<WorkloadId, readonly string[]> = {
   state80: range('S', 81),
   packet240: range('Field ', 240),
   kanban240: Array.from({ length: 12 }, (_, stage) => [`Stage ${stage}`, ...Array.from({ length: 20 }, (_, task) => `Task ${stage}.${task}`)]).flat(),
-  requirement100: range('Text: Requirement ', 100),
+  requirement100: range('Requirement ', 100),
   // Leaf labels may be explicitly hidden in small quantitative cells; the
   // release workload's section labels and title remain visible in SVG.
   treemap260: ['Product allocation', ...range('Group ', 20)],
@@ -186,6 +186,8 @@ const WORKLOADS: Record<Output, readonly WorkloadId[]> = {
   svg: Object.keys(EXPECTED_LABELS),
   terminal: ['flow5', 'tree50', 'mesh50', 'seq20'],
 }
+// Requirement adapters may show the field name or paint only its value.
+const SVG_LABEL_PREFIXES: Record<WorkloadId, readonly string[]> = { requirement100: ['Text: '] }
 
 interface Timing {
   warmCalls: number
@@ -222,7 +224,7 @@ interface WorkerJob {
   output: Output
   entry: string
   timing: Timing
-  workloads: Array<{ id: string; source: string; expected: readonly string[] }>
+  workloads: Array<{ id: string; source: string; expected: readonly string[]; svgLabelPrefixes?: readonly string[] }>
 }
 type WorkerLine = { type: 'import'; importMs: number; setupMs: number } | { type: 'fatal'; error: string } | { type: 'start'; workload: string } | ({ type: 'result' } & WorkloadResult) | { type: 'end'; rssBytes?: number; peakRssBytes?: number; settledHeapBytes?: number }
 
@@ -241,12 +243,12 @@ const terminalLabel = (label: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${label
 /** Labels a reader would see: whole <text> elements (as the release
  * benchmark checks them), each <tspan>, and each foreignObject's text and text
  * runs (Merman's HTML labels). Terminal output is checked token by token. */
-function missingLabels(output: Output, rendered: string, expected: readonly string[]): string[] {
+function missingLabels(output: Output, rendered: string, expected: readonly string[], fieldPrefixes: readonly string[] = []): string[] {
   if (output === 'terminal') {
     const text = rendered.replace(ANSI_SGR, '')
     return expected.filter(label => !terminalLabel(label).test(text))
   }
-  const missing = missingSvgLabels(rendered, expected)
+  const missing = missingSvgLabels(rendered, expected, fieldPrefixes)
   if (!missing.length) return missing
   const seen = new Set<string>()
   for (const [, inner] of rendered.matchAll(/<tspan\b[^>]*>([\s\S]*?)<\/tspan>/g)) seen.add(textOf(inner!))
@@ -254,7 +256,7 @@ function missingLabels(output: Output, rendered: string, expected: readonly stri
     seen.add(textOf(inner!))
     for (const run of inner!.split(/<[^>]+>/)) seen.add(textOf(run))
   }
-  return missing.filter(label => !seen.has(label))
+  return missing.filter(label => !seen.has(label) && !fieldPrefixes.some(prefix => seen.has(`${prefix}${label}`)))
 }
 
 async function measure(render: Render, output: Output, workload: WorkerJob['workloads'][number], timing: Timing, allocation: Awaited<ReturnType<typeof allocationProbe>>): Promise<WorkloadResult> {
@@ -281,7 +283,7 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
   const inspect = (value: unknown): Failure | undefined => {
     if (typeof value !== 'string' || (output === 'svg' ? !/^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b/.test(value) : !value.trim())) return { status: 'error', detail: `returned no ${output === 'svg' ? 'SVG string' : 'text'}` }
     if (validated.has(value)) return undefined
-    const missing = missingLabels(output, value, workload.expected)
+    const missing = missingLabels(output, value, workload.expected, workload.svgLabelPrefixes)
     if (missing.length) return { status: 'lost-labels', missing: missing.length, detail: missing.slice(0, 3).join(', ') }
     if (output === 'svg') {
       try { new Resvg!(value, { font: { loadSystemFonts: false } }) }
@@ -724,7 +726,7 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
   let remaining = [...workloads]
   for (let attempt = 0; remaining.length; attempt++) {
     const base = join(context.scratch, `${peer.id}-${output}-r${round}-a${attempt}`)
-    const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, workloads: remaining.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]! })) }
+    const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, workloads: remaining.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]!, ...(SVG_LABEL_PREFIXES[id] ? { svgLabelPrefixes: SVG_LABEL_PREFIXES[id] } : {}) })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const receipts = `${context.rawSamples}.${peer.id}-${output}-r${round}-a${attempt}.jsonl`
     const command = peer.runtime === 'go' ? [prepared.binary!, `${base}.job.json`, receipts] : peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, receipts] : ['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts]
@@ -1034,6 +1036,7 @@ async function main(): Promise<void> {
         coverage,
         ...(inventory ? { corpus: inventory } : {}),
         expectedLabels,
+        expectedSvgLabelPrefixes: SVG_LABEL_PREFIXES,
         warnings,
         notCovered: NOT_COVERED,
         processes,

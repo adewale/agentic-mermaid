@@ -131,6 +131,15 @@ describe('release publication decisions', () => {
     expect(decision(inputs, before, after).ok).toBe(false)
     expect(missingSvgLabels('<svg><text>A &amp; <tspan>B</tspan></text></svg>', ['A & B'])).toEqual([])
   })
+
+  test('declared field prefixes allow either complete display form without matching another value', () => {
+    const expected = ['Requirement 1']
+    expect(missingSvgLabels('<svg><text>Requirement 1</text></svg>', expected, ['Text: '])).toEqual([])
+    expect(missingSvgLabels('<svg><text>Text: Requirement 1</text></svg>', expected, ['Text: '])).toEqual([])
+    expect(missingSvgLabels('<svg><text>Text: Requirement 10</text></svg>', expected, ['Text: '])).toEqual(expected)
+    expect(missingSvgLabels('<svg><text>Other: Requirement 1</text></svg>', expected, ['Text: '])).toEqual(expected)
+    expect(missingSvgLabels('<svg><text>Text: Requirement 1</text></svg>', expected)).toEqual(expected)
+  })
 })
 
 test('browser rejection changes coverage but never improves the shared-success speed ratio', () => {
