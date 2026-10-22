@@ -23,6 +23,10 @@ function lines(header: string, count: number, line: (i: number) => string | stri
   return out.join('\n')
 }
 
+function architectureJunctions(count: number): string {
+  return lines('architecture-beta', count, i => [`junction j${i}`, ...(i ? [`j${i - 1}:R<-->L:j${i}`] : [])])
+}
+
 export function flowchartTree(nodes: number): string {
   return lines('flowchart TD', nodes - 1, i => `  n${Math.floor(i / 3)}[Node ${Math.floor(i / 3)}] --> n${i + 1}[Node ${i + 1}]`)
 }
@@ -71,7 +75,11 @@ const WORKLOADS = {
   timeline: [{ id: '100-events', source: lines('timeline\n  title History', 100, i => [...(i % 10 === 0 ? [`  section Decade ${i / 10}`] : []), `    ${1900 + i} : Event ${i} : Detail ${i}`]) }],
   sankey: [{ id: '120-links', source: lines('sankey-beta', 120, i => `Source ${i % 12},Target ${(i * 5) % 30},${1 + (i % 9)}`) }],
   journey: [{ id: '120-tasks', source: lines('journey\n  title Product delivery', 120, i => [...(i % 12 === 0 ? [`  section Stage ${i / 12}`] : []), `    Task ${i}: ${1 + (i % 5)}: Alice, Bob`]) }],
-  architecture: [{ id: '40-services', source: lines('architecture-beta', 40, i => [`  service s${i}(server)[Service ${i}]`, ...(i > 0 ? [`  s${i - 1}:R --> L:s${i}`] : [])]) }],
+  architecture: [
+    { id: '40-services', source: lines('architecture-beta', 40, i => [`  service s${i}(server)[Service ${i}]`, ...(i > 0 ? [`  s${i - 1}:R --> L:s${i}`] : [])]) },
+    ...[16, 32].map(count => ({ id: `${count}-junctions`, source: architectureJunctions(count) })),
+    { id: '32-large-junctions', source: `---\nconfig:\n  architecture:\n    iconSize: 40\n---\n${architectureJunctions(32)}` },
+  ],
   xychart: [
     {
       id: '12-series-80-points',

@@ -161,6 +161,108 @@ Generated evidence is not a test oracle and is not committed to the source tree.
   rounds, with three fully consumed renders per sample, after warm-up. Median
   milliseconds per render are 4.56→3.84 for the ordinary junction, 8.90→9.00
   for 16 junctions, 14.64→13.20 for 32, and 6.81→7.34 for the junction corpus
-  example. Unchanged-family controls vary by up to 20%, so these results do
-  not support a speedup claim. They show no material added cost in these
-  bounded cases; the added preparation uses O(junctions) time and storage.
+  example. Unchanged-family controls vary by up to 20%; this initial run is too
+  variable to establish a performance change. The canonical comparisons below
+  provide the closure evidence. Added preparation uses O(junctions) time and
+  storage.
+
+### Complete metric comparison
+
+The follow-up audit compares separately built, clean production checkouts at
+`009159f93e6cea53f97ca53e416cf66b130c8e49` and
+`850860e8257e083325e1f2515bc78248c9dd00ed`. Run it with:
+
+```sh
+bun run eval/endpoint-marker/compare.ts BASE_CHECKOUT HEAD_CHECKOUT OUT_DIR
+```
+
+Both checkouts need their Node packages built with `bunx tsup`. The command
+records every enrolled input, failure, measurement and certificate finding in
+`metrics.json`. It exits unsuccessfully on missing measurement coverage, a
+per-input regression, changed meaning, lost renders or failed candidate contact
+contracts. Totals cannot hide one diagram regressing while another improves.
+
+All 35 Architecture inputs were measured, including the enrolled documentation
+and layout corpora, registry example, service/junction scaling workloads and
+the direction/size/late-writer cases. Their 185 routes retain all 370 endpoint
+checks and 253 marker checks. Authored identities, labels, endpoint identities,
+group membership and parentage are preserved.
+
+| Metric | Base | Candidate |
+| --- | ---: | ---: |
+| Route crossings | 4 | 4 |
+| Direction-change bends | 84 | 84 |
+| Maximum bends per edge | 2 | 2 |
+| Short-jog hitches, both axes | 0 | 0 |
+| Detours with a clear, face-compatible direct lane | 0 | 0 |
+| Off-outline shaft endpoints | 185 | 0 |
+| Off-outline marker contacts | 171 | 0 |
+| Marker bodies without a separating viewport/tangent proof | 70 | 0 |
+| Text/text or text/foreign-box overlap findings | 0 | 0 |
+| Edge-label pill conflicts with other pills, cards or non-own routes | 0 | 0 |
+| Route certificate findings, including false contact claims | 185 | 0 |
+| Native paint certificate findings | 78 | 16 |
+| Maximum shaft / marker contact error | 6px / 6px | 0px / 0px |
+
+The existing rendered short-jog detector is checked in both orientations.
+The additional clear-lane check respects Architecture's authored endpoint
+faces, node/ring obstacles, unrelated group frames and labels. Raw bends count
+actual direction changes after repeated points are removed. Text overlap uses
+the existing SVG overlap auditor's font estimates and tolerances; label-pill
+conflicts use the actual emitted rectangles. These are bounded, declared
+measurements rather than a claim about arbitrary font rasterization.
+
+The remaining 16 native findings are unchanged `POTENTIAL_OCCLUSION` warnings
+in the eight custom 3px-stroke cases: two attached markers per diagram. Their
+conservative marker hulls remain unverified by the native certificate. The
+independent SVG audit proves that each marker's clipped viewport lies outside
+the tangent of its attached filled rectangle or circle. This includes marker
+stroke paint. Chromium confirms the default `overflow:hidden`; expanded
+native/browser raster tests cover the same custom radius, stroke width,
+directions, nesting, alignment and title combinations. All three browser tests
+pass. The raw findings remain in the report with their owner IDs and messages.
+
+The wider comparison contains 840 enrolled corpus entries. Both revisions
+successfully render 704; every refusal is recorded. Unrelated families retain
+identical final SVG, public geometry and paint/route certificates. There are
+zero lost renders, changed meanings, missing measurements or per-input metric
+regressions.
+
+### Canonical performance comparison
+
+The release runner compares built packages in fresh Node processes, alternating
+base/head order. Correctness, determinism and full-output consumption precede
+warm timings. Memory runs are separate from latency measurements.
+
+- The full run enrolls 537 official examples and 25 scaling workloads plus the
+  agent workflow, with three paired rounds and five timing repetitions. All
+  **17 gates pass**. There are 402 shared successful official inputs; all 26
+  scaling/workflow inputs succeed. Unsupported/refused examples remain
+  explicit in the report.
+- Matched corpus time is **1.109×** baseline, allocation approximately **1.00×**,
+  and peak RSS approximately **1.03×**. Retained heap growth is **4.3MiB**,
+  within the existing 16MiB budget. No SVG or ASCII renders are lost.
+- A second run covers all six official Architecture examples and the new
+  16-junction, 32-junction and enlarged 32-junction workloads. It uses seven
+  paired rounds and nine repetitions. All **17 gates pass**; the official
+  Architecture paired time ratio is **0.979×**, allocation approximately
+  **1.00×**, and peak RSS approximately **1.02×**.
+- An identical-build control runs the base package under both aliases across
+  the complete official corpus. Paired timing ratios range from **0.763× to
+  1.153×**, with median **1.010×**. This demonstrates substantial measurement
+  variation even with identical production bytes. The recorded 11% full-run
+  increase remains visible; the supported claim is performance within the
+  established budgets on these workloads.
+
+For reproduction, run the full benchmark with:
+
+```sh
+bun run eval/benchmark/release-bench.ts \
+  --baseline BASE_CHECKOUT --candidate HEAD_CHECKOUT \
+  --rounds 3 --reps 5 --out OUT_DIR
+```
+
+The initial full report predates enrollment of the three junction workloads;
+their seven-round comparison is recorded separately. Future full runs enroll
+them automatically. The committed follow-up changes measurement tools, browser
+checks and this explanation; production code remains the measured `850860e`.
