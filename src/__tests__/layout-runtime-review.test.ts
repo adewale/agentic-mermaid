@@ -2,6 +2,7 @@
 import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { instrumentCacheSource } from '../../eval/benchmark/cache-churn-source.ts'
+import { cacheProbeEvent, cacheProbeSnapshot } from '../../eval/benchmark/cache-probe-state.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import { runtimeDifferentialPlans, differentialArgs } from '../../eval/benchmark/layout-runtime-differential.ts'
 import { measureLayoutComparisons, report, type Input, type MeasurementWorker } from '../../eval/benchmark/release-bench.ts'
@@ -71,7 +72,9 @@ test('private cache counters retain weighted eviction behavior and fail closed o
   const transformed = instrumentCacheSource(original, false, '/unused/diagnostic-state.ts')
   const script = new Bun.Transpiler({ loader: 'ts' }).transformSync(transformed.replace(/^import[^\n]*\n/, '').replace('export class WeightedLru', 'class WeightedLru'))
   const events: string[] = []
-  const DiagnosticLru = new Function('cacheProbeEvent', `${script}\nreturn WeightedLru`)((_owner: object, _layer: string, event: string) => events.push(event)) as typeof WeightedLru
+  const DiagnosticLru = new Function('cacheProbeEvent', `${script}\nreturn WeightedLru`)((owner: object, layer: string, event: string, weight: number, entries: number, key?: string) => {
+    events.push(event); cacheProbeEvent(owner, layer, event, weight, entries, key)
+  }) as typeof WeightedLru
   const control = new WeightedLru<string, number>(2, 10), diagnostic = new DiagnosticLru<string, number>(2, 10)
   for (const cache of [control, diagnostic]) {
     cache.set('a', 1, 4); cache.set('b', 2, 4)
@@ -88,5 +91,9 @@ test('private cache counters retain weighted eviction behavior and fail closed o
   expect(events.filter(event => event === 'miss')).toHaveLength(3)
   expect(events.filter(event => event === 'evict')).toHaveLength(1)
   expect(events.filter(event => event === 'rejected')).toHaveLength(1)
+  const counter = cacheProbeSnapshot().find(value => value.layer === 'weighted:2:10')!
+  expect(counter.distinctGetKeys).toBe(4)
+  expect(counter.distinctSetKeys).toBe(3) // Oversized retention was rejected.
+  expect(counter.getKeySha256.every(value => /^[a-f0-9]{64}$/.test(value))).toBe(true)
   expect(() => instrumentCacheSource(original.replace('const found = this.entries.get(key)', 'const changed = this.entries.get(key)'), false, '/unused')).toThrow('exactly one')
 })
