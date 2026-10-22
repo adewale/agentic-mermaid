@@ -18,6 +18,12 @@ remain historical evidence at their original revision.
 
 ## Research applied
 
+The [runtime24 guidance follow-up](layout-guidance-results.md) uses an integrated
+runtime23 baseline after the merged Architecture contact and shared clipping
+fixes. It records the placement-only improvement, rejected optimization arms,
+new source/generated/edit qualification and separately pinned full benchmarks.
+Its results do not replace the historical runtime22 measurements below.
+
 The starting inventory is [Mermaid Community](../../mermaid-community.json).
 Project descriptions and ancestry are leads, not benchmark evidence. Sources
 were inspected at these revisions; no third-party layout code was copied.

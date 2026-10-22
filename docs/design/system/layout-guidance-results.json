@@ -1,0 +1,3930 @@
+{
+  "protocol": "pr449-guidance-results@1",
+  "status": "correctness-complete; full-runtime-benchmark-pending",
+  "integratedBaseline": "2fe1079a1fcdbb673ceb76d07e6ee6f8d3ab7f21",
+  "mainIntegration": "87c9c3174c0d4edc16c69c0da82b69a325cc32ec",
+  "implementation": "agentic-layered@24",
+  "guidance": "https://github.com/adewale/agentic-mermaid/pull/449#issuecomment-6349457023",
+  "accepted": [
+    "Architecture placement-only contract",
+    "preserve merged contact geometry and family sizes",
+    "browser-only unpublished observation projection",
+    "evaluator edge-span and cache-churn diagnostics"
+  ],
+  "rejected": [
+    "YAML named-import subtraction: no emitted saving",
+    "lane-index: cyclic18 allocation regression",
+    "immediate private proof reuse: no robust net benefit"
+  ],
+  "pilot": {
+    "protocol": "layout-guidance-pilot-summary@1",
+    "elapsedSeconds": 257.8515528810003,
+    "workers": 30,
+    "failures": [],
+    "results": {
+      "cyclic15": {
+        "time": {
+          "values": {
+            "before": [
+              111.56594000000041,
+              111.0482350000002,
+              108.3969679999991
+            ],
+            "aa": [
+              113.93018699999993,
+              101.20654600000125,
+              108.1146719999997
+            ],
+            "architecture": [
+              93.87674100000004,
+              114.31554700000015,
+              98.99677499999962
+            ],
+            "proof": [
+              124.45243200000004,
+              112.14455500000076,
+              117.26404800000091
+            ],
+            "lane-index": [
+              118.34524099999999,
+              109.4901260000006,
+              91.4405139999999
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.0211914765384447,
+                0.9113746472422642,
+                0.9973957205149926
+              ],
+              "complete": true,
+              "median": 0.9973957205149926
+            },
+            "architecture": {
+              "rounds": [
+                0.8414462424643192,
+                1.0294224577274906,
+                0.9132799267964804
+              ],
+              "complete": true,
+              "median": 0.9132799267964804
+            },
+            "proof": {
+              "rounds": [
+                1.1155056104040317,
+                1.0098724666808128,
+                1.0818019190352435
+              ],
+              "complete": true,
+              "median": 1.0818019190352435
+            },
+            "lane-index": {
+              "rounds": [
+                1.0607649700257942,
+                0.9859690791123371,
+                0.8435707722009406
+              ],
+              "complete": true,
+              "median": 0.9859690791123371
+            }
+          }
+        },
+        "memory": {
+          "values": {
+            "before": [
+              83676768,
+              99205880,
+              100360944
+            ],
+            "aa": [
+              82967584,
+              99750112,
+              98175384
+            ],
+            "architecture": [
+              82957768,
+              75616400,
+              98512184
+            ],
+            "proof": [
+              82457024,
+              74876032,
+              98973888
+            ],
+            "lane-index": [
+              87163840,
+              81566416,
+              85468304
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                0.9915247204576544,
+                1.0054858845060393,
+                0.9782230027649003
+              ],
+              "complete": true,
+              "median": 0.9915247204576544
+            },
+            "architecture": {
+              "rounds": [
+                0.9914074119115117,
+                0.7622169169811306,
+                0.9815788898916694
+              ],
+              "complete": true,
+              "median": 0.9815788898916694
+            },
+            "proof": {
+              "rounds": [
+                0.9854231463624408,
+                0.7547539722443871,
+                0.9861793248975418
+              ],
+              "complete": true,
+              "median": 0.9854231463624408
+            },
+            "lane-index": {
+              "rounds": [
+                1.0416731200707943,
+                0.8221933619257246,
+                0.8516092076614983
+              ],
+              "complete": true,
+              "median": 0.8516092076614983
+            }
+          }
+        }
+      },
+      "cyclic18": {
+        "time": {
+          "values": {
+            "before": [
+              163.80164500000046,
+              170.51369299999897,
+              156.5052169999999
+            ],
+            "aa": [
+              185.66847899999993,
+              144.81785200000013,
+              152.24488999999994
+            ],
+            "architecture": [
+              126.75603000000046,
+              133.16793700000017,
+              127.6504819999991
+            ],
+            "proof": [
+              170.4750640000002,
+              178.2805040000003,
+              155.91544299999987
+            ],
+            "lane-index": [
+              159.2999550000004,
+              162.5080280000002,
+              132.63766300000134
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.133495814404058,
+                0.8493033577074717,
+                0.9727783707044094
+              ],
+              "complete": true,
+              "median": 0.9727783707044094
+            },
+            "architecture": {
+              "rounds": [
+                0.7738385655406581,
+                0.7809808975282764,
+                0.8156308425168931
+              ],
+              "complete": true,
+              "median": 0.7809808975282764
+            },
+            "proof": {
+              "rounds": [
+                1.040740854586654,
+                1.0455494855770988,
+                0.9962316016596429
+              ],
+              "complete": true,
+              "median": 1.040740854586654
+            },
+            "lane-index": {
+              "rounds": [
+                0.9725174310673129,
+                0.9530497236958042,
+                0.8474967514980758
+              ],
+              "complete": true,
+              "median": 0.9530497236958042
+            }
+          }
+        },
+        "memory": {
+          "values": {
+            "before": [
+              104002480,
+              113179240,
+              115452272
+            ],
+            "aa": [
+              104450160,
+              113598816,
+              116425248
+            ],
+            "architecture": [
+              101940480,
+              109055408,
+              111730272
+            ],
+            "proof": [
+              103276560,
+              112932160,
+              114271160
+            ],
+            "lane-index": [
+              112250600,
+              123815184,
+              143140520
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.0043045127385424,
+                1.0037071816350773,
+                1.0084275171301955
+              ],
+              "complete": true,
+              "median": 1.0043045127385424
+            },
+            "architecture": {
+              "rounds": [
+                0.9801735497076608,
+                0.9635637065596129,
+                0.9677615699065671
+              ],
+              "complete": true,
+              "median": 0.9677615699065671
+            },
+            "proof": {
+              "rounds": [
+                0.9930201664421848,
+                0.9978169141266543,
+                0.989769694614585
+              ],
+              "complete": true,
+              "median": 0.9930201664421848
+            },
+            "lane-index": {
+              "rounds": [
+                1.0793069549879963,
+                1.0939743366362948,
+                1.2398241933255327
+              ],
+              "complete": true,
+              "median": 1.0939743366362948
+            }
+          }
+        }
+      },
+      "er40": {
+        "time": {
+          "values": {
+            "before": [
+              60.917279999999664,
+              62.40841300000011,
+              61.43947299999945
+            ],
+            "aa": [
+              62.77038200000061,
+              56.910508000000846,
+              57.0235100000009
+            ],
+            "architecture": [
+              55.84774599999946,
+              66.90702400000009,
+              64.3911250000001
+            ],
+            "proof": [
+              69.80458499999986,
+              68.53303600000072,
+              64.04685100000097
+            ],
+            "lane-index": [
+              68.02948800000013,
+              74.18841499999962,
+              58.310585000000174
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.0304199727893457,
+                0.9119044254498307,
+                0.9281249857075012
+              ],
+              "complete": true,
+              "median": 0.9281249857075012
+            },
+            "architecture": {
+              "rounds": [
+                0.9167800335142963,
+                1.07208340644714,
+                1.0480416230132814
+              ],
+              "complete": true,
+              "median": 1.0480416230132814
+            },
+            "proof": {
+              "rounds": [
+                1.1458913628448324,
+                1.0981377783152506,
+                1.0424381569809613
+              ],
+              "complete": true,
+              "median": 1.0981377783152506
+            },
+            "lane-index": {
+              "rounds": [
+                1.1167518969986925,
+                1.1887566344620795,
+                0.9490736517222518
+              ],
+              "complete": true,
+              "median": 1.1167518969986925
+            }
+          }
+        },
+        "memory": {
+          "values": {
+            "before": [
+              39047536,
+              39164344,
+              38475800
+            ],
+            "aa": [
+              39411728,
+              39127616,
+              38700520
+            ],
+            "architecture": [
+              39193288,
+              39114248,
+              38512192
+            ],
+            "proof": [
+              39563048,
+              39152712,
+              38550472
+            ],
+            "lane-index": [
+              39503952,
+              39132480,
+              38388776
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.0093268881293815,
+                0.9990622082167392,
+                1.0058405543224573
+              ],
+              "complete": true,
+              "median": 1.0058405543224573
+            },
+            "architecture": {
+              "rounds": [
+                1.003732681109507,
+                0.9987208773367939,
+                1.0009458412820527
+              ],
+              "complete": true,
+              "median": 1.0009458412820527
+            },
+            "proof": {
+              "rounds": [
+                1.013202164664116,
+                0.9997029951529381,
+                1.0019407523690216
+              ],
+              "complete": true,
+              "median": 1.0019407523690216
+            },
+            "lane-index": {
+              "rounds": [
+                1.0116887272989517,
+                0.9991864028157857,
+                0.9977382146700003
+              ],
+              "complete": true,
+              "median": 0.9991864028157857
+            }
+          }
+        }
+      },
+      "corpus/architecture/0": {
+        "time": {
+          "values": {
+            "before": [
+              9.769310000000587,
+              10.169295000000602,
+              9.919894999999997
+            ],
+            "aa": [
+              9.455189000000246,
+              8.704729999999472,
+              8.278902000000016
+            ],
+            "architecture": [
+              8.601072999999815,
+              9.59739400000035,
+              9.663136999999551
+            ],
+            "proof": [
+              10.715084000000388,
+              9.626729999999952,
+              8.896649999999681
+            ],
+            "lane-index": [
+              10.086326000000554,
+              10.137737000000016,
+              7.730153000000428
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                0.9678461426651092,
+                0.8559816585121148,
+                0.8345755675841346
+              ],
+              "complete": true,
+              "median": 0.8559816585121148
+            },
+            "architecture": {
+              "rounds": [
+                0.8804176548803649,
+                0.9437619815336049,
+                0.9741168631320749
+              ],
+              "complete": true,
+              "median": 0.9437619815336049
+            },
+            "proof": {
+              "rounds": [
+                1.0968107266531357,
+                0.9466467439482661,
+                0.8968492106014917
+              ],
+              "complete": true,
+              "median": 0.9466467439482661
+            },
+            "lane-index": {
+              "rounds": [
+                1.0324501935141732,
+                0.9968967366960458,
+                0.7792575425445966
+              ],
+              "complete": true,
+              "median": 0.9968967366960458
+            }
+          }
+        },
+        "memory": {
+          "values": {
+            "before": [
+              4890952,
+              4929984,
+              4826176
+            ],
+            "aa": [
+              4905496,
+              4930304,
+              4837048
+            ],
+            "architecture": [
+              4354344,
+              4470096,
+              4353384
+            ],
+            "proof": [
+              4900776,
+              4937088,
+              4827784
+            ],
+            "lane-index": [
+              4889160,
+              4943400,
+              4836928
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.002973654208833,
+                1.0000649089327673,
+                1.0022527151931466
+              ],
+              "complete": true,
+              "median": 1.0022527151931466
+            },
+            "architecture": {
+              "rounds": [
+                0.8902855722157976,
+                0.9067161272734354,
+                0.9020358975719078
+              ],
+              "complete": true,
+              "median": 0.9020358975719078
+            },
+            "proof": {
+              "rounds": [
+                1.0020086069133372,
+                1.0014409783074347,
+                1.000333183041812
+              ],
+              "complete": true,
+              "median": 1.0014409783074347
+            },
+            "lane-index": {
+              "rounds": [
+                0.999633609162388,
+                1.0027213070062702,
+                1.0022278507870412
+              ],
+              "complete": true,
+              "median": 1.0022278507870412
+            }
+          }
+        }
+      },
+      "corpus/architecture/3": {
+        "time": {
+          "values": {
+            "before": [
+              18.292312999999922,
+              20.398401000000376,
+              18.77792099999988
+            ],
+            "aa": [
+              20.844434999999066,
+              18.93235300000015,
+              19.343713000000207
+            ],
+            "architecture": [
+              14.050165000000561,
+              14.834523999999874,
+              14.273064000000886
+            ],
+            "proof": [
+              20.45534200000111,
+              20.649483000000146,
+              20.81317500000023
+            ],
+            "lane-index": [
+              18.683155000000625,
+              20.57944899999893,
+              16.091371999999865
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.1395188241092942,
+                0.9281292685637369,
+                1.030130705097776
+              ],
+              "complete": true,
+              "median": 1.030130705097776
+            },
+            "architecture": {
+              "rounds": [
+                0.7680912195194025,
+                0.7272395517668077,
+                0.7600982025646491
+              ],
+              "complete": true,
+              "median": 0.7600982025646491
+            },
+            "proof": {
+              "rounds": [
+                1.118247976622814,
+                1.0123089059774717,
+                1.108385481012534
+              ],
+              "complete": true,
+              "median": 1.108385481012534
+            },
+            "lane-index": {
+              "rounds": [
+                1.021366461420199,
+                1.008875597650941,
+                0.8569304344181642
+              ],
+              "complete": true,
+              "median": 1.008875597650941
+            }
+          }
+        },
+        "memory": {
+          "values": {
+            "before": [
+              16943504,
+              15185288,
+              16941216
+            ],
+            "aa": [
+              16680400,
+              18545360,
+              15560656
+            ],
+            "architecture": [
+              7608048,
+              7595656,
+              7605904
+            ],
+            "proof": [
+              15303504,
+              16323752,
+              17384856
+            ],
+            "lane-index": [
+              16798160,
+              16291008,
+              16482000
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                0.9844716889729539,
+                1.2212715359761368,
+                0.9185088012572415
+              ],
+              "complete": true,
+              "median": 0.9844716889729539
+            },
+            "architecture": {
+              "rounds": [
+                0.4490244756928673,
+                0.5001983498765384,
+                0.4489585635411295
+              ],
+              "complete": true,
+              "median": 0.4490244756928673
+            },
+            "proof": {
+              "rounds": [
+                0.9032077426251383,
+                1.0749715119002023,
+                1.0261870222302814
+              ],
+              "complete": true,
+              "median": 1.0261870222302814
+            },
+            "lane-index": {
+              "rounds": [
+                0.991421845209822,
+                1.0728152143047929,
+                0.9728935632483524
+              ],
+              "complete": true,
+              "median": 0.991421845209822
+            }
+          }
+        }
+      },
+      "corpus/architecture/5": {
+        "time": {
+          "values": {
+            "before": [
+              8.381797000000006,
+              8.660344999999325,
+              9.717612999998892
+            ],
+            "aa": [
+              9.171801999999843,
+              7.989491000000271,
+              8.293181000000004
+            ],
+            "architecture": [
+              7.6716749999995955,
+              8.418346999999812,
+              8.418800000000374
+            ],
+            "proof": [
+              9.17309000000023,
+              10.88055600000007,
+              7.995248000000174
+            ],
+            "lane-index": [
+              8.649217999998655,
+              9.03572499999973,
+              7.86185099999966
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.094252461614119,
+                0.9225372661251826,
+                0.853417500779353
+              ],
+              "complete": true,
+              "median": 0.9225372661251826
+            },
+            "architecture": {
+              "rounds": [
+                0.9152780722319558,
+                0.972056771410431,
+                0.8663444407594061
+              ],
+              "complete": true,
+              "median": 0.9152780722319558
+            },
+            "proof": {
+              "rounds": [
+                1.0944061279460984,
+                1.2563651909942293,
+                0.8227584284331024
+              ],
+              "complete": true,
+              "median": 1.0944061279460984
+            },
+            "lane-index": {
+              "rounds": [
+                1.0319049721675015,
+                1.0433446935428594,
+                0.8090310861320118
+              ],
+              "complete": true,
+              "median": 1.0319049721675015
+            }
+          }
+        },
+        "memory": {
+          "values": {
+            "before": [
+              4698712,
+              4640784,
+              4726016
+            ],
+            "aa": [
+              4710352,
+              4607056,
+              4730576
+            ],
+            "architecture": [
+              4215544,
+              4223016,
+              4188360
+            ],
+            "proof": [
+              4740168,
+              4720408,
+              4728200
+            ],
+            "lane-index": [
+              4710528,
+              4665912,
+              4656832
+            ]
+          },
+          "ratios": {
+            "aa": {
+              "rounds": [
+                1.0024772746233437,
+                0.9927322624797879,
+                1.000964871892097
+              ],
+              "complete": true,
+              "median": 1.000964871892097
+            },
+            "architecture": {
+              "rounds": [
+                0.8971701181089626,
+                0.9099790035476765,
+                0.8862348328909593
+              ],
+              "complete": true,
+              "median": 0.8971701181089626
+            },
+            "proof": {
+              "rounds": [
+                1.0088228433664375,
+                1.0171574458108803,
+                1.0004621228535833
+              ],
+              "complete": true,
+              "median": 1.0088228433664375
+            },
+            "lane-index": {
+              "rounds": [
+                1.0025147316966863,
+                1.0054146023602908,
+                0.9853610313634148
+              ],
+              "complete": true,
+              "median": 1.0025147316966863
+            }
+          }
+        }
+      }
+    },
+    "outputChanges": [
+      {
+        "id": "corpus/architecture/3",
+        "round": 1,
+        "arm": "architecture",
+        "beforeSha256": "46a3c6fd86cbfb9fbc42243e34e70b48f15e0fb7fc9a925cdc0befb7678f16b9",
+        "afterSha256": "8658b8324fd15ed008b38c0f83bc1ad296a5f61337f278f8e8e89f1d61c9643e"
+      },
+      {
+        "id": "corpus/architecture/3",
+        "round": 2,
+        "arm": "architecture",
+        "beforeSha256": "46a3c6fd86cbfb9fbc42243e34e70b48f15e0fb7fc9a925cdc0befb7678f16b9",
+        "afterSha256": "8658b8324fd15ed008b38c0f83bc1ad296a5f61337f278f8e8e89f1d61c9643e"
+      },
+      {
+        "id": "corpus/architecture/3",
+        "round": 3,
+        "arm": "architecture",
+        "beforeSha256": "46a3c6fd86cbfb9fbc42243e34e70b48f15e0fb7fc9a925cdc0befb7678f16b9",
+        "afterSha256": "8658b8324fd15ed008b38c0f83bc1ad296a5f61337f278f8e8e89f1d61c9643e"
+      }
+    ],
+    "artifactsUnchanged": {
+      "before": true,
+      "aa": true,
+      "architecture": true,
+      "proof": true,
+      "lane-index": true
+    }
+  },
+  "quality": {
+    "protocol": "integrated-layout-quality@1",
+    "entry": "/workspace/agentic-mermaid/dist/agent.js",
+    "cache": "off;text-spans",
+    "populations": [
+      {
+        "name": "source-agentic",
+        "total": 249,
+        "success": 249,
+        "errors": [],
+        "changes": [
+          {
+            "id": "corpus/architecture/3",
+            "beforeOk": true,
+            "afterOk": true,
+            "svgEqual": false,
+            "receiptEqual": false,
+            "beforeMetrics": {
+              "paintCertification": {
+                "version": 1,
+                "unit": "px",
+                "scope": "native-scene",
+                "status": "passed",
+                "viewport": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 1601.4810000000002,
+                  "height": 650
+                },
+                "attempts": 1,
+                "repairs": [],
+                "coverage": {
+                  "measured": 89,
+                  "unmeasured": 0,
+                  "preparedText": 12,
+                  "fallbackText": 0,
+                  "conditional": 0
+                },
+                "checks": {
+                  "primitives": 92,
+                  "labels": 9,
+                  "occlusionPairs": 402,
+                  "maxOcclusionPairs": 100000,
+                  "operations": 941,
+                  "maxOperations": 400000,
+                  "markers": 6
+                },
+                "issues": [],
+                "limitations": [
+                  "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+                  "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+                ]
+              },
+              "edgeCrossings": 0,
+              "labelLegibility": 1,
+              "labelMeasurement": {
+                "measuredNodes": 9,
+                "unmeasuredNodes": 0,
+                "hiddenNodes": 0,
+                "semanticNodes": 0,
+                "measuredEdges": 0,
+                "unmeasuredEdges": 0,
+                "measuredLabels": 0,
+                "unmeasuredLabels": 0,
+                "hiddenLabels": 0,
+                "semanticLabels": 0
+              },
+              "whitespaceBalance": 0.052398020467976744,
+              "labelEdgeProximity": {
+                "unavailable": "Infinity"
+              },
+              "labelConflicts": {
+                "total": 0,
+                "labelLabel": 0,
+                "labelNode": 0,
+                "labelEdge": 0
+              },
+              "routeOverlaps": {
+                "parallel": 0,
+                "opposing": 0
+              },
+              "routeGeometry": {
+                "bends": 4,
+                "length": 1760,
+                "area": 1040650
+              },
+              "minimumNodeSpacing": 35,
+              "elementDensity": 0.14414068130495364,
+              "minimumTextContrast": 14.894588477600598,
+              "aspectRatio": 2.463076923076923,
+              "nodeCount": 9,
+              "edgeCount": 6
+            },
+            "afterMetrics": {
+              "paintCertification": {
+                "version": 1,
+                "unit": "px",
+                "scope": "native-scene",
+                "status": "passed",
+                "viewport": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 726.0355,
+                  "height": 566
+                },
+                "attempts": 1,
+                "repairs": [],
+                "coverage": {
+                  "measured": 89,
+                  "unmeasured": 0,
+                  "preparedText": 12,
+                  "fallbackText": 0,
+                  "conditional": 0
+                },
+                "checks": {
+                  "primitives": 92,
+                  "labels": 9,
+                  "occlusionPairs": 432,
+                  "maxOcclusionPairs": 100000,
+                  "operations": 979,
+                  "maxOperations": 400000,
+                  "markers": 6
+                },
+                "issues": [],
+                "limitations": [
+                  "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+                  "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+                ]
+              },
+              "edgeCrossings": 0,
+              "labelLegibility": 1,
+              "labelMeasurement": {
+                "measuredNodes": 9,
+                "unmeasuredNodes": 0,
+                "hiddenNodes": 0,
+                "semanticNodes": 0,
+                "measuredEdges": 0,
+                "unmeasuredEdges": 0,
+                "measuredLabels": 0,
+                "unmeasuredLabels": 0,
+                "hiddenLabels": 0,
+                "semanticLabels": 0
+              },
+              "whitespaceBalance": 0.1326986537394504,
+              "labelEdgeProximity": {
+                "unavailable": "Infinity"
+              },
+              "labelConflicts": {
+                "total": 0,
+                "labelLabel": 0,
+                "labelNode": 0,
+                "labelEdge": 0
+              },
+              "routeOverlaps": {
+                "parallel": 0,
+                "opposing": 0
+              },
+              "routeGeometry": {
+                "bends": 4,
+                "length": 632,
+                "area": 410916
+              },
+              "minimumNodeSpacing": 35,
+              "elementDensity": 0.3650381099786818,
+              "minimumTextContrast": 14.894588477600598,
+              "aspectRatio": 1.2826855123674912,
+              "nodeCount": 9,
+              "edgeCount": 6
+            }
+          }
+        ]
+      },
+      {
+        "name": "source-elk",
+        "total": 249,
+        "success": 249,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "lcg-v1-0-agentic",
+        "total": 256,
+        "success": 256,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "lcg-v1-0-elk",
+        "total": 256,
+        "success": 255,
+        "errors": [
+          {
+            "id": "generated-cyclic:135",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n5->n1#0: Final connector shaft crosses opaque artwork owned by unrelated card n3; edge:n12->n2#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n5->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n9->n1#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n3->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n7->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n5->n1#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n10->n2#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n0->n7#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n3->n1#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n0->n1#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n5->n1#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n0->n7#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n4->n7#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED"
+          }
+        ],
+        "changes": []
+      },
+      {
+        "name": "lcg-v1-256-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "lcg-v1-256-elk",
+        "total": 64,
+        "success": 63,
+        "errors": [
+          {
+            "id": "generated-cyclic:303",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n7->n6#0: Final connector shaft crosses opaque artwork owned by unrelated card n9; edge:n7->n6#0: Final connector shaft crosses opaque artwork owned by unrelated card n9; edge:n1->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n11->n7#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n3->n7#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n1->n8#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n5->n2#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n3->n7#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n5->n2#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n11->n2#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n9->n1#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n9->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED"
+          }
+        ],
+        "changes": []
+      },
+      {
+        "name": "lcg-v1-320-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "lcg-v1-320-elk",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-0-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-0-elk",
+        "total": 64,
+        "success": 63,
+        "errors": [
+          {
+            "id": "generated-sha256-counter-v1:2",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge-label:n3->n5#0:text: Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified; edge:n4->n3#1: Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified; edge:n2->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n6->n3#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n1->n9#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n3->n5#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n4->n3#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n7->n5#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n7->n5#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n2->n8#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n3->n5#1: Endpoint marker is fully covered by later opaque artwork with no owned repaint; edge:n3->n5#1: Endpoint marker is fully covered by later opaque artwork with no owned repaint; edge:n8->n9#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n2->n9#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n4->n3#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED"
+          }
+        ],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-64-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-64-elk",
+        "total": 64,
+        "success": 63,
+        "errors": [
+          {
+            "id": "generated-sha256-counter-v1:85",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n7->n8#0: Final connector shaft crosses opaque artwork owned by unrelated card n11; edge:n7->n8#0: Final connector shaft crosses opaque artwork owned by unrelated card n11; edge:n0->n10#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n6->n4#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n6->n10#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n7->n11#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n0->n9#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n0->n4#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n7->n9#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n6->n3#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED"
+          }
+        ],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-128-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-128-elk",
+        "total": 64,
+        "success": 63,
+        "errors": [
+          {
+            "id": "generated-sha256-counter-v1:177",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge-label:n6->n7#0:text: Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified; edge:n14->n10#0: Final connector shaft crosses opaque artwork owned by unrelated card n9; edge:n14->n10#0: Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified; edge:n13->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n0->n14#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n9->n7#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n4->n2#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n12->n13#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n9->n13#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n15->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n9->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n14->n13#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n2->n1#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n7->n1#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n1->n14#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n13->n14#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n6->n7#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n2->n7#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED"
+          }
+        ],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-192-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-192-elk",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-256-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "sha256-counter-v1-256-elk",
+        "total": 64,
+        "success": 63,
+        "errors": [
+          {
+            "id": "generated-sha256-counter-v1:266",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n9->n0#0: Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified; edge:n9->n0#0: Final connector shaft crosses opaque artwork owned by unrelated card n10; edge:n7->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n10->n8#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n4->n9#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED"
+          }
+        ],
+        "changes": []
+      }
+    ],
+    "complete": true
+  },
+  "freshHoldout": {
+    "protocol": "integrated-layout-quality@1",
+    "entry": "/workspace/agentic-mermaid/dist/agent.js",
+    "cache": "off;text-spans",
+    "populations": [
+      {
+        "name": "fresh-320-agentic",
+        "total": 64,
+        "success": 64,
+        "errors": [],
+        "changes": []
+      },
+      {
+        "name": "fresh-320-elk",
+        "total": 64,
+        "success": 63,
+        "errors": [
+          {
+            "id": "generated-sha256-counter-v1:325",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n3->n6#0: Final connector shaft crosses opaque artwork owned by unrelated card n5; edge:n1->n4#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n3->n4#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n6->n4#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n2->n4#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n2->n4#1: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n6->n3#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n0->n3#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED"
+          }
+        ],
+        "changes": []
+      }
+    ],
+    "complete": true
+  },
+  "sourceVsElk": {
+    "admission": {
+      "native": 249,
+      "elk": 249
+    },
+    "metrics": {
+      "crossings": {
+        "native": 533,
+        "elk": 877,
+        "wins": 22,
+        "ties": 225,
+        "losses": [
+          {
+            "id": "corpus/architecture/0",
+            "native": 1,
+            "elk": 0
+          },
+          {
+            "id": "corpus/architecture/5",
+            "native": 1,
+            "elk": 0
+          }
+        ]
+      },
+      "labels": {
+        "native": 0,
+        "elk": 38,
+        "wins": 16,
+        "ties": 233,
+        "losses": []
+      },
+      "parallel": {
+        "native": 0,
+        "elk": 18,
+        "wins": 14,
+        "ties": 235,
+        "losses": []
+      },
+      "opposing": {
+        "native": 0,
+        "elk": 9,
+        "wins": 4,
+        "ties": 245,
+        "losses": []
+      },
+      "bends": {
+        "native": 3190,
+        "elk": 2673,
+        "wins": 31,
+        "ties": 193,
+        "losses": [
+          {
+            "id": "corpus/flowchart/81",
+            "native": 16,
+            "elk": 4
+          },
+          {
+            "id": "corpus/flowchart/82",
+            "native": 16,
+            "elk": 4
+          },
+          {
+            "id": "corpus/flowchart/94",
+            "native": 11,
+            "elk": 4
+          },
+          {
+            "id": "corpus/flowchart/96",
+            "native": 13,
+            "elk": 4
+          },
+          {
+            "id": "corpus/flowchart/108",
+            "native": 6,
+            "elk": 4
+          },
+          {
+            "id": "corpus/class/0",
+            "native": 6,
+            "elk": 4
+          },
+          {
+            "id": "corpus/class/17",
+            "native": 8,
+            "elk": 2
+          },
+          {
+            "id": "corpus/class/18",
+            "native": 8,
+            "elk": 2
+          },
+          {
+            "id": "corpus/er/4",
+            "native": 4,
+            "elk": 2
+          },
+          {
+            "id": "corpus/er/5",
+            "native": 4,
+            "elk": 2
+          },
+          {
+            "id": "corpus/er/6",
+            "native": 4,
+            "elk": 2
+          },
+          {
+            "id": "corpus/er/9",
+            "native": 6,
+            "elk": 2
+          },
+          {
+            "id": "corpus/er/17",
+            "native": 8,
+            "elk": 6
+          },
+          {
+            "id": "fixture/class-basic.mmd",
+            "native": 4,
+            "elk": 2
+          },
+          {
+            "id": "fixture/cyclic-labelled-11.mmd",
+            "native": 60,
+            "elk": 57
+          },
+          {
+            "id": "fixture/cyclic-labelled-15-chains.mmd",
+            "native": 75,
+            "elk": 74
+          },
+          {
+            "id": "fixture/cyclic-labelled-15.mmd",
+            "native": 66,
+            "elk": 53
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-11",
+            "native": 60,
+            "elk": 57
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-15",
+            "native": 66,
+            "elk": 53
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-15-chains",
+            "native": 75,
+            "elk": 74
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:mesh-120-labelled-40",
+            "native": 634,
+            "elk": 339
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:multigraph-24-loops",
+            "native": 396,
+            "elk": 172
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:subgraphs-12x8",
+            "native": 66,
+            "elk": 44
+          },
+          {
+            "id": "workload-source/class:class:80-classes",
+            "native": 156,
+            "elk": 78
+          },
+          {
+            "id": "workload-source/er:er:40-entities",
+            "native": 54,
+            "elk": 38
+          }
+        ]
+      },
+      "length": {
+        "native": 599198.1998060591,
+        "elk": 803232.6096735965,
+        "wins": 85,
+        "ties": 144,
+        "losses": [
+          {
+            "id": "corpus/flowchart/81",
+            "native": 544,
+            "elk": 368
+          },
+          {
+            "id": "corpus/flowchart/82",
+            "native": 544,
+            "elk": 368
+          },
+          {
+            "id": "corpus/flowchart/94",
+            "native": 593.5749999999999,
+            "elk": 457
+          },
+          {
+            "id": "corpus/flowchart/108",
+            "native": 533.617,
+            "elk": 499.53099999999995
+          },
+          {
+            "id": "corpus/class/14",
+            "native": 200,
+            "elk": 180
+          },
+          {
+            "id": "corpus/class/18",
+            "native": 532,
+            "elk": 514
+          },
+          {
+            "id": "corpus/er/17",
+            "native": 543,
+            "elk": 526
+          },
+          {
+            "id": "corpus/architecture/0",
+            "native": 922,
+            "elk": 596
+          },
+          {
+            "id": "corpus/architecture/5",
+            "native": 922,
+            "elk": 596
+          },
+          {
+            "id": "fixture/class-basic.mmd",
+            "native": 280,
+            "elk": 240
+          },
+          {
+            "id": "fixture/class-compound-backends.mmd",
+            "native": 632,
+            "elk": 561
+          },
+          {
+            "id": "fixture/cyclic-labelled-15.mmd",
+            "native": 16113.748664018793,
+            "elk": 14613.61288937982
+          },
+          {
+            "id": "fixture/fan-in-fan-out.mmd",
+            "native": 529.5230000000001,
+            "elk": 457.15
+          },
+          {
+            "id": "fixture/fan-in.mmd",
+            "native": 1125.603,
+            "elk": 1037.178
+          },
+          {
+            "id": "fixture/state-basic.mmd",
+            "native": 244.0000000000001,
+            "elk": 244
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:tree-300",
+            "native": 93477.06716049367,
+            "elk": 90395.68404320988
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-15",
+            "native": 16113.748664018793,
+            "elk": 14613.61288937982
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:subgraphs-12x8",
+            "native": 25848.82300000002,
+            "elk": 24572.724000000013
+          },
+          {
+            "id": "workload-source/class:class:compound-namespaces",
+            "native": 632,
+            "elk": 561
+          },
+          {
+            "id": "workload-source/class:class:80-classes",
+            "native": 22020,
+            "elk": 21420
+          }
+        ]
+      },
+      "area": {
+        "native": 84494456.75224201,
+        "elk": 107123368.2114328,
+        "wins": 72,
+        "ties": 144,
+        "losses": [
+          {
+            "id": "corpus/flowchart/90",
+            "native": 132958.27485000002,
+            "elk": 127750.9393475
+          },
+          {
+            "id": "corpus/flowchart/91",
+            "native": 132958.27485000002,
+            "elk": 127750.9393475
+          },
+          {
+            "id": "corpus/flowchart/94",
+            "native": 145426.00000000003,
+            "elk": 126844
+          },
+          {
+            "id": "corpus/state/14",
+            "native": 559316.5668,
+            "elk": 513021.2904
+          },
+          {
+            "id": "corpus/class/0",
+            "native": 322080,
+            "elk": 273504
+          },
+          {
+            "id": "corpus/class/2",
+            "native": 85680,
+            "elk": 61400
+          },
+          {
+            "id": "corpus/class/9",
+            "native": 314160,
+            "elk": 257920
+          },
+          {
+            "id": "corpus/class/14",
+            "native": 139320,
+            "elk": 131580
+          },
+          {
+            "id": "corpus/class/16",
+            "native": 53703,
+            "elk": 51272
+          },
+          {
+            "id": "corpus/class/19",
+            "native": 221904,
+            "elk": 207888
+          },
+          {
+            "id": "corpus/class/23",
+            "native": 88200,
+            "elk": 83300
+          },
+          {
+            "id": "corpus/class/27",
+            "native": 46440,
+            "elk": 39600
+          },
+          {
+            "id": "corpus/class/28",
+            "native": 46440,
+            "elk": 39600
+          },
+          {
+            "id": "corpus/class/29",
+            "native": 87720,
+            "elk": 67200
+          },
+          {
+            "id": "corpus/class/30",
+            "native": 46440,
+            "elk": 39600
+          },
+          {
+            "id": "corpus/class/33",
+            "native": 46440,
+            "elk": 39600
+          },
+          {
+            "id": "corpus/er/19",
+            "native": 125640,
+            "elk": 114000
+          },
+          {
+            "id": "fixture/cyclic-labelled-11.mmd",
+            "native": 768475.5075119998,
+            "elk": 725003.5496352
+          },
+          {
+            "id": "fixture/cyclic-labelled-15-chains.mmd",
+            "native": 1540501.461888,
+            "elk": 1420668.954768
+          },
+          {
+            "id": "fixture/cyclic-labelled-15.mmd",
+            "native": 1316857.7684,
+            "elk": 1200004.0329024
+          },
+          {
+            "id": "fixture/cyclic-labelled-9-chains.mmd",
+            "native": 841487.526,
+            "elk": 668165.317792143
+          },
+          {
+            "id": "fixture/cyclic-labelled-9.mmd",
+            "native": 785773.146428,
+            "elk": 774973.4430200001
+          },
+          {
+            "id": "fixture/nested-wide-titles.mmd",
+            "native": 223398,
+            "elk": 215344.61560000002
+          },
+          {
+            "id": "fixture/requirement-backends.mmd",
+            "native": 299186,
+            "elk": 257335
+          },
+          {
+            "id": "workload-source/requirement:requirement:cyclic-labelled-relations",
+            "native": 299186,
+            "elk": 257335
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:tree-300",
+            "native": 13285417.848400002,
+            "elk": 13249192.142766703
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-11",
+            "native": 768475.5075119998,
+            "elk": 725003.5496352
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-15",
+            "native": 1316857.7684,
+            "elk": 1200004.0329024
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-9",
+            "native": 785773.146428,
+            "elk": 774973.4430200001
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-15-chains",
+            "native": 1540501.461888,
+            "elk": 1420668.954768
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:cyclic-labelled-9-chains",
+            "native": 841487.526,
+            "elk": 668165.317792143
+          },
+          {
+            "id": "workload-source/flowchart:flowchart:multigraph-24-loops",
+            "native": 2794257.235200001,
+            "elk": 2719057.4382589287
+          },
+          {
+            "id": "workload-source/class:class:80-classes",
+            "native": 6839280,
+            "elk": 6690600
+          }
+        ]
+      }
+    },
+    "paint": {
+      "native": {
+        "passed": 222,
+        "unverified": 27
+      },
+      "elk": {
+        "passed": 220,
+        "unverified": 29
+      }
+    }
+  },
+  "freshVsElk": {
+    "admission": {
+      "native": 64,
+      "elk": 63
+    },
+    "metrics": {
+      "crossings": {
+        "native": 512,
+        "elk": 1827,
+        "wins": 63,
+        "ties": 0,
+        "losses": []
+      },
+      "labels": {
+        "native": 0,
+        "elk": 95,
+        "wins": 38,
+        "ties": 25,
+        "losses": []
+      },
+      "parallel": {
+        "native": 0,
+        "elk": 29,
+        "wins": 21,
+        "ties": 42,
+        "losses": []
+      },
+      "opposing": {
+        "native": 0,
+        "elk": 19,
+        "wins": 12,
+        "ties": 51,
+        "losses": []
+      },
+      "bends": {
+        "native": 4503,
+        "elk": 4453,
+        "wins": 33,
+        "ties": 1,
+        "losses": [
+          {
+            "id": "generated-sha256-counter-v1:320",
+            "native": 90,
+            "elk": 86
+          },
+          {
+            "id": "generated-sha256-counter-v1:321",
+            "native": 102,
+            "elk": 83
+          },
+          {
+            "id": "generated-sha256-counter-v1:323",
+            "native": 112,
+            "elk": 84
+          },
+          {
+            "id": "generated-sha256-counter-v1:326",
+            "native": 46,
+            "elk": 44
+          },
+          {
+            "id": "generated-sha256-counter-v1:327",
+            "native": 50,
+            "elk": 48
+          },
+          {
+            "id": "generated-sha256-counter-v1:333",
+            "native": 88,
+            "elk": 85
+          },
+          {
+            "id": "generated-sha256-counter-v1:334",
+            "native": 106,
+            "elk": 83
+          },
+          {
+            "id": "generated-sha256-counter-v1:335",
+            "native": 114,
+            "elk": 109
+          },
+          {
+            "id": "generated-sha256-counter-v1:336",
+            "native": 106,
+            "elk": 86
+          },
+          {
+            "id": "generated-sha256-counter-v1:337",
+            "native": 118,
+            "elk": 91
+          },
+          {
+            "id": "generated-sha256-counter-v1:338",
+            "native": 42,
+            "elk": 40
+          },
+          {
+            "id": "generated-sha256-counter-v1:339",
+            "native": 64,
+            "elk": 41
+          },
+          {
+            "id": "generated-sha256-counter-v1:345",
+            "native": 67,
+            "elk": 66
+          },
+          {
+            "id": "generated-sha256-counter-v1:346",
+            "native": 82,
+            "elk": 75
+          },
+          {
+            "id": "generated-sha256-counter-v1:347",
+            "native": 112,
+            "elk": 85
+          },
+          {
+            "id": "generated-sha256-counter-v1:348",
+            "native": 108,
+            "elk": 102
+          },
+          {
+            "id": "generated-sha256-counter-v1:355",
+            "native": 76,
+            "elk": 69
+          },
+          {
+            "id": "generated-sha256-counter-v1:357",
+            "native": 62,
+            "elk": 59
+          },
+          {
+            "id": "generated-sha256-counter-v1:359",
+            "native": 78,
+            "elk": 73
+          },
+          {
+            "id": "generated-sha256-counter-v1:362",
+            "native": 106,
+            "elk": 98
+          },
+          {
+            "id": "generated-sha256-counter-v1:363",
+            "native": 129,
+            "elk": 105
+          },
+          {
+            "id": "generated-sha256-counter-v1:367",
+            "native": 62,
+            "elk": 59
+          },
+          {
+            "id": "generated-sha256-counter-v1:369",
+            "native": 72,
+            "elk": 69
+          },
+          {
+            "id": "generated-sha256-counter-v1:371",
+            "native": 68,
+            "elk": 62
+          },
+          {
+            "id": "generated-sha256-counter-v1:372",
+            "native": 84,
+            "elk": 69
+          },
+          {
+            "id": "generated-sha256-counter-v1:374",
+            "native": 108,
+            "elk": 92
+          },
+          {
+            "id": "generated-sha256-counter-v1:375",
+            "native": 104,
+            "elk": 98
+          },
+          {
+            "id": "generated-sha256-counter-v1:380",
+            "native": 52,
+            "elk": 42
+          },
+          {
+            "id": "generated-sha256-counter-v1:383",
+            "native": 88,
+            "elk": 83
+          }
+        ]
+      },
+      "length": {
+        "native": 871261.7486438947,
+        "elk": 1223085.869802004,
+        "wins": 57,
+        "ties": 0,
+        "losses": [
+          {
+            "id": "generated-sha256-counter-v1:323",
+            "native": 28223.57389175171,
+            "elk": 21963.08139409399
+          },
+          {
+            "id": "generated-sha256-counter-v1:333",
+            "native": 17893.432009663527,
+            "elk": 17691.247434158555
+          },
+          {
+            "id": "generated-sha256-counter-v1:339",
+            "native": 8486.369025691976,
+            "elk": 6731.9736713751545
+          },
+          {
+            "id": "generated-sha256-counter-v1:341",
+            "native": 13293.215589270187,
+            "elk": 13040.31222825615
+          },
+          {
+            "id": "generated-sha256-counter-v1:347",
+            "native": 26070.052963639213,
+            "elk": 25565.0852189942
+          },
+          {
+            "id": "generated-sha256-counter-v1:359",
+            "native": 17588.833567141148,
+            "elk": 15586.3812883923
+          }
+        ]
+      },
+      "area": {
+        "native": 74917089.661988,
+        "elk": 92039180.70722805,
+        "wins": 49,
+        "ties": 0,
+        "losses": [
+          {
+            "id": "generated-sha256-counter-v1:321",
+            "native": 2053715.1651440002,
+            "elk": 1719156.120147714
+          },
+          {
+            "id": "generated-sha256-counter-v1:330",
+            "native": 857624.8047840002,
+            "elk": 722740.72356
+          },
+          {
+            "id": "generated-sha256-counter-v1:335",
+            "native": 1882772.7178000002,
+            "elk": 1701646.9689196665
+          },
+          {
+            "id": "generated-sha256-counter-v1:338",
+            "native": 683500.53772,
+            "elk": 676614.3943533334
+          },
+          {
+            "id": "generated-sha256-counter-v1:339",
+            "native": 783628.2799999999,
+            "elk": 555249.298275
+          },
+          {
+            "id": "generated-sha256-counter-v1:341",
+            "native": 1051252.716764,
+            "elk": 931064.0303331333
+          },
+          {
+            "id": "generated-sha256-counter-v1:345",
+            "native": 1493778.6029759997,
+            "elk": 1238754.7977093332
+          },
+          {
+            "id": "generated-sha256-counter-v1:351",
+            "native": 666635.0756000001,
+            "elk": 600024.9229176666
+          },
+          {
+            "id": "generated-sha256-counter-v1:353",
+            "native": 912733.1388,
+            "elk": 630148.7919033334
+          },
+          {
+            "id": "generated-sha256-counter-v1:355",
+            "native": 1307072.4888000004,
+            "elk": 1163201.7796666666
+          },
+          {
+            "id": "generated-sha256-counter-v1:359",
+            "native": 1517525.34696,
+            "elk": 1254956.2756285714
+          },
+          {
+            "id": "generated-sha256-counter-v1:366",
+            "native": 1052558.747508,
+            "elk": 861275.41704
+          },
+          {
+            "id": "generated-sha256-counter-v1:367",
+            "native": 1037674.2480000003,
+            "elk": 905242.2453733333
+          },
+          {
+            "id": "generated-sha256-counter-v1:377",
+            "native": 646087.90896,
+            "elk": 590854.7078865456
+          }
+        ]
+      }
+    },
+    "paint": {
+      "native": {
+        "unverified": 64
+      },
+      "elk": {
+        "unverified": 63
+      }
+    }
+  },
+  "editReplay": {
+    "schemaVersion": 1,
+    "kind": "built-native23-native24-edit-correctness",
+    "policies": {
+      "off": {
+        "baseline": {
+          "path": "/workspace/pr449-guidance/edits-integrated23-off.json",
+          "sha256": "1eb44de3004319822f33acfbc1fc66654cc534472b24fa5469011ca9246bb963",
+          "entry": "/workspace/pr449-guidance/integrated23/dist/agent.js",
+          "artifactManifestSha256": "247cb39d60bf5b9306696f161945a2160e8646c854fcda62370ad9cc7779eba7",
+          "implementation": "agentic-layered@23"
+        },
+        "candidate": {
+          "path": "/workspace/pr449-guidance/edits-final24-off.json",
+          "sha256": "875d447fdb7b0a17959eb00a4a16de9201b43f4699b3a109f3804d82cd08f187",
+          "entry": "/workspace/agentic-mermaid/dist/agent.js",
+          "artifactManifestSha256": "47b0349f0964eb3c3962ff2014ab14ffe31c5014b6841cc26f7be9a3bf4049f9",
+          "implementation": "agentic-layered@24"
+        },
+        "observations": 117,
+        "beforeAdmission": {
+          "ok": 116,
+          "error": 1
+        },
+        "afterAdmission": {
+          "ok": 116,
+          "error": 1
+        },
+        "sourceOrAffectedChanges": [],
+        "admissionChanges": [],
+        "typedDeclineChanges": [],
+        "backendChanges": [],
+        "architectureSvgChanges": [],
+        "otherSvgChanges": [],
+        "layoutChanges": [],
+        "transitionChanges": [],
+        "receiptChangesBeyondImplementation": [],
+        "certificateChanges": [],
+        "implementationErrors": [],
+        "undos": {
+          "beforeChecks": 18,
+          "beforePassed": 18,
+          "afterChecks": 18,
+          "afterPassed": 18,
+          "changed": []
+        },
+        "declines": [
+          {
+            "family": "flowchart",
+            "mode": "agentic",
+            "edit": "eligibility-layout-hint",
+            "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: Agentic graph layout does not support this input: layout hints",
+            "code": null,
+            "causeName": "GraphLayoutUnsupportedError",
+            "causeCode": "GRAPH_LAYOUT_UNSUPPORTED",
+            "causeReason": "layout hints"
+          }
+        ],
+        "nativeVsElkBefore": {
+          "comparable": 31,
+          "better": 13,
+          "equal": 14,
+          "worse": 4,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "nativeVsElkAfter": {
+          "comparable": 31,
+          "better": 13,
+          "equal": 14,
+          "worse": 4,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "fallbackVsElkBefore": {
+          "comparable": 33,
+          "better": 13,
+          "equal": 14,
+          "worse": 6,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "flowchart",
+              "edit": "eligibility-layout-hint",
+              "native": 46.592394046569645,
+              "elk": 30.5
+            },
+            {
+              "family": "flowchart",
+              "edit": "undo",
+              "native": 56.95799935394831,
+              "elk": 0
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "fallbackVsElkAfter": {
+          "comparable": 33,
+          "better": 13,
+          "equal": 14,
+          "worse": 6,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "flowchart",
+              "edit": "eligibility-layout-hint",
+              "native": 46.592394046569645,
+              "elk": 30.5
+            },
+            {
+              "family": "flowchart",
+              "edit": "undo",
+              "native": 56.95799935394831,
+              "elk": 0
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "transitionCountsByMode": {
+          "elk": 33,
+          "agentic": 31,
+          "agentic-with-elk": 33
+        }
+      },
+      "normal": {
+        "baseline": {
+          "path": "/workspace/pr449-guidance/edits-integrated23-normal.json",
+          "sha256": "244796823a8fae68284d80954fd13c3f79456aaaceb06a6e3fcd9b9c260dd1c3",
+          "entry": "/workspace/pr449-guidance/integrated23/dist/agent.js",
+          "artifactManifestSha256": "247cb39d60bf5b9306696f161945a2160e8646c854fcda62370ad9cc7779eba7",
+          "implementation": "agentic-layered@23"
+        },
+        "candidate": {
+          "path": "/workspace/pr449-guidance/edits-final24-normal.json",
+          "sha256": "90e6c29821f50f6293ecbe5c5f64fe746126e7d534b580abd4da7b778f3171ec",
+          "entry": "/workspace/agentic-mermaid/dist/agent.js",
+          "artifactManifestSha256": "47b0349f0964eb3c3962ff2014ab14ffe31c5014b6841cc26f7be9a3bf4049f9",
+          "implementation": "agentic-layered@24"
+        },
+        "observations": 117,
+        "beforeAdmission": {
+          "ok": 116,
+          "error": 1
+        },
+        "afterAdmission": {
+          "ok": 116,
+          "error": 1
+        },
+        "sourceOrAffectedChanges": [],
+        "admissionChanges": [],
+        "typedDeclineChanges": [],
+        "backendChanges": [],
+        "architectureSvgChanges": [],
+        "otherSvgChanges": [],
+        "layoutChanges": [],
+        "transitionChanges": [],
+        "receiptChangesBeyondImplementation": [],
+        "certificateChanges": [],
+        "implementationErrors": [],
+        "undos": {
+          "beforeChecks": 18,
+          "beforePassed": 18,
+          "afterChecks": 18,
+          "afterPassed": 18,
+          "changed": []
+        },
+        "declines": [
+          {
+            "family": "flowchart",
+            "mode": "agentic",
+            "edit": "eligibility-layout-hint",
+            "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: Agentic graph layout does not support this input: layout hints",
+            "code": null,
+            "causeName": "GraphLayoutUnsupportedError",
+            "causeCode": "GRAPH_LAYOUT_UNSUPPORTED",
+            "causeReason": "layout hints"
+          }
+        ],
+        "nativeVsElkBefore": {
+          "comparable": 31,
+          "better": 13,
+          "equal": 14,
+          "worse": 4,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "nativeVsElkAfter": {
+          "comparable": 31,
+          "better": 13,
+          "equal": 14,
+          "worse": 4,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "fallbackVsElkBefore": {
+          "comparable": 33,
+          "better": 13,
+          "equal": 14,
+          "worse": 6,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "flowchart",
+              "edit": "eligibility-layout-hint",
+              "native": 46.592394046569645,
+              "elk": 30.5
+            },
+            {
+              "family": "flowchart",
+              "edit": "undo",
+              "native": 56.95799935394831,
+              "elk": 0
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "fallbackVsElkAfter": {
+          "comparable": 33,
+          "better": 13,
+          "equal": 14,
+          "worse": 6,
+          "worseCases": [
+            {
+              "family": "flowchart",
+              "edit": "label-growth",
+              "native": 24.823499999999992,
+              "elk": 1.4210854715202004e-14
+            },
+            {
+              "family": "flowchart",
+              "edit": "add-node-edge",
+              "native": 22.847499999999986,
+              "elk": 15.042000000000007
+            },
+            {
+              "family": "flowchart",
+              "edit": "move-membership",
+              "native": 172.72411122143498,
+              "elk": 158.303142948435
+            },
+            {
+              "family": "flowchart",
+              "edit": "eligibility-layout-hint",
+              "native": 46.592394046569645,
+              "elk": 30.5
+            },
+            {
+              "family": "flowchart",
+              "edit": "undo",
+              "native": 56.95799935394831,
+              "elk": 0
+            },
+            {
+              "family": "class",
+              "edit": "undo",
+              "native": 48,
+              "elk": 6.666666666666667
+            }
+          ]
+        },
+        "transitionCountsByMode": {
+          "elk": 33,
+          "agentic": 31,
+          "agentic-with-elk": 33
+        }
+      }
+    },
+    "permittedReceiptNormalization": {
+      "key": "implementation",
+      "before": "agentic-layered@23",
+      "after": "agentic-layered@24"
+    },
+    "limitations": [
+      "Quality-only evidence; no benchmark inference.",
+      "Both cache policies retain all117 rows including strict typed declines.",
+      "Changed geometry and transitions are reported without redefining affected sets."
+    ],
+    "totals": {
+      "observations": 234,
+      "undoChecks": 36,
+      "undoPassed": 36,
+      "sourceOrAffectedChanges": 0,
+      "admissionChanges": 0,
+      "typedDeclineChanges": 0,
+      "backendChanges": 0,
+      "architectureSvgChanges": 0,
+      "otherSvgChanges": 0,
+      "layoutChanges": 0,
+      "transitionChanges": 0,
+      "receiptChangesBeyondImplementation": 0,
+      "certificateChanges": 0,
+      "implementationErrors": 0
+    }
+  },
+  "expansionDiagnostics": {
+    "observations": 40,
+    "issues": [],
+    "rows": [
+      {
+        "id": "calibration/long-edge",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 20,
+        "physicalPrivateVertices": 14,
+        "maxPrivateVertices": 14,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "calibration/labelled-long-edge",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 20,
+        "physicalPrivateVertices": 14,
+        "maxPrivateVertices": 14,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "calibration/compact-long-edge",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 10,
+        "physicalPrivateVertices": 4,
+        "maxPrivateVertices": 4,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "calibration/compact-labelled",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 10,
+        "physicalPrivateVertices": 4,
+        "maxPrivateVertices": 4,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "calibration/loop",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 6,
+        "physicalPrivateVertices": 2,
+        "maxPrivateVertices": 2,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "calibration/invalid-endpoint",
+        "ok": false,
+        "physicalNormalizations": 0,
+        "physicalExpandedVertices": 0,
+        "physicalPrivateVertices": 0,
+        "maxPrivateVertices": 0,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "calibration/rank-limit",
+        "ok": false,
+        "physicalNormalizations": 0,
+        "physicalExpandedVertices": 0,
+        "physicalPrivateVertices": 0,
+        "maxPrivateVertices": 0,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-false/span-8",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 60,
+        "physicalPrivateVertices": 44,
+        "maxPrivateVertices": 44,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-true/span-8",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 60,
+        "physicalPrivateVertices": 44,
+        "maxPrivateVertices": 44,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-false/span-64",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 256,
+        "physicalPrivateVertices": 240,
+        "maxPrivateVertices": 240,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-true/span-64",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 256,
+        "physicalPrivateVertices": 240,
+        "maxPrivateVertices": 240,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-false/span-256",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 1024,
+        "physicalPrivateVertices": 1008,
+        "maxPrivateVertices": 1008,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-true/span-256",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 1024,
+        "physicalPrivateVertices": 1008,
+        "maxPrivateVertices": 1008,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/all-labels/compact-false",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 256,
+        "physicalPrivateVertices": 224,
+        "maxPrivateVertices": 224,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/all-labels/compact-true",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 256,
+        "physicalPrivateVertices": 224,
+        "maxPrivateVertices": 224,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-false/span-16",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 64,
+        "physicalPrivateVertices": 48,
+        "maxPrivateVertices": 48,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-16/label-true/span-16",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 64,
+        "physicalPrivateVertices": 48,
+        "maxPrivateVertices": 48,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-64/label-false/span-16",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 252,
+        "physicalPrivateVertices": 188,
+        "maxPrivateVertices": 188,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-64/label-true/span-16",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 252,
+        "physicalPrivateVertices": 188,
+        "maxPrivateVertices": 188,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-128/label-false/span-16",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 508,
+        "physicalPrivateVertices": 380,
+        "maxPrivateVertices": 380,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "stress/nodes-128/label-true/span-16",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 508,
+        "physicalPrivateVertices": 380,
+        "maxPrivateVertices": 380,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "flowchart:cyclic-labelled-11",
+        "ok": true,
+        "physicalNormalizations": 27,
+        "physicalExpandedVertices": 2021,
+        "physicalPrivateVertices": 1724,
+        "maxPrivateVertices": 94,
+        "candidateAttempts": 27,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "flowchart:cyclic-labelled-15",
+        "ok": true,
+        "physicalNormalizations": 27,
+        "physicalExpandedVertices": 3428,
+        "physicalPrivateVertices": 3023,
+        "maxPrivateVertices": 171,
+        "candidateAttempts": 27,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "flowchart:cyclic-labelled-19",
+        "ok": true,
+        "physicalNormalizations": 17,
+        "physicalExpandedVertices": 3372,
+        "physicalPrivateVertices": 3049,
+        "maxPrivateVertices": 234,
+        "candidateAttempts": 17,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "flowchart:cyclic-labelled-9",
+        "ok": true,
+        "physicalNormalizations": 27,
+        "physicalExpandedVertices": 1631,
+        "physicalPrivateVertices": 1388,
+        "maxPrivateVertices": 75,
+        "candidateAttempts": 27,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "flowchart:cyclic-labelled-13",
+        "ok": true,
+        "physicalNormalizations": 27,
+        "physicalExpandedVertices": 3062,
+        "physicalPrivateVertices": 2711,
+        "maxPrivateVertices": 153,
+        "candidateAttempts": 27,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "flowchart:cyclic-labelled-18-cuts",
+        "ok": true,
+        "physicalNormalizations": 17,
+        "physicalExpandedVertices": 2359,
+        "physicalPrivateVertices": 2053,
+        "maxPrivateVertices": 198,
+        "candidateAttempts": 17,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "architecture:aligned-junction-services",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 9,
+        "physicalPrivateVertices": 4,
+        "maxPrivateVertices": 4,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "architecture:40-services",
+        "ok": true,
+        "physicalNormalizations": 0,
+        "physicalExpandedVertices": 0,
+        "physicalPrivateVertices": 0,
+        "maxPrivateVertices": 0,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "architecture:16-junctions",
+        "ok": true,
+        "physicalNormalizations": 0,
+        "physicalExpandedVertices": 0,
+        "physicalPrivateVertices": 0,
+        "maxPrivateVertices": 0,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "architecture:32-junctions",
+        "ok": true,
+        "physicalNormalizations": 0,
+        "physicalExpandedVertices": 0,
+        "physicalPrivateVertices": 0,
+        "maxPrivateVertices": 0,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "architecture:32-large-junctions",
+        "ok": true,
+        "physicalNormalizations": 0,
+        "physicalExpandedVertices": 0,
+        "physicalPrivateVertices": 0,
+        "maxPrivateVertices": 0,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "corpus/architecture/0",
+        "ok": true,
+        "physicalNormalizations": 2,
+        "physicalExpandedVertices": 8,
+        "physicalPrivateVertices": 3,
+        "maxPrivateVertices": 3,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "corpus/architecture/1",
+        "ok": true,
+        "physicalNormalizations": 2,
+        "physicalExpandedVertices": 8,
+        "physicalPrivateVertices": 3,
+        "maxPrivateVertices": 3,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "corpus/architecture/2",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 7,
+        "physicalPrivateVertices": 3,
+        "maxPrivateVertices": 3,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "corpus/architecture/3",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 3,
+        "physicalPrivateVertices": 0,
+        "maxPrivateVertices": 0,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "corpus/architecture/4",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 13,
+        "physicalPrivateVertices": 6,
+        "maxPrivateVertices": 6,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "corpus/architecture/5",
+        "ok": true,
+        "physicalNormalizations": 2,
+        "physicalExpandedVertices": 8,
+        "physicalPrivateVertices": 3,
+        "maxPrivateVertices": 3,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "fixture/architecture-backends.mmd",
+        "ok": true,
+        "physicalNormalizations": 1,
+        "physicalExpandedVertices": 9,
+        "physicalPrivateVertices": 4,
+        "maxPrivateVertices": 4,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      },
+      {
+        "id": "fixture/architecture-basic.mmd",
+        "ok": true,
+        "physicalNormalizations": 2,
+        "physicalExpandedVertices": 6,
+        "physicalPrivateVertices": 2,
+        "maxPrivateVertices": 2,
+        "candidateAttempts": 0,
+        "candidateDeclines": 0
+      }
+    ]
+  },
+  "evidenceFiles": [
+    {
+      "path": "quality-final24/lcg-v1-0-agentic.json",
+      "sha256": "4dfc50c95966d4a7eea0f33ced9311cb851db8315da1267fa5e668f5c0fbe2c7"
+    },
+    {
+      "path": "quality-final24/lcg-v1-0-elk.json",
+      "sha256": "5951d697be08465b7b7183c08518b9de3a695efa090c79895b7824ee72c37a01"
+    },
+    {
+      "path": "quality-final24/lcg-v1-256-agentic.json",
+      "sha256": "85d78528b7679e2fd1104f459533ce9a801dec9acea597746a69af450a71b404"
+    },
+    {
+      "path": "quality-final24/lcg-v1-256-elk.json",
+      "sha256": "ae8598827e74e66ede2fcfbb126f3ba12a082f8371a94515eb8cd64cd4e661c4"
+    },
+    {
+      "path": "quality-final24/lcg-v1-320-agentic.json",
+      "sha256": "d87a69403fc4cbeecc760d65bd7919db087a0d62c18148505bb407cf000f46f8"
+    },
+    {
+      "path": "quality-final24/lcg-v1-320-elk.json",
+      "sha256": "550210c92f9cc01c8a3df1f47228b1d760007476c8375974bf0404be531c4504"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-0-agentic.json",
+      "sha256": "b707790a0ad194eb7740f9818922958457422af84112ad69e06532354eeb0392"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-0-elk.json",
+      "sha256": "454e9e6cb0cd757d3f5f168d67346dc32ee94e58e2be49ce8d39e4fb9802437b"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-128-agentic.json",
+      "sha256": "05dfa7d6812141fd67e999b54562c76bf9dca8ca8175916732c7da324e107097"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-128-elk.json",
+      "sha256": "7072047bfe25d78f9c0bce2129ecf26a0a80b32ad55319f7926257d1a417f11c"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-192-agentic.json",
+      "sha256": "ff77d71e032d361c604585723ba4c62b34da35bfa7d572008526791af46cf6c7"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-192-elk.json",
+      "sha256": "c8897cd676b5f38d7043b17d19cd4354d394f7b82341c56c1b540a4b0a64b6d5"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-256-agentic.json",
+      "sha256": "dc4e1d67b99191be02e59bddcaaa59e3e789c5f48c8915526223690964bd014d"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-256-elk.json",
+      "sha256": "b6f467a80a196726eb1edf607e180f75a0f1b7b1ad29e37ebc7a3e5a06e3704e"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-64-agentic.json",
+      "sha256": "a407b21811025fe43786636cbc426885f2ca9b56dceeaf311e04260187ac5fa3"
+    },
+    {
+      "path": "quality-final24/sha256-counter-v1-64-elk.json",
+      "sha256": "9f48832bb05b6b8fda04a3d7d803d4cc0475853bce5f5dc13258b26f9b114b50"
+    },
+    {
+      "path": "quality-final24/source-agentic.json",
+      "sha256": "22e6d34902cfe59aa749d2ad2f409af1e4f3b6d0debaa16cbe6d34cd8f9b0c00"
+    },
+    {
+      "path": "quality-final24/source-elk.json",
+      "sha256": "70aafedddedc61e53fbad74a47911345166d39639f063757a590f8e6de747546"
+    },
+    {
+      "path": "quality-final24/summary.json",
+      "sha256": "1bcb3dff433c59c333673bbd7fbffdf5f760bc127c644f289b9352f570f2dc65"
+    },
+    {
+      "path": "quality-fresh-final24/fresh-320-agentic.json",
+      "sha256": "c3ed7a0c3c8cf08e9d5d01caa5abef81f923a6596094a95bb709c3a9d37d59f1"
+    },
+    {
+      "path": "quality-fresh-final24/fresh-320-elk.json",
+      "sha256": "6df25f1d7d45d6b690b46e1c7a26c54d3ee025e573de96cd36a5bfb134a0fd86"
+    },
+    {
+      "path": "quality-fresh-final24/summary.json",
+      "sha256": "7c22bd5f952fd3bc5cd23556121745492b21276af4b1e3a9ddc78c10d9b5a518"
+    },
+    {
+      "path": "individual-pilot/1-aa-memory.job.json",
+      "sha256": "a9f64d4c70c996d5d078c28b6b78137c3b7be7e3f6f087b88f997ae684b7ad86"
+    },
+    {
+      "path": "individual-pilot/1-aa-memory.json",
+      "sha256": "3c232480d05241e54046ee7cfa70cff09a529c13972f89f1a472e6430ee26ffa"
+    },
+    {
+      "path": "individual-pilot/1-aa-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/1-aa-time.job.json",
+      "sha256": "d3f51d12eb2aeb9a7dd50770682879cb5420e7e38b9371c61c13af7a7640cb5d"
+    },
+    {
+      "path": "individual-pilot/1-aa-time.json",
+      "sha256": "4c9475c241462527fe8f3ecbbeae15c71543b9ef104660f5c019dfa94c4fea4e"
+    },
+    {
+      "path": "individual-pilot/1-aa-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/1-architecture-memory.job.json",
+      "sha256": "b5cfca601cefb4784fb6b8c8b9095fdaf348b330e9f107d98e306925a33316bb"
+    },
+    {
+      "path": "individual-pilot/1-architecture-memory.json",
+      "sha256": "d54bb41f8e3c12ca6a954b0d05e497ee43110014349e0d8279abdf6a74baf16e"
+    },
+    {
+      "path": "individual-pilot/1-architecture-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/1-architecture-time.job.json",
+      "sha256": "5d6c0459355e7b9dd24068d02359d2841262d89a56556cdafba4d96ffc230769"
+    },
+    {
+      "path": "individual-pilot/1-architecture-time.json",
+      "sha256": "d2b86a89558adb0e04f6a30da68472277d14262f019ac4cd79786b70ac45dd9a"
+    },
+    {
+      "path": "individual-pilot/1-architecture-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/1-before-memory.job.json",
+      "sha256": "a9f64d4c70c996d5d078c28b6b78137c3b7be7e3f6f087b88f997ae684b7ad86"
+    },
+    {
+      "path": "individual-pilot/1-before-memory.json",
+      "sha256": "28016a11dfa178e51ae8e3b79570132e05107a4b9174080dca6b7933cc74aa32"
+    },
+    {
+      "path": "individual-pilot/1-before-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/1-before-time.job.json",
+      "sha256": "d3f51d12eb2aeb9a7dd50770682879cb5420e7e38b9371c61c13af7a7640cb5d"
+    },
+    {
+      "path": "individual-pilot/1-before-time.json",
+      "sha256": "f8579f5c5387fb2f59ea6a205abe8ca41d7e015dc9ebc924408df5b56b0e3f2d"
+    },
+    {
+      "path": "individual-pilot/1-before-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/1-lane-index-memory.job.json",
+      "sha256": "5754ea744afabcb157d81d084736e4b63289037146bff796d3da21955e5c4be1"
+    },
+    {
+      "path": "individual-pilot/1-lane-index-memory.json",
+      "sha256": "425714455bcbdc9577d78b5f21b556cf36fc09bccc2636ee6cf4ed1026649efe"
+    },
+    {
+      "path": "individual-pilot/1-lane-index-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/1-lane-index-time.job.json",
+      "sha256": "338de23ab9f9b50d30f8bf8c00341e781923678deaf44ae1935d8d6bb7e65133"
+    },
+    {
+      "path": "individual-pilot/1-lane-index-time.json",
+      "sha256": "de92734806ab9128cbc812a81b282b71de21a23d82790095ede9331c48f44321"
+    },
+    {
+      "path": "individual-pilot/1-lane-index-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/1-proof-memory.job.json",
+      "sha256": "e937e10075766a919a1513aad8758c443ac8e6e8ea95b4968e3e3a79bf9780ad"
+    },
+    {
+      "path": "individual-pilot/1-proof-memory.json",
+      "sha256": "c05eb6a268370ac9d68f4414fc6c8e2a0169fcae4a71315c695db03cef08b1e9"
+    },
+    {
+      "path": "individual-pilot/1-proof-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/1-proof-time.job.json",
+      "sha256": "12bfe74c48225578121bd5a0049c21d25b6e0148b6880e06b6956d293a020ece"
+    },
+    {
+      "path": "individual-pilot/1-proof-time.json",
+      "sha256": "ef626ac173e8c98fc7646e21f8d9a14aa5ce6fd87cb47ff5260677614e1a69be"
+    },
+    {
+      "path": "individual-pilot/1-proof-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/2-aa-memory.job.json",
+      "sha256": "78ebf5e3cb04d25510ef1bbc83e826786e77c7c0c3a79ef7f60e76f525083f45"
+    },
+    {
+      "path": "individual-pilot/2-aa-memory.json",
+      "sha256": "96ad85dab3f9d75cf3ea6da3cbb8305e6561e84d1297ae0cbe942219f6fa942e"
+    },
+    {
+      "path": "individual-pilot/2-aa-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/2-aa-time.job.json",
+      "sha256": "2d47ef8077278c05fd3b302f4d8504fe26e20b6e35ea413413f7a1a5c75a6187"
+    },
+    {
+      "path": "individual-pilot/2-aa-time.json",
+      "sha256": "45c5e7e1346033b5f1bf122cec9648b55dee52a60291c08e7722544968e7685d"
+    },
+    {
+      "path": "individual-pilot/2-aa-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/2-architecture-memory.job.json",
+      "sha256": "93f296f10067d39bc46fabd562476ee2258a1a250ef37b71012ae8a686ad1b2a"
+    },
+    {
+      "path": "individual-pilot/2-architecture-memory.json",
+      "sha256": "3c8254ee5e3e7531a2c8ca15daf509c93c1a6bc2c816188c325daa2cec4645ac"
+    },
+    {
+      "path": "individual-pilot/2-architecture-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/2-architecture-time.job.json",
+      "sha256": "311acbce60f99322322b608490870b767fffe01b03b2475987ffcafdaedeb309"
+    },
+    {
+      "path": "individual-pilot/2-architecture-time.json",
+      "sha256": "1dceb4c591efa019e5341d81a436d11439921be32a6a460d391ccf608784fb4b"
+    },
+    {
+      "path": "individual-pilot/2-architecture-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/2-before-memory.job.json",
+      "sha256": "78ebf5e3cb04d25510ef1bbc83e826786e77c7c0c3a79ef7f60e76f525083f45"
+    },
+    {
+      "path": "individual-pilot/2-before-memory.json",
+      "sha256": "b1656abd4769d3ad3ff56c51d884dc1ec5a5f01d26d6f3bcf331aaf3c11a2222"
+    },
+    {
+      "path": "individual-pilot/2-before-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/2-before-time.job.json",
+      "sha256": "2d47ef8077278c05fd3b302f4d8504fe26e20b6e35ea413413f7a1a5c75a6187"
+    },
+    {
+      "path": "individual-pilot/2-before-time.json",
+      "sha256": "f2ab0780609261f071458d814e0c3e5aafb61735340032cca813ac733cc02173"
+    },
+    {
+      "path": "individual-pilot/2-before-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/2-lane-index-memory.job.json",
+      "sha256": "38f7f45964610f9335e0a1d5d59fa7762687bcd93157fd36538447c6936a36dc"
+    },
+    {
+      "path": "individual-pilot/2-lane-index-memory.json",
+      "sha256": "fe76e2b0da17dd22250005208810ddc58f8d932f9ca8249ebabf7f31245ffea0"
+    },
+    {
+      "path": "individual-pilot/2-lane-index-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/2-lane-index-time.job.json",
+      "sha256": "22cf7e1392963669065c094a8cb8ffd1870713d7ae260f74c6a08ab9a2c1816e"
+    },
+    {
+      "path": "individual-pilot/2-lane-index-time.json",
+      "sha256": "a692289b70b2d3a66fe7735be03e8b2abcc1df3c4e6d1c8858352188db29be43"
+    },
+    {
+      "path": "individual-pilot/2-lane-index-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/2-proof-memory.job.json",
+      "sha256": "99566a2d336efda328e0f4d32f9203497ac799e8b6ab5b948eeb057b3f93a9c5"
+    },
+    {
+      "path": "individual-pilot/2-proof-memory.json",
+      "sha256": "c13fe7a7f631e48bb4146cc02a631674c461e0e9ae3bcb464404ee5ccb1fc700"
+    },
+    {
+      "path": "individual-pilot/2-proof-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/2-proof-time.job.json",
+      "sha256": "ae797444dd643aeda88c9c0c7600d578dc9e418e9cf1af138d788b390e81fe13"
+    },
+    {
+      "path": "individual-pilot/2-proof-time.json",
+      "sha256": "c29b00ec478ac46381cfaf7685fe252d027b64a54366635923c4a009543ce75d"
+    },
+    {
+      "path": "individual-pilot/2-proof-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/3-aa-memory.job.json",
+      "sha256": "bd524e13372dcee68c5d7a70e1aa714f2544ba20ec63750970f998330a0b90ba"
+    },
+    {
+      "path": "individual-pilot/3-aa-memory.json",
+      "sha256": "83988ab9e323ec1a89669376453f2a819939ba1374f7f02070ae3fa96243a558"
+    },
+    {
+      "path": "individual-pilot/3-aa-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/3-aa-time.job.json",
+      "sha256": "ca9a7a0f00f87e47fb83f1a570573a244fd56def52b9cf5509ce72f7a9512ac7"
+    },
+    {
+      "path": "individual-pilot/3-aa-time.json",
+      "sha256": "73af252d0c386650f5a056220f78af07652890c1ffd8d840e91dd5eade630b47"
+    },
+    {
+      "path": "individual-pilot/3-aa-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/3-architecture-memory.job.json",
+      "sha256": "85aa4102a8e7aabb3136623cd28019c4ddd8cec4ca1b0b5178e91584d93cd758"
+    },
+    {
+      "path": "individual-pilot/3-architecture-memory.json",
+      "sha256": "c011718ae02506c20d56ac77bf7758d7543bced7973ea4e7309fb1cce3aac913"
+    },
+    {
+      "path": "individual-pilot/3-architecture-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/3-architecture-time.job.json",
+      "sha256": "aa5cd902f1dabbd37e30d3455e9e047146dd1d1399af9aa4681b2775ceaa8ebb"
+    },
+    {
+      "path": "individual-pilot/3-architecture-time.json",
+      "sha256": "8ee0b543aa97ebf7df9a119d8219dc16ede663c7dd0bfc1463a6c93c49754db7"
+    },
+    {
+      "path": "individual-pilot/3-architecture-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/3-before-memory.job.json",
+      "sha256": "bd524e13372dcee68c5d7a70e1aa714f2544ba20ec63750970f998330a0b90ba"
+    },
+    {
+      "path": "individual-pilot/3-before-memory.json",
+      "sha256": "98b9279f68f11adfcbc09d7df29ca1837f59f3f64a8b5bf4b5400bf94393c581"
+    },
+    {
+      "path": "individual-pilot/3-before-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/3-before-time.job.json",
+      "sha256": "ca9a7a0f00f87e47fb83f1a570573a244fd56def52b9cf5509ce72f7a9512ac7"
+    },
+    {
+      "path": "individual-pilot/3-before-time.json",
+      "sha256": "6cb1b2c9ae675952c47df78a1ee0617191caae61fcaab1d757a5df5c0b71ed7e"
+    },
+    {
+      "path": "individual-pilot/3-before-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/3-lane-index-memory.job.json",
+      "sha256": "1fe5943cfc0f75912e91ffbacb619fa2c7898724aee6f5ef6b8309329d3a1838"
+    },
+    {
+      "path": "individual-pilot/3-lane-index-memory.json",
+      "sha256": "5c4a950e4cac6584e148da9abef20292e8841566ab4caf2d59cdbb23ce690405"
+    },
+    {
+      "path": "individual-pilot/3-lane-index-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/3-lane-index-time.job.json",
+      "sha256": "578ee5941425735924333e2434bf9fdbd11261d60e3509a2a91e13aa745da791"
+    },
+    {
+      "path": "individual-pilot/3-lane-index-time.json",
+      "sha256": "ddc8d3d0ac22e833bd4fe7653aa7e34c8cec49da2b075213f50b58729da15d96"
+    },
+    {
+      "path": "individual-pilot/3-lane-index-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/3-proof-memory.job.json",
+      "sha256": "29ea38ef83b00e12c9aa42dc8eb35fb2dfd3a31cfc27719ed51ceaef9d009b95"
+    },
+    {
+      "path": "individual-pilot/3-proof-memory.json",
+      "sha256": "107d8a365d479a6177d2536d7158a612196b27672d872bbb0b5f01450b58a7c3"
+    },
+    {
+      "path": "individual-pilot/3-proof-memory.json.progress.json",
+      "sha256": "ee4aa0ff2368b691f0925df9c48373756cf43cd4996e2b404441ecc3b5b5819d"
+    },
+    {
+      "path": "individual-pilot/3-proof-time.job.json",
+      "sha256": "c0d1d0ba2be7e8817f00a1a74806da6cc30a8435183cf4049d288753fda6adf8"
+    },
+    {
+      "path": "individual-pilot/3-proof-time.json",
+      "sha256": "740c6b02527828196839c5752812b280c5c402fdbdb738f537c5ff0d18effc7f"
+    },
+    {
+      "path": "individual-pilot/3-proof-time.json.progress.json",
+      "sha256": "31ececd481bf04170b61648fba960e76e02a5c50a1850c380fb5173af0a382f6"
+    },
+    {
+      "path": "individual-pilot/manifest.json",
+      "sha256": "bf0e0a34bb2a6097d2723e6d62652f201455df2524a16729117d8f6c2ecfb67d"
+    },
+    {
+      "path": "individual-pilot/plan.json",
+      "sha256": "b99b15745ea5ceab770e767951aab89bc6cc68ce23aef57585bcff408e90ab69"
+    },
+    {
+      "path": "individual-pilot/summary.json",
+      "sha256": "37d6dd1b610953dd421f91023cd2c655631c9f438cc8d1abc81d6d4054db9fb9"
+    },
+    {
+      "path": "edits-final24-normal.json",
+      "sha256": "90e6c29821f50f6293ecbe5c5f64fe746126e7d534b580abd4da7b778f3171ec"
+    },
+    {
+      "path": "edits-final24-off.json",
+      "sha256": "875d447fdb7b0a17959eb00a4a16de9201b43f4699b3a109f3804d82cd08f187"
+    },
+    {
+      "path": "edits-integrated23-final24-summary.json",
+      "sha256": "73bce168468f2b48036072de73665344edc2cddedf774c076e9657cea28c7665"
+    },
+    {
+      "path": "edits-integrated23-normal.json",
+      "sha256": "244796823a8fae68284d80954fd13c3f79456aaaceb06a6e3fcd9b9c260dd1c3"
+    },
+    {
+      "path": "edits-integrated23-off.json",
+      "sha256": "1eb44de3004319822f33acfbc1fc66654cc534472b24fa5469011ca9246bb963"
+    },
+    {
+      "path": "edge-span-final24/report.json",
+      "sha256": "638b7c940ce2b46370d5b454aeb84fd86245aa889345ade6da7b04cb9e33fd2b"
+    }
+  ],
+  "benchmarks": {
+    "status": "pending"
+  },
+  "runtimeSourceRevision": "dad3d5015ad78fab55c0bf79727bb38f08edae6c",
+  "payload": {
+    "report": {
+      "schemaVersion": 1,
+      "compression": "sum of each fetched file; gzip level 9; Brotli quality 11",
+      "familyCost": "default includes selected ELK; nativeSolver is the structural closure with the native solver, not proof of input eligibility; static excludes on-demand dependencies; HTML5 tables and fallback dependencies are additional",
+      "elkChunk": "dist/browser-lazy/chunks/elk.bundled-VF4HLRNQ.js",
+      "elkTransfer": {
+        "raw": 1476649,
+        "gzip": 446219,
+        "brotli": 342090
+      },
+      "initial": {
+        "requests": 4,
+        "raw": 14233,
+        "gzip": 5495,
+        "brotli": 4938
+      },
+      "budgetedFamilies": {
+        "flowchart": {
+          "requests": 34,
+          "elk": true,
+          "raw": 2271733,
+          "gzip": 711006,
+          "brotli": 576184
+        },
+        "state": {
+          "requests": 33,
+          "elk": true,
+          "raw": 2272067,
+          "gzip": 710957,
+          "brotli": 576081
+        },
+        "sequence": {
+          "requests": 29,
+          "elk": false,
+          "raw": 640454,
+          "gzip": 209254,
+          "brotli": 185819
+        },
+        "timeline": {
+          "requests": 27,
+          "elk": false,
+          "raw": 587853,
+          "gzip": 192194,
+          "brotli": 170507
+        },
+        "class": {
+          "requests": 34,
+          "elk": true,
+          "raw": 2111179,
+          "gzip": 655256,
+          "brotli": 527642
+        },
+        "er": {
+          "requests": 38,
+          "elk": true,
+          "raw": 2227083,
+          "gzip": 697654,
+          "brotli": 564010
+        },
+        "journey": {
+          "requests": 28,
+          "elk": false,
+          "raw": 608851,
+          "gzip": 199525,
+          "brotli": 177173
+        },
+        "architecture": {
+          "requests": 34,
+          "elk": true,
+          "raw": 2267075,
+          "gzip": 708437,
+          "brotli": 573455
+        },
+        "xychart": {
+          "requests": 29,
+          "elk": false,
+          "raw": 631757,
+          "gzip": 207510,
+          "brotli": 184199
+        },
+        "pie": {
+          "requests": 31,
+          "elk": false,
+          "raw": 601672,
+          "gzip": 199762,
+          "brotli": 177283
+        },
+        "quadrant": {
+          "requests": 29,
+          "elk": false,
+          "raw": 595126,
+          "gzip": 195898,
+          "brotli": 173834
+        },
+        "gantt": {
+          "requests": 27,
+          "elk": false,
+          "raw": 613992,
+          "gzip": 201704,
+          "brotli": 179195
+        },
+        "mindmap": {
+          "requests": 27,
+          "elk": false,
+          "raw": 593830,
+          "gzip": 196693,
+          "brotli": 174570
+        },
+        "gitgraph": {
+          "requests": 29,
+          "elk": false,
+          "raw": 602289,
+          "gzip": 199272,
+          "brotli": 176871
+        },
+        "radar": {
+          "requests": 31,
+          "elk": false,
+          "raw": 607462,
+          "gzip": 201325,
+          "brotli": 178735
+        },
+        "sankey": {
+          "requests": 28,
+          "elk": false,
+          "raw": 599721,
+          "gzip": 198585,
+          "brotli": 176225
+        },
+        "c4": {
+          "requests": 29,
+          "elk": false,
+          "raw": 755729,
+          "gzip": 250277,
+          "brotli": 220729
+        },
+        "packet": {
+          "requests": 27,
+          "elk": false,
+          "raw": 574921,
+          "gzip": 189132,
+          "brotli": 167815
+        },
+        "kanban": {
+          "requests": 30,
+          "elk": false,
+          "raw": 583423,
+          "gzip": 192847,
+          "brotli": 171039
+        },
+        "requirement": {
+          "requests": 29,
+          "elk": true,
+          "raw": 2071553,
+          "gzip": 642234,
+          "brotli": 516020
+        },
+        "treemap": {
+          "requests": 29,
+          "elk": false,
+          "raw": 594043,
+          "gzip": 197330,
+          "brotli": 175262
+        },
+        "ishikawa": {
+          "requests": 27,
+          "elk": false,
+          "raw": 574827,
+          "gzip": 188805,
+          "brotli": 167526
+        },
+        "block": {
+          "requests": 28,
+          "elk": false,
+          "raw": 720273,
+          "gzip": 240201,
+          "brotli": 212012
+        }
+      },
+      "families": {
+        "flowchart": {
+          "requests": 34,
+          "elk": true,
+          "raw": 2271733,
+          "gzip": 711006,
+          "brotli": 576184,
+          "static": {
+            "requests": 33,
+            "raw": 795544,
+            "gzip": 265087,
+            "brotli": 234342
+          },
+          "nativeSolver": {
+            "requests": 34,
+            "raw": 851019,
+            "gzip": 285849,
+            "brotli": 252798
+          }
+        },
+        "state": {
+          "requests": 33,
+          "elk": true,
+          "raw": 2272067,
+          "gzip": 710957,
+          "brotli": 576081,
+          "static": {
+            "requests": 32,
+            "raw": 795878,
+            "gzip": 265038,
+            "brotli": 234239
+          },
+          "nativeSolver": {
+            "requests": 33,
+            "raw": 851353,
+            "gzip": 285800,
+            "brotli": 252695
+          }
+        },
+        "sequence": {
+          "requests": 29,
+          "elk": false,
+          "raw": 640454,
+          "gzip": 209254,
+          "brotli": 185819,
+          "static": {
+            "requests": 29,
+            "raw": 640454,
+            "gzip": 209254,
+            "brotli": 185819
+          }
+        },
+        "timeline": {
+          "requests": 27,
+          "elk": false,
+          "raw": 587853,
+          "gzip": 192194,
+          "brotli": 170507,
+          "static": {
+            "requests": 27,
+            "raw": 587853,
+            "gzip": 192194,
+            "brotli": 170507
+          }
+        },
+        "class": {
+          "requests": 34,
+          "elk": true,
+          "raw": 2111179,
+          "gzip": 655256,
+          "brotli": 527642,
+          "static": {
+            "requests": 33,
+            "raw": 634990,
+            "gzip": 209337,
+            "brotli": 185800
+          },
+          "nativeSolver": {
+            "requests": 35,
+            "raw": 693193,
+            "gzip": 231388,
+            "brotli": 205456
+          }
+        },
+        "er": {
+          "requests": 38,
+          "elk": true,
+          "raw": 2227083,
+          "gzip": 697654,
+          "brotli": 564010,
+          "static": {
+            "requests": 37,
+            "raw": 750894,
+            "gzip": 251735,
+            "brotli": 222168
+          },
+          "nativeSolver": {
+            "requests": 38,
+            "raw": 806369,
+            "gzip": 272497,
+            "brotli": 240624
+          }
+        },
+        "journey": {
+          "requests": 28,
+          "elk": false,
+          "raw": 608851,
+          "gzip": 199525,
+          "brotli": 177173,
+          "static": {
+            "requests": 28,
+            "raw": 608851,
+            "gzip": 199525,
+            "brotli": 177173
+          }
+        },
+        "architecture": {
+          "requests": 34,
+          "elk": true,
+          "raw": 2267075,
+          "gzip": 708437,
+          "brotli": 573455,
+          "static": {
+            "requests": 33,
+            "raw": 790886,
+            "gzip": 262518,
+            "brotli": 231613
+          },
+          "nativeSolver": {
+            "requests": 34,
+            "raw": 846361,
+            "gzip": 283280,
+            "brotli": 250069
+          }
+        },
+        "xychart": {
+          "requests": 29,
+          "elk": false,
+          "raw": 631757,
+          "gzip": 207510,
+          "brotli": 184199,
+          "static": {
+            "requests": 29,
+            "raw": 631757,
+            "gzip": 207510,
+            "brotli": 184199
+          }
+        },
+        "pie": {
+          "requests": 31,
+          "elk": false,
+          "raw": 601672,
+          "gzip": 199762,
+          "brotli": 177283,
+          "static": {
+            "requests": 31,
+            "raw": 601672,
+            "gzip": 199762,
+            "brotli": 177283
+          }
+        },
+        "quadrant": {
+          "requests": 29,
+          "elk": false,
+          "raw": 595126,
+          "gzip": 195898,
+          "brotli": 173834,
+          "static": {
+            "requests": 29,
+            "raw": 595126,
+            "gzip": 195898,
+            "brotli": 173834
+          }
+        },
+        "gantt": {
+          "requests": 27,
+          "elk": false,
+          "raw": 613992,
+          "gzip": 201704,
+          "brotli": 179195,
+          "static": {
+            "requests": 27,
+            "raw": 613992,
+            "gzip": 201704,
+            "brotli": 179195
+          }
+        },
+        "mindmap": {
+          "requests": 27,
+          "elk": false,
+          "raw": 593830,
+          "gzip": 196693,
+          "brotli": 174570,
+          "static": {
+            "requests": 27,
+            "raw": 593830,
+            "gzip": 196693,
+            "brotli": 174570
+          }
+        },
+        "gitgraph": {
+          "requests": 29,
+          "elk": false,
+          "raw": 602289,
+          "gzip": 199272,
+          "brotli": 176871,
+          "static": {
+            "requests": 29,
+            "raw": 602289,
+            "gzip": 199272,
+            "brotli": 176871
+          }
+        },
+        "radar": {
+          "requests": 31,
+          "elk": false,
+          "raw": 607462,
+          "gzip": 201325,
+          "brotli": 178735,
+          "static": {
+            "requests": 31,
+            "raw": 607462,
+            "gzip": 201325,
+            "brotli": 178735
+          }
+        },
+        "sankey": {
+          "requests": 28,
+          "elk": false,
+          "raw": 599721,
+          "gzip": 198585,
+          "brotli": 176225,
+          "static": {
+            "requests": 28,
+            "raw": 599721,
+            "gzip": 198585,
+            "brotli": 176225
+          }
+        },
+        "c4": {
+          "requests": 29,
+          "elk": false,
+          "raw": 755729,
+          "gzip": 250277,
+          "brotli": 220729,
+          "static": {
+            "requests": 29,
+            "raw": 755729,
+            "gzip": 250277,
+            "brotli": 220729
+          }
+        },
+        "packet": {
+          "requests": 27,
+          "elk": false,
+          "raw": 574921,
+          "gzip": 189132,
+          "brotli": 167815,
+          "static": {
+            "requests": 27,
+            "raw": 574921,
+            "gzip": 189132,
+            "brotli": 167815
+          }
+        },
+        "kanban": {
+          "requests": 30,
+          "elk": false,
+          "raw": 583423,
+          "gzip": 192847,
+          "brotli": 171039,
+          "static": {
+            "requests": 30,
+            "raw": 583423,
+            "gzip": 192847,
+            "brotli": 171039
+          }
+        },
+        "requirement": {
+          "requests": 29,
+          "elk": true,
+          "raw": 2071553,
+          "gzip": 642234,
+          "brotli": 516020,
+          "static": {
+            "requests": 28,
+            "raw": 595364,
+            "gzip": 196315,
+            "brotli": 174178
+          },
+          "nativeSolver": {
+            "requests": 30,
+            "raw": 653567,
+            "gzip": 218366,
+            "brotli": 193834
+          }
+        },
+        "treemap": {
+          "requests": 29,
+          "elk": false,
+          "raw": 594043,
+          "gzip": 197330,
+          "brotli": 175262,
+          "static": {
+            "requests": 29,
+            "raw": 594043,
+            "gzip": 197330,
+            "brotli": 175262
+          }
+        },
+        "ishikawa": {
+          "requests": 27,
+          "elk": false,
+          "raw": 574827,
+          "gzip": 188805,
+          "brotli": 167526,
+          "static": {
+            "requests": 27,
+            "raw": 574827,
+            "gzip": 188805,
+            "brotli": 167526
+          }
+        },
+        "block": {
+          "requests": 28,
+          "elk": false,
+          "raw": 720273,
+          "gzip": 240201,
+          "brotli": 212012,
+          "static": {
+            "requests": 28,
+            "raw": 720273,
+            "gzip": 240201,
+            "brotli": 212012
+          }
+        }
+      }
+    },
+    "architectureBrotliReserve": 545,
+    "standalone": {
+      "raw": 4098285,
+      "gzip": 1229250,
+      "rawReserve": 1715
+    },
+    "capsUnchanged": true,
+    "reserveAssessment": "Improved but still fragile; not durable maintenance headroom."
+  },
+  "validation": {
+    "owningTests": {
+      "pass": 132,
+      "assertions": 4497
+    },
+    "defaultGeometry": {
+      "cases": 319,
+      "tests": 2,
+      "passed": true
+    },
+    "projectionTests": {
+      "pass": 4,
+      "assertions": 145,
+      "sandboxChildProcessFailureRetained": true
+    },
+    "evaluatorTests": {
+      "runtimeReview": {
+        "pass": 4,
+        "assertions": 44
+      },
+      "span": {
+        "pass": 5,
+        "assertions": 46
+      }
+    },
+    "chromium": {
+      "pass": 47,
+      "assertions": 1006
+    },
+    "standalone": {
+      "pass": 2,
+      "assertions": 20
+    },
+    "canonicalBuild": "passed",
+    "nodeArtifactsUnchangedAfterBrowserProjection": true
+  }
+}
