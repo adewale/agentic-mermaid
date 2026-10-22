@@ -165,8 +165,10 @@ function rectOverlap(a: { x: number; y: number; w: number; h: number }, b: { x: 
   return ox > TOL && oy > TOL
 }
 
-function rectContains(outer: RenderedLayoutGroup, inner: RenderedLayoutGroup): boolean {
-  return inner.x >= outer.x - TOL && inner.y >= outer.y - TOL && inner.x + inner.w <= outer.x + outer.w + TOL && inner.y + inner.h <= outer.y + outer.h + TOL
+function rectContains(outer: { x: number; y: number; w: number; h: number }, inner: { x: number; y: number; w: number; h: number }, axes: 'both' | 'x' | 'center' = 'both'): boolean {
+  const xOk = axes === 'center' ? inner.x + inner.w / 2 >= outer.x - TOL && inner.x + inner.w / 2 <= outer.x + outer.w + TOL : inner.x >= outer.x - TOL && inner.x + inner.w <= outer.x + outer.w + TOL
+  const yOk = axes === 'x' || (axes === 'center' ? inner.y + inner.h / 2 >= outer.y - TOL && inner.y + inner.h / 2 <= outer.y + outer.h + TOL : inner.y >= outer.y - TOL && inner.y + inner.h <= outer.y + outer.h + TOL)
+  return xOk && yOk
 }
 
 /** Whether `ancestor` is on `group`'s parentId chain (flattened group trees). */
@@ -222,29 +224,21 @@ function assessFamilyLayout(layout: RenderedLayout): FamilyLayoutAssessment {
     violations.push({ metric: 'nonFiniteGeometry', detail: `bounds ${layout.bounds.w}×${layout.bounds.h}` })
   }
 
-  for (const n of layout.nodes) {
-    if (!finiteRect(n.x, n.y, n.w, n.h)) {
-      violations.push({ metric: 'nonFiniteGeometry', detail: `node ${n.id}` })
-      continue
-    }
-    if (n.x < -TOL || n.y < -TOL || n.x + n.w > layout.bounds.w + TOL || n.y + n.h > layout.bounds.h + TOL) {
-      violations.push({ metric: 'offCanvas', detail: `node ${n.id} at (${n.x},${n.y}) ${n.w}×${n.h}` })
-    }
-  }
-  const checkText = (id: string, bounds: { x: number; y: number; w: number; h: number } | undefined): void => {
+  const checkRect = (kind: 'node' | 'label' | 'group', id: string, bounds: { x: number; y: number; w: number; h: number } | undefined): void => {
     if (!bounds) return
     if (!finiteRect(bounds.x, bounds.y, bounds.w, bounds.h)) {
-      violations.push({ metric: 'nonFiniteGeometry', detail: `label ${id}` })
+      violations.push({ metric: 'nonFiniteGeometry', detail: `${kind} ${id}` })
     } else if (bounds.x < -TOL || bounds.y < -TOL || bounds.x + bounds.w > layout.bounds.w + TOL || bounds.y + bounds.h > layout.bounds.h + TOL) {
-      violations.push({ metric: 'offCanvas', detail: `label ${id}` })
+      violations.push({ metric: 'offCanvas', detail: kind === 'node' ? `node ${id} at (${bounds.x},${bounds.y}) ${bounds.w}×${bounds.h}` : `${kind} ${id}` })
     }
   }
+  for (const node of layout.nodes) checkRect('node', node.id, node)
   for (const node of layout.nodes) {
-    if (node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') checkText(node.id, node.labelBounds)
+    if (node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') checkRect('label', node.id, node.labelBounds)
   }
-  for (const edge of layout.edges) checkText(edge.id, edge.label?.bounds)
+  for (const edge of layout.edges) checkRect('label', edge.id, edge.label?.bounds)
   for (const label of layout.labels ?? []) {
-    if (label.visibility !== 'hidden' && label.visibility !== 'semantic') checkText(label.id, label.bounds)
+    if (label.visibility !== 'hidden' && label.visibility !== 'semantic') checkRect('label', label.id, label.bounds)
   }
   for (const e of layout.edges) {
     let flagged = false
@@ -260,15 +254,7 @@ function assessFamilyLayout(layout: RenderedLayout): FamilyLayoutAssessment {
       }
     }
   }
-  for (const g of layout.groups) {
-    if (!finiteRect(g.x, g.y, g.w, g.h)) {
-      violations.push({ metric: 'nonFiniteGeometry', detail: `group ${g.id}` })
-      continue
-    }
-    if (g.x < -TOL || g.y < -TOL || g.x + g.w > layout.bounds.w + TOL || g.y + g.h > layout.bounds.h + TOL) {
-      violations.push({ metric: 'offCanvas', detail: `group ${g.id}` })
-    }
-  }
+  for (const group of layout.groups) checkRect('group', group.id, group)
 
   // Only text-bearing box pairs can be hard overlap violations.
   const pairNodes = layout.nodes.filter(isBox)
@@ -290,18 +276,14 @@ function assessFamilyLayout(layout: RenderedLayout): FamilyLayoutAssessment {
     for (const g of layout.groups) {
       const parent = g.parentId ? groupById.get(g.parentId) : undefined
       if (parent && finiteRect(g.x, g.y, g.w, g.h) && finiteRect(parent.x, parent.y, parent.w, parent.h)) {
-        const xOk = axes === 'center' ? g.x + g.w / 2 >= parent.x - TOL && g.x + g.w / 2 <= parent.x + parent.w + TOL : g.x >= parent.x - TOL && g.x + g.w <= parent.x + parent.w + TOL
-        const yOk = axes === 'x' || (axes === 'center' ? g.y + g.h / 2 >= parent.y - TOL && g.y + g.h / 2 <= parent.y + parent.h + TOL : g.y >= parent.y - TOL && g.y + g.h <= parent.y + parent.h + TOL)
-        if (!xOk || !yOk) {
+        if (!rectContains(parent, g, axes)) {
           violations.push({ metric: 'groupBreaches', detail: `${g.id} outside parent ${parent.id}` })
         }
       }
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n || !finiteRect(n.x, n.y, n.w, n.h)) continue
-        const xOk = axes === 'center' ? n.x + n.w / 2 >= g.x - TOL && n.x + n.w / 2 <= g.x + g.w + TOL : n.x >= g.x - TOL && n.x + n.w <= g.x + g.w + TOL
-        const yOk = axes === 'x' || (axes === 'center' ? n.y + n.h / 2 >= g.y - TOL && n.y + n.h / 2 <= g.y + g.h + TOL : n.y >= g.y - TOL && n.y + n.h <= g.y + g.h + TOL)
-        if (!xOk || !yOk) {
+        if (!rectContains(g, n, axes)) {
           violations.push({ metric: 'groupBreaches', detail: `${memberId} outside ${g.id}` })
         }
       }
