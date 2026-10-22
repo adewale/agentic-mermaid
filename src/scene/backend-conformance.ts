@@ -51,6 +51,7 @@ import {
 } from './marks.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { deepFreeze } from '../shared/plain-data.ts'
+import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
 export const BACKEND_CONFORMANCE_VERSION = 4 as const
 export const BACKEND_CONFORMANCE_FIXTURE_ID = 'backend-claim-matrix@4' as const
@@ -374,7 +375,9 @@ function createFixture(): ConformanceFixture {
   })
 }
 
-const FIXTURE = createFixture()
+// Fixture construction belongs to the first executable proof, not import.
+// Keep its measurements independent of the request that first needs it.
+let FIXTURE: ConformanceFixture
 
 function fragmentDiagnostic(missing: readonly string[]): string | undefined {
   return missing.length === 0 ? undefined : `missing ${missing.join(', ')}`
@@ -974,6 +977,7 @@ export function runBackendConformance(
   backend: StyleBackend,
   canonicalId: string = backend.id,
 ): BackendConformanceReport {
+  FIXTURE ??= withTextMeasurementExecution(undefined, createFixture)
   const checks: BackendConformanceCheck[] = []
   const add = (id: BackendConformanceCheckId, passed: boolean, diagnostic?: string) => {
     checks.push(Object.freeze({ id, passed, ...(diagnostic ? { diagnostic } : {}) }))

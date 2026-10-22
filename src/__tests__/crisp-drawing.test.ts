@@ -69,3 +69,25 @@ test('native crisp rendering refuses a failed default writer conformance report'
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
 })
+
+test('first backend proof uses default measurements under a custom caller profile', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import './src/scene/default-backend.ts'
+    import { getBackendDescriptor } from './src/scene/backend.ts'
+    import { createTextMeasurementExecution, withTextMeasurementExecution } from './src/text-measurement-profile.ts'
+    import { measureTextWidth } from './src/text-metrics.ts'
+    const profile = createTextMeasurementExecution({ id: 'must-not-seed-proof', version: '1.0.0',
+      measure(input) {
+        if (input.text === 'Fixture label') throw new Error('backend fixture used caller measurements')
+        return measureTextWidth(input.text, input.fontSize, input.fontWeight, input.fontStyle, input.fontFamily)
+      }
+    }, 'Inter')
+    const report = withTextMeasurementExecution(profile, () => getBackendDescriptor('default').conformance)
+    assert.equal(report.passed, true)
+    assert.equal(getBackendDescriptor('default').conformance, report)
+    assert.equal(Object.isFrozen(report), true)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
