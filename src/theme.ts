@@ -1,3 +1,5 @@
+import { rendererCacheBudget } from './experimental/cache-budget.ts'
+import { WeightedLru } from './experimental/weighted-lru.ts'
 // ============================================================================
 // Theme system — CSS custom property-based theming for mermaid SVG diagrams.
 //
@@ -453,8 +455,7 @@ export interface ResolvedColors {
 
 /** resolveColors is pure, and families ink text against its tones one label
  * at a time, so each palette's resolution is kept (a small, bounded cache). */
-const resolvedColorsCache = new Map<string, ResolvedColors>()
-const RESOLVED_COLORS_CACHE_LIMIT = 64
+const resolvedColorsCache = new WeightedLru<string, ResolvedColors>(64, 256 * 1024, rendererCacheBudget)
 
 /**
  * Resolve all derived colors from a DiagramColors to concrete hex values.
@@ -466,8 +467,8 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
   const cached = resolvedColorsCache.get(key)
   if (cached) return cached
   const resolved = Object.freeze(deriveColors(concretePalette(colors) ?? colors))
-  if (resolvedColorsCache.size >= RESOLVED_COLORS_CACHE_LIMIT) resolvedColorsCache.delete(resolvedColorsCache.keys().next().value!)
-  resolvedColorsCache.set(key, resolved)
+  const weight = key.length * 2 + Object.values(resolved).reduce((bytes, value) => bytes + value.length * 2, 256)
+  resolvedColorsCache.set(key, resolved, weight)
   return resolved
 }
 

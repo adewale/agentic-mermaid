@@ -1,3 +1,5 @@
+import { rendererCacheBudget } from './cache-budget.ts'
+import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
@@ -5,7 +7,7 @@ const familyIds = new WeakMap<object, number>()
 let nextFamilyId = 0
 interface PositionedSnapshot { result: FamilyLayoutResult; projection?: FamilyPositionedView }
 const MAX_WEIGHT = 16 * 1024 * 1024
-const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT)
+const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, rendererCacheBudget)
 function isolatedKey(family: object, key: string): string {
   let id = familyIds.get(family)
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
@@ -32,34 +34,6 @@ function clonePositioned<T>(source: T): T {
   visit(source, copy)
   return copy
 }
-/** Conservative residency units, including collection contents and aliases.
- * This is an eviction estimate, not a measurement of the engine's heap. */
-function snapshotWeight(value: unknown, limit: number): number {
-  const seen = new WeakSet<object>()
-  let weight = 0
-  const visit = (item: unknown): void => {
-    if (weight > limit) return
-    if (typeof item === 'string') { weight += item.length * 4 + 16; return }
-    if (item === null || typeof item !== 'object') { weight += 16; return }
-    if (seen.has(item)) { weight += 8; return }
-    seen.add(item); weight += 64
-    if (item instanceof Map) {
-      for (const [key, value] of item) { weight += 32; visit(key); visit(value); if (weight > limit) break }
-    } else if (item instanceof Set) {
-      for (const value of item) { weight += 16; visit(value); if (weight > limit) break }
-    } else if (item instanceof ArrayBuffer) weight += item.byteLength
-    else if (ArrayBuffer.isView(item)) visit(item.buffer)
-    else {
-      for (const key of Object.keys(item)) {
-        weight += key.length * 2 + 16
-        visit((item as Record<string, unknown>)[key])
-        if (weight > limit) break
-      }
-    }
-  }
-  visit(value)
-  return weight
-}
 export function cachedPositioned(family: object, key: string): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
   return value ? clonePositioned(value.result) : undefined
@@ -70,7 +44,7 @@ export function borrowedPositioned(family: object, key: string): PositionedSnaps
 }
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
   const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}) }
-  const weight = key.length * 2 + snapshotWeight(snapshot, MAX_WEIGHT) + 1024
+  const weight = key.length * 2 + estimatedResidency(snapshot, MAX_WEIGHT) + 1024
   if (weight > MAX_WEIGHT) return
   let copy: PositionedSnapshot
   try { copy = clonePositioned(snapshot) } catch (error) {
