@@ -10,10 +10,15 @@ import { GraphLayoutUnsupportedError, withGraphLayoutDecisionObserver } from '..
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 
 const native = { graphLayout: { backend: 'agentic' as const } }
 const corpus = JSON.parse(readFileSync(new URL('../../eval/mermaid-docs-corpus/corpus.json', import.meta.url), 'utf8')) as Array<{ family: string; index: number; source: string }>
 const witnesses = corpus.filter(entry => entry.family === 'architecture' && [0, 5].includes(entry.index))
+const sharedInk = (routes: PositionedArchitectureEdge[]) => {
+  const ink = routes.map(({ points }) => ({ points, style: 'solid' as const, source: '', target: '_' }))
+  return countOpposingRouteOverlaps(ink) || countParallelRouteOverlaps(ink)
+}
 
 describe('Architecture final-route sibling slots', () => {
   test.each(witnesses)('removes the enrolled crossing without bends/area loss: $index', ({ source }) => {
@@ -59,7 +64,7 @@ describe('Architecture final-route sibling slots', () => {
     for (const valid of [false, true]) {
       const items = services(), before = structuredClone(items), routes = crossing()
       let calls = 0
-      expect(improveArchitectureSiblingSlots(empty, items, routes, () => { calls++; return crossing() }, () => valid)).toBe(routes)
+      expect(improveArchitectureSiblingSlots(empty, items, routes, () => { calls++; return crossing() }, () => valid, sharedInk)).toBe(routes)
       expect(items).toEqual(before)
       expect(calls).toBe(valid ? 2 : 0)
     }
@@ -74,16 +79,16 @@ describe('Architecture final-route sibling slots', () => {
     if (reason === 'group terminal') diagram.edges = [{ ...routes[0]!, source: { ...routes[0]!.source, boundary: 'group' } }]
     if (reason === 'obstacle limit') diagram.junctions = Array.from({ length: 23 }, (_, index) => ({ id: `j${index}` }))
     const before = structuredClone(items)
-    expect(improveArchitectureSiblingSlots(diagram, items, routes, () => { throw new Error('excluded trial routed') }, () => true)).toBe(routes)
+    expect(improveArchitectureSiblingSlots(diagram, items, routes, () => { throw new Error('excluded trial routed') }, () => true, sharedInk)).toBe(routes)
     expect(items).toEqual(before)
   })
 
   test.each(['parallel', 'opposing'] as const)('rejects a crossing reduction concealed in %s shared ink', direction => {
     const items = services(), before = structuredClone(items), routes = crossing()
     const shared = () => [edge([[-20, 0], [20, 0]]), edge(direction === 'parallel' ? [[-10, 0], [10, 0]] : [[10, 0], [-10, 0]])]
-    expect(improveArchitectureSiblingSlots(empty, items, routes, shared, () => true)).toBe(routes)
+    expect(improveArchitectureSiblingSlots(empty, items, routes, shared, () => true, sharedInk)).toBe(routes)
     expect(items).toEqual(before)
     const sharedBaseline = [...crossing(), ...shared()]
-    expect(improveArchitectureSiblingSlots(empty, items, sharedBaseline, () => { throw new Error('shared baseline routed') }, () => true)).toBe(sharedBaseline)
+    expect(improveArchitectureSiblingSlots(empty, items, sharedBaseline, () => { throw new Error('shared baseline routed') }, () => true, sharedInk)).toBe(sharedBaseline)
   })
 })
