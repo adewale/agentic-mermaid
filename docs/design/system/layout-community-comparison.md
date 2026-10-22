@@ -67,8 +67,9 @@ not use the new graph solver and cannot count as solver wins.
 on every warm timed call. Expected label text is checked before timing, including decorated field rows;
 a changing output is checked again. Invalid later output cannot become a fast
 success. SVG text is the common consumed surface: peers' additional metadata
-and our additional receipt serialization are excluded. Our public SVG API still
-constructs its normal internal receipt. First-render timing excludes output
+and our additional receipt serialization are excluded. Receipts and their final
+SVG digest are lazy: the plain SVG call does not materialize them. Request,
+geometry, paint and security work still runs. First-render timing excludes output
 consumption/capture. Snapshot writes and label checks are outside steady-state
 timing, except the explicit recheck for changing outputs.
 

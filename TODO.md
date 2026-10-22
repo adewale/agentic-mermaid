@@ -391,6 +391,15 @@ divergence, not another runtime defect.
 - [x] Extend frame terminals, empty scopes and grouped Architecture; repair nested endpoint obstacles. Frozen `e9db0dbe` renders246/246 source/workload occurrences and640/640 generated cases; preserve all six ELK generated rejections and all216 prior native SVGs unchanged. See [current qualification](docs/design/system/layout-qualification.md).
 - [x] Measure specialized label conflicts, all-family shared spans, bends/length/area, and declared edit sequences in both cache regimes; comparison reports expose support gains and adverse tradeoffs. This completes instrumentation, not quality parity.
 - [x] Compare the owned solver with community lineages and published artifacts, including Zombie simple; retain complete same-input SVG/A/A results and the corrected field-label gate. See [community comparison](docs/design/system/layout-community-comparison.md). This is evaluation progress, not a claim to have beaten all peers.
+- [x] Explore academic/community/industrial ideas, subtraction and native-family portfolios with five parallel investigations; run 20 isolated CPU/allocation profile workers with four repeats. See [exploration and experiment gates](docs/design/system/layout-exploration.md). Proposed fixes remain unimplemented.
+- [ ] Preserve ER label reservations through adapter changes and include foreign shafts in final placement; close the retained 16-conflict ER40 regression.
+- [ ] Diagnose Architecture0/5 final port-constrained crossing witnesses; compare legal sibling/channel orders and a placement-only producer contract.
+- [ ] Reduce repeated exact crossing-query construction in route repair and measure blocker indexing separately; retain the current metric's topology/tolerance semantics.
+- [ ] Compare candidate selection under explicit bend/area budgets and retain the crossing/bend/area frontier rather than claim all-metric domination.
+- [ ] Qualify shared drawing/request/SVG subtraction and cache-specific factorial/churn arms with observed hits/evictions and immutable proof/input ownership.
+- [ ] Measure declared reduced-family policies and mixed-session request unions; retain explicit native admission/fallback counts and avoid source-name dispatch rules.
+- [ ] Improve targeted paint predicates, intent-aware edit/port/symmetry measurement and family-task readability evidence; retain unknown proof status and configured incremental ELK controls.
+- [ ] Recover deliberate browser/standalone payload reserve under existing caps; compare capability entrypoints and precompiled SVG workflows.
 - [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
 - [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
 - [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence. Both full cache campaigns complete at b473 with healthy controls; two uncached cyclic time failures and six cyclic allocation regressions remain.
