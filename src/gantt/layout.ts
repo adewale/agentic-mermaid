@@ -276,7 +276,7 @@ export function packCompactLanes(tasks: Array<{ start: EpochMs; end: EpochMs }>)
       let node = base + lane
       minimumEnd[node] = laneEnds[lane]!
       while ((node >>= 1) > 0) minimumEnd[node] = Math.min(minimumEnd[node * 2]!, minimumEnd[node * 2 + 1]!)
-    } else if (minimumEnd || (addedLane && laneEnds.length === 33
+    } else if (minimumEnd || (addedLane && laneEnds.length === 33 && laneOf.length < tasks.length
       && tasks.every(task => Number.isFinite(task.start) && Number.isFinite(task.end)))) {
       // Activate only above 32 lanes, after checking future tasks too.
       // Thereafter grow only when a newly assigned lane exceeds capacity.
