@@ -16,6 +16,14 @@ queues. Retired IDs are not reused.
 
 ## Release / owner decisions
 
+- [ ] **PERF-1 — Complete the measured performance campaign** (`todo`, owner
+  requested 2026-10-22). Baseline current main, evaluate all unclaimed
+  performance and consistency opportunities, retain changes from measured
+  combined results, then rebase and qualify the final artifact. Existing work
+  stays with #433/#449/#465. The
+  [campaign contract](docs/design/system/performance-campaign.md) defines scope
+  and preservation requirements.
+
 - [ ] **REL-1 — Publish and verify the prepared release** (`todo`,
   [#378](https://github.com/adewale/agentic-mermaid/issues/378)). Source declares
   0.4.2, but npm and the hosted site/MCP still serve 0.4.1 at the reconciliation

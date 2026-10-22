@@ -1,0 +1,81 @@
+# Measured performance campaign
+
+The owner requested this campaign on 22 October 2026 after a review of main
+`b09ef80229df42a620cf899054c721f0d7ecfe36`, the active performance and native-layout
+branches, the Mermaid community inventory and the layout literature. Evaluate
+every unclaimed opportunity below, measure the combined artifact, retain or
+reject changes from evidence, then rebase and qualify the final revision.
+`TODO.md` owns completion status.
+
+## Scope and ownership
+
+PR #433 owns its release candidate, compatibility/security fixes and confirmed
+State cache-hit regression. PR #449 owns native solver algorithms, Architecture
+placement-only routing, cyclic cost tails and solver qualification. PR #465 owns
+the Architecture contact-authority fix. Their existing work is not credited to
+this campaign. Record any integrated dependency separately.
+
+The experiments cover:
+
+- Built-in SVG import separation from external Scene admission and conformance.
+- Native drawing construction without repeated descendant/ancestor copies.
+- Requested family-rubric metrics and correctly scoped proof reuse.
+- Private positioned-artifact/cache ownership, public mutable copies and budgets.
+- One family-owned Flowchart/Sequence draft per mutation batch.
+- Call-local verification serialization, closure parsing and normalization.
+- Shared scalar Sequence gap aggregation and Gantt section/lane membership.
+- Terminal proof observations collected during existing scans.
+- Sankey bucket appends, GitGraph branch extents and lazy Quadrant candidates.
+- Lightweight CLI/MCP command and help dispatch.
+- Final SVG emission/inspection consolidation after the drawing changes.
+- Update-aware ELK repair passes with preserved final geometry.
+- Lazy MCP membrane iteration while preserving #365's execution semantics.
+
+Each experiment must remove concrete work at its owner. Rejected private
+recipes, broad memo/index prototypes and removed feature flags need new evidence
+before reconsideration. Independent changes use separate commits; shared files
+have one active owner. No new runtime dependency or diagram family is required.
+
+## Preservation requirements
+
+Retain source meaning, authored identities, order, labels, endpoint sides,
+markers, public mutation behavior, diagnostics, deterministic output, admission
+limits and security. Optimizations should preserve output bytes; an intended
+visible change needs separate same-input evidence and an explanation. A faster
+rejection does not count as a successful render.
+
+Pixel and terminal measurement and layout remain separate. The Sequence helper
+aggregates numeric interval constraints; adapters prepare their own values.
+Gantt grouping uses section identity rather than label, and compact lanes choose
+the lowest eligible index. Terminal proof indexes are local to an assertion.
+
+Public objects are mutable. Proof reuse requires a privately owned immutable
+artifact and matching source, descriptor, font/style, options and backend
+dependencies. Layout, paint and source-correspondence proofs retain their
+independent meanings. Security checks observe final bytes after relevant
+transformations. MCP laziness preserves hardening and collection semantics.
+
+## Measurement and selection
+
+Run maintained complete release and browser corpora, scaling and workflow cases,
+peer workloads, and package/consumer/lazy payload measurements. Add focused
+scaling inputs for changed mechanisms. Use a fixed harness for before/after;
+record effective cache policy, assertions, engines, dependencies, revisions and
+artifact identity.
+
+Separate cold startup, warm new-source rendering, exact repeats, edit workflows,
+plain output and consumed receipts. Measure allocation, peak RSS and post-GC
+retained heap under churn separately. Report supported shared peer cohorts and
+refusals. Keep raw samples and failures as generated artifacts. Use A/A controls
+and serial cost measurements without competing implementation tests/builds.
+
+Compare each experiment's behavior and targeted cost with the baseline, then
+test the combined candidate. Retain a demonstrated performance improvement or
+a concrete consistency benefit without a material cost regression. Reject
+mechanisms that add overhead, lose guarantees or lack justification. Do not sum
+individual percentage gains or weaken existing gates.
+
+After rebasing onto current main, rerun affected contracts and benchmark the
+final artifact against its new base and the recorded starting point. Report
+what improved, what regressed, rejected experiments, remaining limitations and
+next work. Earlier measurements remain bound to their original revisions.
