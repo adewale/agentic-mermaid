@@ -29,7 +29,7 @@ export default defineConfig({
   // ELK and the HTML5 entity table load on demand here: every import of
   // src/shared/html-entity-table.ts gets its lazy twin, which fetches the
   // table only when renderMermaidSVGAsync sees a named code beyond XML's five.
-  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false }), {
+  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false }), {
     name: 'lazy-browser-dependencies',
     setup(build) {
       // The lazy SVG API exposes rendering and receipts, not the Node option
