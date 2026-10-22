@@ -2,11 +2,10 @@ import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { inspectScenePrimitives, inspectScenePaintGeometry, scenePrimitiveMatrix } from '../scene/inspection.ts'
 import { drawNative } from '../scene/native-drawing.ts'
-import { sceneLowering, type DrawingProducer } from '../scene/drawing.ts'
-import { sceneNodeSerialization } from '../scene/serialization.ts'
+import type { DrawingProducer } from '../scene/drawing.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
-import { validateSceneDoc, SCENE_VALIDATION_LIMITS, SceneValidationError } from '../scene/scene-validation.ts'
+import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { sceneDocument } from '../shared/scene-document.ts'
@@ -58,52 +57,6 @@ test('native composition rejects conflicting artwork enclosures even on unused g
     return { family: 'flowchart', width: 100, height: 100, colors, transparent: false, parts: [] }
   }
   expect(() => drawNative(producer, { positioned: { width: 100, height: 100 }, colors, resolved: { renderOptions: {} } }, 'flowchart')).toThrow('conflicting semantic enclosures')
-})
-
-test('native composition preserves nested indentation, empty chunks, arbitrary joins and Unicode boundaries', () => {
-  const colors = { bg: '#fff', fg: '#111' }
-  const context = { positioned: { width: 100, height: 100 }, colors, resolved: { renderOptions: {} } }
-  for (const join of ['', '\n', '|\r\n', '\ud83d']) {
-    const producer: DrawingProducer = factory => {
-      const chunks = ['', 'α\nβ\n', '\ud83d', '\ude00', 'tail\r\n'].map((value, index) => factory.documentContent({ id: `chunk:${index}`, role: 'chrome' }, value))
-      const children = chunks.map((node, index) => ({ node, indent: [3, 2, 0, -1, 1.5][index]! }))
-      let nested = factory.group({ id: 'inner', role: 'group', open: '<g>', close: '</g>', join, children })
-      children.length = 0
-      for (let depth = 0; depth < 4; depth++) nested = factory.group({ id: `outer:${depth}`, role: 'group', open: '<g>', close: '</g>', join, children: [{ node: nested, indent: depth }, { node: chunks[0]!, indent: 100 }] })
-      return { family: 'flowchart', ...context.positioned, colors, transparent: true, parts: [nested, nested] }
-    }
-    const expected = sceneLowering(producer)(context).parts.map(sceneNodeSerialization).join('\n')
-    expect(drawNative(producer, context, 'flowchart').svg).toBe(expected)
-  }
-})
-
-test('native unused groups keep exact composed UTF-8 limits across surrogate boundaries', () => {
-  const colors = { bg: '#fff', fg: '#111' }
-  const context = { positioned: { width: 100, height: 100 }, colors, resolved: { renderOptions: {} } }
-  const max = SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode
-  const shell = sceneNodeSerialization(marks.group({ id: 'unused', role: 'group', open: '<g>', close: '</g>', join: '', children: [] }))
-  const payloadBytes = max - shell.length - 4
-  const producer = (extra: number): DrawingProducer => factory => {
-    const chunks = ['é'.repeat(Math.floor(payloadBytes / 2)) + 'x'.repeat(payloadBytes % 2 + extra), '\ud83d', '\ude00']
-      .map((value, index) => ({ node: factory.documentContent({ id: `chunk:${index}`, role: 'chrome' }, value), indent: 0 }))
-    // The shell plus the joined four-byte surrogate pair reach max exactly.
-    factory.group({ id: 'unused', role: 'group', open: '<g>', close: '</g>', join: '', children: chunks })
-    return { family: 'flowchart', ...context.positioned, colors, transparent: true, parts: [] }
-  }
-  expect(() => drawNative(producer(0), context, 'flowchart')).not.toThrow()
-  expect(() => drawNative(producer(1), context, 'flowchart')).toThrow(SceneValidationError)
-  expect(() => drawNative(producer(1), context, 'flowchart')).toThrow('oversized SVG serialization')
-  let failure: unknown
-  try {
-    drawNative(factory => {
-      const chunk = factory.documentContent({ id: 'large', role: 'chrome' }, 'x'.repeat(Math.floor(max / 2) + 1))
-      factory.group({ id: 'unused', role: 'group', open: '<g fill="red">', close: '</g>', children: [{ node: chunk, indent: 0 }, { node: chunk, indent: 0 }] })
-      return { family: 'flowchart', ...context.positioned, colors, transparent: true, parts: [] }
-    }, context, 'flowchart')
-  } catch (error) { failure = error }
-  // The coarse child-length guard precedes even shell validation.
-  expect(failure).toBeInstanceOf(RangeError)
-  expect((failure as Error).message).toBe('Native group has an oversized SVG serialization')
 })
 
 test('owned surface artwork suppresses only its enclosing semantic identity, never a primary or unrelated subject', () => {

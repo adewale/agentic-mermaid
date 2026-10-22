@@ -1507,8 +1507,6 @@ export interface NativeSceneValidator {
   enclosure(artworkId: string, owner: SceneOwner): void
   /** Checks the full composed group limit without recounting its child bytes. */
   serialization(svg: string): void
-  /** Internal writer-computed size; never supplied by a drawing producer. */
-  serializationBytes(bytes: number): void
   finish(): SceneValidationResult
 }
 
@@ -1531,14 +1529,6 @@ export function createNativeSceneValidator(
     open()
     if (!Number.isInteger(value) || value < 0 || value > MAX_SCENE_DEPTH) {
       add(diagnostics, 'SCENE_BOUNDS', 'scene.depth', `must be an integer nesting depth between 0 and ${MAX_SCENE_DEPTH}`)
-      throw new SceneValidationError(diagnostics)
-    }
-  }
-  const serializationBytes = (bytes: number): void => {
-    open()
-    if (!Number.isSafeInteger(bytes) || bytes < 0) throw new TypeError('Native serialization byte length must be a nonnegative safe integer')
-    if (bytes > MAX_SERIALIZATION_BYTES_PER_NODE) {
-      add(diagnostics, 'SCENE_DOCUMENT', 'scene.serialization', 'has an oversized SVG serialization')
       throw new SceneValidationError(diagnostics)
     }
   }
@@ -1573,9 +1563,11 @@ export function createNativeSceneValidator(
     },
     serialization(svg) {
       open()
-      serializationBytes(boundedUtf8ByteLength(svg, MAX_SERIALIZATION_BYTES_PER_NODE))
+      if (boundedUtf8ByteLength(svg, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
+        add(diagnostics, 'SCENE_DOCUMENT', 'scene.serialization', 'has an oversized SVG serialization')
+        throw new SceneValidationError(diagnostics)
+      }
     },
-    serializationBytes,
     finish() {
       if (result) return result
       validateAggregateReferences(state)
