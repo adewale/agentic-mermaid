@@ -42,7 +42,7 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
-import { layoutAgenticCandidate } from './layout/agentic-layered.ts'
+import { layoutAgenticCandidate, layoutAgenticPlacement } from './layout/agentic-layered.ts'
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupportedError } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
@@ -1884,6 +1884,16 @@ export function layoutGraphSync(
   const violations = positionedGeometryViolations(positioned, style)
   if (violations.length) throw new LayoutCertificationError([{ strategy: 'final-title-projection', violations }])
   return positioned
+}
+
+/** @internal Architecture owns routes and its final family certificate. This
+ * result is placement only and must never be exposed as a certified graph. */
+export function layoutNativeGraphPlacementSync(
+  graph: MermaidGraph, options: LayoutEngineOptions = {},
+): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+  assertMermaidGraphWork(graph)
+  const style = resolveRenderStyle(options, undefined, options.styleFace)
+  return layoutAgenticPlacement(graph, options, style, agenticGraphBindings)
 }
 
 function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
