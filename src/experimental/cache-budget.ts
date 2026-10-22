@@ -3,7 +3,8 @@
 export class CacheBudget {
   private entries = new Map<object, { weight: number; evict: () => void }>()
   private weight = 0
-  constructor(readonly limit: number) {}
+  readonly limit: number
+  constructor(limit: number) { this.limit = limit }
   touch(key: object): void {
     const entry = this.entries.get(key)
     if (entry) { this.entries.delete(key); this.entries.set(key, entry) }

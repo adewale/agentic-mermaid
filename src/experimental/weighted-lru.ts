@@ -5,7 +5,8 @@ export class WeightedLru<K, V> {
   private weight = 0
   private readonly maxEntries: number
   private readonly maxWeight: number
-  constructor(maxEntries: number, maxWeight: number, private readonly budget?: CacheBudget) { this.maxEntries = maxEntries; this.maxWeight = maxWeight }
+  private readonly budget?: CacheBudget
+  constructor(maxEntries: number, maxWeight: number, budget?: CacheBudget) { this.maxEntries = maxEntries; this.maxWeight = maxWeight; this.budget = budget }
   get(key: K): V | undefined {
     const found = this.entries.get(key)
     if (!found) return undefined
