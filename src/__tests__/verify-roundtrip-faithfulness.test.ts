@@ -9,6 +9,7 @@
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 import { WARNING_TIER, WARNING_SEVERITY } from '../agent/types.ts'
+import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
 
 const FAITHFUL: Record<string, string> = {
   flowchart: 'flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Done]\n  B -->|no| A',
@@ -79,4 +80,38 @@ test('retained Pie comments are not reported as lost, including when rendering f
       expect(result.checks).toEqual({ renderability: background === 'white' ? 'passed' : 'failed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
     }
   }
+})
+
+test('verification keeps canonical and body-owned render sources distinct within each call', () => {
+  const flow = parseMermaid('---\ntitle: Authored title\n---\nflowchart LR\n A[Canonical] --> B[Other]')
+  if (!flow.ok || flow.value.body.kind !== 'flowchart') throw Error('Expected Flowchart')
+  flow.value.body.graph.nodes.get('A')!.label = 'Typed edit'
+  const canonical = verifyMermaid(flow.value)
+  expect(canonical.ok).toBe(true)
+  expect(canonical.layout.nodes.find(node => node.id === 'A')!.label).toBe('Canonical')
+  expect(canonical.checks?.sourceLoss).toBe('not-detected')
+
+  const sequence = parseMermaid('---\ntitle: Authored title\n---\nsequenceDiagram\n A->>B: Canonical')
+  if (!sequence.ok || sequence.value.body.kind !== 'sequence') throw Error('Expected Sequence')
+  for (const text of ['First typed edit', 'Second typed edit']) {
+    sequence.value.body.messages[0]!.text = text
+    const result = verifyMermaid(sequence.value)
+    expect(result.ok).toBe(true)
+    expect(result.layout.edges[0]!.label?.text).toBe(text)
+    expect(result.checks?.sourceLoss).toBe('not-detected')
+  }
+})
+
+test('a stale empty canonical source retries the serialized body without losing wrapper configuration', () => {
+  const parsed = parseMermaid('---\ntitle: Wrapper title\n---\npie\n "Retained": 3\n "Other": 2')
+  if (!parsed.ok) throw Error('Expected Pie')
+  const stale = { ...parsed.value, canonicalSource: 'pie' }
+  const descriptor = getFamily('pie')!
+  const restore = replaceFamilyForTest('pie', { ...descriptor, renderSource: () => 'canonical' })
+  try {
+    const result = verifyMermaid(stale)
+    expect(result.ok).toBe(true)
+    expect(result.layout.nodes.map(node => node.label)).toEqual(['Retained (60.0%)', 'Other (40.0%)'])
+    expect(result.checks?.sourceLoss).toBe('not-detected')
+  } finally { restore() }
 })

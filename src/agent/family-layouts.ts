@@ -189,16 +189,16 @@ export function projectPositionedView(familyId: FamilyId, positioned: Positioned
  * serializer as the source-context bridge; the descriptor still owns all
  * parsing and positioning.
  */
-export function familyArtifactSource(d: ParsedDiagram): string {
-  return renderSourceForParsedDiagram(d)
+export function familyArtifactSource(d: ParsedDiagram, serialized?: () => string): string {
+  return renderSourceForParsedDiagram(d, serialized)
 }
 
-export function positionFamilyArtifact(d: ParsedDiagram, options: PositionFamilyArtifactOptions = {}): ProjectedFamilyArtifact | null {
+export function positionFamilyArtifact(d: ParsedDiagram, options: PositionFamilyArtifactOptions = {}, serialized?: () => string): ProjectedFamilyArtifact | null {
   const descriptor = getFamily(d.kind)
   if (!descriptor?.layout || !descriptor.projectPositioned) return null
   const projectionOptions: FamilyPositionedProjectionOptions = { debug: options.debug }
 
-  const sourceText = familyArtifactSource(d)
+  const sourceText = familyArtifactSource(d, serialized)
   const canRetryFromBody = structuredBodyExpectsNodes(d)
 
   const projectSource = (text: string): ProjectedFamilyArtifact => {
@@ -219,13 +219,13 @@ export function positionFamilyArtifact(d: ParsedDiagram, options: PositionFamily
     primary = projectSource(sourceText)
   } catch (error) {
     if (!canRetryFromBody) throw error
-    const serialized = serializeMermaid(d)
-    if (serialized === sourceText) throw error
-    return projectSource(serialized)
+    const fallback = serialized ? serialized() : serializeMermaid(d)
+    if (fallback === sourceText) throw error
+    return projectSource(fallback)
   }
   if (!canRetryFromBody || primary.rendered.nodes.length > 0) return primary
-  const serialized = serializeMermaid(d)
-  return serialized === sourceText ? primary : projectSource(serialized)
+  const fallback = serialized ? serialized() : serializeMermaid(d)
+  return fallback === sourceText ? primary : projectSource(fallback)
 }
 
 /** Layout-JSON facade. Descriptor failures propagate with family/operation context. */

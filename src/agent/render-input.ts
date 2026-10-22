@@ -21,14 +21,14 @@ export interface PreparedRenderInput {
 /** Every render transport consults the owning descriptor once. Source-sensitive
  * families preserve canonical order; body-owned families publish typed edits.
  * Opaque whitespace/wrapper exceptions live with their family operations. */
-export function renderSourceForParsedDiagram(input: ParsedDiagram): string {
+export function renderSourceForParsedDiagram(input: ParsedDiagram, serialized?: () => string): string {
   const family = getFamily(input.kind)
   // A replaced registration must not inspect data owned by its predecessor.
   const current = input.body.kind !== 'extension' || ('descriptorIdentity' in input && sameExtensionIdentity(input.descriptorIdentity, family?.identity))
   const policy = current ? family?.renderSource : undefined
   const source = policy ? policy(input.body) : (input.body.kind === 'extension' ? 'serialized' : 'canonical')
   if (source !== 'canonical' && source !== 'serialized') throw new TypeError(`Family ${input.kind} returned an invalid render source policy`)
-  if (source === 'serialized') return serializeMermaid(input)
+  if (source === 'serialized') return serialized ? serialized() : serializeMermaid(input)
   // A parsed body has no config envelope; a mutated one is serialized with
   // it. Render either under the wrapper serialization emits (frontmatter title
   // and config, init directives), so a parsed diagram draws what its saved
@@ -38,13 +38,13 @@ export function renderSourceForParsedDiagram(input: ParsedDiagram): string {
   return body.startsWith(wrapper) ? body : wrapper + body
 }
 
-export function prepareRenderInput(input: ParsedDiagram | string): PreparedRenderInput {
+export function prepareRenderInput(input: ParsedDiagram | string, serialized?: () => string): PreparedRenderInput {
   if (typeof input === 'string') return { source: input }
   if (input.body.kind === 'preserved') {
     throw new MermaidFamilyDetectionError(familyDetectionDiagnosticFromPreservedBody(input.body))
   }
   return {
-    source: renderSourceForParsedDiagram(input),
+    source: renderSourceForParsedDiagram(input, serialized),
     expectedFamilyId: input.kind,
   }
 }
