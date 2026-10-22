@@ -35,6 +35,9 @@ export interface MeasuredGraph {
   compactPrivateRanks?: boolean
   /** Private acyclic projection; its parent restores authored cycle directions. */
   cycleOriented?: true
+  /** Internal family contract: retain placement constraints, omit final routes.
+   * This flag participates in the measured-geometry cache key. */
+  placementOnly?: true
 }
 
 export interface AgenticLayout {
@@ -614,7 +617,11 @@ export function layoutLayeredGraph(
     return horizontal ? { x: orientedMain, y: padding + crossValue } : { x: padding + crossValue, y: orientedMain }
   }
 
-  const positionedEdges = edges.map((_, edgeIndex) => {
+  // Cycle selection and loop compaction still depend on temporary route
+  // geometry. Ordinary acyclic placement needs channels/gaps but no point
+  // arrays: the family will build the actual side-constrained routes.
+  const positionedEdges = input.placementOnly && !input.cycleOriented && !input.loopPorts?.length
+    ? edges.map(() => ({ points: [] as Point[] })) : edges.map((_, edgeIndex) => {
     const chain = chains[edgeIndex]!
     const points: Point[] = []
     const append = (crossValue: number, mainValue: number): void => {

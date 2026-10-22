@@ -4,7 +4,7 @@ import { GraphLayoutUnsupportedError, DeferredDependencyError } from './backend.
 
 let implementation: {
   candidate: typeof import('./agentic-producer-core.ts').layoutNativeGraphCandidate
-  compound: typeof import('./agentic-producer-core.ts').layoutNativeCompoundPlacement
+  placement: typeof import('./agentic-producer-core.ts').layoutNativeGraphPlacement
   graph: (input: MeasuredGraph) => AgenticLayout
 } | undefined
 let pending: Promise<void> | undefined
@@ -13,7 +13,7 @@ async function load(): Promise<void> {
   await (pending ??= import('./agentic-producer-core.ts').then(module => {
     implementation = {
       candidate: module.layoutNativeGraphCandidate,
-      compound: module.layoutNativeCompoundPlacement,
+      placement: module.layoutNativeGraphPlacement,
       graph: module.createMeasuredLayoutCache(input => module.layoutLayeredGraph(input, layoutMeasuredForest, reason => { throw new GraphLayoutUnsupportedError(reason) })),
     }
   }).catch((error: unknown) => { pending = undefined; throw error }))
@@ -33,4 +33,4 @@ export const layoutAgenticCandidate: typeof import('./agentic-layered.ts').layou
   return ready().candidate(graph, options, style, layoutAgenticGraph, bindings)
 }
 
-export const layoutAgenticCompoundPlacement: typeof import('./agentic-layered.ts').layoutAgenticCompoundPlacement = (graph, place) => ready().compound(graph, place)
+export const layoutAgenticPlacement: typeof import('./agentic-layered.ts').layoutAgenticPlacement = (graph, options, style, bindings) => ready().placement(graph, options, style, layoutAgenticGraph, bindings)

@@ -7,22 +7,6 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
 
-/** Architecture owns its final side-constrained paths. A bounded retry keeps
- * in-scope rank constraints without requiring temporary cross-scope routes.
- * Every original relationship remains in the adapter's authored model. */
-export function layoutNativeCompoundPlacement(graph: MermaidGraph, place: (input: MermaidGraph) => PositionedGraph): PositionedGraph {
-  try { return place(graph) } catch (error) {
-    if (!(error instanceof GraphLayoutUnsupportedError) || !graph.subgraphs.length) throw error
-    const owner = new Map<string, string>()
-    const visit = (group: MermaidSubgraph): void => {
-      for (const id of group.nodeIds) owner.set(id, group.id)
-      group.children.forEach(visit)
-    }
-    graph.subgraphs.forEach(visit)
-    return place({ ...graph, edges: graph.edges.filter(edge => owner.get(edge.source) === owner.get(edge.target)) })
-  }
-}
-
 // Keep cache storage inside the optional solver chunk: importing shared
 // request helpers here creates extra requests for families selecting ELK.
 class NativeResults<T> {
@@ -84,7 +68,8 @@ export function createMeasuredLayoutCache(compute: (input: MeasuredGraph) => Age
 }
 
 export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: MeasuredGraph) => AgenticLayout | undefined, unsupported: (reason: string) => never): AgenticLayout {
-  return shortenMeasuredRoutes(input, layoutRawGraph(input, forest, unsupported))
+  const placed = layoutRawGraph(input, forest, unsupported)
+  return input.placementOnly ? placed : shortenMeasuredRoutes(input, placed)
 }
 
 /** Native-only preparation and projection are fetched with the selected solver.
@@ -93,6 +78,7 @@ function placeNativeGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout,
   bindings: AgenticGraphBindings,
+  placementOnly = false,
 ): PositionedGraph {
   const { DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
   if (options.preserveSubgraphChildOrder) bindings.unsupported('family-specific graph geometry')
@@ -135,14 +121,14 @@ function placeNativeGraphCandidate(
         const inline = resolveEdgeInlineStyle(index, graph)
         return !inline || Object.keys(inline).length === 0
       })
-    return { nodes, groups, edges, shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4) }
+    return { nodes, groups, edges, shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4), ...(placementOnly ? { placementOnly: true as const } : {}) }
   })
   const geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured))
   // Missing subjects or non-finite geometry are engine defects, not an
   // eligibility refusal that can be concealed by running another producer.
   if (geometry.nodes.length !== measured.nodes.length || (geometry.groups?.length ?? 0) !== measured.groups.length || geometry.edges.length !== graph.edges.length || containsNonFiniteNumber(geometry)
     || geometry.sharedEdges?.some(index => !Number.isInteger(index) || index < 0 || index >= graph.edges.length)
-    || geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
+    || !placementOnly && geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
     throw new TypeError('Agentic graph producer returned malformed geometry')
   }
   const nodes = measured.nodes.map((node, index): PositionedNode => {
@@ -150,7 +136,7 @@ function placeNativeGraphCandidate(
     const assigned = graph.classAssignments.get(node.id)
     return { ...authored, id: node.id, width: node.width, height: node.height, ...geometry.nodes[index]!, inlineStyle: resolveNodeInlineStyle(node.id, graph), classNames: assigned?.split(/\s+/).filter(Boolean) }
   })
-  const edges = graph.edges.map((edge, index): PositionedEdge => ({
+  const edges = placementOnly ? [] : graph.edges.map((edge, index): PositionedEdge => ({
     ...edge, ...geometry.edges[index]!, edgeIndex: index, inlineStyle: resolveEdgeInlineStyle(index, graph),
     ...(edge.id && graph.classAssignments.has(edge.id) ? { classNames: graph.classAssignments.get(edge.id)!.split(/\s+/).filter(Boolean) } : {}),
   }))
@@ -165,6 +151,10 @@ function placeNativeGraphCandidate(
     if (parent === undefined) groups.push(frame)
     else frames[parent]!.children.push(frame)
   })
+  // A family placement is deliberately unfinished graph geometry: it has no
+  // reusable routes or graph certificate. Architecture owns the final routes,
+  // labels, actual ring contacts and independent family/paint certification.
+  if (placementOnly) return { width: geometry.width, height: geometry.height, nodes, edges: [], groups }
   // Forest fans use shared trunks. Layered placement reserves private label
   // corridors; generic bundling can move foreign routes into those corridors.
   const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups }, graph, geometry.topology === 'forest', opts.padding, style, options.stateVisual?.noteMargin ?? 18, undefined, geometry.sharedEdges).positioned
@@ -267,4 +257,16 @@ export function layoutNativeGraphCandidate(
   }
   const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
   return certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
+}
+
+/** Internal family placement: all authored edges still constrain ranks/order.
+ * Do not route this unfinished artifact through generic graph certification. */
+export function layoutNativeGraphPlacement(
+  graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
+  layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
+): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+  const hints = options.layoutHints
+  if (hints && (Object.keys(hints.ranks ?? {}).length || hints.adjacent?.length || hints.shortEdges?.length)) bindings.unsupported('layout hints')
+  const placed = placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings, true)
+  return { width: placed.width, height: placed.height, nodes: placed.nodes, groups: placed.groups }
 }
