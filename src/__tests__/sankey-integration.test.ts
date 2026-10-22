@@ -9,6 +9,17 @@ import { parseSankeyDiagram } from '../sankey/parser.ts'
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120\n  Electricity,Industry,87.93'
 
 describe('sankey integration · parse → verify → layout → render seam', () => {
+  test('fan layers retain first-appearance nodes and separate authored parallel flows', () => {
+    const source = 'sankey-beta\nRoot,Left,2\nRoot,Right,3\nRoot,Left,5\nLeft,Sink,7\nRight,Sink,3'
+    const chart = layoutSankeyDiagram(parseSankeyDiagram(source.split('\n')))
+    expect(chart.nodes.map(node => [node.label, node.layer, node.value])).toEqual([
+      ['Root', 0, 10], ['Left', 1, 7], ['Right', 1, 3], ['Sink', 2, 10],
+    ])
+    expect(chart.links.map(link => [link.source, link.target, link.value])).toEqual([
+      ['Root', 'Left', 2], ['Root', 'Right', 3], ['Root', 'Left', 5], ['Left', 'Sink', 7], ['Right', 'Sink', 3],
+    ])
+    expect(new Set(chart.links.map(link => link.id)).size).toBe(5)
+  })
   test.each(['width', 'height', 'nodeWidth'] as const)('diagnoses %s below the resolver minimum through source and explicit options', field => {
     const config = { [field]: 0.5 }
     const source = `%%{init: ${JSON.stringify({ sankey: config })}}%%\n${BASIC}`
