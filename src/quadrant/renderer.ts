@@ -1,6 +1,9 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedQuadrantChart, PositionedQuadrantPoint } from './types.ts'
 import type { RenderContext } from '../types.ts'
+import type { DiagramColors } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
+import { escapeXml } from '../multiline-utils.ts'
 import { quadrantStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -9,47 +12,6 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { drawTooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
-
-const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
-  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
-  { name: 'stroke-dasharray', value: v.paint('strokeDasharray') }, { name: 'stroke-linecap', value: v.paint('strokeLinecap') },
-  { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'opacity', value: v.paint('opacity') },
-  { name: 'fill-opacity', value: v.paint('fillOpacity') }, { name: 'stroke-opacity', value: v.paint('strokeOpacity') },
-]
-function primitive(className: string | undefined, geometry: readonly SvgGeometryField[], extra: readonly SvgAttribute[] = [], close: ' />' | '/>' = ' />'): SvgEmissionRecipe {
-  return snapshotSvgEmissionRecipe({ kind: 'primitive', close, attributes: [
-    ...(className ? [{ name: 'class' as const, value: v.meta(className) }] : []),
-    ...geometry.map(name => ({ name, value: v.geometry(name) })), ...extra,
-    ...PAINT_ATTRIBUTES.filter(attribute => !extra.some(other => other.name === attribute.name)),
-  ] })
-}
-const RECT_FIELDS = ['x', 'y', 'width', 'height'] as const
-const LINE_FIELDS = ['x1', 'y1', 'x2', 'y2'] as const
-const DIVIDER_EMISSION = primitive('quadrant-divider', LINE_FIELDS)
-const BORDER_EMISSION = primitive('quadrant-border', RECT_FIELDS, [{ name: 'fill', value: v.paint('fill') }])
-const LEADER_EMISSION = primitive('quadrant-leader', LINE_FIELDS)
-const HIT_EMISSION = primitive(undefined, ['cx', 'cy', 'r'], [{ name: 'fill', value: v.paint('fill') }], '/>')
-const HOVER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('quadrant-point-group') }] }) as SvgGroupEmission
-
-function textAttributes(className: string, baseline = true): SvgAttribute[] {
-  return [
-    { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },
-    ...(baseline ? [{ name: 'dominant-baseline' as const, value: v.meta('middle') }] : []),
-    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') }, { name: 'fill', value: v.paint('fill') },
-    { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-  ]
-}
-const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('quadrant-label') })
-const POINT_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('quadrant-point-label'), { name: 'stroke', value: v.paint('stroke') },
-  { name: 'stroke-width', value: v.paint('strokeWidth') }, { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') },
-  { name: 'paint-order', value: v.paint('paintOrder') },
-] })
-const AXIS_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('quadrant-axis-label', false), { name: 'transform', value: v.transform() },
-] })
-const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('quadrant-title') })
 
 // ============================================================================
 // Quadrant chart SVG renderer
@@ -117,19 +79,27 @@ export function lowerQuadrantDrawing<T>(
   // (a prelude parameter), so it belongs to the shell a styled backend
   // re-derives rather than a standalone defs mark.
   const extraCss = quadrantStyles(interactive)
-  const rootAttributes = { id: namespace, ...buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'quadrant chart') }
+  const preludeSegments = [
+    openQuadrantSvgTag(chart, colors, transparent, accessibility, namespace, titleId, descId),
+  ]
+  if (accessibility.title) preludeSegments.push(`<title id="${titleId}">${escapeXml(accessibility.title)}</title>`)
+  if (accessibility.description) preludeSegments.push(`<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`)
+  preludeSegments.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
+  if (extraCss) preludeSegments.push(extraCss)
   parts.push(marks.documentOpen(
-    { id: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false, extraCss },
-    { kind: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false,
-      ...(chart.visual.useMaxWidth ? { widthAttribute: '100%', heightAttribute: '100%', extraStyle: `max-width:${chart.width}px` } : {}),
-      attributes: Object.entries(rootAttributes).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
-      children: [
-        ...(accessibility.title ? [{ kind: 'documentText' as const, element: 'title' as const, domId: titleId, text: accessibility.title }] : []),
-        ...(accessibility.description ? [{ kind: 'documentText' as const, element: 'desc' as const, domId: descId, text: accessibility.description }] : []),
-        { kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : []),
-        { kind: 'stylesheet', css: extraCss },
-      ],
+    {
+      id: 'prelude',
+      width: chart.width,
+      height: chart.height,
+      colors,
+      transparent,
+      font,
+      hasMonoFont: false,
+      ...(extraCss ? { extraCss } : {}),
     },
+    preludeSegments.join('\n'),
   ))
 
   const { plot } = chart
@@ -149,10 +119,6 @@ export function lowerQuadrantDrawing<T>(
         channels: region.label ? { category: region.label } : undefined,
         attributes: { className: 'quadrant-region', data: { quadrant: String(region.number) } },
       },
-      { kind: 'primitive', attributes: [
-        { name: 'class', value: v.meta('quadrant-region') }, ...RECT_FIELDS.map(name => ({ name, value: v.geometry(name) })),
-        { name: 'fill', value: v.paint('fill') }, { name: 'data-quadrant', value: v.meta(region.number) },
-      ] },
     ))
   }
 
@@ -171,7 +137,6 @@ export function lowerQuadrantDrawing<T>(
       paint: dividerPaint,
       attributes: { className: 'quadrant-divider' },
     },
-    DIVIDER_EMISSION,
   ))
   parts.push(marks.shape(
     {
@@ -181,7 +146,6 @@ export function lowerQuadrantDrawing<T>(
       paint: dividerPaint,
       attributes: { className: 'quadrant-divider' },
     },
-    DIVIDER_EMISSION,
   ))
 
   // External border.
@@ -197,7 +161,6 @@ export function lowerQuadrantDrawing<T>(
       },
       attributes: { className: 'quadrant-border' },
     },
-    BORDER_EMISSION,
   ))
 
   // Quadrant labels.
@@ -212,7 +175,8 @@ export function lowerQuadrantDrawing<T>(
         x: region.labelX,
         y: region.labelY,
         fontSize: style.groupHeaderFontSize,
-        fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing,
+        fontWeight: style.groupHeaderFontWeight,
+        letterSpacing: style.groupLetterSpacing,
         block: region.labelBlock,
         anchor: 'middle',
         dominantBaseline: 'middle',
@@ -220,7 +184,6 @@ export function lowerQuadrantDrawing<T>(
         channels: { category: region.label },
         attributes: { className: 'quadrant-label' },
       },
-      LABEL_EMISSION,
     ))
   }
 
@@ -243,10 +206,11 @@ export function lowerQuadrantDrawing<T>(
           paint: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: '1' },
           attributes: { className: 'quadrant-leader' },
         },
-        LEADER_EMISSION,
       ))
     }
 
+    // Layout resolved per-point styles/classDefs into fill/stroke/radius; the
+    // author's class name stays a CSS hook for external stylesheets.
     const className = point.className ? `quadrant-point ${point.className}` : 'quadrant-point'
     parts.push(marks.shape(
       {
@@ -260,13 +224,6 @@ export function lowerQuadrantDrawing<T>(
         },
         attributes: { className, data: { label: point.label, x: String(point.nx), y: String(point.ny) } },
       },
-      { kind: 'primitive', attributes: [
-        { name: 'class', value: v.meta(className), escape: 'xml' },
-        ...(['cx', 'cy', 'r'] as const).map(name => ({ name, value: v.geometry(name) })),
-        ...PAINT_ATTRIBUTES, ...pointStyleAttributes(point),
-        { name: 'data-label', value: v.meta(point.label), escape: 'xml' },
-        { name: 'data-x', value: v.meta(point.nx) }, { name: 'data-y', value: v.meta(point.ny) },
-      ] },
     ))
     if (!point.labelHidden) {
       // A point may sit on a divider, the border, or a leader: the label's
@@ -280,14 +237,14 @@ export function lowerQuadrantDrawing<T>(
           x: point.labelX,
           y: point.labelY,
           fontSize: style.nodeLabelFontSize,
-          fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
+          fontWeight: style.nodeLabelFontWeight,
+          letterSpacing: style.nodeLetterSpacing,
           block: point.labelBlock,
           anchor: point.labelAnchor,
           dominantBaseline: 'middle',
           paint: { fill: style.nodeTextColor ?? 'var(--_text)', stroke: halo, strokeWidth: String(POINT_LABEL_HALO_WIDTH), strokeLinejoin: 'round', paintOrder: 'stroke' },
           attributes: { className: 'quadrant-point-label' },
         },
-        POINT_TEXT_EMISSION,
       ))
     }
 
@@ -297,11 +254,11 @@ export function lowerQuadrantDrawing<T>(
       const tipText = `${point.label}: [${point.nx}, ${point.ny}]`
       const owner = { id: pointId, role: 'point' as const }
       pointOverlay.push(marks.group({ id: `tooltip:${pointId}`, role: 'chrome', owner,
-        emission: HOVER_EMISSION, join: '', children: [
+        open: '<g class="quadrant-point-group">', close: '</g>', join: '', children: [
           { indent: 0, node: marks.shape({ id: `${pointId}:hit`, role: 'chrome', owner,
             geometry: { kind: 'circle', cx: point.cx, cy: point.cy, r: point.radius + 6 }, paint: { fill: 'transparent' },
-          }, HIT_EMISSION) },
-          { indent: 0, node: marks.documentContent({ id: `${pointId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, { kind: 'documentText', element: 'title', text: tipText }) },
+          }) },
+          { indent: 0, node: marks.documentContent({ id: `${pointId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipText)}</title>`) },
           { indent: 0, node: drawTooltipArtwork(marks, 'quadrant', point.tooltip, `${pointId}:tooltip`, owner) },
         ],
       }))
@@ -326,14 +283,14 @@ export function lowerQuadrantDrawing<T>(
         x: axis.x,
         y: labelY,
         fontSize: axis.fontSize,
-        fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
+        fontWeight: style.edgeLabelFontWeight,
+        letterSpacing: style.edgeLetterSpacing,
         block: axis.block,
         anchor: axis.anchor,
         paint: { fill: style.edgeTextColor ?? 'var(--_text-muted)' },
         transform: rotation,
         attributes: { className: 'quadrant-axis-label' },
       },
-      AXIS_EMISSION,
     ))
   }
 
@@ -348,14 +305,14 @@ export function lowerQuadrantDrawing<T>(
         x: chart.title.x,
         y: chart.title.y,
         fontSize: chart.title.fontSize,
-        fontWeight: Math.max(style.groupHeaderFontWeight, 600), letterSpacing: style.groupLetterSpacing,
+        fontWeight: Math.max(style.groupHeaderFontWeight, 600),
+        letterSpacing: style.groupLetterSpacing,
         block: chart.title.block,
         anchor: 'middle',
         dominantBaseline: 'middle',
         paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
         attributes: { className: 'quadrant-title' },
       },
-      TITLE_EMISSION,
     ))
   }
 
@@ -364,16 +321,28 @@ export function lowerQuadrantDrawing<T>(
   return { family: 'quadrant', width: chart.width, height: chart.height, colors, transparent, parts }
 }
 
-/** Inline style attribute for a point's resolved fill/stroke overrides.
- *  A style attribute (not presentation attributes) so the per-point values
- *  win over the .quadrant-point stylesheet rules. Empty for unstyled points,
- *  keeping their markup byte-identical to the pre-styling renderer. */
-function pointStyleAttributes(point: PositionedQuadrantPoint): SvgAttribute[] {
-  const declarations: Array<{ property: 'fill' | 'stroke' | 'stroke-width'; value: ReturnType<typeof v.paint> }> = []
-  if (point.fill !== undefined) declarations.push({ property: 'fill', value: v.paint('fill') })
-  if (point.stroke !== undefined) declarations.push({ property: 'stroke', value: v.paint('stroke') })
-  if (point.strokeWidth !== undefined) declarations.push({ property: 'stroke-width', value: v.paint('strokeWidth') })
-  return declarations.length ? [{ name: 'style', escape: 'xml', value: { source: 'style', declarations } }] : []
+function openQuadrantSvgTag(
+  chart: PositionedQuadrantChart,
+  colors: DiagramColors,
+  transparent: boolean,
+  accessibility: { title?: string; description?: string },
+  namespace: string,
+  titleId: string,
+  descId: string,
+): string {
+  // Wired base-config useMaxWidth (upstream semantics, xychart parity): a
+  // responsive root capped at the layout width. Absent/false keeps the
+  // historical fixed pixel sizing.
+  const overrides = chart.visual.useMaxWidth
+    ? { width: '100%', height: '100%', style: `max-width:${chart.width}px` }
+    : {}
+  return svgOpenTag(chart.width, chart.height, colors, transparent, {
+    ...overrides,
+    attrs: {
+      id: namespace,
+      ...buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'quadrant chart'),
+    },
+  })
 }
 
 /** Stroke width of the surface-colored outline drawn under point labels. */
@@ -402,8 +371,10 @@ function quadrantFill(number: 1 | 2 | 3 | 4, style: ResolvedRenderStyle): string
   return `color-mix(in srgb, var(--accent, var(--_arrow)) ${accentPct}%, var(--bg))`
 }
 
-function quadrantStyles(interactive: boolean): string {
-  return interactive ? `${tooltipCss('quadrant', ['quadrant-point-group'])}\n` : ''
+/** Every visible mark is painted from its typed fields, so the stylesheet
+ *  holds only the hover tooltip rules, and only an interactive chart has one. */
+function quadrantStyles(interactive: boolean): string | undefined {
+  return interactive ? `<style>${tooltipCss('quadrant', ['quadrant-point-group'])}\n</style>` : undefined
 }
 
 export const lowerQuadrantScene = sceneLowering<PositionedQuadrantChart>(lowerQuadrantDrawing)

@@ -2,10 +2,11 @@ import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../sce
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
 import type { RenderContext, RenderOptions } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { sanitizeDisplayLines } from '../shared/text-controls.ts'
+import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
@@ -13,7 +14,6 @@ import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import type { MarkAttributes } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField, type SvgValue } from '../scene/svg-emission.ts'
 
 // ============================================================================
 // Timeline diagram SVG renderer
@@ -42,40 +42,6 @@ const TL = {
   markerOuterRadius: 8,
   markerInnerRadius: 4.5,
 } as const
-
-function primitive(className: string, geometry: readonly SvgGeometryField[]): SvgEmissionRecipe {
-  return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-    { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })),
-    ...(['fill', 'stroke', 'strokeWidth', 'strokeDasharray', 'strokeLinecap', 'opacity'] as const).map(field => ({ name: ({ fill: 'fill', stroke: 'stroke', strokeWidth: 'stroke-width', strokeDasharray: 'stroke-dasharray', strokeLinecap: 'stroke-linecap', opacity: 'opacity' } as const)[field], value: v.paint(field) })),
-  ] })
-}
-const LINE_FIELDS = ['x1', 'y1', 'x2', 'y2'] as const
-const RECT_FIELDS = ['x', 'y', 'width', 'height', 'rx', 'ry'] as const
-const CIRCLE_FIELDS = ['cx', 'cy', 'r'] as const
-const RAIL_EMISSION = primitive('timeline-rail', LINE_FIELDS)
-const SECTION_EMISSION = primitive('timeline-section-bg', RECT_FIELDS)
-const BAND_EMISSION = primitive('timeline-section-band', ['d'])
-const STEM_EMISSION = primitive('timeline-stem', LINE_FIELDS)
-const PILL_EMISSION = primitive('timeline-period-pill', RECT_FIELDS)
-const RING_EMISSION = primitive('timeline-marker-ring', CIRCLE_FIELDS)
-const CORE_EMISSION = primitive('timeline-marker-core', CIRCLE_FIELDS)
-const EVENT_EMISSION = primitive('timeline-event-card', RECT_FIELDS)
-function textAttributes(className: string): SvgAttribute[] {
-  return [
-    { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },
-    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
-    { name: 'data-literal-text', value: v.meta(true) }, { name: 'fill', value: v.paint('fill') },
-  ]
-}
-const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('timeline-title'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-] })
-const PERIOD_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('timeline-period-text'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-] })
-const EVENT_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('timeline-event-text'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-] })
 
 export interface TimelineFamilyPalette {
   accent: string
@@ -129,25 +95,40 @@ export function lowerTimelineDrawing<T>(
   const descId = `${uid}-desc`
   const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription, titleId, descId)
 
-  // Each mark carries its resolved paint; only the shared document style remains.
+  // SVG root with CSS variables + shared style block (+ optional shadow defs).
+  // The shadow <defs> are re-derivable from prelude.colors, so styled backends
+  // lose nothing by their living inside the prelude crisp. Every timeline mark
+  // is written with its own paint and typography, so there is no family
+  // stylesheet.
+  const preludeSegments = [
+    svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs),
+    buildStyleBlock(font, false, colors.shadow, colors.embedFontImport),
+  ]
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
   parts.push(marks.documentOpen(
-    { id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false },
-    { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
-      attributes: Object.entries(rootAttrs).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
-      children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : [])],
+    {
+      id: 'prelude',
+      width: diagram.width,
+      height: diagram.height,
+      colors,
+      transparent,
+      font,
+      hasMonoFont: false,
     },
+    preludeSegments.join('\n'),
   ))
 
   if (accessibleTitle) {
     parts.push(marks.documentContent(
       { id: 'a11y-title', role: 'chrome', nonPaint: 'accessibility' },
-      { kind: 'documentText', element: 'title', domId: titleId, text: accessibleTitle },
+      `<title id="${titleId}">${escapeXml(accessibleTitle)}</title>`,
     ))
   }
   if (accessibleDescription) {
     parts.push(marks.documentContent(
       { id: 'a11y-desc', role: 'chrome', nonPaint: 'accessibility' },
-      { kind: 'documentText', element: 'desc', domId: descId, text: accessibleDescription },
+      `<desc id="${descId}">${escapeXml(accessibleDescription)}</desc>`,
     ))
   }
 
@@ -161,16 +142,13 @@ export function lowerTimelineDrawing<T>(
 
   // The rail segment is horizontal in LR (y1 === y2) and vertical in TD
   // (x1 === x2) — the crisp emits the positioned endpoints either way.
-  parts.push(marks.shape(
-    {
-      id: 'rail',
-      role: 'rail',
-      geometry: { kind: 'line', x1: diagram.rail.x1, y1: diagram.rail.y1, x2: diagram.rail.x2, y2: diagram.rail.y2 },
-      paint: paints.rail,
-        attributes: { className: 'timeline-rail' },
-    },
-    RAIL_EMISSION,
-  ))
+  parts.push(marks.shape({
+    id: 'rail',
+    role: 'rail',
+    geometry: { kind: 'line', x1: diagram.rail.x1, y1: diagram.rail.y1, x2: diagram.rail.x2, y2: diagram.rail.y2 },
+    paint: paints.rail,
+    attributes: { className: 'timeline-rail' },
+  }))
 
   let periodFamilyIndex = 0
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
@@ -183,21 +161,20 @@ export function lowerTimelineDrawing<T>(
   }
 
   if (diagram.title) {
-    parts.push(marks.text(
-      {
-        id: 'title',
-        role: 'title',
-        text: diagram.title.text,
-        block: diagram.title.block,
-        x: diagram.title.x,
-        y: diagram.title.y,
-        fontSize: TL.titleFontSize, fontWeight: TL.titleFontWeight, display: 'literal',
-        anchor: 'middle',
-        paint: paints.title,
-        attributes: literalTextHooks('timeline-title'),
-      },
-      TITLE_EMISSION,
-    ))
+    parts.push(marks.text({
+      id: 'title',
+      role: 'title',
+      text: diagram.title.text,
+      block: diagram.title.block,
+      x: diagram.title.x,
+      y: diagram.title.y,
+      fontSize: TL.titleFontSize,
+      fontWeight: TL.titleFontWeight,
+      display: 'literal',
+      anchor: 'middle',
+      paint: paints.title,
+      attributes: literalTextHooks('timeline-title'),
+    }))
   }
 
   parts.push(marks.documentClose())
@@ -262,7 +239,7 @@ function timelinePaints(style: ResolvedRenderStyle, eventText: string) {
 
 type TimelinePaints = ReturnType<typeof timelinePaints>
 
-/** Timeline labels remain literal in deterministic SVG font processing. */
+/** Timeline labels are literal; the hook keeps that visible on the element. */
 function literalTextHooks(className: string): MarkAttributes {
   return { className, data: { 'literal-text': 'true' } }
 }
@@ -276,76 +253,64 @@ function lowerSectionFrame<T>(
   paints: TimelinePaints,
 ): T {
   const sectionName = section.label ?? section.id
-  const sectionLabel = section.label ? sanitizeDisplayLines(section.label) : undefined
-  const family = familyAttributes(familyIndex, familyPalettes)
+  const labelAttr = section.label ? ` data-label="${escapeDisplayAttr(section.label)}"` : ''
+  const familyAttr = renderFamilyAttr(familyIndex, familyPalettes)
   const children: Array<{ node: T; indent: number }> = []
 
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `section-bg:${sectionName}`,
-        role: 'section',
-        geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
-        paint: paints.sectionBg,
-        attributes: { className: 'timeline-section-bg' },
-      },
-      SECTION_EMISSION,
-    ),
+    node: marks.shape({
+      id: `section-bg:${sectionName}`,
+      role: 'section',
+      geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
+      paint: paints.sectionBg,
+      attributes: { className: 'timeline-section-bg' },
+    }),
   })
 
   if (section.headerHeight > 0) {
     const bandPath = topRoundedRectPath(section.x, section.y, section.width, section.headerHeight, style.groupCornerRadius)
     children.push({
       indent: 2,
-      node: marks.shape(
-        {
-          id: `section-band:${sectionName}`,
-          role: 'group-header',
-          geometry: { kind: 'path', d: bandPath },
-          paint: paints.sectionBand,
+      node: marks.shape({
+        id: `section-band:${sectionName}`,
+        role: 'group-header',
+        geometry: { kind: 'path', d: bandPath },
+        paint: paints.sectionBand,
         attributes: { className: 'timeline-section-band' },
-        },
-        BAND_EMISSION,
-      ),
+      }),
     })
     if (section.label) {
       children.push({
         indent: 2,
-        node: marks.text(
-          {
-            id: `section-label:${sectionName}`,
-            role: 'group-header',
-            text: section.label,
-        block: section.block,
-            x: section.x + style.groupLabelPaddingX,
-            y: section.y + section.headerHeight / 2,
-            fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, display: 'literal',
-            anchor: 'start',
-            paint: paints.sectionLabel,
-        attributes: literalTextHooks('timeline-section-label'),
-          },
-          { kind: 'text', layout: 'multiline', attributes: [
-            ...textAttributes('timeline-section-label'),
-            ...(style.groupFont ? [{ name: 'font-family' as const, value: v.meta(style.groupFont) }] : []),
-            { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-          ] },
-        ),
+        // The group font family is written from the prepared block.
+        node: marks.text({
+          id: `section-label:${sectionName}`,
+          role: 'group-header',
+          text: section.label,
+          block: section.block,
+          x: section.x + style.groupLabelPaddingX,
+          y: section.y + section.headerHeight / 2,
+          fontSize: style.groupHeaderFontSize,
+          fontWeight: style.groupHeaderFontWeight,
+          letterSpacing: style.groupLetterSpacing,
+          display: 'literal',
+          anchor: 'start',
+          paint: paints.sectionLabel,
+          attributes: literalTextHooks('timeline-section-label'),
+        }),
       })
     }
   }
 
   // The section <g> carries the per-family palette as inline --tl-* custom
-  // properties (via familyAttributes) — that lexical projection is part of
+  // properties (via renderFamilyAttr) — that exact style="" string is part of
   // the wrapper semantics and must survive restyling byte-for-byte.
   return marks.group({
     id: `section:${sectionName}`,
     role: 'section',
-    emission: { kind: 'group', attributes: [
-      { name: 'class', value: v.meta('timeline-section') }, { name: 'data-id', value: v.meta(section.id) },
-      ...(sectionLabel !== undefined ? [{ name: 'data-label' as const, value: v.meta(sectionLabel) }] : []),
-      ...family,
-    ] },
+    open: `<g class="timeline-section" data-id="${escapeAttr(section.id)}"${labelAttr}${familyAttr}>`,
+    close: '</g>',
     children,
     channels: { category: sectionName },
   })
@@ -360,79 +325,67 @@ function lowerPeriod<T>(
   style: ResolvedRenderStyle,
   paints: TimelinePaints,
 ): T {
-  const sectionAttributes: SvgAttribute[] = sectionLabel ? [{ name: 'data-section', value: v.meta(sectionLabel) }] : []
-  const family = familyAttributes(familyIndex, familyPalettes)
+  const sectionAttr = sectionLabel ? ` data-section="${escapeAttr(sectionLabel)}"` : ''
+  const familyAttr = renderFamilyAttr(familyIndex, familyPalettes)
   const children: Array<{ node: T; indent: number }> = []
 
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-stem:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'line', x1: period.stem.x1, y1: period.stem.y1, x2: period.stem.x2, y2: period.stem.y2 },
-        paint: paints.stem,
-        attributes: { className: 'timeline-stem' },
-      },
-      STEM_EMISSION,
-    ),
+    node: marks.shape({
+      id: `period-stem:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'line', x1: period.stem.x1, y1: period.stem.y1, x2: period.stem.x2, y2: period.stem.y2 },
+      paint: paints.stem,
+      attributes: { className: 'timeline-stem' },
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-pill:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'rect', x: period.pillX, y: period.pillY, width: period.pillWidth, height: period.pillHeight, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-        paint: paints.pill,
-        attributes: { className: 'timeline-period-pill' },
-      },
-      PILL_EMISSION,
-    ),
+    node: marks.shape({
+      id: `period-pill:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'rect', x: period.pillX, y: period.pillY, width: period.pillWidth, height: period.pillHeight, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
+      paint: paints.pill,
+      attributes: { className: 'timeline-period-pill' },
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.text(
-      {
-        id: `period-label:${period.id}`,
-        role: 'label',
-        text: period.label,
-        block: period.block,
-        x: period.centerX,
-        y: period.pillY + period.pillHeight / 2,
-        fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, display: 'literal',
-        anchor: 'middle',
-        paint: paints.periodText,
-        attributes: literalTextHooks('timeline-period-text'),
-      },
-      PERIOD_TEXT_EMISSION,
-    ),
+    node: marks.text({
+      id: `period-label:${period.id}`,
+      role: 'label',
+      text: period.label,
+      block: period.block,
+      x: period.centerX,
+      y: period.pillY + period.pillHeight / 2,
+      fontSize: style.edgeLabelFontSize,
+      fontWeight: style.edgeLabelFontWeight,
+      letterSpacing: style.edgeLetterSpacing,
+      display: 'literal',
+      anchor: 'middle',
+      paint: paints.periodText,
+      attributes: literalTextHooks('timeline-period-text'),
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-marker-ring:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerOuterRadius },
-        paint: paints.markerRing,
-        attributes: { className: 'timeline-marker-ring' },
-      },
-      RING_EMISSION,
-    ),
+    node: marks.shape({
+      id: `period-marker-ring:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerOuterRadius },
+      paint: paints.markerRing,
+      attributes: { className: 'timeline-marker-ring' },
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-marker-core:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerInnerRadius },
-        paint: paints.markerCore,
-        attributes: { className: 'timeline-marker-core' },
-      },
-      CORE_EMISSION,
-    ),
+    node: marks.shape({
+      id: `period-marker-core:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerInnerRadius },
+      paint: paints.markerCore,
+      attributes: { className: 'timeline-marker-core' },
+    }),
   })
 
   // Event cards are nested inside the period <g> without extra indentation
@@ -447,12 +400,8 @@ function lowerPeriod<T>(
   return marks.group({
     id: `period:${period.id}`,
     role: 'period',
-    emission: { kind: 'group', attributes: [
-      { name: 'class', value: v.meta('timeline-period') }, { name: 'data-id', value: v.meta(period.id) },
-      { name: 'data-label', value: v.meta(period.label), display: true },
-      ...sectionAttributes,
-      ...family,
-    ] },
+    open: `<g class="timeline-period" data-id="${escapeAttr(period.id)}" data-label="${escapeDisplayAttr(period.label)}"${sectionAttr}${familyAttr}>`,
+    close: '</g>',
     children,
   })
 }
@@ -466,46 +415,39 @@ function lowerEvent<T>(
   style: ResolvedRenderStyle,
   paints: TimelinePaints,
 ): T {
-  const sectionAttributes: SvgAttribute[] = sectionLabel ? [{ name: 'data-section', value: v.meta(sectionLabel) }] : []
-  const family = `${familyIndex % familyPalettes.length}`
+  const sectionAttr = sectionLabel ? ` data-section="${escapeAttr(sectionLabel)}"` : ''
+  const familyAttr = ` data-family="${familyIndex % familyPalettes.length}"`
   const idBase = `event:${event.id}`
 
-  const card = marks.shape(
-    {
-      id: idBase,
-      role: 'event',
-      geometry: { kind: 'rect', x: event.x, y: event.y, width: event.width, height: event.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: paints.eventCard,
-        attributes: { className: 'timeline-event-card' },
-    },
-    EVENT_EMISSION,
-  )
+  const card = marks.shape({
+    id: idBase,
+    role: 'event',
+    geometry: { kind: 'rect', x: event.x, y: event.y, width: event.width, height: event.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
+    paint: paints.eventCard,
+    attributes: { className: 'timeline-event-card' },
+  })
 
-  const label = marks.text(
-    {
-      id: `${idBase}:label`,
-      role: 'label',
-      text: event.text,
-        block: event.block,
-      x: event.labelX ?? event.x + style.nodePaddingX,
-      y: event.y + event.height / 2,
-      fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, display: 'literal',
-      anchor: 'start',
-      paint: paints.eventText,
-        attributes: literalTextHooks('timeline-event-text'),
-    },
-    EVENT_TEXT_EMISSION,
-  )
+  const label = marks.text({
+    id: `${idBase}:label`,
+    role: 'label',
+    text: event.text,
+    block: event.block,
+    x: event.labelX ?? event.x + style.nodePaddingX,
+    y: event.y + event.height / 2,
+    fontSize: style.nodeLabelFontSize,
+    fontWeight: style.nodeLabelFontWeight,
+    letterSpacing: style.nodeLetterSpacing,
+    display: 'literal',
+    anchor: 'start',
+    paint: paints.eventText,
+    attributes: literalTextHooks('timeline-event-text'),
+  })
 
   return marks.group({
     id: `${idBase}:group`,
     role: 'event',
-    emission: { kind: 'group', attributes: [
-      { name: 'class', value: v.meta('timeline-event') }, { name: 'data-id', value: v.meta(event.id) },
-      { name: 'data-period', value: v.meta(event.periodLabel) },
-      ...sectionAttributes,
-      { name: 'data-family', value: v.meta(family) },
-    ] },
+    open: `<g class="timeline-event" data-id="${escapeAttr(event.id)}" data-period="${escapeAttr(event.periodLabel)}"${sectionAttr}${familyAttr}>`,
+    close: '</g>',
     children: [
       { indent: 2, node: card },
       { indent: 2, node: label },
@@ -513,29 +455,22 @@ function lowerEvent<T>(
   })
 }
 
-function familyAttributes(familyIndex: number, familyPalettes: readonly TimelineFamilyPalette[]): SvgAttribute[] {
+function renderFamilyAttr(familyIndex: number, familyPalettes: readonly TimelineFamilyPalette[]): string {
   const family = familyIndex % familyPalettes.length
   const palette = familyPalettes[family]!
-  // Arguments are read before entering this helper, as in the original mix().
-  // In particular, pill-stroke gets fill and line before coercing either one.
-  const colorMix = (primary: unknown, secondary: unknown, amount: number): SvgValue => ({
-    source: 'colorMix', primary: v.meta(`${primary}`), secondary: v.meta(`${secondary}`), amount,
-  })
-  const declarations = [
-    { property: '--tl-accent' as const, value: v.meta(`${palette.accent}`) },
-    { property: '--tl-fill' as const, value: v.meta(`${palette.fill}`) },
-    { property: '--tl-label' as const, value: v.meta(`${palette.label}`) },
-    { property: '--tl-line' as const, value: v.meta(`${palette.line}`) },
-    { property: '--tl-section-bg' as const, value: colorMix(palette.fill, 'var(--bg)', 6) },
-    { property: '--tl-section-band' as const, value: colorMix(palette.fill, 'var(--bg)', 12) },
-    { property: '--tl-pill-fill' as const, value: colorMix(palette.fill, 'var(--bg)', 11) },
-    { property: '--tl-pill-stroke' as const, value: colorMix(palette.fill, palette.line, 36) },
-    { property: '--tl-event-fill' as const, value: colorMix(palette.fill, 'var(--_node-fill)', 16) },
-  ]
-  return [
-    { name: 'data-family', value: v.meta(`${family}`) },
-    { name: 'style', value: { source: 'style', declarations } },
-  ]
+  const style = [
+    `--tl-accent:${palette.accent}`,
+    `--tl-fill:${palette.fill}`,
+    `--tl-label:${palette.label}`,
+    `--tl-line:${palette.line}`,
+    `--tl-section-bg:${mix(palette.fill, 'var(--bg)', 6)}`,
+    `--tl-section-band:${mix(palette.fill, 'var(--bg)', 12)}`,
+    `--tl-pill-fill:${mix(palette.fill, 'var(--bg)', 11)}`,
+    `--tl-pill-stroke:${mix(palette.fill, palette.line, 36)}`,
+    `--tl-event-fill:${mix(palette.fill, 'var(--_node-fill)', 16)}`,
+  ].join(';')
+
+  return ` data-family="${family}" style="${escapeAttr(style)}"`
 }
 
 export function resolveTimelineRequestAppearance(options: RenderOptions = {}): TimelineRequestAppearance {

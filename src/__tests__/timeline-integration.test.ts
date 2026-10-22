@@ -544,9 +544,9 @@ describe('public Timeline palette projection and observation order', () => {
   })
 
   it.each(['expression(alert(1))', 'url(javascript:alert(1))', 'red;fill:url(data:text/plain,active)', 'url(\\6a avascript:alert(1))'])(
-    'retains active CSS rejection after typed Timeline emission: %s', fill => {
-      const scene = publicPaletteScene([{ ...PALETTE_A, fill }], positionedPaletteTimeline(1))
-      expect(() => DefaultBackend.render(scene, { seed: 0 })).toThrow(/active content/)
+    'rejects active CSS at construction or backend admission: %s', fill => {
+      expect(() => DefaultBackend.render(publicPaletteScene([{ ...PALETTE_A, fill }], positionedPaletteTimeline(1)), { seed: 0 }))
+        .toThrow(/active content|style may only set custom properties/)
     },
   )
 })

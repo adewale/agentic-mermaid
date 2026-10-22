@@ -9,7 +9,6 @@ import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } f
 // resolution, and the shared diagram-title band.
 // ============================================================================
 
-import { svgValue as v, type SvgAttribute } from './scene/svg-emission.ts'
 import type { TextMark } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
@@ -378,7 +377,7 @@ export function diagramTitleFields(title: PositionedDiagramTitle, style: Resolve
   const fill = style.groupTextColor ?? 'var(--_text)'
   return {
     id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
-    fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: title.block?.fontWeight ?? DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: title.block?.letterSpacing ?? style.groupLetterSpacing,
+    fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing,
     anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' },
   }
 }

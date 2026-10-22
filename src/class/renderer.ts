@@ -1,28 +1,25 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
-import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship, RelationshipType } from './types.ts';
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { escapeAttr, escapeDisplayAttr } from '../multiline-utils.ts';
+import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
-import type { MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from '../scene/ir.ts'
-
+import type { MarkAttributes, MarkerDescriptor, TextMark } from '../scene/ir.ts'
+import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { hashId } from '../scene/seed.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { type PixelTextBlock, preparePixelText } from '../shared/prepared-text.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
-import type { ResolvedRenderStyle } from '../styles.ts';
-import { diagramTitleFields, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts';
-import { type DiagramColors } from '../theme.ts';
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { diagramTitleFields, FONT_SIZES, FONT_WEIGHTS, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import { buildShadowDefs, buildStyleBlock, type DiagramColors, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
-import { CLASS_STYLE_DEFAULTS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts';
+import { CLASS_STYLE_DEFAULTS, CLS, classAnnotationBlock, classMemberBlock, classTextBlock } from './layout.ts'
 import { classRelationshipLineStyle } from './parser.ts'
 import { decodeClassText, memberToString } from './text.ts'
-import { capturedMarkAttributes } from '../scene/svg-mark-emission.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgTextEmission } from '../scene/svg-emission.ts'
-import { classConstructionGroup } from '../scene/construction-operands.ts'
+import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, PositionedClassNode, PositionedClassNote, PositionedClassRelationship, RelationshipType } from './types.ts'
 
 // ============================================================================
 // Class diagram SVG renderer
@@ -47,38 +44,17 @@ const CLS_FONT = {
   annotationSize: 10,
 } as const
 
-const attr = (name: SvgAttribute['name'], value: SvgAttribute['value']): SvgAttribute => ({ name, value })
-const RECT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  ...(['x', 'y', 'width', 'height', 'rx', 'ry'] as const).map(field => attr(field, v.geometry(field))),
-  attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')),
-] })
-const PATH_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  attr('d', v.geometry('d')), attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')),
-] })
-const DIVIDER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  ...(['x1', 'y1', 'x2', 'y2'] as const).map(field => attr(field, v.geometry(field))),
-  attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')),
-] })
-const EMPTY_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', children: [] })
-const RELATION_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  attr('font-size', v.text('fontSize')), attr('text-anchor', v.text('anchor')), attr('font-weight', v.text('fontWeight')),
-  { ...attr('letter-spacing', v.text('letterSpacing')), omit: 'zero' }, attr('fill', v.paint('fill')),
-  attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')), attr('stroke-linejoin', v.paint('strokeLinejoin')),
-  attr('paint-order', v.paint('paintOrder')),
-] })
-const NAME_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')),
-  { ...attr('letter-spacing', v.text('letterSpacing')), omit: 'zero' }, attr('fill', v.paint('fill')),
-] })
-const ANNOTATION_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')),
-  attr('font-style', v.meta('italic')), attr('fill', v.paint('fill')),
-] })
-const MEMBER_EMISSIONS = Array.from({ length: 4 }, (_, mask) => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  attr('class', v.meta('mono')), attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')), attr('fill', v.paint('fill')),
-  ...(mask & 1 ? [attr('font-style', v.meta('italic'))] : []),
-  ...(mask & 2 ? [attr('text-decoration', v.meta('underline'))] : []),
-], tailAttributes: [attr('data-id', v.identity('id')), attr('data-role', v.identity('role'))] }) as SvgTextEmission)
+type HighlightRun = NonNullable<TextMark['spans']>[number]
+
+/** Highlight runs stand in for a line the writer emits as plain characters:
+ * one untracked, unstyled line of printable ASCII whose runs spell the block.
+ * Any other line carries its own positioned fragments and is drawn in the
+ * member's single ink. */
+function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): Pick<TextMark, 'spans'> {
+  const line = block.lineBlocks.length === 1 ? block.lineBlocks[0]! : undefined
+  const plain = !!line && !line.fragments && block.letterSpacing === 0 && /^[\x20-\x7e]*$/.test(block.text) && line.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough) && spans.map(span => span.text).join('') === block.text
+  return plain ? { spans } : {}
+}
 
 /**
  * Render a positioned class diagram as an SVG string.
@@ -106,31 +82,34 @@ export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   const rootAttrs = buildAccessibilityAttrs(diagram.accessibilityTitle, diagram.accessibilityDescription, titleId, descId)
 
   // SVG root with CSS variables + style block (with mono font) + defs
-  parts.push(marks.documentOpen(
-    {
-      id: 'prelude',
-      width: diagram.width,
-      height: diagram.height,
-      colors,
-      transparent,
-      font,
-      hasMonoFont: true,
-    },
-    { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: true,
-      attributes: Object.entries(rootAttrs).map(([name, value]) => attr(name as SvgAttribute['name'], v.meta(value))),
-      children: [{ kind: 'sharedStyle' }],
-    },
-  ))
+  parts.push(
+    marks.documentOpen(
+      {
+        id: 'prelude',
+        width: diagram.width,
+        height: diagram.height,
+        colors,
+        transparent,
+        font,
+        hasMonoFont: true,
+      },
+      svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs) + '\n' + buildStyleBlock(font, true, colors.shadow, colors.embedFontImport),
+    ),
+  )
+  const defsParts: string[] = []
+  defsParts.push('<defs>')
   const markerResources = classMarkerResources(style)
-  parts.push(marks.definitions({ id: 'defs', markerResources }, {
-    kind: 'resources', resources: ['markers', ...(colors.shadow ? [{ kind: 'shadow' as const, colors }] : [])],
-  }))
+  defsParts.push(serializeMarkerResources(markerResources))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) defsParts.push(shadowDefs)
+  defsParts.push('</defs>')
+  parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(marks.documentContent({ id: 'title', role: 'chrome', nonPaint: 'accessibility' }, { kind: 'documentText', element: 'title', domId: titleId, text: diagram.accessibilityTitle }))
+    parts.push(marks.documentContent({ id: 'title', role: 'chrome', nonPaint: 'accessibility' }, `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(marks.documentContent({ id: 'desc', role: 'chrome', nonPaint: 'accessibility' }, { kind: 'documentText', element: 'desc', domId: descId, text: diagram.accessibilityDescription }))
+    parts.push(marks.documentContent({ id: 'desc', role: 'chrome', nonPaint: 'accessibility' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
   // The diagram's frontmatter title, in the band layout reserved above.
@@ -145,21 +124,16 @@ export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
 
   // 1. Relationship lines (rendered behind boxes)
   const relOccurrence = new Map<string, number>()
-  const relationshipEmissions = new Map<string, SvgEmissionRecipe>()
   for (const rel of diagram.relationships) {
     const pairKey = `${rel.from}->${rel.to}`
     const k = relOccurrence.get(pairKey) ?? 0
     relOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationship(marks, rel, style, `rel:${pairKey}#${k}`, markerResources, relationshipEmissions))
+    parts.push(renderRelationship(marks, rel, style, `rel:${pairKey}#${k}`, markerResources))
   }
 
   // 2. Class boxes
-  // Equal lexical member profiles can serve different text/positions/IDs.
-  // Share only immutable presentation data within this one lowering; retain
-  // at most128 keys and never cache a rendered mark or request across calls.
-  const memberEmissions = new Map<string, SvgTextEmission>()
   for (const cls of diagram.classes) {
-    parts.push(renderClassBox(marks, cls, style, options.security !== 'strict', colors, memberEmissions))
+    parts.push(renderClassBox(marks, cls, style, options.security !== 'strict', colors))
   }
 
   // 2b. Endpoint markers must sit above class surfaces. SVG paints a marker
@@ -167,12 +141,11 @@ export function lowerClassDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   // node fill erase the marker tip/base. Repaint only the marker attachment on
   // an invisible carrier; the semantic connector and its line remain behind.
   const overlayOccurrence = new Map<string, number>()
-  const overlayEmissions = new Map<string, SvgEmissionRecipe>()
   diagram.relationships.forEach((rel, index) => {
     const pairKey = `${rel.from}->${rel.to}`
     const occurrence = overlayOccurrence.get(pairKey) ?? 0
     overlayOccurrence.set(pairKey, occurrence + 1)
-    const overlay = renderRelationshipMarkerOverlay(marks, rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources, overlayEmissions)
+    const overlay = renderRelationshipMarkerOverlay(marks, rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources)
     if (overlay) parts.push(overlay)
   })
 
@@ -269,8 +242,7 @@ function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescri
  */
 function renderNamespaceBox<T>(marks: DrawingFactory<T>, ns: PositionedClassNamespace, style: ResolvedRenderStyle): T {
   const children: Array<{ node: T; indent: number }> = []
-  const emission = classConstructionGroup('namespace', { kind: 'group' as const, attributes: [attr('class', v.meta('namespace')), attr('data-id', v.meta(ns.id)),
-    { ...attr('data-label', v.meta(ns.label)), display: true }, ...(ns.parentId ? [attr('data-parent-id', v.meta(ns.parentId))] : [])] })
+  const open = `<g class="namespace" data-id="${escapeAttr(ns.id)}" data-label="${escapeDisplayAttr(ns.label)}"${ns.parentId ? ` data-parent-id="${escapeAttr(ns.parentId)}"` : ''}>`
 
   // Outer rectangle
   const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
@@ -282,7 +254,7 @@ function renderNamespaceBox<T>(marks: DrawingFactory<T>, ns: PositionedClassName
       role: 'group',
       geometry: { kind: 'rect', x: ns.x, y: ns.y, width: ns.width, height: ns.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
       paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
-    }, RECT_EMISSION),
+    }),
   })
 
   // Header band
@@ -295,7 +267,7 @@ function renderNamespaceBox<T>(marks: DrawingFactory<T>, ns: PositionedClassName
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
-    }, PATH_EMISSION),
+    }),
   })
 
   // Header label (display label when given, else the segment name), wrapped
@@ -315,17 +287,14 @@ function renderNamespaceBox<T>(marks: DrawingFactory<T>, ns: PositionedClassName
       fontSize: style.groupHeaderFontSize,
       anchor: 'start',
       paint: { fill: headerTextColor },
-    }, { kind: 'text', layout: 'multiline', attributes: [
-      attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')),
-      ...(style.groupFont ? [attr('font-family', v.meta(style.groupFont))] : []),
-      { ...attr('letter-spacing', v.text('letterSpacing')), omit: 'zero' }, attr('fill', v.paint('fill')),
-    ] }),
+    }),
   })
 
   return marks.group({
     id: `namespace:${ns.id}`,
     role: 'group',
-    emission,
+    open,
+    close: '</g>',
     children,
   })
 }
@@ -338,7 +307,7 @@ function renderNamespaceBox<T>(marks: DrawingFactory<T>, ns: PositionedClassName
  * Render a class box with 3 compartments: header, attributes, methods.
  * Wrapped in <g class="class-node"> with semantic data attributes.
  */
-function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors, memberEmissions: Map<string, SvgTextEmission>): T {
+function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors): T {
   const { x, y, width, height, headerHeight, attrHeight } = cls
   const children: Array<{ node: T; indent: number }> = []
   if (cls.isInterface) {
@@ -356,21 +325,16 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
   // data-id: class identifier
   // data-label: class name
   // data-annotation: stereotype (interface, abstract, etc.)
-  const annotation = cls.annotation !== undefined ? [attr('data-annotation', v.meta(cls.annotation))] : []
-  const className = cls.className ? ` ${cls.className}` : ''
-  const dataClass = cls.className ? [attr('data-class', v.meta(cls.className))] : []
-  const interaction = includeInteraction && cls.href
-    ? [attr('data-href', v.meta(cls.href)), attr('role', v.meta('link')), attr('tabindex', v.meta('0'))] : []
-  const emission = classConstructionGroup('box', { kind: 'group' as const, attributes: [
-    attr('class', v.meta(`class-node${className}`)), attr('data-id', v.meta(cls.id)),
-    { ...attr('data-label', v.meta(cls.label)), display: true }, ...annotation, ...dataClass, ...interaction,
-  ] })
+  const annotationAttr = cls.annotation !== undefined ? ` data-annotation="${escapeAttr(cls.annotation)}"` : ''
+  const classAttr = cls.className ? ` ${escapeAttr(cls.className)}` : ''
+  const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
+  const interaction = includeInteraction && cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
+  const open = `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeDisplayAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
 
   if (includeInteraction && cls.href && cls.tooltip !== undefined) {
     children.push({
       indent: 2,
-      node: marks.documentContent({ id: `class:${cls.id}:tooltip`, role: 'chrome', nonPaint: 'interaction-metadata' },
-        { kind: 'documentText', element: 'title', text: cls.tooltip }),
+      node: marks.documentContent({ id: `class:${cls.id}:tooltip`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXmlUtil(cls.tooltip)}</title>`),
     })
   }
 
@@ -393,7 +357,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
       role: 'class-box',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
       paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
-    }, RECT_EMISSION),
+    }),
   })
 
   // Header background
@@ -406,7 +370,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
-    }, PATH_EMISSION),
+    }),
   })
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
@@ -428,8 +392,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
         fontStyle: 'italic',
         anchor: 'middle',
         paint: { fill: annotColor },
-      },
-        ANNOTATION_TEXT_EMISSION),
+      }),
     })
     nameY = y + headerHeight / 2 + 6
   }
@@ -450,7 +413,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
-    }, NAME_TEXT_EMISSION),
+    }),
   })
 
   // Divider line between header and attributes
@@ -462,7 +425,7 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
   for (let i = 0; i < cls.attributes.length; i++) {
     const member = cls.attributes[i]!
     const memberY = attrTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(marks, member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.attributeBlocks?.[i]) })
+    children.push({ indent: 2, node: renderMember(marks, member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, cls.attributeBlocks?.[i]) })
   }
 
   // Divider line between attributes and methods
@@ -473,13 +436,14 @@ function renderClassBox<T>(marks: DrawingFactory<T>, cls: PositionedClassNode, s
   for (let i = 0; i < cls.methods.length; i++) {
     const member = cls.methods[i]!
     const memberY = methodTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(marks, member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.methodBlocks?.[i]) })
+    children.push({ indent: 2, node: renderMember(marks, member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, cls.methodBlocks?.[i]) })
   }
 
   return marks.group({
     id: `class:${cls.id}`,
     role: 'class-box',
-    emission,
+    open,
+    close: '</g>',
     children,
   })
 }
@@ -493,7 +457,7 @@ function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs
     role: 'chrome',
     geometry: { kind: 'line', x1: x, y1: lineY, x2: x + width, y2: lineY },
     paint: { stroke, strokeWidth: String(strokeWidth) },
-  }, DIVIDER_EMISSION)
+  })
 }
 
 /**
@@ -505,59 +469,43 @@ function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs
  *   - type annotation → textMuted
  * Abstract members are italic and static members underlined.
  */
-function renderMember<T>(marks: DrawingFactory<T>, member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, memberEmissions: Map<string, SvgTextEmission>, prepared?: PixelTextBlock): T {
+function renderMember<T>(marks: DrawingFactory<T>, member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, prepared?: PixelTextBlock): T {
   const block = prepared ?? classMemberBlock(member)
-  const profile = Number(!!member.isAbstract) | (Number(!!member.isStatic) << 1)
-  const spans: { start: number; end: number; text?: string; attributes: SvgAttribute[] }[] = []
-  const nativeSpans: HighlightRun[] = []
-  let offset = 0
-  const span = (text: string, fill: string) => {
-    nativeSpans.push({ text, fill })
-    spans.push({ start: offset, end: offset + text.length, text, attributes: [attr('fill', v.meta(fill))] })
-    offset += text.length
-  }
-  let plain: string, textInk: string
+  const plain = memberToString(member)
+  const nameInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
+  const spans: HighlightRun[] = []
+
   if (!member.isMethod && member.sourceText) {
-    plain = memberToString(member)
-    textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
     if (member.visibility && plain.startsWith(member.visibility)) {
-      const visibilityInk = ink('var(--_text-faint)')
-      span(member.visibility, visibilityInk)
-      span(plain.slice(1), textInk)
-    } else span(plain, textInk)
+      spans.push({ text: member.visibility, fill: ink('var(--_text-faint)') }, { text: plain.slice(1), fill: nameInk })
+    } else {
+      spans.push({ text: plain, fill: nameInk })
+    }
   } else {
-    if (member.visibility) {
-      const visibilityInk = ink('var(--_text-muted)')
-      span(`${member.visibility} `, visibilityInk)
-    }
+    if (member.visibility) spans.push({ text: `${member.visibility} `, fill: ink('var(--_text-muted)') })
+    // Add parentheses for methods to distinguish from attributes, including parameters if present
     const displayName = member.isMethod ? `${member.name}(${member.params || ''})` : member.name
-    textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
-    span(decodeClassText(displayName), textInk)
+    spans.push({ text: decodeClassText(displayName), fill: nameInk })
     if (member.type) {
-      span(': ', ink('var(--_text-faint)'))
-      const typeInk = ink('var(--_text-muted)')
-      span(decodeClassText(member.type), typeInk)
+      spans.push({ text: ': ', fill: ink('var(--_text-faint)') }, { text: decodeClassText(member.type), fill: ink('var(--_text-muted)') })
     }
-    plain = memberToString(member)
   }
-  // Ordinary runs project the current semantic slice. Retain lexical text
-  // only when a later caller observation actually changed that slice.
-  for (const part of spans) if (part.text === plain.slice(part.start, part.end)) delete part.text
-  const highlighted = highlightRuns(block, nativeSpans)
-  // Lexical construction observations remain authoritative for fidelity
-  // checking even when they no longer spell the prepared semantic block.
-  const emissionSpans = canHighlightBlock(block) ? spans : undefined
-  const key = JSON.stringify([profile, emissionSpans])
-  let emission = memberEmissions.get(key)
-  if (!emission) {
-    emission = snapshotSvgEmissionRecipe({ ...MEMBER_EMISSIONS[profile]!, ...(emissionSpans ? { spans: emissionSpans } : {}) }) as SvgTextEmission
-    if (memberEmissions.size < 128) memberEmissions.set(key, emission)
-  }
-  return marks.text({ id: sceneId, role: 'member', text: plain, block, x, y, fontSize: CLS_FONT.memberSize,
-    anchor: 'start', paint: { fill: textInk }, ...highlighted,
-    ...(member.isAbstract ? { fontStyle: 'italic' as const } : {}), ...(member.isStatic ? { textDecoration: 'underline' as const } : {}) ,
+
+  return marks.text({
+    id: sceneId,
+    role: 'member',
+    text: plain,
+    block,
+    x,
+    y,
+    fontSize: CLS_FONT.memberSize,
+    anchor: 'start',
+    paint: { fill: nameInk },
+    ...(member.isAbstract ? { fontStyle: 'italic' as const } : {}),
+    ...(member.isStatic ? { textDecoration: 'underline' as const } : {}),
+    ...highlightRuns(block, spans),
     attributes: { className: 'mono' },
-  }, emission)
+  })
 }
 
 function renderClassNote<T>(marks: DrawingFactory<T>, note: PositionedClassNote, style: ResolvedRenderStyle, index: number): T {
@@ -567,31 +515,48 @@ function renderClassNote<T>(marks: DrawingFactory<T>, note: PositionedClassNote,
   const noteBlock = note.textBlock ?? preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
   const children: Array<{ node: T; indent: number }> = []
   if (note.targetX !== undefined && note.targetY !== undefined) {
-    children.push({ node: marks.connector({
-      id: `class-note:${index}:connector`, role: 'relationship',
-      geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
-      lineStyle: 'dashed', paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
-      ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}`, start: { owner: { id: note.for, role: 'class-box' } }, end: { owner: { id: `class-note:${index}`, role: 'note' } } } } : {}),
-
-      attributes: { className: 'class-note-connector' },
-    }, { kind: 'primitive', attributes: [attr('class', v.meta('class-note-connector')),
-      ...(['x1', 'y1', 'x2', 'y2'] as const).map(field => attr(field, v.geometry(field))),
-      attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')), attr('stroke-dasharray', v.paint('strokeDasharray'))] }), indent: 2 })
+    children.push({
+      node: marks.connector({
+        id: `class-note:${index}:connector`,
+        role: 'relationship',
+        geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
+        lineStyle: 'dashed',
+        paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
+        ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}`, start: { owner: { id: note.for, role: 'class-box' } }, end: { owner: { id: `class-note:${index}`, role: 'note' } } } } : {}),
+        attributes: { className: 'class-note-connector' },
+      }),
+      indent: 2,
+    })
   }
-  children.push({ node: marks.shape({
-    id: `class-note:${index}:box`, role: 'note',
-    geometry: { kind: 'rect', x: note.x, y: note.y, width: note.width, height: note.height, rx: 2, ry: 2 },
-    paint: { fill, stroke, strokeWidth: '1' },
-  }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx'] as const).map(field => attr(field, v.geometry(field))),
-    attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke'))] }), indent: 2 })
-  children.push({ node: marks.text({
-    id: `class-note:${index}:label`, role: 'label', text: note.text, block: noteBlock,
-    x: note.x + note.width / 2, y: note.y + note.height / 2, fontSize: 12, anchor: 'middle', paint: { fill: text },
-  }, { kind: 'text', layout: 'multiline', attributes: [attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')), attr('fill', v.paint('fill'))] }), indent: 2 })
+  children.push({
+    node: marks.shape({
+      id: `class-note:${index}:box`,
+      role: 'note',
+      geometry: { kind: 'rect', x: note.x, y: note.y, width: note.width, height: note.height, rx: 2, ry: 2 },
+      paint: { fill, stroke, strokeWidth: '1' },
+    }),
+    indent: 2,
+  })
+  children.push({
+    node: marks.text({
+      id: `class-note:${index}:label`,
+      role: 'label',
+      text: note.text,
+      block: noteBlock,
+      x: note.x + note.width / 2,
+      y: note.y + note.height / 2,
+      fontSize: 12,
+      anchor: 'middle',
+      paint: { fill: text },
+    }),
+    indent: 2,
+  })
   return marks.group({
-    id: `class-note:${index}`, role: 'note',
-    emission: classConstructionGroup('note', { kind: 'group', attributes: [attr('class', v.meta('class-note')), attr('data-note-index', v.meta(index)),
-      ...(note.for ? [attr('data-for', v.meta(note.for))] : [])] }), children,
+    id: `class-note:${index}`,
+    role: 'note',
+    open: `<g class="class-note" data-note-index="${index}"${note.for ? ` data-for="${escapeAttr(note.for)}"` : ''}>`,
+    close: '</g>',
+    children,
   })
 }
 
@@ -607,12 +572,22 @@ function classRelationshipEndpoints(rel: PositionedClassRelationship) {
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
  */
-function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string, markerResources: readonly MarkerDescriptor[], emissions: Map<string, SvgEmissionRecipe>): T {
-  const labels = rel.label ? [{
-    text: rel.label,
-    textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
-    ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
-  }] : []
+function renderRelationship<T>(
+  marks: DrawingFactory<T>,
+  rel: PositionedClassRelationship,
+  style: ResolvedRenderStyle,
+  sceneId: string,
+  markerResources: readonly MarkerDescriptor[],
+): T {
+  const labels = rel.label
+    ? [
+        {
+          text: rel.label,
+          textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
+          ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
+        },
+      ]
+    : []
   if (rel.points.length < 2) {
     // Degenerate relationship — draws nothing (an invisible connector writes '').
     return marks.connector({
@@ -624,7 +599,7 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
       endpoints: classRelationshipEndpoints(rel),
       relationship: { kind: rel.type },
       labels,
-    }, EMPTY_EMISSION)
+    })
   }
 
   const isDashed = classRelationshipLineStyle(rel) === 'dashed'
@@ -642,33 +617,19 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
   // - data-type: relationship type (inheritance, composition, etc.)
   // - data-marker-at: which end has the marker (from/to)
   // - data-label: relationship label if present
-  const dataAttrs: SvgAttribute[] = [
-    attr('class', v.meta('class-relationship')), attr('data-from', v.meta(rel.from)), attr('data-to', v.meta(rel.to)),
-    attr('data-type', v.meta(`${rel.type}`)), attr('data-relation-type', v.meta(`${rel.type}`)),
-    attr('data-marker-at', v.meta(`${rel.markerAt}`)),
-  ]
-  if (rel.label) dataAttrs.push({ ...attr('data-label', v.meta(rel.label)), display: true })
-  if (rel.fromCardinality) dataAttrs.push(attr('data-from-cardinality', v.meta(rel.fromCardinality)))
-  if (rel.toCardinality) dataAttrs.push(attr('data-to-cardinality', v.meta(rel.toCardinality)))
-  const attributes = capturedMarkAttributes('class-relationship', dataAttrs)
-  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => {
-    // The lexical values were read before the later semantic endpoint/kind
-    // snapshot. Decoration still projects typed identities over these inputs.
-    const lexical = dataAttrs.map(attribute => [attribute.name,
-      attribute.value.source === 'metadata' ? attribute.value.value : undefined] as const)
-    const key = lexical.every(([, value]) => typeof value === 'string' && value.length <= 256)
-      ? JSON.stringify([field, isDashed, !!startMarker, !!endMarker, lexical])
-      : undefined
-    const prior = key === undefined ? undefined : emissions.get(key)
-    if (prior) return prior
-    const captured = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-      ...dataAttrs, attr(field, v.geometry(field)), attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke')),
-      attr('stroke-width', v.paint('strokeWidth')), ...(isDashed ? [attr('stroke-dasharray', v.paint('strokeDasharray'))] : []),
-      ...(startMarker ? [attr('marker-start', { source: 'marker', position: 'start' })] : []),
-      ...(endMarker ? [attr('marker-end', { source: 'marker', position: 'end' })] : []),
-    ] })
-    if (key !== undefined && emissions.size < 128) emissions.set(key, captured)
-    return captured
+  // - data-from-cardinality/data-to-cardinality: multiplicity if present
+  // Identity (data-from/data-to: source and target class IDs) comes from the
+  // connector's typed endpoints.
+  const attributes: MarkAttributes = {
+    className: 'class-relationship',
+    data: {
+      type: rel.type,
+      'relation-type': rel.type,
+      'marker-at': rel.markerAt,
+      ...(rel.label ? { label: sanitizeDisplayLines(rel.label) } : {}),
+      ...(rel.fromCardinality ? { 'from-cardinality': rel.fromCardinality } : {}),
+      ...(rel.toCardinality ? { 'to-cardinality': rel.toCardinality } : {}),
+    },
   }
 
   const strokeColor = style.edgeStrokeColor ?? 'var(--_line)'
@@ -678,7 +639,6 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
     ...(isDashed ? { strokeDasharray: '6 4' } : {}),
   }
   const connectorSemantics = {
-    attributes,
     endpoints: classRelationshipEndpoints(rel),
     relationship: { kind: rel.type },
     route: {
@@ -703,7 +663,8 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
       markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: projection.contours },
-    }, emission('d'))
+      attributes,
+    })
   }
 
   return marks.connector({
@@ -714,7 +675,8 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
-  }, emission('points'))
+    attributes,
+  })
 }
 
 /** Marker-only carrier painted after class boxes. The connector remains the
@@ -726,8 +688,7 @@ function renderRelationshipMarkerOverlay<T>(
   style: ResolvedRenderStyle,
   index: number,
   relationshipId: string,
-  resources: readonly MarkerDescriptor[],
-  emissions: Map<string, SvgEmissionRecipe>,
+  markerResources: readonly MarkerDescriptor[],
 ): T | null {
   if (rel.points.length < 2) return null
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? (rel.fromType ?? rel.type) : undefined
@@ -735,8 +696,8 @@ function renderRelationshipMarkerOverlay<T>(
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
   if (!startId && !endId) return null
-  const markerStart = resources.find(marker => marker.id === startId)
-  const markerEnd = resources.find(marker => marker.id === endId)
+  const markerStart = markerResources.find(marker => marker.id === startId)
+  const markerEnd = markerResources.find(marker => marker.id === endId)
   const fields = {
     id: `marker-overlay:${index}`,
     role: 'chrome' as const,
@@ -750,30 +711,29 @@ function renderRelationshipMarkerOverlay<T>(
     hit: { pointerEvents: 'none' as const },
     attributes: { className: 'class-marker-overlay', ariaHidden: true as const },
   }
-  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => {
-    const key = JSON.stringify([field, !!markerStart, !!markerEnd])
-    const prior = emissions.get(key)
-    if (prior) return prior
-    const captured = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-      attr('class', v.meta('class-marker-overlay')), attr(field, v.geometry(field)), attr('fill', v.paint('fill')),
-      attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')), attr('stroke-opacity', v.connector('opacity')),
-      ...(markerStart ? [attr('marker-start', { source: 'marker', position: 'start' })] : []),
-      ...(markerEnd ? [attr('marker-end', { source: 'marker', position: 'end' })] : []),
-      attr('pointer-events', v.meta('none')), attr('aria-hidden', v.meta('true')),
-    ] })
-    if (emissions.size < 16) emissions.set(key, captured)
-    return captured
-  }
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
       precision: 3,
     })
-    return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } },
-      emission('d'))
+    return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } })
   }
-  return marks.connector({ ...fields, geometry: { kind: 'polyline', points: rel.points } },
-    emission('points'))
+  return marks.connector({ ...fields, geometry: { kind: 'polyline', points: rel.points } })
+}
+
+/**
+ * Get marker-start/marker-end attributes for a relationship type.
+ * Uses `markerAt` from the parser to place the marker on the correct end:
+ *   - 'from' → marker-start (prefix arrows like `<|--`, `*--`, `o--`)
+ *   - 'to'   → marker-end   (suffix arrows like `..|>`, `-->`, `--*`)
+ */
+function getRelationshipMarkers(type: RelationshipType, markerAt: 'from' | 'to' | 'both' | 'none'): string {
+  const markerId = getMarkerDefId(type)
+  if (!markerId || markerAt === 'none') return ''
+
+  if (markerAt === 'from') return ` marker-start="url(#${markerId})"`
+  if (markerAt === 'both') return ` marker-start="url(#${markerId})" marker-end="url(#${markerId})"`
+  return ` marker-end="url(#${markerId})"`
 }
 
 /** Map relationship type to its SVG marker definition ID */
@@ -801,7 +761,7 @@ function getMarkerDefId(type: RelationshipType): string | null {
  *  none, a single empty mark keeps the historical '' part (blank line). */
 function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedClassRelationship, style: ResolvedRenderStyle, key: string): T[] {
   if ((!rel.label && !rel.fromCardinality && !rel.toCardinality) || rel.points.length < 2) {
-    return [marks.documentContent({ id: `rel-labels:${key}`, role: 'chrome' }, EMPTY_EMISSION)]
+    return [marks.documentContent({ id: `rel-labels:${key}`, role: 'chrome' }, '')]
   }
 
   const out: T[] = []
@@ -816,16 +776,19 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
     const pos = rel.labelPosition ?? midpoint(rel.points)
     const labelBlock = rel.labelBlock ?? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
     const label = labelBlock.text
-    out.push(marks.text({
-      id: `rel-label:${key}`,
-      role: 'label',
-      text: label, block: labelBlock,
-      x: pos.x,
-      y: pos.y - 8,
-      fontSize: style.edgeLabelFontSize,
-      anchor: 'middle',
-      paint,
-    }, RELATION_TEXT_EMISSION))
+    out.push(
+      marks.text({
+        id: `rel-label:${key}`,
+        role: 'label',
+        text: label,
+        block: labelBlock,
+        x: pos.x,
+        y: pos.y - 8,
+        fontSize: style.edgeLabelFontSize,
+        anchor: 'middle',
+        paint,
+      }),
+    )
   }
 
   // From cardinality (near start)
@@ -835,16 +798,19 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
     const offset = cardinalityOffset(p, next)
     const position = rel.fromCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     const block = rel.fromCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
-    out.push(marks.text({
-      id: `rel-card:${key}:from`,
-      role: 'cardinality',
-      text: rel.fromCardinality, block,
-      x: position.x,
-      y: position.y,
-      fontSize: style.edgeLabelFontSize,
-      anchor: 'middle',
-      paint,
-    }, RELATION_TEXT_EMISSION))
+    out.push(
+      marks.text({
+        id: `rel-card:${key}:from`,
+        role: 'cardinality',
+        text: rel.fromCardinality,
+        block,
+        x: position.x,
+        y: position.y,
+        fontSize: style.edgeLabelFontSize,
+        anchor: 'middle',
+        paint,
+      }),
+    )
   }
 
   // To cardinality (near end)
@@ -854,16 +820,19 @@ function renderRelationshipLabels<T>(marks: DrawingFactory<T>, rel: PositionedCl
     const offset = cardinalityOffset(p, prev)
     const position = rel.toCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
     const block = rel.toCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
-    out.push(marks.text({
-      id: `rel-card:${key}:to`,
-      role: 'cardinality',
-      text: rel.toCardinality, block,
-      x: position.x,
-      y: position.y,
-      fontSize: style.edgeLabelFontSize,
-      anchor: 'middle',
-      paint,
-    }, RELATION_TEXT_EMISSION))
+    out.push(
+      marks.text({
+        id: `rel-card:${key}:to`,
+        role: 'cardinality',
+        text: rel.toCardinality,
+        block,
+        x: position.x,
+        y: position.y,
+        fontSize: style.edgeLabelFontSize,
+        anchor: 'middle',
+        paint,
+      }),
+    )
   }
 
   return out
@@ -896,13 +865,12 @@ function cardinalityOffset(from: { x: number; y: number }, to: { x: number; y: n
 // Utilities
 // ============================================================================
 
-type HighlightRun = NonNullable<TextMark['spans']>[number]
-function canHighlightBlock(block: PixelTextBlock): boolean {
-  const line = block.lineBlocks.length === 1 ? block.lineBlocks[0]! : undefined
-  return !!line && !line.fragments && block.letterSpacing === 0 && /^[\x20-\x7e]*$/.test(block.text) && line.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough)
-}
-function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): Pick<TextMark, 'spans'> {
-  return canHighlightBlock(block) && spans.map(span => span.text).join('') === block.text ? { spans } : {}
-}
+// Use shared escapeXml from multiline-utils
+const escapeXml = escapeXmlUtil
+
+/**
+ * Escape a string for use as an XML/HTML attribute value.
+ * Escapes quotes and ampersands to prevent attribute injection.
+ */
 
 export const lowerClassScene = sceneLowering<PositionedClassDiagram>(lowerClassDrawing)

@@ -6,7 +6,6 @@ import type {
   FamilyPositionedView,
 } from '../agent/families.ts'
 import type { PositionedDiagram, RenderContext } from '../types.ts'
-import { ownSceneLowering, withSceneLoweringRepresentation } from '../scene/lowering-invocation.ts'
 
 export type BrowserSvgFamilyHooks = Pick<
   FamilyDescriptor,
@@ -27,24 +26,7 @@ export function positionedView<TPositioned extends PositionedDiagram>(
 export function scene<TPositioned extends PositionedDiagram>(
   lowerer: (ctx: RenderContext<TPositioned>) => ReturnType<NonNullable<FamilyDescriptor['lowerScene']>>,
 ): NonNullable<FamilyDescriptor['lowerScene']> {
-  return sceneWrapper(lowerer, false)
-}
-
-/** Static producer wiring, not an option read from a public render context. */
-export function sceneWithPublicConstruction<TPositioned extends PositionedDiagram>(
-  lowerer: (ctx: RenderContext<TPositioned>) => ReturnType<NonNullable<FamilyDescriptor['lowerScene']>>,
-): NonNullable<FamilyDescriptor['lowerScene']> {
-  return sceneWrapper(lowerer, true)
-}
-
-function sceneWrapper<TPositioned extends PositionedDiagram>(
-  lowerer: (ctx: RenderContext<TPositioned>) => ReturnType<NonNullable<FamilyDescriptor['lowerScene']>>,
-  publicConstruction: boolean,
-): NonNullable<FamilyDescriptor['lowerScene']> {
-  const wrapper: NonNullable<FamilyDescriptor['lowerScene']> = ctx => withSceneLoweringRepresentation(
-    wrapper, ctx, () => lowerer(ctx as RenderContext<TPositioned>),
-  )
-  return inheritNativeDrawing(lowerer, ownSceneLowering(wrapper, publicConstruction))
+  return inheritNativeDrawing(lowerer, ctx => lowerer(ctx as RenderContext<TPositioned>))
 }
 
 export function layoutResult<TPositioned extends PositionedDiagram>(

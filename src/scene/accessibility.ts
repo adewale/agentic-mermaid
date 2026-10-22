@@ -1,5 +1,3 @@
-import { decodeXML } from 'entities'
-import { escapeAttr } from '../multiline-utils.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { sceneRoleTraits } from './roles.ts'
 
@@ -36,28 +34,4 @@ export function relationAccessibility(
     roleDescription: 'relation',
     relation,
   }
-}
-
-/** Checked legacy mark-construction adapter; built-in typed marks never parse SVG. */
-export function relationAccessibilityForSvg(
-  svg: string,
-  identity: SvgSemanticIdentity,
-): SvgSemanticAccessibility | undefined {
-  const opening = svg.match(/^\s*<[A-Za-z][\w:-]*\b[^>]*>/)?.[0] ?? ''
-  const sourceLabel = opening.match(/\sdata-label="([^"]*)"/)?.[1]
-  return relationAccessibility(identity, sourceLabel ? decodeXML(sourceLabel) : undefined)
-}
-
-export function ensureSvgAccessibility(svg: string, accessibility: SvgSemanticAccessibility | undefined): string {
-  if (!accessibility) return svg
-  const opening = svg.match(/^\s*<[A-Za-z][\w:-]*\b[^>]*>/)?.[0]
-  if (!opening) return svg
-  const attrs: string[] = []
-  if (!/\srole=/.test(opening)) attrs.push(`role="${accessibility.role}"`)
-  if (!/\saria-roledescription=/.test(opening)) attrs.push(`aria-roledescription="${accessibility.roleDescription}"`)
-  if (!/\saria-label=/.test(opening)) attrs.push(`aria-label="${escapeAttr(accessibility.label)}"`)
-  if (attrs.length === 0) return svg
-  const close = opening.endsWith('/>') ? '/>' : '>'
-  const body = opening.slice(0, -close.length).trimEnd()
-  return svg.replace(opening, `${body} ${attrs.join(' ')}${close === '/>' ? ' /' : ''}>`)
 }

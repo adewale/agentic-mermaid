@@ -1,6 +1,9 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedRadarChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
+import type { DiagramColors } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
+import { escapeXml } from '../multiline-utils.ts'
 import { radarStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { pieSliceColors } from '../pie/palette.ts'
@@ -10,77 +13,13 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
-import type { MarkPaint } from '../scene/ir.ts'
-
-const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
-  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
-  { name: 'stroke-dasharray', value: v.paint('strokeDasharray') }, { name: 'stroke-linecap', value: v.paint('strokeLinecap') },
-  { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'opacity', value: v.paint('opacity') },
-  { name: 'fill-opacity', value: v.paint('fillOpacity') }, { name: 'stroke-opacity', value: v.paint('strokeOpacity') },
-]
-function primitive(className: string, geometry: readonly SvgGeometryField[], extra: readonly SvgAttribute[] = []): SvgEmissionRecipe {
-  return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-    { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })), ...extra,
-    ...PAINT_ATTRIBUTES.filter(attribute => !extra.some(other => other.name === attribute.name)),
-  ] })
-}
-
-function paintStyle(properties: readonly (readonly ['fill' | 'stroke' | 'stroke-width', keyof MarkPaint])[]): SvgAttribute {
-  return { name: 'style', escape: 'xml', value: { source: 'style', declarations: properties.map(([property, field]) => ({ property, value: v.paint(field) })) } }
-}
-
-const RING_EMISSIONS = [false, true].map(emphasized => ({
-  polygon: primitive(`radar-ring${emphasized ? ' radar-ring-outer' : ''}`, ['points'], [{ name: 'fill', value: v.paint('fill') }]),
-  circle: primitive(`radar-ring${emphasized ? ' radar-ring-outer' : ''}`, ['cx', 'cy', 'r'], [{ name: 'fill', value: v.paint('fill') }]),
-}))
-const SPOKE_EMISSION = primitive('radar-axis-line', ['x1', 'y1', 'x2', 'y2'])
-const LEADER_EMISSION = primitive('radar-leader', ['x1', 'y1', 'x2', 'y2'])
-const TICK_BOX_EMISSION = primitive('radar-tick-box', ['x', 'y', 'width', 'height', 'rx', 'ry'])
-const PAINT_STYLE = paintStyle([['fill', 'fill'], ['stroke', 'stroke'], ['stroke-width', 'strokeWidth']])
-const AREA_EMISSIONS = [false, true].map(inline => ({
-  polygon: primitive('radar-area', ['points'], [
-    { name: 'fill', value: v.paint('fill'), escape: 'xml' }, { name: 'stroke', value: v.paint('stroke'), escape: 'xml' },
-    ...(inline ? [paintStyle([['stroke-width', 'strokeWidth']])] : []),
-    { name: 'fill-opacity', value: v.paint('fillOpacity') }, { name: 'data-curve', value: v.channel('category') },
-  ]),
-  path: primitive('radar-area', ['d'], [
-    { name: 'fill', value: v.paint('fill'), escape: 'xml' }, { name: 'stroke', value: v.paint('stroke'), escape: 'xml' },
-    ...(inline ? [paintStyle([['stroke-width', 'strokeWidth']])] : []),
-    { name: 'fill-opacity', value: v.paint('fillOpacity') }, { name: 'data-curve', value: v.channel('category') },
-  ]),
-}))
-const DOT_EMISSIONS = [false, true].map(inline => primitive('radar-dot', ['cx', 'cy', 'r'], [
-  { name: 'fill', value: v.paint('fill'), escape: 'xml' }, ...(inline ? [PAINT_STYLE] : []),
-]))
-const SWATCH_EMISSIONS = [false, true].map(inline => primitive('radar-legend-swatch', ['x', 'y', 'width', 'height', 'rx', 'ry'], [
-  { name: 'fill', value: v.paint('fill'), escape: 'xml' }, ...(inline ? [PAINT_STYLE] : []), { name: 'fill-opacity', value: v.paint('fillOpacity') },
-]))
-
-function textAttributes(className: string, leading: readonly SvgAttribute[] = []): SvgAttribute[] {
-  return [
-    { name: 'class', value: v.meta(className) }, ...leading,
-    { name: 'text-anchor', value: v.text('anchor') }, { name: 'dominant-baseline', value: v.meta('middle') },
-    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') }, { name: 'fill', value: v.paint('fill') },
-    { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-  ]
-}
-const TICK_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'direct', attributes: textAttributes('radar-tick-label', [
-  { name: 'x', value: v.text('x') }, { name: 'y', value: v.text('y') },
-]) })
-const AXIS_TEXT_ATTRIBUTES = textAttributes('radar-axis-label', [{ name: 'aria-label', value: v.text('source') }])
-const AXIS_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: 0, attributes: AXIS_TEXT_ATTRIBUTES })
-const LEGEND_TEXT_EMISSIONS = [false, true].map(inline => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: 0, attributes: [
-  ...textAttributes('radar-legend-text'), ...(inline ? [paintStyle([['fill', 'fill']])] : []),
-] }))
-const TITLE_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: 0, attributes: textAttributes('radar-title') })
 
 // ============================================================================
 // Radar chart SVG renderer
 //
 // The chart is first lowered to a SceneGraph (SPEC §3.1): every visual mark
 // becomes a scene node carrying semantic fields (role, geometry, paint,
-// channels, stable id) and private typed presentation choices.
+// channels, stable id), which the default backend writes as SVG.
 // renderRadarSvg() is DefaultBackend serialization of that scene.
 //
 // Reuse-only mark roles (no new SceneRole / scene-substrate changes):
@@ -169,49 +108,36 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   const descId = `${namespace}-desc`
 
   // Document shell.
-  const rootAttributes = { id: namespace, 'aria-roledescription': 'radar chart', ...buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'radar chart') }
+  const preludeSegments = [
+    openRadarSvgTag(chart, colors, transparent, accessibility, namespace, titleId, descId),
+  ]
+  if (accessibility.title) preludeSegments.push(`<title id="${titleId}">${escapeXml(accessibility.title)}</title>`)
+  if (accessibility.description) preludeSegments.push(`<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`)
+  preludeSegments.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
   parts.push(marks.documentOpen(
     { id: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false },
-    { kind: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false,
-      ...(chart.visual.useMaxWidth ? { widthAttribute: '100%', heightAttribute: '100%', extraStyle: `max-width:${chart.width}px` } : {}),
-      attributes: Object.entries(rootAttributes).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
-      children: [
-        ...(accessibility.title ? [{ kind: 'documentText' as const, element: 'title' as const, domId: titleId, text: accessibility.title }] : []),
-        ...(accessibility.description ? [{ kind: 'documentText' as const, element: 'desc' as const, domId: descId, text: accessibility.description }] : []),
-        { kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : []),
-      ],
-    },
+    preludeSegments.join('\n'),
   ))
 
   // Graticule rings (back-most).
   for (let k = 0; k < chart.rings.length; k++) {
     const ring = chart.rings[k]!
-    const emission = RING_EMISSIONS[ring.emphasized ? 1 : 0]!
-    if (chart.polygonGraticule) {
-      parts.push(marks.shape(
-        {
-          id: `ring:${k}`,
-          role: 'grid',
-          geometry: { kind: 'polygon', points: ring.points },
-          paint: { fill: 'none', stroke: graticuleColor, strokeWidth: String(ring.emphasized ? outerRingStrokeWidth(graticuleStrokeWidth) : graticuleStrokeWidth) ,strokeOpacity: String(graticuleOpacity),},
-
-          attributes: { className: `radar-ring${ring.emphasized ? ' radar-ring-outer' : ''}` },
-        },
-        emission.polygon,
-      ))
-    } else {
-      parts.push(marks.shape(
-        {
-          id: `ring:${k}`,
-          role: 'grid',
-          geometry: { kind: 'circle', cx: chart.cx, cy: chart.cy, r: ring.r },
-          paint: { fill: 'none', stroke: graticuleColor, strokeWidth: String(ring.emphasized ? outerRingStrokeWidth(graticuleStrokeWidth) : graticuleStrokeWidth) ,strokeOpacity: String(graticuleOpacity),},
-
-          attributes: { className: `radar-ring${ring.emphasized ? ' radar-ring-outer' : ''}` },
-        },
-        emission.circle,
-      ))
-    }
+    parts.push(marks.shape({
+      id: `ring:${k}`,
+      role: 'grid',
+      geometry: chart.polygonGraticule
+        ? { kind: 'polygon', points: ring.points }
+        : { kind: 'circle', cx: chart.cx, cy: chart.cy, r: ring.r },
+      paint: {
+        fill: 'none',
+        stroke: graticuleColor,
+        strokeOpacity: String(graticuleOpacity),
+        strokeWidth: String(ring.emphasized ? outerRingStrokeWidth(graticuleStrokeWidth) : graticuleStrokeWidth),
+      },
+      attributes: { className: `radar-ring${ring.emphasized ? ' radar-ring-outer' : ''}` },
+    }))
   }
 
   // Spokes.
@@ -225,7 +151,6 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         paint: { stroke: axisColor, strokeWidth: String(axisStrokeWidth) },
         attributes: { className: 'radar-axis-line' },
       },
-      SPOKE_EMISSION,
     ))
   }
 
@@ -245,35 +170,17 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
     const stroke = authoredFill ?? roleStyle?.strokeColor ?? roleStyle?.borderColor ?? fill
     curvePaint.set(curve.colorIndex, stroke)
     const strokeWidth = roleStyle?.lineWidth ?? style.nodeLineWidth
+    // The area fills translucently under an opaque outline.
+    const paint = { fill, fillOpacity: String(curveOpacity), stroke, strokeWidth: String(strokeWidth), strokeLinejoin: 'round' as const }
     const attributes = { className: 'radar-area', data: { curve: curve.label } }
-    const emission = AREA_EMISSIONS[roleStyle?.lineWidth !== undefined ? 1 : 0]!
-    if (chart.polygonGraticule) {
-      parts.push(marks.shape(
-        {
-          id: `curve:${identity}`,
-          role: 'pie-slice',
-          geometry: { kind: 'polygon', points: curve.vertices },
-          paint: { fill, stroke, strokeWidth: String(strokeWidth), fillOpacity: String(curveOpacity), strokeLinejoin: 'round' },
-          channels,
-
-          attributes,
-        },
-        emission.polygon,
-      ))
-    } else {
-      parts.push(marks.shape(
-        {
-          id: `curve:${identity}`,
-          role: 'pie-slice',
-          geometry: { kind: 'path', d: curve.areaPath },
-          paint: { fill, stroke, strokeWidth: String(strokeWidth), fillOpacity: String(curveOpacity), strokeLinejoin: 'round' },
-          channels,
-
-          attributes,
-        },
-        emission.path,
-      ))
-    }
+    parts.push(marks.shape({
+      id: `curve:${identity}`,
+      role: 'pie-slice',
+      geometry: chart.polygonGraticule ? { kind: 'polygon', points: curve.vertices } : { kind: 'path', d: curve.areaPath },
+      paint,
+      channels,
+      attributes,
+    }))
   }
 
   // Vertex dots on top of the areas.
@@ -296,7 +203,6 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
           channels,
           attributes: { className: 'radar-dot' },
         },
-        DOT_EMISSIONS[roleStyle ? 1 : 0]!,
       ))
     })
   }
@@ -314,7 +220,6 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         paint: { stroke: graticuleColor, strokeOpacity: '0.5', strokeWidth: '1' },
         attributes: { className: 'radar-leader' },
       },
-      LEADER_EMISSION,
     ))
   }
 
@@ -332,7 +237,6 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         paint: { fill: 'var(--bg)', stroke: graticuleColor, strokeOpacity: '0.35', strokeWidth: '0.75' },
         attributes: { className: 'radar-tick-box' },
       },
-      TICK_BOX_EMISSION,
     ))
   }
   // Paint all text after all knockout boxes. Layout already admits disjoint
@@ -357,7 +261,6 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         paint: { fill: tickTextColor },
         attributes: { className: 'radar-tick-label' },
       },
-      TICK_TEXT_EMISSION,
     ))
   }
 
@@ -373,17 +276,16 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         x: axis.labelX,
         y: axis.labelY,
         fontSize: chart.typography.axisFontSize,
+        block: axis.block,
         fontWeight: chart.typography.axisFontWeight,
         letterSpacing: style.edgeLetterSpacing,
-        display: axis.block ? axis.block.prepared.display : 'literal',
-        block: axis.block,
+        display: 'literal',
         anchor: axis.anchor,
         dominantBaseline: 'middle',
         baselineShift: 0,
         paint: { fill: axisTextColor },
         attributes: { className: 'radar-axis-label', ariaLabel: axis.label },
       },
-      axis.block ? AXIS_TEXT_EMISSION : { kind: 'text', layout: 'multiline', baselineShift: 0, attributes: AXIS_TEXT_ATTRIBUTES.map(attribute => attribute.name === 'aria-label' ? { ...attribute, value: v.meta(axis.label) } : attribute) },
     ))
   }
 
@@ -404,7 +306,6 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         channels,
         attributes: { className: 'radar-legend-swatch' },
       },
-      SWATCH_EMISSIONS[roleStyle ? 1 : 0]!,
     ))
     parts.push(marks.text(
       {
@@ -416,15 +317,14 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         fontSize: chart.typography.legendFontSize,
         fontWeight: chart.typography.legendFontWeight,
         letterSpacing: style.nodeLetterSpacing,
-        display: item.block ? item.block.prepared.display : 'literal',
         block: item.block,
+        display: 'literal',
         anchor: 'start',
         dominantBaseline: 'middle',
         baselineShift: 0,
         paint: { fill: roleStyle?.textColor ?? style.nodeTextColor ?? 'var(--_text)' },
         attributes: { className: 'radar-legend-text' },
       },
-      LEGEND_TEXT_EMISSIONS[roleStyle?.textColor ? 1 : 0]!,
     ))
   }
 
@@ -440,15 +340,14 @@ export function lowerRadarDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         fontSize: chart.title.fontSize,
         fontWeight: chart.typography.titleFontWeight,
         letterSpacing: style.groupLetterSpacing,
-        display: chart.title.block ? chart.title.block.prepared.display : 'literal',
         block: chart.title.block,
+        display: 'literal',
         anchor: 'middle',
         dominantBaseline: 'middle',
         baselineShift: 0,
         paint: { fill: titleColor },
         attributes: { className: 'radar-title' },
       },
-      TITLE_TEXT_EMISSION,
     ))
   }
 
@@ -463,6 +362,28 @@ function round2(n: number): number { return Math.round(n * 100) / 100 }
  *  configured width never prints a float artefact (1.5 x 1.4 = 2.0999999999999996). */
 function outerRingStrokeWidth(graticuleStrokeWidth: number): number { return round2(graticuleStrokeWidth * 1.4) }
 
+function openRadarSvgTag(
+  chart: PositionedRadarChart,
+  colors: DiagramColors,
+  transparent: boolean,
+  accessibility: { title?: string; description?: string },
+  namespace: string,
+  titleId: string,
+  descId: string,
+): string {
+  const overrides = chart.visual.useMaxWidth
+    ? { width: '100%', height: '100%', style: `max-width:${chart.width}px` }
+    : {}
+  return svgOpenTag(chart.width, chart.height, colors, transparent, {
+    ...overrides,
+    attrs: {
+      id: namespace,
+      'aria-roledescription': 'radar chart',
+      ...buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'radar chart'),
+    },
+  })
+}
+
 function occurrenceIdentities(values: readonly string[]): string[] {
   const counts = new Map<string, number>()
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1)
@@ -474,5 +395,6 @@ function occurrenceIdentities(values: readonly string[]): string[] {
     return `${value}#${occurrence}`
   })
 }
+
 
 export const lowerRadarScene = sceneLowering<PositionedRadarChart>(lowerRadarDrawing)

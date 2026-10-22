@@ -35,11 +35,10 @@ import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertific
 import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
+import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 import { withSvgInspectionCache } from './svg-inspection-cache.ts'
 import { measureRenderStage } from './render-stages.ts'
-import { isBuiltinDefaultBackend, renderDefaultScene } from './scene/backend.ts'
-import { SCENE_VALIDATION_LIMITS } from './scene/scene-validation.ts'
 
 export interface ResolvedGraphicalExecution {
   readonly svg: string
@@ -57,14 +56,8 @@ export interface GraphicalSvgArtifact {
  * its own byte budget; request-data snapshot limits do not constrain artifacts.
  * Primitive strings cannot change between admission and hashing. */
 export function renderedSvgDigest(value: unknown): string {
-  return measureRenderStage('receipt-digest', () => {
-    assertFinalSvgByteBudget(value, 'graphical projection digest input')
-    return canonicalTextDigest(JSON.stringify(value))
-  })
-}
-
-function assertGraphicalSvgByteBudget(value: unknown, stage: string): asserts value is string {
-  measureRenderStage('svg-budget', () => assertFinalSvgByteBudget(value, stage))
+  assertFinalSvgByteBudget(value, 'graphical projection digest input')
+  return canonicalTextDigest(JSON.stringify(value))
 }
 
 function renderContextForPositionedFamily(
@@ -159,59 +152,50 @@ function renderPositionedWithTextMeasurement(
   const family = executionPlan.family
   const context = renderContextForPositionedFamily(request, layout)
   let rawSvg: string
-  let textAlreadyFitted = false
+  let preparedText = false
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
     const drawing = measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
-    const backend = executionPlan.backend!.backend
-    const backendContext = {
+    rawSvg = drawing?.svg ?? measureRenderStage('backend', () => executionPlan.backend!.backend.render(scene!, {
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
-    }
-    rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
-      if (!isBuiltinDefaultBackend(backend)) return backend.render(scene!, backendContext)
-      const emitted = renderDefaultScene(scene!, backendContext, SCENE_VALIDATION_LIMITS.maxFinalSvgBytes)
-      textAlreadyFitted = emitted.textAlreadyFitted
-      return emitted.svg
-    })
-    if (drawing) textAlreadyFitted = drawing.preparedText
+    }))
+    preparedText = executionPlan.backend?.inputName === 'default'
+      && !family.id.startsWith('family:') && (drawing?.preparedText ?? sceneHasOnlyPreparedText(scene!))
   } else {
     if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
     rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
   }
-  assertGraphicalSvgByteBudget(rawSvg, 'backend/family SVG output')
+  assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
-  let svg = measureRenderStage('svg-colors', () => inlineResolvedColors(rawSvg, context.colors))
-  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') {
-    const viewport = layoutCertification.viewport
-    svg = measureRenderStage('svg-viewport', () => expandSvgViewport(svg, viewport))
-  }
-  assertGraphicalSvgByteBudget(svg, 'color-resolved SVG output')
-  if (!textAlreadyFitted) svg = measureRenderStage('svg-fonts', () => fitUncalibratedSvgText(svg, request.appearance.font))
-  assertGraphicalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
+  let svg = inlineResolvedColors(rawSvg, context.colors)
+  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
+  assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
+  if (!preparedText) svg = fitUncalibratedSvgText(svg, request.appearance.font)
+  assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
   const idPrefix = effectiveOptions.idPrefix ?? ''
   if (idPrefix) {
-    svg = measureRenderStage('svg-namespace', () => namespaceSvgIds(svg, idPrefix))
-    assertGraphicalSvgByteBudget(svg, 'namespaced SVG output')
+    svg = namespaceSvgIds(svg, idPrefix)
+    assertFinalSvgByteBudget(svg, 'namespaced SVG output')
   }
   const accessibility = request.source.accessibility
   const fallbackName = family.id === 'c4' ? 'C4 architecture diagram' : undefined
   if ((layout.injectAccessibility ?? true) && (accessibility.title || accessibility.descr || fallbackName)) {
-    svg = measureRenderStage('svg-accessibility', () => injectAccessibility(svg, accessibility, idPrefix, fallbackName))
-    assertGraphicalSvgByteBudget(svg, 'accessibility-projected SVG output')
+    svg = injectAccessibility(svg, accessibility, idPrefix, fallbackName)
+    assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
-  svg = measureRenderStage('svg-style-scope', () => scopeSvgStyles(svg))
-  assertGraphicalSvgByteBudget(svg, 'style-scoped SVG output')
+  svg = scopeSvgStyles(svg)
+  assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split
   // attribute (for example `on\n load`) into executable active content after
   // validation.
   if (effectiveOptions.compact) {
-    svg = measureRenderStage('svg-compact', () => compactSvg(svg))
-    assertGraphicalSvgByteBudget(svg, 'compacted SVG output')
+    svg = compactSvg(svg)
+    assertFinalSvgByteBudget(svg, 'compacted SVG output')
   }
   // Raster outputs are offline artifacts in every caller mode. This is an
   // output-only projection: the shared request receipt retains authored
@@ -221,7 +205,7 @@ function renderPositionedWithTextMeasurement(
   const secured = measureRenderStage('svg-security', () => applyOutputSecurityPolicy(svg, outputSecurity))
   securityDiagnostics.push(...secured.diagnostics)
   svg = secured.svg
-  assertGraphicalSvgByteBudget(svg, 'final SVG output')
+  assertFinalSvgByteBudget(svg, 'final SVG output')
   return Object.freeze({
     svg,
     executionDecision: executionPlan.executionDecision,
@@ -297,7 +281,7 @@ export function graphicalSvgArtifact(
   return lazyGraphicalArtifact(rendered.svg, () => {
     const outputDigest = renderedSvgDigest(rendered.svg)
     return Object.freeze({
-      ...measureRenderStage('receipt-data', () => receiptOf(request, securityDiagnostics)),
+      ...receiptOf(request, securityDiagnostics),
       graphicalProjectionDigest: outputDigest,
       executionDecision: rendered.executionDecision,
       ...(layoutCertification ? { layoutCertification: Object.freeze({ ...layoutCertification, outputDigest }) } : {}),

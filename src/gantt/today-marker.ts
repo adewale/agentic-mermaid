@@ -19,7 +19,6 @@
 // ============================================================================
 
 import { parseStyleProps } from '../shared/style-props.ts'
-import { isSafeInlinePaintValue } from '../shared/inline-paint-value.ts'
 
 /** Wired todayMarker payload properties (everything else lints). */
 export const GANTT_TODAY_MARKER_STYLE_PROPS = ['stroke', 'stroke-width', 'opacity', 'stroke-dasharray'] as const
@@ -28,6 +27,7 @@ export const GANTT_TODAY_MARKER_STYLE_PROPS = ['stroke', 'stroke-width', 'opacit
 // COLOR_RE): the value lands in a paint attribute — allow hex/named colors,
 // numbers with units, rgb()/hsl() functional forms; forbid quotes, `;`,
 // `<`, `>`, `:` (kills url(data:…) and attribute breakouts).
+const SAFE_VALUE_RE = /^[#\w][\w#(),.%\s/-]*$/
 
 export interface GanttTodayMarkerStyle {
   /** Whitelisted, sanitized declarations in payload order. */
@@ -43,7 +43,7 @@ export function parseTodayMarkerStyle(payload: string): GanttTodayMarkerStyle {
   const props = parseStyleProps(payload)
   for (const [rawKey, value] of Object.entries(props)) {
     const prop = rawKey.toLowerCase()
-    if (!(GANTT_TODAY_MARKER_STYLE_PROPS as readonly string[]).includes(prop) || !isSafeInlinePaintValue(value)) {
+    if (!(GANTT_TODAY_MARKER_STYLE_PROPS as readonly string[]).includes(prop) || !SAFE_VALUE_RE.test(value)) {
       ignored.push(prop)
       continue
     }

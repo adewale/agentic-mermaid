@@ -48,9 +48,8 @@ export function parseSvgTransform(value: string): AffineMatrix | undefined {
   return cursor > 0 && !value.slice(cursor).trim() ? matrix : undefined
 }
 
-export function serializeTransform(transform: SceneTransform, separator: 'space' | 'comma' = 'space'): string {
-  const join = separator === 'comma' ? ',' : ' '
+export function serializeTransform(transform: SceneTransform): string {
   return transform.kind === 'rotate'
-    ? `rotate(${transform.angle}${join}${transform.cx}${join}${transform.cy})`
-    : `matrix(${transform.a}${join}${transform.b}${join}${transform.c}${join}${transform.d}${join}${transform.e}${join}${transform.f})`
+    ? `rotate(${transform.angle} ${transform.cx} ${transform.cy})`
+    : `matrix(${transform.a} ${transform.b} ${transform.c} ${transform.d} ${transform.e} ${transform.f})`
 }

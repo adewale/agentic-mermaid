@@ -38,7 +38,6 @@ import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import type { SceneDoc } from '../scene/ir.ts'
-import { invokeSceneLowering } from '../scene/lowering-invocation.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import type { DiagramColors } from '../theme.ts'
 import { safeCssPaint } from '../shared/css-color.ts'
@@ -250,7 +249,7 @@ export function executeTerminalRender(
         const layout = positionResolvedFamily(diagramType, request, normalizedSource)
         // ASCII draws from the connectors' terminal projections, so their
         // derivation is always cross-checked here.
-        connectorScene = admitFamilyScene(family, invokeSceneLowering(family, family.lowerScene, {
+        connectorScene = admitFamilyScene(family, family.lowerScene({
           positioned: layout.positioned,
           colors: connectorSceneColors(request.appearance.colors),
           resolved: familyContext,

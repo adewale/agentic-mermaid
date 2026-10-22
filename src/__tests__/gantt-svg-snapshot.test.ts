@@ -79,15 +79,6 @@ describe('renderMermaidSVG — gantt', () => {
   // opacity, stroke-dasharray) now apply, sanitized against style-attr
   // injection; unwired properties surface via verify's INEFFECTIVE_CONFIG.
   it('applies the sanitized todayMarker style payload to the today line', () => {
-    for (const [payload, expected] of [
-      ['stroke-width:5px,stroke:#0f0,opacity:0.5', 'stroke-width:5px;stroke:#0f0;opacity:0.5'],
-      ['stroke:#111,Stroke:#222,STROKE:#333,opacity:0.5', 'stroke:#111;stroke:#222;stroke:#333;opacity:0.5'],
-    ]) {
-      const src = `gantt\n  dateFormat YYYY-MM-DD\n  todayMarker ${payload}\n  A :a, 2024-01-01, 10d`
-      const svg = renderMermaidSVG(src, { ganttToday: '2024-01-05' })
-      const line = svg.match(/<line class="gantt-today-marker"[^>]*>/)![0]
-      expect(line).toContain(`style="${expected}"`)
-    }
     const src = 'gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke-width:5px,stroke:#0f0,opacity:0.5\n  A :a, 2024-01-01, 10d'
     const svg = renderMermaidSVG(src, { ganttToday: '2024-01-05' })
     const line = svg.match(/<line class="gantt-today-marker"[^>]*>/)![0]

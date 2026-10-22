@@ -1,3 +1,11 @@
+// ============================================================================
+// The default backend's SVG writer: each shape, text and connector mark's
+// element is written from its typed fields, so paint certification, which
+// reads those fields, describes the bytes a render emits. Families supply
+// inert hooks (classes, data-*) through `attributes`; geometry, paint,
+// typography, transforms, markers, identity and ARIA come from the mark.
+// ============================================================================
+
 import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkAttributes, MarkPaint, SceneTransform, ShapeMark, TextMark } from './ir.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import type { SvgSemanticAccessibility } from './accessibility.ts'
@@ -6,142 +14,16 @@ import { serializeTransform } from './transforms.ts'
 import { connectorInlineLabelText } from './bounds.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 
+/** One append-only writer for a mark. Attribute emission does not allocate
+ * arrays, one-element spread operands, or temporary `name="value"` strings.
+ * JavaScript's string builder also preserves the public number spelling. */
+class SvgWriter {
+  value = ''
 
-/** Request-local SVG output. Limits count the UTF-8 encoding of the joined
- * string, including surrogate pairs split between writes; no byte buffers. */
-export interface SvgWriterOptions {
-  readonly maxBytes?: number
-  readonly mode?: 'string' | 'chunks' | 'count'
-}
+  raw(text: string): void { this.value += text }
 
-export type SvgAttributeEscape = 'attribute' | 'xml' | 'safe'
-
-/** A typed distinction lets the graphical owner retain its existing public
- * limit diagnostic without mistaking a smaller node limit for the final cap. */
-export class SvgByteLimitError extends RangeError {
-  constructor(readonly maxBytes: number) { super(`SVG serialization exceeds ${maxBytes} bytes`) }
-}
-
-interface WriterState {
-  readonly maxBytes: number
-  readonly mode: 'string' | 'chunks' | 'count'
-  value: string
-  chunks: string[]
-  bytes: number
-  highSurrogate: boolean
-}
-
-export class SvgWriter {
-  private readonly state: WriterState
-  private readonly parent?: SvgWriter
-  private destination?: SvgWriter
-  private readonly indentation: string
-  private lineStart = true
-
-  constructor(options: SvgWriterOptions = {}, parent?: SvgWriter, indentation = '') {
-    const maxBytes = options.maxBytes ?? 5_000_000
-    if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) throw new TypeError('SVG byte limit must be a non-negative safe integer')
-    if (options.mode !== undefined && options.mode !== 'string' && options.mode !== 'chunks' && options.mode !== 'count') throw new TypeError('Unknown SVG writer mode')
-    this.parent = parent
-    this.indentation = indentation
-    this.state = parent?.state ?? { maxBytes, mode: options.mode ?? 'string', value: '', chunks: [], bytes: 0, highSurrogate: false }
-  }
-
-  get bytes(): number { return this.state.bytes }
-
-  /** Compatibility for native typed mark writers; the same bounded sink owns all bytes. */
-  raw(value: string): void { this.write(value) }
-  get value(): string { return this.finish() }
-
-  write(value: string): void {
-    if (typeof value !== 'string') throw new TypeError('SVG output chunks must be strings')
-    if (this.parent) {
-      if (value === '') return
-      if (this.lineStart) { this.parent.write(this.indentation); this.lineStart = false }
-      let start = 0
-      for (;;) {
-        const end = value.indexOf('\n', start)
-        if (end < 0) { this.parent.write(value.slice(start)); return }
-        this.parent.write(value.slice(start, end + 1))
-        this.parent.write(this.indentation)
-        start = end + 1
-      }
-    }
-    const state = this.state
-    let bytes = state.bytes
-    let high = state.highSurrogate
-    for (let index = 0; index < value.length; index++) {
-      const code = value.charCodeAt(index)
-      if (high && code >= 0xdc00 && code <= 0xdfff) bytes += 1
-      else if (code <= 0x7f) bytes += 1
-      else if (code <= 0x7ff) bytes += 2
-      else bytes += 3
-      high = code >= 0xd800 && code <= 0xdbff
-      if (bytes > state.maxBytes) throw new SvgByteLimitError(state.maxBytes)
-    }
-    // A node scope checks its unindented bytes before the outer sink receives
-    // anything. The destination can itself be an indented/group scope view.
-    if (this.destination) this.destination.write(value)
-    state.bytes = bytes
-    state.highSurrogate = high
-    if (state.mode === 'chunks') { if (value) state.chunks.push(value) }
-    else if (state.mode === 'string') state.value += value
-  }
-
-  /** Escape content, with attribute whitespace references when requested. */
-  text(value: string, attribute = false): void {
-    let start = 0
-    for (let index = 0; index < value.length; index++) {
-      const code = value.charCodeAt(index)
-      const replacement = code === 38 ? '&amp;' : code === 60 ? '&lt;' : code === 62 ? '&gt;' : code === 34 ? '&quot;' : code === 39 ? '&#39;'
-        : attribute && code === 9 ? '&#9;' : attribute && code === 10 ? '&#10;' : attribute && code === 13 ? '&#13;' : undefined
-      if (replacement !== undefined) {
-        this.write(value.slice(start, index))
-        this.write(replacement)
-        start = index + 1
-      }
-    }
-    this.write(value.slice(start))
-  }
-
-  /** Names are checked by the closed emission vocabulary before this call. */
-  attribute(name: string, value: string | number, escape: SvgAttributeEscape = 'attribute'): void {
-    this.write(` ${name}="`)
-    if (typeof value === 'number') this.write(String(value))
-    else this.attributeValue(value, escape)
-    this.write('"')
-  }
-
-  /** The safe lexical profile preserves legacy validated root CSS exactly.
-   * It cannot contain XML delimiters, and is not an unescaped-markup slot. */
-  attributeValue(value: string, escape: SvgAttributeEscape = 'attribute'): void {
-    if (escape === 'safe') {
-      if (/[&<>"]/.test(value)) throw new TypeError('Safe SVG attribute values must not contain XML delimiters')
-      this.write(value)
-    } else if (escape === 'attribute' || escape === 'xml') this.text(value, escape === 'attribute')
-    else throw new TypeError('Unsupported SVG attribute escaping')
-  }
-
-  /** A view sharing this request's sink and byte budget. Its first write and
-   * every newline receive exactly the old indentLines prefix. */
-  indented(spaces: number): SvgWriter {
-    if (!Number.isSafeInteger(spaces) || spaces < 0 || spaces > 1_000_000) throw new TypeError('Invalid SVG indentation')
-    return spaces === 0 ? this : new SvgWriter({}, this, ' '.repeat(spaces))
-  }
-
-  /** Count this node independently without retaining its string. Apply after
-   * an indentation view so the node's cap excludes its parent's added spaces;
-   * outer group/document scopes still count those actual emitted spaces. */
-  scoped(maxBytes: number): SvgWriter {
-    const scope = new SvgWriter({ maxBytes, mode: 'count' })
-    scope.destination = this
-    return scope
-  }
-
-  finish(): string {
-    const state = this.state
-    if (state.mode === 'count') throw new TypeError('A counting SVG writer has no retained output')
-    return state.mode === 'chunks' ? state.chunks.join('') : state.value
+  attribute(name: string, value: string | number): void {
+    this.value += ` ${name}="${typeof value === 'number' ? value : escapeAttr(value)}"`
   }
 }
 
@@ -154,36 +36,29 @@ export const WRITER_OWNED_DATA_KEYS: ReadonlySet<string> = new Set([
 export const MARK_CLASS_TOKENS = /^[A-Za-z0-9_-]+(?: [A-Za-z0-9_-]+)*$/
 export const MARK_DATA_KEY = /^[a-z][a-z0-9-]*$/
 
-/** Native marks are emitted from their admitted own fields. An absent optional
- * field must not become new input through a later prototype mutation. Own
- * accessors retain their original receiver and read at the existing call site. */
-function own<T extends object, K extends keyof T>(value: T | undefined, key: K): T[K] | undefined {
-  return value !== undefined && Object.hasOwn(value, key) ? value[key] : undefined
-}
-
 function hooks(out: SvgWriter, attributes: MarkAttributes | undefined): void {
   if (!attributes) return
-  if (own(attributes, 'className')) out.attribute('class', own(attributes, 'className')!)
-  if (own(attributes, 'data')) for (const key of Object.keys(own(attributes, 'data')!)) out.attribute(`data-${key}`, own(attributes, 'data')![key]!)
-  if (own(attributes, 'ariaHidden')) out.attribute('aria-hidden', 'true')
-  if (own(attributes, 'tabIndex') === 0) out.attribute('tabindex', 0)
-  if (own(attributes, 'ariaLabel') !== undefined) out.attribute('aria-label', own(attributes, 'ariaLabel')!)
+  if (attributes.className) out.attribute('class', attributes.className)
+  if (attributes.data) for (const key of Object.keys(attributes.data)) out.attribute(`data-${key}`, attributes.data[key]!)
+  if (attributes.ariaHidden) out.attribute('aria-hidden', 'true')
+  if (attributes.tabIndex === 0) out.attribute('tabindex', 0)
+  if (attributes.ariaLabel !== undefined) out.attribute('aria-label', attributes.ariaLabel)
 }
 
 function paintAttributes(out: SvgWriter, paint: MarkPaint): void {
-  if (own(paint, 'fill') !== undefined) out.attribute('fill', own(paint, 'fill')!)
-  if (own(paint, 'fillOpacity') !== undefined) out.attribute('fill-opacity', own(paint, 'fillOpacity')!)
-  if (own(paint, 'stroke') !== undefined) out.attribute('stroke', own(paint, 'stroke')!)
-  if (own(paint, 'strokeOpacity') !== undefined) out.attribute('stroke-opacity', own(paint, 'strokeOpacity')!)
-  if (own(paint, 'strokeWidth') !== undefined) out.attribute('stroke-width', own(paint, 'strokeWidth')!)
-  if (own(paint, 'strokeDasharray') !== undefined) out.attribute('stroke-dasharray', own(paint, 'strokeDasharray')!)
-  if (own(paint, 'strokeDashoffset') !== undefined) out.attribute('stroke-dashoffset', own(paint, 'strokeDashoffset')!)
-  if (own(paint, 'strokeLinecap') !== undefined) out.attribute('stroke-linecap', own(paint, 'strokeLinecap')!)
-  if (own(paint, 'strokeLinejoin') !== undefined) out.attribute('stroke-linejoin', own(paint, 'strokeLinejoin')!)
-  if (own(paint, 'strokeMiterlimit') !== undefined) out.attribute('stroke-miterlimit', own(paint, 'strokeMiterlimit')!)
-  if (own(paint, 'vectorEffect') !== undefined) out.attribute('vector-effect', own(paint, 'vectorEffect')!)
-  if (own(paint, 'paintOrder') !== undefined) out.attribute('paint-order', own(paint, 'paintOrder')!)
-  if (own(paint, 'opacity') !== undefined) out.attribute('opacity', own(paint, 'opacity')!)
+  if (paint.fill !== undefined) out.attribute('fill', paint.fill)
+  if (paint.fillOpacity !== undefined) out.attribute('fill-opacity', paint.fillOpacity)
+  if (paint.stroke !== undefined) out.attribute('stroke', paint.stroke)
+  if (paint.strokeOpacity !== undefined) out.attribute('stroke-opacity', paint.strokeOpacity)
+  if (paint.strokeWidth !== undefined) out.attribute('stroke-width', paint.strokeWidth)
+  if (paint.strokeDasharray !== undefined) out.attribute('stroke-dasharray', paint.strokeDasharray)
+  if (paint.strokeDashoffset !== undefined) out.attribute('stroke-dashoffset', paint.strokeDashoffset)
+  if (paint.strokeLinecap !== undefined) out.attribute('stroke-linecap', paint.strokeLinecap)
+  if (paint.strokeLinejoin !== undefined) out.attribute('stroke-linejoin', paint.strokeLinejoin)
+  if (paint.strokeMiterlimit !== undefined) out.attribute('stroke-miterlimit', paint.strokeMiterlimit)
+  if (paint.vectorEffect !== undefined) out.attribute('vector-effect', paint.vectorEffect)
+  if (paint.paintOrder !== undefined) out.attribute('paint-order', paint.paintOrder)
+  if (paint.opacity !== undefined) out.attribute('opacity', paint.opacity)
 }
 
 function transformAttribute(out: SvgWriter, transform: SceneTransform | undefined): void {
@@ -195,8 +70,8 @@ function identityAttributes(out: SvgWriter, identity: SvgSemanticIdentity | unde
   if (identity && hasDomSvgIdentityRole(identity.role)) {
     out.attribute('data-id', identity.id)
     out.attribute('data-role', identity.role)
-    if (own(identity, 'from') !== undefined) out.attribute('data-from', own(identity, 'from')!)
-    if (own(identity, 'to') !== undefined) out.attribute('data-to', own(identity, 'to')!)
+    if (identity.from !== undefined) out.attribute('data-from', identity.from)
+    if (identity.to !== undefined) out.attribute('data-to', identity.to)
   }
   if (accessibility) {
     out.attribute('role', accessibility.role)
@@ -214,8 +89,8 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry): void {
       out.attribute('y', geometry.y)
       out.attribute('width', geometry.width)
       out.attribute('height', geometry.height)
-      if (own(geometry, 'rx') !== undefined) out.attribute('rx', own(geometry, 'rx')!)
-      if (own(geometry, 'ry') !== undefined) out.attribute('ry', own(geometry, 'ry')!)
+      if (geometry.rx !== undefined) out.attribute('rx', geometry.rx)
+      if (geometry.ry !== undefined) out.attribute('ry', geometry.ry)
       return
     case 'circle':
       out.attribute('cx', geometry.cx)
@@ -259,11 +134,11 @@ export function writeShapeSvg(node: ShapeMark): string {
     if (piece.kind === 'compound') throw new TypeError(`Shape "${node.id}" nests compound geometry`)
     if (index) out.raw('\n')
     out.raw(`<${piece.kind}`)
-    if (index === 0) hooks(out, own(node, 'attributes'))
+    if (index === 0) hooks(out, node.attributes)
     geometryAttributes(out, piece)
-    paintAttributes(out, compound ? own(node, 'childPaints')?.[index] ?? node.paint : node.paint)
-    transformAttribute(out, own(node, 'transform'))
-    if (index === 0) identityAttributes(out, own(node, 'identity'), own(node, 'accessibility'))
+    paintAttributes(out, compound ? node.childPaints?.[index] ?? node.paint : node.paint)
+    transformAttribute(out, node.transform)
+    if (index === 0) identityAttributes(out, node.identity, node.accessibility)
     out.raw(' />')
   }
   return out.value
@@ -271,14 +146,14 @@ export function writeShapeSvg(node: ShapeMark): string {
 
 function typographyAttributes(out: SvgWriter, node: TextMark): void {
   out.attribute('text-anchor', node.anchor)
-  if (own(node, 'dominantBaseline')) out.attribute('dominant-baseline', own(node, 'dominantBaseline')!)
+  if (node.dominantBaseline) out.attribute('dominant-baseline', node.dominantBaseline)
   // A block measured in a named face is drawn in it; otherwise the document font applies.
-  if (own(own(node, 'block'), 'fontFamily')) out.attribute('font-family', own(own(node, 'block'), 'fontFamily')!)
+  if (node.block?.fontFamily) out.attribute('font-family', node.block.fontFamily)
   out.attribute('font-size', node.fontSize)
-  out.attribute('font-weight', own(node, 'fontWeight') ?? own(node, 'block')?.fontWeight ?? 400)
-  if ((own(node, 'letterSpacing') ?? 0) !== 0) out.attribute('letter-spacing', own(node, 'letterSpacing')!)
-  if (own(node, 'fontStyle')) out.attribute('font-style', own(node, 'fontStyle')!)
-  if (own(node, 'textDecoration')) out.attribute('text-decoration', own(node, 'textDecoration')!)
+  out.attribute('font-weight', node.fontWeight ?? node.block?.fontWeight ?? 400)
+  if ((node.letterSpacing ?? 0) !== 0) out.attribute('letter-spacing', node.letterSpacing!)
+  if (node.fontStyle) out.attribute('font-style', node.fontStyle)
+  if (node.textDecoration) out.attribute('text-decoration', node.textDecoration)
 }
 
 /** Text goes through the shared multi-line writer, which owns line wrappers,
@@ -286,48 +161,48 @@ function typographyAttributes(out: SvgWriter, node: TextMark): void {
  * its source text, as families wrote unprepared labels. */
 export function writeTextSvg(node: TextMark): string {
   const out = new SvgWriter()
-  hooks(out, own(node, 'attributes'))
+  hooks(out, node.attributes)
   typographyAttributes(out, node)
   paintAttributes(out, node.paint)
-  transformAttribute(out, own(node, 'transform'))
-  identityAttributes(out, own(node, 'identity'), own(node, 'accessibility'))
+  transformAttribute(out, node.transform)
+  identityAttributes(out, node.identity, node.accessibility)
   const attrs = out.value.slice(1)
-  const prepared = own(node, 'measurement') === 'prepared' && own(node, 'block')
-  const svg = renderMultilineText(prepared ? own(node, 'block')! : node.text, node.x, node.y, node.fontSize, attrs, own(node, 'baselineShift') ?? 0.35, own(node, 'display') === 'literal')
-  if (!own(node, 'spans')) return svg
-  const shown = prepared ? own(node, 'block')!.text : node.text
+  const prepared = node.measurement === 'prepared' && node.block
+  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal')
+  if (!node.spans) return svg
+  const shown = prepared ? node.block!.text : node.text
   const content = `>${escapeXml(shown)}</text>`
   if (!svg.endsWith(content)) throw new TypeError(`Text "${node.id}" spans require a one-line label`)
   let spans = ''
-  for (const span of own(node, 'spans')!) spans += `<tspan fill="${escapeAttr(span.fill)}">${escapeXml(span.text)}</tspan>`
+  for (const span of node.spans) spans += `<tspan fill="${escapeAttr(span.fill)}">${escapeXml(span.text)}</tspan>`
   return `${svg.slice(0, -content.length)}>${spans}</text>`
 }
 
 function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescriptor, index: number): string | undefined {
-  if (own(label, 'visual')?.kind !== 'inline') return undefined
-  if (!own(label, 'anchor') || !own(label, 'paint') || own(label, 'fontSize') === undefined || own(label, 'textAnchor') === undefined) {
+  if (label.visual?.kind !== 'inline') return undefined
+  if (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined) {
     throw new TypeError(`Connector "${node.id}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
   }
   const block = connectorInlineLabelText(label)
   const paint: MarkPaint = {
-    ...own(label, 'paint')!,
-    ...(own(label, 'halo') ? {
-      stroke: own(own(label, 'halo'), 'color') ?? 'var(--bg)',
-      strokeWidth: String(own(label, 'halo')!.width),
+    ...label.paint,
+    ...(label.halo ? {
+      stroke: label.halo.color ?? 'var(--bg)',
+      strokeWidth: String(label.halo.width),
       paintOrder: 'stroke fill',
     } : {}),
   }
   const out = new SvgWriter()
-  out.attribute('data-id', own(label, 'id') ?? `${node.id}-label-${index + 1}`)
+  out.attribute('data-id', label.id ?? `${node.id}-label-${index + 1}`)
   out.attribute('data-role', 'label')
   out.attribute('data-connector-label-for', node.id)
   out.attribute('font-size', block.fontSize)
   out.attribute('font-weight', block.fontWeight)
   if (block.letterSpacing) out.attribute('letter-spacing', block.letterSpacing)
-  out.attribute('text-anchor', own(label, 'textAnchor')!)
-  transformAttribute(out, own(node, 'transform'))
+  out.attribute('text-anchor', label.textAnchor)
+  transformAttribute(out, node.transform)
   paintAttributes(out, paint)
-  return renderMultilineText(block, own(label, 'anchor')!.x, own(label, 'anchor')!.y - Math.max(0, own(label, 'clearance') ?? 0), block.fontSize, out.value.slice(1), 0)
+  return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, out.value.slice(1), 0)
 }
 
 /** A connector is one marker carrier element plus any labels it owns; an
@@ -336,34 +211,34 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
 export function writeConnectorSvg(node: ConnectorMark): string {
   const out = new SvgWriter()
   const { stroke, markers } = node
-  const dash = own(stroke, 'dash')
-  const midMarker = own(markers.mid, 0)
+  const dash = stroke.dash
+  const midMarker = markers.mid[0]
   if (node.lineStyle !== 'invisible') {
     const geometry = node.route.geometry
     out.raw(`<${geometry.kind}`)
-    hooks(out, own(node, 'attributes'))
+    hooks(out, node.attributes)
     geometryAttributes(out, geometry)
     if (geometry.kind !== 'line') out.attribute('fill', 'none')
     out.attribute('stroke', stroke.color)
-    if (own(stroke, 'opacity') !== undefined) out.attribute('stroke-opacity', own(stroke, 'opacity')!)
+    if (stroke.opacity !== undefined) out.attribute('stroke-opacity', stroke.opacity)
     out.attribute('stroke-width', stroke.width)
     if (dash) out.attribute('stroke-dasharray', typeof dash.array === 'string' ? dash.array : dash.array.join(' '))
-    if (own(dash, 'offset') !== undefined) out.attribute('stroke-dashoffset', own(dash, 'offset')!)
+    if (dash?.offset !== undefined) out.attribute('stroke-dashoffset', dash.offset)
     if (stroke.lineCap !== 'butt') out.attribute('stroke-linecap', stroke.lineCap)
     if (stroke.lineJoin !== 'miter') out.attribute('stroke-linejoin', stroke.lineJoin)
     if (stroke.miterLimit !== 4) out.attribute('stroke-miterlimit', stroke.miterLimit)
-    if (own(stroke, 'pathLength') !== undefined) out.attribute('pathLength', own(stroke, 'pathLength')!)
-    if (own(stroke, 'paintOrder') !== undefined) out.attribute('paint-order', own(stroke, 'paintOrder')!)
-    if (own(stroke, 'nonScaling')) out.attribute('vector-effect', 'non-scaling-stroke')
-    if (own(stroke, 'mixBlendMode')) out.attribute('style', `mix-blend-mode:${own(stroke, 'mixBlendMode')}`)
-    if (own(markers, 'start')) out.attribute('marker-start', `url(#${own(markers, 'start')!.id})`)
+    if (stroke.pathLength !== undefined) out.attribute('pathLength', stroke.pathLength)
+    if (stroke.paintOrder !== undefined) out.attribute('paint-order', stroke.paintOrder)
+    if (stroke.nonScaling) out.attribute('vector-effect', 'non-scaling-stroke')
+    if (stroke.mixBlendMode) out.attribute('style', `mix-blend-mode:${stroke.mixBlendMode}`)
+    if (markers.start) out.attribute('marker-start', `url(#${markers.start.id})`)
     if (midMarker) out.attribute('marker-mid', `url(#${midMarker.id})`)
-    if (own(markers, 'end')) out.attribute('marker-end', `url(#${own(markers, 'end')!.id})`)
+    if (markers.end) out.attribute('marker-end', `url(#${markers.end.id})`)
     if (node.hit.pointerEvents === 'none') out.attribute('pointer-events', 'none')
-    transformAttribute(out, own(node, 'transform'))
+    transformAttribute(out, node.transform)
     out.attribute('data-relationship', node.relationship.kind)
     out.attribute('data-direction', node.relationship.direction)
-    identityAttributes(out, own(node, 'identity'), own(node, 'accessibility'))
+    identityAttributes(out, node.identity, node.accessibility)
     out.raw(' />')
   }
   for (let index = 0; index < node.labels.length; index++) {

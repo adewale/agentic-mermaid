@@ -1,23 +1,19 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
-import { sanitizeDisplayLines } from '../shared/text-controls.ts';
-import type { MarkAttributes, MarkPaint } from '../scene/ir.ts';
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext, Point } from '../types.ts'
-import type { DiagramColors } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { STROKE_WIDTHS, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
-import type { ResolvedRenderStyle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
+import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { breakLineTags } from '../multiline-utils.ts'
-import { topRoundedRectPath } from '../svg-paths.ts'
-import { capturedMarkAttributes } from '../scene/svg-mark-emission.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe } from '../scene/svg-emission.ts'
-import type { Geometry, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
+import { breakLineTags, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
+import { topRoundedRectPath } from '../scene/svg-writer.ts'
+import type { Geometry, MarkAttributes, MarkPaint, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
-import { publicSceneLowering } from '../scene/lowering-invocation.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -46,60 +42,11 @@ const ER_FONT = {
   keySize: 9,
 } as const
 
-/** Public lowerings retain the native writable mark contract. The engine's
- * immutable lowering uses closed recipes to stream its normal SVG output. */
-function erShape<T>(marks: DrawingFactory<T>, fields: Parameters<DrawingFactory<T>['shape']>[0], emission: SvgEmissionRecipe): T {
-  return marks.shape(fields, publicSceneLowering() ? undefined : emission)
+/** One piece of a compound glyph: its geometry and its own paint. */
+interface ShapePiece {
+  geometry: Geometry
+  paint: MarkPaint
 }
-
-function erText<T>(marks: DrawingFactory<T>, fields: Parameters<DrawingFactory<T>['text']>[0], emission: SvgEmissionRecipe): T {
-  return marks.text(fields, publicSceneLowering() ? undefined : emission)
-}
-
-const svgAttr = (name: SvgAttribute['name'], value: SvgAttribute['value']): SvgAttribute => ({ name, value })
-const RECT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  ...(['x', 'y', 'width', 'height', 'rx', 'ry'] as const).map(field => svgAttr(field, v.geometry(field))),
-  svgAttr('fill', v.paint('fill')), svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth')),
-] })
-const PATH_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [svgAttr('d', v.geometry('d')),
-  svgAttr('fill', v.paint('fill')), svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth')),
-] })
-const LINE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  ...(['x1', 'y1', 'x2', 'y2'] as const).map(field => svgAttr(field, v.geometry(field))),
-  svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth')),
-] })
-const EMPTY_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', children: [] })
-const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  svgAttr('text-anchor', v.text('anchor')), svgAttr('font-size', v.text('fontSize')), svgAttr('font-weight', v.text('fontWeight')),
-  { ...svgAttr('letter-spacing', v.text('letterSpacing')), omit: 'zero' }, svgAttr('fill', v.paint('fill')),
-] })
-const PLAIN_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  svgAttr('text-anchor', v.text('anchor')), svgAttr('font-size', v.text('fontSize')), svgAttr('fill', v.paint('fill')),
-] })
-const KEY_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  svgAttr('text-anchor', v.text('anchor')), svgAttr('font-size', v.text('fontSize')), svgAttr('font-weight', v.text('fontWeight')), svgAttr('fill', v.paint('fill')),
-] })
-const TYPE_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  svgAttr('class', v.meta('mono')), svgAttr('font-size', v.text('fontSize')), svgAttr('font-weight', v.text('fontWeight')), svgAttr('fill', v.paint('fill')),
-] })
-const NAME_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  svgAttr('class', v.meta('mono')), svgAttr('text-anchor', v.text('anchor')), svgAttr('font-size', v.text('fontSize')),
-  svgAttr('font-weight', v.text('fontWeight')), svgAttr('fill', v.paint('fill')),
-] })
-
-const CROWS_FOOT_EMISSIONS = Object.freeze(Object.fromEntries((['one', 'zero-one', 'many', 'zero-many'] as const).map(cardinality => {
-  const count = cardinality === 'one' || cardinality === 'zero-one' ? 2 : 4
-  const circle = cardinality === 'zero-one' || cardinality === 'zero-many'
-  const pieces = Array.from({ length: count }, (_, index) => circle && index === count - 1 ? { paint: { fill: 'var(--bg)' } } : {})
-  return [cardinality, snapshotSvgEmissionRecipe({ kind: 'sequence', join: '\n', children: pieces.map((_, index) => ({
-    kind: 'primitive', piece: index, pieces, attributes: [
-      ...(circle && index === count - 1
-        ? [...(['cx', 'cy', 'r'] as const).map(field => svgAttr(field, v.geometry(field))), svgAttr('fill', v.paint('fill'))]
-        : (['x1', 'y1', 'x2', 'y2'] as const).map(field => svgAttr(field, v.geometry(field)))),
-      svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth')),
-    ],
-  })) })]
-})) as Record<Cardinality, SvgEmissionRecipe>)
 
 /**
  * Render a positioned ER diagram as an SVG string.
@@ -142,21 +89,23 @@ export function lowerErDrawing<T>(
       font,
       hasMonoFont: true,
     },
-    { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: true,
-      attributes: Object.entries(rootAttrs).map(([name, value]) => svgAttr(name as SvgAttribute['name'], v.meta(value))), children: [{ kind: 'sharedStyle' }],
-    },
+    svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs) + '\n' +
+    buildStyleBlock(font, true, colors.shadow, colors.embedFontImport),
   ))
-  parts.push(marks.definitions({ id: 'defs' }, {
-    kind: 'resources', resources: colors.shadow ? [{ kind: 'shadow', colors }] : [], emptyLine: 'single',
-  }))
+  const defsParts: string[] = []
+  defsParts.push('<defs>')
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) defsParts.push(shadowDefs)
+  defsParts.push('</defs>')
+  parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
     parts.push(marks.documentContent({ id: 'acc-title', role: 'chrome', nonPaint: 'accessibility' },
-      { kind: 'documentText', element: 'title', domId: titleId, text: diagram.accessibilityTitle }))
+      `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
     parts.push(marks.documentContent({ id: 'acc-desc', role: 'chrome', nonPaint: 'accessibility' },
-      { kind: 'documentText', element: 'desc', domId: descId, text: diagram.accessibilityDescription }))
+      `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
   // The diagram's frontmatter title, in the band layout reserved above.
@@ -216,13 +165,11 @@ function renderErGroup<T>(marks: DrawingFactory<T>, group: PositionedErGroup, st
   const block = group.labelBlock ?? erGroupBlock(resolveLabelContent(group.label, group.labelContent), style)
   return marks.group({
     id: `er-group:${group.id}`, role: 'group',
-    emission: { kind: 'group', attributes: [svgAttr('class', v.meta('er-subgraph')), svgAttr('data-id', v.meta(group.id)),
-      { ...svgAttr('data-label', v.meta(group.label)), display: true }, ...(group.parentId ? [svgAttr('data-parent-id', v.meta(group.parentId))] : [])] }, children: [
-      { node: erShape(marks, { id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx'] as const).map(field => svgAttr(field, v.geometry(field))),
-        svgAttr('fill', v.paint('fill')), svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth'))] }), indent: 2 },
-      { node: erShape(marks, { id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx'] as const).map(field => svgAttr(field, v.geometry(field))), svgAttr('fill', v.paint('fill'))] }), indent: 2 },
-      { node: erText(marks, { id: `er-group:${group.id}:label`, role: 'label', text: block.text, block, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: block.fontSize, anchor: 'start', paint: { fill: text } }, { kind: 'text', layout: 'multiline', attributes: [svgAttr('text-anchor', v.text('anchor')), svgAttr('font-size', v.text('fontSize')),
-        svgAttr('font-weight', v.text('fontWeight')), svgAttr('letter-spacing', v.text('letterSpacing')), svgAttr('fill', v.paint('fill'))] }), indent: 2 },
+    open: `<g class="er-subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeDisplayAttr(group.label)}"${group.parentId ? ` data-parent-id="${escapeAttr(group.parentId)}"` : ''}>`,
+    close: '</g>', children: [
+      { node: marks.shape({ id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }), indent: 2 },
+      { node: marks.shape({ id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }), indent: 2 },
+      { node: marks.text({ id: `er-group:${group.id}:label`, role: 'label', text: block.text, block, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: block.fontSize, anchor: 'start', paint: { fill: text } }), indent: 2 },
     ],
   })
 }
@@ -240,9 +187,9 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const children: Array<{ node: T; indent: number }> = []
 
   // Semantic wrapper with entity metadata
-  const emission = { kind: 'group' as const, attributes: [svgAttr('class', v.meta(`entity${entity.className ? ` ${entity.className}` : ''}`)),
-    svgAttr('data-id', v.meta(id)), { ...svgAttr('data-label', v.meta(label)), display: true },
-    ...(entity.className ? [svgAttr('data-class', v.meta(entity.className))] : [])] }
+  const classAttr = entity.className ? ` ${escapeAttr(entity.className)}` : ''
+  const dataClass = entity.className ? ` data-class="${escapeAttr(entity.className)}"` : ''
+  const open = `<g class="entity${classAttr}" data-id="${escapeAttr(id)}" data-label="${escapeDisplayAttr(label)}"${dataClass}>`
 
   // classDef then inline style are merged by layout for backend parity.
   const local = entity.inlineStyle ?? {}
@@ -258,12 +205,12 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const rectStrokeWidth = Number.isFinite(parsedStrokeWidth) && parsedStrokeWidth > 0 ? parsedStrokeWidth : style.nodeLineWidth
   children.push({
     indent: 2,
-    node: erShape(marks, {
+    node: marks.shape({
       id: `entity-rect:${id}`,
       role: 'entity',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
       paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
-    }, RECT_EMISSION),
+    }),
   })
 
   // Header background
@@ -271,12 +218,12 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const headerPath = topRoundedRectPath(x, y, width, headerHeight, style.cornerRadius ?? 0)
   children.push({
     indent: 2,
-    node: erShape(marks, {
+    node: marks.shape({
       id: `entity-header:${id}`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
-    }, PATH_EMISSION),
+    }),
   })
 
   // Entity name (supports multi-line via <br> tags)
@@ -285,7 +232,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const displayLabel = labelBlock.text
   children.push({
     indent: 2,
-    node: erText(marks, {
+    node: marks.text({
       id: `entity-name:${id}`,
       role: 'label',
       text: displayLabel, block: labelBlock,
@@ -294,7 +241,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
-    }, LABEL_EMISSION),
+    }),
   })
 
   // Divider
@@ -302,12 +249,12 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
   const dividerWidth = Math.min(style.nodeLineWidth, STROKE_WIDTHS.innerBox)
   children.push({
     indent: 2,
-    node: erShape(marks, {
+    node: marks.shape({
       id: `entity-divider:${id}`,
       role: 'chrome',
       geometry: { kind: 'line', x1: x, y1: attrTop, x2: x + width, y2: attrTop },
       paint: { stroke: rectStroke, strokeWidth: String(dividerWidth) },
-    }, LINE_EMISSION),
+    }),
   })
 
   // Attribute rows
@@ -326,7 +273,7 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
     const block = entity.emptyAttributeBlock ?? erEmptyAttributeBlock()
     children.push({
       indent: 2,
-      node: erText(marks, {
+      node: marks.text({
         id: `entity-empty:${id}`,
         role: 'attribute',
         text: block.text,
@@ -336,15 +283,15 @@ function renderEntityBox<T>(marks: DrawingFactory<T>, entity: PositionedErEntity
         fontSize: ER_FONT.attrSize,
         anchor: 'middle',
         paint: { fill: emptyColor },
-      },
-        PLAIN_TEXT_EMISSION),
+      }),
     })
   }
 
   return marks.group({
     id: `entity:${id}`,
     role: 'entity',
-    emission,
+    open,
+    close: '</g>',
     children,
   })
 }
@@ -386,13 +333,13 @@ function renderAttribute<T>(
     const keyText = attr.keys.join(',')
     keyWidth = blocks.keys.width + 8
     const badgeX = boxX + Math.max(6, style.nodePaddingX / 2)
-    rowNodes.push(erShape(marks, {
+    rowNodes.push(marks.shape({
       id: `${attrId}:key-badge`,
       role: 'chrome',
       geometry: { kind: 'rect', x: badgeX, y: y - 7, width: keyWidth, height: 14, rx: 2, ry: 2 },
       paint: { fill: 'var(--_key-badge)' },
-    }, { kind: 'primitive', attributes: [...(['x', 'y', 'width', 'height', 'rx', 'ry'] as const).map(field => svgAttr(field, v.geometry(field))), svgAttr('fill', v.paint('fill'))] }))
-    rowNodes.push(erText(marks, {
+    }))
+    rowNodes.push(marks.text({
       id: `${attrId}:key-text`,
       role: 'attribute',
       text: keyText, block: blocks.keys,
@@ -401,13 +348,12 @@ function renderAttribute<T>(
       fontSize: ER_FONT.keySize,
       anchor: 'middle',
       paint: { fill: keyTextColor },
-    },
-      KEY_TEXT_EMISSION))
+    }))
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
   const typeX = boxX + Math.max(8, style.nodePaddingX / 2) + (keyWidth > 0 ? keyWidth + 6 : 0)
-  rowNodes.push(erText(marks, {
+  rowNodes.push(marks.text({
     id: `${attrId}:type`,
     role: 'attribute',
     text: attr.type, block: blocks.type,
@@ -416,16 +362,14 @@ function renderAttribute<T>(
     fontSize: ER_FONT.attrSize,
     anchor: 'start',
     paint: { fill: attrTypeColor },
-
     attributes: { className: 'mono' },
-  },
-    TYPE_TEXT_EMISSION))
+  }))
 
   // Name (right-aligned, monospace with syntax highlighting), left of the
   // entity's comment column when any attribute carries a comment.
   const rightEdge = boxX + boxWidth - Math.max(8, style.nodePaddingX / 2)
   const nameX = rightEdge - commentColumn
-  rowNodes.push(erText(marks, {
+  rowNodes.push(marks.text({
     id: attrId,
     role: 'attribute',
     text: attr.name, block: blocks.name,
@@ -434,15 +378,13 @@ function renderAttribute<T>(
     fontSize: ER_FONT.attrSize,
     anchor: 'end',
     paint: { fill: attrTextColor },
-
     attributes: { className: 'mono' },
-  },
-    NAME_TEXT_EMISSION))
+  }))
 
   // Comment (right-aligned in its column, as Mermaid draws it after the name)
   if (attr.comment) {
     const comment = erCommentText(attr.comment, attr.commentContent)
-    rowNodes.push(erText(marks, {
+    rowNodes.push(marks.text({
       id: `${attrId}:comment`,
       role: 'attribute',
       text: comment, block: blocks.comment,
@@ -451,8 +393,7 @@ function renderAttribute<T>(
       fontSize: ER_FONT.attrSize,
       anchor: 'end',
       paint: { fill: attrTypeColor },
-    },
-      PLAIN_TEXT_EMISSION))
+    }))
   }
 
   // Wrap in a group if there's a comment (for tooltip support)
@@ -463,7 +404,8 @@ function renderAttribute<T>(
     return [marks.group({
       id: `${attrId}:row`,
       role: 'attribute',
-      emission: { kind: 'group', attributes: [], prefix: [{ kind: 'documentText', element: 'title', text: tooltipText }] },
+      open: `<g><title>${escapeXml(tooltipText)}</title>`,
+      close: '</g>',
       children: rowNodes.map(node => ({ node, indent: 0 })),
     })]
   }
@@ -508,21 +450,20 @@ function renderRelationshipLine<T>(
       paint: {},
       channels,
       ...connectorSemantics,
-    }, EMPTY_EMISSION)
+    })
   }
 
-  const dashed = !rel.identifying
-  const label = rel.label ? [{ ...svgAttr('data-label', v.meta(rel.label)), display: true }] : []
-
-  // Retain the independently captured lexical label before cardinality reads.
-  const dataAttrs: SvgAttribute[] = [svgAttr('class', v.meta('er-relationship')), svgAttr('data-from', v.identity('from')), svgAttr('data-to', v.identity('to')),
-    svgAttr('data-cardinality1', v.meta(rel.cardinality1)), svgAttr('data-cardinality2', v.meta(rel.cardinality2)),
-    svgAttr('data-identifying', v.meta(rel.identifying)), ...label,
-  ]
-  const attributes = capturedMarkAttributes('er-relationship', dataAttrs)
-  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => ({ kind: 'primitive', attributes: [...dataAttrs,
-    svgAttr(field, v.geometry(field)), svgAttr('fill', v.paint('fill')), svgAttr('stroke', v.paint('stroke')), svgAttr('stroke-width', v.paint('strokeWidth')),
-    ...(dashed ? [svgAttr('stroke-dasharray', v.meta('6 4'))] : [])] })
+  // Inspection hooks for the relationship; identity (data-from/data-to)
+  // comes from the connector's typed endpoints.
+  const attributes: MarkAttributes = {
+    className: 'er-relationship',
+    data: {
+      cardinality1: rel.cardinality1,
+      cardinality2: rel.cardinality2,
+      identifying: String(rel.identifying),
+      ...(rel.label ? { label: sanitizeDisplayLines(rel.label) } : {}),
+    },
+  }
 
   const strokeColor = roleStyle?.strokeColor ?? style.edgeStrokeColor ?? 'var(--_line)'
   const lineWidth = roleStyle?.lineWidth ?? style.lineWidth
@@ -540,26 +481,26 @@ function renderRelationshipLine<T>(
     return marks.connector({
       id: sceneId,
       role: 'relationship',
-      attributes,
       geometry: projection.geometry,
       lineStyle,
       paint,
       channels,
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: projection.contours },
-    }, emission('d'))
+      attributes,
+    })
   }
 
   return marks.connector({
     id: sceneId,
     role: 'relationship',
-    attributes,
     geometry: { kind: 'polyline', points: rel.points },
     lineStyle,
     paint,
     channels,
     ...connectorSemantics,
-  }, emission('points'))
+    attributes,
+  })
 }
 
 /**
@@ -719,16 +660,16 @@ function renderRelationshipLabel<T>(
   const bgW = metrics.width + 8
   const bgH = metrics.height + 6
 
-  const pill = erShape(marks, {
+  const pill = marks.shape({
     id: `${sceneId}:bg`,
     role: 'chrome',
     geometry: { kind: 'rect', x: mid.x - bgW / 2, y: mid.y - bgH / 2, width: bgW, height: bgH, rx: 2, ry: 2 },
     paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '0.5' },
     channels,
-  }, RECT_EMISSION)
+  })
 
   const labelColor = roleStyle?.textColor ?? style.edgeTextColor ?? 'var(--_text-muted)'
-  const label = erText(marks, {
+  const label = marks.text({
     id: sceneId,
     role: 'label',
     text: displayLabel, block: metrics,
@@ -738,7 +679,7 @@ function renderRelationshipLabel<T>(
     anchor: 'middle',
     paint: { fill: labelColor },
     channels,
-  }, LABEL_EMISSION)
+  })
 
   return [pill, label]
 }
@@ -757,12 +698,12 @@ function renderCardinality<T>(marks: DrawingFactory<T>, rel: PositionedErRelatio
   if (rel.points.length < 2) {
     // Old renderer pushed '' for degenerate relationships — keep the empty
     // slot (a compound shape with no children writes '').
-    return [erShape(marks, {
+    return [marks.shape({
       id: sceneId,
       role: 'cardinality',
       geometry: { kind: 'compound', children: [] },
       paint: {},
-    }, EMPTY_EMISSION)]
+    })]
   }
 
   // Entity1 side (first point, direction toward second point)
@@ -795,14 +736,14 @@ function crowsFootMark<T>(
     strokeWidth: String(style.lineWidth + 0.25),
   }
   const pieces = renderCrowsFoot(point, toward, cardinality, paint)
-  return erShape(marks, {
+  return marks.shape({
     id: sceneId,
     role: 'cardinality',
     geometry: { kind: 'compound', children: pieces.map(p => p.geometry) },
     paint,
     ...(pieces.some(p => p.paint !== paint) ? { childPaints: pieces.map(p => p.paint) } : {}),
     channels: { category: cardinality },
-  }, pieces.length ? CROWS_FOOT_EMISSIONS[cardinality] : EMPTY_EMISSION)
+  })
 }
 
 /**
@@ -952,6 +893,16 @@ function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: numb
   return points[points.length - 1]!
 }
 
-interface ShapePiece { geometry: Geometry; paint: MarkPaint }
+// ============================================================================
+// Utilities
+// ============================================================================
+
+// Use shared escapeXml from multiline-utils
+const escapeXml = escapeXmlUtil
+
+
+/**
+ * Escape a string for use as an XML/HTML attribute value.
+ */
 
 export const lowerErScene = sceneLowering<PositionedErDiagram>(lowerErDrawing)

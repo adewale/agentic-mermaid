@@ -1,13 +1,14 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import type { LinearGradientDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe } from '../scene/svg-emission.ts'
+import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
+import type { LinearGradientDescriptor } from '../scene/ir.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { ensureCompositedBgContrast } from '../shared/categorical-palette.ts'
 import { relativeLuminance } from '../shared/color-math.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { buildShadowDefs, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { SankeyVisualConfig } from './config.ts'
 import { SANKEY_STYLE_DEFAULTS } from './layout.ts'
@@ -38,51 +39,6 @@ const SANKEY_LINK_OPACITY = 0.5
 
 /** Halo width for node labels. */
 const SANKEY_LABEL_HALO_WIDTH = 3
-
-const LINK_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  { name: 'class', value: v.meta('sankey-link') },
-  { name: 'data-source', value: v.identity('from') },
-  { name: 'data-target', value: v.identity('to') },
-  { name: 'data-value', value: v.channel('value') },
-  { name: 'd', value: v.geometry('d') },
-  { name: 'fill', value: v.paint('fill') },
-  { name: 'stroke', value: v.paint('stroke') },
-  { name: 'stroke-opacity', value: v.connector('opacity') },
-  { name: 'stroke-width', value: v.paint('strokeWidth') },
-  { name: 'style', value: { source: 'style', declarations: [{ property: 'mix-blend-mode', value: v.connector('mixBlendMode') }] } },
-] })
-
-const NODE_ATTRIBUTES: readonly SvgAttribute[] = [
-  { name: 'class', value: v.meta('sankey-node') },
-  { name: 'data-label', value: v.channel('category'), display: true },
-  { name: 'data-value', value: v.channel('value') },
-  { name: 'x', value: v.geometry('x') }, { name: 'y', value: v.geometry('y') },
-  { name: 'width', value: v.geometry('width') }, { name: 'height', value: v.geometry('height') },
-  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') },
-  { name: 'stroke-width', value: v.paint('strokeWidth') },
-]
-
-const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  { name: 'class', value: v.meta('sankey-node-label') },
-  { name: 'text-anchor', value: v.text('anchor') },
-  { name: 'dominant-baseline', value: v.meta('middle') },
-  { name: 'font-size', value: v.text('fontSize') },
-  { name: 'font-weight', value: v.text('fontWeight') },
-  { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') },
-  { name: 'stroke-width', value: v.paint('strokeWidth') }, { name: 'paint-order', value: v.paint('paintOrder') },
-] })
-
-const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  { name: 'class', value: v.meta('sankey-title') },
-  { name: 'text-anchor', value: v.text('anchor') },
-  { name: 'dominant-baseline', value: v.meta('middle') },
-  { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
-  { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-  { name: 'fill', value: v.paint('fill') },
-] })
-
-const GRADIENT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'resources', resources: ['gradients'] })
 
 /**
  * Render a positioned sankey diagram as an SVG string.
@@ -134,6 +90,15 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
 
   // Document shell: sankey <svg> open tag + shared style block + optional
   // shadow defs, in the exact pushed order (derivable from prelude fields).
+  const headParts: string[] = []
+  headParts.push(
+    svgOpenTag(chart.width, chart.height, colors, transparent, {
+      attrs: { role: 'img', 'aria-roledescription': 'sankey diagram' },
+    }),
+  )
+  headParts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) headParts.push(`<defs>${shadowDefs}</defs>`)
   parts.push(
     marks.documentOpen(
       {
@@ -145,14 +110,7 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
         font,
         hasMonoFont: false,
       },
-      {
-        kind: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false,
-        attributes: [
-          { name: 'role', value: v.meta('img') },
-          { name: 'aria-roledescription', value: v.meta('sankey diagram') },
-        ],
-        children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : [])],
-      },
+      headParts.join('\n'),
     ),
   )
 
@@ -180,7 +138,7 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
       parts.push(
         marks.definitions(
           { id: 'sankey-gradient-definitions', gradientResources },
-          GRADIENT_EMISSION,
+          `<defs>\n${serializeLinearGradientResources(gradientResources)}\n</defs>`,
         ),
       )
     }
@@ -214,24 +172,14 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
         relationship: { kind: 'flow', direction: 'forward' },
         channels: { category: link.source, value: link.value },
         attributes: { className: 'sankey-link', data: { source: link.source, target: link.target, value: String(link.value) } },
-      },
-        LINK_EMISSION,
-      ),
+      }),
     )
   }
 
   // Node rectangles.
-  const nodeEmissions = new Map<number, SvgEmissionRecipe>()
   for (const node of chart.nodes) {
     const nodePaint = nodeColor.get(node.label)!
     const fill = nodePaint.color
-    let emission = nodeEmissions.get(node.layer)
-    if (!emission) {
-      emission = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-        ...NODE_ATTRIBUTES.slice(0, 3), { name: 'data-layer', value: v.meta(node.layer) }, ...NODE_ATTRIBUTES.slice(3),
-      ] })
-      nodeEmissions.set(node.layer, emission)
-    }
     parts.push(
       marks.shape({
         id: node.id,
@@ -244,12 +192,14 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
           width: round2(node.x1 - node.x0),
           height: round2(node.y1 - node.y0),
         },
-        paint: { fill, stroke: nodePaint.stroke, strokeWidth: String(nodePaint.strokeWidth) },
+        paint: {
+          fill,
+          stroke: nodePaint.stroke,
+          strokeWidth: String(nodePaint.strokeWidth),
+        },
         channels: { category: node.label, value: node.value },
         attributes: { className: 'sankey-node', data: { label: sanitizeDisplayLines(node.label), value: String(node.value), layer: String(node.layer) } },
-      },
-        emission,
-      ),
+      }),
     )
   }
 
@@ -261,30 +211,27 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
   for (const node of chart.nodes) {
     const text = node.labelLines.join('\n')
     parts.push(
-      marks.text(
-        {
-          id: `${node.id}:label`,
-          role: 'label',
-          text,
-          x: node.labelX,
-          y: node.labelY,
-          fontSize: style.nodeLabelFontSize,
-          fontWeight: style.nodeLabelFontWeight,
-          letterSpacing: style.nodeLetterSpacing,
-          block: node.labelBlock,
-          anchor: node.labelAnchor,
-          dominantBaseline: 'middle',
-          paint: {
-            fill: labelFill,
-            stroke: 'var(--bg)',
-            strokeWidth: String(SANKEY_LABEL_HALO_WIDTH),
-            paintOrder: 'stroke fill',
-          },
-          channels: { category: node.label, value: node.value },
-          attributes: { className: 'sankey-node-label' },
+      marks.text({
+        id: `${node.id}:label`,
+        role: 'label',
+        text,
+        x: node.labelX,
+        y: node.labelY,
+        fontSize: style.nodeLabelFontSize,
+        fontWeight: style.nodeLabelFontWeight,
+        letterSpacing: style.nodeLetterSpacing,
+        block: node.labelBlock,
+        anchor: node.labelAnchor,
+        dominantBaseline: 'middle',
+        paint: {
+          fill: labelFill,
+          stroke: 'var(--bg)',
+          strokeWidth: String(SANKEY_LABEL_HALO_WIDTH),
+          paintOrder: 'stroke fill',
         },
-        LABEL_EMISSION,
-      ),
+        channels: { category: node.label, value: node.value },
+        attributes: { className: 'sankey-node-label' },
+      }),
     )
   }
 
@@ -292,25 +239,22 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
   if (chart.title) {
     const title = chart.title.text
     parts.push(
-      marks.text(
-        {
-          id: 'title',
-          identity: { id: chart.title.id },
-          role: 'title',
-          text: title,
-          x: chart.title.x,
-          y: chart.title.y,
-          fontSize: style.groupHeaderFontSize,
-          fontWeight: style.groupHeaderFontWeight,
-          letterSpacing: style.groupLetterSpacing,
-          block: chart.title.block,
-          anchor: 'middle',
-          dominantBaseline: 'middle',
-          paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
-          attributes: { className: 'sankey-title' },
-        },
-        TITLE_EMISSION,
-      ),
+      marks.text({
+        id: 'title',
+        identity: { id: chart.title.id },
+        role: 'title',
+        text: title,
+        x: chart.title.x,
+        y: chart.title.y,
+        fontSize: style.groupHeaderFontSize,
+        fontWeight: style.groupHeaderFontWeight,
+        letterSpacing: style.groupLetterSpacing,
+        block: chart.title.block,
+        anchor: 'middle',
+        dominantBaseline: 'middle',
+        paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
+        attributes: { className: 'sankey-title' },
+      }),
     )
   }
 

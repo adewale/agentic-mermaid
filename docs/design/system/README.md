@@ -29,12 +29,11 @@ the same resolved appearance and report losses rather than silently ignoring
 graphical style. Typed parse, serialize, mutate, and verify hooks remain on the
 same family descriptor identity.
 
-Built-in Scene admission freezes its owned data in place under the same bounded
-walk; diagnostic paths are assembled only on failure. External Scene admission
-still snapshots hostile descriptors before validation. Routing uses one collision
-scanner for both early-exit clearance questions and complete ordered certificate
-evidence; only the former may stop at the first blocker. These ownership rules
-avoid copies and scans without moving a security boundary or changing geometry.
+Built-in native drawing writes SVG directly from typed mark fields without
+retaining a Scene group tree. Public Scene adapters remain mutable; backend
+admission snapshots their own data before validation. The superseded private
+recipe interpreter from PR #433 has been removed after compatibility, runtime
+and payload regressions. See the benchmark evidence for source-bound results.
 
 ## This figure is dogfooded
 

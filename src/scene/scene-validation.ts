@@ -5,7 +5,6 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
-import { sceneFidelityProblems } from './fidelity.ts'
 import { isRetainedPixelText } from '../shared/prepared-text.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { applyOutputSecurityPolicy } from '../output-security.ts'
@@ -42,13 +41,21 @@ import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinear
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
-import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS, SvgByteLimitError } from './svg-writer.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeEmission, sceneNodeSerializationBytes } from './serialization.ts'
-import { hasConstructionOperands } from './construction-operands.ts'
-import { SCENE_VALIDATION_LIMITS } from './scene-limits.ts'
-export { SCENE_VALIDATION_LIMITS } from './scene-limits.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
+import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
+export const SCENE_VALIDATION_LIMITS = Object.freeze({
+  maxExtent: 1_000_000,
+  maxNodes: 100_000,
+  maxDepth: 64,
+  maxTextLength: 1_000_000,
+  maxTextBytes: 2_000_000,
+  maxPoints: 50_000,
+  maxSerializationBytesPerNode: 5_000_000,
+  maxAggregateSerializationBytes: 16_000_000,
+  maxFinalSvgBytes: 8_000_000,
+} as const)
 
 export type SceneValidationDiagnosticCode =
   | 'SCENE_DOCUMENT'
@@ -125,12 +132,8 @@ export function assertFinalSvgByteBudget(value: unknown, stage = 'final SVG'): a
   // short is within the budget without counting.
   if (value.length * 3 <= MAX_FINAL_SVG_BYTES) return
   if (!inspectSvgOnce('final-svg-budget', value, () => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)) {
-    throw finalSvgByteLimitError(stage)
+    throw new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
   }
-}
-
-export function finalSvgByteLimitError(stage: string): RangeError {
-  return new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -461,8 +464,7 @@ function validatePoints(
     add(diagnostics, 'SCENE_FINITE', path, 'must be an array of points')
     return
   }
-  // Minimum cardinality belongs to this primitive, even when another
-  // primitive already charged and validated the same immutable point array.
+  // Shared arrays still have to satisfy each primitive's own minimum.
   if (value.length < minimum) add(diagnostics, 'SCENE_BOUNDS', path, `must contain at least ${minimum} points`)
   if (budget?.pointCollections.has(value)) return
   budget?.pointCollections.add(value)
@@ -780,37 +782,9 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (record(value.identity) && typeof value.identity.id === 'string' && typeof value.identity.role === 'string') state.subjects.add(JSON.stringify([value.identity.id, value.identity.role]))
   if (record(value.owner) && typeof value.owner.id === 'string' && typeof value.owner.role === 'string') state.ownerReferences.push({ key: JSON.stringify([value.owner.id, value.owner.role]), path: `${path}.owner` })
   validateChannels(value.channels, `${path}.channels`, state.diagnostics)
-  let serialized: string | undefined
-  if (!state.native) {
-    try {
-      const node = value as unknown as SceneNode
-      const typed = sceneNodeEmission(node)
-      if (typed && !state.external && !state.crossChecks && value.nonPaint === undefined) {
-        sceneNodeSerializationBytes(node, MAX_SERIALIZATION_BYTES_PER_NODE)
-      } else serialized = sceneNodeSerialization(node)
-      if (serialized !== undefined && boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
-        add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
-      }
-    } catch (error) {
-      // Native marks previously reached the same cap after producing their string.
-      // Preserve that diagnostic when the shared writer now stops construction.
-      const oversizedNative = error instanceof SvgByteLimitError && error.maxBytes === MAX_SERIALIZATION_BYTES_PER_NODE
-        && (hasConstructionOperands(value) || !sceneNodeEmission(value))
-      add(state.diagnostics, 'SCENE_DOCUMENT', path, oversizedNative ? 'has an oversized SVG serialization' : error instanceof Error ? error.message : String(error))
-    }
-    if (state.external && serialized !== undefined) {
-      consumeStringBudget(
-        state.budget,
-        'serializationBytes',
-        'serializationExceeded',
-        serialized,
-        path,
-        state.diagnostics,
-        MAX_AGGREGATE_SERIALIZATION_BYTES,
-        'Scene serializations',
-      )
-    }
-  } else if (kind === 'document') serialized = validateNodeSerialization(value as unknown as SceneNode, path, state)
+  const serialized = !state.native || kind === 'document'
+    ? validateNodeSerialization(value as unknown as SceneNode, path, state)
+    : undefined
   if (value.transform !== undefined) {
     if (!record(value.transform) || !['rotate', 'matrix'].includes(String(value.transform.kind))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'must be a rotate or matrix transform')
@@ -1007,21 +981,6 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         }
         if (value.element === 'definitions') {
           try {
-            const typed = sceneNodeEmission(value)
-            if (serialized === undefined && typed) {
-              // Ordinary typed admission checks the closed projection itself.
-              // These are the same common resource serializers used below;
-              // no family can supply alternate resource markup or references.
-              const expected = [
-                ...(Array.isArray(value.markerResources) && value.markerResources.length > 0 ? ['markers'] : []),
-                ...(value.gradientResources.length > 0 ? ['gradients'] : []),
-              ]
-              if (typed.kind !== 'resources' || typed.layout === 'inline' || (!expected.length && typed.emptyLine === 'single') || (typed.indent ?? 2) !== 2
-                || (typed.join ?? '\n') !== '\n' || typed.resources.length !== expected.length
-                || typed.resources.some((resource, index) => resource !== expected[index])) {
-                add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from typed resources')
-              }
-            } else {
             const resources = [
               ...(Array.isArray(value.markerResources) && value.markerResources.length > 0
                 ? [serializeMarkerResources(value.markerResources as MarkerDescriptor[])]
@@ -1032,7 +991,6 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
             ].join('\n')
             const expected = canonicalizeSceneNodeSerialization(`<defs>\n${resources}\n</defs>`)
             if (serialized !== expected) add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from typed resources')
-            }
           } catch {
             // Resource-specific diagnostics above are more precise.
           }
@@ -1834,15 +1792,12 @@ function validateScene(value: unknown, options: SceneValidationOptions, crossChe
     if (diagnostics.length === 0 && external) {
       validateCanonicalExternalScene(value as unknown as SceneDoc, diagnostics)
     }
-    // Explicit consistency checks also verify lexical profiles and compatibility
-    // adapters against their typed fields. Final output security remains separate.
+    // The security check inspects the serialized Scene; for an internal Scene
+    // the final output-security gate already inspects the document a render
+    // actually emits, so it runs with the cross-checks. Mark serializations
+    // need no fidelity comparison: the writer draws them from their fields.
     if (diagnostics.length === 0 && crossChecks) {
       const scene = value as unknown as SceneDoc
-      try {
-        for (const problem of sceneFidelityProblems(scene)) add(diagnostics, 'SCENE_FIDELITY', 'scene', problem)
-      } catch (error) {
-        add(diagnostics, 'SCENE_FIDELITY', 'scene', error instanceof Error ? error.message : String(error))
-      }
       try {
         const svg = external ? externalSvg : scene.parts.map(sceneNodeSerialization).join('\n')
         if (svg !== undefined) applyOutputSecurityPolicy(svg, external ? 'strict' : 'default')

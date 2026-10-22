@@ -6,9 +6,6 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Performance
 
-- Dense-route clearance probes stop at the first blocker while certificates
-  retain complete ordered evidence. Built-in Scene admission constructs diagnostic
-  paths only on failure. Both changes preserve output bytes in the identity corpus.
 - Published Node bundles compact syntax and whitespace without renaming callable
   exports. The package keeps its existing exports, resources and lazy ELK boundary.
 - Benchmarks retain verified packed inputs, dependency locks, complete peer

@@ -1,10 +1,14 @@
 # Performance evidence and reproduction
 
-The current typed SVG pipeline campaign is PR #433. Its requested fixed source
-baseline is **`a9d1551da27ddab542a1ae96329464ad65725448`**, as recorded in the
-[campaign contract](../../docs/project/0.5-svg-pipeline.md). The performance
-objective remains unmet. Source correctness repairs do not establish a new
-packed performance, startup, memory or browser-payload result.
+PR #433's private recipe interpreter has been removed in favor of current
+main's native typed drawing path; see the [disposition](../../docs/project/0.5-svg-pipeline.md).
+The completed pre-removal campaign at `7035cdf0ea68725fc9958f455ebfb5ae3b0ce6c3`
+failed: Node corpus time was 1.305× current main and browser time 1.223× current
+main; fixed-a9 cache-off time was 1.116×. These measurements belong to that
+revision. The requested historical baseline remains
+**`a9d1551da27ddab542a1ae96329464ad65725448`**. Removing the interpreter restores
+public compatibility and removes its code cost; exact-candidate runtime results
+must be measured separately. The original performance objective remains unproven.
 
 The routing and allocation observations retained below belong to the older
 `67d47989` versus `30f0af5d` campaign. They keep their original SHA bindings and

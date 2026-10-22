@@ -114,7 +114,7 @@ describe('class endpoint marker geometry (#178)', () => {
     expect(cardinal?.replace(/<[^>]*>/g, '')).toBe('0')
     let invalidReads = 0
     const missing = { ...publicRelationship(), get fromCardinality() { return ++invalidReads === 1 ? 'present' : undefined } }
-    expect(() => publicClassScene([absent, missing])).toThrow('SVG metadata values must be scalars')
+    expect(() => publicClassScene([absent, missing])).toThrow('data-from-cardinality must be a string')
     expect(invalidReads).toBe(2)
     const healthy = DefaultBackend.render(publicClassScene([publicRelationship()]), { seed: 0 })
     expect(healthy).toContain('data-marker-at="none" data-from-cardinality="界" data-to-cardinality="1"')
@@ -299,7 +299,7 @@ E -- F`)
     }
     expect(() => DefaultBackend.render(lowerPositionedRelationships([
       ordinary, { ...ordinary, fromCardinality: invalid as unknown as string },
-    ]), { seed: 0 })).toThrow('SVG emission metadata must be plain data')
+    ]), { seed: 0 })).toThrow('data-from-cardinality must be a string')
     expect(toJSONCalls).toBe(0)
     expect(Object.isFrozen(invalid)).toBe(false)
     const svg = DefaultBackend.render(lowerPositionedRelationships([ordinary]), { seed: 0 })

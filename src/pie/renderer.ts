@@ -2,8 +2,9 @@ import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../sce
 import type { PositionedPieChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { resolvedColorValue } from '../theme.ts'
+import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue } from '../theme.ts'
 import { isHexColor, legibleInk, mixHex } from '../shared/color-math.ts'
+import { escapeXml } from '../multiline-utils.ts'
 import {
   formatPieValue,
   formatPiePercent,
@@ -20,7 +21,6 @@ import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneNode } from '../scene/ir.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission } from '../scene/svg-emission.ts'
 
 // ============================================================================
 // Pie chart SVG renderer
@@ -56,46 +56,6 @@ const PIE = {
 // The deterministic SVG font pass must not re-interpret an already-literal
 // Pie text node as formatting. Plain entity display needs no extra marker.
 const needsLiteralFontMetrics = (text: string): boolean => /[<>*~]/.test(text)
-
-const OUTER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  { name: 'class', value: v.meta('pie-outer-circle') },
-  ...(['cx', 'cy', 'r'] as const).map(name => ({ name, value: v.geometry(name) })),
-  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
-] })
-const LEGEND_SWATCH_EMISSIONS = [false, true].map(dimmed => snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
-  { name: 'class', value: v.meta(`pie-legend-swatch${dimmed ? ' pie-dim' : ''}`) },
-  ...(['x', 'y', 'width', 'height', 'rx', 'ry'] as const).map(name => ({ name, value: v.geometry(name) })),
-  { name: 'fill', value: v.paint('fill'), escape: 'xml' },
-  { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') }, { name: 'opacity', value: v.paint('opacity') },
-] }))
-function textAttributes(className: string): SvgAttribute[] {
-  return [
-    { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },
-    { name: 'dominant-baseline', value: v.meta('middle') },
-    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
-  ]
-}
-const SLICE_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('pie-slice-label'), { name: 'fill', value: v.paint('fill'), escape: 'xml' },
-] })
-const LEGEND_TEXT_EMISSIONS = [false, true].map(literal => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('pie-legend-text'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-  ...(literal ? [{ name: 'data-literal-text' as const, value: v.meta(true) }] : []),
-  { name: 'fill', value: v.paint('fill') },
-] }))
-const TITLE_EMISSIONS = [false, true].map(literal => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  ...textAttributes('pie-title'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
-  ...(literal ? [{ name: 'data-literal-text' as const, value: v.meta(true) }] : []),
-  { name: 'fill', value: v.paint('fill') },
-] }))
-const HOVER_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('pie-slice-group') }] }) as SvgGroupEmission
-const HOVER_EMISSIONS = [false, true].map(highlight => snapshotSvgEmissionRecipe({ kind: 'primitive', close: '/>', attributes: [
-  { name: 'd', value: v.geometry('d') }, { name: 'fill', value: v.paint('fill') },
-  ...(highlight ? [
-    { name: 'class' as const, value: v.meta('pie-slice-hover-target') },
-    { name: 'stroke' as const, value: v.paint('stroke') }, { name: 'stroke-width' as const, value: v.paint('strokeWidth') },
-  ] : []),
-] }))
 
 /**
  * Render a positioned pie chart as an SVG string.
@@ -146,13 +106,25 @@ export function lowerPieDrawing<T>(
   // shadow defs + pie <style>, in the exact pushed order. Every piece is
   // derivable from the prelude fields (shadow defs from colors, pie CSS via
   // extraCss), so styled backends can re-derive the shell without parsing.
+  const headParts: string[] = []
+  headParts.push(openPieSvgTag(chart, colors, transparent))
+  headParts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
+  const shadowDefs = buildShadowDefs(colors)
+  if (shadowDefs) headParts.push(`<defs>${shadowDefs}</defs>`)
   const pieCss = pieStyles(style, visual, interactive, baseSliceRole)
+  headParts.push(pieCss)
   parts.push(marks.documentOpen(
-    { id: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false, extraCss: pieCss },
-    { kind: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false,
-      attributes: [{ name: 'role', value: v.meta('img') }, { name: 'aria-roledescription', value: v.meta('pie chart') }],
-      children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : []), { kind: 'stylesheet', css: pieCss }],
+    {
+      id: 'prelude',
+      width: chart.width,
+      height: chart.height,
+      colors,
+      transparent,
+      font,
+      hasMonoFont: false,
+      extraCss: pieCss,
     },
+    headParts.join('\n'),
   ))
 
   // Outer circle — only when the pieOuterStroke* theme variables ask for one
@@ -172,7 +144,6 @@ export function lowerPieDrawing<T>(
         },
         attributes: { className: 'pie-outer-circle' },
       },
-      OUTER_EMISSION,
     ))
   }
 
@@ -191,6 +162,7 @@ export function lowerPieDrawing<T>(
   )
   for (let index = 0; index < chart.slices.length; index++) {
     const slice = chart.slices[index]!
+    const pct = formatPiePercent(slice.fraction)
     const channels = { category: slice.label, value: slice.fraction }
     const sliceRole = resolveRoleStyle(resolved.styleFace, 'pie-slice', channels, { includeFallback: false })
     // An indexed Mermaid `pieN` theme variable is authored concrete paint;
@@ -218,7 +190,6 @@ export function lowerPieDrawing<T>(
       : dimmed
         ? rnd((visual.opacity ?? 1) * PIE.dimOpacity)
         : visual.opacity
-    const pct = formatPiePercent(slice.fraction)
     const sliceId = occurrenceId('slice', slice.label)
     sliceIds[index] = sliceId
     parts.push(marks.shape(
@@ -247,19 +218,6 @@ export function lowerPieDrawing<T>(
           },
         },
       },
-      { kind: 'primitive', attributes: [
-        { name: 'class', value: v.meta(sliceClass) }, { name: 'd', value: v.geometry('d') },
-        { name: 'fill', value: v.paint('fill'), escape: 'xml' },
-        { name: 'stroke', value: v.paint('stroke'), escape: 'xml' },
-        { name: 'stroke-width', value: v.paint('strokeWidth') },
-        { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
-        { name: 'opacity', value: v.paint('opacity') },
-        { name: 'data-label', value: v.channel('category'), escape: 'xml' },
-        { name: 'data-value', value: v.meta(slice.value) },
-        { name: 'data-percent', value: v.channel('value'), format: 'percent1' },
-        ...(cue !== 'none' ? [{ name: 'data-brand-cue' as const, value: v.meta(cue) }] : []),
-        ...(highlighted ? [{ name: 'data-highlighted' as const, value: v.channel('emphasis') }] : []),
-      ] },
     ))
   }
 
@@ -296,7 +254,6 @@ export function lowerPieDrawing<T>(
         channels: { category: slice.label, value: slice.fraction },
         attributes: { className: 'pie-slice-label' },
       },
-      SLICE_TEXT_EMISSION,
     ))
   }
 
@@ -321,7 +278,6 @@ export function lowerPieDrawing<T>(
         channels: { category: item.label, value: item.fraction },
         attributes: { className: `pie-legend-swatch${legDimmed ? ' pie-dim' : ''}` },
       },
-      LEGEND_SWATCH_EMISSIONS[legDimmed ? 1 : 0]!,
     ))
     // Display lines are composed (and measured) by the layout; multiline
     // labels carry the value/percent suffix on their last line.
@@ -334,8 +290,8 @@ export function lowerPieDrawing<T>(
         x: item.textX,
         y: item.textY,
         fontSize: visual.legendTextSize ?? style.nodeLabelFontSize,
-        fontWeight: legWeight, letterSpacing: style.nodeLetterSpacing,
-        display: item.literalText === true ? 'literal' : 'formatted',
+        fontWeight: legWeight,
+        letterSpacing: style.nodeLetterSpacing,
         block: item.block,
         ...(item.literalText === true ? { display: 'literal' as const } : {}),
         anchor: 'start',
@@ -348,7 +304,6 @@ export function lowerPieDrawing<T>(
         channels: { category: item.label, value: item.fraction },
         attributes: { className: 'pie-legend-text', ...literalTextData(item.literalText === true, text) },
       },
-      LEGEND_TEXT_EMISSIONS[item.literalText === true && needsLiteralFontMetrics(text) ? 1 : 0]!,
     ))
   }
 
@@ -363,8 +318,8 @@ export function lowerPieDrawing<T>(
         x: chart.title.x,
         y: chart.title.y,
         fontSize: visual.titleTextSize ?? style.groupHeaderFontSize,
-        fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing,
-        display: chart.title.literalText === true ? 'literal' : 'formatted',
+        fontWeight: style.groupHeaderFontWeight,
+        letterSpacing: style.groupLetterSpacing,
         block: chart.title.block,
         ...(chart.title.literalText === true ? { display: 'literal' as const } : {}),
         anchor: 'middle',
@@ -372,7 +327,6 @@ export function lowerPieDrawing<T>(
         paint: { fill: visual.titleTextColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
         attributes: { className: 'pie-title', ...literalTextData(chart.title.literalText === true, title) },
       },
-      TITLE_EMISSIONS[chart.title.literalText === true && needsLiteralFontMetrics(title) ? 1 : 0]!,
     ))
   }
 
@@ -386,15 +340,15 @@ export function lowerPieDrawing<T>(
       const id = occurrenceId('tooltip:slice', slice.label)
       const owner = { id: sliceIds[index]!, role: 'pie-slice' as const }
       parts.push(marks.group({ id, role: 'chrome', owner,
-        emission: HOVER_GROUP_EMISSION, join: '', children: [
+        open: '<g class="pie-slice-group">', close: '</g>', join: '', children: [
           { indent: 0, node: marks.shape({ id: `${id}:hit`, role: 'chrome', owner,
             ...(hoverHighlight ? { visibility: 'conditional' as const, conditionalPaint: { fill: 'transparent', stroke: 'var(--fg)', strokeWidth: String(hoverEmphasisStrokeWidth) } } : {}),
             geometry: { kind: 'path', d: slice.path },
             paint: { fill: 'transparent', ...(hoverHighlight ? { stroke: 'transparent', strokeWidth: String(hoverEmphasisStrokeWidth) } : {}) },
             ...(hoverHighlight ? { attributes: { className: 'pie-slice-hover-target' } } : {}),
-          }, HOVER_EMISSIONS[hoverHighlight ? 1 : 0]! ) },
+          }) },
           ...(interactive ? [
-            { indent: 0, node: marks.documentContent({ id: `${id}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, { kind: 'documentText', element: 'title', text: tipText }) },
+            { indent: 0, node: marks.documentContent({ id: `${id}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipText)}</title>`) },
             { indent: 0, node: drawTooltipArtwork(marks, 'pie', slice.tooltip, `${id}:body`, owner) },
           ] : []),
         ],
@@ -409,6 +363,16 @@ export function lowerPieDrawing<T>(
 
 function outerStrokeColor(visual: PieVisualConfig, style: ResolvedRenderStyle): string {
   return visual.outerStrokeColor ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+}
+
+function openPieSvgTag(
+  chart: PositionedPieChart,
+  colors: DiagramColors,
+  transparent: boolean,
+): string {
+  return svgOpenTag(chart.width, chart.height, colors, transparent, {
+    attrs: { role: 'img', 'aria-roledescription': 'pie chart' },
+  })
 }
 
 function pieStyles(
@@ -429,13 +393,19 @@ function pieStyles(
   const interactiveHoverSelector = visual.highlightSlice === 'hover'
     ? ',\n  .pie-slice-group:hover > .pie-slice-hover-target'
     : ''
-  return `
+  return `<style>
   .pie-slice.highlighted-on-hover:hover${interactiveHoverSelector} { stroke: var(--fg); stroke-width: ${emphasisStrokeWidth}; opacity: 1; }${tipRules}
-`
+</style>`
 }
 
 function pieEmphasisStrokeWidth(sliceStrokeWidth: number): number {
   return Math.max(sliceStrokeWidth + 1, 2.5)
+}
+
+/** Marks a literal Pie label whose characters the deterministic SVG font
+ *  pass must not re-interpret as formatting. */
+function literalTextData(literal: boolean, text: string): { data?: Record<string, string> } {
+  return literal && needsLiteralFontMetrics(text) ? { data: { 'literal-text': 'true' } } : {}
 }
 
 /** Round to the crisp 2-decimal grid. */
@@ -448,11 +418,6 @@ function drawnWedge(fill: string, opacity: number, colors: DiagramColors): strin
   const page = resolvedColorValue('var(--bg)', colors)
   if (page === undefined || !isHexColor(fill)) return undefined
   return opacity >= 1 ? fill : mixHex(fill, page, opacity * 100)
-}
-
-/** Keep already-literal labels visible to deterministic SVG font processing. */
-function literalTextData(literal: boolean, text: string): { data?: Record<string, string> } {
-  return literal && needsLiteralFontMetrics(text) ? { data: { 'literal-text': 'true' } } : {}
 }
 
 export const lowerPieScene = sceneLowering<PositionedPieChart>(lowerPieDrawing)

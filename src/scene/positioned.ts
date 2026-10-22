@@ -11,8 +11,6 @@ import { sceneAssertionsEnabled } from './assertions.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import type { SceneDoc } from './ir.ts'
 import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
-import { measureRenderStage } from '../render-stages.ts'
-import { invokeSceneLowering, withEngineDrawingRepresentation } from './lowering-invocation.ts'
 
 interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
 interface PositionedNative { drawing: NativeDrawing; certification?: PaintLayoutCertification }
@@ -37,12 +35,10 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const assertions = sceneAssertionsEnabled(request)
-  const lower = () => invokeSceneLowering(plan.family, plan.family.lowerScene!, { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
-  const scene = withTextMeasurementExecution(plan.textMeasurement, () => {
-    const lowered = measureRenderStage('scene-lowering', () => !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower())
-    return measureRenderStage('scene-admission', () => admitFamilyScene(plan.family, lowered, sceneAssertionsEnabled(request)))
-  })
-  requests.set(request, { scene, crossChecks: sceneAssertionsEnabled(request) })
+  const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
+  const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
+    !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
+  requests.set(request, { scene, crossChecks: assertions })
   return scene
 }
 
@@ -63,8 +59,8 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
-  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => withEngineDrawingRepresentation(() => drawNative(producer,
-    { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined)))
+  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer,
+    { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   requests.set(request, { drawing })
   return drawing
 }

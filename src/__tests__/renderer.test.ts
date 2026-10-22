@@ -414,8 +414,7 @@ describe('renderSvg – edges', () => {
       }
       if (row.label) expect(line).toContain(`data-label="${row.label}"`)
       else expect(line).not.toContain('data-label=')
-      if (row.edge.id) expect(line).toStartWith(`<${bendRadius || index === 6 ? 'path' : 'polyline'} class="edge${index === 6 ? ' hot' : ''}" data-id="${row.identity}"`)
-      else expect(line.indexOf('data-id=')).toBeGreaterThan(line.indexOf('stroke-width='))
+      expect(line).toStartWith(`<${bendRadius || index === 6 ? 'path' : 'polyline'} `)
       if (index !== 6) {
         expect(line).not.toContain('data-curve=')
         expect(line).not.toContain('data-animate=')

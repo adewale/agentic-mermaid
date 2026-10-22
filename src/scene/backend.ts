@@ -8,8 +8,6 @@
 // from the admitted Scene serialization; they never dispatch on diagram family.
 // ============================================================================
 
-import { SvgWriter, SvgByteLimitError } from './svg-writer.ts'
-import { finalSvgByteLimitError, SCENE_VALIDATION_LIMITS } from './scene-validation.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import { indentLines } from './marks.ts'
 import type { StyleSpec } from './style-registry.ts'
@@ -22,7 +20,7 @@ import {
 } from './capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
-import { sceneNodeSerialization, sceneNodeEmission, sceneDocumentEmission } from './serialization.ts'
+import { sceneNodeSerialization } from './serialization.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -133,54 +131,25 @@ export function pageRectFor(doc: Pick<SceneDoc, 'width' | 'height' | 'transparen
   return `<rect width="${doc.width}" height="${doc.height}" fill="var(--bg)" data-backdrop="page" />`
 }
 
-/** Same admitted backend projection used by the public adapter. The witness
- * comes from the actual writer, never from a Scene field or a caller option. */
-function emitDefaultScene(doc: SceneDoc, ctx: StyleBackendContext, maxBytes = Number.MAX_SAFE_INTEGER): { svg: string; textAlreadyFitted: boolean } {
-  const admitted = admitBackendSceneDocument(doc)
-  const pageRect = pageRectFor(admitted, ctx)
-  if (admitted.parts[0] && sceneNodeEmission(admitted.parts[0])?.kind === 'prelude') {
-    // A private typed prelude owns this whole document. Missing typed child
-    // metadata is an error; no built-in mark falls back to retained markup.
-    // Direct backend callers retain their historical aggregate policy; the
-    // graphical boundary applies its separate final-output cap.
-    const writer = new SvgWriter({ maxBytes })
-    const emission = sceneDocumentEmission(writer)
-    try {
-      for (const [index, part] of admitted.parts.entries()) {
-        if (index) writer.write('\n')
-        emission.writeNode(part, writer.scoped(5_000_000))
-        if (index === 0 && pageRect) writer.write(`\n${pageRect}`)
-      }
-    } catch (error) {
-      if (error instanceof SvgByteLimitError && error.maxBytes === maxBytes && maxBytes === SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw finalSvgByteLimitError('backend/family SVG output')
-      throw error
-    }
-    return { svg: writer.finish(), textAlreadyFitted: emission.textAlreadyFitted }
-  }
-  if (!pageRect) return { svg: admitted.parts.map(sceneNodeSerialization).join('\n'), textAlreadyFitted: false }
-  return { svg: admitted.parts
-    .map((part, i) => (i === 0 ? `${sceneNodeSerialization(part)}\n${pageRect}` : sceneNodeSerialization(part)))
-    .join('\n'), textAlreadyFitted: false }
-}
-
-const renderDefault = (doc: SceneDoc, ctx: StyleBackendContext): string => emitDefaultScene(doc, ctx).svg
-const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([renderDefault])
-let proveDefaultConformance: (() => void) | undefined
-
-export function renderDefaultScene(doc: SceneDoc, ctx: StyleBackendContext, maxBytes = Number.MAX_SAFE_INTEGER): { svg: string; textAlreadyFitted: boolean } {
-  proveDefaultConformance?.()
-  return emitDefaultScene(doc, ctx, maxBytes)
-}
-
 export const DefaultBackend: StyleBackend = {
   id: 'default',
   capabilities: graphicalBackendCapabilityClaims('backend:default', 'crisp'),
-  drawNode(node: SceneNode): string { return sceneNodeSerialization(node) },
-  render: renderDefault,
+  drawNode(node: SceneNode): string {
+    return sceneNodeSerialization(node)
+  },
+  render(doc: SceneDoc, ctx: StyleBackendContext): string {
+    const admitted = admitBackendSceneDocument(doc)
+    const pageRect = pageRectFor(admitted, ctx)
+    if (!pageRect) return admitted.parts.map(sceneNodeSerialization).join('\n')
+    return admitted.parts
+      .map((part, i) => (i === 0 ? `${sceneNodeSerialization(part)}\n${pageRect}` : sceneNodeSerialization(part)))
+      .join('\n')
+  },
 }
 
-/** Only the built-in method and its privately enrolled conformance wrapper
- * qualify; a host backend with the same descriptor fields does not. */
+const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
+
+/** A replacement method must use the checked backend path. */
 export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
   return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
 }
@@ -265,10 +234,7 @@ function refuseUntilConforming(backend: StyleBackend, inputName: string, conform
     prove()
     return render.call(backend, doc, ctx)
   }
-  if (backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(render)) {
-    OWNED_DEFAULT_RENDERERS.add(methods.render)
-    proveDefaultConformance = prove
-  }
+  if (backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(render)) OWNED_DEFAULT_RENDERERS.add(methods.render)
   return backend
 }
 
