@@ -154,22 +154,16 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   // rubric's >0.5px box predicate) before any move so the repair below can be
   // scoped to exactly the pairs this pass introduces.
   const boxesOverlap = (a: PositionedNode, b: PositionedNode): boolean => {
-    // This pass changes only the main axis. Disjoint cross bands cannot meet.
-    if (f.main === 'x') {
-      const oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
-      if (!(oy > 0.5)) return false
-      return Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 0.5
-    }
     const ox = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)
-    if (!(ox > 0.5)) return false
-    return Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > 0.5
+    const oy = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)
+    return ox > 0.5 && oy > 0.5
   }
   const pairKey = (a: PositionedNode, b: PositionedNode): string => (a.id < b.id ? `${a.id}\0${b.id}` : `${b.id}\0${a.id}`)
   const preShovePairs = new Set<string>()
   for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
     if (boxesOverlap(nodes[i]!, nodes[j]!)) preShovePairs.add(pairKey(nodes[i]!, nodes[j]!))
   }
-  interface ActivePair { a: PositionedNode; b: PositionedNode; key: string; i: number; j: number }
+  interface ActivePair { a: PositionedNode; b: PositionedNode; key: string; index: number }
   // Index identity stays separate from the legacy string ordering/exclusion
   // key, which can collide for directly supplied IDs containing delimiters.
   const activePairs = new Map<number, ActivePair>()
@@ -177,7 +171,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const a = nodes[i]!, b = nodes[j]!, index = i * nodes.length + j
     const key = pairKey(a, b)
     if (preShovePairs.has(key) || !boxesOverlap(a, b)) activePairs.delete(index)
-    else if (!activePairs.has(index)) activePairs.set(index, { a, b, key, i, j })
+    else if (!activePairs.has(index)) activePairs.set(index, { a, b, key, index })
   }
   const refreshChangedPairs = (): void => {
     if (!changed.size) return
@@ -224,7 +218,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   for (let round = 0; round < nodes.length * 4; round++) {
     let first: ActivePair | undefined
     for (const pair of activePairs.values()) {
-      if (!first || pair.key < first.key || (pair.key === first.key && (pair.i < first.i || (pair.i === first.i && pair.j < first.j)))) first = pair
+      if (!first || pair.key < first.key || (pair.key === first.key && pair.index < first.index)) first = pair
     }
     if (!first) break
     const { a, b } = first
