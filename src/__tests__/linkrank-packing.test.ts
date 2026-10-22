@@ -15,6 +15,8 @@ import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { honorLinkRankDistance } from '../layout/passes/rank-distance.ts'
+import type { PositionedNode } from '../types.ts'
 
 const cases: [string, string][] = [
   // Shove lands a node on a bystander: nodeOverlaps + edgeThroughNode without
@@ -48,6 +50,18 @@ const cases: [string, string][] = [
 ]
 
 describe('honorLinkRankDistance packing: a shove never leaves overlaps or blocked rebuilt routes', () => {
+  test.each(['LR', 'RL', 'TD', 'BT'] as const)('repairs simultaneous %s shove overlaps and downstream movement while preserving pre-existing overlaps', direction => {
+    const graph = parseMermaid(`flowchart ${direction}\nA ----> B\nB --> C\nD\nE\nP\nQ`)
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const reverse = direction === 'RL' || direction === 'BT'
+    const coordinate = (value: number) => reverse ? -value - 10 : value
+    const nodes: PositionedNode[] = [['A', 0], ['B', 40], ['C', 80], ['D', 240], ['E', 280], ['P', 500], ['Q', 505]].map(([id, value]) => {
+      const main = coordinate(value as number), cross = id === 'P' || id === 'Q' ? 20 : 0
+      return { id: id as string, label: id as string, shape: 'rectangle', x: horizontal ? main : cross, y: horizontal ? cross : main, width: 10, height: 10 }
+    })
+    honorLinkRankDistance(nodes, [], [], graph)
+    expect(nodes.map(node => node[horizontal ? 'x' : 'y'])).toEqual([0, 234, 310, 272, 348, 500, 505].map(coordinate))
+  })
   for (const [name, src] of cases) {
     test(`${name}: no nodeOverlaps, no edgeThroughNode`, () => {
       const g = parseMermaid(src)
