@@ -167,7 +167,7 @@ export function verifySvgDocumentEnvelope(svg: string): boolean {
   return inspectSvgOnce('xml-envelope', svg, () => verifyDocumentEnvelope(svg))
 }
 
-function verifyDocumentEnvelope(svg: string): boolean {
+function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void): boolean {
   if (!hasOnlyXmlCharacters(svg)) return false
   const stack: XmlElementFrame[] = []
   let rootSeen = false
@@ -256,6 +256,7 @@ function verifyDocumentEnvelope(svg: string): boolean {
       const value = svg.slice(valueStart, end)
       if (!hasWellFormedXmlReferences(value)) return false
       attributes.push({ name: attribute.name, qname: attributeName, value: decodeXmlReferences(value) })
+      observeAttribute?.(attribute.name, value)
       end++
     }
 
@@ -424,35 +425,46 @@ export function validateRawThemeCss(value: unknown, mode: OutputSecurityMode): s
   return `Raw Mermaid themeCSS is not allowed in ${mode} security mode because selectors can escape an imported SVG; use a declarative StyleSpec`
 }
 
-function securityFindings(svg: string): { readonly active: readonly string[]; readonly refs: readonly string[] } {
+interface SecurityFindings {
+  readonly active: readonly string[]
+  readonly refs: readonly string[]
+}
+
+function securityFindings(svg: string): SecurityFindings {
   return inspectSvgOnce('security', svg, () => inspectSecurity(svg))
 }
 
-function inspectSecurity(svg: string): { readonly active: readonly string[]; readonly refs: readonly string[] } {
+function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
+  const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
+  if (/^on[a-z]/.test(name)) { refs.push('inline-event-handler'); active.push('inline-event-handler') }
+  // A fragment is same-document only in the absence of XML Base. With an
+  // external xml:base, href="#mark" and url(#mark) resolve against that
+  // external document and can fetch after DOM insertion. Reject the base
+  // semantic itself so every local-reference check below remains sound.
+  if (qualified.toLowerCase() === 'xml:base') refs.push(`xml:base=${value}`)
+  if ((name === 'href' || name === 'src' || name === 'data') && isUnsafeReference(value)) {
+    refs.push(normalizedReference(value).startsWith('javascript:') ? 'javascript-url' : value)
+  }
+  if ((name === 'href' || name === 'src' || name === 'data') && isActiveReference(value)) active.push(`${qualified}=${value}`)
+  if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeCssOrAnimatedValue(value)) {
+    refs.push(`${qualified}=${value}`)
+  }
+  if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
+}
+
+function inspectSecurity(svg: string): SecurityFindings {
   const markup = svg.replace(/<!--[\s\S]*?-->/g, '')
   const refs: string[] = []
   const active: string[] = []
   for (const tag of startTags(markup)) {
     for (const match of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
-      const qualified = match[1]!
-      const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
-      const value = unquoteAttribute(match[2]!)
-      if (/^on[a-z]/.test(name)) { refs.push('inline-event-handler'); active.push('inline-event-handler') }
-      // A fragment is same-document only in the absence of XML Base. With an
-      // external xml:base, href="#mark" and url(#mark) resolve against that
-      // external document and can fetch after DOM insertion. Reject the base
-      // semantic itself so every local-reference check below remains sound.
-      if (qualified.toLowerCase() === 'xml:base') refs.push(`xml:base=${value}`)
-      if ((name === 'href' || name === 'src' || name === 'data') && isUnsafeReference(value)) {
-        refs.push(normalizedReference(value).startsWith('javascript:') ? 'javascript-url' : value)
-      }
-      if ((name === 'href' || name === 'src' || name === 'data') && isActiveReference(value)) active.push(`${qualified}=${value}`)
-      if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeCssOrAnimatedValue(value)) {
-        refs.push(`${qualified}=${value}`)
-      }
-      if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
+      inspectAttributeSecurity(match[1]!, unquoteAttribute(match[2]!), refs, active)
     }
   }
+  return inspectSecurityTail(markup, refs, active)
+}
+
+function inspectSecurityTail(markup: string, refs: string[], active: string[]): SecurityFindings {
   // Character references are decoded inside attribute values and CSS, where
   // the XML/CSS consumers interpret them. Do not decode the complete document:
   // escaped label text such as `&lt;script&gt;` remains text in XML and must not
@@ -476,11 +488,35 @@ export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[]
   return { ok: refs.length === 0, refs: [...refs] }
 }
 
+function inspectFinalSvg(svg: string): { readonly valid: false } | { readonly valid: true; readonly findings: SecurityFindings } {
+  return inspectSvgOnce('final-security', svg, () => {
+    const refs: string[] = []
+    const active: string[] = []
+    let failed = false
+    let failure: unknown
+    const valid = verifyDocumentEnvelope(svg, (name, rawValue) => {
+      if (failed) return
+      try {
+        inspectAttributeSecurity(name, rawValue, refs, active)
+      } catch (error) {
+        // Finish XML validation before surfacing security errors: malformed
+        // envelopes have always taken precedence, including invalid CSS escapes.
+        failed = true
+        failure = error
+      }
+    })
+    if (!valid) return { valid: false }
+    if (failed) throw failure
+    return { valid: true, findings: inspectSecurityTail(svg.replace(/<!--[\s\S]*?-->/g, ''), refs, active) }
+  })
+}
+
 export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
-  if (!verifySvgDocumentEnvelope(svg)) {
+  const inspection = inspectFinalSvg(svg)
+  if (!inspection.valid) {
     throw new Error('OutputSecurityPolicy rejected an invalid SVG document envelope')
   }
-  const { active, refs } = securityFindings(svg)
+  const { active, refs } = inspection.findings
   if (active.length > 0) {
     throw new Error(`OutputSecurityPolicy rejected active content: ${active.join(', ')}`)
   }
