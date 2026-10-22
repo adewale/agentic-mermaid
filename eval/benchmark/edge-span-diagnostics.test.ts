@@ -57,3 +57,14 @@ test('exclusive work subtracts shared identities and does not confuse optional r
   expect(phase.exclusiveWorkUsed['routingWork.pairs']).toBe(0)
   expect(phase.exclusiveWorkUsed['search.routing.pairs']).toBe(0)
 })
+
+
+test('route-emission transform preserves placement-only branching and reports its skipped points', () => {
+  const path = join(import.meta.dir, '../../src/layout/agentic-layered-core.ts'), source = readFileSync(path, 'utf8')
+  const record = instrumentExpansionSource(path, source, '/unpublished/evaluator.ts')
+  const declaration = '  const positionedEdges = input.placementOnly && !input.cycleOriented && !input.loopPorts?.length'
+  expect(record.after.split(declaration).length).toBe(2)
+  expect(record.after).toContain('? edges.map(() => ({ points: [] as Point[] })) : edges.map((_, edgeIndex) => {')
+  expect(record.after).toContain('skippedForPlacement: !!(input.placementOnly && !input.cycleOriented && !input.loopPorts?.length)')
+  expect(() => instrumentExpansionSource(path, source.replace(declaration, '  const positionedEdges = edges.map'), '/unpublished/evaluator.ts')).toThrow('exactly once')
+})
