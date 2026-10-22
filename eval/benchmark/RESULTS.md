@@ -162,6 +162,12 @@ Bun's Node compatibility version; its real Node worker receipts record 24.19.0.
 
 ## Historical bounded findings, 19 October 2026
 
+The current Node build retains whitespace compaction only. Syntax rewriting from
+the historical experiment below was disabled after installed State80 comparisons
+showed a cost during the first repeated renders. Current artifact measurements
+and controls are linked from PR #433; the historical results remain pinned to
+their original revisions.
+
 | Change / evidence scope | Reproduced observation | Limit |
 | --- | --- | --- |
 | Boolean route queries: preserve full certificate collection, stop existence queries at the first actual blocker | Two five-round source runs put mesh SVG paired latency ratios at 0.888 and 0.885; the latter compares directly with the pre-route predecessor. | Dense mesh witness, not every family or final packed throughput. Geometry predicates, order and evidence mode remain unchanged; no new cache. |
