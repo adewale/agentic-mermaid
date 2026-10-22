@@ -9,6 +9,7 @@ import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { improveArchitectureSiblingSlots } from '../layout/agentic-layered.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -138,12 +139,13 @@ export function layoutArchitectureDiagram(
   }
   // All relationships constrain placement; no filtered scaffolding retry.
   // Native placement returns no graph route proof for geometry replaced below.
+  let nativePlacement = false
   const positioned = runMeasuredGraphBackend(options,
     () => layoutNativeGraphPlacementSync(graph, placementOptions),
     () => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
       ...placementOptions, preserveSubgraphChildOrder: true,
       ...(options.graphLayout ? { graphLayout: { backend: 'elk' } } : {}),
-    })))
+    })), false, (_result, decision) => { nativePlacement = decision.selected === 'agentic' })
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
@@ -206,12 +208,14 @@ export function layoutArchitectureDiagram(
     group.iconFallbackBlock = architectureIconFallbackBlock(group.icon, typography.iconSize ?? DEFAULT_ARCHITECTURE_VISUAL.iconSize)
   }
   expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0)
+  let legalSlots: (() => boolean) | undefined
   const sideConstraintsChanged = applyArchitectureSideConstraints(
     diagram,
     services,
     junctions,
     flatGroups,
     options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
+    nativePlacement ? validate => { legalSlots = validate } : undefined,
   )
   if (sideConstraintsChanged) {
     // Port constraints can reorder a child or a whole nested group. Refit once
@@ -222,7 +226,7 @@ export function layoutArchitectureDiagram(
   }
 
   const positionedJunctionsById = new Map(junctions.map(junction => [junction.id, junction]))
-  const edges = diagram.edges.map((edge) =>
+  const routeEdges = () => diagram.edges.map((edge) =>
     routeArchitectureEdge(
       edge,
       servicesById,
@@ -233,6 +237,8 @@ export function layoutArchitectureDiagram(
       positionedJunctionsById,
     )
   )
+  let edges = routeEdges()
+  if (legalSlots) edges = improveArchitectureSiblingSlots(diagram, services, edges, routeEdges, legalSlots)
   edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
   separateEdgeLabels(edges, services, metrics)
 
@@ -471,6 +477,7 @@ function applyArchitectureSideConstraints(
   junctions: PositionedArchitectureJunction[],
   groups: Map<string, PositionedArchitectureGroup>,
   spacing: number,
+  retainLegality?: (validate: () => boolean) => void,
 ): boolean {
   let changed = false
   const groupMeta = new Map(diagram.groups.map(group => [group.id, group]))
@@ -754,8 +761,18 @@ function applyArchitectureSideConstraints(
     }
     expandGroupBounds(roots, services, junctions, true)
   }
+  // Native optional slot trials reuse exactly the authored constraints and
+  // sibling geometry already owned by this pass. No trial refits groups.
+  retainLegality?.(() => constraints.every(({ axis, before, after }) => {
+    const a = unitBounds(before)!, b = unitBounds(after)!
+    return a[axis] + (axis === 'x' ? a.width : a.height) + spacing <= b[axis] + ROUTE_EPSILON
+  }) && contexts.every(context => {
+    const bounds = siblingRefs(context.parentId).map(ref => unitBounds(unitKey(ref.kind, ref.id))).filter((bound): bound is Bounds => bound !== undefined)
+    return bounds.every((bound, index) => bounds.slice(index + 1).every(other => !overlaps(bound, other)))
+  }))
   return changed
 }
+
 
 function mapGroup(
   group: LayoutGroup,

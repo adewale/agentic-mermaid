@@ -5,6 +5,7 @@ import { GraphLayoutUnsupportedError, DeferredDependencyError } from './backend.
 let implementation: {
   candidate: typeof import('./agentic-producer-core.ts').layoutNativeGraphCandidate
   placement: typeof import('./agentic-producer-core.ts').layoutNativeGraphPlacement
+  architectureSlots: typeof import('./agentic-producer-core.ts').improveArchitectureSiblingSlots
   graph: (input: MeasuredGraph) => AgenticLayout
 } | undefined
 let pending: Promise<void> | undefined
@@ -14,6 +15,7 @@ async function load(): Promise<void> {
     implementation = {
       candidate: module.layoutNativeGraphCandidate,
       placement: module.layoutNativeGraphPlacement,
+      architectureSlots: module.improveArchitectureSiblingSlots,
       graph: module.createMeasuredLayoutCache(input => module.layoutLayeredGraph(input, layoutMeasuredForest, reason => { throw new GraphLayoutUnsupportedError(reason) })),
     }
   }).catch((error: unknown) => { pending = undefined; throw error }))
@@ -34,3 +36,5 @@ export const layoutAgenticCandidate: typeof import('./agentic-layered.ts').layou
 }
 
 export const layoutAgenticPlacement: typeof import('./agentic-layered.ts').layoutAgenticPlacement = (graph, options, style, bindings) => ready().placement(graph, options, style, layoutAgenticGraph, bindings)
+
+export const improveArchitectureSiblingSlots: typeof import('./architecture-sibling-slots.ts').improveArchitectureSiblingSlots = (...args) => ready().architectureSlots(...args)
