@@ -6,6 +6,16 @@ gh workflow run release-benchmark.yml --ref YOUR_FINAL_BRANCH -f layout-runtime-
 
 Add `-f layout-cache-churn=true` to request the separate memory/churn diagnosis. The review runs serial campaigns with both cache policies. Each campaign keeps three fresh rounds,25 timed repetitions and one480000ms shared deadline. It preserves the historical27 population, including the edit workflow. The three Architecture16/32/32-large-junction workloads run as a separately named supplement and remain outside that historical denominator.
 
+Alternatively, dispatch `-f layout-runtime-campaign=release`, `differential`,
+`architecture` or `churn` against the same frozen branch head. Each selection
+runs on its own hosted runner and still processes both cache policies serially
+with the same populations, controls and bounds. This permits independent
+campaigns to run concurrently without competing workers on a measurement host.
+The default `all` retains the original full serial review. Explicit `churn`
+selects that campaign without requiring the optional all-review churn flag.
+Every job records its package/lock/JS hashes before measurement; check those
+identities across jobs, and retain the job-specific environment and A/A results.
+
 The direct runtime driver compares native23 to an independent native23 A/A and native24, plus candidate ELK to native24. It uses existing release workers, batched mixed-workload timing, independent matched memory, quality reruns, gates and failure handling. It does not reinterpret `release-bench --baseline`, which compares an older default ELK path. Extra fallback and current-main ELK arms are optional and must be declared before launch; they share the same480000ms deadline.
 
 ```bash
