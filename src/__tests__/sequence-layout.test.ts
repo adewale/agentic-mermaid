@@ -10,6 +10,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import { SequenceGapRequirements } from '../sequence/gap-requirements.ts'
 import type { PositionedSequenceDiagram } from '../sequence/types.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { estimateTextWidth } from '../styles.ts'
@@ -36,6 +37,15 @@ interface Rect {
   width: number
   height: number
 }
+
+it.each([3, 33, 250])('combines overlapping gap requirements without rounding scalar widths (%i gaps)', count => {
+  const gaps = new SequenceGapRequirements(count)
+  gaps.require(0, count, 1.25)
+  gaps.require(1, count - 1, 2.5)
+  gaps.require(count - 1, count, 9)
+  gaps.require(0, 0, 100)
+  expect(gaps.values()).toEqual([1.25, ...new Array(count - 2).fill(2.5), 9])
+})
 
 function overlaps(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y

@@ -3,6 +3,7 @@ import { resolveLabelContent, type DisplayTextInput } from '../shared/display-te
 import type { SequenceBounds, SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
+import { SequenceGapRequirements } from './gap-requirements.ts'
 import type { RenderOptions } from '../types.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle, titleOnlyCanvas } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -138,7 +139,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   const actorIndex = new Map<string, number>()
   for (let i = 0; i < diagram.actors.length; i++) actorIndex.set(diagram.actors[i]!.id, i)
   const messageSpecs = diagram.messages.map(message => measureSequenceMessageSpec(message, style, activationWidth))
-  const messageGapRequirements = Array.from({ length: Math.max(0, diagram.actors.length - 1) }, () => 0)
+  const gapRequirements = new SequenceGapRequirements(Math.max(0, diagram.actors.length - 1))
   for (let mi = 0; mi < diagram.messages.length; mi++) {
     const message = diagram.messages[mi]!
     const spec = messageSpecs[mi]!
@@ -147,7 +148,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     if (from === undefined || to === undefined) continue
     if (from === to) {
       if (from < diagram.actors.length - 1) {
-        messageGapRequirements[from] = Math.max(messageGapRequirements[from]!, spec.requiredSelfNeighborGap)
+        gapRequirements.require(from, from + 1, spec.requiredSelfNeighborGap)
       }
       continue
     }
@@ -156,10 +157,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     const span = last - first
     const createdHeaderWidth = diagram.actors[to]!.createMessageIndex === mi && diagram.actors[to]!.type === 'participant' ? actorWidths[to]! / 2 : 0
     const requiredPerGap = (spec.requiredSpanWidth + createdHeaderWidth) / span
-    for (let gap = first; gap < last; gap++) {
-      messageGapRequirements[gap] = Math.max(messageGapRequirements[gap]!, requiredPerGap)
-    }
+    gapRequirements.require(first, last, requiredPerGap)
   }
+  const messageGapRequirements = gapRequirements.values()
 
   // Build actor center X positions with minimum gap. Authored actorMargin still
   // supplies the floor, while message and self-loop containment may enlarge it.

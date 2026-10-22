@@ -3,6 +3,7 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 // boundaries distinguish notes and empty sections sharing a message cursor.
 import { parseSequenceDiagram, displayMessageContent, getSequenceBlockBoundaries } from '../sequence/parser.ts'
 import { resolveSequenceBlockScopes } from '../sequence/geometry.ts'
+import { SequenceGapRequirements } from '../sequence/gap-requirements.ts'
 import type { SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
@@ -56,14 +57,14 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   const participantTop = diagram.boxes?.length ? Math.max(1, ...boxHeaders.map(lines => lines.length)) + 1 : 0
   const halfBox = actorWidths.map(width => Math.ceil(width / 2))
   const actorBoxH = diagram.actors.length ? Math.max(3, ...actorLines.map(lines => lines.length + 2)) : 0
-  const gaps = new Array<number>(Math.max(0, diagram.actors.length - 1)).fill(0)
+  const gapRequirements = new SequenceGapRequirements(Math.max(0, diagram.actors.length - 1))
   diagram.messages.forEach((message, index) => {
     const from = actorIndex.get(message.from)!, to = actorIndex.get(message.to)!
     const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
     if (from === to) {
-      if (from < gaps.length) gaps[from] = Math.max(gaps[from]!, width + 5)
+      if (from < gapRequirements.length) gapRequirements.require(from, from + 1, width + 5)
     } else {
-      for (let gap = Math.min(from, to); gap < Math.max(from, to); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4) / Math.abs(to - from)))
+      gapRequirements.require(Math.min(from, to), Math.max(from, to), Math.ceil((width + 4) / Math.abs(to - from)))
     }
   })
   diagram.boxes?.forEach((_, index) => {
@@ -71,7 +72,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     if (members.length < 2) return
     const first = Math.min(...members), last = Math.max(...members)
     const width = Math.max(0, ...boxHeaders[index]!.map(visualWidth))
-    for (let gap = first; gap < last; gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4) / (last - first)))
+    gapRequirements.require(first, last, Math.ceil((width + 4) / (last - first)))
   })
   let leftMargin = halfBox[0] ?? 4
   diagram.notes.forEach((note, index) => {
@@ -80,13 +81,14 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     const width = Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4
     if (note.position === 'left') {
       if (first === 0) leftMargin = Math.max(leftMargin, width + 1)
-      else gaps[first - 1] = Math.max(gaps[first - 1]!, width + 1)
+      else gapRequirements.require(first - 1, first, width + 1)
     } else if (note.position === 'right') {
-      if (first < gaps.length) gaps[first] = Math.max(gaps[first]!, width + 2)
+      if (first < gapRequirements.length) gapRequirements.require(first, first + 1, width + 2)
     } else if (first !== last) {
-      for (let gap = Math.min(first, last); gap < Math.max(first, last); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 2) / Math.abs(first - last)))
+      gapRequirements.require(Math.min(first, last), Math.max(first, last), Math.ceil((width + 2) / Math.abs(first - last)))
     } else if (first === 0) leftMargin = Math.max(leftMargin, Math.floor(width / 2))
   })
+  const gaps = gapRequirements.values()
   const scopes = resolveSequenceBlockScopes(diagram)
   const parents = new Map<number, number>()
   scopes.forEach((scope, parent) => scope.childBlockIndices.forEach(child => parents.set(child, parent)))
