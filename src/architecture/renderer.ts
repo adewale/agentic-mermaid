@@ -359,7 +359,7 @@ function lowerJunction<T>(marks: DrawingFactory<T>, junction: PositionedArchitec
   const ring = marks.shape({
     id: `junction-ring:${junction.id}`,
     role: 'junction',
-    geometry: { kind: 'circle', cx, cy, r: visual.junctionOuterRadius },
+    geometry: { kind: 'circle', cx, cy, r: junction.width / 2 },
     paint: { fill: 'var(--bg)', stroke: 'var(--arch-edge-stroke, var(--_arrow))', strokeWidth: '1.25' },
     attributes: { className: 'architecture-junction-ring' },
   })

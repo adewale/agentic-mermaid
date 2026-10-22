@@ -140,6 +140,20 @@ jobs:
           actual_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")"
           test "$actual_integrity" = "$manifest_integrity"
 
+      - name: Record Git comparison provenance
+        if: inputs.baseline-ref != ''
+        env:
+          BASELINE_REF: ${{ inputs.baseline-ref }}
+        run: |
+          test "$(git -C "$RUNNER_TEMP/benchmark-baseline" rev-parse HEAD)" = "$BASELINE_REF"
+          mkdir -p bench-report
+          jq -n --arg baselineRevision "$BASELINE_REF" --arg candidateRevision "$GITHUB_SHA" \
+            --arg baselinePackageSha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" \
+            --arg candidatePackageSha256 "$(jq -er '.sha256' release-artifact/package-manifest.json)" \
+            --arg baselineEntrySha256 "$(sha256sum "$RUNNER_TEMP/benchmark-baseline/dist/index.js" | cut -d ' ' -f 1)" \
+            --arg candidateEntrySha256 "$(tar -xOf release-artifact/package.tgz package/dist/index.js | sha256sum | cut -d ' ' -f 1)" \
+            '$ARGS.named' > bench-report/build-provenance.json
+
       - name: Generate requested visual review evidence
         if: inputs.review-fixtures != '' && inputs.baseline-ref != ''
         env:

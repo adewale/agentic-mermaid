@@ -22,6 +22,7 @@ import type {
 
 const EDGE_EXIT_GAP = 16
 const GROUP_EDGE_PAD = 18
+const JUNCTION_PLACEMENT_PADDING = 6
 /** The title is drawn at this size and weight in every style (renderer.ts),
  * so the canvas reserves it at the same metrics. */
 export const ARCHITECTURE_TITLE_FONT_SIZE = 18
@@ -71,6 +72,7 @@ export function layoutArchitectureDiagram(
   const groupText = new Map(diagram.groups.map(group => [group.id, roleBlock(group.label, 'group')]))
   const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)
+  const junctionDiameter = 2 * (typography.junctionOuterRadius ?? DEFAULT_ARCHITECTURE_VISUAL.junctionOuterRadius)
   for (const [id, block] of serviceText) graph.nodes.get(id)!.label = block.text
   const iconTextBlocks = new Map(diagram.services.filter(service => service.iconText !== undefined).map(service => [service.id, preparePixelText(service.iconText!, {
     display: 'literal', fontSize: typography.serviceFontSize, fontWeight: 700,
@@ -88,6 +90,12 @@ export function layoutArchitectureDiagram(
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
   const positioned = layoutGraphSync(graph, {
+    // Keep placement clearance separate from the drawn surface. Larger rings
+    // reserve their own footprint instead of borrowing State's fixed size.
+    nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
+      width: junctionDiameter + 2 * JUNCTION_PLACEMENT_PADDING,
+      height: junctionDiameter + 2 * JUNCTION_PLACEMENT_PADDING,
+    }])),
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
@@ -130,7 +138,7 @@ export function layoutArchitectureDiagram(
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
-  const junctionIds = new Set(diagram.junctions.map((junction) => junction.id))
+  const junctionsById = new Map(diagram.junctions.map((junction) => [junction.id, junction]))
 
   const services: PositionedArchitectureService[] = []
   const junctions: PositionedArchitectureJunction[] = []
@@ -143,10 +151,16 @@ export function layoutArchitectureDiagram(
       const service = servicesById.get(node.id)!
       services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
       serviceBounds.set(node.id, bounds)
-    } else if (junctionIds.has(node.id)) {
-      const junction = diagram.junctions.find((entry) => entry.id === node.id)!
-      junctions.push({ ...bounds, id: junction.id, parentId: junction.parentId })
-      junctionBounds.set(node.id, bounds)
+    } else if (junctionsById.has(node.id)) {
+      const junction = junctionsById.get(node.id)!
+      const ring = {
+        x: node.x + (node.width - junctionDiameter) / 2,
+        y: node.y + (node.height - junctionDiameter) / 2,
+        width: junctionDiameter,
+        height: junctionDiameter,
+      }
+      junctions.push({ ...ring, id: junction.id, parentId: junction.parentId })
+      junctionBounds.set(node.id, ring)
     }
   }
 

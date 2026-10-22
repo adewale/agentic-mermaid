@@ -103,6 +103,8 @@ import {
 export { alignLayerNodes, orthogonalizeEdgePoints } from './layout/passes/index.ts'
 
 interface LayoutEngineOptions extends RenderOptions {
+  /** @internal Family-owned geometry for placement; labels do not size these marks. */
+  nodeSizes?: ReadonlyMap<string, { width: number; height: number }>
   /** @internal Preserve direct child order in compound nodes for projected families. */
   preserveSubgraphChildOrder?: boolean
   /** @internal Precomputed built-in style face for projected family layout. */
@@ -124,7 +126,7 @@ interface LayoutEngineOptions extends RenderOptions {
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints'> & { stateVisual?: ResolvedStateVisualConfig }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes'> & { stateVisual?: ResolvedStateVisualConfig }
 
 // ============================================================================
 // Layout options
@@ -650,7 +652,7 @@ function mermaidToElk(
     }
     const node = graph.nodes.get(id)
     if (node && !subgraphNodeIds.has(id) && !subgraphIds.has(id)) {
-      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction, opts.stateVisual))
+      elkGraph.children!.push(nodeToElkLeaf(id, node, style, routePortHints, graph.direction, opts.stateVisual, opts.nodeSizes?.get(id)))
     }
   }
 
@@ -884,8 +886,8 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
   }
 }
 
-function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig): ElkGraphNode {
-  const size = estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock)
+function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, placementSize?: { width: number; height: number }): ElkGraphNode {
+  const size = placementSize ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock)
   const elkNode: ElkGraphNode = {
     id,
     width: size.width,
@@ -1043,7 +1045,7 @@ function subgraphToElk(
   for (const nodeId of childNodeOrder) {
     const node = graph.nodes.get(nodeId)
     if (node) {
-      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual))
+      elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual, opts.nodeSizes?.get(nodeId)))
     }
   }
 
