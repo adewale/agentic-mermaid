@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="246.072" height="509.40000000000003" viewBox="0 0 246.072 509.40000000000003" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1x9lqah053ocqi"><style>
+  svg.am-1x9lqah053ocqi { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1x9lqah053ocqi {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="requirement-arrow" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 9 3.5, 0 7" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="requirement-contains" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+    <circle cx="6" cy="6" r="5" fill="#FFFFFF" stroke="#47474a" stroke-width="1" />
+    <path d="M2 6H10M6 2V10" fill="#FFFFFF" stroke="#47474a" stroke-width="1" />
+  </marker></defs>
+<g class="requirement-node default" data-id="fast" data-role="node">
+  <rect x="32" y="300" width="182.072" height="177.40000000000003" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <line x1="32" y1="357.8" x2="214.072" y2="357.8" stroke="#949495" stroke-width="0.75" />
+  <text x="123.036" y="328.9" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="123.036" dy="-3.9000000000000012" textLength="105.69" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="123.036" dy="16.900000000000002" textLength="22.697999999999997" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">fast</tspan></text>
+  <text x="48" y="374.25" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:fast:0" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="20.903999999999996" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: 1</text>
+  <text x="48" y="400.15000000000003" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:fast:1" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="150.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Respond within 100ms</text>
+  <text x="48" y="426.05" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:fast:2" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="57.40800000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: High</text>
+  <text x="48" y="451.95000000000005" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:fast:3" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="95.31600000000002" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node default" data-id="benchmark" data-role="node">
+  <rect x="53.036" y="32" width="140" height="99.70000000000002" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <line x1="53.036" y1="89.80000000000001" x2="193.036" y2="89.80000000000001" stroke="#949495" stroke-width="0.75" />
+  <text x="123.036" y="60.900000000000006" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="123.036" dy="-3.9000000000000012" textLength="77.532" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Element&gt;&gt;</tspan><tspan x="123.036" dy="16.900000000000002" textLength="68.64" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">benchmark</tspan></text>
+  <text x="69.036" y="106.25000000000001" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:benchmark:0" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="56.00400000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Type: test</text>
+</g>
+<polyline points="123.036,131.70000000000002 123.036,300" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#requirement-arrow)" data-relationship="verifies" data-direction="forward" data-id="relation-1" data-role="relationship" data-from="benchmark" data-to="fast" role="graphics-symbol" aria-roledescription="relation" aria-label="benchmark to fast: &lt;&lt;verifies&gt;&gt;" />
+<g class="requirement-edge-label">
+  <rect x="45.98599999999999" y="204.70000000000002" width="73.05000000000001" height="22.3" fill="#FFFFFF" stroke="none" />
+  <text x="82.511" y="215.85000000000002" text-anchor="middle" font-size="11" font-weight="400" fill="#27272A" data-prepared-text="true" dy="3.8499999999999996" textLength="61.050000000000004" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;verifies&gt;&gt;</text>
+</g>
+</svg>

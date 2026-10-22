@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="287.61150000000004" height="461.13599999999997" viewBox="0 0 287.61150000000004 461.13599999999997" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1b7s2gu13hzfye">
+<style>
+  svg.am-1b7s2gu13hzfye { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1b7s2gu13hzfye {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="131.88850000000002,76.9 131.88850000000002,124.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;B#0" data-role="edge" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="yes" points="106.87950000000002,199.92700000000002 106.87950000000002,267.93600000000004 76.16550000000002,267.93600000000004 76.16550000000002,384.236" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;C#0" data-role="edge" data-from="B" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="B to C: yes" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="no" points="156.89750000000004,199.92700000000002 156.89750000000004,267.93600000000004 187.61150000000004,267.93600000000004 187.61150000000004,384.236" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;D#0" data-role="edge" data-from="B" data-to="D" role="graphics-symbol" aria-roledescription="relation" aria-label="B to D: no" />
+<g class="edge-label" data-from="B" data-to="C" data-label="yes">
+  <rect class="edge-label-halo" x="54.43050000000002" y="301.12100000000004" width="43.47" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="58.43050000000002" y="305.12100000000004" width="35.47" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="76.16550000000002" y="320.271" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="19.47" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">yes</text>
+</g>
+<g class="edge-label" data-from="B" data-to="D" data-label="no">
+  <rect class="edge-label-halo" x="168.84650000000005" y="301.12100000000004" width="37.53" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="172.84650000000005" y="305.12100000000004" width="29.53" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="187.61150000000004" y="320.271" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="13.530000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">no</text>
+</g>
+<g class="node" data-id="A" data-label="Start" data-shape="rectangle" data-role="node">
+  <rect x="96.8345" y="40" width="70.108" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="131.88850000000002" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="30.108" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Start</text>
+</g>
+<g class="node" data-id="B" data-label="Ship?" data-shape="diamond" data-role="node">
+  <polygon points="131.88850000000002,124.9 181.90650000000002,174.918 131.88850000000002,224.936 81.87050000000002,174.918" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B" data-role="node" />
+  <text x="131.88850000000002" y="174.918" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Ship?</text>
+</g>
+<g class="node" data-id="C" data-label="Deploy" data-shape="rectangle" data-role="node">
+  <rect x="34.442500000000024" y="384.236" width="83.446" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C" data-role="node" />
+  <text x="76.16550000000002" y="402.686" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="43.446" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Deploy</text>
+</g>
+<g class="node" data-id="D" data-label="Fix" data-shape="rectangle" data-role="node">
+  <rect x="145.88850000000002" y="384.236" width="83.446" height="36.900000000000006" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D" data-role="node" />
+  <text x="187.61150000000004" y="402.686" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="21.216" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Fix</text>
+</g>
+</svg>

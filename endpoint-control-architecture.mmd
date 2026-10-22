@@ -1,0 +1,7 @@
+architecture-beta
+  group backend(cloud)[Backend]
+  service api(server)[API] in backend
+  service db(database)[Database] in backend
+  service cache(disk)[Cache] in backend
+  api:R --> L:db
+  api:B -[reads]-> T:cache

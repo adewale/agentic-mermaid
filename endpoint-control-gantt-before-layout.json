@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "kind": "gantt",
+  "nodes": [
+    {
+      "id": "a1",
+      "x": 87,
+      "y": 80,
+      "w": 429,
+      "h": 22,
+      "shape": "rectangle",
+      "label": "Implement",
+      "labelBounds": {
+        "x": 16,
+        "y": 82.55,
+        "w": 58.266000000000005,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 0,
+        "y": 0,
+        "w": 703,
+        "h": 186
+      }
+    },
+    {
+      "id": "task#1",
+      "x": 516,
+      "y": 110,
+      "w": 171,
+      "h": 22,
+      "shape": "rectangle",
+      "label": "Review",
+      "labelBounds": {
+        "x": 16,
+        "y": 112.55,
+        "w": 44.928,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 0,
+        "y": 0,
+        "w": 703,
+        "h": 186
+      }
+    }
+  ],
+  "edges": [],
+  "groups": [
+    {
+      "id": "section#0",
+      "x": 87,
+      "y": 50,
+      "w": 600,
+      "h": 90,
+      "members": [
+        "a1",
+        "task#1"
+      ],
+      "label": "Build"
+    }
+  ],
+  "bounds": {
+    "w": 703,
+    "h": 186
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 703,
+        "h": 186
+      }
+    },
+    {
+      "id": "group:section#0",
+      "kind": "band",
+      "elementId": "section#0",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 87,
+        "y": 50,
+        "w": 600,
+        "h": 90
+      }
+    },
+    {
+      "id": "node:a1",
+      "kind": "node",
+      "elementId": "a1",
+      "parentId": "group:section#0",
+      "bounds": {
+        "x": 87,
+        "y": 80,
+        "w": 429,
+        "h": 22
+      },
+      "sourceLine": 5
+    },
+    {
+      "id": "node:task#1",
+      "kind": "node",
+      "elementId": "task#1",
+      "parentId": "group:section#0",
+      "bounds": {
+        "x": 516,
+        "y": 110,
+        "w": 171,
+        "h": 22
+      }
+    }
+  ]
+}

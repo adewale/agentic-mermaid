@@ -1,0 +1,309 @@
+{
+  "version": 1,
+  "kind": "ishikawa",
+  "nodes": [
+    {
+      "id": "effect",
+      "x": 226,
+      "y": 95,
+      "w": 114,
+      "h": 52,
+      "shape": "rectangle",
+      "label": "Slow release",
+      "role": "box",
+      "labelBounds": {
+        "x": 242.07699999999997,
+        "y": 112.45,
+        "w": 82.29,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 226.077,
+        "y": 94.9,
+        "w": 114.29,
+        "h": 52
+      }
+    },
+    {
+      "id": "cause-1",
+      "x": 114,
+      "y": 24,
+      "w": 81,
+      "h": 33,
+      "shape": "rectangle",
+      "label": "Process",
+      "role": "box",
+      "labelBounds": {
+        "x": 125.80199999999999,
+        "y": 32,
+        "w": 56.550000000000004,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 113.80199999999999,
+        "y": 24,
+        "w": 80.55000000000001,
+        "h": 32.900000000000006
+      }
+    },
+    {
+      "id": "cause-2",
+      "x": 52,
+      "y": 81,
+      "w": 92,
+      "h": 17,
+      "shape": "rectangle",
+      "label": "Manual checks",
+      "role": "labelled-mark",
+      "labelBounds": {
+        "x": 51.99999999999999,
+        "y": 81,
+        "w": 92.35199999999999,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 52,
+        "y": 81,
+        "w": 92.35199999999999,
+        "h": 16.900000000000002
+      }
+    },
+    {
+      "id": "cause-3",
+      "x": 118,
+      "y": 185,
+      "w": 73,
+      "h": 33,
+      "shape": "rectangle",
+      "label": "Tooling",
+      "role": "box",
+      "labelBounds": {
+        "x": 129.702,
+        "y": 192.90000000000003,
+        "w": 48.75,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 117.702,
+        "y": 184.9,
+        "w": 72.75,
+        "h": 32.900000000000006
+      }
+    },
+    {
+      "id": "cause-4",
+      "x": 76,
+      "y": 144,
+      "w": 68,
+      "h": 17,
+      "shape": "rectangle",
+      "label": "Slow builds",
+      "role": "labelled-mark",
+      "labelBounds": {
+        "x": 76.453,
+        "y": 143.9,
+        "w": 67.899,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 76.453,
+        "y": 143.9,
+        "w": 67.899,
+        "h": 16.900000000000002
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "branch:cause-1",
+      "from": "cause-1",
+      "to": "effect",
+      "path": [
+        [
+          154,
+          57
+        ],
+        [
+          186,
+          121
+        ]
+      ]
+    },
+    {
+      "id": "branch:cause-2",
+      "from": "cause-2",
+      "to": "cause-1",
+      "path": [
+        [
+          150,
+          89
+        ],
+        [
+          170,
+          89
+        ]
+      ]
+    },
+    {
+      "id": "branch:cause-3",
+      "from": "cause-3",
+      "to": "effect",
+      "path": [
+        [
+          154,
+          185
+        ],
+        [
+          186,
+          121
+        ]
+      ]
+    },
+    {
+      "id": "branch:cause-4",
+      "from": "cause-4",
+      "to": "cause-3",
+      "path": [
+        [
+          150,
+          152
+        ],
+        [
+          170,
+          152
+        ]
+      ]
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 365,
+    "h": 242
+  },
+  "labels": [],
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 365,
+        "h": 242
+      }
+    },
+    {
+      "id": "node:effect",
+      "kind": "node",
+      "elementId": "effect",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 226,
+        "y": 95,
+        "w": 114,
+        "h": 52
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:cause-1",
+      "kind": "node",
+      "elementId": "cause-1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 114,
+        "y": 24,
+        "w": 81,
+        "h": 33
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "node:cause-2",
+      "kind": "node",
+      "elementId": "cause-2",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 52,
+        "y": 81,
+        "w": 92,
+        "h": 17
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "node:cause-3",
+      "kind": "node",
+      "elementId": "cause-3",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 118,
+        "y": 185,
+        "w": 73,
+        "h": 33
+      },
+      "sourceLine": 5
+    },
+    {
+      "id": "node:cause-4",
+      "kind": "node",
+      "elementId": "cause-4",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 76,
+        "y": 144,
+        "w": 68,
+        "h": 17
+      },
+      "sourceLine": 6
+    },
+    {
+      "id": "edge:branch:cause-1",
+      "kind": "edge",
+      "elementId": "branch:cause-1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 154,
+        "y": 57,
+        "w": 32,
+        "h": 64
+      }
+    },
+    {
+      "id": "edge:branch:cause-2",
+      "kind": "edge",
+      "elementId": "branch:cause-2",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 150,
+        "y": 89,
+        "w": 20,
+        "h": 1
+      }
+    },
+    {
+      "id": "edge:branch:cause-3",
+      "kind": "edge",
+      "elementId": "branch:cause-3",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 154,
+        "y": 121,
+        "w": 32,
+        "h": 64
+      }
+    },
+    {
+      "id": "edge:branch:cause-4",
+      "kind": "edge",
+      "elementId": "branch:cause-4",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 150,
+        "y": 152,
+        "w": 20,
+        "h": 1
+      }
+    }
+  ]
+}

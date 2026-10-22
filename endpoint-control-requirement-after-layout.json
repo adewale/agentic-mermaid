@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "kind": "requirement",
+  "nodes": [
+    {
+      "id": "fast",
+      "x": 32,
+      "y": 300,
+      "w": 182,
+      "h": 177,
+      "shape": "rectangle",
+      "label": "<<Requirement>>\nfast",
+      "role": "box",
+      "labelBounds": {
+        "x": 70.191,
+        "y": 312,
+        "w": 105.69,
+        "h": 33.800000000000004
+      },
+      "labelContainer": {
+        "x": 32,
+        "y": 300,
+        "w": 182.072,
+        "h": 177.40000000000003
+      }
+    },
+    {
+      "id": "benchmark",
+      "x": 53,
+      "y": 32,
+      "w": 140,
+      "h": 100,
+      "shape": "rectangle",
+      "label": "<<Element>>\nbenchmark",
+      "role": "box",
+      "labelBounds": {
+        "x": 84.27000000000001,
+        "y": 44,
+        "w": 77.532,
+        "h": 33.800000000000004
+      },
+      "labelContainer": {
+        "x": 53.036,
+        "y": 32,
+        "w": 140,
+        "h": 99.70000000000002
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "relation-1",
+      "from": "benchmark",
+      "to": "fast",
+      "path": [
+        [
+          123,
+          132
+        ],
+        [
+          123,
+          300
+        ]
+      ],
+      "label": {
+        "x": 83,
+        "y": 216,
+        "text": "<<verifies>>",
+        "bounds": {
+          "x": 51.98599999999999,
+          "y": 208.70000000000002,
+          "w": 61.050000000000004,
+          "h": 14.3
+        }
+      }
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 246,
+    "h": 509
+  },
+  "labels": [
+    {
+      "id": "field:fast:0",
+      "text": "ID: 1",
+      "bounds": {
+        "x": 48,
+        "y": 365.8,
+        "w": 20.903999999999996,
+        "h": 16.900000000000002
+      },
+      "container": {
+        "x": 32,
+        "y": 300,
+        "w": 182.072,
+        "h": 177.40000000000003
+      }
+    },
+    {
+      "id": "field:fast:1",
+      "text": "Text: Respond within 100ms",
+      "bounds": {
+        "x": 48,
+        "y": 391.70000000000005,
+        "w": 150.072,
+        "h": 16.900000000000002
+      },
+      "container": {
+        "x": 32,
+        "y": 300,
+        "w": 182.072,
+        "h": 177.40000000000003
+      }
+    },
+    {
+      "id": "field:fast:2",
+      "text": "Risk: High",
+      "bounds": {
+        "x": 48,
+        "y": 417.6,
+        "w": 57.40800000000001,
+        "h": 16.900000000000002
+      },
+      "container": {
+        "x": 32,
+        "y": 300,
+        "w": 182.072,
+        "h": 177.40000000000003
+      }
+    },
+    {
+      "id": "field:fast:3",
+      "text": "Verification: Test",
+      "bounds": {
+        "x": 48,
+        "y": 443.50000000000006,
+        "w": 95.31600000000002,
+        "h": 16.900000000000002
+      },
+      "container": {
+        "x": 32,
+        "y": 300,
+        "w": 182.072,
+        "h": 177.40000000000003
+      }
+    },
+    {
+      "id": "field:benchmark:0",
+      "text": "Type: test",
+      "bounds": {
+        "x": 69.036,
+        "y": 97.80000000000001,
+        "w": 56.00400000000001,
+        "h": 16.900000000000002
+      },
+      "container": {
+        "x": 53.036,
+        "y": 32,
+        "w": 140,
+        "h": 99.70000000000002
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 246,
+        "h": 509
+      }
+    },
+    {
+      "id": "node:fast",
+      "kind": "node",
+      "elementId": "fast",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 32,
+        "y": 300,
+        "w": 182,
+        "h": 177
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:benchmark",
+      "kind": "node",
+      "elementId": "benchmark",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 53,
+        "y": 32,
+        "w": 140,
+        "h": 100
+      },
+      "sourceLine": 8
+    },
+    {
+      "id": "edge:relation-1",
+      "kind": "edge",
+      "elementId": "relation-1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 123,
+        "y": 132,
+        "w": 1,
+        "h": 168
+      }
+    },
+    {
+      "id": "label:relation-1",
+      "kind": "label",
+      "elementId": "relation-1",
+      "parentId": "edge:relation-1",
+      "bounds": {
+        "x": 41,
+        "y": 209,
+        "w": 84,
+        "h": 14
+      }
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940.6759999999999" height="568" viewBox="0 0 940.6759999999999 568" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0y44avy1mbn5wd">
+<style>
+  svg.am-0y44avy1mbn5wd { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0y44avy1mbn5wd {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="architecture-edge" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="322.33799999999997,64 501.50699999999995,64 501.50699999999995,300 676.6759999999999,300" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:left_disk-&gt;junctionCenter#0" data-role="edge" data-from="left_disk" data-to="junctionCenter" role="graphics-symbol" aria-roledescription="relation" aria-label="left_disk to junctionCenter" />
+<polyline class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" points="580.6759999999999,172 580.6759999999999,234 684.6759999999999,234 684.6759999999999,292" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:top_disk-&gt;junctionCenter#0" data-role="edge" data-from="top_disk" data-to="junctionCenter" role="graphics-symbol" aria-roledescription="relation" aria-label="top_disk to junctionCenter" />
+<polyline class="architecture-edge" data-from-side="T" data-to-side="B" data-from-boundary="item" data-to-boundary="item" points="840.6759999999999,344 840.6759999999999,324 684.6759999999999,324 684.6759999999999,308" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:bottom_disk-&gt;junctionCenter#0" data-role="edge" data-from="bottom_disk" data-to="junctionCenter" role="graphics-symbol" aria-roledescription="relation" aria-label="bottom_disk to junctionCenter" />
+<polyline class="architecture-edge" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="692.6759999999999,300 710.6759999999999,300 710.6759999999999,436 728.6759999999999,436" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:junctionCenter-&gt;junctionRight#0" data-role="edge" data-from="junctionCenter" data-to="junctionRight" role="graphics-symbol" aria-roledescription="relation" aria-label="junctionCenter to junctionRight" />
+<polyline class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" points="103.169,256 103.169,344 736.6759999999999,344 736.6759999999999,428" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:top_gateway-&gt;junctionRight#0" data-role="edge" data-from="top_gateway" data-to="junctionRight" role="graphics-symbol" aria-roledescription="relation" aria-label="top_gateway to junctionRight" />
+<polyline class="architecture-edge" data-from-side="T" data-to-side="B" data-from-boundary="item" data-to-boundary="item" points="421.50699999999995,480 421.50699999999995,460 736.6759999999999,460 736.6759999999999,444" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:bottom_gateway-&gt;junctionRight#0" data-role="edge" data-from="bottom_gateway" data-to="junctionRight" role="graphics-symbol" aria-roledescription="relation" aria-label="bottom_gateway to junctionRight" />
+<g class="architecture-junction" data-id="junctionCenter" data-role="junction">
+  <circle class="architecture-junction-ring" cx="684.6759999999999" cy="300" r="8" fill="#FFFFFF" stroke="#47474a" stroke-width="1.25" data-id="junction-ring:junctionCenter" data-role="junction" />
+  <circle class="architecture-junction-core" cx="684.6759999999999" cy="300" r="4.5" fill="#d3d3d4" stroke="#47474a" stroke-width="0.75" data-id="junction-core:junctionCenter" data-role="junction" />
+</g>
+<g class="architecture-junction" data-id="junctionRight" data-role="junction">
+  <circle class="architecture-junction-ring" cx="736.6759999999999" cy="436" r="8" fill="#FFFFFF" stroke="#47474a" stroke-width="1.25" data-id="junction-ring:junctionRight" data-role="junction" />
+  <circle class="architecture-junction-core" cx="736.6759999999999" cy="436" r="4.5" fill="#d3d3d4" stroke="#47474a" stroke-width="0.75" data-id="junction-core:junctionRight" data-role="junction" />
+</g>
+<g class="architecture-service" data-id="left_disk" data-label="Disk" data-role="service">
+  <rect class="architecture-service-card" x="202.338" y="40" width="120" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:left_disk" data-role="service" />
+  <rect class="architecture-service-outline" x="202.338" y="40" width="120" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:left_disk" data-role="service" />
+  <g class="architecture-icon" data-icon="disk">
+  <circle class="architecture-icon-mark" cx="231.338" cy="64" r="4.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="231.338" cy="64" r="1.6199999999999999" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="254.338" y="64" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.625999999999998" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Disk</text>
+</g>
+<g class="architecture-service" data-id="top_disk" data-label="Disk" data-role="service">
+  <rect class="architecture-service-card" x="520.6759999999999" y="124" width="120" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:top_disk" data-role="service" />
+  <rect class="architecture-service-outline" x="520.6759999999999" y="124" width="120" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:top_disk" data-role="service" />
+  <g class="architecture-icon" data-icon="disk">
+  <circle class="architecture-icon-mark" cx="549.6759999999999" cy="148" r="4.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="549.6759999999999" cy="148" r="1.6199999999999999" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="572.6759999999999" y="148" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.625999999999998" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Disk</text>
+</g>
+<g class="architecture-service" data-id="bottom_disk" data-label="Disk" data-role="service">
+  <rect class="architecture-service-card" x="780.6759999999999" y="344" width="120" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:bottom_disk" data-role="service" />
+  <rect class="architecture-service-outline" x="780.6759999999999" y="344" width="120" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:bottom_disk" data-role="service" />
+  <g class="architecture-icon" data-icon="disk">
+  <circle class="architecture-icon-mark" cx="809.6759999999999" cy="368" r="4.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="809.6759999999999" cy="368" r="1.6199999999999999" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="832.6759999999999" y="368" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.625999999999998" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Disk</text>
+</g>
+<g class="architecture-service" data-id="top_gateway" data-label="Gateway" data-role="service">
+  <rect class="architecture-service-card" x="40" y="208" width="126.338" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:top_gateway" data-role="service" />
+  <rect class="architecture-service-outline" x="40" y="208" width="126.338" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:top_gateway" data-role="service" />
+  <g class="architecture-icon" data-icon="internet">
+  <circle class="architecture-icon-mark" cx="69" cy="232" r="4.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 64.32 232 H 73.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 69 227.32 V 236.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 66.48 228.04 Q 69 232 66.48 235.96" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 71.52 228.04 Q 69 232 71.52 235.96" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="92" y="232" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="52.337999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gateway</text>
+</g>
+<g class="architecture-service" data-id="bottom_gateway" data-label="Gateway" data-role="service">
+  <rect class="architecture-service-card" x="358.33799999999997" y="480" width="126.338" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:bottom_gateway" data-role="service" />
+  <rect class="architecture-service-outline" x="358.33799999999997" y="480" width="126.338" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:bottom_gateway" data-role="service" />
+  <g class="architecture-icon" data-icon="internet">
+  <circle class="architecture-icon-mark" cx="387.33799999999997" cy="504" r="4.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 382.65799999999996 504 H 392.018" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 387.33799999999997 499.32 V 508.68" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 384.818 500.04 Q 387.33799999999997 504 384.818 507.96" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 389.85799999999995 500.04 Q 387.33799999999997 504 389.85799999999995 507.96" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="410.33799999999997" y="504" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="52.337999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gateway</text>
+</g>
+</svg>

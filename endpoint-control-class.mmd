@@ -1,0 +1,7 @@
+classDiagram
+  class Account {
+    +id: string
+    +close() void
+  }
+  Account <|-- Savings
+  Account "1" o-- "*" Transaction : logs

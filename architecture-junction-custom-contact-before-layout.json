@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "kind": "architecture",
+  "nodes": [
+    {
+      "id": "b",
+      "x": 72,
+      "y": 128,
+      "w": 120,
+      "h": 48,
+      "shape": "service",
+      "label": "B",
+      "role": "box",
+      "labelBounds": {
+        "x": 124,
+        "y": 143.55,
+        "w": 10.841999999999999,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 72,
+        "y": 128,
+        "w": 120,
+        "h": 48
+      }
+    },
+    {
+      "id": "j",
+      "x": 118,
+      "y": 212,
+      "w": 28,
+      "h": 28,
+      "shape": "circle",
+      "role": "mark"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge#0:b->j",
+      "from": "b",
+      "to": "j",
+      "path": [
+        [
+          132,
+          176
+        ],
+        [
+          132,
+          212
+        ]
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "outer",
+      "x": 36,
+      "y": 40,
+      "w": 192,
+      "h": 236,
+      "members": [],
+      "label": "Outer"
+    },
+    {
+      "id": "g",
+      "x": 54,
+      "y": 84,
+      "w": 156,
+      "h": 174,
+      "members": [
+        "b",
+        "j"
+      ],
+      "label": "Group",
+      "parentId": "outer"
+    }
+  ],
+  "bounds": {
+    "w": 268,
+    "h": 316
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 268,
+        "h": 316
+      }
+    },
+    {
+      "id": "group:outer",
+      "kind": "cluster",
+      "elementId": "outer",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 36,
+        "y": 40,
+        "w": 192,
+        "h": 236
+      }
+    },
+    {
+      "id": "group:g",
+      "kind": "cluster",
+      "elementId": "g",
+      "parentId": "group:outer",
+      "bounds": {
+        "x": 54,
+        "y": 84,
+        "w": 156,
+        "h": 174
+      }
+    },
+    {
+      "id": "node:b",
+      "kind": "node",
+      "elementId": "b",
+      "parentId": "group:g",
+      "bounds": {
+        "x": 72,
+        "y": 128,
+        "w": 120,
+        "h": 48
+      },
+      "sourceLine": 5
+    },
+    {
+      "id": "node:j",
+      "kind": "node",
+      "elementId": "j",
+      "parentId": "group:g",
+      "bounds": {
+        "x": 118,
+        "y": 212,
+        "w": 28,
+        "h": 28
+      },
+      "sourceLine": 7
+    },
+    {
+      "id": "edge:edge#0:b->j",
+      "kind": "edge",
+      "elementId": "edge#0:b->j",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 132,
+        "y": 176,
+        "w": 1,
+        "h": 36
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="268" height="328" viewBox="0 0 268 328" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;--arch-edge-stroke:#dc2626" aria-labelledby="arch-1452dm8-title" aria-roledescription="architecture" role="img" class="am-1r3h30h147yp5d">
+<title id="arch-1452dm8-title">Junction connections</title>
+<style>
+  svg.am-1r3h30h147yp5d { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1r3h30h147yp5d {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#dc2626" stroke="#dc2626" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#dc2626" stroke="#dc2626" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<text x="134" y="20" class="architecture-title" text-anchor="middle" font-size="18" font-weight="600" fill="#27272A" data-id="title" data-role="title" data-prepared-text="true" dy="6.3" textLength="187.38" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Junction connections</text>
+<g class="architecture-group" data-id="outer" data-label="Outer" data-role="group">
+  <rect class="architecture-group-frame" x="36" y="40" width="192" height="248" rx="0" ry="0" fill="#fafafa" stroke="none" data-id="group-frame:outer" data-role="group" />
+  <path class="architecture-group-band" d="M36,40 H228 V68 H36 Z" fill="#fdf4f4" stroke="none" />
+  <rect class="architecture-group-outline" x="36" y="40" width="192" height="248" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="group-outline:outer" data-role="group" />
+  <g class="architecture-icon" data-icon="cloud">
+  <circle class="architecture-icon-mark" cx="51.3504" cy="54.2944" r="2.3552" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="54.2944" cy="52.8224" r="2.9440000000000004" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="56.944" cy="54.2944" r="2.208" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 48.9952 56.355199999999996 H 58.8576" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="72" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.199999999999999" textLength="33.48" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Outer</text>
+<g class="architecture-group" data-id="g" data-label="Group" data-role="group">
+  <rect class="architecture-group-frame" x="54" y="84" width="156" height="186" rx="0" ry="0" fill="#fafafa" stroke="none" data-id="group-frame:g" data-role="group" />
+  <path class="architecture-group-band" d="M54,84 H210 V112 H54 Z" fill="#fdf4f4" stroke="none" />
+  <rect class="architecture-group-outline" x="54" y="84" width="156" height="186" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="group-outline:g" data-role="group" />
+  <g class="architecture-icon" data-icon="cloud">
+  <circle class="architecture-icon-mark" cx="69.3504" cy="98.2944" r="2.3552" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="72.2944" cy="96.8224" r="2.9440000000000004" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<circle class="architecture-icon-mark" cx="74.944" cy="98.2944" r="2.208" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 66.9952 100.3552 H 76.8576" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="90" y="98" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.199999999999999" textLength="37.8" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Group</text>
+</g>
+</g>
+<polyline class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" points="132,176 132,212" fill="none" stroke="#dc2626" stroke-width="1" stroke-linejoin="round" marker-start="url(#architecture-arrow-start)" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="bidirectional" data-id="edge:b-&gt;j#0" data-role="edge" data-from="b" data-to="j" role="graphics-symbol" aria-roledescription="relation" aria-label="b to j" />
+<g class="architecture-junction" data-id="j" data-role="junction">
+  <circle class="architecture-junction-ring" cx="132" cy="232" r="20" fill="#FFFFFF" stroke="#dc2626" stroke-width="1.25" data-id="junction-ring:j" data-role="junction" />
+  <circle class="architecture-junction-core" cx="132" cy="232" r="4.5" fill="#f7cbcb" stroke="#dc2626" stroke-width="0.75" data-id="junction-core:j" data-role="junction" />
+</g>
+<g class="architecture-service" data-id="b" data-label="B" data-role="service">
+  <rect class="architecture-service-card" x="72" y="128" width="120" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:b" data-role="service" />
+  <rect class="architecture-service-outline" x="72" y="128" width="120" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:b" data-role="service" />
+  <g class="architecture-icon" data-icon="database">
+  <ellipse class="architecture-icon-mark" cx="101" cy="149.12" rx="4.32" ry="1.8" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 96.68 149.12 V 155.6" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 105.32 149.12 V 155.6" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="101" cy="152.36" rx="4.32" ry="1.8" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="101" cy="155.6" rx="4.32" ry="1.8" fill="none" stroke="#dc2626" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+</g>
+  <text x="124" y="152" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="10.841999999999999" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
+</g>
+</svg>

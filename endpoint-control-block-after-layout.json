@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "kind": "block",
+  "nodes": [
+    {
+      "id": "A",
+      "x": 32,
+      "y": 32,
+      "w": 98,
+      "h": 44,
+      "shape": "rectangle",
+      "label": "API",
+      "role": "box",
+      "labelBounds": {
+        "x": 69.78399999999999,
+        "y": 45.55,
+        "w": 22.697999999999997,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 32,
+        "y": 32,
+        "w": 98.26599999999999,
+        "h": 44
+      }
+    },
+    {
+      "id": "B",
+      "x": 150,
+      "y": 32,
+      "w": 98,
+      "h": 44,
+      "shape": "rectangle",
+      "label": "Database",
+      "role": "box",
+      "labelBounds": {
+        "x": 170.266,
+        "y": 45.55,
+        "w": 58.266,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 150.26600000000002,
+        "y": 32,
+        "w": 98.26599999999999,
+        "h": 44
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "1-A-B",
+      "from": "A",
+      "to": "B",
+      "path": [
+        [
+          130,
+          54
+        ],
+        [
+          150,
+          54
+        ]
+      ]
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 281,
+    "h": 108
+  },
+  "labels": [],
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 281,
+        "h": 108
+      }
+    },
+    {
+      "id": "node:A",
+      "kind": "node",
+      "elementId": "A",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 32,
+        "y": 32,
+        "w": 98,
+        "h": 44
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "node:B",
+      "kind": "node",
+      "elementId": "B",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 150,
+        "y": 32,
+        "w": 98,
+        "h": 44
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "edge:1-A-B",
+      "kind": "edge",
+      "elementId": "1-A-B",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 130,
+        "y": 54,
+        "w": 20,
+        "h": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+---
+title: Junction connections
+---
+architecture-beta
+group outer(cloud)[Outer]
+group g(cloud)[Group] in outer
+junction j in g
+service b(database)[B] in g
+b:B<-->T:j
+align column b j

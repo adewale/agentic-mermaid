@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "kind": "c4",
+  "nodes": [
+    {
+      "id": "user",
+      "x": 64,
+      "y": 64,
+      "w": 150,
+      "h": 113.2,
+      "shape": "person",
+      "label": "Customer",
+      "role": "box",
+      "labelBounds": {
+        "x": 109.867,
+        "y": 122.69999999999999,
+        "w": 58.266,
+        "h": 33.800000000000004
+      },
+      "labelContainer": {
+        "x": 64,
+        "y": 64,
+        "w": 150,
+        "h": 113.2
+      }
+    },
+    {
+      "id": "api",
+      "x": 348.46000000000004,
+      "y": 64,
+      "w": 150,
+      "h": 113.2,
+      "shape": "rectangle",
+      "label": "API",
+      "role": "box",
+      "labelBounds": {
+        "x": 372.46750000000003,
+        "y": 95.25,
+        "w": 101.985,
+        "h": 50.7
+      },
+      "labelContainer": {
+        "x": 348.46000000000004,
+        "y": 64,
+        "w": 150,
+        "h": 113.2
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "c4-rel-1",
+      "from": "user",
+      "to": "api",
+      "path": [
+        [
+          214,
+          120.6
+        ],
+        [
+          348.46000000000004,
+          120.6
+        ]
+      ],
+      "label": {
+        "x": 281.23,
+        "y": 120.6,
+        "text": "Uses\n[HTTPS]",
+        "bounds": {
+          "x": 259.615,
+          "y": 106.3,
+          "w": 43.230000000000004,
+          "h": 28.6
+        }
+      }
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 562.46,
+    "h": 362.7
+  },
+  "labels": [
+    {
+      "id": "legend:heading",
+      "text": "Legend",
+      "bounds": {
+        "x": 36,
+        "y": 261.2,
+        "w": 50.31000000000001,
+        "h": 16.900000000000002
+      },
+      "container": {
+        "x": 24,
+        "y": 253.2,
+        "w": 101.28999999999999,
+        "h": 85.5
+      }
+    },
+    {
+      "id": "legend:entry:c4:legend:person:person",
+      "text": "Person",
+      "bounds": {
+        "x": 62,
+        "y": 290.09999999999997,
+        "w": 37.29,
+        "h": 14.3
+      },
+      "container": {
+        "x": 24,
+        "y": 253.2,
+        "w": 101.28999999999999,
+        "h": 85.5
+      }
+    },
+    {
+      "id": "legend:entry:c4:legend:system:rectangle",
+      "text": "System",
+      "bounds": {
+        "x": 62,
+        "y": 314.4,
+        "w": 36.102,
+        "h": 14.3
+      },
+      "container": {
+        "x": 24,
+        "y": 253.2,
+        "w": 101.28999999999999,
+        "h": 85.5
+      }
+    }
+  ],
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 562.46,
+        "h": 362.7
+      }
+    },
+    {
+      "id": "node:user",
+      "kind": "node",
+      "elementId": "user",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 64,
+        "y": 64,
+        "w": 150,
+        "h": 113.2
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:api",
+      "kind": "node",
+      "elementId": "api",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 348.46000000000004,
+        "y": 64,
+        "w": 150,
+        "h": 113.2
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "edge:c4-rel-1",
+      "kind": "edge",
+      "elementId": "c4-rel-1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 214,
+        "y": 120.6,
+        "w": 134.46000000000004,
+        "h": 1
+      }
+    },
+    {
+      "id": "label:c4-rel-1",
+      "kind": "label",
+      "elementId": "c4-rel-1",
+      "parentId": "edge:c4-rel-1",
+      "bounds": {
+        "x": 239.23000000000002,
+        "y": 113.6,
+        "w": 84,
+        "h": 14
+      }
+    }
+  ]
+}

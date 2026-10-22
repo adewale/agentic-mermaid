@@ -1,0 +1,194 @@
+{
+  "version": 1,
+  "kind": "sequence",
+  "nodes": [
+    {
+      "id": "U",
+      "x": 30,
+      "y": 30,
+      "w": 80,
+      "h": 40,
+      "shape": "rectangle",
+      "label": "User",
+      "labelBounds": {
+        "x": 54.205,
+        "y": 41.55,
+        "w": 31.589999999999996,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 30,
+        "y": 30,
+        "w": 80,
+        "h": 40
+      },
+      "role": "box"
+    },
+    {
+      "id": "S",
+      "x": 170,
+      "y": 30,
+      "w": 80,
+      "h": 40,
+      "shape": "rectangle",
+      "label": "Server",
+      "labelBounds": {
+        "x": 187.536,
+        "y": 41.55,
+        "w": 44.928,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 170,
+        "y": 30,
+        "w": 80,
+        "h": 40
+      },
+      "role": "box"
+    }
+  ],
+  "edges": [
+    {
+      "id": "msg#0:U->S",
+      "from": "U",
+      "to": "S",
+      "path": [
+        [
+          70,
+          96
+        ],
+        [
+          210,
+          96
+        ]
+      ],
+      "label": {
+        "x": 140,
+        "y": 86,
+        "text": "request",
+        "bounds": {
+          "x": 120.761,
+          "y": 78.85,
+          "w": 38.478,
+          "h": 14.3
+        }
+      }
+    },
+    {
+      "id": "msg#1:S->U",
+      "from": "S",
+      "to": "U",
+      "path": [
+        [
+          210,
+          136
+        ],
+        [
+          70,
+          136
+        ]
+      ],
+      "label": {
+        "x": 140,
+        "y": 126,
+        "text": "response",
+        "bounds": {
+          "x": 116.009,
+          "y": 118.85,
+          "w": 47.982,
+          "h": 14.3
+        }
+      }
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 280,
+    "h": 206
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 280,
+        "h": 206
+      }
+    },
+    {
+      "id": "node:U",
+      "kind": "node",
+      "elementId": "U",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 30,
+        "y": 30,
+        "w": 80,
+        "h": 40
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "node:S",
+      "kind": "node",
+      "elementId": "S",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 170,
+        "y": 30,
+        "w": 80,
+        "h": 40
+      }
+    },
+    {
+      "id": "edge:msg#0:U->S",
+      "kind": "edge",
+      "elementId": "msg#0:U->S",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 70,
+        "y": 96,
+        "w": 140,
+        "h": 1
+      }
+    },
+    {
+      "id": "label:msg#0:U->S",
+      "kind": "label",
+      "elementId": "msg#0:U->S",
+      "parentId": "edge:msg#0:U->S",
+      "bounds": {
+        "x": 115.5,
+        "y": 79,
+        "w": 49,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:msg#1:S->U",
+      "kind": "edge",
+      "elementId": "msg#1:S->U",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 70,
+        "y": 136,
+        "w": 140,
+        "h": 1
+      }
+    },
+    {
+      "id": "label:msg#1:S->U",
+      "kind": "label",
+      "elementId": "msg#1:S->U",
+      "parentId": "edge:msg#1:S->U",
+      "bounds": {
+        "x": 112,
+        "y": 119,
+        "w": 56,
+        "h": 14
+      }
+    }
+  ]
+}

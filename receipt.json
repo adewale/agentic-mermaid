@@ -1,0 +1,223 @@
+{
+  "base": "009159f93e6cea53f97ca53e416cf66b130c8e49",
+  "head": "bc7ee3ad3d014cc2b75368ee73ea262cd05696c2",
+  "bun": "1.4.2",
+  "fixtures": [
+    "architecture-junction-contact",
+    "architecture-junction-custom-contact",
+    "architecture-junction-branching",
+    "endpoint-control-flowchart",
+    "endpoint-control-state",
+    "endpoint-control-sequence",
+    "endpoint-control-class",
+    "endpoint-control-journey",
+    "endpoint-control-architecture",
+    "endpoint-control-gantt",
+    "endpoint-control-c4",
+    "endpoint-control-requirement",
+    "endpoint-control-ishikawa",
+    "endpoint-control-block"
+  ],
+  "sources": {
+    "architecture-junction-contact": "architecture-beta\njunction j\nservice b(database)[B]\nj:R<-->L:b",
+    "architecture-junction-custom-contact": "---\ntitle: Junction connections\n---\narchitecture-beta\ngroup outer(cloud)[Outer]\ngroup g(cloud)[Group] in outer\njunction j in g\nservice b(database)[B] in g\nb:B<-->T:j\nalign column b j",
+    "architecture-junction-branching": "architecture-beta\n    service left_disk(disk)[Disk]\n    service top_disk(disk)[Disk]\n    service bottom_disk(disk)[Disk]\n    service top_gateway(internet)[Gateway]\n    service bottom_gateway(internet)[Gateway]\n    junction junctionCenter\n    junction junctionRight\n\n    left_disk:R -- L:junctionCenter\n    top_disk:B -- T:junctionCenter\n    bottom_disk:T -- B:junctionCenter\n    junctionCenter:R -- L:junctionRight\n    top_gateway:B -- T:junctionRight\n    bottom_gateway:T -- B:junctionRight",
+    "endpoint-control-flowchart": "flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]",
+    "endpoint-control-state": "stateDiagram-v2\n  [*] --> Draft\n  Draft --> Review : submit\n  Review --> [*] : approve",
+    "endpoint-control-sequence": "sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response",
+    "endpoint-control-class": "classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account \"1\" o-- \"*\" Transaction : logs",
+    "endpoint-control-journey": "journey\n  title Checkout\n  section Browse\n    Find product: 4: Shopper\n  section Buy\n    Pay: 3: Shopper",
+    "endpoint-control-architecture": "architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache",
+    "endpoint-control-gantt": "gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d",
+    "endpoint-control-c4": "C4Context\n  Person(user, \"Customer\")\n  System(api, \"API\", \"Serves requests\")\n  Rel(user, api, \"Uses\", \"HTTPS\")",
+    "endpoint-control-requirement": "requirementDiagram\n  requirement fast {\n    id: 1\n    text: Respond within 100ms\n    risk: high\n    verifymethod: test\n  }\n  element benchmark {\n    type: \"test\"\n  }\n  benchmark - verifies -> fast",
+    "endpoint-control-ishikawa": "ishikawa\n  Slow release\n  Process\n    Manual checks\n  Tooling\n    Slow builds",
+    "endpoint-control-block": "block\n  columns 2\n  A[\"API\"] B[\"Database\"]\n  A --> B"
+  },
+  "terminalFixtures": [],
+  "terminalOptions": {
+    "ascii": {
+      "colorMode": "none",
+      "useAscii": true
+    },
+    "unicode": {
+      "colorMode": "html",
+      "useAscii": false
+    }
+  },
+  "options": {
+    "security": "strict",
+    "style": "default unless fixtureOptions overrides it",
+    "fonts": "bundled"
+  },
+  "fixtureOptions": {
+    "architecture-junction-contact": {
+      "svg": {
+        "security": "strict",
+        "architecture": {
+          "visual": {
+            "edgeStroke": "#dc2626"
+          }
+        }
+      },
+      "png": {
+        "security": "strict",
+        "architecture": {
+          "visual": {
+            "edgeStroke": "#dc2626"
+          }
+        },
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "architecture-junction-custom-contact": {
+      "svg": {
+        "security": "strict",
+        "architecture": {
+          "visual": {
+            "junctionOuterRadius": 20,
+            "edgeStroke": "#dc2626"
+          }
+        }
+      },
+      "png": {
+        "security": "strict",
+        "architecture": {
+          "visual": {
+            "junctionOuterRadius": 20,
+            "edgeStroke": "#dc2626"
+          }
+        },
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "architecture-junction-branching": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-flowchart": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-state": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-sequence": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-class": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-journey": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-architecture": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-gantt": {
+      "svg": {
+        "security": "strict",
+        "gantt": {
+          "dependencyArrows": true
+        }
+      },
+      "png": {
+        "security": "strict",
+        "gantt": {
+          "dependencyArrows": true
+        },
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-c4": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-requirement": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-ishikawa": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    },
+    "endpoint-control-block": {
+      "svg": {
+        "security": "strict"
+      },
+      "png": {
+        "security": "strict",
+        "background": "#ffffff",
+        "scale": 1
+      }
+    }
+  }
+}

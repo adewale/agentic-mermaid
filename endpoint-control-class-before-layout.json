@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "kind": "class",
+  "nodes": [
+    {
+      "id": "Account",
+      "x": 60,
+      "y": 40,
+      "w": 120,
+      "h": 89,
+      "shape": "rectangle",
+      "label": "Account",
+      "labelBounds": {
+        "x": 93.285,
+        "y": 48,
+        "w": 53.43000000000001,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 60,
+        "y": 40,
+        "w": 120,
+        "h": 32.900000000000006
+      }
+    },
+    {
+      "id": "Savings",
+      "x": 40,
+      "y": 189,
+      "w": 120,
+      "h": 49,
+      "shape": "rectangle",
+      "label": "Savings",
+      "labelBounds": {
+        "x": 73.285,
+        "y": 196.90000000000003,
+        "w": 53.43,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 188.9,
+        "w": 120,
+        "h": 32.900000000000006
+      }
+    },
+    {
+      "id": "Transaction",
+      "x": 140,
+      "y": 298,
+      "w": 120,
+      "h": 49,
+      "shape": "rectangle",
+      "label": "Transaction",
+      "labelBounds": {
+        "x": 160.805,
+        "y": 305.8,
+        "w": 78.39,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 140,
+        "y": 297.8,
+        "w": 120,
+        "h": 32.900000000000006
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "rel#0:Account->Savings",
+      "from": "Account",
+      "to": "Savings",
+      "path": [
+        [
+          100,
+          129
+        ],
+        [
+          100,
+          189
+        ]
+      ]
+    },
+    {
+      "id": "rel#1:Account->Transaction",
+      "from": "Account",
+      "to": "Transaction",
+      "path": [
+        [
+          140,
+          129
+        ],
+        [
+          140,
+          139
+        ],
+        [
+          200,
+          139
+        ],
+        [
+          200,
+          298
+        ]
+      ],
+      "label": {
+        "x": 218,
+        "y": 205,
+        "text": "logs",
+        "bounds": {
+          "x": 207,
+          "y": 198.20000000000002,
+          "w": 21.846,
+          "h": 14.3
+        }
+      }
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 300,
+    "h": 387
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 300,
+        "h": 387
+      }
+    },
+    {
+      "id": "node:Account",
+      "kind": "node",
+      "elementId": "Account",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 60,
+        "y": 40,
+        "w": 120,
+        "h": 89
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:Savings",
+      "kind": "node",
+      "elementId": "Savings",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 189,
+        "w": 120,
+        "h": 49
+      },
+      "sourceLine": 6
+    },
+    {
+      "id": "node:Transaction",
+      "kind": "node",
+      "elementId": "Transaction",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 140,
+        "y": 298,
+        "w": 120,
+        "h": 49
+      },
+      "sourceLine": 7
+    },
+    {
+      "id": "edge:rel#0:Account->Savings",
+      "kind": "edge",
+      "elementId": "rel#0:Account->Savings",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 100,
+        "y": 129,
+        "w": 1,
+        "h": 60
+      }
+    },
+    {
+      "id": "edge:rel#1:Account->Transaction",
+      "kind": "edge",
+      "elementId": "rel#1:Account->Transaction",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 140,
+        "y": 129,
+        "w": 60,
+        "h": 169
+      }
+    },
+    {
+      "id": "label:rel#1:Account->Transaction",
+      "kind": "label",
+      "elementId": "rel#1:Account->Transaction",
+      "parentId": "edge:rel#1:Account->Transaction",
+      "bounds": {
+        "x": 204,
+        "y": 198,
+        "w": 28,
+        "h": 14
+      }
+    }
+  ]
+}

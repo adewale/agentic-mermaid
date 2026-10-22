@@ -1,0 +1,454 @@
+{
+  "version": 1,
+  "kind": "architecture",
+  "nodes": [
+    {
+      "id": "left_disk",
+      "x": 202,
+      "y": 40,
+      "w": 120,
+      "h": 48,
+      "shape": "service",
+      "label": "Disk",
+      "role": "box",
+      "labelBounds": {
+        "x": 254.338,
+        "y": 55.55,
+        "w": 28.625999999999998,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 202.338,
+        "y": 40,
+        "w": 120,
+        "h": 48
+      }
+    },
+    {
+      "id": "top_disk",
+      "x": 521,
+      "y": 124,
+      "w": 120,
+      "h": 48,
+      "shape": "service",
+      "label": "Disk",
+      "role": "box",
+      "labelBounds": {
+        "x": 572.6759999999999,
+        "y": 139.55,
+        "w": 28.625999999999998,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 520.6759999999999,
+        "y": 124,
+        "w": 120,
+        "h": 48
+      }
+    },
+    {
+      "id": "bottom_disk",
+      "x": 805,
+      "y": 272,
+      "w": 120,
+      "h": 48,
+      "shape": "service",
+      "label": "Disk",
+      "role": "box",
+      "labelBounds": {
+        "x": 856.6759999999999,
+        "y": 287.55,
+        "w": 28.625999999999998,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 804.6759999999999,
+        "y": 272,
+        "w": 120,
+        "h": 48
+      }
+    },
+    {
+      "id": "top_gateway",
+      "x": 40,
+      "y": 356,
+      "w": 126,
+      "h": 48,
+      "shape": "service",
+      "label": "Gateway",
+      "role": "box",
+      "labelBounds": {
+        "x": 92,
+        "y": 371.55,
+        "w": 52.337999999999994,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 356,
+        "w": 126.338,
+        "h": 48
+      }
+    },
+    {
+      "id": "bottom_gateway",
+      "x": 358,
+      "y": 504,
+      "w": 126,
+      "h": 48,
+      "shape": "service",
+      "label": "Gateway",
+      "role": "box",
+      "labelBounds": {
+        "x": 410.33799999999997,
+        "y": 519.55,
+        "w": 52.337999999999994,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 358.33799999999997,
+        "y": 504,
+        "w": 126.338,
+        "h": 48
+      }
+    },
+    {
+      "id": "junctionCenter",
+      "x": 677,
+      "y": 208,
+      "w": 28,
+      "h": 28,
+      "shape": "circle",
+      "role": "mark"
+    },
+    {
+      "id": "junctionRight",
+      "x": 741,
+      "y": 440,
+      "w": 28,
+      "h": 28,
+      "shape": "circle",
+      "role": "mark"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge#0:left_disk->junctionCenter",
+      "from": "left_disk",
+      "to": "junctionCenter",
+      "path": [
+        [
+          322,
+          64
+        ],
+        [
+          502,
+          64
+        ],
+        [
+          502,
+          222
+        ],
+        [
+          677,
+          222
+        ]
+      ]
+    },
+    {
+      "id": "edge#1:top_disk->junctionCenter",
+      "from": "top_disk",
+      "to": "junctionCenter",
+      "path": [
+        [
+          581,
+          172
+        ],
+        [
+          581,
+          192
+        ],
+        [
+          691,
+          192
+        ],
+        [
+          691,
+          208
+        ]
+      ]
+    },
+    {
+      "id": "edge#2:bottom_disk->junctionCenter",
+      "from": "bottom_disk",
+      "to": "junctionCenter",
+      "path": [
+        [
+          865,
+          272
+        ],
+        [
+          865,
+          252
+        ],
+        [
+          691,
+          252
+        ],
+        [
+          691,
+          236
+        ]
+      ]
+    },
+    {
+      "id": "edge#3:junctionCenter->junctionRight",
+      "from": "junctionCenter",
+      "to": "junctionRight",
+      "path": [
+        [
+          705,
+          222
+        ],
+        [
+          723,
+          222
+        ],
+        [
+          723,
+          454
+        ],
+        [
+          741,
+          454
+        ]
+      ]
+    },
+    {
+      "id": "edge#4:top_gateway->junctionRight",
+      "from": "top_gateway",
+      "to": "junctionRight",
+      "path": [
+        [
+          103,
+          404
+        ],
+        [
+          103,
+          424
+        ],
+        [
+          755,
+          424
+        ],
+        [
+          755,
+          440
+        ]
+      ]
+    },
+    {
+      "id": "edge#5:bottom_gateway->junctionRight",
+      "from": "bottom_gateway",
+      "to": "junctionRight",
+      "path": [
+        [
+          422,
+          504
+        ],
+        [
+          422,
+          484
+        ],
+        [
+          755,
+          484
+        ],
+        [
+          755,
+          468
+        ]
+      ]
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 965,
+    "h": 592
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 965,
+        "h": 592
+      }
+    },
+    {
+      "id": "node:left_disk",
+      "kind": "node",
+      "elementId": "left_disk",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 202,
+        "y": 40,
+        "w": 120,
+        "h": 48
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:top_disk",
+      "kind": "node",
+      "elementId": "top_disk",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 521,
+        "y": 124,
+        "w": 120,
+        "h": 48
+      },
+      "sourceLine": 3
+    },
+    {
+      "id": "node:bottom_disk",
+      "kind": "node",
+      "elementId": "bottom_disk",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 805,
+        "y": 272,
+        "w": 120,
+        "h": 48
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "node:top_gateway",
+      "kind": "node",
+      "elementId": "top_gateway",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 356,
+        "w": 126,
+        "h": 48
+      },
+      "sourceLine": 5
+    },
+    {
+      "id": "node:bottom_gateway",
+      "kind": "node",
+      "elementId": "bottom_gateway",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 358,
+        "y": 504,
+        "w": 126,
+        "h": 48
+      },
+      "sourceLine": 6
+    },
+    {
+      "id": "node:junctionCenter",
+      "kind": "node",
+      "elementId": "junctionCenter",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 677,
+        "y": 208,
+        "w": 28,
+        "h": 28
+      },
+      "sourceLine": 7
+    },
+    {
+      "id": "node:junctionRight",
+      "kind": "node",
+      "elementId": "junctionRight",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 741,
+        "y": 440,
+        "w": 28,
+        "h": 28
+      },
+      "sourceLine": 8
+    },
+    {
+      "id": "edge:edge#0:left_disk->junctionCenter",
+      "kind": "edge",
+      "elementId": "edge#0:left_disk->junctionCenter",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 322,
+        "y": 64,
+        "w": 355,
+        "h": 158
+      }
+    },
+    {
+      "id": "edge:edge#1:top_disk->junctionCenter",
+      "kind": "edge",
+      "elementId": "edge#1:top_disk->junctionCenter",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 581,
+        "y": 172,
+        "w": 110,
+        "h": 36
+      }
+    },
+    {
+      "id": "edge:edge#2:bottom_disk->junctionCenter",
+      "kind": "edge",
+      "elementId": "edge#2:bottom_disk->junctionCenter",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 691,
+        "y": 236,
+        "w": 174,
+        "h": 36
+      }
+    },
+    {
+      "id": "edge:edge#3:junctionCenter->junctionRight",
+      "kind": "edge",
+      "elementId": "edge#3:junctionCenter->junctionRight",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 705,
+        "y": 222,
+        "w": 36,
+        "h": 232
+      }
+    },
+    {
+      "id": "edge:edge#4:top_gateway->junctionRight",
+      "kind": "edge",
+      "elementId": "edge#4:top_gateway->junctionRight",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 103,
+        "y": 404,
+        "w": 652,
+        "h": 36
+      }
+    },
+    {
+      "id": "edge:edge#5:bottom_gateway->junctionRight",
+      "kind": "edge",
+      "elementId": "edge#5:bottom_gateway->junctionRight",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 422,
+        "y": 468,
+        "w": 333,
+        "h": 36
+      }
+    }
+  ]
+}

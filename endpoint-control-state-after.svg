@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="182.139" height="490.40000000000003" viewBox="0 0 182.139 490.40000000000003" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-061hrcv05j2g37">
+<style>
+  svg.am-061hrcv05j2g37 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-061hrcv05j2g37 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="82.464,66 82.464,116" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:_start-&gt;Draft#0" data-role="edge" data-from="_start" data-to="Draft" role="graphics-symbol" aria-roledescription="relation" aria-label="_start to Draft" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="submit" points="82.464,152.9 82.464,269.20000000000005" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Draft-&gt;Review#0" data-role="edge" data-from="Draft" data-to="Review" role="graphics-symbol" aria-roledescription="relation" aria-label="Draft to Review: submit" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="approve" points="82.464,306.1 82.464,424.40000000000003" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Review-&gt;_end#0" data-role="edge" data-from="Review" data-to="_end" role="graphics-symbol" aria-roledescription="relation" aria-label="Review to _end: approve" />
+<g class="edge-label" data-from="Draft" data-to="Review" data-label="submit">
+  <rect class="edge-label-halo" x="54.464000000000006" y="191.9" width="55.35000000000001" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="58.464000000000006" y="195.9" width="47.35000000000001" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="82.13900000000001" y="211.05" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="31.350000000000005" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">submit</text>
+</g>
+<g class="edge-label" data-from="Review" data-to="_end" data-label="approve">
+  <rect class="edge-label-halo" x="48.964" y="345.1" width="66.042" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="52.964" y="349.1" width="58.042" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="81.985" y="364.25" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.8499999999999996" textLength="42.042" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">approve</text>
+</g>
+<g class="node" data-id="_start" data-label="" data-shape="state-start" data-role="node">
+  <circle cx="82.464" cy="54" r="12" fill="#27272A" stroke="none" data-id="node-shape:_start" data-role="node" />
+</g>
+<g class="node" data-id="Draft" data-label="Draft" data-shape="rounded" data-role="node">
+  <rect x="47.41" y="116" width="70.108" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Draft" data-role="node" />
+  <text x="82.464" y="134.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="30.107999999999997" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Draft</text>
+</g>
+<g class="node" data-id="Review" data-label="Review" data-shape="rounded" data-role="node">
+  <rect x="40" y="269.20000000000005" width="84.928" height="36.900000000000006" rx="6" ry="6" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:Review" data-role="node" />
+  <text x="82.464" y="287.65000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="44.928" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Review</text>
+</g>
+<g class="node" data-id="_end" data-label="" data-shape="state-end" data-role="node">
+  <circle cx="82.464" cy="436.40000000000003" r="12" fill="none" stroke="#27272A" stroke-width="1.5" data-id="node-shape:_end" data-role="node" />
+  <circle cx="82.464" cy="436.40000000000003" r="8" fill="#27272A" stroke="none" />
+</g>
+</svg>

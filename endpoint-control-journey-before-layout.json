@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "kind": "journey",
+  "nodes": [
+    {
+      "id": "task-0",
+      "x": 186,
+      "y": 139,
+      "w": 124,
+      "h": 61,
+      "shape": "rectangle",
+      "label": "Find product",
+      "labelBounds": {
+        "x": 209.6045,
+        "y": 151.4,
+        "w": 76.79099999999998,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 186,
+        "y": 139.4,
+        "w": 124,
+        "h": 60.900000000000006
+      }
+    },
+    {
+      "id": "task-1",
+      "x": 338,
+      "y": 139,
+      "w": 124,
+      "h": 61,
+      "shape": "rectangle",
+      "label": "Pay",
+      "labelBounds": {
+        "x": 387.169,
+        "y": 151.4,
+        "w": 25.662,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 338,
+        "y": 139.4,
+        "w": 124,
+        "h": 60.900000000000006
+      }
+    }
+  ],
+  "edges": [],
+  "groups": [
+    {
+      "id": "section-0",
+      "x": 176,
+      "y": 73,
+      "w": 144,
+      "h": 127,
+      "members": [
+        "task-0"
+      ],
+      "label": "Browse"
+    },
+    {
+      "id": "section-1",
+      "x": 328,
+      "y": 73,
+      "w": 144,
+      "h": 127,
+      "members": [
+        "task-1"
+      ],
+      "label": "Buy"
+    }
+  ],
+  "bounds": {
+    "w": 532,
+    "h": 482
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 532,
+        "h": 482
+      }
+    },
+    {
+      "id": "group:section-0",
+      "kind": "band",
+      "elementId": "section-0",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 176,
+        "y": 73,
+        "w": 144,
+        "h": 127
+      }
+    },
+    {
+      "id": "group:section-1",
+      "kind": "band",
+      "elementId": "section-1",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 328,
+        "y": 73,
+        "w": 144,
+        "h": 127
+      }
+    },
+    {
+      "id": "node:task-0",
+      "kind": "node",
+      "elementId": "task-0",
+      "parentId": "group:section-0",
+      "bounds": {
+        "x": 186,
+        "y": 139,
+        "w": 124,
+        "h": 61
+      }
+    },
+    {
+      "id": "node:task-1",
+      "kind": "node",
+      "elementId": "task-1",
+      "parentId": "group:section-1",
+      "bounds": {
+        "x": 338,
+        "y": 139,
+        "w": 124,
+        "h": 61
+      }
+    }
+  ]
+}

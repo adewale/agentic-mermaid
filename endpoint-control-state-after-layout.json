@@ -1,0 +1,286 @@
+{
+  "version": 1,
+  "kind": "state",
+  "nodes": [
+    {
+      "id": "_start",
+      "x": 68.464,
+      "y": 40,
+      "w": 28,
+      "h": 28,
+      "shape": "state-start",
+      "label": "",
+      "labelBounds": {
+        "x": 82.464,
+        "y": 45.55,
+        "w": 0,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 68.464,
+        "y": 40,
+        "w": 28,
+        "h": 28
+      }
+    },
+    {
+      "id": "Draft",
+      "x": 47.41,
+      "y": 116,
+      "w": 70.108,
+      "h": 36.900000000000006,
+      "shape": "rounded",
+      "label": "Draft",
+      "labelBounds": {
+        "x": 67.41,
+        "y": 125.99999999999999,
+        "w": 30.107999999999997,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 47.41,
+        "y": 116,
+        "w": 70.108,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "Review",
+      "x": 40,
+      "y": 269.20000000000005,
+      "w": 84.928,
+      "h": 36.900000000000006,
+      "shape": "rounded",
+      "label": "Review",
+      "labelBounds": {
+        "x": 60,
+        "y": 279.20000000000005,
+        "w": 44.928,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 40,
+        "y": 269.20000000000005,
+        "w": 84.928,
+        "h": 36.900000000000006
+      }
+    },
+    {
+      "id": "_end",
+      "x": 68.464,
+      "y": 422.40000000000003,
+      "w": 28,
+      "h": 28,
+      "shape": "state-end",
+      "label": "",
+      "labelBounds": {
+        "x": 82.464,
+        "y": 427.95000000000005,
+        "w": 0,
+        "h": 16.900000000000002
+      },
+      "labelContainer": {
+        "x": 68.464,
+        "y": 422.40000000000003,
+        "w": 28,
+        "h": 28
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "_start->Draft",
+      "from": "_start",
+      "to": "Draft",
+      "path": [
+        [
+          82.464,
+          66
+        ],
+        [
+          82.464,
+          116
+        ]
+      ]
+    },
+    {
+      "id": "Draft->Review",
+      "from": "Draft",
+      "to": "Review",
+      "path": [
+        [
+          82.464,
+          152.9
+        ],
+        [
+          82.464,
+          269.20000000000005
+        ]
+      ],
+      "label": {
+        "x": 82.13900000000001,
+        "y": 211.05,
+        "text": "submit",
+        "bounds": {
+          "x": 66.46400000000001,
+          "y": 203.9,
+          "w": 31.350000000000005,
+          "h": 14.3
+        }
+      }
+    },
+    {
+      "id": "Review->_end",
+      "from": "Review",
+      "to": "_end",
+      "path": [
+        [
+          82.464,
+          306.1
+        ],
+        [
+          82.464,
+          424.40000000000003
+        ]
+      ],
+      "label": {
+        "x": 81.985,
+        "y": 364.25,
+        "text": "approve",
+        "bounds": {
+          "x": 60.964,
+          "y": 357.1,
+          "w": 42.042,
+          "h": 14.3
+        }
+      }
+    }
+  ],
+  "groups": [],
+  "bounds": {
+    "w": 182.139,
+    "h": 490.40000000000003
+  },
+  "regions": [
+    {
+      "id": "canvas",
+      "kind": "canvas",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 182.139,
+        "h": 490.40000000000003
+      }
+    },
+    {
+      "id": "node:_start",
+      "kind": "node",
+      "elementId": "_start",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 68.464,
+        "y": 40,
+        "w": 28,
+        "h": 28
+      }
+    },
+    {
+      "id": "node:Draft",
+      "kind": "node",
+      "elementId": "Draft",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 47.41,
+        "y": 116,
+        "w": 70.108,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 2
+    },
+    {
+      "id": "node:Review",
+      "kind": "node",
+      "elementId": "Review",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 40,
+        "y": 269.20000000000005,
+        "w": 84.928,
+        "h": 36.900000000000006
+      },
+      "sourceLine": 4
+    },
+    {
+      "id": "node:_end",
+      "kind": "node",
+      "elementId": "_end",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 68.464,
+        "y": 422.40000000000003,
+        "w": 28,
+        "h": 28
+      }
+    },
+    {
+      "id": "edge:_start->Draft",
+      "kind": "edge",
+      "elementId": "_start->Draft",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 82.464,
+        "y": 66,
+        "w": 1,
+        "h": 50
+      }
+    },
+    {
+      "id": "edge:Draft->Review",
+      "kind": "edge",
+      "elementId": "Draft->Review",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 82.464,
+        "y": 152.9,
+        "w": 1,
+        "h": 116.30000000000004
+      }
+    },
+    {
+      "id": "label:Draft->Review",
+      "kind": "label",
+      "elementId": "Draft->Review",
+      "parentId": "edge:Draft->Review",
+      "bounds": {
+        "x": 61.13900000000001,
+        "y": 204.05,
+        "w": 42,
+        "h": 14
+      }
+    },
+    {
+      "id": "edge:Review->_end",
+      "kind": "edge",
+      "elementId": "Review->_end",
+      "parentId": "canvas",
+      "bounds": {
+        "x": 82.464,
+        "y": 306.1,
+        "w": 1,
+        "h": 118.30000000000001
+      }
+    },
+    {
+      "id": "label:Review->_end",
+      "kind": "label",
+      "elementId": "Review->_end",
+      "parentId": "edge:Review->_end",
+      "bounds": {
+        "x": 57.485,
+        "y": 357.25,
+        "w": 49,
+        "h": 14
+      }
+    }
+  ]
+}

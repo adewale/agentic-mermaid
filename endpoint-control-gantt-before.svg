@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="703" height="186" viewBox="0 0 703 186" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0geajmg0qu36pn">
+<style>
+  svg.am-0geajmg0qu36pn { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0geajmg0qu36pn {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="gantt-yvbxck-dep-arrow" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto">
+    <path d="M0,0 L8,3.5 L0,7 Z" fill="#27272A" />
+  </marker>
+</defs>
+<rect class="gantt-section-band" x="87" y="50" width="600" height="90" fill="#27272A" opacity="0.07" data-id="section-band:Build#0" data-role="section" />
+<line class="gantt-grid-line" x1="87" y1="50" x2="87" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="172.71" y1="50" x2="172.71" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="258.43" y1="50" x2="258.43" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="344.14" y1="50" x2="344.14" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="429.86" y1="50" x2="429.86" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="515.57" y1="50" x2="515.57" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="601.29" y1="50" x2="601.29" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="687" y1="50" x2="687" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<text x="87" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="26.102999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-05</text>
+<text x="172.71" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="26.102999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-06</text>
+<text x="258.43" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="26.102999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-07</text>
+<text x="344.14" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="26.102999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-08</text>
+<text x="429.86" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="26.102999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-09</text>
+<text x="515.57" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="22.340999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-10</text>
+<text x="601.29" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="18.578999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-11</text>
+<text x="687" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.8499999999999996" textLength="22.340999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-12</text>
+<text x="8" y="65" class="gantt-section-label" text-anchor="start" font-size="13" font-weight="600" fill="#27272A" data-id="section-label:Build#0" data-role="section" data-prepared-text="true" dy="4.55" textLength="33.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Build</text>
+<text x="16" y="91" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="58.266000000000005" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Implement</text>
+<text x="16" y="121" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="44.928" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Review</text>
+<rect class="gantt-bar" data-task="a1" x="87" y="80" width="428.57" height="22" rx="3" ry="3" fill="#27272A" stroke="none" opacity="0.92" data-id="task:a1" data-role="task" />
+<rect class="gantt-bar" data-task="Review" x="515.57" y="110" width="171.43" height="22" rx="3" ry="3" fill="#27272A" stroke="none" opacity="0.92" data-id="task:Review" data-role="task" />
+<g opacity="0.6">
+<path class="gantt-dep-arrow" d="M 515.57 91 L 523.57 91 L 523.57 106 L 507.57 106 L 507.57 121 L 515.57 121" fill="none" stroke="#27272A" stroke-width="1.2" marker-end="url(#gantt-yvbxck-dep-arrow)" data-relationship="after" data-direction="forward" data-id="dep:a1-&gt;Review:after" data-role="edge" data-from="a1" data-to="Review" role="graphics-symbol" aria-roledescription="relation" aria-label="a1 to Review" />
+</g>
+<text x="351.5" y="18" class="gantt-title" text-anchor="middle" font-size="17" font-weight="600" fill="#27272A" data-id="title" data-role="title" data-prepared-text="true" dy="5.949999999999999" textLength="39.269999999999996" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Plan</text>
+</svg>

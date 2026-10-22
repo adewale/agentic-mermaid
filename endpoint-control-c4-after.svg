@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="562.46" height="362.7" viewBox="0 0 562.46 362.7" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" role="img" aria-label="C4 architecture diagram" class="am-15oqmjm02i6j53">
+<style>
+  svg.am-15oqmjm02i6j53 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-15oqmjm02i6j53 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="Uses&#10;[HTTPS]" data-c4-macro="Rel" data-authored-from="user" data-authored-to="api" data-order="1" points="214,120.6 348.46000000000004,120.6" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="c4-Rel" data-direction="forward" data-id="c4-rel-1" data-role="edge" data-from="user" data-to="api" role="graphics-symbol" aria-roledescription="relation" aria-label="user to api: Uses&#10;[HTTPS]" />
+<g class="edge-label" data-id="c4:c4-rel-1:label" data-role="edge-label" data-edge-id="c4-rel-1" data-from="user" data-to="api">
+  <rect x="249.615" y="98.3" width="63.230000000000004" height="44.6" rx="3" ry="3" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="281.23" y="120.6" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true"><tspan x="281.23" dy="-3.3000000000000007" textLength="26.598000000000003" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Uses</tspan><tspan x="281.23" dy="14.3" textLength="43.230000000000004" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[HTTPS]</tspan></text>
+</g>
+<g class="node c4-person" data-id="user" data-c4-kind="person" data-c4-macro="Person" data-source-line="2" data-external="false" data-c4-shape="person" data-effective-c4-shape="person" data-role="node">
+  <rect x="64" y="64" width="150" height="113.2" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="c4:user:surface" data-role="node" />
+  <circle cx="139" cy="91.69999999999999" r="7" fill="#27272A" stroke="#27272A" stroke-width="1" data-id="c4:user:person-head" data-role="node" />
+  <path d="M 123 117.69999999999999 Q 123 102.69999999999999 139 102.69999999999999 Q 155 102.69999999999999 155 117.69999999999999 Z" fill="#27272A" stroke="#27272A" stroke-width="1" data-id="c4:user:person-shoulders" data-role="node" />
+  <text x="139" y="139.6" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="139" dy="-3.9000000000000012" textLength="58.266" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Customer</tspan><tspan x="139" dy="16.900000000000002" textLength="53.82" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[Person]</tspan></text>
+</g>
+<g class="node c4-system" data-id="api" data-c4-kind="system" data-c4-macro="System" data-source-line="3" data-external="false" data-c4-shape="rectangle" data-effective-c4-shape="rectangle" data-role="node">
+  <rect x="348.46000000000004" y="64" width="150" height="113.2" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="c4:api:surface" data-role="node" />
+  <text x="423.46000000000004" y="120.6" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="423.46000000000004" dy="-12.350000000000001" textLength="22.697999999999997" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">API</tspan><tspan x="423.46000000000004" dy="16.900000000000002" textLength="52.338" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">[System]</tspan><tspan x="423.46000000000004" dy="16.900000000000002" textLength="101.985" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Serves requests</tspan></text>
+</g>
+<g class="c4-legend">
+  <text x="36" y="269.65" text-anchor="start" font-size="13" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="50.31000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Legend</text>
+  <circle cx="43" cy="292.96" r="2.8600000000000003" fill="#f9f9f9" stroke="#939395" stroke-width="1" />
+  <path d="M 37 304.4 Q 37 297.24999999999994 43 297.24999999999994 Q 49 297.24999999999994 49 304.4 Z" fill="#f9f9f9" stroke="#939395" stroke-width="1" />
+  <text x="62" y="297.24999999999994" text-anchor="start" font-size="11" font-weight="400" fill="#27272A" data-prepared-text="true" dy="3.8499999999999996" textLength="37.29" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Person</text>
+  <rect x="34" y="314.4" width="18" height="14.3" fill="#f9f9f9" stroke="#939395" stroke-width="1" />
+  <text x="62" y="321.54999999999995" text-anchor="start" font-size="11" font-weight="400" fill="#27272A" data-prepared-text="true" dy="3.8499999999999996" textLength="36.102" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">System</text>
+</g>
+</svg>
