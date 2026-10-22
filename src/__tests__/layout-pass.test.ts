@@ -5,7 +5,7 @@ import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fi
 import type { LayoutPass, PassContextBase } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
-import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
+import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
@@ -18,6 +18,22 @@ import { applySymmetricParallelEdgeLanes } from '../layout/passes/index.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
+
+describe('source-aware ELK child order', () => {
+  test.each([
+    ['ready nodes released ahead of earlier queued nodes', 'flowchart TD\nA\nB\nC\nD\nE\nE --> B\nB --> D\nA --> C', ['A', 'C', 'E', 'B', 'D']],
+    ['authored tie order after multiple releases', 'flowchart TD\nA\nB\nC\nD\nE\nE --> B\nE --> A\nD --> C', ['D', 'C', 'E', 'A', 'B']],
+    ['feedback and parallel edges retain author-order roles', 'flowchart TD\nA\nB\nC\nD\nC --> B\nB --> A\nA --> C\nD --> B\nD --> B', ['C', 'D', 'B', 'A']],
+  ])('%s', (_name, source, expected) => {
+    expect(convertToElkFormat(parseMermaid(source)).children!.map(node => node.id)).toEqual(expected)
+  })
+
+  test('root container mapping and internal source order remain separate', () => {
+    const elk = convertToElkFormat(parseMermaid('flowchart TD\nsubgraph Z\nB\nA\nA --> B\nend\nC\nC --> A'))
+    expect(elk.children!.map(node => node.id)).toEqual(['C', 'Z'])
+    expect(elk.children!.find(node => node.id === 'Z')!.children!.map(node => node.id)).toEqual(['A', 'B'])
+  })
+})
 
 describe('declared pass budgets on actual native geometry', () => {
   test.each([
