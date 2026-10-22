@@ -145,7 +145,7 @@ const GROUP_CONTAINMENT_AXES: Partial<Record<DiagramKind, 'both' | 'x' | 'center
  * layout-rubric.ts, not this module. Architecture groups, class namespaces,
  * ER groups, and timeline sections are ownership frames in RenderedLayout.
  */
-const REGION_OWNERSHIP_KINDS = new Set<DiagramKind>(['architecture', 'class', 'er', 'timeline'])
+const REGION_OWNERSHIP_KINDS = /* @__PURE__ */ new Set<DiagramKind>(['architecture', 'class', 'er', 'timeline'])
 
 function isBox(node: RenderedLayoutNode): boolean {
   return node.role ? node.role === 'box' : BOX_SHAPES.has(node.shape)
@@ -201,17 +201,28 @@ function groupOccupants(group: RenderedLayoutGroup, groups: RenderedLayoutGroup[
  * deterministic: identical input produces identical metrics and score.
  */
 export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult {
-  return assessFamilyLayout(layout, false)
+  return finishFamilyLayout(layout, assessFamilyLayout(layout, false))
 }
 
 /** Final positioning needs hard failures, not the discarded quality score. */
 export function assessRenderedLayoutHardViolations(layout: RenderedLayout): FamilyRubricViolation[] {
-  return assessFamilyLayout(layout, true)
+  return assessFamilyLayout(layout, true).violations
 }
 
-function assessFamilyLayout(layout: RenderedLayout, hardOnly: true): FamilyRubricViolation[]
-function assessFamilyLayout(layout: RenderedLayout, hardOnly: false): FamilyRubricResult
-function assessFamilyLayout(layout: RenderedLayout, hardOnly: boolean): FamilyRubricResult | FamilyRubricViolation[] {
+interface FamilyLayoutAssessment {
+  readonly violations: FamilyRubricViolation[]
+  readonly nonFinite: number
+  readonly offCanvas: number
+  readonly nodeOverlaps: number
+  readonly markOverlaps: number
+  readonly pairs: number
+  readonly groupBreaches: number
+  readonly groupOverlaps: number
+  readonly groupById: Map<string, RenderedLayoutGroup>
+}
+
+/** Shared hard checks and optional mark-pair counts have no scoring dependency. */
+function assessFamilyLayout(layout: RenderedLayout, hardOnly: boolean): FamilyLayoutAssessment {
   const violations: FamilyRubricViolation[] = []
 
   let nonFinite = 0
@@ -347,7 +358,11 @@ function assessFamilyLayout(layout: RenderedLayout, hardOnly: boolean): FamilyRu
     }
   }
 
-  if (hardOnly) return violations
+  return { violations, nonFinite, offCanvas, nodeOverlaps, markOverlaps, pairs, groupBreaches, groupOverlaps, groupById }
+}
+
+function finishFamilyLayout(layout: RenderedLayout, assessment: FamilyLayoutAssessment): FamilyRubricResult {
+  const { violations, nonFinite, offCanvas, nodeOverlaps, markOverlaps, pairs, groupBreaches, groupOverlaps, groupById } = assessment
 
   // Region-intrusion purity (the dual of groupBreaches): a foreign node whose
   // CENTRE sits strictly inside a group's rect while it is not a member of that
