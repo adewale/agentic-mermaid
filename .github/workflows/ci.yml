@@ -402,9 +402,51 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
-        run: bunx playwright install ${{ matrix.suite == 'browser' && 'chromium firefox webkit' || 'chromium' }} --with-deps
+      - name: Use the official Ubuntu archive for all-engine browser dependencies
+        if: ${{ matrix.suite == 'browser' }}
+        run: |
+          cat /etc/os-release
+          git rev-parse HEAD HEAD:src HEAD:bun.lock
+          sudo python3 - <<'PY'
+          from pathlib import Path
+
+          paths = [Path('/etc/apt/sources.list')]
+          directory = Path('/etc/apt/sources.list.d')
+          paths.extend(sorted(directory.glob('*.list')))
+          paths.extend(sorted(directory.glob('*.sources')))
+          changed = 0
+          official = False
+          for path in paths:
+              if not path.is_file():
+                  continue
+              original = path.read_text()
+              updated = original
+              for uri in ('http://azure.archive.ubuntu.com/ubuntu', 'https://azure.archive.ubuntu.com/ubuntu'):
+                  changed += updated.count(uri)
+                  updated = updated.replace(uri, 'https://archive.ubuntu.com/ubuntu')
+              official |= 'https://archive.ubuntu.com/ubuntu' in updated
+              if updated != original:
+                  path.write_text(updated)
+                  print(f'{path}: Ubuntu archive URI changed to https://archive.ubuntu.com/ubuntu')
+          if not official:
+              raise SystemExit('Expected Azure or official HTTPS Ubuntu archive source was not found')
+          print(f'Updated {changed} Ubuntu archive URI occurrence(s); other source fields are unchanged')
+          PY
+
+      - name: Install all-engine Playwright OS dependencies
+        if: ${{ matrix.suite == 'browser' }}
+        run: time bunx playwright install-deps chromium firefox webkit
+
+      - name: Install all-engine Playwright browsers
+        if: ${{ matrix.suite == 'browser' }}
+        run: |
+          time bunx playwright install chromium firefox webkit
+          bunx playwright --version
+          bunx playwright install --list
+
+      - name: Install Chromium and OS dependencies
+        if: ${{ matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
+        run: bunx playwright install chromium --with-deps
 
       - name: Render affected label and category witnesses before and after
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}
