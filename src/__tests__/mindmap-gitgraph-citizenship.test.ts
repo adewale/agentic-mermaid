@@ -43,6 +43,19 @@ const GITGRAPH = `gitGraph LR:
   cherry-pick id:"patch" tag:"backport"
 `
 
+test.each(['LR', 'TB', 'BT'] as const)('GitGraph %s branch extents retain empty lanes and their own farthest commits', direction => {
+  const diagram = parseGitGraph(`gitGraph ${direction}:\ncommit id:"base"\nbranch late order:3\ncommit id:"late"\ncheckout main\ncommit id:"main"\nbranch empty order:1\ncheckout main`)
+  for (const parallelCommits of [false, true]) {
+    const positioned = layoutGitGraph(diagram, { parallelCommits })
+    expect(positioned.branches.map(branch => branch.name)).toEqual(['main', 'empty', 'late'])
+    for (const branch of positioned.branches) {
+      const own = positioned.commits.filter(commit => commit.branch === branch.name)
+      if (direction === 'LR') expect(branch.x2).toBe(Math.max(branch.x1 + 14, ...own.map(commit => commit.x)))
+      else expect(branch.y2).toBe(Math.max(branch.y1 + 52, ...own.map(commit => commit.y)))
+    }
+  }
+})
+
 test('fractional GitGraph branch extents contain their rounded commit boxes', () => {
   const source = `gitGraph
 commit id: "1"
