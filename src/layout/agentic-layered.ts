@@ -7,6 +7,7 @@ import type { ResolvedRenderStyle } from '../styles.ts'
 import type { AgenticGraphOptions, AgenticGraphBindings } from '../layout-engine.ts'
 
 export type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 function declineAgenticGraph(reason: string): never {
   throw new GraphLayoutUnsupportedError(reason)
