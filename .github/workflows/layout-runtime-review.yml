@@ -13,12 +13,16 @@ on:
         description: Also run memory-only96/129/256 churn and private source hit counters
         type: boolean
         default: false
+      campaign:
+        description: all, release, differential, architecture or churn; each selected campaign retains both cache policies
+        type: string
+        default: all
 
 permissions:
   contents: read
 
 concurrency:
-  group: layout-runtime-review-${{ github.ref }}
+  group: layout-runtime-review-${{ github.ref }}-${{ inputs.campaign }}
   cancel-in-progress: false
 
 jobs:
@@ -68,8 +72,19 @@ jobs:
           bun run eval/benchmark/layout-review-population.ts --architecture-supplementary > layout-runtime-evidence/architecture-inputs.json
           git rev-parse HEAD > layout-runtime-evidence/candidate-revision.txt
           git -C "$RUNNER_TEMP/layout-native23" rev-parse HEAD > layout-runtime-evidence/baseline-revision.txt
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          packages = {'candidate': pathlib.Path(os.environ['GITHUB_WORKSPACE']), 'baseline': pathlib.Path(os.environ['RUNNER_TEMP']) / 'layout-native23'}
+          identities = {}
+          for label, root in packages.items():
+              paths = [root / 'package.json', root / 'bun.lock', *sorted((root / 'dist').rglob('*.js'))]
+              files = {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths if path.is_file()}
+              identities[label] = {'files': files, 'sha256': hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()}
+          pathlib.Path('layout-runtime-evidence/artifact-identities.json').write_text(json.dumps(identities, indent=2) + '\n')
+          PY
 
       - name: Full27 release qualification with both cache regimes
+        if: inputs.campaign == 'all' || inputs.campaign == 'release'
         id: release
         continue-on-error: true
         timeout-minutes: 17
@@ -86,6 +101,7 @@ jobs:
           exit "$failed"
 
       - name: Direct native23 versus native24 with native23 A/A
+        if: inputs.campaign == 'all' || inputs.campaign == 'differential'
         id: differential
         continue-on-error: true
         timeout-minutes: 17
@@ -101,6 +117,7 @@ jobs:
           exit "$failed"
 
       - name: Supplementary Architecture junction and icon-size workloads
+        if: inputs.campaign == 'all' || inputs.campaign == 'architecture'
         id: architecture
         continue-on-error: true
         timeout-minutes: 17
@@ -115,7 +132,7 @@ jobs:
           exit "$failed"
 
       - name: Optional bounded cache churn and source counts
-        if: inputs.cache-churn
+        if: inputs.campaign == 'churn' || (inputs.campaign == 'all' && inputs.cache-churn)
         id: churn
         continue-on-error: true
         timeout-minutes: 17
@@ -131,6 +148,7 @@ jobs:
       - name: Preserve campaign outcomes even on failure
         if: always()
         env:
+          CAMPAIGN: ${{ inputs.campaign }}
           RELEASE_OUTCOME: ${{ steps.release.outcome }}
           DIFFERENTIAL_OUTCOME: ${{ steps.differential.outcome }}
           ARCHITECTURE_OUTCOME: ${{ steps.architecture.outcome }}
@@ -140,6 +158,7 @@ jobs:
           python3 - <<'PY'
           import json, os, pathlib
           outcomes = {key: os.environ.get(key) for key in ['RELEASE_OUTCOME', 'DIFFERENTIAL_OUTCOME', 'ARCHITECTURE_OUTCOME', 'CHURN_OUTCOME']}
+          outcomes['campaign'] = os.environ['CAMPAIGN']
           pathlib.Path('layout-runtime-evidence/workflow-outcomes.json').write_text(json.dumps(outcomes, indent=2) + '\n')
           PY
 
@@ -154,6 +173,7 @@ jobs:
       - name: Fail the review when a required campaign failed
         if: always()
         env:
+          CAMPAIGN: ${{ inputs.campaign }}
           BASELINE_OUTCOME: ${{ steps.baseline.outcome }}
           CANDIDATE_OUTCOME: ${{ steps.candidate.outcome }}
           RELEASE_OUTCOME: ${{ steps.release.outcome }}
@@ -163,7 +183,16 @@ jobs:
           CHURN_REQUESTED: ${{ inputs.cache-churn }}
         run: |
           [[ "$BASELINE_OUTCOME" == success && "$CANDIDATE_OUTCOME" == success ]]
-          [[ "$RELEASE_OUTCOME" == success && "$DIFFERENTIAL_OUTCOME" == success && "$ARCHITECTURE_OUTCOME" == success ]]
-          if [[ "$CHURN_REQUESTED" == true ]]; then
-            [[ "$CHURN_OUTCOME" == success ]]
-          fi
+          case "$CAMPAIGN" in
+            all)
+              [[ "$RELEASE_OUTCOME" == success && "$DIFFERENTIAL_OUTCOME" == success && "$ARCHITECTURE_OUTCOME" == success ]]
+              if [[ "$CHURN_REQUESTED" == true ]]; then
+                [[ "$CHURN_OUTCOME" == success ]]
+              fi
+              ;;
+            release) [[ "$RELEASE_OUTCOME" == success ]] ;;
+            differential) [[ "$DIFFERENTIAL_OUTCOME" == success ]] ;;
+            architecture) [[ "$ARCHITECTURE_OUTCOME" == success ]] ;;
+            churn) [[ "$CHURN_OUTCOME" == success ]] ;;
+            *) echo "Unknown runtime-review campaign: $CAMPAIGN" >&2; exit 1 ;;
+          esac
