@@ -31,6 +31,8 @@ import { segmentThroughShape } from '../layout-rubric.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { simplifyPolyline } from '../route-contracts.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
+import { erRelationshipBlock, finalizeErRelationshipLabels } from './label-layout.ts'
+export { erRelationshipBlock } from './label-layout.ts'
 export { erCommentText } from './text.ts'
 
 /** Layout constants for ER diagrams */
@@ -121,10 +123,7 @@ export function erGroupBlock(text: DisplayTextInput, style: ResolvedRenderStyle)
   return preparePixelText(text, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
 }
 
-export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' | 'identifying' | 'labelContent'>, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PixelTextBlock {
-  const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
-  return preparePixelText(resolveLabelContent(rel.label, rel.labelContent), { transform: role?.textTransform ?? style.edgeTextTransform, fontSize: role?.fontSize ?? style.edgeLabelFontSize, fontWeight: role?.fontWeight ?? style.edgeLabelFontWeight, letterSpacing: role?.letterSpacing ?? style.edgeLetterSpacing })
-}
+
 
 export function erAttributeBlocks(attr: ErAttribute) {
   const mono = { display: 'literal' as const, fontSize: ER.attrFontSize, fontWeight: ER.attrFontWeight, monospace: true }
@@ -185,7 +184,7 @@ function erInteriorRoute(from: { x: number; y: number; width: number; height: nu
 function erPreferredLabelBounds(relationships: readonly PositionedErRelationship[], blocks: readonly PixelTextBlock[]) {
   return relationships.flatMap((rel, index) => {
     if (!rel.label || rel.points.length < 2) return []
-    const mid = calculatePathMidpoint(rel.points), block = blocks[index]!
+    const mid = rel.labelPosition ?? calculatePathMidpoint(rel.points), block = blocks[index]!
     return [{ x0: mid.x - block.width / 2 - 8, x1: mid.x + block.width / 2 + 8, y0: mid.y - block.height / 2 - 8, y1: mid.y + block.height / 2 + 8 }]
   })
 }
@@ -225,6 +224,8 @@ function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedE
         ? { ...node, x: node.x - clearance, y: node.y - clearance, width: node.width + 2 * clearance, height: node.height + 2 * clearance } : node)
     const blocked = (points: Point[]) => points.slice(1).some((point, i) => physical.some(node => { charge(1); return segmentThroughShape(points[i]!, point, node) }))
     if (!blocked(rel.points)) continue
+    // A replacement route does not preserve the producer's reserved segment.
+    delete rel.labelPosition
     // Keep actual cardinality-bearing face contacts; shared routing owns only
     // the middle between 20px terminal stems in the reserved sibling exits.
     const next = rel.points.find(point => point.x !== start.x || point.y !== start.y)!, previous = [...rel.points].reverse().find(point => point.x !== end.x || point.y !== end.y)!
@@ -289,6 +290,9 @@ interface ErPlacement {
   height?: number
   entities: { id: string; x?: number; y?: number; width?: number; height?: number }[]
   routes: Map<number, Point[]>
+  labelPositions?: Map<number, Point>
+  /** Producer-owned selection metadata, independent of requested backend or surviving anchors. */
+  labelPlacement?: 'shaft-aware'
   /** Scoped placement repairs must leave cardinalities outside their cards. */
   preserveTerminalNormals?: true
 }
@@ -426,10 +430,13 @@ function extractErLayout(
       Math.abs(to.x - originalTo.x - dx) < 0.001 && Math.abs(to.y - originalTo.y - dy) < 0.001
       ? edgeById.get(i) : undefined
     const points: Point[] = []
+    let labelPosition: Point | undefined
     if (from && to && interior.lanes.has(i)) {
       points.push(...erInteriorRoute(from, to, interior.lanes.get(i)!))
     } else if (placementRoute?.length) {
       points.push(...placementRoute.map(point => ({ x: point.x + dx!, y: point.y + dy! })))
+      const reserved = result.labelPositions?.get(i)
+      if (reserved) labelPosition = { x: reserved.x + dx!, y: reserved.y + dy! }
     } else {
       if (from && to) {
         const fromCenter = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
@@ -459,6 +466,7 @@ function extractErLayout(
       entity1: rel.entity1, entity2: rel.entity2,
       cardinality1: rel.cardinality1, cardinality2: rel.cardinality2,
       label: rel.label, ...(rel.labelContent ? { labelContent: rel.labelContent } : {}), labelBlock: relationshipBlocks[i], identifying: rel.identifying, points,
+      ...(labelPosition ? { labelPosition } : {}),
     })
   }
 
@@ -484,7 +492,10 @@ function extractErLayout(
   if (dx !== 0 || dy !== 0) {
     for (const entity of positionedEntities) { entity.x += dx; entity.y += dy }
     for (const group of positionedGroups) { group.x += dx; group.y += dy }
-    for (const relationship of relationships) for (const point of relationship.points) { point.x += dx; point.y += dy }
+    for (const relationship of relationships) {
+      for (const point of relationship.points) { point.x += dx; point.y += dy }
+      if (relationship.labelPosition) { relationship.labelPosition.x += dx; relationship.labelPosition.y += dy }
+    }
   }
   const width = Math.max(
     (result.width ?? 600) + dx,
@@ -507,6 +518,7 @@ function extractErLayout(
     entities: positionedEntities,
     relationships,
     groups: positionedGroups,
+    ...(result.labelPlacement ? { labelPlacement: result.labelPlacement } : {}),
   }
 }
 
@@ -790,9 +802,11 @@ export function layoutErDiagram(
       direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: options.nodeSpacing ?? ER.nodeSpacing,
       layerSpacing: options.layerSpacing ?? ER.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
     }))
-    return { width: placed.width, height: placed.height, preserveTerminalNormals: true,
+    return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
       entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...entitySizes.get(diagram.entities[index]!.id)! })),
-      routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])) }
+      routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),
+      labelPositions: new Map(placed.edges.flatMap((route, index) => route.labelPosition
+        ? [[edges[index]!.relationshipIndex, { ...route.labelPosition }] as const] : [])) }
   }, () => {
     const { elkGraph } = buildErElkGraph(diagram, options, entitySizes, styleFace)
     const placed = elkLayoutSync(elkGraph)
@@ -801,7 +815,9 @@ export function layoutErDiagram(
       return [Number(edge.id.slice(1)), section ? [section.startPoint, ...(section.bendPoints ?? []), section.endPoint] : []]
     })) }
   })
-  return withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, style, styleFace), style, styleFace), diagram.title, style)
+  const positioned = withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, style, styleFace), style, styleFace), diagram.title, style)
+  finalizeErRelationshipLabels(positioned, style, styleFace)
+  return positioned
 }
 
 /** The diagram's title takes a band above everything the layout placed. */
@@ -812,7 +828,10 @@ function withErTitle(positioned: PositionedErDiagram, title: string | undefined,
   const dy = band.height
   for (const entity of positioned.entities) entity.y += dy
   for (const group of positioned.groups) group.y += dy
-  for (const rel of positioned.relationships) for (const point of rel.points) point.y += dy
+  for (const rel of positioned.relationships) {
+    for (const point of rel.points) point.y += dy
+    if (rel.labelPosition) rel.labelPosition.y += dy
+  }
   const width = Math.max(positioned.width, band.width + 2 * ER.padding)
   return { ...positioned, width, height: positioned.height + dy, title: positionDiagramTitle(band, width, ER.padding) }
 }
