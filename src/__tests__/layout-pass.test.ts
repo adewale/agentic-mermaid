@@ -2,7 +2,7 @@
 // production runPipeline enforcement and the geometry its passes produce.
 import { describe, expect, test } from 'bun:test'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
-import type { LayoutPass, PassContextBase } from '../layout/pass.ts'
+import type { LayoutPass, MetricBudget, PassContextBase, RubricMetric } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
 const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
@@ -338,6 +338,47 @@ describe('runPipeline invariant enforcement', () => {
     const n = c.nodes[0]
     if (n) n.x = 9
   }
+
+  test('captures ordered own budget entries and keeps allowance conditions live', () => {
+    const reads: string[] = []
+    const budget = { worsenBy: 0, whenImproves: 'bends' as RubricMetric }
+    const budgets = Object.create({ hard: 'improve-only' }) as Partial<Record<RubricMetric, MetricBudget>>
+    Object.defineProperties(budgets, {
+      symErr: { enumerable: true, get: () => { reads.push('symErr'); return budget } },
+      bends: { enumerable: true, get: () => { reads.push('bends'); return 'improve-only' } },
+    })
+    const requested: RubricMetric[][] = []
+    const context: TestCtx = { frozen: false, nodes: [{ x: 0, y: 0, width: 1, height: 1 }], log: [] }
+    runPipeline(context, [mkPass({ id: 'live-budget', mayChangeMetrics: budgets, run: c => {
+      c.nodes[0]!.x = 1
+      budget.worsenBy = 1
+      budget.whenImproves = 'crossings'
+      budgets.portRate = 'improve-only'
+    } })], { measureMetrics: (c, metrics) => {
+      requested.push([...metrics])
+      return { symErr: c.nodes[0]!.x, bends: 0, crossings: 1 - c.nodes[0]!.x }
+    } })
+    expect(reads).toEqual(['symErr', 'bends'])
+    expect(requested).toEqual([['symErr', 'bends'], ['symErr', 'bends']])
+  })
+
+  test('requested arrays belong to one run even if custom measurement mutates them', () => {
+    const starts: RubricMetric[][] = []
+    const pass = mkPass({ id: 'request-ownership', mayChangeMetrics: { bends: 'improve-only' } })
+    for (let run = 0; run < 2; run++) {
+      let first = true
+      runPipeline({ frozen: false, nodes: [], log: [] }, [pass], { measureMetrics: (_context, metrics) => {
+        if (first) {
+          starts.push([...metrics])
+          const mutable = metrics as RubricMetric[]
+          mutable.push('hard')
+          first = false
+        }
+        return { bends: 0, hard: 0 }
+      } })
+    }
+    expect(starts).toEqual([['bends'], ['bends']])
+  })
 
   test('runs passes in array order and honors enabled()', () => {
     const ctx: TestCtx = { frozen: false, nodes: [], log: [] }
