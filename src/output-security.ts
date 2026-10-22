@@ -478,7 +478,7 @@ export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[]
   return { ok: refs.length === 0, refs: [...refs] }
 }
 
-function inspectFinalSvg(svg: string): { readonly valid: false } | { readonly valid: true; readonly findings: SecurityFindings } {
+function inspectFinalSvg(svg: string): SecurityFindings | false {
   return inspectSvgOnce('final-security', svg, () => {
     const refs: string[] = []
     const active: string[] = []
@@ -495,18 +495,18 @@ function inspectFinalSvg(svg: string): { readonly valid: false } | { readonly va
         failure = error
       }
     })
-    if (!valid) return { valid: false }
+    if (!valid) return false
     if (failed) throw failure
-    return { valid: true, findings: inspectSecurityTail(svg.replace(/<!--[\s\S]*?-->/g, ''), refs, active) }
+    return inspectSecurityTail(svg.replace(/<!--[\s\S]*?-->/g, ''), refs, active)
   })
 }
 
 export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
   const inspection = inspectFinalSvg(svg)
-  if (!inspection.valid) {
+  if (!inspection) {
     throw new Error('OutputSecurityPolicy rejected an invalid SVG document envelope')
   }
-  const { active, refs } = inspection.findings
+  const { active, refs } = inspection
   if (active.length > 0) {
     throw new Error(`OutputSecurityPolicy rejected active content: ${active.join(', ')}`)
   }
