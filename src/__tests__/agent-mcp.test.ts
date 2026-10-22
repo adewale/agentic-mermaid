@@ -9,7 +9,7 @@ import vm from 'node:vm'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { runCli } from '../cli/index.ts'
-import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
+import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
@@ -824,6 +824,12 @@ describe('MCP bin shim', () => {
     }
     expect(await runMcpCli(['--help'], io)).toBe(0)
     expect(out.join('')).toContain('agentic-mermaid-mcp')
+    for (const argv of [['--bogus', '--help'], ['--transport=http', '--port', '70000', '--help'], ['--help', '--help'], ['--', '-h']]) {
+      out.length = 0; err.length = 0
+      expect(await runMcpCli(argv, io)).toBe(0)
+      expect(out.join('')).toBe(MCP_CLI_HELP)
+      expect(err).toEqual([])
+    }
     expect(await runMcpCli(['--transport', 'smtp'], io)).toBe(1)
     expect(err.join('')).toContain('unknown transport: smtp')
     expect(await runMcpCli(['--transport', 'http', '--port', '70000'], io)).toBe(1)

@@ -1,5 +1,5 @@
 import { unsupportedBunReason } from './bun-version.ts'
-import { runHttp, runStdio, type HttpMcpOptions } from './server.ts'
+import type { HttpMcpOptions } from './server.ts'
 
 export const MCP_CLI_HELP = `agentic-mermaid-mcp [--transport stdio|http] [--host 127.0.0.1] [--port 3000]
 
@@ -131,6 +131,7 @@ export async function runMcpCli(argv: readonly string[] = process.argv.slice(2),
     const unsupportedBun = unsupportedBunReason()
     if (unsupportedBun) throw new Error(unsupportedBun)
     const { transport, httpOptions } = parseMcpCliOptions(argv)
+    const { runHttp, runStdio } = await import('./server.ts')
     if (transport === 'http') {
       await runHttp(httpOptions)
       return 0
