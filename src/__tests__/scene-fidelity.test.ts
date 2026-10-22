@@ -27,6 +27,7 @@ import { SECTION_B_FAMILY_CENSUS_FIXTURES } from '../scene/section-b-census-fixt
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import type { RenderOptions } from '../types.ts'
 import { useTestChildren } from './helpers/test-child.ts'
+import { markerContact } from './helpers/marker-contact.ts'
 
 const runChild = useTestChildren(20_000)
 
@@ -164,6 +165,26 @@ describe('scene fidelity', () => {
     if (problems.length > 0) {
       throw new Error(`scene fidelity violations (${problems.length}):\n` + problems.slice(0, 40).join('\n'))
     }
+  })
+
+  test('registered marker-producing families retain explicit contact meanings and reference points', () => {
+    const resources = new Set<string>(), uses = new Set<string>()
+    for (const { family, doc } of scenes) {
+      const visit = (node: SceneNode): void => {
+        if (node.kind === 'document') for (const marker of node.markerResources ?? []) {
+          resources.add(family)
+          const contact = markerContact(family, marker)
+          if (contact.point && contact.attachment !== 'free-axis') expect(marker.ref, `${family}/${marker.id}: ${contact.attachment}`).toEqual(contact.point)
+        }
+        if (node.kind === 'connector' && (node.markers.start || node.markers.end || node.markers.mid.length)) uses.add(family)
+        if (node.kind === 'group') for (const child of node.children) visit(child.node)
+      }
+      for (const node of doc.parts) visit(node)
+    }
+    // Both sets come from the registry-enrolled corpus above. An unclassified
+    // new family's resource fails at its meaning, without copying family IDs.
+    expect(resources.size).toBeGreaterThan(0)
+    expect([...resources].sort()).toEqual([...uses].sort())
   })
 
   test('no family stylesheet restyles what a typed mark draws', () => {

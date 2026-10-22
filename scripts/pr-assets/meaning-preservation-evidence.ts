@@ -84,6 +84,41 @@ const stableRepresentativeCues = {
 } as const
 const fixtures: Fixture[] = [
   {
+    id: 'architecture-junction-contact',
+    title: 'Architecture junction contact',
+    source: 'architecture-beta\njunction j\nservice b(database)[B]\nj:R<-->L:b',
+    cue: 'Before: the shaft and visible start tip stop 6px outside the drawn ring. After: both meet the ring; service placement and arrow resources stay unchanged.',
+    renderOptions: { architecture: { visual: { edgeStroke: '#dc2626' } } },
+    pngScale: 1,
+    captureLayout: true,
+  },
+  {
+    id: 'architecture-junction-custom-contact',
+    title: 'Architecture configured junction in nested groups',
+    source: '---\ntitle: Junction connections\n---\narchitecture-beta\ngroup outer(cloud)[Outer]\ngroup g(cloud)[Group] in outer\njunction j in g\nservice b(database)[B] in g\nb:B<-->T:j\nalign column b j',
+    cue: 'The configured 20px ring now reserves its footprint and owns the public bounds and final endpoint, after alignment, group fitting and title translation.',
+    renderOptions: { architecture: { visual: { junctionOuterRadius: 20, edgeStroke: '#dc2626' } } },
+    pngScale: 1,
+    captureLayout: true,
+  },
+  {
+    id: 'architecture-junction-branching',
+    title: 'Existing branching Architecture corpus example',
+    source: corpusSamples.find(sample => sample.id === 'corpus/architecture/4')!.source,
+    cue: 'Inspect all junction contacts and the side-constraint placement adjustments. Crossing count, measured label legibility and minimum node spacing remain unchanged.',
+    pngScale: 1,
+    captureLayout: true,
+  },
+  ...knownBuiltinFamilies().map(family => ({
+    id: `endpoint-control-${family}`,
+    title: `${family}: unchanged endpoint audit control`,
+    source: getFamily(family)!.example,
+    cue: 'Same-source registry control. Compare the complete production SVG and native-size PNG at both revisions; this example does not establish every route or style.',
+    ...(family === 'gantt' ? { renderOptions: { gantt: { dependencyArrows: true } } } : {}),
+    pngScale: 1,
+    captureLayout: true as const,
+  })),
+  {
     id: 'nightly-architecture-card-clearance',
     title: 'Nightly Architecture routes clear an unrelated service card',
     source:

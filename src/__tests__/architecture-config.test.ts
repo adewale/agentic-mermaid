@@ -63,11 +63,13 @@ architecture-beta
     const visual = {
       serviceCornerRadius: 17,
       serviceSurface: '#AABBCC',
+      junctionOuterRadius: 20,
     }
     const resolved = resolveArchitectureVisualConfig({}, { bg: '#fff', fg: '#111' }, { architecture: { visual } })
     expect(resolved.visual.serviceCornerRadius).toBe(17)
     expect(resolved.layout.serviceCornerRadius).toBe(17)
     expect(resolved.visual.serviceSurface).toBe('#AABBCC')
+    expect(resolved.layout.junctionOuterRadius).toBe(20)
 
     const svg = renderMermaidSVG('architecture-beta\n  service api(server)[API]', { architecture: { visual } })
     expect(svg).toContain('rx="17" ry="17"')
