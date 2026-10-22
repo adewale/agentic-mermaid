@@ -1,4 +1,5 @@
 import { WeightedLru } from './experimental/weighted-lru.ts'
+import { estimatedResidency } from './experimental/cache-residency.ts'
 // ============================================================================
 // Theme system — CSS custom property-based theming for mermaid SVG diagrams.
 //
@@ -466,7 +467,7 @@ export function resolveColors(colors: DiagramColors): ResolvedColors {
   const cached = resolvedColorsCache.get(key)
   if (cached) return cached
   const resolved = Object.freeze(deriveColors(concretePalette(colors) ?? colors))
-  const weight = key.length * 2 + Object.values(resolved).reduce((bytes, value) => bytes + value.length * 2, 256)
+  const weight = key.length * 2 + estimatedResidency(resolved, 256 * 1024)
   resolvedColorsCache.set(key, resolved, weight)
   return resolved
 }

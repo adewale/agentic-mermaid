@@ -13,20 +13,13 @@ export class WeightedLru<K, V> {
   }
   set(key: K, value: V, weight: number): void {
     if (!Number.isFinite(weight) || weight < 0 || weight > this.maxWeight) return
-    this.delete(key)
-    const entry = { value, weight }
-    this.entries.set(key, entry); this.weight += weight
+    const prior = this.entries.get(key)
+    if (prior) { this.weight -= prior.weight; this.entries.delete(key) }
+    this.entries.set(key, { value, weight }); this.weight += weight
     while (this.entries.size > this.maxEntries || this.weight > this.maxWeight) {
       const oldest = this.entries.keys().next().value as K
-      this.delete(oldest)
+      this.weight -= this.entries.get(oldest)!.weight; this.entries.delete(oldest)
     }
   }
-  private delete(key: K): void {
-    const entry = this.entries.get(key)
-    if (!entry) return
-    this.weight -= entry.weight; this.entries.delete(key)
-  }
-  clear(): void {
-    this.entries.clear(); this.weight = 0
-  }
+  clear(): void { this.entries.clear(); this.weight = 0 }
 }
