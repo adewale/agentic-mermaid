@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, experiment/pr449-ci-browser-provisioning]
   pull_request:
 
 concurrency:
