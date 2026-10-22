@@ -109,28 +109,6 @@ function sourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolea
   return aliases.some(alias => header === alias || header.startsWith(`${alias} `))
 }
 
-interface VerificationSources {
-  serialized(): string
-}
-
-function verificationSources(d: ParsedDiagram): VerificationSources {
-  const once = <T>(read: () => T): (() => T) => {
-    // External executable hooks retain their current registration/state reads.
-    if (d.body.kind === 'extension') return read
-    let result: { ok: true; value: T } | { ok: false; error: unknown } | undefined
-    return () => {
-      if (!result) {
-        try { result = { ok: true, value: read() } }
-        catch (error) { result = { ok: false, error } }
-      }
-      if (!result.ok) throw result.error
-      return result.value
-    }
-  }
-  const serialized = once(() => serializeMermaid(d))
-  return { serialized }
-}
-
 /**
  * Tier-3 faithfulness lint: does the structured {nodes, edges, groups} tally
  * survive a parse → serialize → re-parse cycle? Round-trip *byte*-stability
@@ -140,13 +118,13 @@ function verificationSources(d: ParsedDiagram): VerificationSources {
  * helper so it now runs on EVERY verify, for every family. Opaque bodies carry
  * no structured arrays (their faithfulness is byte-verbatim) and are skipped.
  */
-function roundtripFaithfulnessWarnings(d: ParsedDiagram, sources: VerificationSources): LayoutWarning[] {
+function roundtripFaithfulnessWarnings(d: ParsedDiagram): LayoutWarning[] {
   // Thin I/O wrapper: do the parse → serialize → re-parse, then defer the
   // verdict to the pure (mutation-gated, unit-tested) faithfulnessWarning.
   try {
     const before = countStructuralElements(d)
     if (!before) return []
-    const reparsed = parseRegisteredMermaid(sources.serialized())
+    const reparsed = parseRegisteredMermaid(serializeMermaid(d))
     if (!reparsed.ok) return faithfulnessWarning(before, null) // total loss
     const after = countStructuralElements(reparsed.value)
     if (!after) return [] // reparsed to an opaque body — the round-trip gate owns that
@@ -185,11 +163,10 @@ export function renderAndVerifyMermaid(source: string, options: RenderOptions = 
 function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOptions, shared?: SharedVerificationRender): VerifyResult {
   logToolInvocation('verify')
   const parsed = typeof input === 'string' ? parseRegisteredMermaid(input) : { ok: true as const, value: input }
-  const sources = parsed.ok ? verificationSources(parsed.value) : undefined
   // Capture source evidence before any config/layout/render early return.
   // Result branches and diagnostic suppression cannot revoke an observed loss.
-  const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value, sources!)] : []
-  const result = verifyParsedMermaid(input, opts, parsed, sources, shared)
+  const sourceEvidence = parsed.ok ? [...commentLossWarnings(parsed.value), ...roundtripFaithfulnessWarnings(parsed.value)] : []
+  const result = verifyParsedMermaid(input, opts, parsed, shared)
   const suppressed = new Set(opts.suppress ?? [])
   const warnings = dedupedConcat(result.warnings, sourceEvidence.filter(warning => !suppressed.has(warning.code)))
   const suppressedErrors = (opts.suppress ?? []).some(code => WARNING_SEVERITY[code] === 'error')
@@ -201,7 +178,7 @@ function verifyMermaidInternal(input: ParsedDiagram | string, opts: VerifyOption
   } }
 }
 
-function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>, sources?: VerificationSources, shared?: SharedVerificationRender): VerifyResult {
+function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions, parsed: ReturnType<typeof parseRegisteredMermaid>, shared?: SharedVerificationRender): VerifyResult {
   if (!parsed.ok) {
     // Strict parsing must fail closed, but source-level repair diagnostics are
     // still valuable (and were historically part of verify's contract).
@@ -222,11 +199,11 @@ function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions,
     const { diagnostic } = parsed.value.body
     return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}`, origin: 'source' }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
-  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined, shared, sources)
+  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined, shared)
   // Check the merged source/options theme and family config colors before all
   // geometry tiers, while retaining any source loss already known at parse time.
   try {
-    const authored = typeof input === 'string' ? input : sources!.serialized()
+    const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
     // The structured Architecture body may omit its authored theme envelope.
     // Resolve the authored request here so verify sees the same selected
@@ -271,10 +248,10 @@ export function renderFailureWarning(error: unknown, defaultRender: () => Defaul
  * requests for. The caller's diagnostic callback is left out; it already
  * observes verify's own request.
  */
-function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions, authored?: string, sources?: VerificationSources): DefaultRender {
+function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions, authored?: string): DefaultRender {
   try {
     const { onConfigDiagnostic: _observer, ...renderOptions } = opts.renderOptions ?? {}
-    const input = prepareRenderInput(authored ?? d, sources?.serialized)
+    const input = prepareRenderInput(authored ?? d)
     executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
     return 'succeeds-unchecked'
   } catch {
@@ -323,12 +300,12 @@ function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positio
 
 /** One lazy artifact per verify call; failures are memoized as well as values,
  * and so is the ordinary render an engine failure is checked against. */
-function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string, shared?: SharedVerificationRender, sources?: VerificationSources): VerificationArtifact {
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string, shared?: SharedVerificationRender): VerificationArtifact {
   let attempted = false
   let artifact: ProjectedFamilyArtifact | null = null
   let failure: unknown
   let defaultRender: DefaultRender | undefined
-  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => defaultRender ??= ordinaryRenderOutcome(d, opts, authored, sources), prefix)
+  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => defaultRender ??= ordinaryRenderOutcome(d, opts, authored), prefix)
   return Object.assign(() => {
     if (attempted) {
       if (failure !== undefined) throw failure
@@ -355,7 +332,7 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
           renderOptions: opts.renderOptions,
           output: 'svg',
           assertScenes: true,
-        }, sources?.serialized)
+        })
       }
       return artifact
     } catch (error) {
