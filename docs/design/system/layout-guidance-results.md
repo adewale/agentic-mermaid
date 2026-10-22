@@ -6,8 +6,8 @@ four-line band shrank from 74.8px to 28px even though paint certification passed
 The corrected renderer at `d645c8c5` retains that placement metadata without
 changing full-graph frames. Failing-before/passing-after tests check actual SVG
 band height, title bounds, padding and nested custom-font headers. The original
-hosted run remains pre-correction evidence; a new corrected-artifact benchmark
-is required and will be reported separately. A new untouched counter384–447
+hosted run remains pre-correction evidence; the corrected-artifact benchmarks
+are reported below. A new untouched counter384–447
 holdout is declared after this correction; counter320–383 remains retained data.
 
 Runtime24 gives Architecture an explicit unfinished placement contract. It
@@ -32,6 +32,10 @@ The [machine-readable evidence](layout-guidance-results.json) retains all pilot
 rounds, rejected arms, quality/admission changes, adverse metric cases, edit
 comparison and raw-file hashes. The [runtime23 report](layout-experiment-results.md)
 remains historical evidence, not a relabelled runtime24 benchmark.
+The [final benchmark evidence](layout-guidance-benchmarks.json) retains the
+dedicated hosted campaigns, independent CI canary, per-case rounds and tails,
+missing/failed gates, churn observations, artifact provenance and the separate
+whole 27-input memory-only declaration and results.
 
 ## Guidance and experiments
 
@@ -79,13 +83,22 @@ are unchanged; all ELK outcomes are unchanged. The only source change is the
 intentional Architecture3 improvement. Receipt comparison normalizes only the
 native implementation version.
 
-After freezing geometry, the predeclared fresh SHA256-counter seeds320–383 run
+After the initial freeze, the predeclared fresh SHA256-counter seeds320–383 run
 on both baseline and candidate. Native succeeds on 64, ELK on 63; ELK seed325's
 paint rejection is retained. There are no before/after outcome changes. On the
 63 common successes, native/ELK crossings are **512/1,827**, label conflicts
 **0/95**, parallel spans **0/29** and opposing spans **0/19**, without a per-case
 loss in these measures. Native has **29 more-bend, six longer and 14 larger**
-cases. Generated paint certainty remains incomplete.
+cases. These outcomes are retained as known regression data after the header
+correction; their SVGs, receipts and admission are unchanged.
+
+The corrected artifact is then frozen before inspecting a new declared
+SHA256-counter window, **384–447**. Both engines render all 64 cases, with no
+before/after outcome changes versus integrated23. Native/ELK crossings are
+**539/1,958**, labels **0/105**, parallel spans **0/24** and opposing spans
+**0/36**, without a per-case loss in those four measures. Native has **23
+more-bend, two longer and 12 larger** cases. All 64 paint certificates from each
+engine remain unverified. No tuning follows these observations.
 
 Both cache policies' edit replays retain all **234 observations**, the same
 strict-native hint decline and **36/36 undos**. SVG, public geometry, transition,
@@ -116,6 +129,14 @@ Architecture crossings. Measure repeated candidate construction separately from
 edge-span expansion before choosing another representation. Keep exact geometry,
 search bounds, independent final certification and adverse inputs as gates.
 
+[Eiglsperger, Siebenhaller and Kaufmann's sparse Sugiyama representation](https://jgaa.info/index.php/jgaa/article/view/paper111)
+addresses dummy expansion under its crossing model. It is a useful next
+experiment if span dominates an individual candidate, but does not itself remove
+17–27 repeated candidates. Label ranks, reversed/parallel edges and compound
+boundaries must remain explicit; the paper's bounds are not yet this engine's
+bounds. The failed lane/proof experiments argue for measuring each allocation
+mechanism separately before retaining another cache or representation.
+
 The [label-aware compaction literature](https://www.mdpi.com/1999-4893/9/2/22),
 [routing/crossing research](layout-exploration/layout-literature.md) and
 [mental-map evidence](layout-exploration/stability-certification.md) support
@@ -137,12 +158,97 @@ opt-in scope; neither expansion nor a default switch is justified.
 
 ## Frozen full benchmarks and delivery
 
-Full27 release, native23 A/A/differential, supplementary Architecture and cache
-churn results are pending completion. The [review protocol](../../../eval/benchmark/layout-runtime-review.md)
-fixes three rounds, 25 repetitions and 480,000ms per cache-policy campaign. It
-preserves failed and incomplete populations, and separates 96-source historical
-churn from new 129/256 actual-geometry-key churn. Workflow success alone is not
-qualification: read support, A/A, per-case tails and matched memory gates.
+The corrected renderer is frozen at review head `890abfa5`, with runtime source
+at `d645c8c5`. All four hosted campaigns' 20 Node JavaScript hashes match the
+local corrected24 snapshot; their baseline hashes match integrated23. The
+[review protocol](../../../eval/benchmark/layout-runtime-review.md) fixes three
+rounds, 25 timing repetitions and 480,000ms per cache-policy campaign. No failed
+campaign was retried, reduced or given a longer deadline.
+
+| Campaign | Normal cache | Cache off | Qualification |
+| --- | --- | --- | --- |
+| [Release versus ELK](https://github.com/adewale/agentic-mermaid/actions/runs/39855889129) | All 27 timings and 21 memory groups complete. Seven-corpus time **0.9803×**, pass allocation **0.9976×**, RSS **0.7929×**, retained growth **1.0091×** ELK. | All 27 native/fallback timings complete; all 21 native/fallback memory groups missing at the shared deadline; ELK A/A completes only two rounds. | **Failed** overall; normal-cache required gates pass. Time/allocation are effectively tied, with lower corpus-worker RSS. |
+| [Direct native24/native23](https://github.com/adewale/agentic-mermaid/actions/runs/39855894579) | Seven-corpus time **0.9916×**, allocation **0.9998×**, RSS **0.9963×**; complete. | Seven-corpus time **1.0131×**; candidate memory entirely missing, baseline only 5/21 memory groups. Cyclic15 is **1.5234× ELK**, failing the unchanged 1.5× gate. | **Failed** overall. Normal-cache native24/native23 is effectively flat. |
+| [Architecture supplement](https://github.com/adewale/agentic-mermaid/actions/runs/39855899813) | Per-case time **0.903× /1.027× /1.022×** ELK; allocation approximately equal. | Per-case time **0.389–0.416×**, allocation **0.473–0.493×**, RSS **0.754–0.824×** ELK. | All six paired reports complete; required gates and median A/A checks pass. Three scaling inputs, with no official-corpus aggregate. |
+| [Cache churn](https://github.com/adewale/agentic-mermaid/actions/runs/39855904996) | Whole-population pass allocation native/ELK at 96/129/256 sources: **1.0013× /0.6959× /0.7193×**. | Corresponding ratios **0.6665× /0.6814× /0.7021×**. | **108/108 workers complete**, artifacts stable. Native24/native23 is approximately equal. No churn latency is measured. |
+
+The time and memory aggregates labelled **seven-corpus** cover seven official
+inputs, not a whole 27-input mixed session. Matched time has 525 samples
+(7×25×3). The legacy 21 memory groups comprise one pooled seven-corpus worker,
+19 individual scaling workers and one edit worker. Never sum per-case medians
+or present these scopes as a full 27-input allocation aggregate. Allocation and heap
+are GC-boundary estimates; RSS covers a whole worker. Clamped zero retained
+growth is not evidence of a retention win.
+
+The independent [ordinary-CI canary](https://github.com/adewale/agentic-mermaid/actions/runs/39855841529)
+retains the same adverse finding: cache-off ELK A/A times out, native memory is
+missing and cyclic15's time ratio is **1.5015×** (rounds 1.4565/1.5015/1.5178).
+Its reporting job succeeds, but its cache-off qualification is false. The
+direct-differential cyclic15 replica is 1.5234×, with all three rounds above 1.5×;
+the release run's 1.4929× does not erase those failures. The canary records the
+source revision but lacks per-file JavaScript hashes, so its artifact binding
+is weaker than the four dedicated campaigns.
+
+Architecture's cached 16-junction retained-growth ratio is **1.706×**, while its
+ELK A/A ratio is 1.739×: no reliable universal retention win is established.
+Two normal-cache per-round timing controls spike to 1.180× and 1.124× despite
+healthy medians; all rounds remain recorded. Cache churn confirms **129/256
+distinct geometry keys** and **323/704 inner-LRU evictions**, including when the
+outer cache is off. Historical 96 normal-cache sources do not evict the 128-entry
+outer cache; their geometry cache does evict. Adverse churn cases include
+cache-off 96 RSS 1.029× and cache-off 129 retained growth 1.020× native23.
+Their corresponding ELK ratios are 0.7557× and 0.3189×. Exceeding the
+cache capacity produces allocation savings, not across-the-board memory wins.
+
+The [pre-header-fix run](https://github.com/adewale/agentic-mermaid/actions/runs/39852532569)
+is preserved separately: release, differential and churn fail; Architecture
+succeeds. Its continue-on-error step statuses do not change those saved outcomes.
+It includes deadline exhaustion, an import timeout and cyclic15 gate failures;
+it cannot qualify corrected geometry. All 108 pre-fix churn memory workers
+finish, but source diagnostics fail: six cache-off256 failures, four normal129
+failures and normal256 never launched within the shared deadline. The corrected
+campaign's complete source diagnostics do not erase these earlier failures.
+
+### Separate whole 27-input memory experiment
+
+A new experiment was declared before execution using the unchanged stock
+release memory worker, all 27 historical inputs in every worker, five arms
+(ELK, ELK A/A, native23, native23 A/A, native24), three fresh rounds and the same
+480,000ms shared deadline per policy. It completes **30/30 workers**, in 114.4s
+off and 77.6s normal, with artifacts unchanged. The
+[portable runner](../../../eval/benchmark/layout-memory-only.py) and exact
+declaration/input envelope are retained. There were no competing local builds,
+tests or benchmark workers. This local Node 24.19.0 experiment is separate from
+the hosted Node 24.21.0 campaigns and Node 24.22.0 CI canary.
+
+| Whole 27-input mixed-session memory, native24 / ELK | Cache off | Normal cache |
+| --- | ---: | ---: |
+| Whole-pass allocation estimate | 0.9420× | 0.9935× |
+| Pass peak-heap estimate | 0.7511× | 0.8669× |
+| Whole-worker peak RSS | 0.9066× | 0.9915× |
+| Settled-pass retained growth | 0.4257× | 0.7330× |
+| Native24/native23 whole-pass allocation | 0.9818× | 1.0008× |
+
+These are medians of same-round ratios. All declared aggregate A/A and candidate
+gates pass, but normal ELK A/A RSS is **1.0989×**, barely inside 1.1×, and its third
+round is 1.1160×. The cached RSS difference does not establish a win. Uncached
+native23 A/A State per-input allocation is 0.8515×, and cyclic18-cuts has an A/A
+round at 1.1905×; aggregate gates do not certify every individual measurement.
+
+Whole-pass savings also conceal costly inputs: uncached native allocation is
+**1.7823× ELK on cyclic11, 1.6094× on cyclic15, 1.5359× on cyclic13 and 1.4843× on
+cyclic18-cuts**. Native24/native23 cyclic18-cuts allocation rises 5.1% at median
+in this experiment, with the noisy control retained. Normal whole-pass allocation
+and RSS are effectively tied with ELK, and new-versus-old native results are
+mostly flat. No universal memory win is claimed.
+
+Native settled-pass retained growth is 1.42–1.47MB uncached and 0.51–0.54MB cached;
+this is growth after settling, not total resident/retained memory. Memory mode
+does one warmup, per-input GC measurements and one complete measured pass;
+the job's 25-repetition field is ignored by this mode. It establishes **no latency
+result**, and cannot replace the failed legacy deadlines or cyclic timing gate.
+Its worker consumes complete SVG/receipts but exposes no fingerprints in memory
+mode; separate correctness/timing campaigns retain that evidence.
 
 Payload caps are unchanged. Architecture's budgeted solver closure measures
 **573,467 Brotli bytes**, leaving **533** under its 574,000-byte cap. The
@@ -163,7 +269,27 @@ artifact unchanged before the header correction. The corrected renderer passes
 115 owning tests and repeats the 47 browser/two standalone contracts. The
 initial CI also passes all unit shards, semantic conformance, browser/package
 E2E, payload and red/green lanes. Its quality gate's sole dependency-audit failure
-is addressed by a three-line DOMPurify3.4.16→3.4.17 override/lock patch; Mermaid
-stays12.2.0, the audit passes and 36 upstream compatibility tests pass. The
+is addressed by a three-line DOMPurify 3.4.16→3.4.17 override/lock patch; Mermaid
+stays 12.2.0, the audit passes and 36 upstream compatibility tests pass. The
 generated advisory remains red on known ELK quality gaps, not new renderer
 regressions. No all-aspects ELK win is claimed.
+
+Required [CI on frozen renderer head 890abfa5](https://github.com/adewale/agentic-mermaid/actions/runs/39855841529)
+is complete and green: all required jobs pass, with 19 green jobs and the known
+generated-layout advisory red. Ruff also passes.
+The generated-layout advisory remains red on retained quality tradeoffs, while
+the green benchmark-reporting job contains the failed uncached qualification
+described above. These are separate outcomes.
+
+## ELK assessment and remaining work
+
+The owned engine has smaller selected-family browser closures, fewer aggregate
+crossings/label conflicts/shared spans, useful uncached Architecture gains and
+lower uncached whole 27-input memory estimates. It has **not matched or beaten ELK on
+every aspect**. It still loses two source Architecture crossing cases, 25 source
+bend cases, 20 route-length cases, 33 area cases and four aligned-motion cases.
+Generated paint certainty and human readability remain unproven. Cached costs
+are largely tied; uncached cyclic time/allocation tails and full qualification
+deadlines remain open. The next cost experiment should isolate repeated
+candidate normalization before changing sparse expansion. Keep ELK as default,
+retain six-family opt-in, and preserve existing caps and final certification.
