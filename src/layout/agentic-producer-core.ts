@@ -6,6 +6,7 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
+export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
 // request helpers here creates extra requests for families selecting ELK.
