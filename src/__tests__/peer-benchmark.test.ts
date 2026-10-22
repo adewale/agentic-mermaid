@@ -13,13 +13,13 @@ beforeAll(async () => {
   writeFileSync(worker, await built.outputs[0]!.text())
 })
 
-function sample(module: string) {
+function sample(module: string, expected = ['retained']) {
   const root = temp.dir(), entry = join(root, 'peer.mjs'), job = join(root, 'job.json'), out = join(root, 'out.jsonl'), svgDirectory = join(root, 'svg')
   writeFileSync(entry, module)
   writeFileSync(job, JSON.stringify({
     peer: 'agentic-native', output: 'svg', entry, consumeSvg: true, svgDirectory,
     timing: { warmCalls: 2, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 1000 },
-    workloads: [{ id: 'witness', source: 'flowchart LR\n A --> B', expected: ['retained'] }],
+    workloads: [{ id: 'witness', source: 'flowchart LR\n A --> B', expected }],
   }))
   const run = spawnSync('node', [worker, '--child', '--job', job, '--out', out], { encoding: 'utf8', timeout: 10_000 })
   expect(run.status, run.stderr).toBe(0)
@@ -70,4 +70,14 @@ test('changing SVG cannot lose required labels after its first successful call',
   expect(result.status).toBe('error')
   expect(result.detail).toContain('labels lost during consumed sampling')
   expect(result.medianMs).toBeUndefined()
+})
+
+test.each([
+  ['<svg><text>Text: Requirement 1</text></svg>', 'ok'],
+  ['<svg><foreignObject><p>Text: Requirement 1</p></foreignObject></svg>', 'ok'],
+  ['<svg><text>Text: Requirement 10</text></svg>', 'lost-labels'],
+  ['<svg><desc>Requirement 1</desc><text>Requirement 10</text></svg>', 'lost-labels'],
+])('visible field phrase gate handles %s', (svg, status) => {
+  const { result } = sample(`export function renderMermaidSVG() { return ${JSON.stringify(svg)}; }`, ['Requirement 1'])
+  expect(result.status).toBe(status)
 })

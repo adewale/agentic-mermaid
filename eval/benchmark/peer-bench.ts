@@ -9,10 +9,10 @@
 // Options: --peers a,b, --workloads a,b, --rounds N (3), --json PATH,
 // --markdown PATH, --quick (fewer, shorter samples), --agentic-npm VERSION.
 // --outputs svg --consume-svg consumes UTF-8 + SHA-256 on every timed call
-// (Node SVG only, normal local caches); legacy sampling is unchanged otherwise.
+// (Node SVG only, normal local caches, whole visible label phrases); legacy sampling is unchanged otherwise.
 // --peers agentic,agentic-aa,agentic-native adds strict native and an identical
 // default-ELK control, both opt-in. Zombie 5.8.2 has separate zombie-current
-// and zombie-simple arms; the latter is native only for Flowchart.
+// and zombie-simple arms; marker-free State can also take its simple path.
 // --svg-dir PATH retains each first output, including lost-label results.
 // --corpus uses every official fence occurrence (including unsupported types),
 // with one warmup and three single-call samples instead of calibrated loops.
@@ -134,7 +134,7 @@ const PEERS: readonly Peer[] = [
   {
     id: 'zombie-simple', source: { registry: 'npm', name: '@zombie-mermaid/svg-renderer', version: '5.8.2' }, runtime: 'node', optIn: true,
     svg: { subpath: '.', api: "renderMermaidSVG(source, { layout: 'simple' }) (Node auto-loads ELK where required)", make: m => source => m.renderMermaidSVG(source, { layout: 'simple' }) },
-    note: 'native for Flowchart; other graph families use auto-loaded ELK; this arm is hybrid, not strict native',
+    note: 'Flowchart simple also handles marker-free State; Class/ER/Architecture use auto-loaded ELK; hybrid',
   },
   { id: 'pele', source: { registry: 'npm', name: 'pele', version: '1.6.0' }, runtime: 'node', svg: { subpath: '.', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'returns { svg, ... }; only .svg is read' },
   {
@@ -267,7 +267,7 @@ const terminalLabel = (label: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${label
 /** Labels a reader would see: whole <text> elements (as the release
  * benchmark checks them), each <tspan>, and each foreignObject's text and text
  * runs (Merman's HTML labels). Terminal output is checked token by token. */
-function missingLabels(output: Output, rendered: string, expected: readonly string[]): string[] {
+function missingLabels(output: Output, rendered: string, expected: readonly string[], visiblePhrases = false): string[] {
   if (output === 'terminal') {
     const text = rendered.replace(ANSI_SGR, '')
     return expected.filter(label => !terminalLabel(label).test(text))
@@ -275,12 +275,19 @@ function missingLabels(output: Output, rendered: string, expected: readonly stri
   const missing = missingSvgLabels(rendered, expected)
   if (!missing.length) return missing
   const seen = new Set<string>()
+  if (visiblePhrases) for (const [, inner] of rendered.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)) seen.add(textOf(inner!))
   for (const [, inner] of rendered.matchAll(/<tspan\b[^>]*>([\s\S]*?)<\/tspan>/g)) seen.add(textOf(inner!))
   for (const [, inner] of rendered.matchAll(/<foreignObject\b[^>]*>([\s\S]*?)<\/foreignObject>/g)) {
     seen.add(textOf(inner!))
     for (const run of inner!.split(/<[^>]+>/)) seen.add(textOf(run))
   }
-  return missing.filter(label => !seen.has(label))
+  return missing.filter(label => {
+    if (seen.has(label)) return false
+    // A Requirement row may paint 'Text: Requirement 1' as one text element,
+    // or its field/value as separate elements. Count the same visible phrase
+    // in both, without accepting Requirement 1 inside Requirement 10.
+    return !visiblePhrases || ![...seen].some(run => terminalLabel(label).test(run))
+  })
 }
 
 async function measure(render: Render, output: Output, workload: WorkerJob['workloads'][number], timing: Timing, allocation: Awaited<ReturnType<typeof allocationProbe>>, consumeSvg = false, svgDirectory?: string): Promise<WorkloadResult> {
@@ -302,7 +309,7 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
     writeFileSync(join(svgDirectory, `${encodeURIComponent(id)}.svg`), first)
   }
   const outputBytes = Buffer.byteLength(first, 'utf8')
-  const missing = missingLabels(output, first, workload.expected)
+  const missing = missingLabels(output, first, workload.expected, consumeSvg)
   if (missing.length) return { workload: id, status: 'lost-labels', missing: missing.length, detail: missing.slice(0, 3).join(', '), firstMs, outputBytes }
 
   // Async peers are awaited per call; sync peers are timed in a plain loop
@@ -320,7 +327,7 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
     consumedCalls++
     if (lastSha256 !== firstSha256) {
       changedOutputCalls++
-      if (missingLabels(output, value as string, workload.expected).length) throw new Error('labels lost during consumed sampling')
+      if (missingLabels(output, value as string, workload.expected, true).length) throw new Error('labels lost during consumed sampling')
     }
     sink = lastSha256
   }
@@ -860,7 +867,7 @@ async function main(): Promise<void> {
     const out: string[] = []
     out.push('# Peer benchmark (advisory)', '')
     out.push(`- Date: ${createdAt}`)
-    out.push(`- Protocol: ${consumeSvg ? 'node-svg-consumed@1; each timed call includes complete UTF-8 SVG and SHA-256; normal local caches, peer defaults; Zombie 5.8.2 auto-loads repository ELK outside Flowchart simple mode; SVG-only public APIs, no extra receipt serialization' : 'legacy-peer@1; returned output retained, no per-call byte/hash consumption'}`)
+    out.push(`- Protocol: ${consumeSvg ? 'node-svg-consumed@2; whole visible label phrases (not metadata or numeric-prefix matches); each timed call includes complete UTF-8 SVG and SHA-256; normal local caches, peer defaults; Zombie 5.8.2 simple also handles marker-free State, and auto-loads repository ELK for other graph families; SVG-only public APIs, no extra receipt serialization' : 'legacy-peer@1; returned output retained, no per-call byte/hash consumption'}`)
     out.push('- First render excludes byte/hash consumption and label checks. Repeated-source warm costs include each renderer’s own cache behavior. Label presence alone does not prove topology, routing, styles, or paint fidelity.')
     out.push(`- Machine: ${cpus()[0]?.model ?? 'unknown CPU'}, ${cpus().length} logical CPUs, ${(totalmem() / 1024 ** 3).toFixed(0)} GiB, ${process.platform} ${process.arch} ${release()}; load average ${startLoad.map(value => value.toFixed(2)).join(' ')} at start, ${loadavg()[0]!.toFixed(2)} at end`)
     out.push(`- Runtimes: Node ${nodeVersion} (Node workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator); native Go and Python versions appear in their pins`)
@@ -961,7 +968,7 @@ async function main(): Promise<void> {
       const report = {
         schemaVersion: 1,
         advisory: true,
-        protocol: consumeSvg ? 'node-svg-consumed@1' : 'legacy-peer@1',
+        protocol: consumeSvg ? 'node-svg-consumed@2' : 'legacy-peer@1',
         revision: git(['rev-parse', 'HEAD']),
         sourceDirty: git(['status', '--porcelain', '--', 'src']).length > 0,
         cacheEnvironment: consumeSvg ? layoutCacheEnvironment('normal') : undefined,
