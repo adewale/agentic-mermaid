@@ -22,6 +22,11 @@ export function publicConstructionOperandsRequired(): boolean { return capture }
  * capture, this is scoped to the exact invocation, never a caller option. */
 export function publicSceneLowering(): boolean { return publicLowering }
 
+/** Native producers bypass the public hook but must mask an enclosing call. */
+export function withEngineDrawingRepresentation<T>(draw: () => T): T {
+  return scoped(false, false, draw)
+}
+
 export function ownSceneLowering(wrapper: Lowerer, publicConstruction = false): Lowerer {
   wrappers.set(wrapper, publicConstruction)
   return wrapper

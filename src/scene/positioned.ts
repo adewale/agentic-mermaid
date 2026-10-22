@@ -1,4 +1,4 @@
-import { assertBackendConformance } from './backend.ts'
+import { assertBackendConformance, isBuiltinDefaultBackend } from './backend.ts'
 import { nativeDrawingOf } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
@@ -12,7 +12,7 @@ import { withDeferredTerminalProjections } from './deferred-terminal-projection.
 import type { SceneDoc } from './ir.ts'
 import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
 import { measureRenderStage } from '../render-stages.ts'
-import { invokeSceneLowering } from './lowering-invocation.ts'
+import { invokeSceneLowering, withEngineDrawingRepresentation } from './lowering-invocation.ts'
 
 interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
 interface PositionedNative { drawing: NativeDrawing; certification?: PaintLayoutCertification }
@@ -51,6 +51,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
 export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): NativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
   if (sceneAssertionsEnabled(request) || plan.family.id.startsWith('family:')
+    || plan.backend && !isBuiltinDefaultBackend(plan.backend.backend)
     || !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')) return undefined
   const producer = nativeDrawingOf(plan.family.lowerScene)
   if (!producer) return undefined
@@ -62,8 +63,8 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
-  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer,
-    { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
+  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => withEngineDrawingRepresentation(() => drawNative(producer,
+    { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined)))
   requests.set(request, { drawing })
   return drawing
 }
