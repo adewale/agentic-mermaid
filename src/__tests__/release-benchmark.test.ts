@@ -1,7 +1,6 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -15,8 +14,10 @@ import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const temp = useTempDirs()
+const runChild = useTestChildren(10_000)
 const input = (id: string, kind: Input['kind'] = 'corpus', family = 'flowchart'): Input => ({ id, kind, family, source: 'flowchart LR\n A --> B' })
 function run(label: string, inputs: Input[]): EngineRun {
   return {
@@ -360,7 +361,7 @@ test.each([
   ['empty output after the first call', 2, '', 'error'],
   ['missing text during a measured sample', 3, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Other</text></svg>', 'lost-labels'],
   ['malformed SVG carrying the expected text', 1, '<svg><text>Keep</text>', 'error'],
-] as const)('peer worker validates %s outside timing', (_name, changeAt, replacement, status) => {
+] as const)('peer worker validates %s outside timing', async (_name, changeAt, replacement, status) => {
   const dir = temp.dir(), entry = join(dir, 'renderer.mjs'), job = join(dir, 'job.json'), out = join(dir, 'samples.jsonl')
   writeFileSync(entry, `let calls = 0; export function renderMermaidSVG() { return ++calls >= ${changeAt || 'Infinity'} ? ${JSON.stringify(replacement)} : '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Keep</text></svg>' }`)
   writeFileSync(job, JSON.stringify({ peer: 'agentic', output: 'svg', entry,
@@ -368,8 +369,8 @@ test.each([
     workloads: [{ id: 'owned-text', source: 'fixture', expected: ['Keep'] }],
   }))
   writeFileSync(out, '')
-  const child = spawnSync('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
-    cwd: join(import.meta.dir, '../..'), encoding: 'utf8', timeout: 10000,
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
+    cwd: join(import.meta.dir, '../..'),
   })
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
   const observations = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
@@ -381,14 +382,14 @@ test.each([
   else expect(result.medianMs).toBeUndefined()
 })
 
-test('release memory worker retains absolute post-GC heap observations', () => {
+test('release memory worker retains absolute post-GC heap observations', async () => {
   const dir = temp.dir(),
     entry = join(dir, 'renderer.mjs'),
     job = join(dir, 'job.json'),
     out = join(dir, 'memory.json')
   writeFileSync(entry, 'export function renderMermaidSVG() { return "<svg/>" }')
   writeFileSync(job, JSON.stringify({ entry, mode: 'memory', reps: 1, inputs: [input('fixture')] }))
-  const child = spawnSync('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, out], { encoding: 'utf8', timeout: 10000 })
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, out])
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
   const memory = JSON.parse(readFileSync(out, 'utf8'))
   expect(memory.settledHeapBytes).toBeGreaterThan(0)
@@ -396,17 +397,17 @@ test('release memory worker retains absolute post-GC heap observations', () => {
   expect(memory.retainedGrowthBytes).toBe(Math.max(0, memory.retainedHeapBytes - memory.settledHeapBytes))
 })
 
-test('peer artifact mismatch fails before installation and retains explicit incomplete evidence', () => {
+test('peer artifact mismatch fails before installation and retains explicit incomplete evidence', async () => {
   const dir = temp.dir(), tarball = join(dir, 'candidate.tgz'), reportPath = join(dir, 'report.json')
   writeFileSync(tarball, 'different bytes')
   const bin = temp.dir(), npm = join(bin, 'npm'), installed = join(dir, 'npm-called')
   writeFileSync(npm, '#!/bin/sh\n: > "$INSTALL_RECEIPT"\nexit 99\n')
   chmodSync(npm, 0o755)
-  const invoke = () => spawnSync(process.execPath, [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'),
+  const invoke = () => runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'),
     '--peers', 'agentic', '--workloads', 'flow5', '--candidate-tarball', tarball,
     '--candidate-sha256', '0'.repeat(64), '--elk-cache', 'on', '--json', reportPath, '--markdown', join(dir, 'report.md'),
-  ], { cwd: join(import.meta.dir, '../..'), encoding: 'utf8', timeout: 10000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_RECEIPT: installed, APL_NO_CENTER: '1' } })
-  expect(invoke().status).not.toBe(0)
+  ], { cwd: join(import.meta.dir, '../..'), env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_RECEIPT: installed, APL_NO_CENTER: '1' } })
+  expect((await invoke()).status).not.toBe(0)
   expect(existsSync(installed)).toBe(false)
   const report = JSON.parse(readFileSync(reportPath, 'utf8'))
   expect(report.status).toBe('failed')
@@ -416,7 +417,7 @@ test('peer artifact mismatch fails before installation and retains explicit inco
   const receipts = originalRaw.trim().split('\n').map(line => JSON.parse(line))
   expect(receipts[0].status).toBe('started')
   expect(receipts.at(-1)).toMatchObject({ status: 'failed', error: report.error })
-  expect(invoke().status).not.toBe(0)
+  expect((await invoke()).status).not.toBe(0)
   expect(JSON.parse(readFileSync(reportPath, 'utf8')).rawSamples).not.toBe(report.rawSamples)
   expect(readFileSync(report.rawSamples, 'utf8')).toBe(originalRaw)
 })
