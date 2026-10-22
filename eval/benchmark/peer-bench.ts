@@ -8,6 +8,12 @@
 //
 // Options: --peers a,b, --workloads a,b, --rounds N (3), --json PATH,
 // --markdown PATH, --quick (fewer, shorter samples), --agentic-npm VERSION.
+// --outputs svg --consume-svg consumes UTF-8 + SHA-256 on every timed call
+// (Node SVG only, normal local caches); legacy sampling is unchanged otherwise.
+// --peers agentic,agentic-aa,agentic-native adds strict native and an identical
+// default-ELK control, both opt-in. Zombie 5.8.2 has separate zombie-current
+// and zombie-simple arms; the latter is native only for Flowchart.
+// --svg-dir PATH retains each first output, including lost-label results.
 // --corpus uses every official fence occurrence (including unsupported types),
 // with one warmup and three single-call samples instead of calibrated loops.
 // Corpus success is nonempty output, not a semantic/visual fidelity claim.
@@ -20,7 +26,8 @@
 // scripts disabled (termaid: wheel only, into a venv there). Peer code runs
 // only inside worker processes, but there with this user's privileges, and a
 // peer's transitive npm dependencies resolve at install time (no lockfile).
-// Pins are checked against eval/fork-graph/population.json; a mismatch is a
+// Registry pins are checked against docs/mermaid-community.json; git pins
+// against eval/fork-graph/population.json; a mismatch is a
 // printed warning.
 // Sketch is fetched at its exact git commit and compiled with Go >=1.25 on PATH.
 //
@@ -37,14 +44,15 @@
 // machine inflates absolute numbers, so compare peers within one run.
 
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { cpus, loadavg, release, tmpdir, totalmem } from 'node:os'
 import { join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
 import { allocationProbe, median } from './bench-stats.ts'
 import type { MICRO_WORKLOADS } from './micro-bench-cases.ts'
-import { missingSvgLabels } from './release-bench-fidelity.ts'
+import { layoutCacheEnvironment, missingSvgLabels } from './release-bench-fidelity.ts'
 import { git, ROOT } from './revision-tree.ts'
 
 type WorkloadId = string
@@ -104,6 +112,13 @@ const mermanEngine = async (m: PeerModule) => (await m.createNodeEngine()) as { 
 
 const PEERS: readonly Peer[] = [
   { id: 'agentic', source: { registry: 'local' }, runtime: 'node', ...beautifulApi },
+  { id: 'agentic-aa', source: { registry: 'local' }, runtime: 'node', optIn: true, svg: beautifulApi.svg, note: 'identical default-ELK A/A control' },
+  {
+    id: 'agentic-native', source: { registry: 'local' }, runtime: 'node', optIn: true,
+    svg: { subpath: '.', api: "renderMermaidSVG(source, { graphLayout: { backend: 'agentic', fallback: 'none' } })", make: m => source => m.renderMermaidSVG(source, { graphLayout: { backend: 'agentic', fallback: 'none' } }) },
+    note: 'strict native; unchanged non-graph families do not establish a layout-backend improvement',
+  },
+  { id: 'ondine', source: { registry: 'npm', name: 'ondine', version: '0.0.1' }, runtime: 'node', optIn: true, svg: { subpath: './compiler', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'published Node compiler, not the mount-only runtime or source HEAD' },
   { id: 'beautiful', source: { registry: 'npm', name: 'beautiful-mermaid', version: '1.1.3' }, runtime: 'node', ...beautifulApi },
   {
     id: 'zombie',
@@ -111,6 +126,15 @@ const PEERS: readonly Peer[] = [
     runtime: 'node',
     svg: beautifulApi.svg,
     terminal: { ...beautifulApi.terminal, subpath: './ascii', api: `zombie-mermaid/ascii ${beautifulApi.terminal.api}` },
+  },
+  {
+    id: 'zombie-current', source: { registry: 'npm', name: '@zombie-mermaid/svg-renderer', version: '5.8.2' }, runtime: 'node', optIn: true,
+    svg: beautifulApi.svg, note: 'supplementary 2026-10-22 pin; Node auto-loads elkjs from the repository working directory',
+  },
+  {
+    id: 'zombie-simple', source: { registry: 'npm', name: '@zombie-mermaid/svg-renderer', version: '5.8.2' }, runtime: 'node', optIn: true,
+    svg: { subpath: '.', api: "renderMermaidSVG(source, { layout: 'simple' }) (Node auto-loads ELK where required)", make: m => source => m.renderMermaidSVG(source, { layout: 'simple' }) },
+    note: 'native for Flowchart; other graph families use auto-loaded ELK; this arm is hybrid, not strict native',
   },
   { id: 'pele', source: { registry: 'npm', name: 'pele', version: '1.6.0' }, runtime: 'node', svg: { subpath: '.', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'returns { svg, ... }; only .svg is read' },
   {
@@ -171,6 +195,7 @@ const EXPECTED_LABELS: Record<WorkloadId, readonly string[]> = {
   packet240: range('Field ', 240),
   kanban240: Array.from({ length: 12 }, (_, stage) => [`Stage ${stage}`, ...Array.from({ length: 20 }, (_, task) => `Task ${stage}.${task}`)]).flat(),
   requirement100: range('Requirement ', 100),
+  architecture3: ['API', 'Database', 'Storage', 'Server'],
   // Leaf labels may be explicitly hidden in small quantitative cells; the
   // release workload's section labels and title remain visible in SVG.
   treemap260: ['Product allocation', ...range('Group ', 20)],
@@ -178,7 +203,7 @@ const EXPECTED_LABELS: Record<WorkloadId, readonly string[]> = {
   block120: range('Component ', 120),
 }
 const WORKLOADS: Record<Output, readonly WorkloadId[]> = {
-  svg: ['flow5', 'tree50', 'mesh50', 'seq20', 'c4', 'class80', 'er40', 'state80'],
+  svg: ['flow5', 'tree50', 'mesh50', 'seq20', 'c4', 'class80', 'er40', 'state80', 'requirement100', 'architecture3'],
   terminal: ['flow5', 'tree50', 'mesh50', 'seq20'],
 }
 
@@ -205,6 +230,10 @@ interface WorkloadResult {
   missing?: number
   firstMs?: number
   outputBytes?: number
+  firstSha256?: string
+  lastSha256?: string
+  changedOutputCalls?: number
+  consumedCalls?: number
   warmCalls?: number
   iterations?: number
   samplesMs?: number[]
@@ -217,6 +246,8 @@ interface WorkerJob {
   output: Output
   entry: string
   timing: Timing
+  consumeSvg?: boolean
+  svgDirectory?: string
   workloads: Array<{ id: string; source: string; expected: readonly string[] }>
 }
 type WorkerLine = { type: 'import'; importMs: number; setupMs: number } | { type: 'fatal'; error: string } | { type: 'start'; workload: string } | ({ type: 'result' } & WorkloadResult) | { type: 'end'; rssBytes?: number }
@@ -252,7 +283,7 @@ function missingLabels(output: Output, rendered: string, expected: readonly stri
   return missing.filter(label => !seen.has(label))
 }
 
-async function measure(render: Render, output: Output, workload: WorkerJob['workloads'][number], timing: Timing, allocation: Awaited<ReturnType<typeof allocationProbe>>): Promise<WorkloadResult> {
+async function measure(render: Render, output: Output, workload: WorkerJob['workloads'][number], timing: Timing, allocation: Awaited<ReturnType<typeof allocationProbe>>, consumeSvg = false, svgDirectory?: string): Promise<WorkloadResult> {
   const id = workload.id
   const firstStart = performance.now()
   let first: unknown
@@ -266,6 +297,10 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
   }
   const firstMs = performance.now() - firstStart
   if (typeof first !== 'string' || (output === 'svg' ? !/^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b/.test(first) : !first.trim())) return { workload: id, status: 'error', detail: `returned no ${output === 'svg' ? 'SVG string' : 'text'}`, firstMs }
+  if (svgDirectory) {
+    mkdirSync(svgDirectory, { recursive: true })
+    writeFileSync(join(svgDirectory, `${encodeURIComponent(id)}.svg`), first)
+  }
   const outputBytes = Buffer.byteLength(first, 'utf8')
   const missing = missingLabels(output, first, workload.expected)
   if (missing.length) return { workload: id, status: 'lost-labels', missing: missing.length, detail: missing.slice(0, 3).join(', '), firstMs, outputBytes }
@@ -273,10 +308,31 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
   // Async peers are awaited per call; sync peers are timed in a plain loop
   // whose clock stops before this function's own promise settles.
   let sink: unknown = first
+  const fingerprint = (value: unknown): string => {
+    if (typeof value !== 'string' || !/^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b/.test(value)) throw new TypeError('render returned no SVG text during consumed sampling')
+    return createHash('sha256').update(Buffer.from(value, 'utf8')).digest('hex')
+  }
+  const firstSha256 = consumeSvg ? fingerprint(first) : undefined
+  let lastSha256 = firstSha256, consumedCalls = 0, changedOutputCalls = 0
+  const consume = (value: unknown) => {
+    if (!consumeSvg) { sink = value; return }
+    lastSha256 = fingerprint(value)
+    consumedCalls++
+    if (lastSha256 !== firstSha256) {
+      changedOutputCalls++
+      if (missingLabels(output, value as string, workload.expected).length) throw new Error('labels lost during consumed sampling')
+    }
+    sink = lastSha256
+  }
   const timed = async (calls: number): Promise<number> => {
     const start = performance.now()
-    if (isAsync) for (let i = 0; i < calls; i++) sink = await render(workload.source)
-    else for (let i = 0; i < calls; i++) sink = render(workload.source)
+    if (consumeSvg) {
+      if (isAsync) for (let i = 0; i < calls; i++) consume(await render(workload.source))
+      else for (let i = 0; i < calls; i++) consume(render(workload.source))
+    } else {
+      if (isAsync) for (let i = 0; i < calls; i++) sink = await render(workload.source)
+      else for (let i = 0; i < calls; i++) sink = render(workload.source)
+    }
     return performance.now() - start
   }
   try {
@@ -300,7 +356,7 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
     const allocBytesPerCall = allocation ? (await allocation(() => timed(iterations))) / iterations : undefined
     ;(globalThis as { __peerBenchSink?: unknown }).__peerBenchSink = sink
     const medianMs = median(samplesMs)
-    return { workload: id, status: 'ok', firstMs, outputBytes, warmCalls, iterations, samplesMs, medianMs, madMs: median(samplesMs.map(value => Math.abs(value - medianMs))), ...(allocBytesPerCall === undefined ? {} : { allocBytesPerCall }) }
+    return { workload: id, status: 'ok', firstMs, outputBytes, ...(consumeSvg ? { firstSha256, lastSha256, consumedCalls, changedOutputCalls } : {}), warmCalls, iterations, samplesMs, medianMs, madMs: median(samplesMs.map(value => Math.abs(value - medianMs))), ...(allocBytesPerCall === undefined ? {} : { allocBytesPerCall }) }
   } catch (error) {
     return { workload: id, status: 'error', detail: `after the first render: ${firstLine(error)}`, firstMs, outputBytes }
   }
@@ -313,6 +369,7 @@ async function runWorker(jobPath: string, outPath: string): Promise<void> {
   const peer = PEERS.find(entry => entry.id === job.peer) ?? (job.peer === 'agentic-npm' ? PEERS[0] : undefined)
   const make = peer?.[job.output]?.make
   if (!make) throw new Error(`no ${job.output} adapter for ${job.peer}`)
+  if (job.consumeSvg) Object.assign(process.env, layoutCacheEnvironment('normal'))
   const allocation = await allocationProbe()
   let render: Render
   try {
@@ -327,7 +384,7 @@ async function runWorker(jobPath: string, outPath: string): Promise<void> {
   }
   for (const workload of job.workloads) {
     emit({ type: 'start', workload: workload.id })
-    emit({ type: 'result', ...(await measure(render, job.output, workload, job.timing, allocation)) })
+    emit({ type: 'result', ...(await measure(render, job.output, workload, job.timing, allocation, job.consumeSvg, job.svgDirectory)) })
   }
   emit({ type: 'end', rssBytes: process.memoryUsage().rss })
   // A peer engine (Merman's queue) may hold the event loop open.
@@ -435,8 +492,8 @@ interface ProcessRecord {
 const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|(?:unsupported|inventory-only) in Agentic Mermaid|unsupported diagram|diagram type is not supported/i
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
-  const flags = new Set(['quick', 'child', 'corpus'])
-  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out'])
+  const flags = new Set(['quick', 'child', 'corpus', 'consume-svg'])
+  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'outputs', 'svg-dir'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -527,10 +584,24 @@ function populationWarnings(peer: Peer): string[] {
     return population.nodes.some(node => node.repo === source.repo && (node.benchmarkCommit ?? node.head) === source.commit) ? [] : [`${peer.id}: git pin is not recorded in population.json`]
   }
   const { registry, name, version } = peer.source
-  const population = JSON.parse(readFileSync(join(ROOT, 'eval/fork-graph/population.json'), 'utf8')) as { nodes: Array<{ id: string; packages?: Array<{ registry: string; name: string; version: string }> }> }
+  const population = JSON.parse(readFileSync(join(ROOT, 'docs/mermaid-community.json'), 'utf8')) as { nodes: Array<{ id: string; packages?: Array<{ registry: string; name: string; version: string }> }> }
   const recorded = population.nodes.flatMap(node => (node.packages ?? []).filter(entry => entry.registry === registry && entry.name === name).map(entry => `${entry.version} (${node.id})`))
-  if (!recorded.length) return [`${peer.id}: ${name} is not in eval/fork-graph/population.json`]
-  return recorded.some(entry => entry.startsWith(`${version} `)) ? [] : [`${peer.id}: pinned ${name}@${version}, but population.json records ${recorded.join(', ')}`]
+  if (!recorded.length) return [`${peer.id}: ${name} is not in docs/mermaid-community.json`]
+  return recorded.some(entry => entry.startsWith(`${version} `)) ? [] : [`${peer.id}: pinned ${name}@${version}, but mermaid-community.json records ${recorded.join(', ')}`]
+}
+
+/** Hash the complete local distribution, including chunks/assets, before timing. */
+function distributionSha256(directory: string): string {
+  const hash = createHash('sha256')
+  const visit = (path: string) => {
+    for (const entry of readdirSync(path, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name, 'en'))) {
+      const child = join(path, entry.name)
+      if (entry.isDirectory()) visit(child)
+      else { hash.update(relative(directory, child)); hash.update('\0'); hash.update(readFileSync(child)); hash.update('\0') }
+    }
+  }
+  visit(directory)
+  return hash.digest('hex')
 }
 
 function prepare(peer: Peer, nodeVersion: string): Prepared {
@@ -540,7 +611,7 @@ function prepare(peer: Peer, nodeVersion: string): Prepared {
     const dirty = git(['status', '--porcelain', '--', 'src']).length > 0
     const version = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string }).version
     const built = statSync(join(ROOT, 'dist/index.js')).mtime.toISOString().slice(0, 16)
-    return { peer, label: `agentic-mermaid ${version} local dist (HEAD ${git(['rev-parse', '--short=12', 'HEAD'])}${dirty ? ', src dirty' : ''}, built ${built}Z)`, root: ROOT, version, warnings }
+    return { peer, label: `agentic-mermaid ${version} local dist (HEAD ${git(['rev-parse', '--short=12', 'HEAD'])}${dirty ? ', src dirty' : ''}, built ${built}Z; dist SHA-256 ${distributionSha256(join(ROOT, 'dist'))})`, root: ROOT, version, warnings }
   }
   const label = pin(peer)
   const version = peer.source.registry === 'git' ? peer.source.commit : peer.source.version
@@ -611,7 +682,7 @@ function spawnWorker(command: readonly string[], outPath: string, limits: { impo
   })
 }
 
-async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string>; expectedLabels: Record<string, readonly string[]> }): Promise<ProcessRecord> {
+async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string>; consumeSvg: boolean; svgDirectory?: string; expectedLabels: Record<string, readonly string[]> }): Promise<ProcessRecord> {
   const { peer } = prepared
   const record: ProcessRecord = { peer: peer.id, output, round, wallMs: 0, restarts: 0, results: [] }
   const adapter = peer[output]!
@@ -624,7 +695,7 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
   let remaining = [...workloads]
   for (let attempt = 0; remaining.length; attempt++) {
     const base = join(context.scratch, `${peer.id}-${output}-r${round}-a${attempt}`)
-    const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, workloads: remaining.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]! })) }
+    const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, consumeSvg: context.consumeSvg, svgDirectory: context.svgDirectory ? join(context.svgDirectory, peer.id, `round-${round}`) : undefined, workloads: remaining.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]! })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const command = peer.runtime === 'go' ? [prepared.binary!, `${base}.job.json`, `${base}.out.jsonl`] : peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, `${base}.out.jsonl`] : ['node', context.bundle, '--child', '--job', `${base}.job.json`, '--out', `${base}.out.jsonl`]
     const run = await spawnWorker(command, `${base}.out.jsonl`, limits)
@@ -716,9 +787,13 @@ async function main(): Promise<void> {
   // from the job file.
   const { MICRO_WORKLOADS } = (await import(pathToFileURL(join(ROOT, 'eval/benchmark/micro-bench-cases.ts')).href)) as typeof import('./micro-bench-cases.ts')
   const inventory = args.has('corpus') ? ((await import(pathToFileURL(join(ROOT, 'eval/shared/official-fences.ts')).href)).officialCorpusInventory() as ReturnType<typeof import('../shared/official-fences.ts').officialCorpusInventory>) : undefined
-  const sources: Record<string, string> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, input.source])) : MICRO_WORKLOADS
+  const sources: Record<string, string> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, input.source])) : { ...MICRO_WORKLOADS, architecture3: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/architecture-basic.mmd'), 'utf8') }
   const expectedLabels: Record<string, readonly string[]> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, []])) : EXPECTED_LABELS
   const available: Record<Output, readonly string[]> = inventory ? { svg: Object.keys(sources), terminal: Object.keys(sources) } : WORKLOADS
+  const outputs = (args.get('outputs') ?? 'svg,terminal').split(',')
+  if (!outputs.length || new Set(outputs).size !== outputs.length || outputs.some(output => output !== 'svg' && output !== 'terminal')) throw new Error('--outputs takes svg, terminal, or svg,terminal')
+  const consumeSvg = args.has('consume-svg')
+  if (consumeSvg && (outputs.length !== 1 || outputs[0] !== 'svg')) throw new Error('--consume-svg requires --outputs svg')
   const rounds = Number(args.get('rounds') ?? 3)
   if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
   if (inventory && args.has('quick')) throw new Error('--corpus and --quick are separate sampling policies')
@@ -735,6 +810,9 @@ async function main(): Promise<void> {
     else if (!catalog.some(peer => peer.id === id)) throw new Error(`Unknown peer ${id}; choose from ${catalog.map(peer => peer.id).join(', ')}`)
   }
   const peers = catalog.filter(peer => peer.id === 'agentic-npm' || (requested ? requested.includes(peer.id) : !peer.optIn))
+  if (consumeSvg && peers.some(peer => peer.runtime !== 'node')) throw new Error('--consume-svg supports Node peers only')
+  const svgDirectory = args.get('svg-dir')
+  if (svgDirectory && (outputs.length !== 1 || outputs[0] !== 'svg' || peers.some(peer => peer.runtime !== 'node'))) throw new Error('--svg-dir requires Node peers and --outputs svg')
   const selected = (args
     .get('workloads')
     ?.split(',')
@@ -747,7 +825,7 @@ async function main(): Promise<void> {
   const warnings = prepared.flatMap(entry => entry.warnings)
   for (const warning of warnings) console.error(`warning: ${warning}`)
   for (const entry of prepared.filter(entry => entry.error)) console.error(`${entry.peer.id}: ${entry.error}`)
-  const jobs = prepared.flatMap(entry => (['svg', 'terminal'] as const).filter(output => entry.peer[output] && workloads[output].length).map(output => ({ prepared: entry, output })))
+  const jobs = prepared.flatMap(entry => (['svg', 'terminal'] as const).filter(output => outputs.includes(output) && entry.peer[output] && workloads[output].length).map(output => ({ prepared: entry, output })))
 
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-peers-'))
   const startLoad = loadavg()
@@ -762,7 +840,7 @@ async function main(): Promise<void> {
     for (let round = 0; round < rounds; round++) {
       for (const { prepared: entry, output } of round % 2 === 0 ? jobs : [...jobs].reverse()) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${output} (${workloads[output].length} workloads)`)
-        processes.push(await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources, expectedLabels }))
+        processes.push(await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources, consumeSvg, svgDirectory, expectedLabels }))
       }
     }
 
@@ -782,6 +860,8 @@ async function main(): Promise<void> {
     const out: string[] = []
     out.push('# Peer benchmark (advisory)', '')
     out.push(`- Date: ${createdAt}`)
+    out.push(`- Protocol: ${consumeSvg ? 'node-svg-consumed@1; each timed call includes complete UTF-8 SVG and SHA-256; normal local caches, peer defaults; Zombie 5.8.2 auto-loads repository ELK outside Flowchart simple mode; SVG-only public APIs, no extra receipt serialization' : 'legacy-peer@1; returned output retained, no per-call byte/hash consumption'}`)
+    out.push('- First render excludes byte/hash consumption and label checks. Repeated-source warm costs include each renderer’s own cache behavior. Label presence alone does not prove topology, routing, styles, or paint fidelity.')
     out.push(`- Machine: ${cpus()[0]?.model ?? 'unknown CPU'}, ${cpus().length} logical CPUs, ${(totalmem() / 1024 ** 3).toFixed(0)} GiB, ${process.platform} ${process.arch} ${release()}; load average ${startLoad.map(value => value.toFixed(2)).join(' ')} at start, ${loadavg()[0]!.toFixed(2)} at end`)
     out.push(`- Runtimes: Node ${nodeVersion} (Node workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator); native Go and Python versions appear in their pins`)
     if (inventory)
@@ -881,6 +961,11 @@ async function main(): Promise<void> {
       const report = {
         schemaVersion: 1,
         advisory: true,
+        protocol: consumeSvg ? 'node-svg-consumed@1' : 'legacy-peer@1',
+        revision: git(['rev-parse', 'HEAD']),
+        sourceDirty: git(['status', '--porcelain', '--', 'src']).length > 0,
+        cacheEnvironment: consumeSvg ? layoutCacheEnvironment('normal') : undefined,
+        population: Object.fromEntries([...new Set(jobs.flatMap(job => workloads[job.output]))].map(id => [id, { source: sources[id], sha256: createHash('sha256').update(sources[id]!).digest('hex'), expectedLabels: expectedLabels[id] }])),
         createdAt,
         environment: { node: nodeVersion, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemBytes: totalmem(), loadAverageStart: startLoad, loadAverageEnd: loadavg() },
         config: { rounds, timing, minSamples: MIN_SAMPLES, workloads, peers: jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
