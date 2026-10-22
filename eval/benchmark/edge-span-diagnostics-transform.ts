@@ -22,7 +22,8 @@ export function instrumentExpansionSource(path: string, source: string, collecto
     replace('  const previousReal = new Int32Array', '  __phase(__frame, "coordinates", { crossingScoreCalls: __crossingCalls })\n  const previousReal = new Int32Array')
     replace('  const sourcePort = new Float64Array', '  __phase(__frame, "ports")\n  const sourcePort = new Float64Array')
     replace('  const channels: ChannelStep[][] = Array.from', '  __phase(__frame, "channel-routing")\n  const channels: ChannelStep[][] = Array.from')
-    replace('  const positionedEdges = edges.map', '  __phase(__frame, "route-emission", { channels: channels.length, channelSteps: channels.reduce((sum, channel) => sum + channel.length, 0) })\n  const positionedEdges = edges.map')
+    const routeEmissionAnchor = '  const positionedEdges = input.placementOnly && !input.cycleOriented && !input.loopPorts?.length'
+    replace(routeEmissionAnchor, '  __phase(__frame, "route-emission", { channels: channels.length, channelSteps: channels.reduce((sum, channel) => sum + channel.length, 0), skippedForPlacement: !!(input.placementOnly && !input.cycleOriented && !input.loopPorts?.length) })\n' + routeEmissionAnchor)
   } else if (path.endsWith('cycle-layout-search.ts')) {
     replace('): AgenticLayout {\n  const { nodes, edges } = input', '): AgenticLayout {\n  const __frame = __begin("cycle-search", input, { routingWork, search }); try {\n  const { nodes, edges } = input')
     replace('    const reversed = edges.map', '    __event(__frame, "candidate-attempt", { reverseNodes, reverseEdges })\n    const reversed = edges.map')
