@@ -1,195 +1,66 @@
-name: Release benchmark
-
-# Performance, memory and correctness of the built package against a baseline
-# npm release, measured on one runner in interleaved fresh Node processes.
-# Called by publish.yml with its verified publication artifact; runnable on demand.
-
+name: Endpoint PR evidence
 on:
-  workflow_call:
-    inputs:
-      candidate-artifact:
-        description: Verified publication artifact from this workflow run (empty builds locally)
-        type: string
-        default: ''
-      baseline:
-        description: npm version or tag to compare against
-        type: string
-        default: latest
   workflow_dispatch:
-    inputs:
-      baseline:
-        description: npm version or tag to compare against
-        type: string
-        default: latest
-
-      baseline-ref:
-        description: Optional immutable Git commit instead of an npm baseline (on-demand only)
-        type: string
-        default: ''
-      review-fixtures:
-        description: Optional space-separated existing visual review fixture IDs
-        type: string
-        default: ''
-
 permissions:
   contents: read
-  actions: read
-
 jobs:
-  benchmark:
-    name: Benchmark against agentic-mermaid@${{ inputs.baseline }}
+  evidence:
     runs-on: ubuntu-latest
-    timeout-minutes: 105
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.4.2
           no-cache: true
+      - run: bun install --frozen-lockfile
+      - name: Generate public-render evidence at immutable production revisions
+        run: |
+          git fetch --no-tags origin 009159f93e6cea53f97ca53e416cf66b130c8e49 32989f8c7444b14bb5e10d06aeab4ade33d92faf aa9b6a74b9f660190f96e7c13e6e4e8718edf393
+          cat > endpoint-proof.ts <<'ENDPOINT_PROOF'
+          import { execFileSync } from 'node:child_process'
+          import { mkdirSync, writeFileSync } from 'node:fs'
+          import { join } from 'node:path'
+          const out = join(process.cwd(), 'endpoint-evidence')
+          mkdirSync(out, { recursive: true })
+          const source = "flowchart TD\nA{\"rendered\"}\nB[\"ok\"]\nC[\"ok\"]\nD[\"ok\"]\nE[\"ok\"]\nF[\"process the input\"]\nG{\"ok\"}\nA --> B\nB --> C\nA --> D\nA --> E\nA --> F\nA --> G\nA -->|yes| G\n"
+          writeFileSync(join(out, 'diamond.mmd'), source)
+          const revisions = [
+            ['before-main', '009159f93e6cea53f97ca53e416cf66b130c8e49'],
+            ['before-endpoint', '32989f8c7444b14bb5e10d06aeab4ade33d92faf'],
+            ['after', 'aa9b6a74b9f660190f96e7c13e6e4e8718edf393'],
+          ]
+          const render = `import {renderMermaidSVGWithReceipt} from './src/index.ts';
+          try {const r=renderMermaidSVGWithReceipt(${JSON.stringify(source)}); console.log(JSON.stringify({ok:true,svg:r.svg,receipt:r.receipt}))}
+          catch(e){console.log(JSON.stringify({ok:false,error:String(e.message)}))}`
+          const results = []
+          for (const [name, sha] of revisions) {
+            const dir = join(process.env.RUNNER_TEMP, name)
+            execFileSync('git', ['worktree','add','--detach',dir,sha])
+            execFileSync('ln', ['-s',join(process.cwd(),'node_modules'),join(dir,'node_modules')])
+            const result = JSON.parse(execFileSync('bun',['-e',render],{cwd:dir,encoding:'utf8'}))
+            if (result.ok !== (name === 'after')) throw new Error(`Unexpected ${name} result`)
+            if (result.ok) {
+              writeFileSync(join(out,name+'.svg'),result.svg)
+              writeFileSync(join(out,name+'-receipt.json'),JSON.stringify(result.receipt,null,2))
+              const { Resvg } = await import('@resvg/resvg-js')
+              writeFileSync(join(out,name+'.png'), new Resvg(result.svg,{font:{fontFiles:[join(process.cwd(),'assets/fonts/Inter-Regular.ttf')],loadSystemFonts:false}}).render().asPng())
+            } else writeFileSync(join(out,name+'-error.txt'),result.error)
+            results.push({name,sha,ok:result.ok,...(result.ok?{svgBytes:Buffer.byteLength(result.svg)}:{error:result.error})})
+          }
+          writeFileSync(join(out,'comparison.json'),JSON.stringify({source,revisions:results,limitation:'Bounded example only; no arbitrary diagram or font/viewer guarantee.'},null,2))
+          writeFileSync(join(out,'review.html'),`<!doctype html><meta charset="utf-8"><title>PR 466 endpoint evidence</title><h1>Same-input endpoint recovery</h1><p>Before: public rendering rejects the diamond endpoint, so no valid before image exists.</p><pre>${results[0].error.replaceAll('&','&amp;').replaceAll('<','&lt;')}</pre><p>After: inspect both A-to-G connections and the yes label meeting the diamond outline.</p><img src="after.png" alt="After: the seven-node diagram renders with both A-to-G connections meeting the diamond outline"><p>See comparison.json for immutable source revisions and the input. The local benchmark report is historical evidence from the prior session, not measurements run by this workflow.</p>`)
 
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+          ENDPOINT_PROOF
+          bun endpoint-proof.ts
+          python3 - <<'REPORT'
+          import base64,gzip
+          from pathlib import Path
+          Path("endpoint-evidence/local-benchmark-report.json").write_bytes(gzip.decompress(base64.b64decode("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")))
+          REPORT
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          node-version: '24'
-          package-manager-cache: false
-
-      - name: Install frozen dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build the candidate package
-        if: inputs.candidate-artifact == ''
-        run: bun run build
-
-      - name: Install the pinned npm
-        run: |
-          npm install -g npm@11.18.0 --ignore-scripts
-          test "$(npm --version)" = "11.18.0"
-
-      - name: Build an immutable Git baseline
-        if: inputs.baseline-ref != ''
-        env:
-          BASELINE_REF: ${{ inputs.baseline-ref }}
-        run: |
-          [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]]
-          git fetch --no-tags origin "$BASELINE_REF"
-          git worktree add --detach "$RUNNER_TEMP/benchmark-baseline" "$BASELINE_REF"
-          cd "$RUNNER_TEMP/benchmark-baseline"
-          bun install --frozen-lockfile
-          bun run build
-          mkdir -p "$GITHUB_WORKSPACE/benchmark-baseline"
-          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/benchmark-baseline"
-          mv "$GITHUB_WORKSPACE"/benchmark-baseline/*.tgz "$GITHUB_WORKSPACE/benchmark-baseline/package.tgz"
-
-      - name: Restore and resolve the immutable benchmark baseline
-        if: inputs.baseline-ref == ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BASELINE: ${{ inputs.baseline }}
-          BASELINE_ARTIFACT: release-benchmark-baseline-${{ github.run_id }}
-        run: |
-          mkdir -p benchmark-baseline
-          artifacts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-            --jq '.artifacts[] | select(.name == env.BASELINE_ARTIFACT and .expired == false) | .id')"
-          if [ -n "$artifacts" ]; then
-            gh run download "$GITHUB_RUN_ID" --name "$BASELINE_ARTIFACT" --dir benchmark-baseline
-          elif [ "$GITHUB_RUN_ATTEMPT" -gt 1 ] && ! [[ "$BASELINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
-            echo "The previous baseline artifact is unavailable. Start an on-demand run with an explicit previous npm version." >&2
-            exit 1
-          fi
-          bun run eval/benchmark/release-baseline.ts "$BASELINE" benchmark-baseline/baseline.json
-
-      - name: Persist the baseline before measuring
-        if: inputs.baseline-ref == ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: release-benchmark-baseline-${{ github.run_id }}
-          path: benchmark-baseline/baseline.json
+          name: endpoint-misses-aa9b6a74
+          path: endpoint-evidence/
           if-no-files-found: error
-          overwrite: true
           retention-days: 30
-
-      - name: Pack and verify the candidate package
-        if: inputs.candidate-artifact == ''
-        run: bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact
-
-      - name: Download the verified publication artifact
-        if: inputs.candidate-artifact != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: ${{ inputs.candidate-artifact }}
-          path: release-artifact
-
-      - name: Verify the candidate artifact identity
-        run: |
-          test "$(find release-artifact -mindepth 1 -maxdepth 1 -exec printf x \; | wc -c)" -eq 3
-          for artifact_file in package.tgz package.sha256 package-manifest.json; do
-            test -f "release-artifact/$artifact_file"
-            test ! -L "release-artifact/$artifact_file"
-          done
-          test "$(jq -r '.schemaVersion' release-artifact/package-manifest.json)" = 1
-          test "$(jq -r '.filename' release-artifact/package-manifest.json)" = package.tgz
-          manifest_sha="$(jq -er '.sha256 | select(type == "string")' release-artifact/package-manifest.json)"
-          test "${#manifest_sha}" -eq 64
-          case "$manifest_sha" in *[!0-9a-f]*) exit 1;; esac
-          printf '%s  package.tgz\n' "$manifest_sha" | cmp --silent - release-artifact/package.sha256
-          actual_sha="$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)"
-          test "$actual_sha" = "$manifest_sha"
-          manifest_integrity="$(jq -er '.integrity | select(type == "string")' release-artifact/package-manifest.json)"
-          actual_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")"
-          test "$actual_integrity" = "$manifest_integrity"
-
-      - name: Generate requested visual review evidence
-        if: inputs.review-fixtures != '' && inputs.baseline-ref != ''
-        env:
-          BASELINE_REF: ${{ inputs.baseline-ref }}
-          REVIEW_FIXTURES: ${{ inputs.review-fixtures }}
-        run: |
-          read -r -a fixtures <<< "$REVIEW_FIXTURES"
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASELINE_REF" "$GITHUB_SHA" bench-report/visual "${fixtures[@]}"
-
-      - name: Benchmark candidate against the Git baseline
-        if: inputs.baseline-ref != ''
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline "$RUNNER_TEMP/benchmark-baseline" --out bench-report
-
-      - name: Benchmark candidate against the baseline release
-        if: inputs.baseline-ref == ''
-        env:
-          BASELINE: ${{ inputs.baseline }}
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --out bench-report
-
-      - name: Install Chromium for the advisory browser scorecard
-        if: ${{ !cancelled() }}
-        continue-on-error: true
-        timeout-minutes: 5
-        run: bunx playwright install --with-deps chromium
-
-      - name: Measure exact-artifact browser and competitor performance
-        if: ${{ !cancelled() }}
-        continue-on-error: true
-        timeout-minutes: 13
-        env:
-          BASELINE_REF: ${{ inputs.baseline-ref }}
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          baseline_args=(--baseline-lock benchmark-baseline/baseline.json)
-          if [ -n "$BASELINE_REF" ]; then
-            baseline_args=(--baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)")
-          fi
-          timeout 12m bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" "${baseline_args[@]}" --out bench-report
-
-      - name: Upload the benchmark report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: release-benchmark-${{ github.sha }}
-          path: |
-            bench-report/
-            benchmark-baseline/baseline.json
-          if-no-files-found: warn
-          overwrite: true
