@@ -112,9 +112,7 @@ function sankeyLayerCount(diagram: SankeyDiagram): number {
   const outgoing = new Map<string, string[]>()
   for (const link of diagram.links) {
     indegree.set(link.target, (indegree.get(link.target) ?? 0) + 1)
-    let targets = outgoing.get(link.source)
-    if (!targets) outgoing.set(link.source, targets = [])
-    targets.push(link.target)
+    outgoing.set(link.source, [...(outgoing.get(link.source) ?? []), link.target])
   }
   const depth = new Map(diagram.nodes.map(label => [label, 0]))
   const queue = diagram.nodes.filter(label => indegree.get(label) === 0)
@@ -203,9 +201,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   const nodesByLayer = new Map<number, D3Node[]>()
   for (const node of nodes) {
     const layer = node.layer ?? node.depth ?? 0
-    let members = nodesByLayer.get(layer)
-    if (!members) nodesByLayer.set(layer, members = [])
-    members.push(node)
+    nodesByLayer.set(layer, [...(nodesByLayer.get(layer) ?? []), node])
   }
   const nodeY = new Map<D3Node, number>()
   let flowHeight = visual.height
