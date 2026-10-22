@@ -4022,5 +4022,19 @@
     },
     "coverageGuardReportReplay": "all eight frozen HTML reports byte-identical",
     "rendererSourceUnchangedSinceRuntimeRevision": true
+  },
+  "followupCostRun": {
+    "sourceRevision": "b4734ec7ed0c3c477d85fa5c2e6cc3c122625a7c",
+    "runtimeUnchangedFrom": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+    "results": "layout-cost-b473-results.json",
+    "retainsEarlierCostCampaigns": true,
+    "all27MeasurementsCompleteBothCaches": true,
+    "aaPassesBothCaches": true,
+    "nativeOffQualification": false,
+    "offSlowCases": [
+      "flowchart:cyclic-labelled-15",
+      "flowchart:cyclic-labelled-18-cuts"
+    ],
+    "normalNativeQualification": true
   }
 }
