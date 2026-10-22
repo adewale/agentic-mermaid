@@ -1,5 +1,15 @@
 # PR449 guidance follow-up: runtime24
 
+The initial review snapshot is `9ce3653f`. Independent review subsequently found
+that its placement return omitted measured multiline group-header height: a
+four-line band shrank from 74.8px to 28px even though paint certification passed.
+The corrected renderer at `d645c8c5` retains that placement metadata without
+changing full-graph frames. Failing-before/passing-after tests check actual SVG
+band height, title bounds, padding and nested custom-font headers. The original
+hosted run remains pre-correction evidence; a new corrected-artifact benchmark
+is required and will be reported separately. A new untouched counter384–447
+holdout is declared after this correction; counter320–383 remains retained data.
+
 Runtime24 gives Architecture an explicit unfinished placement contract. It
 retains every relationship as a placement influence and lets the family own
 final routes, authored sides, contact geometry and certification. The useful
@@ -128,16 +138,16 @@ opt-in scope; neither expansion nor a default switch is justified.
 ## Frozen full benchmarks and delivery
 
 Full27 release, native23 A/A/differential, supplementary Architecture and cache
-churn results are pending execution. The [review protocol](../../../eval/benchmark/layout-runtime-review.md)
+churn results are pending completion. The [review protocol](../../../eval/benchmark/layout-runtime-review.md)
 fixes three rounds, 25 repetitions and 480,000ms per cache-policy campaign. It
 preserves failed and incomplete populations, and separates 96-source historical
 churn from new 129/256 actual-geometry-key churn. Workflow success alone is not
 qualification: read support, A/A, per-case tails and matched memory gates.
 
 Payload caps are unchanged. Architecture's budgeted solver closure measures
-**573,455 Brotli bytes**, leaving **545** under its 574,000-byte cap. The
-standalone editor measures **4,098,285 raw /1,229,250 gzip bytes**, leaving
-**1,715 raw bytes** under its unchanged cap. Both improve on the previous
+**573,467 Brotli bytes**, leaving **533** under its 574,000-byte cap. The
+standalone editor measures **4,098,345 raw /1,229,264 gzip bytes**, leaving
+**1,655 raw bytes** under its unchanged cap. Both improve on the previous
 30/219-byte reserves but remain fragile; deliberate maintenance headroom is
 still open. The combined upstream baseline initially exceeded both caps, so its
 574,114 Brotli /4,100,466 raw sizes are retained separately from this comparison.
@@ -149,4 +159,11 @@ assertions) and two standalone contracts (20 assertions). The final projection
 test also preserves evaluation/coercion/throw order after minification. An
 unprivileged child-process test failure is retained; it passes with the required
 execution permissions. Browser projection changes leave every frozen Node JS
-artifact unchanged. No all-aspects ELK win is claimed.
+artifact unchanged before the header correction. The corrected renderer passes
+115 owning tests and repeats the 47 browser/two standalone contracts. The
+initial CI also passes all unit shards, semantic conformance, browser/package
+E2E, payload and red/green lanes. Its quality gate's sole dependency-audit failure
+is addressed by a three-line DOMPurify3.4.16→3.4.17 override/lock patch; Mermaid
+stays12.2.0, the audit passes and 36 upstream compatibility tests pass. The
+generated advisory remains red on known ELK quality gaps, not new renderer
+regressions. No all-aspects ELK win is claimed.
