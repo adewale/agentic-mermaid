@@ -119,7 +119,7 @@ function placeNativeGraphCandidate(
     const nodes = [...graph.nodes].map(([id, node]) => {
       if (groupIndices.has(id)) bindings.unsupported('overlapping node and frame identities')
       const owner = membership.get(id)
-      return { id, ...(owner ? { parent: owner.parent } : {}), ...estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock) }
+      return { id, ...(owner ? { parent: owner.parent } : {}), ...(options.nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock)) }
     })
     const indices = new Map(nodes.map((node, index) => [node.id, index]))
     for (const [id, index] of groupIndices) indices.set(id, nodes.length + index)
