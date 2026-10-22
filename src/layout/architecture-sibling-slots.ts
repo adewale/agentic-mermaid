@@ -1,6 +1,5 @@
 import type { ArchitectureDiagram, PositionedArchitectureEdge, PositionedArchitectureService } from '../architecture/types.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
-import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 
 /** Bounded final-route refinement of free sibling slots. Equal measured sizes
  * preserve container extents; fixed alignments and boundary ports stay owned
@@ -11,15 +10,10 @@ export function improveArchitectureSiblingSlots(
   edges: PositionedArchitectureEdge[],
   route: () => PositionedArchitectureEdge[],
   legal: () => boolean,
+  sharedInk: (routes: PositionedArchitectureEdge[]) => number,
 ): PositionedArchitectureEdge[] {
   if (services.length > 16 || services.length + diagram.junctions.length + diagram.groups.length > 24 || edges.length > 32 || diagram.alignments.length
     || diagram.edges.some(edge => edge.label !== undefined || edge.source.boundary === 'group' || edge.target.boundary === 'group')) return edges
-  // Private all-pair shaft check: synthetic grouping broadens the existing
-  // parallel predicate without changing its tolerances or any public IDs.
-  const sharedInk = (routes: PositionedArchitectureEdge[]) => {
-    const ink = routes.map(({ points }) => ({ points, style: 'solid' as const, source: '', target: '_' }))
-    return countOpposingRouteOverlaps(ink) || countParallelRouteOverlaps(ink)
-  }
   let score = countPolylineCrossings(edges), attempts = 8
   if (!score || sharedInk(edges)) return edges
   for (let i = 0; i < services.length && attempts > 0 && score > 0; i++) {
