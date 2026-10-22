@@ -3,10 +3,8 @@
 export class SequenceGapRequirements {
   private readonly maxima: number[]
   private readonly base: number
-  readonly length: number
 
-  constructor(length: number) {
-    this.length = length
+  constructor(readonly length: number) {
     // Ordinary diagrams keep the direct loop and one small array.
     let base = 0
     if (length > 32) {
