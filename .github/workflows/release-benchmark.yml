@@ -33,6 +33,11 @@ on:
         description: Include bounded96/129/256 cache churn in the runtime review
         type: boolean
         default: false
+      layout-runtime-campaign:
+        description: Select one isolated runtime-review campaign or preserve the full review
+        type: choice
+        options: [all, release, differential, architecture, churn]
+        default: all
       baseline:
         description: npm version or tag to compare against
         type: string
@@ -67,6 +72,7 @@ jobs:
     with:
       baseline-ref: ${{ inputs.baseline-ref }}
       cache-churn: ${{ inputs.layout-cache-churn }}
+      campaign: ${{ inputs.layout-runtime-campaign }}
 
   benchmark:
     if: ${{ !inputs.layout-runtime-review }}
