@@ -119,6 +119,12 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
       }], [{
         dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'warnings' }, { shape: 0, label: 'ok' }],
         parents: [0, 0, 1, 0], extra: [{ from: 0, to: 3, label: 'no' }, { from: 0, to: 3, label: 'no' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 2, label: 'rendered' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'ok' }, { shape: 0, label: 'process the input' }, { shape: 2, label: 'ok' }],
+        parents: [0, 1, 0, 0, 0, 0], extra: [{ from: 0, to: 6, label: 'yes' }],
+      }], [{
+        dir: 'TD', nodes: [{ shape: 0, label: 'ok' }, { shape: 1, label: 'warnings' }, { shape: 3, label: 'ok' }, { shape: 3, label: 'ok' }, { shape: 3, label: 'retry now' }, { shape: 2, label: 'ok' }],
+        parents: [0, 0, 2, 1, 1], extra: [],
       }]] }),
     )
   }, 30000)
