@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import * as marks from '../scene/marks.ts'
 import { RoughBackend, createSketchBackend } from '../scene/rough-backend.ts'
+import { HybridBackend } from '../scene/hybrid-backend.ts'
 import { svgValue as v, type SvgEmissionRecipe } from '../scene/svg-emission.ts'
 import type { Geometry } from '../scene/ir.ts'
 import { getFamily, type BuiltinFamilyId } from '../agent/families.ts'
@@ -13,6 +14,21 @@ import type { ShapeMark } from '../scene/ir.ts'
 import '../index.ts'
 
 describe('styled backend paint fallback', () => {
+  test.each(['actor', 'pie-slice', 'bar'] as const)('typed and native %s washes preserve categorical opacity and authored overrides', role => {
+    for (const fillOpacity of [undefined, '0.4']) {
+      const fields = { id: 'category', role, channels: { category: 'A' },
+        geometry: { kind: 'rect' as const, x: 0, y: 0, width: 20, height: 20 },
+        paint: { fill: '#336699', ...(fillOpacity ? { fillOpacity } : {}) } }
+      const recipe = { kind: 'primitive' as const, attributes: [
+        ...(['x', 'y', 'width', 'height'] as const).map(name => ({ name, value: v.geometry(name) })),
+        { name: 'fill' as const, value: v.paint('fill') }, { name: 'fill-opacity' as const, value: v.paint('fillOpacity') },
+      ] }
+      const context = { seed: 11, style: { stroke: 'jittered' as const, fill: 'wash' as const, strokeWidth: 1.5 } }
+      const expected = HybridBackend.drawNode(marks.shape(fields), context)
+      expect(expected).toContain(`fill-opacity="${fillOpacity ?? '1'}"`)
+      expect(HybridBackend.drawNode(marks.shape(fields, recipe), context)).toBe(expected)
+    }
+  })
   test.each(['packet', 'kanban', 'requirement', 'block', 'ishikawa'] as const)('%s primary surfaces share their semantic container sketch treatment', (family: BuiltinFamilyId) => {
     const request = resolveRenderRequestForExecution(getFamily(family)!.example, { embedFontImport: false }, 'svg'),
       scene = getFamily(family)!.lowerScene!({ positioned: positionResolvedFamily(family, request).positioned, colors: request.appearance.colors, resolved: { renderOptions: request.renderOptions, styleFace: request.appearance.face, familyConfig: request.familyConfig, familyAppearance: request.appearance.family } }),

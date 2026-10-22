@@ -4,7 +4,7 @@ import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing
 import type { PositionedDiagram, RenderContext } from '../types.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
-import { indentLines } from './serialization.ts'
+import { indentLines, sceneNodeEmission } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
 import { inspectNativePaintGeometry, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
@@ -39,9 +39,11 @@ export function drawNative(
   }
   const leaf = (node: Exclude<SceneNode, { kind: 'group' }>): Fragment => {
     const svg = validator.node(node)
+    const recipe = sceneNodeEmission(node)
     return { svg, entries: [{ node }], nodeCount: 1, depth: 0,
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
-        : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined }
+        : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined
+          && (!recipe || recipe.kind === 'text' && recipe.layout === 'multiline') }
   }
   const count = (fragments: readonly Fragment[], group = 0): number => {
     const total = fragments.reduce((sum, fragment) => sum + fragment.nodeCount, group)

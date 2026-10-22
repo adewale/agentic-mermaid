@@ -376,7 +376,9 @@ function sketchTypedShape(node: ShapeMark, walk: Walk, recipe: SvgEmissionRecipe
       typedShapePaintAttribute(node, piece, 'opacity') ?? node.paint.opacity,
       typedShapePaintAttribute(node, piece, 'fill-opacity') ?? node.paint.fillOpacity,
       typedShapePaintAttribute(node, piece, 'stroke-opacity') ?? node.paint.strokeOpacity,
-    )
+    ) ?? {}
+    // Match the native adapter's category keys while preserving authored alpha.
+    if (p.fill === 'wash' && node.channels?.category !== undefined && ['pie-slice', 'actor', 'legend', 'point', 'bar'].includes(node.role)) opacity.fill ??= '1'
     if (!hasStroke) {
       if (node.surfaceFragment && hasFill && p.fill === 'none' && isBoxFill(fill!)) continue
       if (wantFill) {

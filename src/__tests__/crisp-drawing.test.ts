@@ -52,6 +52,10 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
         resolved: resolvedFamilyRenderContextOf(request) })
       if (!entered) throw new Error('nested render was not exercised: ' + id)
     }
+    const chart = renderMermaidSVGWithReceipt('---\\nconfig:\\n  xyChart:\\n    showDataLabel: true\\n---\\nxychart\\n x-axis [A, B]\\n y-axis 0 --> 30\\n bar [12, 2]').svg
+    const labels = [...chart.matchAll(/<text\\b[^>]*class="xychart-data-label"[^>]*>/g)]
+    if (labels.length !== 2 || labels.some(([tag]) => !tag.includes('data-font-metrics="deterministic-fit"')))
+      throw new Error('native XY data labels skipped deterministic text fitting')
     for (const options of [{ layoutSafety: 'strict' }, { style: 'excalidraw' }]) {
       const stages = []
       withRenderStageObserver(sample => stages.push(sample.stage),
