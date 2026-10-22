@@ -1,0 +1,8 @@
+{
+  "baselineRevision": "009159f93e6cea53f97ca53e416cf66b130c8e49",
+  "candidateRevision": "646100e475dd1f85b3e8b4513f8545ebb4dd7e37",
+  "baselinePackageSha256": "a5a3e06a0e6994e8ea6dc5962ae3c892c5849bfb8f9225441cf7cbce909c8619",
+  "candidatePackageSha256": "27e6af14bcee4c0fe9fbcda810f60ef87290313255986312f9efc7fad9c5b9cd",
+  "baselineEntrySha256": "3c1c6c2ea1af65e0284422eb6de6187116ba9338a8cf1bf72b79cdac0655efcf",
+  "candidateEntrySha256": "505f8ef36e03a6c2f3c027c2014af48142490c18e0d0d1baaf67052d178adea3"
+}

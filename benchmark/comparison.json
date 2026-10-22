@@ -1,0 +1,66 @@
+{
+  "sourceRevision": "646100e475dd1f85b3e8b4513f8545ebb4dd7e37",
+  "ok": true,
+  "node": "24.22.1",
+  "gatesPassed": 17,
+  "gatesFailed": [],
+  "enrolled": 566,
+  "comparedCorpus": 402,
+  "timing": {
+    "corpus": {
+      "beforeMs": 1460.2979010000108,
+      "afterMs": 1521.5221540000039,
+      "pairedRatio": 1.004124850823839
+    },
+    "architecture": {
+      "beforeMs": 52.5929350000024,
+      "afterMs": 55.22031899999638,
+      "pairedRatio": 0.9907770012692404
+    },
+    "architecture:16-junctions": {
+      "beforeMs": 19.04439199999996,
+      "afterMs": 18.715202999999974,
+      "pairedRatio": 0.982714649015837
+    },
+    "architecture:32-junctions": {
+      "beforeMs": 33.16400699999997,
+      "afterMs": 31.70640400000002,
+      "pairedRatio": 0.9586030958020565
+    },
+    "architecture:32-large-junctions": {
+      "beforeMs": 33.215160999999966,
+      "afterMs": 34.52604300000007,
+      "pairedRatio": 1.015521404412059
+    }
+  },
+  "memory": {
+    "passAllocatedBytes": {
+      "beforeMiB": 1258.095588684082,
+      "afterMiB": 1248.9452667236328
+    },
+    "peakRssBytes": {
+      "beforeMiB": 354.171875,
+      "afterMiB": 351.87109375
+    },
+    "retainedGrowthBytes": {
+      "beforeMiB": 4.671379089355469,
+      "afterMiB": 3.8551788330078125
+    }
+  },
+  "latency": [
+    {
+      "engine": "baseline",
+      "samples": 6030,
+      "p50Ms": 2.6881290000001172,
+      "p95Ms": 10.284906000000774,
+      "maxMs": 57.21061799999916
+    },
+    {
+      "engine": "candidate",
+      "samples": 6030,
+      "p50Ms": 2.6575819999998203,
+      "p95Ms": 10.078052999999272,
+      "maxMs": 52.115318999999545
+    }
+  ]
+}

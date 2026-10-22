@@ -1,0 +1,23 @@
+{
+  "tool": "eval/endpoint-marker/compare.ts",
+  "runtime": "1.4.2",
+  "engines": [
+    {
+      "label": "baseline",
+      "revision": "009159f93e6cea53f97ca53e416cf66b130c8e49",
+      "builtEntriesSha256": {
+        "dist/index.js": "caafe05c8f97015bad186d1aab5c0218589180abef1e8c6b16dc21d2c270a92c",
+        "dist/agent.js": "f0248bf2b6c6d885e9a224e37a6d05e05522ab1e90a95444fde37e687b6bcffa"
+      }
+    },
+    {
+      "label": "candidate",
+      "revision": "646100e475dd1f85b3e8b4513f8545ebb4dd7e37",
+      "builtEntriesSha256": {
+        "dist/index.js": "ea4d4c764fa95aac3f6636d883bb81fea75d202a357ed1c9de37356630d7271d",
+        "dist/agent.js": "9075237b5f72cb471e885e2098a3b35ce3ac8e4a9d53c95aa927bacbf32f6258"
+      }
+    }
+  ],
+  "note": "The final golden-only commit changes no runtime source or build configuration; both built entry hashes remain identical to the preceding proof-audit revision."
+}

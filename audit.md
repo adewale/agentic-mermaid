@@ -28,3 +28,7 @@ These are bounded checks of enrolled sources and interactions. They do not prove
 ## Final terminal-golden follow-up
 
 CI exposed two stale `architecture_group_boundary_edge` goldens. Independent review confirmed the legitimate one-column frame/junction projection shift; authored relationships, ports, labels and group membership remain intact. The two ASCII/Architecture test files pass all 174 tests. Raw results are in `audit-geometry/golden-results.json`. An unchanged crossing-marker cell belongs to the bus arrow in both revisions, so this fixture does not establish complete per-edge ink ownership. That limitation was not introduced or worsened by the fix.
+
+## Final validation
+
+All 19 PR check runs passed at `646100e`. The final benchmark run passed all 17 gates across 566 enrolled inputs, including all three junction workloads. Both engines use Node 24.22.1. The final browser scorecard also completed. See `benchmark/comparison.md`, `benchmark/report.json` and `benchmark/build-provenance.json`; raw samples are in the linked Actions artifact. Every local evidence PNG/SVG matches the CI-generated copy byte-for-byte. The final candidate package SHA256 matches the preceding proof-audit candidate, confirming that the terminal-golden commit changes no packaged bytes.
