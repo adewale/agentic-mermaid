@@ -6,6 +6,9 @@ ELK remains the default and supported fallback. No default change is proposed.
 The [community comparison](layout-community-comparison.md) separately evaluates
 peer approaches and fully consumed public SVG calls, including Zombie’s simple
 layout; its peer timings do not replace this backend qualification.
+The [follow-up exploration](layout-exploration.md) evaluates subtraction, family
+portfolios, primary community feedback, academic methods and new diagnostic
+CPU/allocation profiles. It identifies experiments, not additional renderer wins.
 
 ## Research applied
 
@@ -263,7 +266,11 @@ request is never counted as a fast render.
 ### Cache eviction and default ELK control
 
 `bounded-cache-churn@1` uses 96 distinct measured Flowcharts, exceeding both
-64-entry geometry caches, 3 rotated rounds and fresh isolated GC workers. All 12
+64-entry geometry caches, 3 rotated rounds and fresh isolated GC workers. The
+outer positioned cache holds up to 128 entries / 16 MiB, so later passes can hit
+that layer and bypass the inner caches. This exercises initial eviction pressure,
+not proven sustained churn through every layer. Cache-specific hit/miss/eviction
+counters and populations beyond the outer capacity remain needed. All 12
 workers complete the existing memory worker's warmup, per-input measurements,
 settled full-population pass and retained-growth check. There is no timing claim.
 Native median paired allocation is 1.001092, peak heap 0.589673 and RSS 0.713395;
