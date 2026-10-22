@@ -110,7 +110,7 @@ const src = {
 }
 
 // Literal authored labels, independent of the parser/lowering being measured.
-const receiptLabels = (workload: Workload): readonly string[] => {
+const receiptLabels = (workload: Workload): readonly (string | { visible: string; accessible: string })[] => {
   const range = (prefix: string, count: number) => Array.from({ length: count }, (_, index) => `${prefix}${index}`)
   switch (workload) {
     case 'flow5': return ['Start', 'Check', 'Do it', 'Skip', 'End']
@@ -123,8 +123,8 @@ const receiptLabels = (workload: Workload): readonly string[] => {
     case 'state80': return range('S', 81)
     case 'packet240': return ['Protocol fields', ...range('Field ', 240)]
     case 'kanban240': return Array.from({ length: 12 }, (_, column) => [`Stage ${column}`, ...Array.from({ length: 20 }, (_, row) => `Task ${column}.${row}`)]).flat()
-    case 'requirement100': return range('Requirement ', 100)
-    case 'treemap260': return ['Product allocation', ...Array.from({ length: 20 }, (_, group) => [`Group ${group}`, ...Array.from({ length: 12 }, (_, leaf) => `Investment ${group}.${leaf}`)]).flat()]
+    case 'requirement100': return range('Text: Requirement ', 100)
+    case 'treemap260': return ['Product allocation', ...Array.from({ length: 20 }, (_, group) => [`Group ${group}`, ...Array.from({ length: 12 }, (_, leaf) => ({ visible: `Investment ${group}.${leaf}`, accessible: `Investment ${group}.${leaf}: ${(leaf + 1) * 10}` }))]).flat()]
     case 'ishikawa133': return ['Delayed delivery', ...Array.from({ length: 12 }, (_, category) => [`Category ${category}`, ...Array.from({ length: 10 }, (_, cause) => `Cause ${category}.${cause}`)]).flat()]
     case 'block120': return range('Component ', 120)
   }
@@ -149,7 +149,15 @@ async function receiptConsumer(expected: RenderedSvg, workload: Workload) {
       visible.add(decodeXML(inner!.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim())
     }
   }
-  const missing = receiptLabels(workload).filter(label => !visible.has(label))
+  // Tiny Treemap cells retain their exact authored label and quantity in a
+  // native title instead of painting text that cannot fit. Other labels must
+  // still be painted; a tooltip cannot stand in for missing visible text.
+  const accessible = new Set([...expected.svg.matchAll(/<title\b[^>]*>([\s\S]*?)<\/title>/g)]
+    .map(([, inner]) => decodeXML(inner!).trim()))
+  const missing = receiptLabels(workload).filter(label => typeof label === 'string'
+    ? !visible.has(label)
+    : !visible.has(label.visible) && !accessible.has(label.accessible))
+    .map(label => typeof label === 'string' ? label : label.visible)
   if (missing.length) throw new Error(`receipt SVG lost literal labels: ${missing.join(', ')}`)
   const digest = svgDigest(expected.svg)
   if (expected.receipt.output !== 'svg' || expected.receipt.graphicalProjectionDigest !== digest || expected.receipt.layoutCertification?.outputDigest !== digest) {
