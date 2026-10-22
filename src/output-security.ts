@@ -106,10 +106,10 @@ interface XmlQualifiedName {
  * separately from the lexical name scanner so a colon cannot appear more than
  * once or at either edge. */
 function parseXmlQualifiedName(name: string): XmlQualifiedName | undefined {
-  const parts = name.split(':')
-  if (parts.length === 1) return { local: parts[0]! }
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return undefined
-  return { prefix: parts[0], local: parts[1] }
+  const colon = name.indexOf(':')
+  if (colon < 0) return { local: name }
+  if (colon === 0 || colon === name.length - 1 || name.indexOf(':', colon + 1) >= 0) return undefined
+  return { prefix: name.slice(0, colon), local: name.slice(colon + 1) }
 }
 
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
@@ -259,9 +259,11 @@ function verifyDocumentEnvelope(svg: string): boolean {
       end++
     }
 
-    const namespaces = new Map(stack.at(-1)?.namespaces ?? [
-      ['xml', XML_NAMESPACE],
-    ])
+    // Frames share inherited bindings until a declaration changes them. Never
+    // mutate a parent's map: a child's declarations cannot leak to siblings.
+    const inheritedNamespaces = stack.at(-1)?.namespaces
+    let namespaces: ReadonlyMap<string, string> = inheritedNamespaces ?? new Map([['xml', XML_NAMESPACE]])
+    let declaredNamespaces: Map<string, string> | undefined
     for (const attribute of attributes) {
       const isDefaultDeclaration = attribute.name === 'xmlns'
       const isPrefixedDeclaration = attribute.qname.prefix === 'xmlns'
@@ -273,7 +275,11 @@ function verifyDocumentEnvelope(svg: string): boolean {
         || (prefix === 'xml' && uri !== XML_NAMESPACE)
         || (prefix !== 'xml' && uri === XML_NAMESPACE)
         || (prefix !== '' && uri === '')) return false
-      namespaces.set(prefix, uri)
+      if (!declaredNamespaces) {
+        declaredNamespaces = new Map(namespaces)
+        namespaces = declaredNamespaces
+      }
+      declaredNamespaces.set(prefix, uri)
     }
 
     if (elementName.prefix === 'xmlns') return false
@@ -292,14 +298,17 @@ function verifyDocumentEnvelope(svg: string): boolean {
       return false
     }
 
-    const expandedAttributes = new Set<string>()
+    let expandedAttributes: Set<string> | undefined
     for (const attribute of attributes) {
       if (attribute.name === 'xmlns' || attribute.qname.prefix === 'xmlns') continue
-      const namespace = attribute.qname.prefix === undefined
-        ? ''
-        : namespaces.get(attribute.qname.prefix)
-      if (namespace === undefined || attribute.qname.prefix === 'xmlns') return false
+      // Raw-name uniqueness already proves unprefixed attributes unique.
+      // A declared prefix always has a nonempty URI, so only prefixed names
+      // can alias one another after namespace expansion.
+      if (attribute.qname.prefix === undefined) continue
+      const namespace = namespaces.get(attribute.qname.prefix)
+      if (namespace === undefined) return false
       const expanded = `${namespace}\u0000${attribute.qname.local}`
+      if (!expandedAttributes) expandedAttributes = new Set()
       if (expandedAttributes.has(expanded)) return false
       expandedAttributes.add(expanded)
     }

@@ -167,6 +167,9 @@ describe('claim-keyed backend capability conformance', () => {
   test('rejects malformed XML during backend admission and final envelope validation', () => {
     const xmlns = 'xmlns="http://www.w3.org/2000/svg"'
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><text>safe &amp; sound</text></svg>`)).toBe(true)
+    // Child bindings are inherited by descendants, then restored for siblings.
+    expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner"><g xmlns:a="urn:inner"><rect a:x="1" /></g><rect a:x="1" b:x="2" /></svg>`)).toBe(true)
+    expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner" xml:lang="en"><g xmlns:a="urn:inner" /><rect x="0" a:x="1" b:x="2" /></svg>`)).toBe(true)
     const malformedDocuments = [
       '<svg><rect /></svg>',
       `<svg ${xmlns}><text>&</text></svg>`,
@@ -174,6 +177,11 @@ describe('claim-keyed backend capability conformance', () => {
       `<svg ${xmlns}><rect x="1" x="2" /></svg>`,
       `<svg ${xmlns}><p:rect /></svg>`,
       `<svg ${xmlns} xmlns:a="urn:test" xmlns:b="urn:test"><rect a:x="1" b:x="2" /></svg>`,
+      `<svg ${xmlns}><g xmlns:a="urn:child"><rect a:x="1" /></g><rect a:x="1" /></svg>`,
+      `<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner"><g xmlns:a="urn:inner"><g><rect a:x="1" b:x="2" /></g></g></svg>`,
+      `<svg ${xmlns} xmlns:a="urn:test"><rect a:b:x="1" /></svg>`,
+      `<svg ${xmlns} xmlns:a=""><rect a:x="1" /></svg>`,
+      `<svg ${xmlns} xmlns:a="urn:test" xmlns:b="urn:te&#115;t"><rect a:x="1" b:x="2" /></svg>`,
       `<svg ${xmlns}><x:svg xmlns:x="${'http://www.w3.org/2000/svg'}"></x:svg></svg>`,
       `<svg ${xmlns} xmlns:s="${'http://www.w3.org/2000/svg'}"><s:style>@import url(https://evil.example/x.css);</s:style></svg>`,
       `<svg ${xmlns}><style><![CDATA[/*</style>*/ @import url(https://evil.example/x.css);]]></style></svg>`,

@@ -43,11 +43,6 @@ export function drawNative(
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined }
   }
-  const count = (fragments: readonly Fragment[], group = 0): number => {
-    const total = fragments.reduce((sum, fragment) => sum + fragment.nodeCount, group)
-    if (total > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
-    return total
-  }
   const factory: DrawingFactory<Fragment> = {
     shape: fields => leaf(marks.shape(fields)),
     text: fields => leaf(marks.text(fields)),
@@ -58,38 +53,66 @@ export function drawNative(
     definitions: (...args) => leaf(marks.definitions(...args)),
     documentClose: () => leaf(marks.documentClose()),
     group(fields) {
-      const nodeCount = count(fields.children.map(child => child.node), 1)
-      if (fields.children.reduce((sum, child) => sum + child.node.svg.length, 0) > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
+      let nodeCount = 1, characters = 0, depth = 1, prepared = true
+      for (const child of fields.children) {
+        nodeCount += child.node.nodeCount
+        characters += child.node.svg.length
+        depth = Math.max(depth, 1 + child.node.depth)
+        prepared = prepared && child.node.prepared
+      }
+      if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
+      if (characters > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
       const shell = marks.group({ ...fields, children: [] })
       validator.node(shell)
-      const depth = 1 + Math.max(0, ...fields.children.map(child => child.node.depth))
       validator.depth(depth)
       const matrix = transformMatrix(shell.transform)
       const own = shell.identity ?? { id: shell.id, role: shell.role }
-      const entries = fields.children.flatMap((child, index) => child.node.entries.map(entry => {
-        const ancestors = entry.ancestors ?? []
-        const owner = entry.owner ?? entry.node.owner ?? (ancestors.length ? undefined : shell.owner)
-        if (entry.node.kind === 'shape' && !entry.node.identity && ancestors.length === 0) validator.enclosure(entry.node.id, own)
-        return { ...entry, key: `${index}${entry.key ? `.${entry.key}` : ''}`,
-          parentMatrix: composeMatrices(matrix, entry.parentMatrix ?? IDENTITY_MATRIX),
-          ancestors: [own, ...ancestors], ...(owner ? { owner } : {}),
-          conditional: shell.visibility === 'conditional' || entry.conditional,
-          groupOpacity: Number(shell.paint?.opacity ?? 1) * (entry.groupOpacity ?? 1),
+      const entries: NativePaintEntry[] = []
+      const conditional = shell.visibility === 'conditional'
+      const groupOpacity = Number(shell.paint?.opacity ?? 1)
+      for (let index = 0; index < fields.children.length; index++) {
+        for (const entry of fields.children[index]!.node.entries) {
+          const ancestors = entry.ancestors
+          const ancestorCount = ancestors?.length ?? 0
+          const owner = entry.owner ?? entry.node.owner ?? (ancestorCount ? undefined : shell.owner)
+          if (entry.node.kind === 'shape' && !entry.node.identity && ancestorCount === 0) validator.enclosure(entry.node.id, own)
+          // An absent transform on both levels already means the identity.
+          // Other matrices retain the same composition and numeric behavior.
+          const parentMatrix = !shell.transform && entry.parentMatrix === undefined ? undefined
+            : composeMatrices(matrix, entry.parentMatrix ?? IDENTITY_MATRIX)
+          entries.push({ ...entry, key: `${index}${entry.key ? `.${entry.key}` : ''}`,
+            ...(parentMatrix ? { parentMatrix } : {}),
+            ancestors: ancestors ? [own, ...ancestors] : [own], ...(owner ? { owner } : {}),
+            conditional: conditional || entry.conditional,
+            groupOpacity: groupOpacity * (entry.groupOpacity ?? 1),
+          })
         }
-      }))
-      const svg = [shell.open, ...fields.children.map(child => indentLines(child.node.svg, child.indent)), shell.close].join(shell.join)
+      }
+      const fragments = [shell.open]
+      for (const child of fields.children) fragments.push(indentLines(child.node.svg, child.indent))
+      fragments.push(shell.close)
+      const svg = fragments.join(shell.join)
       validator.serialization(svg)
-      return { svg, entries, nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && fields.children.every(child => child.node.prepared) }
+      return { svg, entries, nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && prepared }
     },
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }
   const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
   checked()
-  count(document.parts)
-  if (document.parts.reduce((sum, part) => sum + part.svg.length + 1, -1) > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
+  let nodeCount = 0, characters = -1, preparedText = true
+  for (const part of document.parts) {
+    nodeCount += part.nodeCount
+    characters += part.svg.length + 1
+    preparedText = preparedText && part.prepared
+  }
+  if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
+  if (characters > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
   const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
   const svg = document.parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n')
   assertFinalSvgByteBudget(svg, 'native drawing output')
-  const entries = document.parts.flatMap((part, index) => part.entries.map(entry => ({ ...entry, key: `scene.${index}${entry.key ? `.${entry.key}` : ''}` })))
-  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText: document.parts.every(part => part.prepared), paint: inspectNativePaintGeometry(document, entries) })
+  const entries: NativePaintEntry[] = []
+  for (let index = 0; index < document.parts.length; index++) {
+    for (const entry of document.parts[index]!.entries) entries.push({ ...entry, key: `scene.${index}${entry.key ? `.${entry.key}` : ''}` })
+  }
+  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText, paint: inspectNativePaintGeometry(document, entries) })
 }
