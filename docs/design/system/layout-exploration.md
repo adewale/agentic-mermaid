@@ -13,6 +13,11 @@ their historical ER conflict and cost figures are not updated in place.
 
 ## Recommendation
 
+The later [runtime24 guidance results](layout-guidance-results.md) test the
+Architecture placement boundary, lane indexing, immediate proof reuse and
+browser prose subtraction, and add rank-span/private-expansion diagnostics.
+Rejected candidates and remaining trade-offs are retained explicitly.
+
 Keep ELK as the default and native selection explicit. Repair ownership boundaries
 before adding optimization passes: preserve ER label reservations, score
 Architecture's final port-constrained routes, and stop repeatedly rebuilding
