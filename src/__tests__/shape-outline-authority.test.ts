@@ -154,6 +154,23 @@ describe('canonical shape outline authority', () => {
     }
   })
 
+  test('a missed intersection recovers only an unambiguous box face', () => {
+    const diamond = { ...node('diamond'), x: 0, y: 0, width: 100, height: 100 }
+    for (const [endpoint, adjacent, expected] of [
+      [{ x: 25, y: -1e-12 }, { x: 24, y: -1e-12 }, { x: 25, y: 25 }],
+      [{ x: 25, y: 100 + 1e-12 }, { x: 24, y: 100 + 1e-12 }, { x: 25, y: 75 }],
+      [{ x: -1e-12, y: 25 }, { x: -1e-12, y: 24 }, { x: 25, y: 25 }],
+      [{ x: 100 + 1e-12, y: 25 }, { x: 100 + 1e-12, y: 24 }, { x: 75, y: 25 }],
+    ]) {
+      expect(clipEdgeToShape([endpoint!, adjacent!], diamond, true)[0]).toEqual(expected)
+      expect(clipEdgeToShape([adjacent!, endpoint!], diamond, false)[1]).toEqual(expected)
+    }
+    const corner = { x: -1e-12, y: -1e-12 }
+    expect(clipEdgeToShape([corner, { x: -1, y: corner.y }], diamond, true)[0]).toBe(corner)
+    const unknown = { x: 125, y: -1 }
+    expect(clipEdgeToShape([unknown, { x: 126, y: -1 }], diamond, true)[0]).toBe(unknown)
+  })
+
   test('an explicit zero corner radius remains square on rounded nodes', () => {
     const rounded = node('rounded')
     expect(shapeOutline(rounded, PAINT).geometry).toEqual({

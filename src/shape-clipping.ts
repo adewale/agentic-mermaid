@@ -1,4 +1,4 @@
-import { shapeRoutingProfile, type ShapeRoutingBoundary } from './shape-outline.ts'
+import { pointOnRoutingBoundary, shapeRoutingProfile, type ShapeRoutingBoundary } from './shape-outline.ts'
 import type { Point, PositionedNode } from './types.ts'
 
 /** Clip an ELK endpoint to the routing boundary paired with its painted shape. */
@@ -12,15 +12,33 @@ export function clipEdgeToShape(points: Point[], node: PositionedNode, isStart: 
   // trigger a geometric repair.
   if (boundary.kind === 'rect' || boundary.kind === 'envelope' || boundary.kind === 'none') return points
   const result = [...points]
-  if (isStart) result[0] = clip(points[0]!, points[1]!, boundary)
+  if (isStart) result[0] = clipWithBoxSide(points[0]!, points[1]!, node, boundary)
   else {
     const last = points.length - 1
-    result[last] = clip(points[last]!, points[last - 1]!, boundary)
+    result[last] = clipWithBoxSide(points[last]!, points[last - 1]!, node, boundary)
   }
   return result
 }
 
-function clip(endpoint: Point, adjacent: Point, boundary: ShapeRoutingBoundary): Point {
+// Only a genuine miss may fall back to the current, unambiguous box-port side.
+function clipWithBoxSide(endpoint: Point, adjacent: Point, node: PositionedNode, boundary: ShapeRoutingBoundary): Point {
+  const contact = clip(endpoint, adjacent, boundary)
+  if (contact !== null) return contact
+  const tol = 1e-6
+  if (endpoint.x < node.x - tol || endpoint.x > node.x + node.width + tol
+    || endpoint.y < node.y - tol || endpoint.y > node.y + node.height + tol) return endpoint
+  const faces = [
+    Math.abs(endpoint.y - node.y) <= tol ? 'N' as const : undefined,
+    Math.abs(endpoint.y - node.y - node.height) <= tol ? 'S' as const : undefined,
+    Math.abs(endpoint.x - node.x) <= tol ? 'W' as const : undefined,
+    Math.abs(endpoint.x - node.x - node.width) <= tol ? 'E' as const : undefined,
+  ].filter(side => side !== undefined)
+  const side = faces.length === 1 ? faces[0] : undefined
+  if (!side) return endpoint
+  return pointOnRoutingBoundary(boundary, side, side === 'N' || side === 'S' ? endpoint.x : endpoint.y) ?? endpoint
+}
+
+function clip(endpoint: Point, adjacent: Point, boundary: ShapeRoutingBoundary): Point | null {
   switch (boundary.kind) {
     case 'ellipse': return clipEllipse(endpoint, adjacent, boundary)
     case 'stadium': return clipStadium(endpoint, adjacent, boundary)
@@ -43,17 +61,17 @@ function clipEllipse(
   endpoint: Point,
   adjacent: Point,
   ellipse: Extract<ShapeRoutingBoundary, { kind: 'ellipse' }>,
-): Point {
+): Point | null {
   const { cx, cy, rx, ry } = ellipse
-  if (rx <= 0 || ry <= 0) return endpoint
+  if (rx <= 0 || ry <= 0) return null
   const { vertical, dir } = rayInfo(endpoint, adjacent)
   if (vertical) {
     const dx = (endpoint.x - cx) / rx
-    if (Math.abs(dx) > 1) return endpoint
+    if (Math.abs(dx) > 1) return null
     return { x: endpoint.x, y: cy - dir * ry * Math.sqrt(Math.max(0, 1 - dx * dx)) }
   }
   const dy = (endpoint.y - cy) / ry
-  if (Math.abs(dy) > 1) return endpoint
+  if (Math.abs(dy) > 1) return null
   return { x: cx - dir * rx * Math.sqrt(Math.max(0, 1 - dy * dy)), y: endpoint.y }
 }
 
@@ -61,18 +79,18 @@ function clipStadium(
   endpoint: Point,
   adjacent: Point,
   stadium: Extract<ShapeRoutingBoundary, { kind: 'stadium' }>,
-): Point {
+): Point | null {
   const { cx, cy, halfWidth, radius } = stadium
   const { vertical, dir } = rayInfo(endpoint, adjacent)
   if (vertical) {
     const dx = Math.abs(endpoint.x - cx)
     if (dx <= halfWidth - radius) return { x: endpoint.x, y: cy - dir * radius }
     const capX = dx - (halfWidth - radius)
-    if (capX > radius) return endpoint
+    if (capX > radius) return null
     return { x: endpoint.x, y: cy - dir * Math.sqrt(Math.max(0, radius * radius - capX * capX)) }
   }
   const dy = Math.abs(endpoint.y - cy)
-  if (dy > radius) return endpoint
+  if (dy > radius) return null
   return { x: cx - dir * ((halfWidth - radius) + Math.sqrt(Math.max(0, radius * radius - dy * dy))), y: endpoint.y }
 }
 
@@ -80,7 +98,7 @@ function clipCylinder(
   endpoint: Point,
   adjacent: Point,
   cylinder: Extract<ShapeRoutingBoundary, { kind: 'cylinder' }>,
-): Point {
+): Point | null {
   const { cx, y, width, height, capRadiusY: ry } = cylinder
   const halfWidth = width / 2
   const top = y + ry
@@ -90,16 +108,16 @@ function clipCylinder(
     if (endpoint.y >= top && endpoint.y <= bottom) return { x: cx - dir * halfWidth, y: endpoint.y }
     const capCy = endpoint.y < top ? top : bottom
     const capY = (endpoint.y - capCy) / ry
-    if (Math.abs(capY) > 1) return endpoint
+    if (Math.abs(capY) > 1) return null
     return { x: cx - dir * halfWidth * Math.sqrt(Math.max(0, 1 - capY * capY)), y: endpoint.y }
   }
   const dx = (endpoint.x - cx) / halfWidth
-  if (Math.abs(dx) > 1) return endpoint
+  if (Math.abs(dx) > 1) return null
   const span = ry * Math.sqrt(Math.max(0, 1 - dx * dx))
   return dir > 0 ? { x: endpoint.x, y: top - span } : { x: endpoint.x, y: bottom + span }
 }
 
-function clipPolygon(endpoint: Point, adjacent: Point, points: Point[]): Point {
+function clipPolygon(endpoint: Point, adjacent: Point, points: Point[]): Point | null {
   const { vertical } = rayInfo(endpoint, adjacent)
   let best: Point | null = null
   let bestDistance = Infinity
@@ -138,7 +156,7 @@ function clipPolygon(endpoint: Point, adjacent: Point, points: Point[]): Point {
     const distance = Math.hypot(hit.x - adjacent.x, hit.y - adjacent.y)
     if (distance < bestDistance) { best = hit; bestDistance = distance }
   }
-  return best ?? endpoint
+  return best
 }
 
 function intersectHorizontal(y: number, first: Point, second: Point): Point | null {

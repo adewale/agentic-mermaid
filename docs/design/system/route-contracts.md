@@ -146,6 +146,16 @@ describes reality rather than re-deriving a parallel truth.
 Runs at the end of `elkToPositioned()`, after bundling and shape clipping,
 immediately before bounds are computed. Two layers:
 
+Before resolving shape contact, the clipping pass removes only exact consecutive
+duplicates. A nonzero terminal segment can encode the approach direction even
+when its length is below the later simplifier's tolerance.
+
+The clipping pass distinguishes a genuine intersection miss from an unchanged
+valid contact. Only a miss may recover through `pointOnRoutingBoundary`, using
+the current node box when exactly one face identifies the attachment side.
+Ambiguous corners remain unresolved for the existing route repair and final
+certification; clipping does not guess a side or replace a successful contact.
+
 **Proof-free simplifications (all edges):** remove consecutive duplicate
 points and collinear midpoints. These preserve the drawn geometry exactly;
 no certificate change beyond `bendCount`.

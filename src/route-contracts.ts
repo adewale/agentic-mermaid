@@ -2628,10 +2628,11 @@ function sharedTrunkConflict(
   edge: PositionedEdge,
   edges: PositionedEdge[],
   style: LabelMetricsStyle,
+  labelPosition = edge.labelPosition,
 ): PositionedEdge | null {
-  if (!edge.label || !edge.labelPosition) return null
+  if (!edge.label || !labelPosition) return null
   const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
-  const pill = pillRect(edge.labelPosition.x, edge.labelPosition.y, m)
+  const pill = pillRect(labelPosition.x, labelPosition.y, m)
   for (const other of edges) {
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
     for (let i = 1; i < other.points.length; i++) {
@@ -2781,7 +2782,7 @@ export function repairLabelsOffOwnRoute(
     if (routeDist(edge.labelPosition) <= allow) continue // already on its own route — no-op (the corpus case)
     const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow &&
       !pillOverNode(pillRect(x, y, m), edge) &&
-      !sharedTrunkConflict({ ...edge, labelPosition: { x, y } }, positioned.edges, style)
+      !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
 
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
     for (let i = 1; i < edge.points.length; i++) {
@@ -2902,6 +2903,9 @@ export function separateEdgeLabelPills(
         const r = rectOf(o)
         if (r && intersects(pill, r)) return false
       }
+      // Separating opaque label halos must not move a label onto a shared
+      // route and undo the earlier ownership repair.
+      if (sharedTrunkConflict(edge, positioned.edges, style, { x, y })) return false
       return true
     }
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
