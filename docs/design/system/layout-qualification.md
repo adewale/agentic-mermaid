@@ -3,6 +3,9 @@
 The target is quality parity with ELK plus lower public-workflow time, memory,
 and browser transfer cost. Supporting selection alone does not close that target.
 ELK remains the default and supported fallback. No default change is proposed.
+The [community comparison](layout-community-comparison.md) separately evaluates
+peer approaches and fully consumed public SVG calls, including Zombie’s simple
+layout; its peer timings do not replace this backend qualification.
 
 ## Research applied
 
@@ -191,7 +194,7 @@ inputs also complete the existing 1.5 time ceilings; passing those ceilings is n
 the stronger goal of beating ELK. Quality is independently measured for 26/27
 inputs, with the workflow projection explicitly unavailable.
 
-The **cache-off campaign fails**. The ELK A/A timing arm times out in the batched
+The **frozen e9 cache-off campaign fails**. The ELK A/A timing arm times out in the batched
 timing stage; its incomplete control and exhausted shared budget leave no paired
 memory. Native's partial corpus ratio 0.617254 and edit ratio 0.631651 are not
 qualified wins. Cyclic 15, cyclic 13 and 18-cuts also exceed the 1.5 per-case ceiling.
@@ -202,6 +205,42 @@ observations are separate runs, not a selected best-of result.
 
 The CI artifact's observed runtime is Node 26.3.0 / Bun 1.4.2 on its recorded runner.
 Local supplemental diagnostics use Node 24.19.0 / Bun 1.4.2. Do not pool them.
+
+### Follow-up CI cost campaign at b4734ec7
+
+The [subsequent CI artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39695626480/artifacts/12391357430)
+retains the same 27 inputs, 3 rounds, 25 repetitions, 480000ms bound and batched
+protocol. Renderer/build files remain unchanged from e9; this is another
+measurement, not a solver optimization. Both cache campaigns now complete all
+arms and independent matched memory. Both ELK A/A controls pass, including
+per-case ceilings. The observed runner is AMD EPYC 9V74, 4 logical CPUs,
+Node 26.3.0 / Bun 1.4.2, unlike the earlier EPYC 7763 runner. Do not pool the runs.
+The [complete follow-up summary](layout-cost-b473-results.json) retains every
+arm's checks, population, environment, per-case timing and group memory.
+
+| Observation | Off: ELK A/A | Off: native | Normal: ELK A/A | Normal: native |
+| --- | --- | --- | --- | --- |
+| Corpus time | 0.991710 | 0.579697 | 0.973128 | 0.974425 |
+| Corpus allocation | 0.999285 | 0.749592 | 0.999990 | 0.998394 |
+| Corpus peak heap | 1.000028 | 0.601195 | 0.999816 | 0.601303 |
+| Corpus peak RSS | 1.035560 | 0.773295 | 1.040022 | 0.787892 |
+| Corpus retained growth | 1.005222 | 0.629965 | 1.004865 | 1.007007 |
+| Agent edit workflow time | 0.982787 | 0.613027 | 0.999490 | 1.002526 |
+
+The uncached corpus and edit workflow improve materially beyond A/A variation
+on this campaign. Normal-cache time/allocation are approximately tied, with
+lower peak heap/RSS. **Off-cache qualification still fails:** cyclic-labelled-15
+is 1.519808× and cyclic-labelled-18-cuts 1.587379× versus the unchanged 1.5 ceiling.
+The fallback arm also fails those two cases (1.515343× /1.573455×). All 20 large
+cases remain compared; no retry, larger deadline, reduced population or
+control normalization rescues the result.
+
+Memory is not an all-case win. Off-cache allocation is 1.485–2.096× ELK on six
+cyclic workloads (11,15,19,9,13,18-cuts), despite the lower corpus aggregate.
+Retained growth is sometimes higher in either cache regime; raw bytes and ratios
+remain available, all under the existing 16MiB gate. Neither a small retained
+ratio nor a single GC pass proves leak freedom. Earlier incomplete/off-cache
+campaigns remain attached above; this complete follow-up does not erase them.
 
 ### First use and actual fallback
 
@@ -301,14 +340,15 @@ inputs, aesthetic preferences or long-lived hosts.
 | 11. Final paint and markers | Exact convex separation adds proofs; 219 source certificates pass versus 217. | Partial: generated certificates remain unverified, with 48 individual native issue-count increases. |
 | 12. Edit stability | Both-cache sequences and all 36 undo checks complete; whole/unaffected motion stays visible. | Partial: four comparable transitions move unaffected subjects more; hint eligibility changes backend. |
 | 13. Cold start and fallback cost | Full-consumption first-use observations cover six families and actual fallback. | Promising eligible examples; noisy controls and fallback overhead prevent an all-case win. |
-| 14. Warm and agent workflows | Full normal-cache canary completes with healthy control; agent parse/edit/verify/serialize/render is consumed. | No convincing time/allocation win; cache-off qualification fails. |
-| 15. Memory and cache churn | Independent allocation/heap/RSS/retention and 96-geometry eviction measurements complete. | Lower heap/RSS on named cohorts; allocation and retention do not win on all dimensions. |
+| 14. Warm and agent workflows | The b473 follow-up completes both cache policies with healthy A/A; uncached corpus/edit time is 0.579697× /0.613027×. | Normal-cache time is approximately tied; two uncached cyclic cases still exceed 1.5×. Earlier incomplete campaigns remain retained. |
+| 15. Memory and cache churn | Independent memory now completes in both full cache policies; cache-churn diagnostics remain available. | Lower corpus heap/RSS; six uncached cyclic cases allocate 1.485–2.096× ELK, and retention does not always improve. |
 | 16. Browser delivery and reproducibility | Smaller native closures, actual request checks, standalone worker, unchanged caps, research pins and retained artifacts. | Native transfer beats ELK on six closures; Class/Requirement add one request, synchronous bundle retains both, and headroom is tight. |
 
 Remaining engineering priorities are the two Architecture crossings, ER 40 label
 placement around unrelated routes, bend/area tradeoffs, native hints/ancestor
-terminals, edit stability, generated paint certainty, and a complete off-cache
-cost campaign with healthy controls. Sparse long-edge normalization and corrected
+terminals, edit stability, generated paint certainty, and the remaining off-cache
+cyclic time/allocation regressions. The b473 follow-up closes the incomplete
+measurement gap for its runner, not all cost goals. Sparse long-edge normalization and corrected
 coordinate-assignment methods are research candidates, not implemented savings.
 Further complete preferred-port/symmetry and human-readability evidence is still
 needed. The objective remains open; ELK stays the supported default.
