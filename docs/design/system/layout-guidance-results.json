@@ -1,6 +1,6 @@
 {
   "protocol": "pr449-guidance-results@1",
-  "status": "correctness-complete; full-runtime-benchmark-pending",
+  "status": "pre-header evidence retained; corrected artifact correctness and benchmarks in progress",
   "integratedBaseline": "2fe1079a1fcdbb673ceb76d07e6ee6f8d3ab7f21",
   "mainIntegration": "87c9c3174c0d4edc16c69c0da82b69a325cc32ec",
   "implementation": "agentic-layered@24",
@@ -3926,5 +3926,921 @@
     },
     "canonicalBuild": "passed",
     "nodeArtifactsUnchangedAfterBrowserProjection": true
+  },
+  "initialReviewSnapshot": "9ce3653fb4fd4fe7ade45c324f99208d7fb03087",
+  "headerCorrection": {
+    "revision": "d645c8c57b0dd8e3324632ded103d5cef873837c",
+    "regression": "Measured Architecture group headerHeight was omitted by placement-only early return.",
+    "beforeBandHeight": 28,
+    "baselineAndCorrectedBandHeight": 74.8,
+    "paintCertificateBefore": "passed; not proof of correct header band",
+    "tests": {
+      "owningPass": 115,
+      "strengthenedSvgFocusedPass": 2,
+      "focusedAssertions": 32
+    },
+    "freeze": {
+      "revision": "d645c8c57b0dd8e3324632ded103d5cef873837c",
+      "implementation": "agentic-layered@24",
+      "reason": "Corrected measured Architecture header geometry after independent review",
+      "files": {
+        "dist/agent-core.js": "e3911ef5e5a0ff954da7bb647163b791cf19ba2bdac68b53b0f7cf92b277ed67",
+        "dist/agent.js": "f49b6bb204f4ed02e3a626609cdd7fa1d9003a60de8695cd39e45d5910e2b61a",
+        "dist/agentic-mermaid-mcp.js": "c4ac51fcfa28b6c62637b05007bf5e663373bdd754c3cb7fecc043da72b1d697",
+        "dist/am.js": "3ddd88c74c5d9c3526df0bb285e0078c5067c32881be556b27d4c6898cc008a3",
+        "dist/browser-lazy/chunks/agentic-producer-core-SZQLHNSB.js": "77c7c527a122969ff427bb29f07674d33a10c4b0a63c867d4e3813174069022a",
+        "dist/browser-lazy/chunks/architecture-4Y3AUR6U.js": "b752a677081beba6f89014981c5238dbe0d0700fd4239b14b5b8f38e267b9972",
+        "dist/browser-lazy/chunks/block-CDA7QCKN.js": "2bb9c78e67a7e3416d3fb75d99bfd36cdd191d66345eb53ff10c37b2dde2c67d",
+        "dist/browser-lazy/chunks/builtin-backends-X362GUZK.js": "7d7ac662c7b2a70447e2c28b8c8aa790d703d4892149dc356012353bf9a248e8",
+        "dist/browser-lazy/chunks/c4-YC2Y7COR.js": "8336400af2a452ca832f4fe588ac85aa5a9229a75345a617107c705e0ed0f58d",
+        "dist/browser-lazy/chunks/chunk-25PCYNXX.js": "1ab5fff8285f6e7fa66611b7500880fd5d02269eb77ce4d82d61bc676b4c7d15",
+        "dist/browser-lazy/chunks/chunk-2MS72CRI.js": "ec670618a2a233078050ded18738be42ffce017e4ba7e2805a3644d5057daad4",
+        "dist/browser-lazy/chunks/chunk-2YOGUJ6J.js": "dd9875bb4aa7110103a7e00e1450d902112d7c8f73256b071d7069ce2b04784c",
+        "dist/browser-lazy/chunks/chunk-4QUINBQR.js": "f5f249140625c3fc4bdd090ab06bb483d0b22f27b9268fc5eaeea60646b0a516",
+        "dist/browser-lazy/chunks/chunk-53NOFCOO.js": "7c286e600c48712358776a247d6730bbaa12b6fd8ee23c5b23b2f1a05251d853",
+        "dist/browser-lazy/chunks/chunk-56MYEBFL.js": "36adf0e6bfdc63b59bed29ef3bdc5fb95dcafc99b89c1eecdcda0d2be2a2d032",
+        "dist/browser-lazy/chunks/chunk-6DEVFF2X.js": "4068ddbc50b3f5336e57a6be6328f067e72331c25bf2e67ea67299abc72ad65d",
+        "dist/browser-lazy/chunks/chunk-6K6QZ5X4.js": "8dd0f64425cbb19c1a01f2cd0ab8771716a1980580a6d0c21324e728f5d64afb",
+        "dist/browser-lazy/chunks/chunk-6USYSCZI.js": "98971732c82195d78dfb61146c5288aecbade3e8cd413ea4e014a566024e8d7d",
+        "dist/browser-lazy/chunks/chunk-77PSWB4N.js": "789fd80e72b5abca3e7f2244c52835435e993793929e5ed74ab3e135d0e8c29e",
+        "dist/browser-lazy/chunks/chunk-7DTYIT4N.js": "ebc7b8b1bcb1c9055e4d7d68cb55e2efea6e34b71f54a5bc192ac4cbccbbd178",
+        "dist/browser-lazy/chunks/chunk-7IUX53ZB.js": "4b466df768130a4a8dfb0cb2d70eb7bd742aec12d956a3c50e0a66a8598a14c1",
+        "dist/browser-lazy/chunks/chunk-A3GBNR3V.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dist/browser-lazy/chunks/chunk-APCGYUTL.js": "88c1bbdb906155a912342f0e1bf2aa91aef50110a93d28d6e69a0a2a66b90921",
+        "dist/browser-lazy/chunks/chunk-CML5DD2S.js": "5ca614fdd4b197aedcb563d1ba34959bef5833d56b0a7fef5de55d3c5f7cad7e",
+        "dist/browser-lazy/chunks/chunk-DCT5VZCQ.js": "b8480a95aa845843447400da09cd5c745486e97708998d6b5accccc535d21904",
+        "dist/browser-lazy/chunks/chunk-ECULMY4H.js": "e880ca77a2299b51073907bd8c886ee2b8f2a4407604449522682ea6ce0d049a",
+        "dist/browser-lazy/chunks/chunk-EI5QM7M3.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dist/browser-lazy/chunks/chunk-EMH4QCMV.js": "dae4fb8fa15e4fea754f66f707cccf729249046b348a4f1781279c7c85f14729",
+        "dist/browser-lazy/chunks/chunk-F4SGKDAD.js": "0706091b8cbafc25db6be9283cc70df5d1600012a51711b2ef618a38b2fa1f3d",
+        "dist/browser-lazy/chunks/chunk-GJIZBK2R.js": "12192e8b92d35e5cc728e401c4419e3a423947aa7d1dd1a41210dfebf5b4f590",
+        "dist/browser-lazy/chunks/chunk-GLLOJJXT.js": "8829a1e00b2974e49f327eeb3598d80580d9d713f6e0b5ce7b5e576188d50ecf",
+        "dist/browser-lazy/chunks/chunk-HIDDD75K.js": "569bec06e45a8bb57fc12ef725b30c0e8bd4e05da6b218b734e680f553a0aa76",
+        "dist/browser-lazy/chunks/chunk-I6VE56S7.js": "c6ec80358c6f8f72d5a71129c4bd802bca25913511b77f5af9554387d5768cfc",
+        "dist/browser-lazy/chunks/chunk-IXDYND44.js": "19ddce18212beb519f4765ccf006ce7f06b63c44bfa87a66d3baefbc4ab52852",
+        "dist/browser-lazy/chunks/chunk-JG6AYGOM.js": "b92f53efedaa4793ff695a6e4c4f0b24c3d17313ced4a0203fca0381c1f258d9",
+        "dist/browser-lazy/chunks/chunk-LMOQRLSJ.js": "d7e0fb79162bf9d80af51b305167fc0d729dff76db4db58880f8ee212c16b4e9",
+        "dist/browser-lazy/chunks/chunk-NARGOOTK.js": "11563787e5630c0ac61e8ce8e109450f6a9d50b0d6784f3c5182a5b7ff15cb70",
+        "dist/browser-lazy/chunks/chunk-NTD4ADQU.js": "4d4998d67ea6ca39f50127fdc2be8e0f798f6dc8041e698841d8b54a298153dc",
+        "dist/browser-lazy/chunks/chunk-OFRMKQA6.js": "da6a6565981d7212b441dc86bcb1c7b2113932eacf86acc13e81a97371f62228",
+        "dist/browser-lazy/chunks/chunk-ONIHBWMS.js": "3dd8774bf89af221b2e84b43686ba7a453eb414cfd33956ba93b35955a53ef51",
+        "dist/browser-lazy/chunks/chunk-PH4Y2CCS.js": "3a2fd063cda5804436d65a4b436d664b2c7e13444c0f7e802864839c24e2e753",
+        "dist/browser-lazy/chunks/chunk-QW346T4I.js": "f70f0ffd05cb68352b5e31d42fae7bbdc8e186aa66b163f40446894235218082",
+        "dist/browser-lazy/chunks/chunk-RBZPZQ6X.js": "9c265045116fbdd17bb1747d19fee5fafaf2d5bd913584d4597e3a9aa517b1a8",
+        "dist/browser-lazy/chunks/chunk-RXHT4Z74.js": "4caa9223d2f926a177252f5578db8b90f39e7894384a178bd0b56637d6b6da1f",
+        "dist/browser-lazy/chunks/chunk-RZBPJUDW.js": "1b31bb5b110518539ccec83c696efc8e8f793af981b69f09c79b80ee7019103a",
+        "dist/browser-lazy/chunks/chunk-UDDZKGBK.js": "2084b3efe746a93ec352108aaa9410516b2d47837da76cc6e762868825aecd58",
+        "dist/browser-lazy/chunks/chunk-UOHGEJK5.js": "28d763f5a0cfb0e74ee2cae9263344f6e0173e431012dc131f939a6adde257c2",
+        "dist/browser-lazy/chunks/chunk-VXMS36WY.js": "0eb38a48791f142185b36fe5dc94298adcd95d75f612fc118a87783a8adecdea",
+        "dist/browser-lazy/chunks/chunk-WDPK6XKW.js": "62dc415a14427ff60460ae6959a49a07353f6b042fc58ee5a25f63c1be13b07a",
+        "dist/browser-lazy/chunks/chunk-XOQFAIPE.js": "d50d9f1d229a9e27ae81bab40d81915eb0f99a8cb63dda3929e531313d9fba7b",
+        "dist/browser-lazy/chunks/chunk-YG377JUG.js": "6006660934881459c6a136ed23b9bbad78709553f65f40057089784f6f34a177",
+        "dist/browser-lazy/chunks/chunk-YPULNW32.js": "e375f6c7833fbc7cef83dd42a590e44a3a209287d8c3fc9cbcb310ab8384fd5e",
+        "dist/browser-lazy/chunks/class-6QQ45CCN.js": "2949538bd1f27c34af16b1c9b938c53ae5558c7a003f35dd82296083306942d6",
+        "dist/browser-lazy/chunks/decode-Y5M7HUXJ.js": "05fa4ad2221d8c7a66cbdda921baa56c5f708f0745bd664d6ff4242346ec8a10",
+        "dist/browser-lazy/chunks/elk.bundled-VF4HLRNQ.js": "90fce6f36069100005f76d3c13f9eab2b59b9261c4d762f2d5ef1c33b319d819",
+        "dist/browser-lazy/chunks/er-SRBY3OO7.js": "74ec9f1e3090739879de7620ba473d0188dc179b12d09177325bc05b2b21b43c",
+        "dist/browser-lazy/chunks/flowchart-NSTLADD5.js": "0ec16a701ce3f378aac7ab26012e8bc4860f37af69face0c904bf46f7a5508fc",
+        "dist/browser-lazy/chunks/gantt-JXVJZBN5.js": "16c10fea75879706cf83d69b5dcc11e8ef841d6b203c5ec7e83317e0beb4bda4",
+        "dist/browser-lazy/chunks/gitgraph-JUMPI3RG.js": "1b352b1e70712dd1666a09bd88d21fa7d81071778e2e9ea764aed79068045b4f",
+        "dist/browser-lazy/chunks/ishikawa-N5DX65LW.js": "0eb4af463f21a00d9205eb49708d97225d8a701ff9ddcd850c356b874311e4bc",
+        "dist/browser-lazy/chunks/journey-4UT4I73C.js": "518c6e28d6d5246b75349e335b9714e4f18a10da61d90d336b78a2d84f489388",
+        "dist/browser-lazy/chunks/kanban-G6SB6UTI.js": "a6ac770e40d7e68072fd93acbfbaf8a77cbeeb6fba7e294eb64e5e8da4cf20a2",
+        "dist/browser-lazy/chunks/mindmap-LC6OINVW.js": "144af71ad72a538d57c5470866078a0d6f52b5d1df99fb4fb3cd2be8e3064609",
+        "dist/browser-lazy/chunks/packet-URIH4LVA.js": "d3760e572afc87fdf5e1f0564fdadfb6b2fe67177f84b49c946cd6850e547bd0",
+        "dist/browser-lazy/chunks/pie-PD27AJKJ.js": "e78687ee13b7e8498aed32bbdad3328e9d653963967379181dc35406997f57a1",
+        "dist/browser-lazy/chunks/quadrant-IGX5BIRB.js": "0dd9ecdccc08e9a2eeb1b3a922a59a336b1e9d4d9dbb5b231f851e213be7f731",
+        "dist/browser-lazy/chunks/radar-Z2R2TXQN.js": "0ada03fa7f998bc320e173a6796679e777dc7a6a7626d14203350358abc00cc7",
+        "dist/browser-lazy/chunks/render-core-P6TNOCZE.js": "6aee1ed45d6be9eec8c264b786887bba0a3db280658187d7c42b0295753b6058",
+        "dist/browser-lazy/chunks/requirement-IFDA3KHQ.js": "725a71932ac10122d19f75e5899218520c22e5e128a610c35ad4ed2d45d6d24c",
+        "dist/browser-lazy/chunks/sankey-2GZPJZOJ.js": "218f00b0b7ed177f00c2251d2bd9ff4bcc8329872fa43c9257152ff9d050fc4f",
+        "dist/browser-lazy/chunks/sequence-QFF4MHW7.js": "1d00a89e2b96f76675e347c6ae8a8851438ce8dff2a46871446432b5f867807c",
+        "dist/browser-lazy/chunks/state-IZWFSDR6.js": "0612de832d5351026846227914eaf3260c49387334a1517785ff42ed9dbe732e",
+        "dist/browser-lazy/chunks/timeline-QBH2545G.js": "33a54d2c111e12d2c2210e86f9bf01901d5b76b5c2dc2535b757590b624fb4fe",
+        "dist/browser-lazy/chunks/treemap-QNZX3B42.js": "262e3dc098d7640820960f6aa9c88b3f79e75f587b4d022c54b65355873074f6",
+        "dist/browser-lazy/chunks/xychart-ZSKJKRJU.js": "721762ca70742284478daa3f83c592f926beb3780a453b5661080afc820fc855",
+        "dist/browser-lazy/index.js": "3ec31ee992f408567cdbe24757376a2c984ee543c5ddab0b706ee0685f71bec3",
+        "dist/browser.global.js": "ad39cae930daec05f25303b9e7534a269d4b087ecc3146969cb9519cd50d931a",
+        "dist/chunk-3XZLSNKM.js": "bd658614fdf0dceab0ed031b1e06887f37f0ba3132f65b944fcacd7e530b6df3",
+        "dist/chunk-4Y3MBZ3E.js": "9eb7b338c2e76843d2be576346270c4532e80aef708f46a929a0e19c10d58f73",
+        "dist/chunk-6IJ7WXOI.js": "bde87885ba6e4295f2025fb5145e482bf84882b5572170879c5031064c86959c",
+        "dist/chunk-DGZXKYZD.js": "9ff2ba0780a909924a0eba895e80631c22d9478a2f48f0088b60a536a3198d79",
+        "dist/chunk-DZIENSQ3.js": "09c74904477aeaabbc8c9248829a45c27cfa8d7e0bbdaf7307d07f9a6de407ed",
+        "dist/chunk-NKUQZH5M.js": "1ee5c3065f8f37ea998fee584348dbefb8fe0ca21f0e1d5deca26a3a3cb1e9c3",
+        "dist/chunk-OG22L6SO.js": "2cdde0885e2b69e90db26ebe3a3bf9f25c36cbebe1435acff6c72a5e0ad8893e",
+        "dist/chunk-OWK5MY3R.js": "3bbd9e9d0c19fe1608e1f6535f67ccd937b5316b7d050bcc4d6c56a0fb06e37b",
+        "dist/chunk-PZ5AY32C.js": "40c1be907ef01c2fa72b19a2d3873e62f68ffaf37d4de958cc6c07fe90b79493",
+        "dist/chunk-UY6EDHXN.js": "1a0aaece51dff8948b7a4c67e0a4db1e687ffb29a0d6967ab931527ac4f34882",
+        "dist/elk-constructor.js": "b54a7e45d487478fe1eb64140bea5558d7bc9efecd43c9deadb34afd4eab9a68",
+        "dist/elk-constructor.node.js": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+        "dist/index.js": "527bc5660c57a53cb8d5993916d413533ec874deccc0366df1047ebf97684c1d",
+        "dist/mcp-cli-RBRACBGY.js": "8caa688c9c8d72a23ab9eb6ce69db81278b5314c6275e844faca2f6828c2fd5c",
+        "dist/svg-styles.js": "7d00ec3c0029a9ec7f9a793e95d6a4b06bbe54f48f6265935244a1a04c46b3ac",
+        "dist/svg.js": "a0f2d1e4c86bb659df5b5e379b2c986f4b6c102efec61cca4a73a406c6cfb254"
+      },
+      "newFreshHoldout": {
+        "generator": "sha256-counter-v1",
+        "start": 384,
+        "count": 64,
+        "inspected": false
+      },
+      "qualityHarnessSha256": "49638cdcfca51788608c4cf291d8cc86601fcdb7af8f6ba02be9b73bf2431695"
+    },
+    "plan": {
+      "protocol": "header-correction-final-qualification@1",
+      "reason": "Independent review found dropped Architecture multiline header metadata after first freeze; fix is unrelated to earlier generated holdout, but final candidate receives a new untouched window.",
+      "baseline": "integrated23 at2fe1079a",
+      "correctedCandidate": "pending minimalheaderfix reviewed and frozen",
+      "retainedFresh320_383": "Retain all earlier outcomes; replay as known regression data.",
+      "newFreshHoldout": {
+        "generator": "sha256-counter-v1",
+        "start": 384,
+        "count": 64,
+        "inspected": false
+      },
+      "quality": "249source+704retained; bothengines; oldholdout320\u2013383 replay; new384\u2013447 bothbaseline+candidate afterfreeze",
+      "benchmark": "New frozen full27 release plus integrated23-native differential, bothcaches3rounds25reps480000ms; separate Architecture and churn; preservepreheader9ce run unchanged.",
+      "gates": "No new admission/semantic/geometry/certificate regression outside measured header correction; no tuning based on fresh results."
+    },
+    "editReplay": {
+      "schemaVersion": 1,
+      "kind": "built-native23-native24-edit-correctness",
+      "policies": {
+        "off": {
+          "baseline": {
+            "path": "/workspace/pr449-guidance/edits-integrated23-off.json",
+            "sha256": "1eb44de3004319822f33acfbc1fc66654cc534472b24fa5469011ca9246bb963",
+            "entry": "/workspace/pr449-guidance/integrated23/dist/agent.js",
+            "artifactManifestSha256": "247cb39d60bf5b9306696f161945a2160e8646c854fcda62370ad9cc7779eba7",
+            "implementation": "agentic-layered@23"
+          },
+          "candidate": {
+            "path": "/workspace/pr449-guidance/edits-corrected24-off.json",
+            "sha256": "b057b56ca6b9a212ea23cdab9be05ad3ba7dda968fda99612169134d85d2e1bb",
+            "entry": "/workspace/pr449-guidance/corrected24/dist/agent.js",
+            "artifactManifestSha256": "7bbd2afbc6d628267feab9f7fe5df84471563308ad6760a3ed1d237cab18f0a7",
+            "implementation": "agentic-layered@24"
+          },
+          "observations": 117,
+          "beforeAdmission": {
+            "ok": 116,
+            "error": 1
+          },
+          "afterAdmission": {
+            "ok": 116,
+            "error": 1
+          },
+          "sourceOrAffectedChanges": [],
+          "admissionChanges": [],
+          "typedDeclineChanges": [],
+          "backendChanges": [],
+          "architectureSvgChanges": [],
+          "otherSvgChanges": [],
+          "layoutChanges": [],
+          "transitionChanges": [],
+          "receiptChangesBeyondImplementation": [],
+          "certificateChanges": [],
+          "implementationErrors": [],
+          "undos": {
+            "beforeChecks": 18,
+            "beforePassed": 18,
+            "afterChecks": 18,
+            "afterPassed": 18,
+            "changed": []
+          },
+          "declines": [
+            {
+              "family": "flowchart",
+              "mode": "agentic",
+              "edit": "eligibility-layout-hint",
+              "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: Agentic graph layout does not support this input: layout hints",
+              "code": null,
+              "causeName": "GraphLayoutUnsupportedError",
+              "causeCode": "GRAPH_LAYOUT_UNSUPPORTED",
+              "causeReason": "layout hints"
+            }
+          ],
+          "nativeVsElkBefore": {
+            "comparable": 31,
+            "better": 13,
+            "equal": 14,
+            "worse": 4,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "nativeVsElkAfter": {
+            "comparable": 31,
+            "better": 13,
+            "equal": 14,
+            "worse": 4,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "fallbackVsElkBefore": {
+            "comparable": 33,
+            "better": 13,
+            "equal": 14,
+            "worse": 6,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "flowchart",
+                "edit": "eligibility-layout-hint",
+                "native": 46.592394046569645,
+                "elk": 30.5
+              },
+              {
+                "family": "flowchart",
+                "edit": "undo",
+                "native": 56.95799935394831,
+                "elk": 0
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "fallbackVsElkAfter": {
+            "comparable": 33,
+            "better": 13,
+            "equal": 14,
+            "worse": 6,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "flowchart",
+                "edit": "eligibility-layout-hint",
+                "native": 46.592394046569645,
+                "elk": 30.5
+              },
+              {
+                "family": "flowchart",
+                "edit": "undo",
+                "native": 56.95799935394831,
+                "elk": 0
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "transitionCountsByMode": {
+            "elk": 33,
+            "agentic": 31,
+            "agentic-with-elk": 33
+          }
+        },
+        "normal": {
+          "baseline": {
+            "path": "/workspace/pr449-guidance/edits-integrated23-normal.json",
+            "sha256": "244796823a8fae68284d80954fd13c3f79456aaaceb06a6e3fcd9b9c260dd1c3",
+            "entry": "/workspace/pr449-guidance/integrated23/dist/agent.js",
+            "artifactManifestSha256": "247cb39d60bf5b9306696f161945a2160e8646c854fcda62370ad9cc7779eba7",
+            "implementation": "agentic-layered@23"
+          },
+          "candidate": {
+            "path": "/workspace/pr449-guidance/edits-corrected24-normal.json",
+            "sha256": "e280cc285682c5ef4097ed8ee5b968bdfa1f29c0a424ea455b0bf259fc754755",
+            "entry": "/workspace/pr449-guidance/corrected24/dist/agent.js",
+            "artifactManifestSha256": "7bbd2afbc6d628267feab9f7fe5df84471563308ad6760a3ed1d237cab18f0a7",
+            "implementation": "agentic-layered@24"
+          },
+          "observations": 117,
+          "beforeAdmission": {
+            "ok": 116,
+            "error": 1
+          },
+          "afterAdmission": {
+            "ok": 116,
+            "error": 1
+          },
+          "sourceOrAffectedChanges": [],
+          "admissionChanges": [],
+          "typedDeclineChanges": [],
+          "backendChanges": [],
+          "architectureSvgChanges": [],
+          "otherSvgChanges": [],
+          "layoutChanges": [],
+          "transitionChanges": [],
+          "receiptChangesBeyondImplementation": [],
+          "certificateChanges": [],
+          "implementationErrors": [],
+          "undos": {
+            "beforeChecks": 18,
+            "beforePassed": 18,
+            "afterChecks": 18,
+            "afterPassed": 18,
+            "changed": []
+          },
+          "declines": [
+            {
+              "family": "flowchart",
+              "mode": "agentic",
+              "edit": "eligibility-layout-hint",
+              "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: Agentic graph layout does not support this input: layout hints",
+              "code": null,
+              "causeName": "GraphLayoutUnsupportedError",
+              "causeCode": "GRAPH_LAYOUT_UNSUPPORTED",
+              "causeReason": "layout hints"
+            }
+          ],
+          "nativeVsElkBefore": {
+            "comparable": 31,
+            "better": 13,
+            "equal": 14,
+            "worse": 4,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "nativeVsElkAfter": {
+            "comparable": 31,
+            "better": 13,
+            "equal": 14,
+            "worse": 4,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "fallbackVsElkBefore": {
+            "comparable": 33,
+            "better": 13,
+            "equal": 14,
+            "worse": 6,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "flowchart",
+                "edit": "eligibility-layout-hint",
+                "native": 46.592394046569645,
+                "elk": 30.5
+              },
+              {
+                "family": "flowchart",
+                "edit": "undo",
+                "native": 56.95799935394831,
+                "elk": 0
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "fallbackVsElkAfter": {
+            "comparable": 33,
+            "better": 13,
+            "equal": 14,
+            "worse": 6,
+            "worseCases": [
+              {
+                "family": "flowchart",
+                "edit": "label-growth",
+                "native": 24.823499999999992,
+                "elk": 1.4210854715202004e-14
+              },
+              {
+                "family": "flowchart",
+                "edit": "add-node-edge",
+                "native": 22.847499999999986,
+                "elk": 15.042000000000007
+              },
+              {
+                "family": "flowchart",
+                "edit": "move-membership",
+                "native": 172.72411122143498,
+                "elk": 158.303142948435
+              },
+              {
+                "family": "flowchart",
+                "edit": "eligibility-layout-hint",
+                "native": 46.592394046569645,
+                "elk": 30.5
+              },
+              {
+                "family": "flowchart",
+                "edit": "undo",
+                "native": 56.95799935394831,
+                "elk": 0
+              },
+              {
+                "family": "class",
+                "edit": "undo",
+                "native": 48,
+                "elk": 6.666666666666667
+              }
+            ]
+          },
+          "transitionCountsByMode": {
+            "elk": 33,
+            "agentic": 31,
+            "agentic-with-elk": 33
+          }
+        }
+      },
+      "permittedReceiptNormalization": {
+        "key": "implementation",
+        "before": "agentic-layered@23",
+        "after": "agentic-layered@24"
+      },
+      "limitations": [
+        "Quality-only evidence; no benchmark inference.",
+        "Both cache policies retain all117 rows including strict typed declines.",
+        "Changed geometry and transitions are reported without redefining affected sets."
+      ],
+      "totals": {
+        "observations": 234,
+        "undoChecks": 36,
+        "undoPassed": 36,
+        "sourceOrAffectedChanges": 0,
+        "admissionChanges": 0,
+        "typedDeclineChanges": 0,
+        "backendChanges": 0,
+        "architectureSvgChanges": 0,
+        "otherSvgChanges": 0,
+        "layoutChanges": 0,
+        "transitionChanges": 0,
+        "receiptChangesBeyondImplementation": 0,
+        "certificateChanges": 0,
+        "implementationErrors": 0
+      },
+      "correctedArtifactFreezeCheck": {
+        "revision": "d645c8c57b0dd8e3324632ded103d5cef873837c",
+        "freezePath": "/workspace/pr449-guidance/corrected24-freeze.json",
+        "freezeSha256": "4f2a4ee1e0eb0e6be23107a6c341e7776122e8e9bb1e375331bf6677c36aa967",
+        "files": 93,
+        "mismatches": []
+      }
+    }
+  },
+  "pilotPlan": {
+    "protocol": "layout-guidance-individual-pilot@1",
+    "arms": {
+      "before": "/workspace/pr449-guidance/integrated23",
+      "aa": "/workspace/pr449-guidance/integrated23",
+      "architecture": "/workspace/pr449-guidance/architecture",
+      "proof": "/workspace/pr449-guidance/proof-arm-source",
+      "lane-index": "/workspace/pr449-guidance/lane-index"
+    },
+    "artifactIdentities": {
+      "before": {
+        "dist/agent-core.js": "ba3feeeff78b2c7200a9acaa240cec0664ef5038ddbce08d4f5a916acdf968ef",
+        "dist/agent.js": "1b5ab6a83677d5442b06e6f38ab17bc74ae6f9d76b2b2034dccda0873a3bcbae",
+        "dist/agentic-mermaid-mcp.js": "f5b5fe318f8cd904a564966659a91e4f5cbddc1951d2e1ab9f8b422e7eed59d0",
+        "dist/am.js": "a75be8c806233351da89b25410e99940c3542299d0a92d8897fa2999a028c122",
+        "dist/browser-lazy/chunks/agentic-producer-core-LAHYLRBY.js": "20b45a47c6b3ae1c551b62fa53bb7e415ec3162fbf8c6b51d886314d10a3bd02",
+        "dist/browser-lazy/chunks/architecture-XALJHR27.js": "fc0f68480e606bddb55b68c0b770e9765af62787d9e7469ba94bdee7c7e64562",
+        "dist/browser-lazy/chunks/block-K7B7H7GU.js": "ab26c0e918483cf53c06b3ecf00bc6bde1613579194960ebef0053fbf58a09eb",
+        "dist/browser-lazy/chunks/builtin-backends-USLTEU4J.js": "a7abcdbe7a99ef23166c8df6422b64fda39d2903e9b333b4ee376c03078b8a81",
+        "dist/browser-lazy/chunks/c4-RFHPCX7A.js": "546221415fd203fb0caef329c2c19abbf498a974ab4bd265c68586bcd5a4f5b8",
+        "dist/browser-lazy/chunks/chunk-2MS72CRI.js": "ec670618a2a233078050ded18738be42ffce017e4ba7e2805a3644d5057daad4",
+        "dist/browser-lazy/chunks/chunk-2U2OZZL6.js": "ab2bfcfd757173182e2c1c0fc7b4039f9527e89c7fd4b61ca639325ce5b3aba2",
+        "dist/browser-lazy/chunks/chunk-2YOGUJ6J.js": "dd9875bb4aa7110103a7e00e1450d902112d7c8f73256b071d7069ce2b04784c",
+        "dist/browser-lazy/chunks/chunk-4BILHUIU.js": "012eac8c588ceca1e3d45824954e19f3cee9182caf545b293152054454eec365",
+        "dist/browser-lazy/chunks/chunk-4QUINBQR.js": "f5f249140625c3fc4bdd090ab06bb483d0b22f27b9268fc5eaeea60646b0a516",
+        "dist/browser-lazy/chunks/chunk-53NOFCOO.js": "7c286e600c48712358776a247d6730bbaa12b6fd8ee23c5b23b2f1a05251d853",
+        "dist/browser-lazy/chunks/chunk-5CIZFB3F.js": "8ffc13ad93696a7bcf26950a9cd04e02a04bacd9aa395726e9dc6d66d6d93d54",
+        "dist/browser-lazy/chunks/chunk-5SWWN2D2.js": "38ba2e463709924ea14d64b08a05f5ebcb2a0a4371c7708d3405230234b8c638",
+        "dist/browser-lazy/chunks/chunk-6DEVFF2X.js": "4068ddbc50b3f5336e57a6be6328f067e72331c25bf2e67ea67299abc72ad65d",
+        "dist/browser-lazy/chunks/chunk-6USYSCZI.js": "98971732c82195d78dfb61146c5288aecbade3e8cd413ea4e014a566024e8d7d",
+        "dist/browser-lazy/chunks/chunk-A3GBNR3V.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dist/browser-lazy/chunks/chunk-AI4KLC7S.js": "270d8eb24415fe080dfbf553bfecb2437e35ba71af052f8d7873e06a64ae4da0",
+        "dist/browser-lazy/chunks/chunk-CML5DD2S.js": "5ca614fdd4b197aedcb563d1ba34959bef5833d56b0a7fef5de55d3c5f7cad7e",
+        "dist/browser-lazy/chunks/chunk-EI5QM7M3.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dist/browser-lazy/chunks/chunk-EMH4QCMV.js": "dae4fb8fa15e4fea754f66f707cccf729249046b348a4f1781279c7c85f14729",
+        "dist/browser-lazy/chunks/chunk-F4SGKDAD.js": "0706091b8cbafc25db6be9283cc70df5d1600012a51711b2ef618a38b2fa1f3d",
+        "dist/browser-lazy/chunks/chunk-GJIZBK2R.js": "12192e8b92d35e5cc728e401c4419e3a423947aa7d1dd1a41210dfebf5b4f590",
+        "dist/browser-lazy/chunks/chunk-GLLOJJXT.js": "8829a1e00b2974e49f327eeb3598d80580d9d713f6e0b5ce7b5e576188d50ecf",
+        "dist/browser-lazy/chunks/chunk-HXXZNSNM.js": "12edfcb99949d0099ceddd5afdba115302fab16328dda030e90415525a027433",
+        "dist/browser-lazy/chunks/chunk-I6VE56S7.js": "c6ec80358c6f8f72d5a71129c4bd802bca25913511b77f5af9554387d5768cfc",
+        "dist/browser-lazy/chunks/chunk-ILZFRQM3.js": "ad33400a699c91ab9a2452503d6b03e9acfe62b5001e13f6a2dcc1594154688d",
+        "dist/browser-lazy/chunks/chunk-IXDYND44.js": "19ddce18212beb519f4765ccf006ce7f06b63c44bfa87a66d3baefbc4ab52852",
+        "dist/browser-lazy/chunks/chunk-JG6AYGOM.js": "b92f53efedaa4793ff695a6e4c4f0b24c3d17313ced4a0203fca0381c1f258d9",
+        "dist/browser-lazy/chunks/chunk-JVCT4H2G.js": "357f0c081ea747d375e85e099f0027118c141cecd351750c4a86f0f87be13989",
+        "dist/browser-lazy/chunks/chunk-MIFTRNKB.js": "75d8f718af06959ddb4309bb610fcfd9c5bc59b2a16f3fd5ea731da41fd1c3af",
+        "dist/browser-lazy/chunks/chunk-NARGOOTK.js": "11563787e5630c0ac61e8ce8e109450f6a9d50b0d6784f3c5182a5b7ff15cb70",
+        "dist/browser-lazy/chunks/chunk-NTD4ADQU.js": "4d4998d67ea6ca39f50127fdc2be8e0f798f6dc8041e698841d8b54a298153dc",
+        "dist/browser-lazy/chunks/chunk-ODUMZFSF.js": "6dc94bdd1d38715f9c28198315c0ba0ce66d368a97b7dd9e85fc108e67ef5a65",
+        "dist/browser-lazy/chunks/chunk-OFRMKQA6.js": "da6a6565981d7212b441dc86bcb1c7b2113932eacf86acc13e81a97371f62228",
+        "dist/browser-lazy/chunks/chunk-OG44SWPE.js": "e25667c26e71eaf43b9f70dc760e5e810a6f3940af8d5bef343d490bc245583d",
+        "dist/browser-lazy/chunks/chunk-Q5PMYR3T.js": "a0ef8f0854dcab216608c9704ddee6eebcd563f25f387ec5049ec55d33241ac3",
+        "dist/browser-lazy/chunks/chunk-QW346T4I.js": "f70f0ffd05cb68352b5e31d42fae7bbdc8e186aa66b163f40446894235218082",
+        "dist/browser-lazy/chunks/chunk-RBZPZQ6X.js": "9c265045116fbdd17bb1747d19fee5fafaf2d5bd913584d4597e3a9aa517b1a8",
+        "dist/browser-lazy/chunks/chunk-RDWEAJXS.js": "1e1b3726be7f51851a8124277a5f20a1229768512bf7a2eb29db24bd8c1ec6ca",
+        "dist/browser-lazy/chunks/chunk-RZBPJUDW.js": "1b31bb5b110518539ccec83c696efc8e8f793af981b69f09c79b80ee7019103a",
+        "dist/browser-lazy/chunks/chunk-UDDZKGBK.js": "2084b3efe746a93ec352108aaa9410516b2d47837da76cc6e762868825aecd58",
+        "dist/browser-lazy/chunks/chunk-UOHGEJK5.js": "28d763f5a0cfb0e74ee2cae9263344f6e0173e431012dc131f939a6adde257c2",
+        "dist/browser-lazy/chunks/chunk-VQUM2MF5.js": "dd28b0ace63fa5b7b1385c95f2813bd7bdc227e7f37a497281cabb7088b1bca9",
+        "dist/browser-lazy/chunks/chunk-VXMS36WY.js": "0eb38a48791f142185b36fe5dc94298adcd95d75f612fc118a87783a8adecdea",
+        "dist/browser-lazy/chunks/chunk-WDPK6XKW.js": "62dc415a14427ff60460ae6959a49a07353f6b042fc58ee5a25f63c1be13b07a",
+        "dist/browser-lazy/chunks/chunk-XOQFAIPE.js": "d50d9f1d229a9e27ae81bab40d81915eb0f99a8cb63dda3929e531313d9fba7b",
+        "dist/browser-lazy/chunks/chunk-YG377JUG.js": "6006660934881459c6a136ed23b9bbad78709553f65f40057089784f6f34a177",
+        "dist/browser-lazy/chunks/chunk-YPULNW32.js": "e375f6c7833fbc7cef83dd42a590e44a3a209287d8c3fc9cbcb310ab8384fd5e",
+        "dist/browser-lazy/chunks/class-C6J6DLGT.js": "c7982963227e79795fc953fdc9b044affb79c4ecaf673cb0ee0b4fe12fc426f6",
+        "dist/browser-lazy/chunks/decode-Y5M7HUXJ.js": "05fa4ad2221d8c7a66cbdda921baa56c5f708f0745bd664d6ff4242346ec8a10",
+        "dist/browser-lazy/chunks/elk.bundled-VF4HLRNQ.js": "90fce6f36069100005f76d3c13f9eab2b59b9261c4d762f2d5ef1c33b319d819",
+        "dist/browser-lazy/chunks/er-UIJTZJTN.js": "136183603e0997061bc867531f1241a0f31ade11b586dcc2146d4fa97db7d277",
+        "dist/browser-lazy/chunks/flowchart-MYUXRABS.js": "02da1fab054a849275f70650a2c7d6ecb51c94538f43a2640745a6aad0e43136",
+        "dist/browser-lazy/chunks/gantt-IT6WECGY.js": "f628049ddf46fc9ad7677faea2afd0bea2a8d3bebeb1b877d05cccde3dec6c06",
+        "dist/browser-lazy/chunks/gitgraph-VBG5EYWF.js": "45d0f6f4cb2f80dd978391e628684dd82ff1fabb8eace6e1a0cf48eff68890e6",
+        "dist/browser-lazy/chunks/ishikawa-N5DX65LW.js": "0eb4af463f21a00d9205eb49708d97225d8a701ff9ddcd850c356b874311e4bc",
+        "dist/browser-lazy/chunks/journey-SNK4ILLP.js": "7bba7cf3c45501ab477839c8e9480d50fd8a21cd324e7da20e840e5a849673cf",
+        "dist/browser-lazy/chunks/kanban-7FI7KJVG.js": "964ff25c4616e093ae47bda4e8dec29dae270b96f21f13983c4da7828d02defa",
+        "dist/browser-lazy/chunks/mindmap-57R53VXJ.js": "1ab3f1c6ab1991282ef00fc5370dd2bf0a2ed8d0aa4b322d70e8685b672e4132",
+        "dist/browser-lazy/chunks/packet-2IRCFIY7.js": "0bd53ca801d7d43c0db31da0690ccafca0b80c002e24564bc1658727a9586fe2",
+        "dist/browser-lazy/chunks/pie-EG5HILEF.js": "213447ae371890602bfda6e8edddf6c8d14bc1601a52b40d02851054a082a0d1",
+        "dist/browser-lazy/chunks/quadrant-EU4PD7QV.js": "b85d20ff4a12dbd789eded98197170bd8e43936080595dcce62aee7a53462a80",
+        "dist/browser-lazy/chunks/radar-EPGUNNNQ.js": "6057732ab48cb4242622c6a6643ab44d92a5f6f7094a20300a9c1b3f9ddd8cb2",
+        "dist/browser-lazy/chunks/render-core-7ZVK3YUX.js": "c2818998e1ee3c8d5f881efd44f348d5363ec97c18c6f3973b165d57cf906408",
+        "dist/browser-lazy/chunks/requirement-JKMNU4LC.js": "f7dab4ebd86a96bff6e453683fbcbb3ac31d0bbbea3f08d0decd6c7159164a3a",
+        "dist/browser-lazy/chunks/sankey-TY75LPRQ.js": "842897f4c02e11be62627e809fe0dcc65a19541d3214a180d5849f4ecc115ea2",
+        "dist/browser-lazy/chunks/sequence-72FR7LAL.js": "eb3544a88f1cdd4400aa378b585ea761df9f867978714de75acfff653233fa45",
+        "dist/browser-lazy/chunks/state-SKVLI4X3.js": "751e554079b0185754bc8ad5b5e98da7edc5d84cc8e276d23ca81b1a704bd8f9",
+        "dist/browser-lazy/chunks/timeline-N43KCH63.js": "e9176fef60b2fe7248fc0e471147427b572fa0d30b9241ac47d5e15e3b1a7e6b",
+        "dist/browser-lazy/chunks/treemap-QNZX3B42.js": "262e3dc098d7640820960f6aa9c88b3f79e75f587b4d022c54b65355873074f6",
+        "dist/browser-lazy/chunks/xychart-H6EZTUW3.js": "89c2e35f84f768b0978937dfd3d0de50bfa6033c0f27b2c4d98109264b6610fc",
+        "dist/browser-lazy/index.js": "2918144b24e0f9b0269c7f68ad980dcde61923b547bf738e50004ebe801a6806",
+        "dist/browser.global.js": "a3cb6cde797b6cc430257f669018fa0d354f77bd0559317b49e048beb575e750",
+        "dist/chunk-52CPNGVB.js": "0d92d72abf0f0a74298cb7148285c7099f46d43afa1893861d06dcdd522d895f",
+        "dist/chunk-6IJ7WXOI.js": "bde87885ba6e4295f2025fb5145e482bf84882b5572170879c5031064c86959c",
+        "dist/chunk-6OUC64BN.js": "f0ecb89d2136bc7c0cc649175b7f799aedbe8ae3a5f49b8097b36b5112c91909",
+        "dist/chunk-DGZXKYZD.js": "9ff2ba0780a909924a0eba895e80631c22d9478a2f48f0088b60a536a3198d79",
+        "dist/chunk-DVAS3KZT.js": "eb63ca1b3ccc3aa592e3024accd91593488a48fc3b16f711a5933144444f147a",
+        "dist/chunk-FMEKJJBY.js": "0d9f5fa682bc0251a38ec2178a39106c190c3fa79d04c7db7dedf1b3325659da",
+        "dist/chunk-KX6Y7WVA.js": "12fef870943be59e8e9f5dc7016e40fcf4defd446fc7856596c6210c4d0af36b",
+        "dist/chunk-LAWGGKJA.js": "7b53222544215a602f509dbea45cee4fb45f11093e44fac25cec80c2a20d6dcb",
+        "dist/chunk-LKZIGP5T.js": "fe76e692841277135bb8c421fc88064ba37c51beca2e12d00f8fd2495c5a8e46",
+        "dist/chunk-PZ5AY32C.js": "40c1be907ef01c2fa72b19a2d3873e62f68ffaf37d4de958cc6c07fe90b79493",
+        "dist/elk-constructor.js": "b54a7e45d487478fe1eb64140bea5558d7bc9efecd43c9deadb34afd4eab9a68",
+        "dist/elk-constructor.node.js": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+        "dist/index.js": "42c6bfdb51e85e0527d9877072cfecb3e51f74d65d0589ada5813400ca3ae038",
+        "dist/mcp-cli-6OY6LM6Q.js": "54f7f145b3ac67bf45e35eef27676e6b39f8d0c0516c74e5c0eab1753cb3c1a4",
+        "dist/svg-styles.js": "7d00ec3c0029a9ec7f9a793e95d6a4b06bbe54f48f6265935244a1a04c46b3ac",
+        "dist/svg.js": "83a8d62acb0e0c963ec426e5aae6284dbb530e4f9ff9e5e03f5cf82316eae3b4"
+      },
+      "aa": {
+        "dist/agent-core.js": "ba3feeeff78b2c7200a9acaa240cec0664ef5038ddbce08d4f5a916acdf968ef",
+        "dist/agent.js": "1b5ab6a83677d5442b06e6f38ab17bc74ae6f9d76b2b2034dccda0873a3bcbae",
+        "dist/agentic-mermaid-mcp.js": "f5b5fe318f8cd904a564966659a91e4f5cbddc1951d2e1ab9f8b422e7eed59d0",
+        "dist/am.js": "a75be8c806233351da89b25410e99940c3542299d0a92d8897fa2999a028c122",
+        "dist/browser-lazy/chunks/agentic-producer-core-LAHYLRBY.js": "20b45a47c6b3ae1c551b62fa53bb7e415ec3162fbf8c6b51d886314d10a3bd02",
+        "dist/browser-lazy/chunks/architecture-XALJHR27.js": "fc0f68480e606bddb55b68c0b770e9765af62787d9e7469ba94bdee7c7e64562",
+        "dist/browser-lazy/chunks/block-K7B7H7GU.js": "ab26c0e918483cf53c06b3ecf00bc6bde1613579194960ebef0053fbf58a09eb",
+        "dist/browser-lazy/chunks/builtin-backends-USLTEU4J.js": "a7abcdbe7a99ef23166c8df6422b64fda39d2903e9b333b4ee376c03078b8a81",
+        "dist/browser-lazy/chunks/c4-RFHPCX7A.js": "546221415fd203fb0caef329c2c19abbf498a974ab4bd265c68586bcd5a4f5b8",
+        "dist/browser-lazy/chunks/chunk-2MS72CRI.js": "ec670618a2a233078050ded18738be42ffce017e4ba7e2805a3644d5057daad4",
+        "dist/browser-lazy/chunks/chunk-2U2OZZL6.js": "ab2bfcfd757173182e2c1c0fc7b4039f9527e89c7fd4b61ca639325ce5b3aba2",
+        "dist/browser-lazy/chunks/chunk-2YOGUJ6J.js": "dd9875bb4aa7110103a7e00e1450d902112d7c8f73256b071d7069ce2b04784c",
+        "dist/browser-lazy/chunks/chunk-4BILHUIU.js": "012eac8c588ceca1e3d45824954e19f3cee9182caf545b293152054454eec365",
+        "dist/browser-lazy/chunks/chunk-4QUINBQR.js": "f5f249140625c3fc4bdd090ab06bb483d0b22f27b9268fc5eaeea60646b0a516",
+        "dist/browser-lazy/chunks/chunk-53NOFCOO.js": "7c286e600c48712358776a247d6730bbaa12b6fd8ee23c5b23b2f1a05251d853",
+        "dist/browser-lazy/chunks/chunk-5CIZFB3F.js": "8ffc13ad93696a7bcf26950a9cd04e02a04bacd9aa395726e9dc6d66d6d93d54",
+        "dist/browser-lazy/chunks/chunk-5SWWN2D2.js": "38ba2e463709924ea14d64b08a05f5ebcb2a0a4371c7708d3405230234b8c638",
+        "dist/browser-lazy/chunks/chunk-6DEVFF2X.js": "4068ddbc50b3f5336e57a6be6328f067e72331c25bf2e67ea67299abc72ad65d",
+        "dist/browser-lazy/chunks/chunk-6USYSCZI.js": "98971732c82195d78dfb61146c5288aecbade3e8cd413ea4e014a566024e8d7d",
+        "dist/browser-lazy/chunks/chunk-A3GBNR3V.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dist/browser-lazy/chunks/chunk-AI4KLC7S.js": "270d8eb24415fe080dfbf553bfecb2437e35ba71af052f8d7873e06a64ae4da0",
+        "dist/browser-lazy/chunks/chunk-CML5DD2S.js": "5ca614fdd4b197aedcb563d1ba34959bef5833d56b0a7fef5de55d3c5f7cad7e",
+        "dist/browser-lazy/chunks/chunk-EI5QM7M3.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dist/browser-lazy/chunks/chunk-EMH4QCMV.js": "dae4fb8fa15e4fea754f66f707cccf729249046b348a4f1781279c7c85f14729",
+        "dist/browser-lazy/chunks/chunk-F4SGKDAD.js": "0706091b8cbafc25db6be9283cc70df5d1600012a51711b2ef618a38b2fa1f3d",
+        "dist/browser-lazy/chunks/chunk-GJIZBK2R.js": "12192e8b92d35e5cc728e401c4419e3a423947aa7d1dd1a41210dfebf5b4f590",
+        "dist/browser-lazy/chunks/chunk-GLLOJJXT.js": "8829a1e00b2974e49f327eeb3598d80580d9d713f6e0b5ce7b5e576188d50ecf",
+        "dist/browser-lazy/chunks/chunk-HXXZNSNM.js": "12edfcb99949d0099ceddd5afdba115302fab16328dda030e90415525a027433",
+        "dist/browser-lazy/chunks/chunk-I6VE56S7.js": "c6ec80358c6f8f72d5a71129c4bd802bca25913511b77f5af9554387d5768cfc",
+        "dist/browser-lazy/chunks/chunk-ILZFRQM3.js": "ad33400a699c91ab9a2452503d6b03e9acfe62b5001e13f6a2dcc1594154688d",
+        "dist/browser-lazy/chunks/chunk-IXDYND44.js": "19ddce18212beb519f4765ccf006ce7f06b63c44bfa87a66d3baefbc4ab52852",
+        "dist/browser-lazy/chunks/chunk-JG6AYGOM.js": "b92f53efedaa4793ff695a6e4c4f0b24c3d17313ced4a0203fca0381c1f258d9",
+        "dist/browser-lazy/chunks/chunk-JVCT4H2G.js": "357f0c081ea747d375e85e099f0027118c141cecd351750c4a86f0f87be13989",
+        "dist/browser-lazy/chunks/chunk-MIFTRNKB.js": "75d8f718af06959ddb4309bb610fcfd9c5bc59b2a16f3fd5ea731da41fd1c3af",
+        "dist/browser-lazy/chunks/chunk-NARGOOTK.js": "11563787e5630c0ac61e8ce8e109450f6a9d50b0d6784f3c5182a5b7ff15cb70",
+        "dist/browser-lazy/chunks/chunk-NTD4ADQU.js": "4d4998d67ea6ca39f50127fdc2be8e0f798f6dc8041e698841d8b54a298153dc",
+        "dist/browser-lazy/chunks/chunk-ODUMZFSF.js": "6dc94bdd1d38715f9c28198315c0ba0ce66d368a97b7dd9e85fc108e67ef5a65",
+        "dist/browser-lazy/chunks/chunk-OFRMKQA6.js": "da6a6565981d7212b441dc86bcb1c7b2113932eacf86acc13e81a97371f62228",
+        "dist/browser-lazy/chunks/chunk-OG44SWPE.js": "e25667c26e71eaf43b9f70dc760e5e810a6f3940af8d5bef343d490bc245583d",
+        "dist/browser-lazy/chunks/chunk-Q5PMYR3T.js": "a0ef8f0854dcab216608c9704ddee6eebcd563f25f387ec5049ec55d33241ac3",
+        "dist/browser-lazy/chunks/chunk-QW346T4I.js": "f70f0ffd05cb68352b5e31d42fae7bbdc8e186aa66b163f40446894235218082",
+        "dist/browser-lazy/chunks/chunk-RBZPZQ6X.js": "9c265045116fbdd17bb1747d19fee5fafaf2d5bd913584d4597e3a9aa517b1a8",
+        "dist/browser-lazy/chunks/chunk-RDWEAJXS.js": "1e1b3726be7f51851a8124277a5f20a1229768512bf7a2eb29db24bd8c1ec6ca",
+        "dist/browser-lazy/chunks/chunk-RZBPJUDW.js": "1b31bb5b110518539ccec83c696efc8e8f793af981b69f09c79b80ee7019103a",
+        "dist/browser-lazy/chunks/chunk-UDDZKGBK.js": "2084b3efe746a93ec352108aaa9410516b2d47837da76cc6e762868825aecd58",
+        "dist/browser-lazy/chunks/chunk-UOHGEJK5.js": "28d763f5a0cfb0e74ee2cae9263344f6e0173e431012dc131f939a6adde257c2",
+        "dist/browser-lazy/chunks/chunk-VQUM2MF5.js": "dd28b0ace63fa5b7b1385c95f2813bd7bdc227e7f37a497281cabb7088b1bca9",
+        "dist/browser-lazy/chunks/chunk-VXMS36WY.js": "0eb38a48791f142185b36fe5dc94298adcd95d75f612fc118a87783a8adecdea",
+        "dist/browser-lazy/chunks/chunk-WDPK6XKW.js": "62dc415a14427ff60460ae6959a49a07353f6b042fc58ee5a25f63c1be13b07a",
+        "dist/browser-lazy/chunks/chunk-XOQFAIPE.js": "d50d9f1d229a9e27ae81bab40d81915eb0f99a8cb63dda3929e531313d9fba7b",
+        "dist/browser-lazy/chunks/chunk-YG377JUG.js": "6006660934881459c6a136ed23b9bbad78709553f65f40057089784f6f34a177",
+        "dist/browser-lazy/chunks/chunk-YPULNW32.js": "e375f6c7833fbc7cef83dd42a590e44a3a209287d8c3fc9cbcb310ab8384fd5e",
+        "dist/browser-lazy/chunks/class-C6J6DLGT.js": "c7982963227e79795fc953fdc9b044affb79c4ecaf673cb0ee0b4fe12fc426f6",
+        "dist/browser-lazy/chunks/decode-Y5M7HUXJ.js": "05fa4ad2221d8c7a66cbdda921baa56c5f708f0745bd664d6ff4242346ec8a10",
+        "dist/browser-lazy/chunks/elk.bundled-VF4HLRNQ.js": "90fce6f36069100005f76d3c13f9eab2b59b9261c4d762f2d5ef1c33b319d819",
+        "dist/browser-lazy/chunks/er-UIJTZJTN.js": "136183603e0997061bc867531f1241a0f31ade11b586dcc2146d4fa97db7d277",
+        "dist/browser-lazy/chunks/flowchart-MYUXRABS.js": "02da1fab054a849275f70650a2c7d6ecb51c94538f43a2640745a6aad0e43136",
+        "dist/browser-lazy/chunks/gantt-IT6WECGY.js": "f628049ddf46fc9ad7677faea2afd0bea2a8d3bebeb1b877d05cccde3dec6c06",
+        "dist/browser-lazy/chunks/gitgraph-VBG5EYWF.js": "45d0f6f4cb2f80dd978391e628684dd82ff1fabb8eace6e1a0cf48eff68890e6",
+        "dist/browser-lazy/chunks/ishikawa-N5DX65LW.js": "0eb4af463f21a00d9205eb49708d97225d8a701ff9ddcd850c356b874311e4bc",
+        "dist/browser-lazy/chunks/journey-SNK4ILLP.js": "7bba7cf3c45501ab477839c8e9480d50fd8a21cd324e7da20e840e5a849673cf",
+        "dist/browser-lazy/chunks/kanban-7FI7KJVG.js": "964ff25c4616e093ae47bda4e8dec29dae270b96f21f13983c4da7828d02defa",
+        "dist/browser-lazy/chunks/mindmap-57R53VXJ.js": "1ab3f1c6ab1991282ef00fc5370dd2bf0a2ed8d0aa4b322d70e8685b672e4132",
+        "dist/browser-lazy/chunks/packet-2IRCFIY7.js": "0bd53ca801d7d43c0db31da0690ccafca0b80c002e24564bc1658727a9586fe2",
+        "dist/browser-lazy/chunks/pie-EG5HILEF.js": "213447ae371890602bfda6e8edddf6c8d14bc1601a52b40d02851054a082a0d1",
+        "dist/browser-lazy/chunks/quadrant-EU4PD7QV.js": "b85d20ff4a12dbd789eded98197170bd8e43936080595dcce62aee7a53462a80",
+        "dist/browser-lazy/chunks/radar-EPGUNNNQ.js": "6057732ab48cb4242622c6a6643ab44d92a5f6f7094a20300a9c1b3f9ddd8cb2",
+        "dist/browser-lazy/chunks/render-core-7ZVK3YUX.js": "c2818998e1ee3c8d5f881efd44f348d5363ec97c18c6f3973b165d57cf906408",
+        "dist/browser-lazy/chunks/requirement-JKMNU4LC.js": "f7dab4ebd86a96bff6e453683fbcbb3ac31d0bbbea3f08d0decd6c7159164a3a",
+        "dist/browser-lazy/chunks/sankey-TY75LPRQ.js": "842897f4c02e11be62627e809fe0dcc65a19541d3214a180d5849f4ecc115ea2",
+        "dist/browser-lazy/chunks/sequence-72FR7LAL.js": "eb3544a88f1cdd4400aa378b585ea761df9f867978714de75acfff653233fa45",
+        "dist/browser-lazy/chunks/state-SKVLI4X3.js": "751e554079b0185754bc8ad5b5e98da7edc5d84cc8e276d23ca81b1a704bd8f9",
+        "dist/browser-lazy/chunks/timeline-N43KCH63.js": "e9176fef60b2fe7248fc0e471147427b572fa0d30b9241ac47d5e15e3b1a7e6b",
+        "dist/browser-lazy/chunks/treemap-QNZX3B42.js": "262e3dc098d7640820960f6aa9c88b3f79e75f587b4d022c54b65355873074f6",
+        "dist/browser-lazy/chunks/xychart-H6EZTUW3.js": "89c2e35f84f768b0978937dfd3d0de50bfa6033c0f27b2c4d98109264b6610fc",
+        "dist/browser-lazy/index.js": "2918144b24e0f9b0269c7f68ad980dcde61923b547bf738e50004ebe801a6806",
+        "dist/browser.global.js": "a3cb6cde797b6cc430257f669018fa0d354f77bd0559317b49e048beb575e750",
+        "dist/chunk-52CPNGVB.js": "0d92d72abf0f0a74298cb7148285c7099f46d43afa1893861d06dcdd522d895f",
+        "dist/chunk-6IJ7WXOI.js": "bde87885ba6e4295f2025fb5145e482bf84882b5572170879c5031064c86959c",
+        "dist/chunk-6OUC64BN.js": "f0ecb89d2136bc7c0cc649175b7f799aedbe8ae3a5f49b8097b36b5112c91909",
+        "dist/chunk-DGZXKYZD.js": "9ff2ba0780a909924a0eba895e80631c22d9478a2f48f0088b60a536a3198d79",
+        "dist/chunk-DVAS3KZT.js": "eb63ca1b3ccc3aa592e3024accd91593488a48fc3b16f711a5933144444f147a",
+        "dist/chunk-FMEKJJBY.js": "0d9f5fa682bc0251a38ec2178a39106c190c3fa79d04c7db7dedf1b3325659da",
+        "dist/chunk-KX6Y7WVA.js": "12fef870943be59e8e9f5dc7016e40fcf4defd446fc7856596c6210c4d0af36b",
+        "dist/chunk-LAWGGKJA.js": "7b53222544215a602f509dbea45cee4fb45f11093e44fac25cec80c2a20d6dcb",
+        "dist/chunk-LKZIGP5T.js": "fe76e692841277135bb8c421fc88064ba37c51beca2e12d00f8fd2495c5a8e46",
+        "dist/chunk-PZ5AY32C.js": "40c1be907ef01c2fa72b19a2d3873e62f68ffaf37d4de958cc6c07fe90b79493",
+        "dist/elk-constructor.js": "b54a7e45d487478fe1eb64140bea5558d7bc9efecd43c9deadb34afd4eab9a68",
+        "dist/elk-constructor.node.js": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+        "dist/index.js": "42c6bfdb51e85e0527d9877072cfecb3e51f74d65d0589ada5813400ca3ae038",
+        "dist/mcp-cli-6OY6LM6Q.js": "54f7f145b3ac67bf45e35eef27676e6b39f8d0c0516c74e5c0eab1753cb3c1a4",
+        "dist/svg-styles.js": "7d00ec3c0029a9ec7f9a793e95d6a4b06bbe54f48f6265935244a1a04c46b3ac",
+        "dist/svg.js": "83a8d62acb0e0c963ec426e5aae6284dbb530e4f9ff9e5e03f5cf82316eae3b4"
+      },
+      "architecture": {
+        "dist/agent-core.js": "1f16f090824d0b44489c77ba2e0bb58d8b6f57b28ebaad3d1615604ebb132ff3",
+        "dist/agent.js": "b10a8f988dcb8a7647078599ca72ff65fb1450e3752c611a624f4799d8f715a4",
+        "dist/agentic-mermaid-mcp.js": "a378aa08f6721ca0c704b3ee2fe54181740c9bcda69b57cb5340b01283f805e3",
+        "dist/am.js": "dd2eb0a302be43b8c8a8224097aef5bc939423e38b318aa068a1e6dc492b08a6",
+        "dist/chunk-DGZXKYZD.js": "9ff2ba0780a909924a0eba895e80631c22d9478a2f48f0088b60a536a3198d79",
+        "dist/chunk-EIYDFDEJ.js": "c86fb5c3561815ae6bf38905e6e68b57cf5eb8141cf41ce6898b7d91d92d56e5",
+        "dist/chunk-ESPNWGL4.js": "19d8ff437e0222fc5c30baefefbf63ca448e6ca2f61fe27cc602a9152158f8de",
+        "dist/chunk-JWZPSXUW.js": "dd9bd21d0775a30c9a36c0c32d4f896d5b48c203a7df31575f9bfa0aa51a71d7",
+        "dist/chunk-LSJVOFXD.js": "6dbcb270fe46a48a929e685b29b0323b103260d80551d08b120624b340bc1072",
+        "dist/chunk-NDJAGD2J.js": "2da6cc7ed9f7f319b1023443a20e0bd09d7d60854303fef34b82c92cc8d2220e",
+        "dist/chunk-PZ5AY32C.js": "40c1be907ef01c2fa72b19a2d3873e62f68ffaf37d4de958cc6c07fe90b79493",
+        "dist/chunk-RP46EHCE.js": "5f169799669234485575356b42a8778a333e96c63bb78b93ecbcdf4d2fb11147",
+        "dist/chunk-SEVRXM3V.js": "b3df2a1458cfb2928115ff1014dcb21fd9839b921a84e856a82c48d3a606a631",
+        "dist/chunk-VCQT4TA7.js": "53939e7e7764ff5b51582b8c47e1d2c098b71877afa64ca7f5e75b2718343b34",
+        "dist/elk-constructor.js": "b54a7e45d487478fe1eb64140bea5558d7bc9efecd43c9deadb34afd4eab9a68",
+        "dist/elk-constructor.node.js": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+        "dist/index.js": "ace7260bf94767ab65c61b67f8fca703fcd051784afde1e6ab1d5004e813f225",
+        "dist/mcp-cli-SX4W7XOI.js": "37208642cfb3333e10eb46fff8c13c52bc8a3ece59bb317120092acff4820fbd",
+        "dist/svg-styles.js": "eb6d2e231afbf2be9d7d63dd1564d114e49b4efbffcdcbca4df60dcdea41984d",
+        "dist/svg.js": "41f5de7bf998735e45e9d549d7bae8682512c2016328b07ac2bf0c065316841c"
+      },
+      "proof": {
+        "dist/agent-core.js": "afe5e44e9de56d34aa1217c07f60d1eb4bd932514f6ac6d374bec4ca26ca4789",
+        "dist/agent.js": "e711bac7c29ee3ab358ecfa2c0278dad31d0fd160b3b250e4f45638bf9b44e6d",
+        "dist/agentic-mermaid-mcp.js": "bc8f2eeb566c05a78f83eb42520a6f760b1189104738061fa1aef855eb0580b9",
+        "dist/am.js": "e6ef4cbe910252c3d01f125b747c1b9e42550f7606bb7a6f1506de2415c7ea1e",
+        "dist/chunk-6XDL4BXS.js": "61c815fbb3b1bb22ef2955453152fed8321cd327608dcb6a908c4ccb927fc2a6",
+        "dist/chunk-BBGEPVCX.js": "6bd9103e201bd47c5e4e9aec5532aa3314d8d4fe00dc10da6fa20c58728edf7c",
+        "dist/chunk-DGZXKYZD.js": "9ff2ba0780a909924a0eba895e80631c22d9478a2f48f0088b60a536a3198d79",
+        "dist/chunk-DPGMSZRH.js": "a20df8b73ef73233b93de172643f7f737c455d006742a107212f579fcfc45e7b",
+        "dist/chunk-EIYDFDEJ.js": "c86fb5c3561815ae6bf38905e6e68b57cf5eb8141cf41ce6898b7d91d92d56e5",
+        "dist/chunk-ETXRFDYX.js": "1c22714e1f75ec3a4db345c765a9a139b7879d4712906bd0c378a0d11bbfa851",
+        "dist/chunk-I5D463BF.js": "129dca5367404dbb975468b18a4178d63bf5bdd2836bd5f1644163f31daba2e7",
+        "dist/chunk-JAPNEUND.js": "a30cfd4101dcb16146f089e876519a7502d8ae31c36f95a6c32a596d1e5c61ed",
+        "dist/chunk-PZ5AY32C.js": "40c1be907ef01c2fa72b19a2d3873e62f68ffaf37d4de958cc6c07fe90b79493",
+        "dist/chunk-UNTSNLKS.js": "40d76977ccf9145490601c9023d47cbc975557d235d359f052053415d70df80b",
+        "dist/elk-constructor.js": "b54a7e45d487478fe1eb64140bea5558d7bc9efecd43c9deadb34afd4eab9a68",
+        "dist/elk-constructor.node.js": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+        "dist/index.js": "b888070cbb7101ade09d504b0e755e08572b4cb91d7682d47eeb48bfc71ef0e1",
+        "dist/mcp-cli-YDKS5JWO.js": "383c35a2632984251b22ff49c1cbd552d4795eb46dc3f32d4118711d061a3b38",
+        "dist/svg-styles.js": "eb6d2e231afbf2be9d7d63dd1564d114e49b4efbffcdcbca4df60dcdea41984d",
+        "dist/svg.js": "d654a18c05f998bf28f80ab0028ea289899dc831ac43c57536e17d2fa3f97078"
+      },
+      "lane-index": {
+        "dist/agent-core.js": "a57b828f73c2aae6ff40cb1530c2fbfc5f39a974829a5afa85976f47660e8a75",
+        "dist/agent.js": "434819799010df60c4597499b770d871a114a639d4a42ff1d1e129c2a53e3539",
+        "dist/agentic-mermaid-mcp.js": "0032d0146caa87bc24402e81dadb3405614733a04103f7a8b1c4128a953201cf",
+        "dist/am.js": "5a7f785ae4f3451b5167e50119d7b4650b3c26cedc62a883b70002ee418ee12c",
+        "dist/chunk-3H3PEC2Z.js": "e3ad011352ec3e07b08945e35d5fe4120ee1995b95031b509f3d4b3d8f2c404c",
+        "dist/chunk-BKCBLMAZ.js": "953ecc92f0668b9765135adc64732a8134d6c86496b582e5c55d72afa5afd6ea",
+        "dist/chunk-DGZXKYZD.js": "9ff2ba0780a909924a0eba895e80631c22d9478a2f48f0088b60a536a3198d79",
+        "dist/chunk-EIYDFDEJ.js": "c86fb5c3561815ae6bf38905e6e68b57cf5eb8141cf41ce6898b7d91d92d56e5",
+        "dist/chunk-KXVN4Y3O.js": "60058bdb1ceda764032980e4392505d1f7089d5371a0a0647bef15039fe68da1",
+        "dist/chunk-MBUWLHER.js": "838202d28ea2885b0ce78e5cf4cf83649fff12cb8abdab4edd40d88100e4f889",
+        "dist/chunk-PZ5AY32C.js": "40c1be907ef01c2fa72b19a2d3873e62f68ffaf37d4de958cc6c07fe90b79493",
+        "dist/chunk-TAV6BTYE.js": "7fe7e606261b13c3a45911be0decd9d5325d5b265ae397597f5d6cf7dd1ceff5",
+        "dist/chunk-UJISPMVN.js": "b1e32dc62b1e472513524d8adc87fab51cdc94a669544140cd2a9325e6b6651a",
+        "dist/chunk-YODURG4E.js": "f738ed984df9b41f0326d6e3b198bfe651182e5e2d791145163b47f538e4eb24",
+        "dist/elk-constructor.js": "b54a7e45d487478fe1eb64140bea5558d7bc9efecd43c9deadb34afd4eab9a68",
+        "dist/elk-constructor.node.js": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+        "dist/index.js": "178f214f36712f175f7b2c4d12cec373a65ffeb509d4bcbf82dfdfec6d9cfa06",
+        "dist/mcp-cli-VBLND7ZI.js": "489410032ea45fb98804a06c18de9adaaec0c02e0fa805fa27a2d95d3b9e2a4b",
+        "dist/svg-styles.js": "eb6d2e231afbf2be9d7d63dd1564d114e49b4efbffcdcbca4df60dcdea41984d",
+        "dist/svg.js": "2ff2b77f24ed784a47fde81867167f183595c13dcc1b4cb7b61330b93d8831c3"
+      }
+    },
+    "inputs": [
+      {
+        "id": "cyclic15",
+        "source": "flowchart LR\nn0{Node 85-0}\nn1(Node 85-1)\nn2((Node 85-2))\nn3[[Node 85-3]]\nn4[(Node 85-4)]\nn5[Node 85-5]\nn6{Node 85-6}\nn7(Node 85-7)\nn8((Node 85-8))\nn9[[Node 85-9]]\nn10[(Node 85-10)]\nn11[Node 85-11]\nn12{Node 85-12}\nn13(Node 85-13)\nn14((Node 85-14))\nn8 -->|edge 0 xxx| n9\nn0 --> n13\nn6 --> n4\nn9 --> n10\nn10 -->|edge 4 xxxxxxx| n13\nn4 --> n5\nn12 --> n13\nn12 --> n10\nn8 -->|edge 8 xxxxxxxxxxx| n4\nn0 --> n3\nn3 --> n4\nn6 --> n11\nn13 -->|edge 12 xxxxxxxxxxxxxxx| n11\nn8 --> n13\nn14 --> n4\nn9 --> n1\nn9 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n7\nn4 --> n11\nn12 --> n2\nn14 --> n8\nn9 -->|edge 20 xxxxxx| n10\nn2 --> n0\nn5 --> n6\nn10 --> n13\nn12 -->|edge 24 xxxxxxxxxx| n10\nn2 --> n0\nn8 --> n4\nn1 --> n12\nn4 -->|edge 28 xxxxxxxxxxxxxx| n9\nn11 --> n5\nn8 --> n0\n",
+        "family": "flowchart",
+        "sha256": "40b52ff5529dcefef47f1bfd09ecbef3d2384b52811337cf61d20c122bf6bfbc"
+      },
+      {
+        "id": "cyclic18",
+        "source": "flowchart TD\nn0(Node 296-0)\nn1((Node 296-1))\nn2[[Node 296-2]]\nn3[(Node 296-3)]\nn4[Node 296-4]\nn5{Node 296-5}\nn6(Node 296-6)\nn7((Node 296-7))\nn8[[Node 296-8]]\nn9[(Node 296-9)]\nn10[Node 296-10]\nn11{Node 296-11}\nn12(Node 296-12)\nn13((Node 296-13))\nn14[[Node 296-14]]\nn15[(Node 296-15)]\nn16[Node 296-16]\nn17{Node 296-17}\nn16 -->|edge 0 xxx| n10\nn4 --> n6\nn16 --> n8\nn12 --> n11\nn10 -->|edge 4 xxxxxxx| n9\nn2 --> n6\nn16 --> n8\nn0 --> n11\nn14 -->|edge 8 xxxxxxxxxxx| n9\nn2 --> n7\nn6 --> n12\nn8 --> n13\nn14 -->|edge 12 xxxxxxxxxxxxxxx| n5\nn6 --> n10\nn2 --> n16\nn0 --> n3\nn8 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n12\nn14 --> n9\nn0 --> n2\nn10 --> n7\nn4 -->|edge 20 xxxxxx| n6\nn4 --> n10\nn14 --> n0\nn0 --> n13\nn2 -->|edge 24 xxxxxxxxxx| n16\nn12 --> n7\nn12 --> n4\nn4 --> n16\nn6 -->|edge 28 xxxxxxxxxxxxxx| n8\nn16 --> n7\nn16 --> n14\nn12 --> n5\nn0 -->|edge 32 xxxxxxxxxxxxxxxxxx| n1\nn8 --> n1\nn4 --> n15\nn10 --> n13\nn4 -->|edge 36 xxxxx| n10\nn4 --> n17",
+        "family": "flowchart",
+        "sha256": "57e520f87985a146e5a29c7d8721caa3974d0a5c710fd88caf26c3c2451a193a"
+      },
+      {
+        "id": "er40",
+        "source": "erDiagram\n  E0 {\n    int id PK\n    string name0\n  }\n  E1 {\n    int id PK\n    string name1\n  }\n  E0 ||--o{ E1 : has\n  E2 {\n    int id PK\n    string name2\n  }\n  E0 ||--o{ E2 : has\n  E3 {\n    int id PK\n    string name3\n  }\n  E1 ||--o{ E3 : has\n  E4 {\n    int id PK\n    string name4\n  }\n  E1 ||--o{ E4 : has\n  E5 {\n    int id PK\n    string name5\n  }\n  E2 ||--o{ E5 : has\n  E6 {\n    int id PK\n    string name6\n  }\n  E2 ||--o{ E6 : has\n  E7 {\n    int id PK\n    string name7\n  }\n  E3 ||--o{ E7 : has\n  E8 {\n    int id PK\n    string name8\n  }\n  E3 ||--o{ E8 : has\n  E9 {\n    int id PK\n    string name9\n  }\n  E4 ||--o{ E9 : has\n  E10 {\n    int id PK\n    string name10\n  }\n  E4 ||--o{ E10 : has\n  E11 {\n    int id PK\n    string name11\n  }\n  E5 ||--o{ E11 : has\n  E12 {\n    int id PK\n    string name12\n  }\n  E5 ||--o{ E12 : has\n  E13 {\n    int id PK\n    string name13\n  }\n  E6 ||--o{ E13 : has\n  E14 {\n    int id PK\n    string name14\n  }\n  E6 ||--o{ E14 : has\n  E15 {\n    int id PK\n    string name15\n  }\n  E7 ||--o{ E15 : has\n  E16 {\n    int id PK\n    string name16\n  }\n  E7 ||--o{ E16 : has\n  E17 {\n    int id PK\n    string name17\n  }\n  E8 ||--o{ E17 : has\n  E18 {\n    int id PK\n    string name18\n  }\n  E8 ||--o{ E18 : has\n  E19 {\n    int id PK\n    string name19\n  }\n  E9 ||--o{ E19 : has\n  E20 {\n    int id PK\n    string name20\n  }\n  E9 ||--o{ E20 : has\n  E21 {\n    int id PK\n    string name21\n  }\n  E10 ||--o{ E21 : has\n  E22 {\n    int id PK\n    string name22\n  }\n  E10 ||--o{ E22 : has\n  E23 {\n    int id PK\n    string name23\n  }\n  E11 ||--o{ E23 : has\n  E24 {\n    int id PK\n    string name24\n  }\n  E11 ||--o{ E24 : has\n  E25 {\n    int id PK\n    string name25\n  }\n  E12 ||--o{ E25 : has\n  E26 {\n    int id PK\n    string name26\n  }\n  E12 ||--o{ E26 : has\n  E27 {\n    int id PK\n    string name27\n  }\n  E13 ||--o{ E27 : has\n  E28 {\n    int id PK\n    string name28\n  }\n  E13 ||--o{ E28 : has\n  E29 {\n    int id PK\n    string name29\n  }\n  E14 ||--o{ E29 : has\n  E30 {\n    int id PK\n    string name30\n  }\n  E14 ||--o{ E30 : has\n  E31 {\n    int id PK\n    string name31\n  }\n  E15 ||--o{ E31 : has\n  E32 {\n    int id PK\n    string name32\n  }\n  E15 ||--o{ E32 : has\n  E33 {\n    int id PK\n    string name33\n  }\n  E16 ||--o{ E33 : has\n  E34 {\n    int id PK\n    string name34\n  }\n  E16 ||--o{ E34 : has\n  E35 {\n    int id PK\n    string name35\n  }\n  E17 ||--o{ E35 : has\n  E36 {\n    int id PK\n    string name36\n  }\n  E17 ||--o{ E36 : has\n  E37 {\n    int id PK\n    string name37\n  }\n  E18 ||--o{ E37 : has\n  E38 {\n    int id PK\n    string name38\n  }\n  E18 ||--o{ E38 : has\n  E39 {\n    int id PK\n    string name39\n  }\n  E19 ||--o{ E39 : has",
+        "family": "er",
+        "sha256": "918d40c83e1942dc43b7de67f96a723fb89c0f8c7390a5d07e463132c751c794"
+      },
+      {
+        "id": "corpus/architecture/0",
+        "family": "architecture",
+        "source": "architecture-beta\n    group api(cloud)[API]\n\n    service db(database)[Database] in api\n    service disk1(disk)[Storage] in api\n    service disk2(disk)[Storage] in api\n    service server(server)[Server] in api\n\n    db:L -- R:server\n    disk1:T -- B:server\n    disk2:T -- B:db"
+      },
+      {
+        "id": "corpus/architecture/3",
+        "family": "architecture",
+        "source": "architecture-beta\n    group sources(cloud)[Sources]\n        service src_a(server)[Source A] in sources\n        service src_b(server)[Source B] in sources\n        service src_c(server)[Source C] in sources\n\n    group storage(database)[Storage]\n        service db_one(database)[DB One] in storage\n        service db_two(database)[DB Two] in storage\n        service db_three(database)[DB Three] in storage\n\n    group output(disk)[Output]\n        service brief(disk)[Brief] in output\n        service analyst(server)[Analyst] in output\n        service delivery(cloud)[Delivery] in output\n\n    src_a:B --> T:db_one\n    src_b:B --> T:db_two\n    src_c:B --> T:db_three\n    db_two:B --> T:brief\n    brief:R --> L:analyst\n    analyst:R --> L:delivery\n\n    align row src_a src_b src_c\n    align row db_one db_two db_three\n    align row brief analyst delivery\n\n    align column src_a db_one\n    align column src_b db_two brief\n    align column src_c db_three"
+      },
+      {
+        "id": "corpus/architecture/5",
+        "family": "architecture",
+        "source": "architecture-beta\n    group api(logos:aws-lambda)[API]\n\n    service db(logos:aws-aurora)[Database] in api\n    service disk1(logos:aws-glacier)[Storage] in api\n    service disk2(logos:aws-s3)[Storage] in api\n    service server(logos:aws-ec2)[Server] in api\n\n    db:L -- R:server\n    disk1:T -- B:server\n    disk2:T -- B:db"
+      }
+    ],
+    "rounds": 3,
+    "reps": 15,
+    "policies": [
+      "off"
+    ],
+    "modes": [
+      "time",
+      "memory"
+    ],
+    "budgetMs": 480000,
+    "workerTimeoutMs": 120000,
+    "consumption": "Existing release worker; full SVG UTF8 + receipt JSON inside API timing. Independent GC memory workers. Hashes outside timing.",
+    "limits": "Six fixed diagnostic inputs; three individually changed native artifacts vs integrated23 with native23 A/A. No ELK arm or full-release claim; no normal-cache speed claim. All arms share one deadline.",
+    "workerSha256": "c212cf4759b15cce2de0bfacb568fe8d6df983087a1dbb6e8e8e3ee1a16c110e"
   }
 }
