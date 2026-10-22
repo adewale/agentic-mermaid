@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { transformSync } from 'esbuild'
 import ts from 'typescript'
 import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
 
@@ -33,15 +34,18 @@ function fixture(relative: string, source: string): string {
 const printer = ts.createPrinter({ removeComments: true })
 function conformanceStructure(source: string) {
   const file = ts.createSourceFile('backend-conformance.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  const calls: Array<{ arguments: string[]; literalObservation: boolean; observation?: string }> = []
+  const calls: Array<{ arguments: string[]; literalObservation: boolean; observation?: string; evaluatedObservation?: string }> = []
   const visit = (node: ts.Node): void => {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'outcome') {
       const observation = node.arguments[1]
       const literal = observation && (ts.isStringLiteral(observation) || ts.isNoSubstitutionTemplateLiteral(observation)) ? observation : undefined
+      const discarded = observation && ts.isParenthesizedExpression(observation) ? observation.expression : undefined
+      const evaluated = discarded && ts.isBinaryExpression(discarded) && discarded.operatorToken.kind === ts.SyntaxKind.CommaToken ? discarded.left : undefined
       calls.push({
         arguments: node.arguments.map(argument => printer.printNode(ts.EmitHint.Expression, argument, file)),
         literalObservation: literal !== undefined,
         observation: literal?.text,
+        evaluatedObservation: evaluated && printer.printNode(ts.EmitHint.Expression, evaluated, file),
       })
     }
     ts.forEachChild(node, visit)
@@ -59,7 +63,7 @@ describe('browser runtime metadata projection', () => {
     expect(project(path, { conformanceObservations: true })).toBe(source)
   })
 
-  test('projects only literal observation arguments in the real executable conformance module', () => {
+  test('preserves predicates, diagnostics and observation evaluation in the real executable conformance module', () => {
     const path = join(root, 'src/scene/backend-conformance.ts')
     const before = conformanceStructure(readFileSync(path, 'utf8'))
     const after = conformanceStructure(project(path, { conformanceObservations: false }))
@@ -70,17 +74,17 @@ describe('browser runtime metadata projection', () => {
       expect(projected.arguments[0]).toBe(original.arguments[0])
       expect(projected.arguments.slice(2)).toEqual(original.arguments.slice(2))
       if (original.literalObservation) expect(projected.observation).toBe('')
-      else expect(projected.arguments[1]).toBe(original.arguments[1])
+      else expect(projected.evaluatedObservation).toBe(original.arguments[1])
     }
     // These owners preserve witness IDs, claim statuses/limitations, report
     // acceptance and failure diagnostics independently of observation prose.
-    for (const name of ['outcome', 'nativeOrEmulated', 'runCapabilityClaims', 'runBackendConformance']) {
+    for (const name of ['outcome', 'runCapabilityClaims', 'runBackendConformance']) {
       expect(before.functions.has(name)).toBe(true)
       expect(after.functions.get(name)).toBe(before.functions.get(name))
     }
   })
 
-  test('preserves expression evaluation and failure diagnostics while erasing literal prose', () => {
+  test('preserves evaluation, coercion, throws and diagnostics after minifying projected observations', () => {
     const source = [
       'function outcome(passed, observation, diagnostic) { return passed ? { passed, observation } : { passed, observation, diagnostic }; }',
       'function run() {',
@@ -88,22 +92,34 @@ describe('browser runtime metadata projection', () => {
       "  const check = () => { events.push('check'); return false; };",
       "  const observe = () => { events.push('observe'); return 'dynamic observation'; };",
       "  const diagnose = () => { events.push('diagnose'); return 'failure diagnostic'; };",
+      "  const object = { toString() { events.push('coerce'); return 'coerced observation'; } };",
       '  const results = [',
       "    outcome(check(), 'literal observation', diagnose()),",
       "    outcome(true, `plain template observation`, 'unused diagnostic'),",
       '    outcome(false, observe(), diagnose()),',
       "    outcome(true, `computed ${observe()}`, 'template diagnostic'),",
       "    outcome(true, check() ? 'yes' : 'no', diagnose()),",
+      "    outcome(true, `object ${object}`, diagnose()),",
       '  ];',
-      '  return { events, results };',
+      '  let thrown;',
+      "  try { outcome(true, (() => { events.push('throw'); throw new Error('observation failure'); })(), diagnose()); }",
+      '  catch (error) { thrown = error.message; }',
+      '  return { events, results, thrown };',
       '}',
     ].join('\n')
     const path = fixture('src/scene/backend-conformance.ts', source)
-    const before = Function(`${source}\nreturn run();`)() as { events: string[]; results: Array<{ passed: boolean; observation: string; diagnostic?: string }> }
-    const after = Function(`${project(path, { conformanceObservations: false })}\nreturn run();`)() as typeof before
-    expect(after.events).toEqual(before.events)
-    expect(after.results.map(({ passed, diagnostic }) => ({ passed, diagnostic }))).toEqual(before.results.map(({ passed, diagnostic }) => ({ passed, diagnostic })))
-    expect(after.results.map(result => result.observation)).toEqual(['', '', ...before.results.slice(2).map(result => result.observation)])
+    const before = Function(`${source}\nreturn run();`)() as { events: string[]; results: Array<{ passed: boolean; observation: string; diagnostic?: string }>; thrown?: string }
+    const projected = project(path, { conformanceObservations: false })
+    const minified = transformSync(`${projected}\ncapture(run());`, { loader: 'js', minify: true }).code
+    let emitted: typeof before | undefined
+    Function('capture', minified)((value: typeof before) => { emitted = value })
+    const direct = Function(`${projected}\nreturn run();`)() as typeof before
+    for (const after of [direct, emitted!]) {
+      expect(after.events).toEqual(before.events)
+      expect(after.thrown).toBe(before.thrown)
+      expect(after.results.map(({ passed, diagnostic }) => ({ passed, diagnostic }))).toEqual(before.results.map(({ passed, diagnostic }) => ({ passed, diagnostic })))
+      expect(after.results.map(result => result.observation)).toEqual(before.results.map(() => ''))
+    }
   })
 
   test('keeps schema prose and terminal metadata independently configurable', () => {

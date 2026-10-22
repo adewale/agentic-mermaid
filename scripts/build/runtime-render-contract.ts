@@ -95,8 +95,9 @@ function runtimeLayoutSource(source: string, path: string): string {
 }
 
 /** Render-only entries do not publish backend conformance observations. Keep
- * every executable witness and failure diagnostic; erase only literal prose in
- * outcome's observation position, never an expression that may do work. */
+ * every executable witness and failure diagnostic. Evaluate nonliteral
+ * observations before discarding their result, preserving coercion and throws;
+ * the minifier may then remove prose from expressions it proves pure. */
 function runtimeConformanceSource(source: string, path: string): string {
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   let projected = 0
@@ -104,10 +105,13 @@ function runtimeConformanceSource(source: string, path: string): string {
     const visit: ts.Visitor = node => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'outcome') {
         const observation = node.arguments[1]
-        if (observation && (ts.isStringLiteral(observation) || ts.isNoSubstitutionTemplateLiteral(observation))) {
+        if (observation) {
           projected++
+          const discarded = ts.isStringLiteral(observation) || ts.isNoSubstitutionTemplateLiteral(observation)
+            ? ts.factory.createStringLiteral('')
+            : ts.factory.createParenthesizedExpression(ts.factory.createCommaListExpression([observation, ts.factory.createStringLiteral('')]))
           return ts.visitEachChild(ts.factory.updateCallExpression(node, node.expression, node.typeArguments,
-            node.arguments.map((argument, index) => index === 1 ? ts.factory.createStringLiteral('') : argument)), visit, context)
+            node.arguments.map((argument, index) => index === 1 ? discarded : argument)), visit, context)
         }
       }
       return ts.visitEachChild(node, visit, context)
@@ -115,7 +119,7 @@ function runtimeConformanceSource(source: string, path: string): string {
     return ts.visitNode(root, visit) as ts.SourceFile
   }])
   try {
-    if (!projected) throw new Error('Browser conformance projection could not find literal observations')
+    if (!projected) throw new Error('Browser conformance projection could not find observations')
     return ts.createPrinter().printFile(transformed.transformed[0]!)
   } finally { transformed.dispose() }
 }
