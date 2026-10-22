@@ -4,6 +4,8 @@ import { layoutAgenticGraph, type MeasuredGraph } from '../layout/agentic-layere
 import { createMeasuredLayoutCache } from '../layout/agentic-producer-core.ts'
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { parseArchitectureDiagram, architectureToMermaidGraph } from '../architecture/parser.ts'
+import { layoutArchitectureDiagram } from '../architecture/layout.ts'
+import { architectureLayoutMetrics, DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
@@ -18,6 +20,38 @@ describe('Architecture placement-only ownership', () => {
     expect(Object.keys(placed).sort()).toEqual(['groups', 'height', 'nodes', 'width'])
     expect(placed.nodes.find(node => node.id === 'j')).toEqual(expect.objectContaining({ width: 92, height: 92 }))
     expect(graph).toEqual(original)
+  })
+
+  test.each([
+    ['four-line group', 'architecture-beta\ngroup g["One<br/>Two<br/>Three<br/>Four"]\nservice a(server)[A] in g', {}],
+    ['nested custom-font groups', 'architecture-beta\ngroup outer["Outer<br/>Header"]\ngroup inner["One<br/>Two<br/>Three<br/>Four"] in outer\nservice a(server)[A] in inner', { groupFontSize: 20, groupFontWeight: 700, groupLetterSpacing: 1 }],
+  ] as const)('retains measured header bands and centers multiline titles: %s', (_name, source, overrides) => {
+    const visual = { ...DEFAULT_ARCHITECTURE_VISUAL, ...overrides }
+    const options: RenderOptions = { graphLayout: { backend: 'agentic', fallback: 'none' }, architecture: { visual: overrides } }
+    const model = parseArchitectureDiagram(toMermaidLines(source))
+    const placed = layoutArchitectureDiagram(model, options, architectureLayoutMetrics(visual))
+    const groups = placed.groups.flatMap(group => [group, ...group.children])
+    const rendered = renderMermaidSVGWithReceipt(source, options)
+    const tags = scanSvgStartTags(rendered.svg).map(tag => Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value])))
+    const bands = tags.filter(tag => tag.class === 'architecture-group-band')
+    const titles = tags.filter(tag => tag.class === 'architecture-group-label')
+    expect(bands).toHaveLength(groups.length)
+    expect(titles).toHaveLength(groups.length)
+    for (const [index, group] of groups.entries()) {
+      expect(group.headerHeight).toBeDefined()
+      const bandBottom = Number(bands[index]!.d!.match(/ V([-\d.]+)/)![1])
+      const titleCenter = Number(titles[index]!.y)
+      expect(bandBottom - group.y).toBeGreaterThanOrEqual(group.labelBlock!.height + 8)
+      expect(bandBottom).toBeCloseTo(group.y + group.headerHeight!, 5)
+      expect(titleCenter).toBeCloseTo(group.y + group.headerHeight! / 2, 5)
+      expect(titleCenter - group.labelBlock!.height / 2).toBeGreaterThanOrEqual(group.y + 4)
+      expect(titleCenter + group.labelBlock!.height / 2).toBeLessThanOrEqual(bandBottom - 4)
+      const children = [...group.children, ...placed.services.filter(service => service.parentId === group.id)]
+      for (const child of children) expect(child.y).toBeGreaterThanOrEqual(bandBottom)
+      expect(group.label).toBe(model.groups.find(authored => authored.id === group.id)!.label)
+    }
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
   })
 
   test('keeps the placement-only flag in the measured cache key and clones returned geometry', () => {
