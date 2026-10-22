@@ -37,3 +37,46 @@ The optional cache counters are evaluator-only source transformations. They inst
 The96 population can fit the outer128-entry cache and therefore mask inner64-entry solver-cache churn. The source diagnosis includes normal outer+inner (`EXPERIMENTS=text-spans,position-cache`, `ELK_CACHE=1`), outer-off/inner-on (`EXPERIMENTS=text-spans`, `ELK_CACHE=1`), and a separately launched global cache-off regime (`ELK_CACHE=0`). Global cache-off also disables the outer cache; it cannot isolate outer-only caching. Each counter probe includes fill, second and third passes. Read differences between successive snapshots; counters are cumulative, and no extra render is hidden inside a reset.
 
 Build both packages before all campaigns, record their source revisions, and do not run builds, tests or other timed workers alongside measurements. Retain every timeout, typed decline, report and previous attempt. A workflow or artifact existing is not evidence of completion: inspect campaign status, all planned rounds, support outcomes, A/A gates and matched memory. This is the27-case release canary and declared supplementary evidence, not proof of every Mermaid family or all generated inputs.
+
+## Separate whole 27-input memory experiment
+
+`layout-memory-only.py` declares and runs a separate mixed-session experiment
+against two already built packages. Each stock release memory worker receives
+all 27 historical inputs, including the edit workflow. This measures a whole 27-input
+session, unlike the legacy release harness's pooled seven-corpus worker and
+separate scaling/edit memory workers. It does not replace failed legacy
+qualifications or establish timing results.
+
+```bash
+python3 eval/benchmark/layout-memory-only.py declare \
+  --baseline /path/to/integrated23 --candidate /path/to/final24 \
+  --worker "$PWD/eval/benchmark/release-bench-worker.ts" \
+  --inputs /path/to/full27-inputs.json --out /path/to/new-memory-results
+python3 eval/benchmark/layout-memory-only.py run --plan /path/to/new-memory-results/plan.json
+```
+
+Use a Node version supporting TypeScript stripping. The input is the historical27
+envelope from `layout-review-population.ts`; the retained final experiment
+includes its exact bytes. Declaration freezes driver, Node, worker closure,
+input and package/lock/Node-JS hashes. Execution refuses changed artifacts or a
+previously executed plan. Both cache policies run serially; each has three rounds,
+five fresh-process arms (ELK, ELK A/A, baseline native, baseline native A/A,
+candidate native) and one unchanged 480,000ms shared bound. Worker order rotates
+by round. Run without competing builds, tests or benchmark workers.
+
+Memory mode ignores the positive `reps:25` protocol field: it warms one pass,
+measures per-input GC boundaries, then measures one complete mixed-session pass
+and its settled growth. RSS covers the worker lifetime. Complete SVG and receipts
+are consumed, but this worker mode does not expose their fingerprints. Pair the
+memory evidence with separate correctness/determinism evidence. Pass-allocation
+and RSS A/A median ratios must lie in reciprocal 1.1; candidate growth gates are
+1.25× and retained growth has a 16MiB absolute cap. Retained ratios with zero
+denominators remain null. All granular values, failures and unlaunched rows stay
+in the report, including individual inputs/rounds outside aggregate controls.
+
+The [recorded experiment](../../docs/design/system/layout-guidance-benchmarks.json)
+contains the immutable declaration, exact executed driver bytes, input envelope,
+all 30 results and assessments. The portable runner subsequently narrows only
+its malformed-result exception handler for lint; its hash is recorded separately.
+No measured renderer or stock worker changed. Never use this new protocol to
+relabel a deadline failure as a passed release qualification.
