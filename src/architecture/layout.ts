@@ -1304,34 +1304,21 @@ function movePoint(point: Point, side: ArchitectureEndpoint['side'], distance: n
   }
 }
 
-function simplifyOrthogonalPoints(points: Point[]): Point[] {
+export function simplifyOrthogonalPoints(points: Point[]): Point[] {
   const simplified: Point[] = []
-
+  let previousInput: Point | undefined
   for (const point of points) {
-    const last = simplified[simplified.length - 1]
-    if (last && last.x === point.x && last.y === point.y) {
-      continue
+    // Deduplicate authored neighbors before reducing collinearity: a U-turn
+    // can introduce equal endpoints which the old reduction retained.
+    if (previousInput && previousInput.x === point.x && previousInput.y === point.y) continue
+    previousInput = point
+    while (simplified.length > 1) {
+      const prev = simplified[simplified.length - 2]!, curr = simplified[simplified.length - 1]!
+      if ((prev.x === curr.x && curr.x === point.x) || (prev.y === curr.y && curr.y === point.y)) simplified.pop()
+      else break
     }
     simplified.push(point)
   }
-
-  let changed = true
-  while (changed) {
-    changed = false
-    for (let i = 1; i < simplified.length - 1; i++) {
-      const prev = simplified[i - 1]!
-      const curr = simplified[i]!
-      const next = simplified[i + 1]!
-      const sameX = prev.x === curr.x && curr.x === next.x
-      const sameY = prev.y === curr.y && curr.y === next.y
-      if (sameX || sameY) {
-        simplified.splice(i, 1)
-        changed = true
-        break
-      }
-    }
-  }
-
   return simplified
 }
 
