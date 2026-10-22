@@ -10,6 +10,7 @@ import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { improveArchitectureSiblingSlots } from '../layout/agentic-layered.ts'
+import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -238,7 +239,12 @@ export function layoutArchitectureDiagram(
     )
   )
   let edges = routeEdges()
-  if (legalSlots) edges = improveArchitectureSiblingSlots(diagram, services, edges, routeEdges, legalSlots)
+  if (legalSlots) edges = improveArchitectureSiblingSlots(diagram, services, edges, routeEdges, legalSlots, routes => {
+    // Private all-pair shaft grouping, with the public predicates' unchanged
+    // thresholds. Keep generic metric dependencies out of the optional solver.
+    const ink = routes.map(({ points }) => ({ points, style: 'solid' as const, source: '', target: '_' }))
+    return countOpposingRouteOverlaps(ink) || countParallelRouteOverlaps(ink)
+  })
   edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
   separateEdgeLabels(edges, services, metrics)
 
