@@ -39,6 +39,16 @@ const BUILD_TIMEOUT_MS = 300_000
 /** The IIFE's `globalName`. Changing it is a breaking change for script-tag consumers. */
 const GLOBAL = 'agenticMermaid'
 
+// Exercise the vocabulary whose documentation prose is omitted only from the
+// lazy build. Authored labels/accessibility and executable shape metadata must
+// still cross both emitted browser boundaries without changing the receipt.
+const SHAPE_METADATA_PARITY_CASES = [
+  { name: 'aliases', source: 'flowchart LR\nA@{ shape: card, label: "Card" }\nB@{ shape: database, label: "Database" }\nA --> B' },
+  { name: 'semantic geometry', source: 'flowchart LR\nA@{ shape: cloud, label: "Cloud" }\nB@{ shape: hourglass, label: "Hourglass" }\nC@{ shape: document, label: "Document" }\nA --> B --> C' },
+  { name: 'unknown shape', source: 'flowchart LR\nA@{ shape: zigzag, label: "Unknown shape" }\nA --> B' },
+  { name: 'authored descriptions', source: 'flowchart LR\naccTitle: Authored shape metadata\naccDescr: Authored description: Process\nA@{ shape: rect, label: "description: \'Process\'" }\nA --> B' },
+] as const
+
 /** Newest modification time among the bundle's build inputs: production
  *  source, the tsup configs, and package.json. Tests are not inputs, and
  *  `generated/` directories are written by the build itself. */
@@ -153,6 +163,30 @@ describe('browser bundle', () => {
     const schema = await page.evaluate(name => (globalThis as Record<string, any>)[name].sharedRenderOptionsJsonSchema(), GLOBAL)
     expect(schema).toEqual(sharedRenderOptionsJsonSchema())
   })
+
+  test.each(['elk', 'agentic'] as const)('IIFE preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {
+    for (const input of SHAPE_METADATA_PARITY_CASES) {
+      const options = {
+        security: 'strict' as const,
+        graphLayout: { backend },
+        mermaidConfig: { flowchart: { defaultRenderer: 'dagre' } },
+      }
+      const actual = await page.evaluate(({ name, source, options }) => {
+        const diagnostics: unknown[] = []
+        const rendered = (globalThis as Record<string, any>)[name].renderMermaidSVGWithReceipt(source, {
+          ...options, onConfigDiagnostic: (value: unknown) => diagnostics.push(value),
+        })
+        return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
+      }, { name: GLOBAL, source: input.source, options })
+      const diagnostics: unknown[] = []
+      const expected = renderMermaidSVGWithReceipt(input.source, {
+        ...options, onConfigDiagnostic: value => diagnostics.push(value),
+      })
+      expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
+      expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
+    }
+  }, BUILD_TIMEOUT_MS)
+
 
   for (const family of BUILTIN_FAMILY_METADATA) {
     test(`renders ${family.id} identically to the source build`, async () => {
@@ -364,6 +398,42 @@ describe('async family-loaded browser renderer', () => {
           catch (error) { return String(error) }
         }, { entryUrl: `${base}/dist/browser-lazy/index.js`, options })
         expect(actual).toBe(expected)
+      }
+    } finally { await page.close() }
+  }, BUILD_TIMEOUT_MS)
+
+  test.each(['elk', 'agentic'] as const)('lazy prose stripping preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/blank.html`)
+      for (const input of SHAPE_METADATA_PARITY_CASES) {
+        const options = {
+          security: 'strict' as const,
+          graphLayout: { backend },
+          mermaidConfig: { flowchart: { defaultRenderer: 'dagre' } },
+        }
+        const actual = await page.evaluate(async ({ entryUrl, source, options }) => {
+          const api = await import(entryUrl)
+          const diagnostics: unknown[] = []
+          const rendered = await api.renderMermaidSVGWithReceiptAsync(source, {
+            ...options, onConfigDiagnostic: (value: unknown) => diagnostics.push(value),
+          })
+          return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
+        }, { entryUrl: `${base}/dist/browser-lazy/index.js`, source: input.source, options })
+        const diagnostics: unknown[] = []
+        const expected = renderMermaidSVGWithReceipt(input.source, {
+          ...options, onConfigDiagnostic: value => diagnostics.push(value),
+        })
+        expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
+        expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
+        if (input.name === 'authored descriptions') {
+          const text = await page.evaluate(svg => {
+            const document = new DOMParser().parseFromString(svg, 'image/svg+xml')
+            return { description: document.querySelector('desc')?.textContent, text: document.documentElement.textContent }
+          }, actual.svg)
+          expect(text.description).toBe('Authored description: Process')
+          expect(text.text).toContain("description: 'Process'")
+        }
       }
     } finally { await page.close() }
   }, BUILD_TIMEOUT_MS)

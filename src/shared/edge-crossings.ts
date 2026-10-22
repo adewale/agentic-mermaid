@@ -22,6 +22,7 @@ interface Segment {
 }
 
 interface CrossingLocation extends CrossingPoint { error: number }
+type RouteSegment = Pick<Segment, 'a' | 'b' | 'edgeIndex' | 'pointIndex'>
 
 function locationTolerance(a: CrossingPoint, b: CrossingPoint): number {
   return 8 * Number.EPSILON * Math.max(1, Math.abs(a.x), Math.abs(a.y), Math.abs(b.x), Math.abs(b.y))
@@ -36,7 +37,22 @@ function pointOrder(a: CrossingPoint, b: CrossingPoint): number {
   return a.x - b.x || a.y - b.y
 }
 
-function localRays(segment: Segment, point: CrossingLocation, routes: readonly CrossingPolyline[]): [CrossingPoint, CrossingPoint] | undefined {
+export function retainCrossingLocation(points: CrossingLocation[], point: CrossingLocation): void {
+  const duplicate = points.find(p => p.x === point.x && p.y === point.y)
+  if (duplicate) duplicate.error = Math.max(duplicate.error, point.error)
+  else points.push(point)
+}
+
+export function distinctCrossingLocations(points: CrossingLocation[]): number {
+  points.sort(pointOrder)
+  const distinct: CrossingLocation[] = []
+  for (const point of points) {
+    if (!distinct.some(previous => sameLocation(previous, point, Math.max(previous.error, point.error)))) distinct.push(point)
+  }
+  return distinct.length
+}
+
+function localRays(segment: RouteSegment, point: CrossingLocation, routes: readonly CrossingPolyline[]): [CrossingPoint, CrossingPoint] | undefined {
   const points = routes[segment.edgeIndex]!.points
   // The physical contact tolerance belongs to the whole route's endpoints.
   // Applying it to internal bends changes topology when a segment is split.
@@ -53,7 +69,7 @@ function localRays(segment: Segment, point: CrossingLocation, routes: readonly C
   return [points[before]!, points[after]!]
 }
 
-function crossingPoint(a: Segment, b: Segment, routes: readonly CrossingPolyline[]): CrossingLocation | undefined {
+export function crossingPoint(a: RouteSegment, b: RouteSegment, routes: readonly CrossingPolyline[]): CrossingLocation | undefined {
   // The same geometry uses the same arithmetic under route reversal/order.
   let p = a.a, q = a.b, r = b.a, s = b.b
   if (pointOrder(p, q) > 0) [p, q] = [q, p]
