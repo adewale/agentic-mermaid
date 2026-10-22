@@ -4,10 +4,10 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { cacheChurnPopulation } from './cache-churn-population.ts'
+import { cacheChurnGenerator, cacheChurnPopulation } from './cache-churn-population.ts'
 
 const sha = (value: string) => createHash('sha256').update(value).digest('hex')
-const event = (layer: string, name: string) => `cacheProbeEvent(this, ${layer}, '${name}', this.weight, this.entries.size);`
+const event = (layer: string, name: string) => `cacheProbeEvent(this, ${layer}, '${name}', this.weight, this.entries.size${name === 'get' || name === 'set' ? ', key' : ''});`
 
 function once(source: string, search: string, replacement: string): string {
   if (source.split(search).length !== 2) throw new Error(`Cache instrumentation expected exactly one occurrence: ${search}`)
@@ -48,12 +48,14 @@ async function main() {
   mkdirSync(out, { recursive: true })
   const started = Date.now(), deadline = started + budget, inputs = cacheChurnPopulation(count)
   const transformations: unknown[] = [], observations: unknown[] = []
-  const metadata = { protocol: 'source-cache-layer-diagnosis@1', sourceRoot: root, population: count, inputs, layoutCache: cache, budgetMs: budget,
+  const metadata = { protocol: 'source-cache-layer-diagnosis@1', sourceRoot: root, population: count, generator: cacheChurnGenerator(count), inputs, layoutCache: cache, budgetMs: budget,
     sourceFiles: ['src/experimental/weighted-lru.ts', 'src/layout/agentic-producer-core.ts'].map(path => ({ path, sha256: sha(readFileSync(join(root, path), 'utf8')) })),
     layers: { 'weighted:128:16777216': 'outer positioned artifact cache', 'weighted:64:1048576': 'ELK geometry cache (key code units)',
       'native:8388608': 'owned measured geometry', 'native:1048576': 'owned order choices' },
     limitations: ['Instrumented source/Bun only; no timing or memory-performance claim.', 'Paired uninstrumented source control must produce identical SVG/receipt hashes.',
-      'Event weights retain each cache implementation\'s units; ELK key code units are not resident bytes.', 'No public renderer globals, exports or source files are modified.'] }
+      'Event weights retain each cache implementation\'s units; ELK key code units are not resident bytes.',
+      'Distinct key cardinality uses full SHA256 fingerprints of actual get/set keys. Hashes/counts are evaluator-only, not inferred from authored sources.',
+      'No public renderer globals, exports or source files are modified.'] }
   const save = (status: string, extra: Record<string, unknown> = {}) => writeFileSync(join(out, 'report.json'), `${JSON.stringify({ ...metadata, status, transformations, observations, ...extra }, null, 2)}\n`)
   save('building')
   try {
@@ -71,6 +73,7 @@ async function main() {
       if (!built.success) throw new Error(`Diagnostic bundle failed: ${built.logs.join('\n')}`)
       if (built.outputs.length !== 1) throw new Error('Expected a single self-contained diagnostic bundle')
       writeFileSync(target, await built.outputs[0]!.text())
+      if (instrumented && new Set((transformations as Array<{ file: string }>).map(item => item.file)).size !== 2) throw new Error('Expected both outer/ELK and native cache source transforms')
       if (Date.now() >= deadline) throw new Error('Shared diagnostic budget exhausted during build')
     }
     // Fresh process per policy/backend/instrumentation arm. No timer is read
@@ -92,13 +95,25 @@ async function main() {
     const comparisons = []
     let ok = true
     for (const outer of ['normal', 'off']) for (const backend of ['elk', 'agentic']) {
-      const rows = observations as Array<{ outer?: string; backend?: string; instrumented?: boolean; failure?: string; result?: { phases: Array<{ svgSha256: string; receiptSha256: string; outcomes: Array<{ ok: boolean }> }> } }>
+      const rows = observations as Array<{ outer?: string; backend?: string; instrumented?: boolean; failure?: string; result?: { phases: Array<{
+        svgSha256: string; receiptSha256: string; outcomes: Array<{ ok: boolean }>;
+        after: Array<{ layer: string; distinctGetKeys: number; distinctSetKeys: number; events: Record<string, number> }>;
+      }> } }>
       const control = rows.find(row => row.outer === outer && row.backend === backend && row.instrumented === false)
       const measured = rows.find(row => row.outer === outer && row.backend === backend && row.instrumented === true)
       const output = (row: typeof control) => row?.result?.phases.map(phase => ({ svg: phase.svgSha256, receipt: phase.receiptSha256, outcomes: phase.outcomes }))
       const equal = !!control?.result && !!measured?.result && !control.failure && !measured.failure && JSON.stringify(output(control)) === JSON.stringify(output(measured))
       const successful = equal && measured!.result!.phases.every(phase => phase.outcomes.every(outcome => outcome.ok))
-      comparisons.push({ outer, backend, equal, successful }); ok &&= successful
+      const actualKeyCardinality = measured?.result?.phases.at(-1)?.after.map(layer => ({ layer: layer.layer,
+        distinctGetKeys: layer.distinctGetKeys, distinctSetKeys: layer.distinctSetKeys, observedEvictions: layer.events.evict ?? 0 })) ?? []
+      const target = backend === 'elk' ? 'weighted:64:1048576' : 'native:8388608'
+      const geometry = actualKeyCardinality.filter(layer => layer.layer === target)
+      const requiresStrongCheck = count !== 96 && cache === 'normal' && outer === 'off'
+      // Only actual instrumented geometry keys+evictions substantiate solver
+      // churn. A shortfall remains a failed diagnostic, never a cardinality claim.
+      const distinctGeometryAndEvictionObserved = geometry.some(layer => layer.distinctGetKeys >= count && layer.distinctSetKeys >= count && layer.observedEvictions > 0)
+      comparisons.push({ outer, backend, equal, successful, actualKeyCardinality, requiresStrongCheck, distinctGeometryAndEvictionObserved })
+      ok &&= successful && (!requiresStrongCheck || distinctGeometryAndEvictionObserved)
     }
     save('completed', { ok, comparisons }); if (!ok) process.exitCode = 1
   } catch (error) { save('failed', { ok: false, error: String(error) }); throw error }

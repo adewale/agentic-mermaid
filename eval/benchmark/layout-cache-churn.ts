@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { artifactIdentity } from './layout-runtime-differential.ts'
-import { cacheChurnPopulation } from './cache-churn-population.ts'
+import { cacheChurnGenerator, cacheChurnPopulation } from './cache-churn-population.ts'
 import { layoutCacheEnvironment } from './release-bench-fidelity.ts'
 import type { LayoutCache, MemoryResult } from './release-bench-types.ts'
 
@@ -49,11 +49,11 @@ function main() {
   const diagnostic: Array<{ population: number; failure?: string; exitCode?: number | null; signal?: string | null; error?: string; stderr?: string | null; report?: string }> = []
   const metadata = { protocol: 'bounded-cache-churn@2', sourceRevision: process.env.GITHUB_SHA, startedAt: new Date(started).toISOString(),
     config: { populations, rounds: 3, layoutCache: cache, cacheEnvironment: layoutCacheEnvironment(cache), budgetMs: 480000, failurePolicy: 'no-retry; one shared deadline', arms },
-    population: populations.map(count => { const inputs = cacheChurnPopulation(count); return { count, digest: sha(JSON.stringify(inputs)), inputs } }),
+    population: populations.map(count => { const inputs = cacheChurnPopulation(count); return { count, generator: cacheChurnGenerator(count), digest: sha(JSON.stringify(inputs)), inputs } }),
     worker: { path: join(import.meta.dir, 'release-bench-worker.ts'), sha256: sha(readFileSync(join(import.meta.dir, 'release-bench-worker.ts'), 'utf8')) },
     environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch },
-    limitations: ['Memory-only: no call-latency claim.', 'Historical96 source generator is unchanged, but protocol2 declares a shared regime deadline and additional populations/optional old-native arms.',
-      '129/256 source keys exceed outer128 entry capacity; actual hit/eviction evidence requires the separately labelled source probe.',
+    limitations: ['Memory-only: no call-latency claim.', 'Historical96 source generator is unchanged;129/256 use a declared new monotonic-width generator and cannot inherit historical96 comparison claims.',
+      'Distinct source IDs do not establish distinct measured geometry. Actual key cardinality and evictions require the separately labelled source probe.',
       'RSS covers the worker lifetime; heap is estimated at GC boundaries; retained growth is one settled pass.',
       'Source hit counters are advisory and never combined with packaged memory estimates.'] }
   const save = (status: string, extra: Record<string, unknown> = {}) => writeFileSync(join(out, 'report.json'), `${JSON.stringify({ ...metadata, status, observations, diagnostic, ...extra }, null, 2)}\n`)
