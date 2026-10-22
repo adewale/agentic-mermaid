@@ -1,5 +1,9 @@
+import { isOwnedFamily } from './experimental/owned-family.ts'
+import { DefaultBackend } from './scene/backend.ts'
+import { nativeDrawingOf } from './scene/drawing.ts'
+import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { cachedPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, retainPositioned } from './experimental/position-cache.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
 // Public adapters resolve source, config, appearance and shared options once.
@@ -29,6 +33,18 @@ export function normalizeFamilyLayoutResult(result: FamilyLayoutResult | Positio
 }
 
 export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource> = request.source, projectionOptions: FamilyPositionedProjectionOptions = {}): FamilyLayoutResult {
+  return positionFamily(familyId, request, source, projectionOptions, false)
+}
+
+/** Private render adapter: borrowed geometry never crosses a public boundary. */
+export function positionFamilyForNativeRender(request: ResolvedRenderRequest): FamilyLayoutResult {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  const borrow = plan.mode === 'scene' && plan.backend?.backend === DefaultBackend
+    && isOwnedFamily(plan.family) && !!nativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
+  return positionFamily(plan.family.id, request, request.source, {}, borrow)
+}
+
+function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean): FamilyLayoutResult {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const descriptor = executionPlan.family
   if (descriptor.id !== familyId) {
@@ -53,6 +69,13 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
     Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
+    if (borrow && boundedKey !== undefined) {
+      const snapshot = borrowedPositioned(descriptor, boundedKey)
+      if (snapshot?.projection) {
+        retainedProjections.set(snapshot.result, snapshot.projection)
+        return snapshot.result
+      }
+    }
     const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey)
     const result = hit ?? normalizeFamilyLayoutResult(
       descriptor.layout!({
@@ -77,7 +100,7 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
         throw new LayoutCertificationError([{ strategy, violations: [error instanceof Error ? error.message : String(error)] }])
       }
     }
-    if (!hit && boundedKey !== undefined) retainPositioned(descriptor, boundedKey, result)
+    if (!hit && boundedKey !== undefined) retainPositioned(descriptor, boundedKey, result, retainedProjections.get(result))
     return result
   })
 }
