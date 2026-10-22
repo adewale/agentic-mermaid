@@ -251,34 +251,43 @@ export function resolveTicks(schedule: GanttSchedule, model: GanttModel, targetT
  * overlap-free by construction.
  */
 export function packCompactLanes(tasks: Array<{ start: EpochMs; end: EpochMs }>): number[] {
-  if (tasks.length > 32 && tasks.every(task => Number.isFinite(task.start) && Number.isFinite(task.end))) {
-    let base = 1
-    while (base < tasks.length) base *= 2
-    const minimumEnd = new Array<number>(base * 2).fill(Infinity)
-    let laneCount = 0
-    return tasks.map(task => {
-      // Descend left first: choosing the smallest end would change first-fit.
-      let node = 1
-      if (minimumEnd[node]! <= task.start) {
-        while (node < base) node = minimumEnd[node * 2]! <= task.start ? node * 2 : node * 2 + 1
-      } else node = base + laneCount++
-      const lane = node - base
-      minimumEnd[node] = task.end
-      while ((node >>= 1) > 0) minimumEnd[node] = Math.min(minimumEnd[node * 2]!, minimumEnd[node * 2 + 1]!)
-      return lane
-    })
-  }
   const laneEnds: EpochMs[] = []
   const laneOf: number[] = []
+  let base = 0
+  let minimumEnd: number[] | undefined
   for (const t of tasks) {
-    let lane = laneEnds.findIndex(end => end <= t.start)
-    if (lane === -1) {
-      lane = laneEnds.length
-      laneEnds.push(t.end)
+    let lane = -1
+    if (minimumEnd) {
+      if (minimumEnd[1]! <= t.start) {
+        // Descend left first: choosing the smallest end would change first-fit.
+        let node = 1
+        while (node < base) node = minimumEnd[node * 2]! <= t.start ? node * 2 : node * 2 + 1
+        lane = node - base
+      }
     } else {
-      laneEnds[lane] = t.end
+      lane = laneEnds.findIndex(end => end <= t.start)
     }
+    if (lane === -1) lane = laneEnds.length
+    const addedLane = lane === laneEnds.length
+    laneEnds[lane] = t.end
     laneOf.push(lane)
+
+    if (minimumEnd && laneEnds.length <= base) {
+      let node = base + lane
+      minimumEnd[node] = laneEnds[lane]!
+      while ((node >>= 1) > 0) minimumEnd[node] = Math.min(minimumEnd[node * 2]!, minimumEnd[node * 2 + 1]!)
+    } else if (minimumEnd || (addedLane && laneEnds.length === 33
+      && tasks.every(task => Number.isFinite(task.start) && Number.isFinite(task.end)))) {
+      // Activate only above 32 lanes, after checking future tasks too.
+      // Thereafter grow only when a newly assigned lane exceeds capacity.
+      // Rebuilding from assigned ends includes this task's update.
+      base = base === 0 ? 64 : base * 2
+      minimumEnd = new Array<number>(base * 2).fill(Infinity)
+      for (let i = 0; i < laneEnds.length; i++) minimumEnd[base + i] = laneEnds[i]!
+      for (let node = base - 1; node > 0; node--) {
+        minimumEnd[node] = Math.min(minimumEnd[node * 2]!, minimumEnd[node * 2 + 1]!)
+      }
+    }
   }
   return laneOf
 }

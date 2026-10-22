@@ -116,6 +116,18 @@ describe('gantt layout — compact mode (mermaid #7603)', () => {
     const tasks = intervals.map(([start, end]) => ({ start: start as EpochMs, end: end as EpochMs }))
     expect(packCompactLanes(tasks)).toEqual([0, 1, ...new Array(31).fill(0)])
   })
+  test('dense sections retain first-fit lane order after growing and releasing lanes', () => {
+    for (const count of [33, 65, 129]) {
+      const intervals = [...Array.from({ length: count }, () => [0, 10]), [10, 20], [10, 15], [15, 25]]
+      const tasks = intervals.map(([start, end]) => ({ start: start as EpochMs, end: end as EpochMs }))
+      expect(packCompactLanes(tasks)).toEqual([...Array.from({ length: count }, (_, i) => i), 0, 1, 1])
+    }
+  })
+  test('future nonfinite intervals preserve comparison-based lane reuse', () => {
+    const intervals = [...Array.from({ length: 65 }, () => [0, 10]), [10, NaN], [Infinity, Infinity], [Infinity, Infinity]]
+    const tasks = intervals.map(([start, end]) => ({ start: start as EpochMs, end: end as EpochMs }))
+    expect(packCompactLanes(tasks)).toEqual([...Array.from({ length: 65 }, (_, i) => i), 0, 1, 1])
+  })
   // Three tasks where 1 and 3 do not overlap (sharable lane) but 2 overlaps
   // both — naive single-row packing would overlap bars.
   const DENSE = `---
