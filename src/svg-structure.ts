@@ -59,20 +59,7 @@ export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
 
 function scanStartTags(source: string): readonly SvgStartTagToken[] {
   const tags: SvgStartTagToken[] = []
-  for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
-    if (source.startsWith('<!--', start)) {
-      const end = source.indexOf('-->', start + 4)
-      if (end < 0) break
-      start = end + 2
-      continue
-    }
-    const first = source[start + 1]
-    if (!first || first === '/' || first === '!' || first === '?') continue
-    let nameEnd = start + 1
-    while (isNameChar(source[nameEnd])) nameEnd++
-    if (nameEnd === start + 1) continue
-    const end = scanTagEnd(source, nameEnd)
-    if (end < 0) break
+  visitStartTags(source, (start, nameEnd, end, selfClosing) => {
     const attributes: SvgAttributeToken[] = []
     let cursor = nameEnd
     while (cursor < end - 1) {
@@ -95,19 +82,54 @@ function scanStartTags(source: string): readonly SvgStartTagToken[] {
       attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
       cursor++
     }
-    // `/\s*>` at the end of the tag, read backwards without slicing it.
-    let beforeClose = end - 2
-    while (beforeClose > start && isWhitespace(source[beforeClose])) beforeClose--
     tags.push(Object.freeze({
       name: source.slice(start + 1, nameEnd),
       start,
       end,
       attributes: Object.freeze(attributes),
-      selfClosing: source[beforeClose] === '/',
+      selfClosing,
     }))
+  })
+  return Object.freeze(tags)
+}
+
+/** Traverse the same lexical boundaries without requiring attribute tokens
+ * when a consumer needs only element positions. */
+function visitStartTags(source: string, visit: (start: number, nameEnd: number, end: number, selfClosing: boolean) => void): void {
+  for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
+    if (source.startsWith('<!--', start)) {
+      const end = source.indexOf('-->', start + 4)
+      if (end < 0) break
+      start = end + 2
+      continue
+    }
+    const first = source[start + 1]
+    if (!first || first === '/' || first === '!' || first === '?') continue
+    let nameEnd = start + 1
+    while (isNameChar(source[nameEnd])) nameEnd++
+    if (nameEnd === start + 1) continue
+    const end = scanTagEnd(source, nameEnd)
+    if (end < 0) break
+    // `/\s*>` at the end of the tag, read backwards without slicing it.
+    let beforeClose = end - 2
+    while (beforeClose > start && isWhitespace(source[beforeClose])) beforeClose--
+    visit(start, nameEnd, end, source[beforeClose] === '/')
     start = end - 1
   }
-  return Object.freeze(tags)
+}
+
+/** Style text positions share the start-tag scanner's quote/comment rules.
+ * Scoping needs no attribute or mark representation for the rest of the SVG. */
+export function svgStyleRanges(source: string): readonly { readonly start: number; readonly end: number }[] {
+  return inspectSvgOnce('style-ranges', source, () => {
+    const ranges: Array<{ readonly start: number; readonly end: number }> = []
+    visitStartTags(source, (start, nameEnd, end, selfClosing) => {
+      if (selfClosing || source.slice(start + 1, nameEnd) !== 'style') return
+      const close = source.indexOf('</style', end)
+      if (close >= 0) ranges.push(Object.freeze({ start: end, end: close }))
+    })
+    return Object.freeze(ranges)
+  })
 }
 
 export function svgRootStartTag(source: string): SvgStartTagToken | undefined {
