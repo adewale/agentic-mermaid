@@ -5,6 +5,13 @@ const out = resolve(process.argv[2] ?? '.')
 const report = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))
 const inventory = JSON.parse(readFileSync(join(out, 'inventory.json'), 'utf8'))
 if (report.status !== 'completed') throw new Error('Application probes are incomplete')
+const catalog = report.catalog.themes
+for (const [name, rows] of [['themes', report.themes], ['themeSharing', report.themeSharing]]) {
+  if (!Array.isArray(rows) || rows.length !== catalog.length || new Set(rows.map(row => row.theme)).size !== catalog.length
+    || rows.some(row => !catalog.includes(row.theme))) throw new Error(`Incomplete ${name} evidence; rerun the application theme probes`)
+}
+if (report.themes.some(row => row.ok && row.activeTheme !== row.theme)) throw new Error('Theme success requires the requested active theme')
+if (report.themeSharing.some(row => row.ok && (row.sharedTheme !== row.theme || row.restoredTheme !== row.theme))) throw new Error('Theme sharing success requires preserved and restored theme identity')
 const median = values => [...values].sort((a, b) => a - b)[values.length >> 1]
 const engines = ['modern', 'agentic', 'reference']
 const accepted = Object.fromEntries(engines.map(engine => {
@@ -37,6 +44,8 @@ const summary = {
   }),
   examples: { accepted: report.examples.filter(row => row.ok).length, total: report.examples.length },
   themes: { accepted: report.themes.filter(row => row.ok).length, total: report.themes.length },
+  themeSharing: { accepted: report.themeSharing.filter(row => row.ok).length, total: report.themeSharing.length, failures: report.themeSharing.filter(row => !row.ok) },
+  themeMeasuredAt: report.themeMeasuredAt,
   themeFamilyMatrix: { accepted: report.themeFamilyMatrix.filter(row => row.ok).length, total: report.themeFamilyMatrix.length },
   exports: report.exports, probes: report.probes,
   modernOnly: inventory.occurrences.filter(input => accepted.modern.has(input.id) && !accepted.agentic.has(input.id)).map(input => ({ ...input, error: report.engines.find(row => row.engine === 'agentic' && row.id === input.id && !row.ok)?.error })),

@@ -24,8 +24,9 @@ annotation that disappears from both PNG export and a shared link.
 Modern has a separate repository root, `821bb7dfe8efb4349f97bcfa33bee5d815ca277a`.
 It imports Mermaid, calls `initialize` and `render`, then modifies the returned
 SVG. It supplies no independent Mermaid parser or layout engine. The community
-file therefore records an `observed` application with a `depends-on` edge to
-Mermaid, as an explicit requested exception to the renderer-only population.
+file records an `observed` member categorised as `editor` and `integration`,
+with a `depends-on` edge to Mermaid. Community membership now includes
+applications; renderer benchmark eligibility remains a separate decision.
 Its SVG is a preview surface; its download UI offers PNG/JPEG, not SVG.
 
 These measurements use a local production build. They do not establish that
@@ -164,7 +165,8 @@ faster verified interaction.
 | Probe | Observed result |
 | --- | --- |
 | Example catalog | 13 examples × 6 language variants; all **78/78** rendered in the actual editor |
-| Theme catalog | **24/24** rendered the same two-node flowchart in the actual application |
+| Theme catalog through the UI | **24/24** selected the requested theme and rendered the same two-node flowchart; active theme identity was checked |
+| Theme share restoration | **18/24** restored the requested theme; six shared themes silently became Linear Light |
 | Theme/config breadth | **552/552** dependency renders: 24 themes × 23 documentation groups with a representative the dependency accepts, including the mixed examples page |
 | Background/font controls | Source catalog has 27 backgrounds and 7 font choices; every combination was not rendered or font-fidelity tested |
 | JPEG export | 1,483×489, 48,326 bytes, opaque white corner |
@@ -176,6 +178,17 @@ faster verified interaction.
 | Mobile at 390×844 | Screenshot shows clipped toolbar/preview and a 63.5 px textarea; this is not a usable responsive layout |
 | Web and extension builds | Both production build commands passed; installed-extension behavior and offline PWA operation were not tested |
 | Upstream tests/lint | 2 manifest tests passed; lint failed with 27 errors and 5 warnings |
+
+The application-theme probes were corrected and rerun on 23 October using
+Bun 1.4.2 and the same pinned Modern build and Chromium version. The original
+probe accepted any SVG after visiting a theme URL, which counted default-theme
+fallbacks as successes. The corrected probe chooses each theme through its UI,
+checks the active theme, then shares and reopens that state. `win95`, `doodle`,
+`organic`, `hightech`, `kawaii` and `geometricCollage` produce share URLs naming
+the chosen theme but reopen as Linear Light because the URL loader's allow-list
+omits them. This is a Modern share-restoration defect, independent of the valid
+552-render dependency/config matrix. The original engine and other application
+measurements above retain their dates and revisions.
 
 Screenshots were inspected for desktop, mobile, Ghibli and Hand Drawn looks,
 and the annotation/export discrepancy. External fonts were blocked, so these
@@ -240,7 +253,9 @@ The runner writes `inventory.json`, `report.json`, `summary.json`, image exports
 and screenshots outside the repository. `report.json` retains all **9,855**
 engine attempts, source IDs, errors, per-round times and app probes. The
 summarizer rejects incomplete or duplicated engine passes and incomplete app
-runs. `RESUME_ENGINES=1` can repeat application probes after a harness change,
+runs. Theme rows must identify the active theme; share rows must identify both
+the shared and restored theme. Older reports lacking that evidence are rejected
+by the summarizer. `RESUME_ENGINES=1` can repeat application probes after a harness change,
 reusing a complete same-revision, same-bundle engine run; the original engine
 measurement date is retained. Use a fresh output directory for independent runs.
 Generated benchmark evidence is not committed.

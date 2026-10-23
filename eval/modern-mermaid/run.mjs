@@ -8,6 +8,7 @@ import { extname, join, resolve, sep } from 'node:path'
 import { gzipSync, brotliCompressSync } from 'node:zlib'
 import { chromium } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
+import { probeModernThemes } from './themes.mjs'
 
 const [peerArg, outArg] = process.argv.slice(2)
 if (!peerArg || !outArg) throw new Error('bun eval/modern-mermaid/run.mjs MODERN_CHECKOUT OUTPUT_DIRECTORY')
@@ -155,13 +156,12 @@ try {
     report.examples.push({ id: example.id, category: example.category, ...(await preview(example.source + '\n'.repeat(report.examples.length % 2 + 1))) })
     json('report.json', report)
   }
-  const themeUrls = await page.evaluate(({ themes, origin }) => themes.map(theme => ({ theme, url: `${origin}/?theme=${theme}&c=${modernBench.compressToURL('flowchart LR\n A[Alpha] --> B[Beta]')}` })), { themes: fixtures.themes, origin })
-  for (const { theme, url } of themeUrls) {
-    await page.goto(url)
-    try { await page.locator('div.p-12 > svg').waitFor({ timeout: 15000 }); report.themes.push({ theme, ok: true }); if (['linearLight', 'linearDark', 'ghibli', 'handDrawn'].includes(theme)) await page.screenshot({ path: join(out, `theme-${theme}.png`) }) }
-    catch (e) { report.themes.push({ theme, ok: false, error: String(e) }) }
-    json('report.json', report)
-  }
+  const themeProbe = await page.evaluate(origin => ({
+    catalog: Object.entries(modernBench.themes).map(([id, theme]) => ({ id, name: theme.name })),
+    url: `${origin}/?c=${modernBench.compressToURL('flowchart LR\n A[Alpha] --> B[Beta]')}`,
+  }), origin)
+  Object.assign(report, await probeModernThemes(page, themeProbe.catalog, themeProbe.url, out), { themeMeasuredAt: new Date().toISOString() })
+  json('report.json', report)
   await page.goto(origin)
   await page.locator('div.p-12 > svg').waitFor()
   const custom = 'flowchart LR\n A[Unicode café 日本語] --> B[Shared state]'
