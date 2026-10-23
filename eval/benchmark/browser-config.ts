@@ -28,5 +28,6 @@ export async function configureBrowserPage(page: Page, experiments: string | und
     if (experiments === undefined) delete host.AGENTIC_MERMAID_EXPERIMENTS
     else host.AGENTIC_MERMAID_EXPERIMENTS = experiments
     host.AGENTIC_MERMAID_ELK_CACHE = elkCache === 'on' ? '1' : '0'
+    host.AGENTIC_MERMAID_SCENE_ASSERTIONS = '0'
   }, { experiments, elkCache })
 }

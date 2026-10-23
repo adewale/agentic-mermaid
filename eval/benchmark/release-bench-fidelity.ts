@@ -2,10 +2,10 @@ import { decodeXML } from 'entities'
 import type { BenchInput } from './release-bench-types.ts'
 
 /** Check actual text emitted by the renderer, outside the timed call. */
-export function missingSvgLabels(svg: string, expected: readonly string[] = []): string[] {
+export function missingSvgLabels(svg: string, expected: readonly string[] = [], fieldPrefixes: readonly string[] = []): string[] {
   const labels = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
     .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim())
-  return expected.filter(label => !labels.includes(label))
+  return expected.filter(label => !labels.includes(label) && !fieldPrefixes.some(prefix => labels.includes(`${prefix}${label}`)))
 }
 
 export const agentEditCase: BenchInput = {

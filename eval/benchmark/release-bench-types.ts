@@ -32,6 +32,8 @@ export interface MemoryResult {
   perInput: Array<{ id: string; allocatedBytes: number; peakHeapBytes: number }>
   passAllocatedBytes: number
   passPeakHeapBytes: number
+  settledHeapBytes: number
+  retainedHeapBytes: number
   retainedGrowthBytes: number
   peakRssBytes: number
 }

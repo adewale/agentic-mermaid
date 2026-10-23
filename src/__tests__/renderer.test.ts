@@ -376,6 +376,59 @@ describe('renderSvg – edges', () => {
     expect(svg).not.toContain('<marker id="circlehead"')
     expect(svg).not.toContain('<marker id="crosshead"')
   })
+
+  it.each([0, 6])('keeps heterogeneous edge identities, labels and markers isolated at bend radius %s', bendRadius => {
+    const rows: { edge: Partial<PositionedEdge>; identity: string; start?: string; end?: string; label?: string }[] = [
+      { edge: { hasArrowEnd: false }, identity: 'edge:A-&gt;B#0' },
+      { edge: { id: 'named', hasArrowEnd: false }, identity: 'named' },
+      { edge: { label: '雪 & first', hasArrowEnd: false }, identity: 'edge:A-&gt;B#2', label: '雪 &amp; first' },
+      { edge: { hasArrowStart: true, hasArrowEnd: false }, identity: 'edge:A-&gt;B#3', start: 'arrowhead-start' },
+      { edge: {}, identity: 'edge:A-&gt;B#4', end: 'arrowhead' },
+      { edge: { id: 'both', label: 'both', hasArrowStart: true }, identity: 'both', start: 'arrowhead-start', end: 'arrowhead', label: 'both' },
+      { edge: { id: 'decorated', label: 'private', hasArrowStart: true, classNames: ['hot!'], curve: 'basis', animate: true, animation: 'fast' }, identity: 'decorated', start: 'arrowhead-start', end: 'arrowhead', label: 'private' },
+      { edge: { id: 'other', label: 'Ω < second', hasArrowStart: true, startMarker: 'circle', endMarker: 'cross', style: 'dotted', inlineStyle: { stroke: '#ff0000', 'stroke-width': '3px' } }, identity: 'other', start: 'circlehead-start-23ff0000-fixed', end: 'crosshead-23ff0000-fixed', label: 'Ω &lt; second' },
+      { edge: { hasArrowEnd: false, animate: false, classNames: ['!'] }, identity: 'edge:A-&gt;B#8' },
+    ]
+    const svg = renderSvgWithContext({
+      positioned: makeGraph({ height: 1200, edges: rows.map(({ edge }, index) => makeEdge({
+        ...edge,
+        points: [{ x: 20, y: 40 + index * 100 }, { x: 180, y: 40 + index * 100 }, { x: 180, y: 80 + index * 100 }],
+        labelPosition: { x: 100, y: 20 + index * 100 },
+      })) }),
+      colors: lightColors,
+      resolved: { renderOptions: {}, styleFace: { edge: { bendRadius } } },
+    })
+    const lines = [...svg.matchAll(/<(?:polyline|path)\b[^>]*class="edge(?: hot)?"[^>]*>/g)].map(match => match[0])
+    expect(lines).toHaveLength(rows.length)
+    for (const [index, row] of rows.entries()) {
+      const line = lines[index]!
+      expect(line).toContain(`data-id="${row.identity}"`)
+      expect(line).toContain('data-from="A" data-to="B"')
+      expect(line).toContain(`data-arrow-start="${!!row.start}" data-arrow-end="${!!row.end}"`)
+      for (const [position, marker] of [['start', row.start], ['end', row.end]] as const) {
+        if (marker) {
+          expect(line).toContain(`marker-${position}="url(#${marker})"`)
+          const shape = position === 'start' ? row.edge.startMarker ?? 'arrow' : row.edge.endMarker ?? 'arrow'
+          expect(line).toContain(`data-marker-${position}="${shape}"`)
+        } else expect(line).not.toContain(`marker-${position}=`)
+      }
+      if (row.label) expect(line).toContain(`data-label="${row.label}"`)
+      else expect(line).not.toContain('data-label=')
+      expect(line).toStartWith(`<${bendRadius || index === 6 ? 'path' : 'polyline'} `)
+      if (index !== 6) {
+        expect(line).not.toContain('data-curve=')
+        expect(line).not.toContain('data-animate=')
+        expect(line).not.toContain(' hot')
+      }
+    }
+    expect(lines[6]).toContain('data-curve="basis" data-animate="true" data-animation="fast"')
+    expect(lines[7]).toContain('data-style="dotted"')
+    expect(lines[7]).toContain('stroke="#ff0000" stroke-width="3px" stroke-dasharray="4 4"')
+    expect(lines[8]).toContain('data-style="solid"')
+    expect(lines[8]).not.toContain('stroke-dasharray=')
+    expect(svg).toMatch(/>雪 &amp; first<\/(?:text|tspan)>/)
+    expect(svg).toMatch(/>Ω &lt; second<\/(?:text|tspan)>/)
+  })
 })
 
 // ============================================================================

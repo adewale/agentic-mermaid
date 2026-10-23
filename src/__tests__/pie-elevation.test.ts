@@ -103,6 +103,7 @@ describe('pie percent formatting', () => {
   it('a nonzero tiny slice renders "(0.1%)" in the SVG legend, not "(0.0%)"', () => {
     const svg = renderMermaidSVG('pie\n  "Big" : 2500\n  "Tiny" : 1')
     expect(svg).toContain('(0.1%)')
+    expect(svg).toMatch(/data-label="Tiny"[^>]*data-percent="0\.1%"/)
     expect(svg).not.toContain('(0.0%)')
   })
 })

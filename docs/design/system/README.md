@@ -29,6 +29,12 @@ the same resolved appearance and report losses rather than silently ignoring
 graphical style. Typed parse, serialize, mutate, and verify hooks remain on the
 same family descriptor identity.
 
+Built-in native drawing writes SVG directly from typed mark fields without
+retaining a Scene group tree. Public Scene adapters remain mutable; backend
+admission snapshots their own data before validation. The superseded private
+recipe interpreter from PR #433 has been removed after compatibility, runtime
+and payload regressions. See the benchmark evidence for source-bound results.
+
 ## This figure is dogfooded
 
 The diagram is authored as Mermaid ([`architecture.mmd`](./architecture.mmd)) and
@@ -49,6 +55,7 @@ produced *by* the system.
 - [`chart-honesty.md`](./chart-honesty.md) — what every family owes its reader (legible, contained, drawn-or-reported, style-invariant text; distinguishable peers; proportional quantities), measured on the rasterized output and bound to the registry.
 - [`layout-guarantees-and-robustness.md`](./layout-guarantees-and-robustness.md) — literature + industry synthesis: which invariants we can guarantee by construction vs. only optimize-and-certify, and the path to fuzz-robustness.
 - [`source-preservation-ladder.md`](./source-preservation-ladder.md) — the structured\|opaque family-adoption contract (L0–L4).
+- [`performance results`](../../../eval/benchmark/RESULTS.md) — fixed-baseline findings, tradeoffs, measurement limits and reproduction.
 
 > These design docs are co-located here in `design/system/`; per-family notes live in
 > [`../families/`](../families/README.md).

@@ -590,6 +590,11 @@ table here, which would drift. In broad strokes:
   complete occurrence corpus, with shared-success ratios and complete/lazy JS
   payloads. **Does not prove:** PNG performance, arbitrary semantic/visual fidelity,
   or real-network/paint latency; absolute timings vary by machine.
+  Optional `fixed-baseline-sha` evidence runs preserve the same candidate bytes,
+  compare a frozen source baseline with cache off and on, qualify A/A noise, and
+  retain pinned peer results, dependency locks and CPU profiles. Missing required
+  observations fail that evidence job after raw artifacts are retained. This
+  additional scorecard does not replace the normal release baseline or budgets.
 - **Normal local benchmarks:** `bun run bench` runs the website SVG/terminal
   samples and then [Dave Kiss's syntax-doc browser comparison](https://x.com/davekiss/status/2111513199119941999).
   `bun run bench:samples` keeps the former samples-only command;
@@ -698,7 +703,7 @@ table here, which would drift. In broad strokes:
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
   advisory, never a gate), `bun run bench:peers` (the built package against
-  the pinned browserless and terminal peers in `eval/fork-graph/`, with label
+  the pinned browserless and terminal peers in `eval/fork-graph/`, with output checks outside timing/allocation and label
   checks before timing; includes the native Go Sketch worker, requiring Go >=1.25).
   `bench:peers --corpus` attempts every official fence occurrence, including
   unsupported families, with one warmup and three single-call samples per

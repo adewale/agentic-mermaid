@@ -5,11 +5,10 @@ export { BROWSER_CANVAS_RUNTIME } from './browser-png-runtime.ts'
 // request resolution, secured SVG production, receipt identity, and the PNG
 // color-profile contract.
 
-import { renderPortablePngGraphicalProjection } from './png-graphical.ts'
+import { finalizePngRasterSvg, renderPortablePngGraphicalProjection } from './png-graphical.ts'
 import { applyPngColorProfile, inspectPngColorProfile, inspectPngDimensions } from './output-color-profile.ts'
 import {
   PNG_DEFAULT_SCALE,
-  prepareSvgForPngRasterization,
   type PngFontSource,
   type PngRasterDimensions,
   type PortablePngOutputOptions,
@@ -161,7 +160,7 @@ async function renderMermaidPNGInBrowserWithReceiptForHost(
     { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: hostOptions.expectedFamilyId },
   )
   if (graphical.receipt.output !== 'png') throw new Error('browser PNG adapter received a non-PNG receipt')
-  const rasterSvg = prepareSvgForPngRasterization(
+  const rasterSvg = finalizePngRasterSvg(
     inlineFontVarForRaster(graphical.svg),
     graphical.rasterDimensions,
   )

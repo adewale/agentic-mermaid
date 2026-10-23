@@ -1,7 +1,8 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
@@ -14,8 +15,11 @@ import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
 
 const temp = useTempDirs()
+const runChild = useTestChildren(10_000)
 const input = (id: string, kind: Input['kind'] = 'corpus', family = 'flowchart'): Input => ({ id, kind, family, source: 'flowchart LR\n A --> B' })
 function run(label: string, inputs: Input[]): EngineRun {
   return {
@@ -26,7 +30,7 @@ function run(label: string, inputs: Input[]): EngineRun {
       ascii: { ok: true, bytes: 1, sha256: 'ascii' }, validSvg: true, deterministic: true,
       mediansMs: [1], samplesMs: [[1, 1, 1]], missingSvgLabels: [],
     }])),
-    memory: new Map([['corpus', { perInput: [], inputIds: inputs.map(input => input.id), passAllocatedBytes: 100, passPeakHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }]]),
+    memory: new Map([['corpus', { perInput: [], inputIds: inputs.map(input => input.id), passAllocatedBytes: 100, passPeakHeapBytes: 100, settledHeapBytes: 100, retainedHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }]]),
     failures: new Map(),
   }
 }
@@ -57,6 +61,26 @@ describe('release publication decisions', () => {
     const inputs = [input('flow')], before = run('baseline', inputs), after = run('candidate', inputs)
     before.memory.clear()
     expect(decision(inputs, before, after).ok).toBe(false)
+  })
+
+  test.each(['baseline', 'candidate'] as const)('missing absolute heap observations fail existing %s completeness checks', side => {
+    const inputs = [input('flow')],
+      before = run('baseline', inputs),
+      after = run('candidate', inputs)
+    const engine = side === 'baseline' ? before : after
+    const memory = engine.memory.get('corpus')!
+    for (const key of ['settledHeapBytes', 'retainedHeapBytes'] as const) {
+      const original = memory[key]
+      for (const invalid of [undefined, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1]) {
+        Object.assign(memory, { [key]: invalid })
+        const result = decision(inputs, before, after)
+        expect(result.ok).toBe(false)
+        expect(result.summary.checks.find(check => check.name === 'Required matched corpus memory measurements complete')?.ok).toBe(false)
+        expect(result.summary.checks.find(check => check.name === (side === 'baseline' ? 'Every required baseline measurement completes' : 'Every candidate measurement completes'))?.ok).toBe(false)
+      }
+      memory[key] = original
+    }
+    expect(decision(inputs, before, after).ok).toBe(true)
   })
 
   test('a newly enrolled workload must succeed even when both versions reject it', () => {
@@ -110,6 +134,15 @@ describe('release publication decisions', () => {
     expect(decision(inputs, before, after).ok).toBe(false)
     expect(missingSvgLabels('<svg><text>A &amp; <tspan>B</tspan></text></svg>', ['A & B'])).toEqual([])
   })
+
+  test('declared field prefixes allow either complete display form without matching another value', () => {
+    const expected = ['Requirement 1']
+    expect(missingSvgLabels('<svg><text>Requirement 1</text></svg>', expected, ['Text: '])).toEqual([])
+    expect(missingSvgLabels('<svg><text>Text: Requirement 1</text></svg>', expected, ['Text: '])).toEqual([])
+    expect(missingSvgLabels('<svg><text>Text: Requirement 10</text></svg>', expected, ['Text: '])).toEqual(expected)
+    expect(missingSvgLabels('<svg><text>Other: Requirement 1</text></svg>', expected, ['Text: '])).toEqual(expected)
+    expect(missingSvgLabels('<svg><text>Text: Requirement 1</text></svg>', expected)).toEqual(expected)
+  })
 })
 
 test('browser rejection changes coverage but never improves the shared-success speed ratio', () => {
@@ -130,7 +163,7 @@ test('browser pass warms only the requested prefix and still attempts every meas
   const calls: string[] = []
   const inputs = Array.from({ length: 35 }, (_, i) => ({ id: `case${i}`, source: `source${i}` }))
   const host = globalThis as unknown as Record<string, unknown>
-  const priorDocument = host.document, priorApi = host.benchmarkApi, priorCache = host.AGENTIC_MERMAID_ELK_CACHE, priorExperiments = host.AGENTIC_MERMAID_EXPERIMENTS
+  const priorDocument = host.document, priorApi = host.benchmarkApi, priorCache = host.AGENTIC_MERMAID_ELK_CACHE, priorExperiments = host.AGENTIC_MERMAID_EXPERIMENTS, priorAssertions = host.AGENTIC_MERMAID_SCENE_ASSERTIONS
   host.document = { querySelectorAll: () => [] }
   host.benchmarkApi = { renderMermaidSVG(source: string) {
     calls.push(source)
@@ -150,7 +183,7 @@ test('browser pass warms only the requested prefix and still attempts every meas
     expect(rows[32]?.ok).toBe(false)
     expect(rows.filter(row => row.ok)).toHaveLength(34)
   } finally {
-    for (const [key, value] of [['document', priorDocument], ['benchmarkApi', priorApi], ['AGENTIC_MERMAID_ELK_CACHE', priorCache], ['AGENTIC_MERMAID_EXPERIMENTS', priorExperiments]] as const) {
+    for (const [key, value] of [['document', priorDocument], ['benchmarkApi', priorApi], ['AGENTIC_MERMAID_ELK_CACHE', priorCache], ['AGENTIC_MERMAID_EXPERIMENTS', priorExperiments], ['AGENTIC_MERMAID_SCENE_ASSERTIONS', priorAssertions]] as const) {
       if (value === undefined) delete host[key]
       else host[key] = value
     }
@@ -170,24 +203,24 @@ test.each([
   }) satisfies Engine)
   configureAgenticEngines(engines, performance.features)
   const host = globalThis as unknown as Record<string, unknown>
-  const prior = new Map(['document', 'browserConfigurationApi', 'AGENTIC_MERMAID_EXPERIMENTS', 'AGENTIC_MERMAID_ELK_CACHE'].map(key => [key, host[key]]))
+  const prior = new Map(['document', 'browserConfigurationApi', 'AGENTIC_MERMAID_EXPERIMENTS', 'AGENTIC_MERMAID_ELK_CACHE', 'AGENTIC_MERMAID_SCENE_ASSERTIONS'].map(key => [key, host[key]]))
   host.document = { querySelectorAll: () => [] }
   host.browserConfigurationApi = { renderMermaidSVG: () => '<svg/>', render: () => '<svg/>', initialize: () => {} }
-  const startup: Array<{ engine: string; hasOverride: boolean; features: unknown; cache: unknown }> = []
+  const startup: Array<{ engine: string; hasOverride: boolean; features: unknown; cache: unknown; assertions: unknown }> = []
   try {
     for (const engine of engines) {
       const page = {
         // Real navigation creates a fresh global. Seed a stale override here
         // to catch accidental preservation or conversion to an empty list.
-        goto: async () => { host.AGENTIC_MERMAID_EXPERIMENTS = 'stale' },
+        goto: async () => { host.AGENTIC_MERMAID_EXPERIMENTS = 'stale'; host.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1' },
         evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
-        addScriptTag: async () => { startup.push({ engine: engine.label, hasOverride: Object.hasOwn(host, 'AGENTIC_MERMAID_EXPERIMENTS'), features: host.AGENTIC_MERMAID_EXPERIMENTS, cache: host.AGENTIC_MERMAID_ELK_CACHE }) },
+        addScriptTag: async () => { startup.push({ engine: engine.label, hasOverride: Object.hasOwn(host, 'AGENTIC_MERMAID_EXPERIMENTS'), features: host.AGENTIC_MERMAID_EXPERIMENTS, cache: host.AGENTIC_MERMAID_ELK_CACHE, assertions: host.AGENTIC_MERMAID_SCENE_ASSERTIONS }) },
       } as unknown as Page
       expect((await renderPass(page, engine, 'http://localhost', [{ id: 'one', source: 'flowchart LR\n A-->B' }], 1, 0, performance.elkCache))[0]?.ok).toBe(true)
     }
     expect(startup).toEqual(engines.map(engine => ({ engine: engine.label,
       hasOverride: engine.kind === 'agentic' && expected !== undefined,
-      features: engine.kind === 'agentic' ? expected : undefined, cache: elkCache === 'on' ? '1' : '0' })))
+      features: engine.kind === 'agentic' ? expected : undefined, cache: elkCache === 'on' ? '1' : '0', assertions: '0' })))
   } finally {
     for (const [key, value] of prior) {
       if (value === undefined) delete host[key]
@@ -297,6 +330,281 @@ test('baseline resolution survives a changed latest tag across CLI retries', asy
   expect(JSON.parse(readFileSync(lock, 'utf8'))).toEqual({ requested: 'latest', version: '0.4.1', integrity })
 })
 
+test('archive acquisition pins the frozen runtime closure without changing shipped bytes', async () => {
+  const dir = temp.dir(), source = join(dir, 'source'), evidence = join(dir, 'evidence'), prefix = join(dir, 'consumer')
+  mkdirSync(source)
+  const archives = new Map<string, Buffer>()
+  const pack = (name: string, version: string, dependencies: Record<string, string> = {}) => {
+    const root = join(dir, `${name}-${version}`), pkg = join(root, 'package'), path = join(root, 'package.tgz')
+    mkdirSync(pkg, { recursive: true })
+    writeFileSync(join(pkg, 'package.json'), JSON.stringify({ name, version, dependencies }))
+    if (name === 'agentic-mermaid') {
+      mkdirSync(join(pkg, 'dist'))
+      writeFileSync(join(pkg, 'dist/index.js'), "throw Error('BENCHMARK_WORKER_STARTED')")
+    }
+    execFileSync('tar', ['-czf', path, '-C', root, 'package'])
+    const bytes = readFileSync(path), integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
+    archives.set(`/${name}-${version}.tgz`, bytes)
+    return { path, integrity, dependencies }
+  }
+  const leaf = pack('runtime-leaf', '1.0.0'), elk = pack('elkjs', '0.11.0', { 'runtime-leaf': '^1.0.0' }), yaml = pack('yaml', '2.9.0')
+  pack('runtime-leaf', '1.1.0'); pack('elkjs', '0.11.1'); pack('yaml', '2.9.1')
+  const dependencies = { elkjs: '^0.11.0', yaml: '^2.9.0' }, archive = pack('agentic-mermaid', '0.0.0', dependencies)
+  writeFileSync(join(source, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.0', dependencies }))
+  writeFileSync(join(source, 'bun.lock'), JSON.stringify({ packages: {
+    elkjs: ['elkjs@0.11.0', '', { dependencies: elk.dependencies }, elk.integrity],
+    yaml: ['yaml@2.9.0', '', {}, yaml.integrity],
+    'runtime-leaf': ['runtime-leaf@1.0.0', '', {}, leaf.integrity],
+  } }))
+  const requested: string[] = []
+  const registry = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch(request) {
+    const path = new URL(request.url).pathname
+    requested.push(path)
+    const bytes = archives.get(path)
+    if (bytes) return new Response(new Uint8Array(bytes), { headers: { 'content-type': 'application/octet-stream' } })
+    const name = path.slice(1), versions = Object.fromEntries([...archives].filter(([key]) => key.startsWith(`/${name}-`)).map(([key, value]) => {
+      const version = key.slice(name.length + 2, -4)
+      return [version, { name, version, dependencies: name === 'elkjs' && version === '0.11.0' ? { 'runtime-leaf': '^1.0.0' } : {}, dist: { tarball: `${new URL(request.url).origin}${key}`, integrity: `sha512-${createHash('sha512').update(value).digest('base64')}` } }]
+    }))
+    return Response.json({ name, versions, 'dist-tags': { latest: Object.keys(versions).at(-1) } })
+  } })
+  try {
+    const child = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', archive.path,
+      '--prefix', prefix, '--runtime-source', source, '--out', evidence, '--label', 'candidate', '--expected-integrity', archive.integrity], {
+      env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+    })
+    expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+    const policy = frozenRuntimePolicy(source), receipt = inspectAgenticRuntime(join(prefix, 'node_modules/agentic-mermaid'), policy, evidence, 'checked')
+    expect(policy.overrides).toEqual({ elkjs: '0.11.0', 'runtime-leaf': '1.0.0', yaml: '2.9.0' })
+    expect(receipt.graph.map(({ name, version, integrity }) => [name, version, integrity])).toEqual([
+      ['elkjs', '0.11.0', elk.integrity], ['runtime-leaf', '1.0.0', leaf.integrity], ['yaml', '2.9.0', yaml.integrity],
+    ])
+    expect(JSON.parse(readFileSync(join(evidence, 'candidate.install-package.json'), 'utf8'))).toEqual({ private: true, overrides: { elkjs: '0.11.0', 'runtime-leaf': '1.0.0', yaml: '2.9.0' } })
+    expect(receipt.locks.map(lock => lock.source)).toEqual(['source.bun.lock', 'package-lock.json', 'installed-package-lock.json'])
+    expect(new Uint8Array(readFileSync(archive.path))).toEqual(new Uint8Array(archives.get('/agentic-mermaid-0.0.0.tgz')!))
+    expect(requested.filter(path => path.endsWith('.tgz')).sort()).toEqual(['/elkjs-0.11.0.tgz', '/runtime-leaf-1.0.0.tgz', '/yaml-2.9.0.tgz'])
+    const installed = join(prefix, 'node_modules/.package-lock.json'), lock = JSON.parse(readFileSync(installed, 'utf8'))
+    lock.packages['node_modules/yaml'].integrity = elk.integrity
+    writeFileSync(installed, JSON.stringify(lock))
+    expect(() => inspectAgenticRuntime(join(prefix, 'node_modules/agentic-mermaid'), policy, evidence, 'mismatch')).toThrow('version/integrity')
+    expect(JSON.parse(readFileSync(join(evidence, 'mismatch.runtime.json'), 'utf8')).graph.find((row: { name: string }) => row.name === 'yaml').integrity).toBe(elk.integrity)
+    expect(() => assertMatchedAgenticRuntimes([receipt, { ...receipt, graph: receipt.graph.slice(1) }])).toThrow('refusing to start benchmark workers or timing')
+    // A registry can return a valid archive under the expected version while
+    // its SRI differs from the frozen source. Every timing entry point must
+    // reject that installed graph before importing the renderer or Chromium.
+    const frozen = JSON.parse(readFileSync(join(source, 'bun.lock'), 'utf8'))
+    frozen.packages.yaml[3] = elk.integrity
+    writeFileSync(join(source, 'bun.lock'), JSON.stringify(frozen))
+    const sha256 = createHash('sha256').update(readFileSync(archive.path)).digest('hex')
+    for (const [entry, extra] of [
+      ['release-bench.ts', ['--case', 'flowchart:tree-300']],
+      ['release-browser-bench.ts', ['--executable', '/must-not-launch-chromium']],
+      ['peer-bench.ts', ['--peers', 'agentic', '--workloads', 'flow5', '--json', join(evidence, 'peer.json'), '--markdown', join(evidence, 'peer.md')]],
+    ] as const) {
+      const report = join(evidence, entry), flags = entry === 'peer-bench.ts' ? [] : ['--out', report]
+      const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--candidate-tarball', archive.path,
+        '--candidate-sha256', sha256, '--runtime-source', source, ...flags, ...extra], {
+        env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+      })
+      expect(failed.status).not.toBe(0)
+      expect(failed.stderr).toContain('runtime dependency yaml@2.9.0 differs from frozen version/integrity 2.9.0')
+      expect(failed.stderr).not.toContain('BENCHMARK_WORKER_STARTED')
+      expect(failed.stderr).not.toContain('must-not-launch-chromium')
+      expect(JSON.parse(readFileSync(entry === 'peer-bench.ts' ? join(evidence, 'peer.json') : join(report, entry === 'release-bench.ts' ? 'report.json' : 'browser-report.json'), 'utf8')).status).toBe('failed')
+    }
+    // The baseline must pass first. A candidate-only graph mismatch still
+    // prevents A/A1 from starting, rather than being discovered after controls.
+    frozen.packages.yaml[3] = yaml.integrity
+    writeFileSync(join(source, 'bun.lock'), JSON.stringify(frozen))
+    const extraRuntime = pack('runtime-extra', '1.0.0')
+    const badCandidate = pack('agentic-mermaid', '0.0.1', { ...dependencies, 'runtime-extra': '^1.0.0' })
+    const qualificationOut = join(evidence, 'qualification'), candidateSha = createHash('sha256').update(readFileSync(badCandidate.path)).digest('hex')
+    const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/qualify-peer-performance.ts'),
+      '--baseline-tarball', archive.path, '--baseline-sha256', sha256, '--candidate-tarball', badCandidate.path, '--candidate-sha256', candidateSha,
+      '--runtime-source', source, '--out', qualificationOut, '--quick', '--rounds', '1'], {
+      env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+    })
+    expect(failed.status).not.toBe(0)
+    expect(failed.stderr).toContain('candidate: runtime dependency runtime-extra@1.0.0 differs from frozen version/integrity (unlocked)')
+    expect(JSON.parse(readFileSync(join(qualificationOut, 'acquisition/baseline.runtime.json'), 'utf8')).graph).toEqual(receipt.graph)
+    expect(JSON.parse(readFileSync(join(qualificationOut, 'acquisition/candidate.runtime.json'), 'utf8')).graph.some((entry: { name: string }) => entry.name === 'runtime-extra')).toBe(true)
+    expect(JSON.parse(readFileSync(join(qualificationOut, 'qualification-status.json'), 'utf8'))).toMatchObject({ status: 'incomplete', complete: false, steps: [] })
+    expect(existsSync(join(qualificationOut, 'aa-1.json'))).toBe(false)
+    const candidateSource = join(dir, 'candidate-source'), historicalOut = join(evidence, 'historical')
+    mkdirSync(candidateSource)
+    writeFileSync(join(candidateSource, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.1', dependencies: badCandidate.dependencies }))
+    writeFileSync(join(candidateSource, 'bun.lock'), JSON.stringify({ packages: { ...frozen.packages, 'runtime-extra': ['runtime-extra@1.0.0', '', {}, extraRuntime.integrity] } }))
+    lock.packages['node_modules/yaml'].integrity = yaml.integrity
+    writeFileSync(installed, JSON.stringify(lock))
+    const historical = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', badCandidate.path,
+      '--prefix', join(dir, 'historical-consumer'), '--runtime-source', candidateSource, '--out', historicalOut, '--label', 'candidate',
+      '--expected-integrity', badCandidate.integrity, '--compare-root', join(prefix, 'node_modules/agentic-mermaid'), '--compare-runtime-source', source,
+      '--runtime-comparison', 'historical-compound'], {
+      env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+    })
+    expect({ status: historical.status, stderr: historical.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(JSON.parse(readFileSync(join(historicalOut, 'candidate.runtime-comparison.json'), 'utf8'))).toMatchObject({
+      mode: 'historical-compound', isolatedProductionGain: false, baselineOnly: { roots: [], packages: [] },
+      candidateOnly: { roots: ['runtime-extra'], packages: [{ name: 'runtime-extra', version: '1.0.0', integrity: extraRuntime.integrity }] },
+    })
+  } finally { registry.stop(true) }
+}, 30_000)
+
+test('historical runtime comparisons allow attributed roots while retaining strict shared identities and edges', () => {
+  const shared = { name: 'elkjs', version: '0.11.0', integrity: 'sha512-YWJjZA==', dependencies: [] as string[] }
+  const receipt = (side: 'old' | 'new'): RuntimeReceipt => ({
+    policy: { source: `/${side}`, roots: ['elkjs', `${side}-root`], overrides: {}, packages: {} }, integritySource: 'npm-installed-lock', locks: [],
+    graph: [shared, { name: `${side}-leaf`, version: '1.0.0', integrity: 'sha512-ZWZnaA==', dependencies: [] },
+      { name: `${side}-root`, version: '1.0.0', integrity: 'sha512-aWprbA==', dependencies: ['elkjs@0.11.0', `${side}-leaf@1.0.0`] }],
+  })
+  const baseline = receipt('old'), candidate = receipt('new')
+  const comparison = assertHistoricalAgenticRuntimes(baseline, candidate)
+  expect(comparison).toMatchObject({ mode: 'historical-compound', isolatedProductionGain: false, sharedPackages: ['elkjs'], baselineOnly: { roots: ['old-root'] }, candidateOnly: { roots: ['new-root'] } })
+  expect(comparison.baselineOnly.packages.map(row => row.name)).toEqual(['old-leaf', 'old-root'])
+  expect(comparison.candidateOnly.packages.map(row => row.name)).toEqual(['new-leaf', 'new-root'])
+  expect(comparison.candidateOnly.closure.map(row => row.name)).toEqual(['elkjs', 'new-leaf', 'new-root'])
+  expect(() => assertMatchedAgenticRuntimes([baseline, candidate])).toThrow('graphs differ')
+  for (const changed of [{ version: '0.11.1' }, { integrity: 'sha512-bW5vcA==' }, { dependencies: ['new-leaf@1.0.0'] }]) {
+    const drift = { ...candidate, graph: candidate.graph.map(row => row.name === 'elkjs' ? { ...row, ...changed } : row) }
+    expect(() => assertHistoricalAgenticRuntimes(baseline, drift)).toThrow('Historical shared runtime version/integrity/edges differ for elkjs')
+  }
+  expect(() => assertHistoricalAgenticRuntimes(baseline, { ...candidate, graph: [...candidate.graph, { name: 'orphan', version: '1.0.0', integrity: 'sha512-cXJzdA==', dependencies: [] }] })).toThrow('not attributable to an exclusive declared root')
+  const unknown = { ...baseline, graph: baseline.graph.map(row => ({ ...row, integrity: null })) }
+  expect(() => assertHistoricalAgenticRuntimes(unknown, unknown)).toThrow('require verified SHA-512 integrity')
+})
+
+test('directory runtime drift is rejected before the release worker or timing starts', async () => {
+  const source = temp.dir(), out = temp.dir(), dependencies = { elkjs: '^0.11.0', yaml: '^2.9.0' }
+  writeFileSync(join(source, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.0', dependencies }))
+  writeFileSync(join(source, 'bun.lock'), JSON.stringify({ packages: {
+    elkjs: ['elkjs@0.11.0', '', {}, 'sha512-YWJjZA=='], yaml: ['yaml@2.9.0', '', {}, 'sha512-ZWZnaA=='],
+  } }))
+  mkdirSync(join(source, 'dist'))
+  const workerCalled = join(source, 'worker-called')
+  writeFileSync(join(source, 'dist/index.js'), `require('node:fs').writeFileSync(${JSON.stringify(workerCalled)}, 'called'); throw Error('must not load')`)
+  for (const [name, version] of [['elkjs', '0.11.1'], ['yaml', '2.9.1']]) {
+    mkdirSync(join(source, 'node_modules', name!), { recursive: true })
+    writeFileSync(join(source, 'node_modules', name!, 'package.json'), JSON.stringify({ name, version }))
+  }
+  const child = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-bench.ts'), '--baseline', source, '--candidate', source, '--case', 'flowchart:tree-300', '--out', out])
+  expect(child.status).not.toBe(0)
+  expect(child.stderr).toContain('runtime dependency elkjs@0.11.1 differs from frozen version/integrity 0.11.0')
+  expect(existsSync(workerCalled)).toBe(false)
+  expect(JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))).toMatchObject({ status: 'failed', ok: false })
+  expect(readFileSync(join(out, 'samples.jsonl'), 'utf8')).not.toContain('"mode":"time"')
+})
+
+test('Bun directory preflight compares its own fetched identity and fails closed without provenance', () => {
+  const policySource = temp.dir(), installed = temp.dir(), out = temp.dir()
+  const pkg = { name: 'agentic-mermaid', version: '0.0.0', dependencies: { elkjs: '^0.11.0' } }
+  const locked = (integrity: string) => JSON.stringify({ packages: { elkjs: ['elkjs@0.11.0', '', {}, integrity] } })
+  for (const root of [policySource, installed]) writeFileSync(join(root, 'package.json'), JSON.stringify(pkg))
+  writeFileSync(join(policySource, 'bun.lock'), locked('sha512-YWJjZA=='))
+  writeFileSync(join(installed, 'bun.lock'), locked('sha512-ZWZnaA=='))
+  mkdirSync(join(installed, 'node_modules/elkjs'), { recursive: true })
+  writeFileSync(join(installed, 'node_modules/elkjs/package.json'), JSON.stringify({ name: 'elkjs', version: '0.11.0' }))
+  const policy = frozenRuntimePolicy(policySource)
+  expect(() => inspectAgenticRuntime(installed, policy, out, 'wrong-sri')).toThrow('version/integrity')
+  expect(JSON.parse(readFileSync(join(out, 'wrong-sri.runtime.json'), 'utf8'))).toMatchObject({ integritySource: 'frozen-bun-lock', graph: [{ name: 'elkjs', version: '0.11.0', integrity: 'sha512-ZWZnaA==' }] })
+  writeFileSync(join(installed, 'bun.lock'), locked('sha512-YWJjZA=='))
+  expect(inspectAgenticRuntime(installed, policy, out, 'matched').graph).toEqual([{ name: 'elkjs', version: '0.11.0', integrity: 'sha512-YWJjZA==', dependencies: [] }])
+  unlinkSync(join(installed, 'bun.lock'))
+  expect(() => inspectAgenticRuntime(installed, policy, out, 'unknown')).toThrow('runtime integrity is unknown')
+})
+
+test('browser comparisons require one observation for every input in every paired round', () => {
+  const rows: BrowserSample[] = [
+    { engine: 'candidate', round: 1, id: 'a', ok: true, ms: 2 },
+    { engine: 'candidate', round: 2, id: 'a', ok: true, ms: 99 },
+    { engine: 'candidate', round: 3, id: 'a', ok: true, ms: 300 },
+    { engine: 'pele', round: 1, id: 'a', ok: true, ms: 1 },
+    { engine: 'pele', round: 2, id: 'a', ok: true, ms: 100 },
+    { engine: 'pele', round: 3, id: 'a', ok: true, ms: 101 },
+  ]
+  const score = (samples: BrowserSample[], population = 1) => browserScorecard(samples, ['candidate', 'pele'], 3, population)
+  expect(score(rows).engines.every(engine => engine.complete)).toBe(true)
+  expect(score(rows).matched[0]!.medianRatio).toBe(2)
+  // Preserve the success count while replacing round two by a second round
+  // one; counting receipts used to accept this incomplete population.
+  const duplicated = rows.map((row, i) => i === 1 ? { ...rows[0]! } : row)
+  for (const incomplete of [duplicated, rows.filter((_, i) => i !== 1), [...rows, { ...rows[0]! }]]) {
+    const result = score(incomplete)
+    expect(result.engines[0]!.complete).toBe(false)
+    expect(result.matched[0]!.inputIds).toEqual([])
+    expect(result.matched[0]!.medianRatio).toBeUndefined()
+  }
+  // A complete surviving input cannot stand in for an entirely missing one.
+  expect(score(rows, 2).matched[0]!.medianRatio).toBeUndefined()
+  const missingComparator = score(rows.filter((_, i) => i !== 4))
+  expect(missingComparator.engines[1]!.complete).toBe(false)
+  expect(missingComparator.matched[0]!.medianRatio).toBeUndefined()
+})
+
+test.each([
+  ['stable complete output', 0, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Keep</text></svg>', 'ok'],
+  ['empty output after the first call', 2, '', 'error'],
+  ['missing text during a measured sample', 3, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Other</text></svg>', 'lost-labels'],
+  ['malformed SVG carrying the expected text', 1, '<svg><text>Keep</text>', 'error'],
+] as const)('peer worker validates %s outside timing', async (_name, changeAt, replacement, status) => {
+  const dir = temp.dir(), entry = join(dir, 'renderer.mjs'), job = join(dir, 'job.json'), out = join(dir, 'samples.jsonl')
+  writeFileSync(entry, `let calls = 0; export function renderMermaidSVG() { return ++calls >= ${changeAt || 'Infinity'} ? ${JSON.stringify(replacement)} : '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Keep</text></svg>' }`)
+  writeFileSync(job, JSON.stringify({ peer: 'agentic', output: 'svg', entry,
+    timing: { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 100 },
+    workloads: [{ id: 'owned-text', source: 'fixture', expected: ['Keep'] }],
+  }))
+  writeFileSync(out, '')
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
+    cwd: join(import.meta.dir, '../..'),
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const observations = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+  const end = observations.find(row => row.type === 'end')
+  for (const key of ['rssBytes', 'peakRssBytes', 'settledHeapBytes']) expect(end[key]).toBeGreaterThan(0)
+  const result = observations.find(row => row.type === 'result')
+  expect(result.status).toBe(status)
+  if (status === 'ok') expect(result.samplesMs).toHaveLength(3)
+  else expect(result.medianMs).toBeUndefined()
+})
+
+test('release memory worker retains absolute post-GC heap observations', async () => {
+  const dir = temp.dir(),
+    entry = join(dir, 'renderer.mjs'),
+    job = join(dir, 'job.json'),
+    out = join(dir, 'memory.json')
+  writeFileSync(entry, 'export function renderMermaidSVG() { return "<svg/>" }')
+  writeFileSync(job, JSON.stringify({ entry, mode: 'memory', reps: 1, inputs: [input('fixture')] }))
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, out])
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const memory = JSON.parse(readFileSync(out, 'utf8'))
+  expect(memory.settledHeapBytes).toBeGreaterThan(0)
+  expect(memory.retainedHeapBytes).toBeGreaterThan(0)
+  expect(memory.retainedGrowthBytes).toBe(Math.max(0, memory.retainedHeapBytes - memory.settledHeapBytes))
+})
+
+test('peer artifact mismatch fails before installation and retains explicit incomplete evidence', async () => {
+  const dir = temp.dir(), tarball = join(dir, 'candidate.tgz'), reportPath = join(dir, 'report.json')
+  writeFileSync(tarball, 'different bytes')
+  const bin = temp.dir(), npm = join(bin, 'npm'), installed = join(dir, 'npm-called')
+  writeFileSync(npm, '#!/bin/sh\n: > "$INSTALL_RECEIPT"\nexit 99\n')
+  chmodSync(npm, 0o755)
+  const invoke = () => runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'),
+    '--peers', 'agentic', '--workloads', 'flow5', '--candidate-tarball', tarball,
+    '--candidate-sha256', '0'.repeat(64), '--elk-cache', 'on', '--json', reportPath, '--markdown', join(dir, 'report.md'),
+  ], { cwd: join(import.meta.dir, '../..'), env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_RECEIPT: installed, APL_NO_CENTER: '1' } })
+  expect((await invoke()).status).not.toBe(0)
+  expect(existsSync(installed)).toBe(false)
+  const report = JSON.parse(readFileSync(reportPath, 'utf8'))
+  expect(report.status).toBe('failed')
+  expect(report.error).toContain('Candidate tarball SHA-256')
+  expect(report.policy).toMatchObject({ elkCache: 'on', sceneAssertions: 'off', aplEnvironment: { APL_NO_CENTER: '1' } })
+  const originalRaw = readFileSync(report.rawSamples, 'utf8')
+  const receipts = originalRaw.trim().split('\n').map(line => JSON.parse(line))
+  expect(receipts[0].status).toBe('started')
+  expect(receipts.at(-1)).toMatchObject({ status: 'failed', error: report.error })
+  expect((await invoke()).status).not.toBe(0)
+  expect(JSON.parse(readFileSync(reportPath, 'utf8')).rawSamples).not.toBe(report.rawSamples)
+  expect(readFileSync(report.rawSamples, 'utf8')).toBe(originalRaw)
+})
 
 test('failed editor benchmark reruns invalidate a previous completed report', async () => {
   const out = temp.dir(), site = temp.dir(), report = join(out, 'editor-preview.json')

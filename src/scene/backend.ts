@@ -147,6 +147,13 @@ export const DefaultBackend: StyleBackend = {
   },
 }
 
+const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
+
+/** A replacement method must use the checked backend path. */
+export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
+  return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
+}
+
 const CORE_BACKEND_VERSION = '1.0.0'
 const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
 const CORE_BACKEND_PROVENANCE = Object.freeze({
@@ -227,6 +234,7 @@ function refuseUntilConforming(backend: StyleBackend, inputName: string, conform
     prove()
     return render.call(backend, doc, ctx)
   }
+  if (backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(render)) OWNED_DEFAULT_RENDERERS.add(methods.render)
   return backend
 }
 

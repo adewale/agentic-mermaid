@@ -38,12 +38,11 @@ import { applyPngColorProfile, inspectPngDimensions } from '../output-color-prof
 import {
   omitPngOutputOptions,
   pngNapiRuntimeProvenance,
-  prepareSvgForPngRasterization,
   projectNativePngOutputPolicyInput,
   type PngOutputPolicyInput,
   type PngRuntimeProvenance,
 } from '../png-contract.ts'
-import { renderPngGraphicalProjection } from '../png-graphical.ts'
+import { finalizePngRasterSvg, renderPngGraphicalProjection } from '../png-graphical.ts'
 import { RESOURCE_MANIFEST } from '../font-manifest.ts'
 import { NodeResourceResolver } from '../node-resource-resolver.ts'
 import { verifyRegisteredEmbeddedFontResources } from './embedded-font-resources.ts'
@@ -207,7 +206,7 @@ function renderMermaidPNGWithReceiptForHost(
     { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: preparedInput.expectedFamilyId },
   )
   const outputPolicy = graphical.outputPolicy
-  const svg = prepareSvgForPngRasterization(
+  const svg = finalizePngRasterSvg(
     prepareResvgMarkerOrientation(inlineFontVarForRaster(graphical.svg)),
     graphical.rasterDimensions,
   )

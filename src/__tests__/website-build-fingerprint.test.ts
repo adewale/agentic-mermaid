@@ -9,6 +9,7 @@ import {
   computeWebsiteBuildFingerprint,
   isWebsiteBuildFingerprintInput,
   runStableFingerprintBuild,
+  tryAcquireWebsiteBuildDirectory,
 } from '../../scripts/site/website-build-fingerprint.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
@@ -94,6 +95,42 @@ describe('website build fingerprint authority', () => {
       sleep: () => {},
     })).toBe(false)
     expect(lockAttempts).toBe(0)
+  })
+
+  test('directory locks contend only while the native lock exists', () => {
+    const lock = join(temp.dir('am-website-directory-lock-'), 'lock')
+    expect(tryAcquireWebsiteBuildDirectory(lock)).toBe(true)
+    expect(tryAcquireWebsiteBuildDirectory(lock)).toBe(false)
+    rmSync(lock, { recursive: true })
+    expect(tryAcquireWebsiteBuildDirectory(lock)).toBe(true)
+  })
+
+  test('native directory errors escape the lock wait without sleeping or poisoning later acquisition', () => {
+    const root = temp.dir('am-website-directory-error-')
+    const parentFile = join(root, 'file')
+    writeFileSync(parentFile, 'not a directory')
+    const lock = join(parentFile, 'lock')
+    let nativeError: NodeJS.ErrnoException | undefined
+    try { mkdirSync(lock, { recursive: false }) } catch (error) { nativeError = error as NodeJS.ErrnoException }
+    expect(nativeError?.code).toBe('ENOTDIR')
+    let caught: NodeJS.ErrnoException | undefined
+    let sleeps = 0
+    try {
+      acquireWebsiteBuildLock({
+        fingerprint: () => 'current',
+        readSentinel: () => null,
+        tryAcquire: () => tryAcquireWebsiteBuildDirectory(lock),
+        sleep: () => { sleeps++ },
+        maxAttempts: 2,
+      })
+    } catch (error) { caught = error as NodeJS.ErrnoException }
+    expect(caught?.constructor).toBe(nativeError?.constructor)
+    expect(caught?.code).toBe(nativeError?.code)
+    expect(caught?.syscall).toBe(nativeError?.syscall)
+    expect(caught?.path).toBe(lock)
+    expect(sleeps).toBe(0)
+    expect(() => tryAcquireWebsiteBuildDirectory(join(root, 'invalid\0lock'))).toThrow(TypeError)
+    expect(tryAcquireWebsiteBuildDirectory(join(root, 'valid-lock'))).toBe(true)
   })
 
   test('retries a mixed build and commits only a stable fingerprint', () => {

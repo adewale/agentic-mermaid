@@ -155,11 +155,14 @@ function memoryMode(): MemoryResult {
   const settled = process.memoryUsage().heapUsed
   const corpusPass = measureHeap(pass)
   gc()
-  const retainedGrowthBytes = Math.max(0, process.memoryUsage().heapUsed - settled)
+  const retained = process.memoryUsage().heapUsed
+  const retainedGrowthBytes = Math.max(0, retained - settled)
   return {
     perInput,
     passAllocatedBytes: corpusPass.allocatedBytes,
     passPeakHeapBytes: corpusPass.peakHeapBytes,
+    settledHeapBytes: settled,
+    retainedHeapBytes: retained,
     retainedGrowthBytes,
     // resourceUsage reports kilobytes.
     peakRssBytes: process.resourceUsage().maxRSS * 1024,

@@ -7,10 +7,11 @@
  *    swap the family post-render by mutating `style="--font:Roboto"`.
  *  - When `embedFontImport: false` is passed, the @import line is absent
  *    but `--font:` still appears (CLI / PNG path uses this).
- *  - Overriding `--font` post-render swaps the rendered family (the
- *    inherited root `font-family` references `var(--font, '<default>')`).
+ *
+ * Computed font retheming is covered by svg-style-isolation-browser.test.ts.
+ * These checks protect emitted CSS, import policy, and raster fallbacks.
  */
-import { describe, it, expect } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
 
@@ -53,26 +54,6 @@ describe('Loop 8 M2 — CSS-variable fonts + embedFontImport toggle', () => {
     // Color variables still derived as before.
     expect(svg).toContain('--bg:')
     expect(svg).toContain('--fg:')
-  })
-
-  it('post-render override via style="--font:Roboto" swaps the rendered family at render time', () => {
-    // Simulate a consumer flipping --font on the root by manipulating the SVG.
-    // We render with default Inter, then verify swapping --font in the style
-    // attribute changes what `font-family: var(--font, '...')` will resolve to.
-    const svg = renderMermaidSVG(SRC)
-    // Find the SVG root style attribute.
-    const styleMatch = svg.match(/<svg[^>]*style="([^"]*)"/)
-    expect(styleMatch).not.toBeNull()
-    const styleAttr = styleMatch![1]!
-    expect(styleAttr).toContain('--font:Inter')
-
-    // Swap --font to Roboto.
-    const swapped = svg.replace('--font:Inter', '--font:Roboto')
-    // The root rule still says var(--font, 'Inter'), so when the browser /
-    // resvg resolves --font on the root, it uses 'Roboto' (the override),
-    // not the literal 'Inter' fallback.
-    expect(swapped).toContain('--font:Roboto')
-    expect(swapped).toContain("var(--font, 'Inter')")
   })
 
   it('explicit `font` option propagates as both --font variable and font-family fallback', () => {
@@ -172,9 +153,7 @@ describe('issue #18 — var() and font-stack font values', () => {
 
   it('plain names use the exact @import URL when explicitly enabled', () => {
     const svg = renderMermaidSVG(SRC, { font: 'IBM Plex Sans', embedFontImport: true })
-    expect(svg).toContain(
-      "@import url('https://fonts.googleapis.com/css2?family=IBM%20Plex%20Sans:wght@400;500;600;700&amp;display=swap');",
-    )
+    expect(svg).toContain("@import url('https://fonts.googleapis.com/css2?family=IBM%20Plex%20Sans:wght@400;500;600;700&amp;display=swap');")
     expect(svg).toContain("font-family: var(--font, 'IBM Plex Sans'), system-ui, sans-serif; }")
     expect(inlineFontVarForRaster(svg)).toContain("font-family: 'IBM Plex Sans', system-ui, sans-serif; }")
   })

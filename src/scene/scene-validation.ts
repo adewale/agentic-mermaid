@@ -464,9 +464,10 @@ function validatePoints(
     add(diagnostics, 'SCENE_FINITE', path, 'must be an array of points')
     return
   }
+  // Shared arrays still have to satisfy each primitive's own minimum.
+  if (value.length < minimum) add(diagnostics, 'SCENE_BOUNDS', path, `must contain at least ${minimum} points`)
   if (budget?.pointCollections.has(value)) return
   budget?.pointCollections.add(value)
-  if (value.length < minimum) add(diagnostics, 'SCENE_BOUNDS', path, `must contain at least ${minimum} points`)
   if (value.length > MAX_SCENE_NODES) add(diagnostics, 'SCENE_BOUNDS', path, 'contains too many points')
   const count = Math.min(value.length, MAX_SCENE_NODES, budget ? Math.max(0, MAX_SCENE_POINTS - budget.points + 1) : MAX_SCENE_NODES)
   for (let index = 0; index < count; index++) validatePoint(value[index], `${path}[${index}]`, diagnostics, budget, external)
