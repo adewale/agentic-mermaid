@@ -277,10 +277,10 @@ function unsupportedFamilyFromError(detail) {
 function formatRenderErrorHtml(err) {
   var detail = String(err || 'Unknown render error');
   if (err && err.name === 'PreviewRuntimeLoadError') {
-    return '<div class="preview-error" role="alert">'
+    return '<div class="preview-error preview-runtime-error" role="alert">'
       + '<strong class="preview-error-title">The editor could not finish loading.</strong>'
       + '<span class="preview-error-copy">Check your connection and try again, or use Reload editor below.</span>'
-      + '<code class="preview-error-detail">' + escHtml(detail) + '</code>'
+      + '<code class="preview-error-detail">' + escHtml(err.message || detail) + '</code>'
       + '</div>';
   }
   var family = unsupportedFamilyFromError(detail);

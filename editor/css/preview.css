@@ -148,6 +148,8 @@
   box-shadow: var(--shadow-artboard);
 }
 .preview-inner[hidden] { display: none; }
+.preview-inner:has(.preview-runtime-error) { width: 100%; }
+.preview-runtime-error { min-width: 0; overflow-wrap: anywhere; }
 
 .preview-error {
   color: color-mix(in srgb, var(--danger) 82%, var(--fg));
