@@ -1,0 +1,7 @@
+The public Node24.19 module documentation states: “Synchronous hooks are run in the same thread and the same realm where the modules are loaded.” It also states: “the synchronous hooks are not inherited into child worker threads by default”, with an explicit exception for scripts preloaded by `--import` or `--require` through inherited `process.execArgv`.
+
+Primary source: https://raw.githubusercontent.com/nodejs/node/v24.19.0/doc/api/module.md (sections `module.registerHooks(options)` and synchronous hooks; read before freezing this protocol). The API is stability1.2, release candidate in that pinned release.
+
+The chosen NEW untimed preflight launches `node preflight-launcher.mjs spec policy role`. The launcher directly imports the recorder before the unchanged capturer. It does not use `--import`, `--require` or NODE_OPTIONS. This supports the stated main-thread-only resolution scope without installing the hook into child worker loaders. Any such loaders, arbitrary filesystem reads/native dependencies/startup bootstrap and unexecuted branches remain outside this catalogue. Successful actual outputs are separately admitted against all four original UTF8 payloads and tagged structural full values. No loader helper enters the24 measurement processes.
+
+The older unexecuted `--import` argv is retained in `history/strict-v8-unexecuted/host-study.py`; no actual oracle was acquired with it. This pre-freeze change is not a retry or a reinterpretation of measured graph data.

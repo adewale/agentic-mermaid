@@ -1,0 +1,280 @@
+{
+  "protocol": "consumer-root-runtime-dependency-location@2",
+  "source": "ec72a06dcf57d1e429fab9672a9acbf794e22d9f",
+  "originalRuntimeManifestSHA256": "120723160a39b962c6f16840133fecf6adf0fbd0e00f22b4ca5093ab03d0b9e5",
+  "expectedArtifactSHA256": "5ca4db1575f5fb0f7d122a0a526cd4ec000bea20415f44520b1f4a1827be79ba",
+  "projectPackageJSONSHA256": "7c72487fedc9429e749367d57031d9b68b915c5222d64db2124ae18607cc6fdb",
+  "lockSHA256": "588af810908467eedcd9afbfbcc8ea920ab483143d66c06918762b03c3ee196b",
+  "packages": {
+    ".runtime-dependencies/@resvg__resvg-js-7670708e6151": {
+      "name": "@resvg/resvg-js",
+      "version": "2.6.2",
+      "packageJSONSHA256": "2669617af27d91b0dfc0828cc2190ba87b8d8ea6e4cf08619a23784a2f1d8c95"
+    },
+    ".runtime-dependencies/@resvg__resvg-js-linux-x64-gnu-21cf1756824f": {
+      "name": "@resvg/resvg-js-linux-x64-gnu",
+      "version": "2.6.2",
+      "packageJSONSHA256": "061ed749ead730a1f2c70c633a8107b0c9066a3d7a7bf284aa08984a1bdfd0a8"
+    },
+    ".runtime-dependencies/@resvg__resvg-js-linux-x64-musl-2744aedea306": {
+      "name": "@resvg/resvg-js-linux-x64-musl",
+      "version": "2.6.2",
+      "packageJSONSHA256": "440b96f98f4e7b2e79683d3b97c6933fc997c7f63b0172688d79df76949875ae"
+    },
+    ".runtime-dependencies/acorn-01ebf9cc77bf": {
+      "name": "acorn",
+      "version": "8.16.0",
+      "packageJSONSHA256": "705aa08b7b4fee1112244952b4843c40c381a3c7a9fc77101f369a172865bfac"
+    },
+    ".runtime-dependencies/d3-format-fc1e9c0c55a0": {
+      "name": "d3-format",
+      "version": "3.1.0",
+      "packageJSONSHA256": "2f9c48fa0c03d3fcc86843825ef5698be2f3e475067e6a210cbb3a4e900bf57e"
+    },
+    ".runtime-dependencies/d3-sankey-537e263903cf": {
+      "name": "d3-sankey",
+      "version": "0.12.3",
+      "packageJSONSHA256": "aa6b0219ffc5d7c957d3a47b063cea5e40dd1cb6427d04308e15634dcf2b22a2"
+    },
+    ".runtime-dependencies/d3-array-fbe998cb52c5": {
+      "name": "d3-array",
+      "version": "2.12.1",
+      "packageJSONSHA256": "0a5cb18279a6b414607e0120d604adc9055a923a42e20d44a190ef97d5ee24b7"
+    },
+    ".runtime-dependencies/internmap-48e77ecb95b9": {
+      "name": "internmap",
+      "version": "1.0.1",
+      "packageJSONSHA256": "a6efdf59894675406a01d1ddcc0a381889cab2a90ac55fd29e80e9138dbb3b35"
+    },
+    ".runtime-dependencies/d3-shape-8e419ed21ef1": {
+      "name": "d3-shape",
+      "version": "1.3.7",
+      "packageJSONSHA256": "3b576e17e95aa1a499f6ef44b75d29e08b2f3f040c2dfa84408dd40c22ac9a5b"
+    },
+    ".runtime-dependencies/d3-path-80de7655fb81": {
+      "name": "d3-path",
+      "version": "1.0.9",
+      "packageJSONSHA256": "706ea3f593b24b6e212afac23ce215bad68ed2962eec5b4f6ede66699dc8892d"
+    },
+    ".runtime-dependencies/elkjs-20b143b1950a": {
+      "name": "elkjs",
+      "version": "0.11.0",
+      "packageJSONSHA256": "8852492ebba6784fb9bc9fb778e1e562000177ea6549a4d88dd08ec316f6f51b"
+    },
+    ".runtime-dependencies/entities-fdb63172e139": {
+      "name": "entities",
+      "version": "7.0.1",
+      "packageJSONSHA256": "b33b5d3fd4a8e196d3245c10ebb8feb2e076fc8d392f99a1050377d6e2b8b641"
+    },
+    ".runtime-dependencies/yaml-d74a99a05abb": {
+      "name": "yaml",
+      "version": "2.9.0",
+      "packageJSONSHA256": "20b8b197cbd10dad245d45e463dfe58e4c8c25a47e24bc4256ad9ab58bf35683"
+    }
+  },
+  "roots": [
+    {
+      "consumer": "$project",
+      "specifier": "d3-sankey",
+      "target": ".runtime-dependencies/d3-sankey-537e263903cf",
+      "lockKey": "d3-sankey"
+    },
+    {
+      "consumer": "$project",
+      "specifier": "entities",
+      "target": ".runtime-dependencies/entities-fdb63172e139",
+      "lockKey": "entities"
+    },
+    {
+      "consumer": "$project",
+      "specifier": "acorn",
+      "target": ".runtime-dependencies/acorn-01ebf9cc77bf",
+      "lockKey": "acorn"
+    },
+    {
+      "consumer": "$project",
+      "specifier": "yaml",
+      "target": ".runtime-dependencies/yaml-d74a99a05abb",
+      "lockKey": "yaml"
+    },
+    {
+      "consumer": "$project",
+      "specifier": "elkjs",
+      "target": ".runtime-dependencies/elkjs-20b143b1950a",
+      "lockKey": "elkjs"
+    },
+    {
+      "consumer": "$project",
+      "specifier": "d3-format",
+      "target": ".runtime-dependencies/d3-format-fc1e9c0c55a0",
+      "lockKey": "d3-format"
+    },
+    {
+      "consumer": "$project",
+      "specifier": "@resvg/resvg-js",
+      "target": ".runtime-dependencies/@resvg__resvg-js-7670708e6151",
+      "lockKey": "@resvg/resvg-js"
+    }
+  ],
+  "edges": [
+    {
+      "consumer": ".runtime-dependencies/@resvg__resvg-js-7670708e6151",
+      "specifier": "@resvg/resvg-js-linux-x64-gnu",
+      "target": ".runtime-dependencies/@resvg__resvg-js-linux-x64-gnu-21cf1756824f",
+      "lockKey": "@resvg/resvg-js-linux-x64-gnu"
+    },
+    {
+      "consumer": ".runtime-dependencies/@resvg__resvg-js-7670708e6151",
+      "specifier": "@resvg/resvg-js-linux-x64-musl",
+      "target": ".runtime-dependencies/@resvg__resvg-js-linux-x64-musl-2744aedea306",
+      "lockKey": "@resvg/resvg-js-linux-x64-musl"
+    },
+    {
+      "consumer": ".runtime-dependencies/d3-sankey-537e263903cf",
+      "specifier": "d3-array",
+      "target": ".runtime-dependencies/d3-array-fbe998cb52c5",
+      "lockKey": "d3-array"
+    },
+    {
+      "consumer": ".runtime-dependencies/d3-sankey-537e263903cf",
+      "specifier": "d3-shape",
+      "target": ".runtime-dependencies/d3-shape-8e419ed21ef1",
+      "lockKey": "d3-shape"
+    },
+    {
+      "consumer": ".runtime-dependencies/d3-array-fbe998cb52c5",
+      "specifier": "internmap",
+      "target": ".runtime-dependencies/internmap-48e77ecb95b9",
+      "lockKey": "internmap"
+    },
+    {
+      "consumer": ".runtime-dependencies/d3-shape-8e419ed21ef1",
+      "specifier": "d3-path",
+      "target": ".runtime-dependencies/d3-path-80de7655fb81",
+      "lockKey": "d3-shape/d3-path"
+    }
+  ],
+  "lockedRecords": {
+    "@resvg/resvg-js": [
+      "@resvg/resvg-js@2.6.2",
+      "",
+      {
+        "optionalDependencies": {
+          "@resvg/resvg-js-android-arm-eabi": "2.6.2",
+          "@resvg/resvg-js-android-arm64": "2.6.2",
+          "@resvg/resvg-js-darwin-arm64": "2.6.2",
+          "@resvg/resvg-js-darwin-x64": "2.6.2",
+          "@resvg/resvg-js-linux-arm-gnueabihf": "2.6.2",
+          "@resvg/resvg-js-linux-arm64-gnu": "2.6.2",
+          "@resvg/resvg-js-linux-arm64-musl": "2.6.2",
+          "@resvg/resvg-js-linux-x64-gnu": "2.6.2",
+          "@resvg/resvg-js-linux-x64-musl": "2.6.2",
+          "@resvg/resvg-js-win32-arm64-msvc": "2.6.2",
+          "@resvg/resvg-js-win32-ia32-msvc": "2.6.2",
+          "@resvg/resvg-js-win32-x64-msvc": "2.6.2"
+        }
+      },
+      "sha512-xBaJish5OeGmniDj9cW5PRa/PtmuVU3ziqrbr5xJj901ZDN4TosrVaNZpEiLZAxdfnhAe7uQ7QFWfjPe9d9K2Q=="
+    ],
+    "@resvg/resvg-js-linux-x64-gnu": [
+      "@resvg/resvg-js-linux-x64-gnu@2.6.2",
+      "",
+      {
+        "os": "linux",
+        "cpu": "x64"
+      },
+      "sha512-IVUe+ckIerA7xMZ50duAZzwf1U7khQe2E0QpUxu5MBJNao5RqC0zwV/Zm965vw6D3gGFUl7j4m+oJjubBVoftw=="
+    ],
+    "@resvg/resvg-js-linux-x64-musl": [
+      "@resvg/resvg-js-linux-x64-musl@2.6.2",
+      "",
+      {
+        "os": "linux",
+        "cpu": "x64"
+      },
+      "sha512-UOf83vqTzoYQO9SZ0fPl2ZIFtNIz/Rr/y+7X8XRX1ZnBYsQ/tTb+cj9TE+KHOdmlTFBxhYzVkP2lRByCzqi4jQ=="
+    ],
+    "acorn": [
+      "acorn@8.16.0",
+      "",
+      {
+        "bin": {
+          "acorn": "bin/acorn"
+        }
+      },
+      "sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw=="
+    ],
+    "d3-array": [
+      "d3-array@2.12.1",
+      "",
+      {
+        "dependencies": {
+          "internmap": "^1.0.0"
+        }
+      },
+      "sha512-B0ErZK/66mHtEsR1TkPEEkwdy+WDesimkM5gpZr5Dsg54BiTA5RXtYW5qTLIAcekaS9xfZrzBLF/OAkB3Qn1YQ=="
+    ],
+    "d3-format": [
+      "d3-format@3.1.0",
+      "",
+      {},
+      "sha512-YyUI6AEuY/Wpt8KWLgZHsIU86atmikuoOmCfommt0LYHiQSPjvX2AcFc38PX0CBpr2RCyZhjex+NS/LPOv6YqA=="
+    ],
+    "d3-sankey": [
+      "d3-sankey@0.12.3",
+      "",
+      {
+        "dependencies": {
+          "d3-array": "1 - 2",
+          "d3-shape": "^1.2.0"
+        }
+      },
+      "sha512-nQhsBRmM19Ax5xEIPLMY9ZmJ/cDvd1BG3UVvt5h3WRxKg5zGRbvnteTyWAbzeSvlh3tW7ZEmq4VwR5mB3tutmQ=="
+    ],
+    "d3-shape": [
+      "d3-shape@1.3.7",
+      "",
+      {
+        "dependencies": {
+          "d3-path": "1"
+        }
+      },
+      "sha512-EUkvKjqPFUAZyOlhY5gzCxCeI0Aep04LwIRpsZ/mLFelJiUfnK56jo5JMDSE7yyP2kLSb6LtF+S5chMk7uqPqw=="
+    ],
+    "d3-shape/d3-path": [
+      "d3-path@1.0.9",
+      "",
+      {},
+      "sha512-VLaYcn81dtHVTjEHd8B+pbe9yHWpXKZUC87PzoFmsFrJqgFwDe/qxfp5MlfsfM1V5E/iVt0MmEbWQ7FVIXh/bg=="
+    ],
+    "elkjs": [
+      "elkjs@0.11.0",
+      "",
+      {},
+      "sha512-u4J8h9mwEDaYMqo0RYJpqNMFDoMK7f+pu4GjcV+N8jIC7TRdORgzkfSjTJemhqONFfH6fBI3wpysgWbhgVWIXw=="
+    ],
+    "entities": [
+      "entities@7.0.1",
+      "",
+      {},
+      "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="
+    ],
+    "internmap": [
+      "internmap@1.0.1",
+      "",
+      {},
+      "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="
+    ],
+    "yaml": [
+      "yaml@2.9.0",
+      "",
+      {
+        "bin": {
+          "yaml": "bin.mjs"
+        }
+      },
+      "sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA=="
+    ]
+  },
+  "scope": "Exactly original13-package closure. Follow original consumer edges with public createRequire.resolve; do not import code or search globally by matching version. Package.json exports may be private: resolve entry and find containing named package root safely. All601 original runtime bytes checked separately before copying."
+}

@@ -1,0 +1,400 @@
+{
+  "protocol": "ordered-local-create-only-host-study-files@1",
+  "remoteMutationsExecuted": 0,
+  "branch": "diagnostic/pr449-baseline-calibration-20261023",
+  "branchBase": "d6a9a7593db81e4b55a63b77a950f786fb25a435",
+  "sourceFreezeSHA256": "44e6909beb1068031300b9df336d904687e69ad75e9322cbf7d343324ca1e4c8",
+  "files": [
+    {
+      "order": 1,
+      "source": "HISTORICAL-METHOD.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/HISTORICAL-METHOD.json",
+      "UTF8Bytes": 5417,
+      "sha256": "5992b9f94043c18490c8b90863073a941af55b17e38afe435aa691209e4ed806"
+    },
+    {
+      "order": 2,
+      "source": "MODULE-HOOK-SCOPE.md",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/MODULE-HOOK-SCOPE.md",
+      "UTF8Bytes": 1499,
+      "sha256": "1fbc43dcc062f60ef613685231d9768f34e4294ce62c061fb9e18bfefa072952"
+    },
+    {
+      "order": 3,
+      "source": "README.md",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/README.md",
+      "UTF8Bytes": 10650,
+      "sha256": "a165ecbcaf39c9da8115cdc04d95945bcd9864f425d1620dd7ecdf813d3dc3ee"
+    },
+    {
+      "order": 4,
+      "source": "SOURCE-FREEZE.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/SOURCE-FREEZE.json",
+      "UTF8Bytes": 6656,
+      "sha256": "44e6909beb1068031300b9df336d904687e69ad75e9322cbf7d343324ca1e4c8"
+    },
+    {
+      "order": 5,
+      "source": "check-full-values.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/check-full-values.mjs",
+      "UTF8Bytes": 1219,
+      "sha256": "8a4ae8781f8e5db689e2baec8252e463b5d7b27bbf3ba64a5bf9c993a4c49211"
+    },
+    {
+      "order": 6,
+      "source": "derive-semantic-oracles.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/derive-semantic-oracles.mjs",
+      "UTF8Bytes": 2288,
+      "sha256": "68f96687ef873eb9ef600c49512ac181ad6f7530db7b8dd2139d4d70fa6b335f"
+    },
+    {
+      "order": 7,
+      "source": "expected-artifact.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/expected-artifact.json",
+      "UTF8Bytes": 109903,
+      "sha256": "5ca4db1575f5fb0f7d122a0a526cd4ec000bea20415f44520b1f4a1827be79ba"
+    },
+    {
+      "order": 8,
+      "source": "expected-oracles.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/expected-oracles.json",
+      "UTF8Bytes": 695493,
+      "sha256": "a8bad425627f48855dfff2a255d1ff88226d4f5ec681c339b3ea45f44d25463c"
+    },
+    {
+      "order": 9,
+      "source": "expected-oracles.semantic.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/expected-oracles.semantic.json",
+      "UTF8Bytes": 975697,
+      "sha256": "e3adaddc77b1ba6db10ed7669c7800cf0c6ed8a081839895f3f5febb9c6073ef"
+    },
+    {
+      "order": 10,
+      "source": "export-local-anchors.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/export-local-anchors.py",
+      "UTF8Bytes": 6221,
+      "sha256": "ce0c90bf59b1360c7176f87ace1c4cdb6ac2a4ce0048d8f4ed034a9041536173"
+    },
+    {
+      "order": 11,
+      "source": "graph-recorder.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/graph-recorder.mjs",
+      "UTF8Bytes": 3677,
+      "sha256": "a483eb4319de8416d9fc60d9b8a3b96c3a2165d3bb6146da0168745a31d88549"
+    },
+    {
+      "order": 12,
+      "source": "history/DOWNLOAD-PIN-ERRATUM.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/DOWNLOAD-PIN-ERRATUM.json",
+      "UTF8Bytes": 356,
+      "sha256": "72b9c6c379d2f32f6d9e0236fbf1e5f134e2099763b71e9664a8c5603fd82015"
+    },
+    {
+      "order": 13,
+      "source": "history/initial-result-schema-structural-tests.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/initial-result-schema-structural-tests.json",
+      "UTF8Bytes": 2222,
+      "sha256": "b0242516bbe717466304647ee9c020a197eb90e1997d09e241c35b1f56cf76c8"
+    },
+    {
+      "order": 14,
+      "source": "history/initial-result-schema-structural-tests.stderr",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/initial-result-schema-structural-tests.stderr",
+      "UTF8Bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "order": 15,
+      "source": "history/initial-result-schema-structural-tests.stdout",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/initial-result-schema-structural-tests.stdout",
+      "UTF8Bytes": 39,
+      "sha256": "90565a9e327cce50f5652068b9a053a46498863333b254c4241e5dae710b321d"
+    },
+    {
+      "order": 16,
+      "source": "history/pre-freeze-review/HISTORICAL-METHOD.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/pre-freeze-review/HISTORICAL-METHOD.json",
+      "UTF8Bytes": 4420,
+      "sha256": "566508c636e21a1a29a46fd99d9d0d7e77b5b98f715e917b2b44deffd4f5561e"
+    },
+    {
+      "order": 17,
+      "source": "history/pre-freeze-review/export-local-anchors.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/pre-freeze-review/export-local-anchors.py",
+      "UTF8Bytes": 5751,
+      "sha256": "2d01344a0d53395af199715957de70dc40d1baf6efb8067e810c6301aed5b35f"
+    },
+    {
+      "order": 18,
+      "source": "history/pre-freeze-review/host-study.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/pre-freeze-review/host-study.py",
+      "UTF8Bytes": 24343,
+      "sha256": "9717ed7d43c29ae20333005b84b574d4c3e103d5340fea69b607d0fb3c0ef348"
+    },
+    {
+      "order": 19,
+      "source": "history/strict-unexecuted/HISTORICAL-METHOD.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/strict-unexecuted/HISTORICAL-METHOD.json",
+      "UTF8Bytes": 4420,
+      "sha256": "566508c636e21a1a29a46fd99d9d0d7e77b5b98f715e917b2b44deffd4f5561e"
+    },
+    {
+      "order": 20,
+      "source": "history/strict-unexecuted/STATUS.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/strict-unexecuted/STATUS.json",
+      "UTF8Bytes": 485,
+      "sha256": "dfa381ce9e7afb9aaf5d81d2a73ce25738505e12a3220609122545817b3409a2"
+    },
+    {
+      "order": 21,
+      "source": "history/strict-unexecuted/host-study.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/strict-unexecuted/host-study.py",
+      "UTF8Bytes": 18683,
+      "sha256": "3e7377caa58528bbf11dc61c7f5352c1367e29696cc6a83b746c55c4ecb595bd"
+    },
+    {
+      "order": 22,
+      "source": "history/strict-unexecuted/workflow.yml",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/strict-unexecuted/workflow.yml",
+      "UTF8Bytes": 8410,
+      "sha256": "4cf407da18a9181a51d0b71286ffbd4e2b207d469ffb3c580784c2b25038854f"
+    },
+    {
+      "order": 23,
+      "source": "history/strict-v8-unexecuted/STATUS.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/strict-v8-unexecuted/STATUS.json",
+      "UTF8Bytes": 221,
+      "sha256": "3e49a532f4146b7109ce62dadf451fe07347ceaa9ec22dd55605e84ec560fad4"
+    },
+    {
+      "order": 24,
+      "source": "history/strict-v8-unexecuted/expected-oracles.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/strict-v8-unexecuted/expected-oracles.json",
+      "UTF8Bytes": 695493,
+      "sha256": "a8bad425627f48855dfff2a255d1ff88226d4f5ec681c339b3ea45f44d25463c"
+    },
+    {
+      "order": 25,
+      "source": "history/strict-v8-unexecuted/host-study.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/strict-v8-unexecuted/host-study.py",
+      "UTF8Bytes": 23869,
+      "sha256": "06cece6f6488c98aa76d7aead5503b7c9cda2f8a2c0d42aae099676b055d35dc"
+    },
+    {
+      "order": 26,
+      "source": "history/workflow-download-pin-typo.yml",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/history/workflow-download-pin-typo.yml",
+      "UTF8Bytes": 8410,
+      "sha256": "4cf407da18a9181a51d0b71286ffbd4e2b207d469ffb3c580784c2b25038854f"
+    },
+    {
+      "order": 27,
+      "source": "host-study.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/host-study.py",
+      "UTF8Bytes": 25021,
+      "sha256": "509ecf1886e78181e08974e0fcf1ec8b1d51eab3891a4ae21bc38e89a55d329b"
+    },
+    {
+      "order": 28,
+      "source": "local-static-module-graph.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/local-static-module-graph.json",
+      "UTF8Bytes": 134654,
+      "sha256": "62f3fcc3cb69f0ebd807460904c0d44c7fbcb8d8d45055fdbba2a44a8a3825cf"
+    },
+    {
+      "order": 29,
+      "source": "preflight-launcher.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/preflight-launcher.mjs",
+      "UTF8Bytes": 247,
+      "sha256": "c5ff0221c323a8b7f730647f26304a8e0b291825e452558fa0ef37637685b374"
+    },
+    {
+      "order": 30,
+      "source": "preparation-fixtures.stderr",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/preparation-fixtures.stderr",
+      "UTF8Bytes": 105,
+      "sha256": "896778449a9e01573f59972127df4bdc6c456d1bb3c50ee583288f3cbbbe92b3"
+    },
+    {
+      "order": 31,
+      "source": "preparation-fixtures.stdout",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/preparation-fixtures.stdout",
+      "UTF8Bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "order": 32,
+      "source": "semantic-derivation.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/semantic-derivation.json",
+      "UTF8Bytes": 228805,
+      "sha256": "5833f528f3eff2eb723a4e631eec85befa62150ee560fd37c865fc479ab188a6"
+    },
+    {
+      "order": 33,
+      "source": "semantic-derivation.stderr",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/semantic-derivation.stderr",
+      "UTF8Bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "order": 34,
+      "source": "semantic-derivation.stdout",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/semantic-derivation.stdout",
+      "UTF8Bytes": 209,
+      "sha256": "d5f160f5dd994a31574c713d2e30931a81cb11b367c258b20c42c4ca61ee8773"
+    },
+    {
+      "order": 35,
+      "source": "source-assets/assess-calibration.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/assess-calibration.py",
+      "UTF8Bytes": 8088,
+      "sha256": "b6a5ee4d925261202d917d07e5c10f737b7d5d04bbf7e5a1e69dddc0e6e5f548"
+    },
+    {
+      "order": 36,
+      "source": "source-assets/calibrate.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/calibrate.py",
+      "UTF8Bytes": 10666,
+      "sha256": "8e85a0057de0bd5ee366ced453c57fed089663e2e2e6d4a84b6cd477dcd2834d"
+    },
+    {
+      "order": 37,
+      "source": "source-assets/calibration-worker.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/calibration-worker.mjs",
+      "UTF8Bytes": 9226,
+      "sha256": "971f8a4eee2333453a36f1fc50256c5fdf88daa8881c4d36ffb7366527bcffb4"
+    },
+    {
+      "order": 38,
+      "source": "source-assets/capture-baseline.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/capture-baseline.mjs",
+      "UTF8Bytes": 8734,
+      "sha256": "0bfe10aef8d8bd66319c9fd8b950caf203c5607e6f48e69984c829784e290c89"
+    },
+    {
+      "order": 39,
+      "source": "source-assets/enrollment.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/enrollment.json",
+      "UTF8Bytes": 250122,
+      "sha256": "636c39dc787ce860ade86061b704c6a5e7db9f858f02991871112ff0fd6842f0"
+    },
+    {
+      "order": 40,
+      "source": "source-assets/fidelity.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/fidelity.mjs",
+      "UTF8Bytes": 16786,
+      "sha256": "b7ba8cad29c77dd4b826f7609851fd2939a34b21a54032cc756e21fa83fc6867"
+    },
+    {
+      "order": 41,
+      "source": "source-assets/historical-proposal.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/historical-proposal.json",
+      "UTF8Bytes": 4918,
+      "sha256": "e40ada958133bad3311e3c51e2210e19fa50c5dc53ce309d3343b16b8145ff1f"
+    },
+    {
+      "order": 42,
+      "source": "source-assets/record-host-observer.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/record-host-observer.py",
+      "UTF8Bytes": 1345,
+      "sha256": "ea84c73888ce09854f749bc2155af0664506e9ca6a9cf687d65d0446138efecb"
+    },
+    {
+      "order": 43,
+      "source": "source-assets/test-calibration.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/test-calibration.py",
+      "UTF8Bytes": 4062,
+      "sha256": "e8314ae02632e75344440162f8fc1c104ffcd5ae26ca9284fa1ac29b92f6a709"
+    },
+    {
+      "order": 44,
+      "source": "source-assets/worker-derivation.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/worker-derivation.json",
+      "UTF8Bytes": 2290,
+      "sha256": "8616215031bbe08795f03b092e6eba7055c53fd0d9df133de139bea0275c7fef"
+    },
+    {
+      "order": 45,
+      "source": "source-assets/worker-derivation.patch",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/source-assets/worker-derivation.patch",
+      "UTF8Bytes": 4353,
+      "sha256": "b5b822e2f8f5d2383f0aa38e9c609b43ed9cc0b292d337a6839bb81da2c2a1f6"
+    },
+    {
+      "order": 46,
+      "source": "static-checks.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/static-checks.json",
+      "UTF8Bytes": 1968,
+      "sha256": "606a7604cbaaea4994829f6d9eaa5aca0c30998ba2c309fc00b15dac300ec1c0"
+    },
+    {
+      "order": 47,
+      "source": "static-graph.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/static-graph.mjs",
+      "UTF8Bytes": 2375,
+      "sha256": "a9de8aa3203829b015c4026a20b14423b6fffd3214c8b2787bbe932248557e6d"
+    },
+    {
+      "order": 48,
+      "source": "structural-digest.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/structural-digest.mjs",
+      "UTF8Bytes": 2975,
+      "sha256": "29392c3847dbaa1c2e44daee3bc18f3fe13d72fe3a1a37d26b78433da0bd47cd"
+    },
+    {
+      "order": 49,
+      "source": "structural-tests.json",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/structural-tests.json",
+      "UTF8Bytes": 2239,
+      "sha256": "56c6505baef05979695534ae2bbf54bdb1c05112f2a128bb5e76c370ed402836"
+    },
+    {
+      "order": 50,
+      "source": "structural-tests.stderr",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/structural-tests.stderr",
+      "UTF8Bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "order": 51,
+      "source": "structural-tests.stdout",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/structural-tests.stdout",
+      "UTF8Bytes": 39,
+      "sha256": "90565a9e327cce50f5652068b9a053a46498863333b254c4241e5dae710b321d"
+    },
+    {
+      "order": 52,
+      "source": "test-host-study.py",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/test-host-study.py",
+      "UTF8Bytes": 4096,
+      "sha256": "7e2d8c86a27b15cedc411872085a1008f147125e032182cc6562d365ae5cf64e"
+    },
+    {
+      "order": 53,
+      "source": "test-structural-digest.mjs",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/test-structural-digest.mjs",
+      "UTF8Bytes": 4181,
+      "sha256": "99b83d581c9005aef175b24d43f350fb55976ce7a614e04eb7122fb82a2756c5"
+    },
+    {
+      "order": 54,
+      "source": "workflow.yml",
+      "destination": "diagnostics/pr449-baseline-calibration-20261023/workflow.yml",
+      "UTF8Bytes": 8412,
+      "sha256": "554e4b324abc56566bf5a0fea09da3b2495c18289ff620630bc5b233473accef"
+    },
+    {
+      "order": 55,
+      "source": "workflow.yml",
+      "destination": ".github/workflows/pr449-baseline-calibration-20261023.yml",
+      "UTF8Bytes": 8412,
+      "sha256": "554e4b324abc56566bf5a0fea09da3b2495c18289ff620630bc5b233473accef",
+      "commitMessage": "Declare one baseline-only host calibration 20261023",
+      "MUST_BE_LAST": true
+    }
+  ],
+  "totalUTF8Bytes": 3360170,
+  "noBinaryCASOrRuntime": true,
+  "createOnlyNoRetryOrAlternateTransport": true,
+  "remotePermissionAndPushEventDelivery": "UNVERIFIED. Tool capability is not write permission. Root must approve the exact reviewed package before any remote mutation. No PR or messages are part of this protocol."
+}

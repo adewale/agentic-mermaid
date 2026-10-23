@@ -1,0 +1,95 @@
+{
+  "protocol": "tagged-semantic-data-fixtures@1",
+  "tests": [
+    {
+      "name": "Complete fullvalue fixture is stable through retained V8 data transport",
+      "passed": true
+    },
+    {
+      "name": "Undefined differs from absent own key",
+      "passed": true
+    },
+    {
+      "name": "Undefined differs from null and string",
+      "passed": true
+    },
+    {
+      "name": "Signed zero is preserved",
+      "passed": true
+    },
+    {
+      "name": "NaN has semantic value stability",
+      "passed": true
+    },
+    {
+      "name": "NaN infinity negative infinity and null remain distinct",
+      "passed": true
+    },
+    {
+      "name": "Array hole differs from present undefined",
+      "passed": true
+    },
+    {
+      "name": "Array length and trailing holes remain visible",
+      "passed": true
+    },
+    {
+      "name": "Own key order is deliberately stronger than ordinary deep equality",
+      "passed": true
+    },
+    {
+      "name": "Plain versus null prototype remains distinct",
+      "passed": true
+    },
+    {
+      "name": "Retained data descriptor flags remain distinct",
+      "passed": true
+    },
+    {
+      "name": "Accessor rejected without invoking getter",
+      "passed": true
+    },
+    {
+      "name": "Proxy rejected before traps",
+      "passed": true
+    },
+    {
+      "name": "Symbol own keys rejected",
+      "passed": true
+    },
+    {
+      "name": "Symbols and functions rejected",
+      "passed": true
+    },
+    {
+      "name": "Map Set Date RegExp and typed arrays rejected",
+      "passed": true
+    },
+    {
+      "name": "Direct and indirect cycles rejected",
+      "passed": true
+    },
+    {
+      "name": "Acyclic repeated references compare by content, no live identity claim",
+      "passed": true
+    },
+    {
+      "name": "Primitive types numbers strings booleans BigInts distinct",
+      "passed": true
+    },
+    {
+      "name": "Unicode and lone surrogate code units retained",
+      "passed": true
+    },
+    {
+      "name": "Every fullvalue field participates",
+      "passed": true
+    },
+    {
+      "name": "Node/depth/byte budgets reject rather than project data",
+      "passed": true
+    }
+  ],
+  "passed": 22,
+  "rendererImported": false
+}

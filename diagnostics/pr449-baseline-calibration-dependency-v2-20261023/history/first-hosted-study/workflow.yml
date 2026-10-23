@@ -1,0 +1,179 @@
+name: One baseline-only host calibration 20261023
+
+# Proposed diagnostic branch ONLY. No default-branch or PR trigger.
+# Create this workflow LAST, with the exact commit message below, after review.
+on:
+  push:
+    branches: [diagnostic/pr449-baseline-calibration-20261023]
+    paths: [.github/workflows/pr449-baseline-calibration-20261023.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr449-baseline-calibration-20261023
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.run_attempt == 1 && github.event.head_commit.message == 'Declare one baseline-only host calibration 20261023'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: protocol
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ec72a06dcf57d1e429fab9672a9acbf794e22d9f
+          path: baseline
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - name: Build fixed accepted source once
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/preparation-evidence"
+          cd "$GITHUB_WORKSPACE/baseline"
+          test "$(git rev-parse HEAD)" = ec72a06dcf57d1e429fab9672a9acbf794e22d9f
+          bun install --frozen-lockfile 2>&1 | tee "$RUNNER_TEMP/preparation-evidence/install.log"
+          bun run build 2>&1 | tee "$RUNNER_TEMP/preparation-evidence/build.log"
+      - name: Freeze exact artifact and bounded untimed oracle plan
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          study="$GITHUB_WORKSPACE/protocol/diagnostics/pr449-baseline-calibration-20261023"
+          cmp "$study/workflow.yml" "$GITHUB_WORKSPACE/protocol/.github/workflows/pr449-baseline-calibration-20261023.yml"
+          env -u PYTHONOPTIMIZE python3 "$study/host-study.py" prepare --baseline "$GITHUB_WORKSPACE/baseline" --node "$(command -v node)" --out "$RUNNER_TEMP/prepared"
+      - name: Run all four baseline-only oracle preflights once
+        timeout-minutes: 11
+        shell: bash
+        run: |
+          set -euo pipefail
+          study="$GITHUB_WORKSPACE/protocol/diagnostics/pr449-baseline-calibration-20261023"
+          env -u PYTHONOPTIMIZE -u AGENTIC_MERMAID_SCENE_ASSERTIONS NODE_OPTIONS= python3 "$study/host-study.py" capture-untimed-preflight --out "$RUNNER_TEMP/prepared"
+      - name: Preserve preparation outcomes and transport bytes
+        if: always()
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/preparation-evidence"
+          if [ -d "$RUNNER_TEMP/prepared" ]; then
+            tar -czf "$RUNNER_TEMP/preparation-evidence/prepared.tgz" -C "$RUNNER_TEMP" prepared
+            (cd "$RUNNER_TEMP/preparation-evidence" && sha256sum prepared.tgz > prepared.sha256)
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: baseline-ec72-preparation-${{ github.run_id }}
+          path: ${{ runner.temp }}/preparation-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  measure:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Record measurement-job startup origin
+        shell: bash
+        run: python3 -c 'import pathlib,time,os;pathlib.Path(os.environ["RUNNER_TEMP"],"calibration-job-start.txt").write_text(str(time.monotonic()))'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: protocol
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: baseline-ec72-preparation-${{ github.run_id }}
+          path: ${{ runner.temp }}/transport
+      - name: Verify transport and declare relocated baseline-only plan
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/transport" && sha256sum -c prepared.sha256)
+          env -u PYTHONOPTIMIZE python3 - "$RUNNER_TEMP/transport/prepared.tgz" "$RUNNER_TEMP" <<'PY'
+          import sys, tarfile
+          with tarfile.open(sys.argv[1], 'r:gz') as archive:
+              archive.extractall(sys.argv[2], filter='data')
+          PY
+          study="$GITHUB_WORKSPACE/protocol/diagnostics/pr449-baseline-calibration-20261023"
+          env -u PYTHONOPTIMIZE python3 "$study/host-study.py" declare --out "$RUNNER_TEMP/prepared" --node "$(command -v node)"
+      - name: Original24 baseline-only workers once
+        id: calibration
+        continue-on-error: true
+        timeout-minutes: 33
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Do not begin the fixed33-minute step after a slow startup. This
+          # reserves post-result upload time inside the40-minute job bound.
+          python3 - "$RUNNER_TEMP/calibration-job-start.txt" <<'PY'
+          import pathlib, sys, time
+          if time.monotonic() - float(pathlib.Path(sys.argv[1]).read_text()) > 180:
+              raise SystemExit('Startup exceeded3minutes; all timing slots remain unlaunched. No adaptive schedule.')
+          PY
+          study="$GITHUB_WORKSPACE/protocol/diagnostics/pr449-baseline-calibration-20261023"
+          env -u PYTHONOPTIMIZE python3 "$study/source-assets/record-host-observer.py" --phase before --out "$RUNNER_TEMP/prepared/host-before.json"
+          env -u PYTHONOPTIMIZE -u AGENTIC_MERMAID_SCENE_ASSERTIONS NODE_OPTIONS= python3 "$RUNNER_TEMP/prepared/calibration-harness/calibrate.py" run --plan "$RUNNER_TEMP/prepared/calibration/plan.json"
+      - name: Retain external host context
+        if: always()
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          study="$GITHUB_WORKSPACE/protocol/diagnostics/pr449-baseline-calibration-20261023"
+          if [ -d "$RUNNER_TEMP/prepared" ]; then
+            env -u PYTHONOPTIMIZE python3 "$study/source-assets/record-host-observer.py" --phase after --out "$RUNNER_TEMP/prepared/host-after.json"
+          fi
+      - name: Original wall-only AA arithmetic once
+        id: assess
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          env -u PYTHONOPTIMIZE python3 "$RUNNER_TEMP/prepared/calibration-harness/assess-calibration.py" --plan "$RUNNER_TEMP/prepared/calibration/plan.json" --out "$RUNNER_TEMP/prepared/calibration/assessment.initial.json"
+      - name: Preserve all first results including failed controls
+        if: always()
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/final-evidence"
+          if [ -d "$RUNNER_TEMP/prepared" ]; then
+            tar -czf "$RUNNER_TEMP/final-evidence/all-first-results.tgz" -C "$RUNNER_TEMP" prepared
+            (cd "$RUNNER_TEMP/final-evidence" && sha256sum all-first-results.tgz > all-first-results.sha256)
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        timeout-minutes: 1
+        with:
+          name: baseline-ec72-calibration-first-results-${{ github.run_id }}
+          path: ${{ runner.temp }}/final-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Require actual qualification rather than CLI exit0
+        if: always()
+        shell: bash
+        run: |
+          env -u PYTHONOPTIMIZE python3 - "$RUNNER_TEMP/prepared/calibration/assessment.initial.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as stream:
+              result = json.load(stream)
+          if result.get('qualified') is not True:
+              raise SystemExit('Baseline repeatability unqualified; all first outcomes retained, no retries or candidate inference.')
+          PY

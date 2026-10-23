@@ -1,0 +1,107 @@
+{
+  "protocol": "local-consumer-located-v2-source-and-action-review@2",
+  "rendererImported": false,
+  "checks": [
+    {
+      "check": "Python syntax:host-study.py",
+      "passed": true
+    },
+    {
+      "check": "Python syntax:test-host-study.py",
+      "passed": true
+    },
+    {
+      "check": "Python syntax:verify-resolution-spec.py",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/checkout",
+      "gitCommit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/checkout",
+      "gitCommit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:oven-sh/setup-bun",
+      "gitCommit": "0c5077e51419868618aeaa5fe8019c62421857d6",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/setup-node",
+      "gitCommit": "820762786026740c76f36085b0efc47a31fe5020",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/upload-artifact",
+      "gitCommit": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/checkout",
+      "gitCommit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/setup-node",
+      "gitCommit": "820762786026740c76f36085b0efc47a31fe5020",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/download-artifact",
+      "gitCommit": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action pin:actions/upload-artifact",
+      "gitCommit": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "passed": true
+    },
+    {
+      "check": "ExactV2branch/workflowpath/prepare+measure only",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:source-assets/calibration-worker.mjs",
+      "sha256": "971f8a4eee2333453a36f1fc50256c5fdf88daa8881c4d36ffb7366527bcffb4",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:source-assets/assess-calibration.py",
+      "sha256": "b6a5ee4d925261202d917d07e5c10f737b7d5d04bbf7e5a1e69dddc0e6e5f548",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:expected-artifact.json",
+      "sha256": "5ca4db1575f5fb0f7d122a0a526cd4ec000bea20415f44520b1f4a1827be79ba",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:expected-oracles.semantic.json",
+      "sha256": "e3adaddc77b1ba6db10ed7669c7800cf0c6ed8a081839895f3f5febb9c6073ef",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:structural-digest.mjs",
+      "sha256": "29392c3847dbaa1c2e44daee3bc18f3fe13d72fe3a1a37d26b78433da0bd47cd",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:test-structural-digest.mjs",
+      "sha256": "99b83d581c9005aef175b24d43f350fb55976ce7a614e04eb7122fb82a2756c5",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:structural-tests.json",
+      "sha256": "56c6505baef05979695534ae2bbf54bdb1c05112f2a128bb5e76c370ed402836",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:source-assets/enrollment.json",
+      "sha256": "636c39dc787ce860ade86061b704c6a5e7db9f858f02991871112ff0fd6842f0",
+      "passed": true
+    }
+  ]
+}

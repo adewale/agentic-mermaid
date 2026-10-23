@@ -1,0 +1,52 @@
+{
+  "protocol": "filesystem-only-consumer-resolution-fixtures@2",
+  "passed": 11,
+  "rendererImported": false,
+  "packageCodeImported": false,
+  "cases": [
+    {
+      "name": "Conflicting root3 and nested1 select actual consumer1 without executing throw-only modules",
+      "passed": true
+    },
+    {
+      "name": "Private package.json export does not block entry-to-root discovery",
+      "passed": true
+    },
+    {
+      "name": "Missing nested version does not select conflicting root3",
+      "passed": true
+    },
+    {
+      "name": "Matching version in unrelated tree is not globally selected",
+      "passed": true
+    },
+    {
+      "name": "Exact package JSON bytes required, not only name/version",
+      "passed": true
+    },
+    {
+      "name": "Wrong fixed lock fails before resolution",
+      "passed": true
+    },
+    {
+      "name": "Unknown target and unreachable graph rejected",
+      "passed": true
+    },
+    {
+      "name": "Lock identity mismatch rejected",
+      "passed": true
+    },
+    {
+      "name": "Native binary filename resolves without loading invalid binary",
+      "passed": true
+    },
+    {
+      "name": "Escaping dependency links rejected",
+      "passed": true
+    },
+    {
+      "name": "CLI preserves actual failed version/path observations without importing package code",
+      "passed": true
+    }
+  ]
+}

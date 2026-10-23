@@ -1,0 +1,9 @@
+{
+  "status": "UNEXECUTED_PROSPECTIVE_DRAFT_SUPERSEDED_BEFORE_BUILD",
+  "reason": "Parent chose NEW fixed-source hosted artifact identity before any build; no strict-first/fallback attempt.",
+  "files": {
+    "host-study.py": "3e7377caa58528bbf11dc61c7f5352c1367e29696cc6a83b746c55c4ecb595bd",
+    "workflow.yml": "4cf407da18a9181a51d0b71286ffbd4e2b207d469ffb3c580784c2b25038854f",
+    "HISTORICAL-METHOD.json": "566508c636e21a1a29a46fd99d9d0d7e77b5b98f715e917b2b44deffd4f5561e"
+  }
+}
