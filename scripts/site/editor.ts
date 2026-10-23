@@ -232,7 +232,7 @@ async function generateEditorHtml(): Promise<string> {
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
-    plugins: [runtimeRenderContractPlugin({ conformanceObservations: false })],
+    plugins: [runtimeRenderContractPlugin({ conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory) })],
     target: 'browser',
     format: 'esm',
     minify: true,
