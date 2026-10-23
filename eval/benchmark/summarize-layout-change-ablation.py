@@ -12,9 +12,6 @@ import pathlib
 import statistics
 
 
-ARMS = ['before', 'before-aa', 'after', 'elk']
-
-
 def number(value):
     return value if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) else None
 
@@ -23,6 +20,8 @@ def ratios(values):
     result = {}
     for label, numerator, denominator in [('aa', 'before-aa', 'before'), ('afterBefore', 'after', 'before'),
                                           ('beforeElk', 'before', 'elk'), ('afterElk', 'after', 'elk')]:
+        if numerator not in values or denominator not in values:
+            continue
         rounds = [a / b if a is not None and b is not None and b > 0 else None
                   for a, b in zip(values[numerator], values[denominator])]
         valid = [value for value in rounds if value is not None]
@@ -41,6 +40,7 @@ def main():
     manifest_bytes = manifest_path.read_bytes()
     manifest = json.loads(manifest_bytes)
     plan = manifest['plan']
+    arms = plan['arms']
     results, failures = {}, []
     rows = [row for row in manifest['observations'] if row['mode'] == 'memory']
     for row in rows:
@@ -67,9 +67,9 @@ def main():
             case = item['id']
             cell = {}
             for metric in ['allocatedBytes', 'peakHeapBytes']:
-                values = {arm: [] for arm in ARMS}
+                values = {arm: [] for arm in arms}
                 for rnd in range(1, plan['rounds'] + 1):
-                    for arm in ARMS:
+                    for arm in arms:
                         result = results.get((cache, rnd, arm), {})
                         found = next((value for value in result.get('perInput', []) if value.get('id') == case), {})
                         values[arm].append(number(found.get(metric)))
@@ -78,8 +78,8 @@ def main():
         summary['corpus'][cache] = {}
         for metric in ['passAllocatedBytes', 'passPeakHeapBytes', 'retainedGrowthBytes', 'peakRssBytes']:
             values = {arm: [number(results.get((cache, rnd, arm), {}).get(metric)) for rnd in range(1, plan['rounds'] + 1)]
-                      for arm in ARMS}
-            summary['corpus'][cache][metric] = {'scope': 'worker lifetime maximum' if metric == 'peakRssBytes' else 'corpus pass',
+                      for arm in arms}
+            summary['corpus'][cache][metric] = {'scope': 'worker lifetime maximum' if metric == 'peakRssBytes' else 'declared input population pass',
                                                'values': values, 'ratios': ratios(values)}
     output = args.out.resolve() if args.out else root / 'summary-memory.json'
     measured = {manifest_path, root / 'plan.json', root / 'summary.json'}
