@@ -4,6 +4,17 @@
   "method": {
     "supplementalSources": [
       {
+        "checkedAt": "2026-10-23",
+        "project": "gotoailab/modern_mermaid",
+        "sources": [
+          "https://github.com/gotoailab/modern_mermaid/tree/a021cbce37fc0b07a9f4791c28e983101ea06f2d",
+          "https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/package.json",
+          "https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/pnpm-lock.yaml",
+          "https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/src/components/Preview.tsx"
+        ],
+        "notes": "User-requested application exception to the renderer-only population. Full source checkout, locked production build, dependency-engine inventory and browser application probes; see docs/comparisons/modern-mermaid.md and eval/modern-mermaid/run.mjs. Existing observations and renderer peer rankings retain their dates and scope."
+      },
+      {
         "checkedAt": "2026-10-20",
         "project": "Dicklesworthstone/frankenmermaid",
         "sources": [
@@ -107,6 +118,31 @@
     "outputs": "svg, png, jpeg, pdf, ascii-unicode (includes ANSI-coloured text), ast, diagnostics, mermaid-text, react-flow."
   },
   "nodes": [
+    {
+      "id": "gotoailab/modern_mermaid",
+      "relation": "independent",
+      "repo": "https://github.com/gotoailab/modern_mermaid",
+      "homepage": "https://modern-mermaid.live/",
+      "checkedAt": "2026-10-23",
+      "branch": "main",
+      "head": "a021cbce37fc0b07a9f4791c28e983101ea06f2d",
+      "lastCommit": "2026-06-07T00:12:23+08:00",
+      "rootCommits": ["821bb7dfe8efb4349f97bcfa33bee5d815ca277a"],
+      "license": "MIT",
+      "runtime": "Browser; React 19.2.0, Mermaid 11.12.1; Vite web/PWA and Chrome extension builds",
+      "outputs": ["svg", "png", "jpeg"],
+      "roles": ["observed"],
+      "distribution": {
+        "kind": "source-build",
+        "name": "mermaid_advanced",
+        "version": "0.0.0",
+        "private": true,
+        "revision": "a021cbce37fc0b07a9f4791c28e983101ea06f2d",
+        "lockfile": "pnpm-lock.yaml",
+        "renderer": "mermaid@11.12.1"
+      },
+      "notes": "Independent application repository, not an independent parser/layout/renderer. Requested exception to method.keep: browser editor built on mermaid, not a browserless renderer peer. SVG is the preview surface; downloads are transparent PNG or background JPEG, clipboard images are PNG, and share URLs contain compressed source plus theme/background/font. Annotation state is not serialized into share URLs. Benchmark uses a local locked source build, not the live deployment; dependency SVG-return measurements and complete-editor measurements are reported separately. See docs/comparisons/modern-mermaid.md."
+    },
     {
       "id": "Dicklesworthstone/frankenmermaid",
       "relation": "independent",
@@ -1805,6 +1841,12 @@
     }
   ],
   "edges": [
+    {
+      "from": "gotoailab/modern_mermaid",
+      "to": "mermaid-js/mermaid",
+      "relation": "depends-on",
+      "evidence": "At a021cbce37fc0b07a9f4791c28e983101ea06f2d, package.json declares mermaid ^11.12.1 and pnpm-lock.yaml resolves 11.12.1. src/components/Preview.tsx imports mermaid, calls initialize/render and postprocesses the resulting SVG."
+    },
     {
       "from": "wevm/ondine",
       "to": "obsidianmd/pele",
