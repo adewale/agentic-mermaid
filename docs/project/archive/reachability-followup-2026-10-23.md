@@ -1,5 +1,7 @@
 # Shared reachability prototype — blocked draft
 
+Historical owner screen. The [rebased packed public measurements](reachability-packed-2026-10-23.md) record the current 213,172-byte result, fixed-control confirmations and public analysis supplement. Figures below retain their original source/build attribution.
+
 The invocation-local reachability prototype is **not selected for landing**. Its owner-level timing and allocation evidence supports further qualification, but the exact canonical build exceeds the unchanged Block lazy-browser Brotli budget: **213,108 bytes > 213,000 bytes**, an overrun of **108 bytes**. The budget is unchanged. This blocked draft stops before source compression tuning, packed public measurements or a full release replay.
 
 This is a separate follow-up to [#468](https://github.com/adewale/agentic-mermaid/pull/468). Revisit it after [#433](https://github.com/adewale/agentic-mermaid/pull/433), then build and qualify the actual combined artifact. Independent PR ratios cannot be added, and #433's changes do not establish that this prototype will meet the budget.

@@ -32,8 +32,10 @@ queues. Retired IDs are not reused.
   controls are implemented separately but blocked by unchanged payload caps;
   they are not shipped or measured as a memory improvement. The
   [shared reachability prototype](docs/project/archive/reachability-followup-2026-10-23.md)
-  is implemented but blocked by unchanged payload caps; revisit after #433 and
-  qualify the actual combined artifact. Next: integrate #433's semantic
+  is rebased onto main but still exceeds the unchanged Block cap by 172 bytes.
+  Its [packed public measurements](docs/project/archive/reachability-packed-2026-10-23.md)
+  show a narrow Node parsed-analysis benefit, without a broad SVG/allocation
+  improvement. Qualify a new combined artifact before integrating #433. Next: integrate #433's semantic
   peer/tail/allocation gates, establish geometry/proof ownership before broader
   reuse, and resolve #449's native qualification failures. Production SVG-only
   distribution remains unimplemented. Existing work stays with its owners;
