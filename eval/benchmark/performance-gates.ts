@@ -4,13 +4,13 @@ import { cpus } from 'node:os'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { median } from './bench-stats.ts'
-import { PEER_FROZEN_COHORT, PEER_PHASES, PEER_CONSUMERS } from './peer-tracks.ts'
+import { PEER_FROZEN_COHORT, PEER_PHASES, PEER_CONSUMERS, PEER_EXPECTED_LABELS } from './peer-tracks.ts'
 
 export const PERFORMANCE_POLICY = {
   version: 'semantic-peer-v1',
   historicalAnchor: 'a9d1551da27ddab542a1ae96329464ad65725448',
   cohort: PEER_FROZEN_COHORT,
-  fullAgenticCoverage: ['flow5', 'tree50', 'mesh50', 'seq20', 'c4', 'class80', 'er40', 'state80', 'packet240', 'kanban240', 'requirement100', 'treemap260', 'ishikawa133', 'block120'],
+  fullAgenticCoverage: Object.freeze(Object.keys(PEER_EXPECTED_LABELS)),
   scaling: ['tree100', 'mesh100'],
   phases: PEER_PHASES,
   consumers: PEER_CONSUMERS,
@@ -34,7 +34,7 @@ interface Observation {
   diagnostics: { status: string; complete?: boolean; counts: Record<string, number> }
 }
 export interface PerformanceReport {
-  status: string; runId: string; policy: { elkCache: string; aplEnvironment?: Record<string, string> }
+  status: string; runId: string; policy: { elkCache: string; aplEnvironment?: Record<string, string>; executionEnvironment?: ReturnType<typeof import('./peer-tracks.ts').peerExecutionEnvironment> }
   environment: { node?: string; cpu?: string; logicalCpus?: number; platform?: string; arch?: string; osRelease?: string; hostname?: string }
   config: { rounds: number; timing: unknown }
   tracksConfig?: { samples: number; allocationSamples: number; [key: string]: unknown }
@@ -88,6 +88,8 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
   check('Immutable semantic cohort and contract', candidate.tracks?.contractVersion === policy.version && JSON.stringify(candidate.tracks?.cohort) === JSON.stringify(policy.cohort))
   check('Unique observation keys', new Set(observations.map(key)).size === observations.length)
   check('No APL experiment overrides', Object.keys(candidate.policy?.aplEnvironment ?? {}).length === 0)
+  check('Execution feature/runtime settings are recorded', !!candidate.policy?.executionEnvironment && controls.every(r => !!r.policy?.executionEnvironment))
+  check('Default production experiment selection', candidate.policy?.executionEnvironment?.experiments === null && controls.every(r => r.policy?.executionEnvironment?.experiments === null))
   const allPeers = ['agentic', 'agentic-baseline', ...policy.competitivePeers]
   const missing: string[] = [], invalid: string[] = []
   for (const peer of allPeers) for (let round = 0; round < candidate.config.rounds; round++) for (const workload of policy.cohort) for (const phase of policy.phases) for (const consumer of policy.consumers) {
@@ -137,6 +139,7 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
     r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 === r.pins.find(p => p.peer === 'agentic-baseline')?.identity?.sha256 &&
     r.pins.find(p => p.peer === 'agentic')?.identity?.sha256 === candidate.pins.find(p => p.peer === 'agentic-baseline')?.identity?.sha256) &&
     candidate.config.rounds >= policy.minimumRounds && !!candidate.environment.hostname &&
+    /^[a-f0-9]{40}$/.test(String(candidate.tracksConfig?.harnessRevision ?? '')) && candidate.tracksConfig?.harnessDirty === false &&
     (candidate.tracksConfig?.samples ?? 0) >= policy.minimumTailCallsPerRound &&
     (candidate.tracksConfig?.allocationSamples ?? 0) >= policy.minimumAllocationSamplesPerRound
   const calibrationReason = validControls ? undefined : 'Need at least two distinct completed same-runner/contract/policy A/A reports, each ≥5 rounds, using the exact comparison baseline archive'

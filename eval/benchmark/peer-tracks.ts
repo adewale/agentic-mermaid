@@ -6,6 +6,20 @@ import { median } from './bench-stats.ts'
 export const PEER_FROZEN_COHORT = Object.freeze(['flow5', 'tree50', 'mesh50', 'seq20', 'class80', 'er40', 'state80'] as const)
 export const PEER_PHASES = Object.freeze(['first-use', 'warm-new-source', 'exact-repeat', 'label-edit'] as const)
 export const PEER_CONSUMERS = Object.freeze(['svg-utf8', 'receipt-json-utf8'] as const)
+const range = (prefix: string, count: number) => Array.from({ length: count }, (_, i) => `${prefix}${i}`)
+/** One enrollment owner, shared by the legacy timer and calibrated gates. */
+export const PEER_EXPECTED_LABELS: Record<string, readonly string[]> = {
+  flow5: ['Start', 'Check', 'Do it', 'Skip', 'End'], tree50: range('Node ', 50), mesh50: range('label ', 20), seq20: range('message ', 20),
+  c4: ['User', 'Email', 'Uses', 'Sends'], class80: range('C', 80), er40: range('E', 40), state80: range('S', 81), packet240: range('Field ', 240),
+  kanban240: Array.from({ length: 12 }, (_, stage) => [`Stage ${stage}`, ...Array.from({ length: 20 }, (_, task) => `Task ${stage}.${task}`)]).flat(),
+  requirement100: range('Requirement ', 100), treemap260: ['Product allocation', ...range('Group ', 20)],
+  ishikawa133: ['Delayed delivery', ...Array.from({ length: 12 }, (_, category) => [`Category ${category}`, ...Array.from({ length: 10 }, (_, cause) => `Cause ${category}.${cause}`)]).flat()],
+  block120: range('Component ', 120),
+}
+/** Only known execution settings, never the process environment or secrets. */
+export function peerExecutionEnvironment(env: Record<string, string | undefined>) {
+  return { experiments: env.AGENTIC_MERMAID_EXPERIMENTS ?? null, nodeOptions: env.NODE_OPTIONS ?? null, bunOptions: env.BUN_OPTIONS ?? null, nodeEnv: env.NODE_ENV ?? null, timezone: env.TZ ?? null }
+}
 export type PeerPhase = (typeof PEER_PHASES)[number]
 export type PeerConsumer = (typeof PEER_CONSUMERS)[number]
 export type PeerStatus = 'ok' | 'lost-labels' | 'unsupported' | 'error'

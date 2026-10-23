@@ -9,14 +9,34 @@ function report(id: string, aa = false): PerformanceReport {
     observations.push({ peer, round, workload, phase, consumer, status: unsupported ? 'unsupported' : 'ok', callSamplesMs: Array(31).fill(1), allocationSamplesBytes: [100, 100, 100],
       semantic: { ok: !unsupported, checks: unsupported ? [] : ['labels', 'xml', 'authored structure'], failures: [], unsupported: unsupported ? ['no receipt API'] : [] }, diagnostics: { status: peer === 'agentic' ? 'observed' : 'unobserved', complete: true, counts: {} } })
   }
-  return { status: 'completed', runId: id, config: { rounds: 5, timing: { warmupMs: 250 } }, policy: { elkCache: 'off', aplEnvironment: {} },
+  return { status: 'completed', runId: id, config: { rounds: 5, timing: { warmupMs: 250 } }, policy: { elkCache: 'off', aplEnvironment: {}, executionEnvironment: { experiments: null, nodeOptions: null, bunOptions: null, nodeEnv: null, timezone: null } },
     environment: { node: '24.19.0', cpu: 'test', hostname: 'same-runner', platform: 'linux', arch: 'x64', logicalCpus: 4 },
     pins: [{ peer: 'agentic', runtimeDependencySha256: beforeSha, identity: { sha256: aa ? beforeSha : afterSha } }, { peer: 'agentic-baseline', runtimeDependencySha256: beforeSha, identity: { sha256: beforeSha } }, ...policy.competitivePeers.map(peer => ({ peer, runtimeDependencySha256: beforeSha, integrity: 'sha512-pinned', source: { version: '1' } }))],
-    tracksConfig: { samples: 31, allocationSamples: 3, sourceSha256: 'source-contract' }, tracks: { schemaVersion: 1, contractVersion: policy.version, cohort: policy.cohort, observations } }
+    tracksConfig: { samples: 31, allocationSamples: 3, harnessRevision: 'c'.repeat(40), harnessDirty: false }, tracks: { schemaVersion: 1, contractVersion: policy.version, cohort: policy.cohort, observations } }
 }
 const setup = () => ({ candidate: report('ab'), controls: [report('aa1', true), report('aa2', true)] })
 
 describe('calibrated semantic performance decisions', () => {
+  test('default feature selection is distinct from an explicitly empty legacy profile', () => {
+    const { candidate, controls } = setup()
+    candidate.policy.executionEnvironment!.experiments = ''
+    const result = performanceScorecard(candidate, controls)
+    expect(result.ok).toBe(false)
+    expect(result.checks.find(c => c.name === 'Default production experiment selection')?.ok).toBe(false)
+    expect(result.performanceQualified).toBe(false)
+  })
+
+  test('persisted calibration cannot cross runtime options or an uncommitted harness', () => {
+    for (const option of ['nodeOptions', 'bunOptions', 'nodeEnv', 'timezone'] as const) {
+      const { candidate, controls } = setup()
+      controls[0]!.policy.executionEnvironment![option] = 'different-profile'
+      expect(performanceScorecard(candidate, controls).calibration.validControls).toBe(false)
+    }
+    const { candidate, controls } = setup()
+    candidate.tracksConfig!.harnessDirty = true
+    expect(performanceScorecard(candidate, controls).performanceQualified).toBe(false)
+  })
+
   test('doubled-size growth has its own gate even when each large case stays within budget', () => {
     const { candidate, controls } = setup()
     for (const row of candidate.tracks.observations) if (row.peer === 'agentic' && row.phase === 'exact-repeat' && row.consumer === 'svg-utf8') {

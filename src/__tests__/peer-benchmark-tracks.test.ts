@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile } from '../../eval/benchmark/peer-tracks.ts'
+import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile, peerExecutionEnvironment } from '../../eval/benchmark/peer-tracks.ts'
 import { measurePeerTrack } from '../../eval/benchmark/peer-track-worker.ts'
 
 const input = { id: 'flow5', source: 'flowchart TD\n A[Start] --> B[End]', expected: ['Start', 'End'] }
@@ -11,6 +11,13 @@ const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><r
 const track = { phase: 'exact-repeat', consumer: 'svg-utf8', round: 0, samples: 21, allocationSamples: 3, maxCaseMs: 1000 } as const
 
 describe('maintained consumed peer protocol', () => {
+  test('records only known runtime selectors while preserving explicit empty experiments', () => {
+    expect(peerExecutionEnvironment({})).toEqual({ experiments: null, nodeOptions: null, bunOptions: null, nodeEnv: null, timezone: null })
+    const policy = peerExecutionEnvironment({ AGENTIC_MERMAID_EXPERIMENTS: '', NODE_OPTIONS: '--max-old-space-size=4096', UNRELATED_SECRET: 'must-not-appear' })
+    expect(policy.experiments).toBe('')
+    expect(policy.nodeOptions).toBe('--max-old-space-size=4096')
+    expect(policy).not.toHaveProperty('UNRELATED_SECRET')
+  })
   test('real label edits preserve IDs; new sources rename IDs consistently', () => {
     const edit = peerTrackVariant(input, 'label-edit', 8)
     expect(edit.source).toBe('flowchart TD\n A[q8] --> B[End]')

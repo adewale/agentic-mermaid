@@ -57,8 +57,13 @@ Each report uses five counterbalanced rounds. Both Agentic sides in A/A install
 the exact comparison baseline archive. Package hashes and canonical resolved
 runtime dependency graphs must agree, alongside host/runtime, fixture source,
 sampling policy and cache policy. Peer package/integrity and dependency graphs
-also bind their calibration. The harness source-byte hash prevents reusing
-controls after changing variant generation, validation or timing code. Missing or failed mandatory warm controls fail
+also bind their calibration. Recorded Git revision and a clean harness worktree
+prevent reusing controls after changing variant generation, validation or timing
+code; full input records are compared directly. Known feature/runtime settings
+(`AGENTIC_MERMAID_EXPERIMENTS`, `NODE_OPTIONS`, `BUN_OPTIONS`, `NODE_ENV`, `TZ`)
+are recorded and must match. An explicit experiment string, including the empty
+string that disables defaults, cannot qualify the default production profile.
+Missing or failed mandatory warm controls fail
 completeness; they cannot disable an otherwise adverse numeric gate.
 
 Targets are explicit and distinct:
