@@ -56,6 +56,8 @@ produced *by* the system.
 - [`pr449-current-measurements-2026-10-23.md`](./pr449-current-measurements-2026-10-23.md) — both hosted canaries, the qualified standalone repair, profiling results and subsequent rejected trials.
 - [`pr449-exact-subtraction-2026-10-23.md`](./pr449-exact-subtraction-2026-10-23.md) — completed C2 cost rejection, Class parity and CPU headroom, failed timing calibration, RSS attribution and current route-quality comparison.
 - [`pr449-forest-boundary-2026-10-23.md`](./pr449-forest-boundary-2026-10-23.md) — qualified forest delivery boundary, actual browser and callback proof, new failed timing/RSS controls, and current ELK wins and losses.
+- [`pr449-controls-2026-10-23.md`](./pr449-controls-2026-10-23.md) — complete selected RSS and hosted timing workers, original failed controls and portable verification.
+- [`pr449-gc-diagnostic-2026-10-23.md`](./pr449-gc-diagnostic-2026-10-23.md) — complete input-level memory/GC histories and bounded profiling questions, with observer limitations.
 - [`pr449-exact-subtraction-2026-10-23-evidence.md`](./pr449-exact-subtraction-2026-10-23-evidence.md) — coverage and verification of the distinct milestone and reliability packets.
 - [`route-contracts.md`](./route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
 - [`layout-rubric.md`](./layout-rubric.md) — the deterministic layout-quality rubric.

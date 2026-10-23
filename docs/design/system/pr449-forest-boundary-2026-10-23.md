@@ -50,6 +50,8 @@ The historical rows below retain their original measured revisions and populatio
 
 ## New measurements that did not qualify
 
+The [complete selected RSS and hosted timing evidence](pr449-controls-2026-10-23.md) is available separately, retaining every worker and failed control.
+
 The new RSS instrument uses cold Python exec, an explicit fork, then pinned Node. This removes the inherited lifetime-highwater contamination demonstrated by the original instrument controls. Node SELF peak is sampled after all consumed outputs, checksums and oracle checks, before result JSON. It includes Node, module loading, harness work and natural GC; it is not renderer-only memory. Bridge SELF and child wait4 remain separate.
 
 All 24 workers finish the same original 75-input one-pass session, with no prewarm or forced GC: all 1,800 SVG/full-receipt calls, output hashes, floors, deadlines and output budgets pass. Four mandatory reciprocal 5% A/A controls fail: native and ELK in round one of both policies. The lower median ratios are descriptive only. No round is dropped, metric substituted, threshold changed or campaign retried.
@@ -76,7 +78,7 @@ All 17 open issue/PR discussion feeds were refreshed at 20:54 UTC: 49 comments, 
 | Hardcode ELK constructor defaults | Raw synchronous dispatch bypasses constructor defaults; broad explicit defaults add work or alter scope. Not adopted |
 | Lazy YAML from #471 | Real lead: 74 YAML metafile inputs share a 129,216-byte chunk. Literal integration conflicts with native/forest providers and can require a fourth deferred event. A compatible readiness design is still needed |
 | Rebuild/specialize ELK | The bounded infrastructure attempt passes in 30.873 seconds; exact image, Node binary, resource settings and private quota verified. Compiler reconstruction and specialization remain unrun |
-| Profile RSS/GC by input | A separate four-worker structured GC/memory diagnostic is being reviewed. Observer overhead and changed workload instrumentation will remain explicit |
+| Profile RSS/GC by input | The [four-worker structured diagnostic](pr449-gc-diagnostic-2026-10-23.md) completes all 300 calls, 600 anchors and 608 snapshots. It locates large Requirement100/cyclic/DAG windows; observer overhead prevents a performance or memory-win claim |
 
 The ER prototype deliberately explores a tradeoff: target actual bends no worse than ELK, area no worse than ELK and at most 1.15× current native, length no worse than either, with no new hard geometry or coverage loss. Its simple bounds fit that area allowance; actual legal geometry is unmeasured. It bypasses the generic geometry cache, so warm-cache performance could worsen. No source-name dispatch or lost relationships are permitted.
 
