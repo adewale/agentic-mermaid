@@ -137,7 +137,12 @@ export class PreviewWorkerClient {
       clearTimeout(this.timer); this.timer = undefined
       this.active = undefined
       if (response.ok) pending.resolve(response.artifact)
-      else pending.reject(new Error(response.error))
+      else {
+        pending.reject(new Error(response.error))
+        // A module worker caches failed imports. Recreate its module map for
+        // the next job while preserving the client's queued request order.
+        if (response.dependencyLoadFailed) { this.worker?.terminate(); this.worker = undefined }
+      }
       this.drain()
     } catch (error) { this.dispose(error instanceof Error ? error : new Error(String(error))) }
   }

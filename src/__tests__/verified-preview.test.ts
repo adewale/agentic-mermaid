@@ -7,8 +7,20 @@ import { PreviewWorkerClient, PreviewSupersededError } from '../browser-preview-
 import { buildDocsEditDemo } from '../../website/docs-edit-demo.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { asFlowchart } from '../agent/types.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
 
 describe('one positioned artifact for preview and verification', () => {
+  test('a suspended provider remains control flow through a family layout wrapper', () => {
+    const descriptor = getFamily('flowchart')!
+    const deferred = new DeferredDependencyError('Layout provider', async () => {})
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout: () => { throw deferred } })
+    try {
+      let failure: unknown
+      try { renderAndVerifyMermaid(descriptor.example) } catch (error) { failure = error }
+      expect(failure).toBe(deferred)
+    }
+    finally { restore() }
+  })
   test('positions once while keeping canonical SVG, receipt and verification for every built-in example', () => {
     for (const id of knownBuiltinFamilies()) {
       const descriptor = getFamily(id)!, source = descriptor.example

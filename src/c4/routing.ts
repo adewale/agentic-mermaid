@@ -1,3 +1,5 @@
+import { C4RouteWorkLimitError } from './errors.ts'
+export { C4RouteWorkLimitError } from './errors.ts'
 import type { Point, PositionedEdge, PositionedNode, PositionedGroup, MermaidGraph } from '../types.ts'
 import type { planC4Identity } from './identity.ts'
 import type { C4Box } from './placement.ts'
@@ -56,10 +58,7 @@ function facingPort(start: Point, startSide: Side, box: C4Box, side: Side, index
   return level
 }
 
-export class C4RouteWorkLimitError extends RangeError {
-  readonly code = 'C4_ROUTE_WORK_LIMIT'
-  constructor() { super('C4_ROUTE_WORK_LIMIT: physical corridor checks exceed 400000; split the diagram or reduce its relationships'); this.name = 'C4RouteWorkLimitError' }
-}
+
 
 /** Sample nearby obstacle faces plus the exterior. At most 16 coordinates per
  * axis and five interior segments per candidate; all physical checks share the

@@ -1,4 +1,5 @@
 import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
+import { deferredDependency } from '../layout/certification-error.ts'
 // ============================================================================
 // verifyMermaid — Tier 1 (source/structure) + Tier 2 (geometric) + Tier 3 (lint).
 //
@@ -236,6 +237,8 @@ type DefaultRender = Extract<LayoutWarning, { code: 'INTERNAL_ERROR' }>['default
  * the failure path.
  */
 export function renderFailureWarning(error: unknown, defaultRender: () => DefaultRender, prefix = ''): LayoutWarning {
+  const deferred = deferredDependency(error)
+  if (deferred) throw deferred
   const reason = `${prefix}${error instanceof Error ? error.message : String(error)}`
   const origin = renderErrorOrigin(error)
   return origin === 'engine' ? { code: 'INTERNAL_ERROR', reason, defaultRender: defaultRender() } : { code: 'RENDER_FAILED', reason, origin }

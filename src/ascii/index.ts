@@ -21,9 +21,8 @@ import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
 import {
-  NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
+  sharedRenderOptionsOf,
   renderContractDigest,
-  SHARED_RENDER_OPTION_FIELDS,
   receiptOf,
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
@@ -204,11 +203,7 @@ export function executeTerminalRender(
   // The terminal adapter owns its cell-grid controls. Only the canonical
   // RenderOptions projection enters the shared waist; this keeps validation
   // strict without misclassifying terminal-only fields as unknown options.
-  const sharedOptions = Object.fromEntries(
-    [...SHARED_RENDER_OPTION_FIELDS, ...NON_SERIALIZABLE_RENDER_OPTION_FIELDS]
-      .filter(field => options[field] !== undefined)
-      .map(field => [field, options[field]]),
-  ) as RenderOptions
+  const sharedOptions = sharedRenderOptionsOf(options)
   const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, {
     expectedFamilyId: preparedInput.expectedFamilyId,
   })

@@ -20,9 +20,9 @@
 // diagnostic compares facts the engine derived itself.
 // ============================================================================
 
-import { C4RouteWorkLimitError } from '../c4/routing.ts'
-import { ErRouteGeometryError, ErRouteWorkLimitError } from '../er/layout.ts'
-import { ErLabelWorkLimitError } from '../er/renderer.ts'
+import { C4RouteWorkLimitError } from '../c4/errors.ts'
+import { ErRouteGeometryError, ErRouteWorkLimitError } from '../er/errors.ts'
+import { ErLabelWorkLimitError } from '../er/errors.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { GanttError } from '../gantt/types.ts'
 import { GitGraphParseError } from '../gitgraph/parser.ts'

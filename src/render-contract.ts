@@ -1365,6 +1365,16 @@ export function capturedRenderBackend(options: RenderOptions): string {
   return captured.style ? inferBackend(captured.style) : 'default'
 }
 
+/** Output adapters own their format-specific controls; only this projection
+ * enters shared render admission and appearance capture. */
+export function sharedRenderOptionsOf(options: RenderOptions): RenderOptions {
+  return Object.fromEntries(
+    [...SHARED_RENDER_OPTION_FIELDS, ...NON_SERIALIZABLE_RENDER_OPTION_FIELDS]
+      .filter(field => options[field] !== undefined)
+      .map(field => [field, options[field]]),
+  ) as RenderOptions
+}
+
 /** Capture the complete enumerable RenderOptions surface once. The sole
  * executable field is split from declarative data before the latter is
  * recursively snapshotted, validated, normalized, and receipted. */

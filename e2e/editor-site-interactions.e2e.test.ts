@@ -14,6 +14,9 @@ import { extname, join, normalize } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
 import { PNG_DEFAULT_SCALE } from '../src/png-contract.ts'
+import { getFamily, knownBuiltinFamilies } from '../src/agent/families.ts'
+import { renderAndVerifyMermaid } from '../src/agent/verify.ts'
+import { renderMermaidASCIIWithReceipt } from '../src/ascii/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const SITE = join(import.meta.dir, '..', 'website', 'public')
@@ -102,6 +105,54 @@ describe('editor and site interactions in a real browser', () => {
     server?.stop(true)
     await browser?.close()
   })
+
+  test('every built-in can be the first deferred family, retaining verified SVG and native terminal output', async () => {
+    for (const id of knownBuiltinFamilies()) {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await page.goto(`${base}/editor/?empty=1`)
+        await page.waitForFunction(() => !!(window as any).__mermaid)
+        const source = getFamily(id)!.example
+        const options = { security: 'strict' as const, embedFontImport: false, style: ['crisp', 'paper'], seed: 4 }
+        const expected = renderAndVerifyMermaid(source, options)
+        const actual = await page.evaluate(async ({ source, options }) => (window as any).__mermaid.renderMermaidSVGWithReceipt(source, options), { source, options })
+        expect(actual.svg, id).toBe(expected.svg)
+        expect(actual.receipt, id).toEqual(expected.receipt)
+        expect(actual.verification, id).toEqual({ ok: expected.verification.ok, warnings: expected.verification.warnings, checks: expected.verification.checks })
+        for (const useAscii of [false, true]) {
+          const terminalOptions = { colorMode: 'none' as const, useAscii }
+          const expectedTerminal = renderMermaidASCIIWithReceipt(source, terminalOptions)
+          const terminal = await page.evaluate(async ({ source, terminalOptions }) => (window as any).__mermaid[terminalOptions.useAscii ? 'renderMermaidASCIIWithReceipt' : 'renderMermaidUnicodeWithReceipt'](source, terminalOptions), { source, terminalOptions })
+          expect(terminal.text, id).toBe(expectedTerminal.text)
+          expect(terminal.receipt, id).toEqual(expectedTerminal.receipt)
+          expect(terminal.outputPolicy, id).toEqual(expectedTerminal.outputPolicy)
+        }
+        expect(page.workers()).toHaveLength(1)
+      } finally { await page.close() }
+    }
+  }, 120_000)
+
+  test('cached-family editing works without new modules and a failed family download retries on the next edit', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    try {
+      await page.goto(`${base}/editor/?empty=1`)
+      await page.locator('#code-editor').fill('flowchart LR\n A[First] --> B[Cached]')
+      await waitForVerifiedRender(page)
+      let blocked = 0
+      await page.route('**/editor/runtime/**', route => { blocked++; return route.abort() })
+      await page.locator('#code-editor').fill('flowchart LR\n A[Offline edit] --> B[Cached]')
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Offline edit'))
+      expect(blocked).toBe(0)
+      await page.locator('#code-editor').fill('sequenceDiagram\n Alice->>Bob: First download')
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
+      expect(blocked).toBeGreaterThan(0)
+      expect(await page.locator('.preview-error-detail').textContent()).toContain('Check your connection')
+      await page.unroute('**/editor/runtime/**')
+      await page.locator('#code-editor').fill('sequenceDiagram\n Alice->>Bob: Recovered download')
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Recovered download'))
+      expect(page.workers()).toHaveLength(1)
+    } finally { await page.close() }
+  }, 60_000)
 
   test('preview rendering uses one persistent worker and a late result cannot replace the newest verified source', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })

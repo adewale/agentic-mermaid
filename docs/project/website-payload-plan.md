@@ -91,11 +91,23 @@ Homepage and blank-editor graphs and byte ceilings remain unchanged.
 
 ### 3. Editor module graph
 
-The editor currently ships one approximately 3.20 MB decoded module. Produce a bundle composition report before choosing split points. Prefer dynamic imports at real interaction boundaries—PNG/export tooling, optional preview helpers, or other cold features—rather than family splits that make ordinary diagrams waterfall through many chunks.
+The original single-module baseline below is historical. The hosted editor now
+has an engine-free bootstrap and a persistent worker. The [23 October delivery
+implementation and measurements](./editor-delivery-cost-2026-10-23.md) split that
+worker into verified family implementations, optional output/style modules and
+a demanded ELK provider. The first measured simple flowchart needs 44.9% fewer
+gzip-equivalent asset bytes; a session consuming all families and features needs
+2.4% more. Smaller-chunk request overhead remains a follow-up to measure on the
+deployed HTTP/2 or HTTP/3 path.
 
 Requirements:
 
-- preserve offline all-family SVG editing after the initial editor load;
+- Hosted editing reuses loaded modules offline. First use of another family,
+  output, style or layout provider can require a connection; a failed module
+  load reports a recoverable error and the next edit creates a fresh worker.
+  The standalone editor retains its bundled all-family implementation. The old
+  unconditional hosted all-family-offline-after-load requirement is superseded
+  by the explicitly requested on-demand delivery behavior.
 - modulepreload only the critical entry graph;
 - use content-hashed immutable chunks;
 - test slow/cancelled chunk failures and retain strict CSP;

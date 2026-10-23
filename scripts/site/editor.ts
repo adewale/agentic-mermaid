@@ -215,11 +215,22 @@ async function generateEditorHtml(): Promise<string> {
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
-      target: 'browser', format: 'esm', minify: true,
-      outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js' },
+      target: 'browser', format: 'esm', minify: true, splitting: true,
+      outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+      plugins: [{
+        name: 'hosted-worker-dependencies',
+        setup(build) {
+          build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
+            const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
+            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
+          })
+          build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
+        },
+      }],
     })
-    if (!workerBuild.success || workerBuild.outputs.length !== 1) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
-    workerUrl = `/editor/runtime/${basename(workerBuild.outputs[0]!.path)}`
+    const workerEntry = workerBuild.outputs.find(output => output.kind === 'entry-point')
+    if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
+    workerUrl = `/editor/runtime/${basename(workerEntry.path)}`
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],

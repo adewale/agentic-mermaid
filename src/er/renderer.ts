@@ -1,3 +1,5 @@
+import { ErLabelWorkLimitError } from './errors.ts'
+export { ErLabelWorkLimitError } from './errors.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
@@ -509,10 +511,7 @@ function renderRelationshipLine<T>(
  * and every entity box wins; the midpoint stays when nothing clears (surfaced
  * by eval/overlap-audit rather than hidden).
  */
-export class ErLabelWorkLimitError extends RangeError {
-  readonly code = 'ER_LABEL_WORK_LIMIT'
-  constructor() { super('ER_LABEL_WORK_LIMIT: label-slot search exceeds 400000 operations; split the diagram or reduce its relationships'); this.name = 'ErLabelWorkLimitError' }
-}
+
 
 export function separateRelationshipLabels(
   diagram: PositionedErDiagram,

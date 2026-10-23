@@ -1,3 +1,5 @@
+import { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
+export { ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
@@ -187,15 +189,9 @@ function erPreferredLabelBounds(relationships: readonly PositionedErRelationship
   })
 }
 
-export class ErRouteWorkLimitError extends RangeError {
-  readonly code = 'ER_ROUTE_WORK_LIMIT'
-  constructor() { super('ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships'); this.name = 'ErRouteWorkLimitError' }
-}
 
-export class ErRouteGeometryError extends Error {
-  readonly code = 'ER_ROUTE_BLOCKED'
-  constructor(from: string, to: string) { super(`ER_ROUTE_BLOCKED: no clear frame corridor from ${from} to ${to}`); this.name = 'ErRouteGeometryError' }
-}
+
+
 
 /** Reroute each relationship whose route crosses an unrelated card or a group
  * header: a route to a group frame, or one rebuilt after separating compounds
