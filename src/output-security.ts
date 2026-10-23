@@ -224,7 +224,8 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     let end = parsed.end
     const rawAttributes = new Set<string>()
-    const attributes: Array<{ readonly name: string; readonly qname: XmlQualifiedName; readonly value: string }> = []
+    let declarations: Array<readonly [prefix: string, uri: string]> | undefined
+    let prefixedAttributes: XmlQualifiedName[] | undefined
     let selfClosing = false
     for (;;) {
       const hadWhitespace = isXmlWhitespace(svg[end])
@@ -237,8 +238,10 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       }
       if (!hadWhitespace) return false
       const attribute = readXmlName(svg, end)
-      const attributeName = attribute && parseXmlQualifiedName(attribute.name)
-      if (!attribute || !attributeName || rawAttributes.has(attribute.name)) return false
+      if (!attribute) return false
+      const prefixed = attribute.name.includes(':')
+      const attributeName = prefixed ? parseXmlQualifiedName(attribute.name) : undefined
+      if ((prefixed && !attributeName) || rawAttributes.has(attribute.name)) return false
       rawAttributes.add(attribute.name)
       end = attribute.end
       while (isXmlWhitespace(svg[end])) end++
@@ -255,7 +258,13 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (end >= svg.length) return false
       const value = svg.slice(valueStart, end)
       if (!hasWellFormedXmlReferences(value)) return false
-      attributes.push({ name: attribute.name, qname: attributeName, value: decodeXmlReferences(value) })
+      if (attribute.name === 'xmlns' || attributeName?.prefix === 'xmlns') {
+        declarations ??= []
+        declarations.push([attributeName?.local ?? '', decodeXmlReferences(value)])
+      } else if (attributeName) {
+        prefixedAttributes ??= []
+        prefixedAttributes.push(attributeName)
+      }
       observeAttribute?.(attribute.name, value)
       end++
     }
@@ -263,12 +272,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     const namespaces = new Map(stack.at(-1)?.namespaces ?? [
       ['xml', XML_NAMESPACE],
     ])
-    for (const attribute of attributes) {
-      const isDefaultDeclaration = attribute.name === 'xmlns'
-      const isPrefixedDeclaration = attribute.qname.prefix === 'xmlns'
-      if (!isDefaultDeclaration && !isPrefixedDeclaration) continue
-      const prefix = isDefaultDeclaration ? '' : attribute.qname.local
-      const uri = attribute.value
+    if (declarations) for (const [prefix, uri] of declarations) {
       if (prefix === 'xmlns'
         || uri === XMLNS_NAMESPACE
         || (prefix === 'xml' && uri !== XML_NAMESPACE)
@@ -293,14 +297,15 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       return false
     }
 
-    const expandedAttributes = new Set<string>()
-    for (const attribute of attributes) {
-      if (attribute.name === 'xmlns' || attribute.qname.prefix === 'xmlns') continue
-      const namespace = attribute.qname.prefix === undefined
-        ? ''
-        : namespaces.get(attribute.qname.prefix)
-      if (namespace === undefined || attribute.qname.prefix === 'xmlns') return false
-      const expanded = `${namespace}\u0000${attribute.qname.local}`
+    // Raw-name uniqueness already proves unprefixed attributes unique. A
+    // declared prefix cannot bind an empty URI, and the default namespace
+    // applies only to elements, so only prefixed attributes can alias here.
+    let expandedAttributes: Set<string> | undefined
+    if (prefixedAttributes) for (const attribute of prefixedAttributes) {
+      const namespace = namespaces.get(attribute.prefix!)
+      if (namespace === undefined) return false
+      const expanded = `${namespace}\u0000${attribute.local}`
+      expandedAttributes ??= new Set()
       if (expandedAttributes.has(expanded)) return false
       expandedAttributes.add(expanded)
     }
