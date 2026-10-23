@@ -132,6 +132,25 @@ All 87 captured artifacts and all 1,095 official results match exactly between
 these builds, with 823 accepted inputs. No browser errors were recorded.
 The same local-network and compression limits apply to this recheck.
 
+## Audit follow-up
+
+The audit found that a failed dependency import could arrive after an export
+had been superseded by an edit. The client discarded the response before
+resetting the worker, retaining its cached import failure. The next export
+failed unnecessarily even after connectivity returned. Worker reset now runs
+before the superseded-response branch. Both ASCII and PNG regression cases
+fail against the pre-fix PR revision `4ed2ea241d123674965a76ae457f90db173a3fa7`
+and pass with the fix. A Chromium reproduction confirms that the queued
+preview and the first subsequent ASCII export succeed after recovery.
+
+The rebuilt candidate was measured again for three rounds after this fix.
+Blank-editor gzip is 134,070 B, first-flowchart gzip is 830,035 B across 58
+assets, and fully consumed gzip is 2,029,557 B across 139 assets. This retains
+the 45.0% first-flowchart saving and 2.3% fully consumed growth against the
+same main build. The first-preview median was 473 ms; local timings remain
+diagnostic. All 87 artifacts and 1,095 official results still match main
+exactly, with 823 accepted inputs and no browser errors.
+
 ## Correctness and checks
 
 - **87/87 captured artifacts match exactly** between builds across three
@@ -146,6 +165,8 @@ The same local-network and compression limits apply to this recheck.
   hooks, verification/source evidence, browser-lazy rendering, PNG contracts,
   upstream cache ownership, mutation and wrapper fidelity. Six package manifest
   tests also pass, and the rebuilt tarball passes the exact 213-file manifest.
+  The audit follow-up adds two worker recovery cases and two community
+  discovery cases; all **319 focused tests** pass in the combined candidate.
 - **21 browser tests pass**, including each of the 23 families as the first
   family in a fresh context, native ASCII/Unicode parity, blocked-download
   recovery, cached-module editing, worker ownership/cancellation, strict SVG
