@@ -38,13 +38,14 @@ async function readSharedBrowserFile(relativePath: string): Promise<string> {
   return Bun.file(new URL(`../../shared/browser/${relativePath}`, import.meta.url)).text()
 }
 
-async function readCssFiles(fontPrefix: string): Promise<string> {
+async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string> {
   const order = [
     'css/variables.css',
     'css/topbar.css',
     'css/panels.css',
     'css/code-editor.css',
     'css/preview.css',
+    ...(hosted ? ['css/runtime-recovery.css'] : []),
     'css/config-panel.css',
     'css/color-picker.css',
     'css/font-picker.css',
@@ -91,12 +92,13 @@ function editorFontDataJs(): string {
   return `var EDITOR_PRESET_FONTS = ${JSON.stringify([...hosted, ...system])};`
 }
 
-async function readJsFiles(): Promise<string> {
+async function readJsFiles(hosted: boolean): Promise<string> {
   const order = [
     'js/helpers.js',
     'js/state.js',
     'js/elements.js',
     'js/sharing.js',
+    ...(hosted ? ['js/runtime-recovery.js'] : []),
     'js/rendering.js',
     'js/motion.js',
     'js/zoom.js',
@@ -185,7 +187,7 @@ function pngScaleItemsHtml(): string {
   }).join('\n          ')
 }
 
-async function readHtmlPartials(themeItems: string): Promise<{
+async function readHtmlPartials(themeItems: string, hosted: boolean): Promise<{
   topbar: string
   leftPanel: string
   rightPanel: string
@@ -202,7 +204,7 @@ async function readHtmlPartials(themeItems: string): Promise<{
       .replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE))
       .replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
     leftPanel,
-    rightPanel,
+    rightPanel: rightPanel.replace('{{RUNTIME_RECOVERY}}', hosted ? await readFile('html/runtime-recovery.html') : ''),
   }
 }
 
@@ -263,9 +265,9 @@ async function generateEditorHtml(): Promise<string> {
   const themeItems = themeItemsHtml()
 
   const [css, appJs, html] = await Promise.all([
-    readCssFiles(fontPrefix),
-    readJsFiles(),
-    readHtmlPartials(themeItems),
+    readCssFiles(fontPrefix, Boolean(runtimeDirectory)),
+    readJsFiles(Boolean(runtimeDirectory)),
+    readHtmlPartials(themeItems, Boolean(runtimeDirectory)),
   ])
 
   return `<!DOCTYPE html>
