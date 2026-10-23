@@ -230,7 +230,7 @@ jobs:
           BASELINE: ${{ inputs.baseline }}
         run: |
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --out bench-report
+          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --runtime-comparison normalized-npm-compound --out bench-report
 
       - name: Install Chromium for the advisory browser scorecard
         if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
@@ -249,7 +249,7 @@ jobs:
           BASELINE_REF: ${{ inputs.baseline-ref }}
         run: |
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          baseline_args=(--baseline-lock benchmark-baseline/baseline.json)
+          baseline_args=(--baseline-lock benchmark-baseline/baseline.json --runtime-comparison normalized-npm-compound)
           if [ -n "$BASELINE_REF" ]; then
             baseline_args=(--baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" --runtime-source "$RUNNER_TEMP/benchmark-baseline")
           fi

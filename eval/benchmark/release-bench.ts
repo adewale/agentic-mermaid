@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { extractOfficialCorpus, officialCorpusInventory } from '../shared/official-fences.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { agentEditCase } from './release-bench-fidelity.ts'
-import { resolveBaseline, assertHistoricalAgenticRuntimes, frozenRuntimePolicy, installAgenticRuntime, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimeReceipt } from './release-baseline.ts'
+import { resolveBaseline, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, frozenRuntimePolicy, installAgenticRuntime, installNormalizedNpmBaseline, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type BaselineLock, type RuntimeReceipt } from './release-baseline.ts'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 
 export interface Input extends BenchInput {
@@ -86,7 +86,8 @@ function args(): Map<string, string> {
     if (options.has(a) && options.has(b)) throw new Error(`Use only one of --${a} and --${b}`)
   }
   const runtimeComparison = options.get('runtime-comparison') ?? 'matched'
-  if (!['matched', 'historical-compound'].includes(runtimeComparison)) throw new Error('--runtime-comparison must be matched or historical-compound')
+  if (!['matched', 'historical-compound', 'normalized-npm-compound'].includes(runtimeComparison)) throw new Error('--runtime-comparison must be matched, historical-compound or normalized-npm-compound')
+  if (runtimeComparison === 'normalized-npm-compound' && !options.has('baseline-npm')) throw new Error('Normalized npm comparison requires --baseline-npm; Git/directory/tarball comparisons remain strict')
   if (runtimeComparison === 'historical-compound' && (!options.has('baseline-runtime-source') || !['baseline', 'baseline-npm', 'baseline-tarball'].some(key => options.has(key)))) throw new Error('Historical comparison requires a baseline and --baseline-runtime-source')
   if (runtimeComparison !== 'historical-compound' && options.has('baseline-runtime-source')) throw new Error('--baseline-runtime-source requires historical-compound mode')
   if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both --baseline-tarball and --baseline-sha256')
@@ -427,12 +428,14 @@ function main() {
   const baselineSource = options.get('baseline')
   const runtimePolicy = frozenRuntimePolicy(options.get('runtime-source') ?? (comparisonMode !== 'historical-compound' && baselineSource && existsSync(join(resolve(baselineSource), 'bun.lock')) ? baselineSource : ROOT))
   const baselinePolicy = comparisonMode === 'historical-compound' ? frozenRuntimePolicy(options.get('baseline-runtime-source')!) : runtimePolicy
-  function install(spec: string, label: string, identity: Identity, prefix?: string): Engine {
+  function install(spec: string, label: string, identity: Identity, prefix?: string, npmBaseline?: BaselineLock): Engine {
     const dir = prefix ?? mkdtempSync(join(tmpdir(), 'am-bench-'))
     if (!prefix) temporary.push(dir)
     const remaining = Math.min(5 * 60 * 1000, deadline - Date.now())
     if (remaining <= 0) throw new Error('Overall benchmark budget exhausted during package installation')
-    const { integrity, runtime } = installAgenticRuntime(spec, dir, label === 'baseline' ? baselinePolicy : runtimePolicy, out, label, identity.integrity, remaining)
+    const { integrity, runtime } = npmBaseline
+      ? installNormalizedNpmBaseline(npmBaseline, dir, runtimePolicy, out, label, remaining)
+      : installAgenticRuntime(spec, dir, label === 'baseline' ? baselinePolicy : runtimePolicy, out, label, identity.integrity, remaining)
     const bytes = readFileSync(join(dir, 'package-lock.json')), path = join(out, `${label}-${randomUUID()}.package-lock.json`)
     writeFileSync(path, bytes, { flag: 'wx' })
     const dependencyLock = { path, sha256: createHash('sha256').update(bytes).digest('hex') }
@@ -446,7 +449,8 @@ function main() {
     if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline), runtime: inspectAgenticRuntime(resolve(baseline), baselinePolicy, out, 'baseline') }))
     else if (npm) {
       const locked = resolveBaseline(npm, resolve(options.get('baseline-lock') ?? join(out, 'baseline.json')))
-      engines.push(install(`agentic-mermaid@${locked.version}`, 'baseline', { kind: 'npm', requested: npm, integrity: locked.integrity }))
+      engines.push(install(`agentic-mermaid@${locked.version}`, 'baseline', { kind: 'npm', requested: npm, integrity: locked.integrity }, undefined,
+        comparisonMode === 'normalized-npm-compound' ? locked : undefined))
     }
     else if (options.has('baseline-tarball')) {
       const path = resolve(options.get('baseline-tarball')!), bytes = readFileSync(path)
@@ -471,12 +475,15 @@ function main() {
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
     const runtimeComparison = comparisonMode === 'historical-compound'
       ? assertHistoricalAgenticRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, engines.find(engine => engine.label === 'candidate')!.identity.runtime!)
+      : comparisonMode === 'normalized-npm-compound'
+        ? assertNormalizedNpmRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, engines.find(engine => engine.label === 'candidate')!.identity.runtime!)
       : (assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!)), { mode: 'matched' as const })
     writeFileSync(join(out, 'runtime-comparison.json'), `${JSON.stringify(runtimeComparison, null, 2)}\n`)
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ runtimeComparison })}\n`)
     const runs = measure(out, engines, groups, rounds, reps, deadline, elkCache)
     const result = report(inputs, groups, runs, rounds)
     if (comparisonMode === 'historical-compound') result.markdown = `> Historical compound comparison: declared runtime roots differ. Shared dependency versions, integrities and edges match; this is not an isolated PR gain. See runtime-comparison.json.\n\n${result.markdown}`
+    if (comparisonMode === 'normalized-npm-compound') result.markdown = `> Normalized npm compound comparison: the original verified npm archive runs under current frozen pins projected onto its compatible declared roots. This is not its original frozen dependency environment or an isolated PR gain. Shared dependency versions, integrities and edges match; all existing coverage and numeric gates remain. See runtime-comparison.json.\n\n${result.markdown}`
     result.markdown += `\nEffective policy: ELK cache **${elkCache}**; built-in Scene assertions **off**; APL environment: ${JSON.stringify(metadata.config.aplEnvironment)}.\n`
     writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), runtimeComparison, ...result.summary }, null, 2))
     writeFileSync(join(out, 'report.md'), result.markdown)

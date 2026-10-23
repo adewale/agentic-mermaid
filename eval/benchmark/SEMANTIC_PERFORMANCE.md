@@ -126,6 +126,27 @@ ratio. Short operations may be too noisy to qualify.
 
 ## Immutable historical anchors
 
+Publication's default previous-npm-release comparison explicitly selects
+`normalized-npm-compound` in both the Node and advisory browser commands. The
+original exact-version npm archive is retained and its locked SHA-512 integrity,
+installed name and version are checked before reading its declared roots/ranges.
+Its roots must be a subset of the current frozen source roots, and every range
+must admit the current pin. This narrow mode supports stable exact, caret,
+tilde and equal version ranges; other syntax is rejected, not treated as a
+wildcard. The current frozen closure is projected onto those verified roots,
+while the temporary consumer's actual full-current overrides and locks remain
+retained. All installed versions/SRI and shared dependency edges still match;
+extra closures must be attributable to exclusive declared roots.
+
+This policy is labeled **normalized from current source**, not the published
+baseline's original frozen dependency environment. Receipts explicitly mark
+`isolatedProductionGain:false`; original archives/manifests remain unchanged.
+No coverage or numeric gate is waived. Browser IIFE/lazy code stays exactly as
+published: normalizing the external consumer graph does not rebuild or prove
+equality of embedded dependency versions. Its scorecard remains advisory and
+compound. This mode requires a locked npm baseline; Git/tarball current-main
+comparisons and all semantic calibration retain strict full-graph equality.
+
 The fixed historical workflow explicitly uses `historical-compound` runtime
 comparison. Baseline and candidate each install under their own frozen source
 policy; the shared dependency versions, SHA-512 integrities and dependency

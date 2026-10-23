@@ -16,7 +16,7 @@ import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/ben
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
-import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
+import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
 
 const temp = useTempDirs()
 const runChild = useTestChildren(10_000)
@@ -383,6 +383,81 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     expect(receipt.locks.map(lock => lock.source)).toEqual(['source.bun.lock', 'package-lock.json', 'installed-package-lock.json'])
     expect(new Uint8Array(readFileSync(archive.path))).toEqual(new Uint8Array(archives.get('/agentic-mermaid-0.0.0.tgz')!))
     expect(requested.filter(path => path.endsWith('.tgz')).sort()).toEqual(['/elkjs-0.11.0.tgz', '/runtime-leaf-1.0.0.tgz', '/yaml-2.9.0.tgz'])
+    // A legitimate older npm release omits a root added by current source.
+    // Strict comparison must keep rejecting it; only explicit normalization
+    // may project compatible roots, retaining the original archive and policy.
+    const legacy = pack('agentic-mermaid', '0.0.2', { elkjs: '^0.11.0' })
+    const unknownRoot = pack('agentic-mermaid', '0.0.3', { 'runtime-leaf': '^1.0.0' })
+    const incompatible = pack('agentic-mermaid', '0.0.4', { yaml: '^3.0.0' })
+    const nonsemver = pack('agentic-mermaid', '0.0.5', { yaml: 'latest' })
+    const localRange = pack('agentic-mermaid', '0.0.6', { yaml: 'file:/must-not-read-local-package' })
+    const aliasRange = pack('agentic-mermaid', '0.0.7', { yaml: 'npm:yaml@2.9.0' })
+    const leadingZero = pack('agentic-mermaid', '0.0.8', { yaml: '02.9.0' })
+    const strictLegacy = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', legacy.path,
+      '--prefix', join(dir, 'strict-legacy'), '--runtime-source', source, '--out', join(evidence, 'strict-legacy'), '--expected-integrity', legacy.integrity], {
+      env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+    })
+    expect(strictLegacy.status).not.toBe(0)
+    expect(strictLegacy.stderr).toContain('declared runtime roots differ from frozen policy')
+    const normalize = async (version: string, integrity: string, label: string) => runChild(process.execPath, ['-e', `
+      import { installNormalizedNpmBaseline, frozenRuntimePolicy } from './eval/benchmark/release-baseline.ts'
+      const acquired = installNormalizedNpmBaseline(${JSON.stringify({ requested: 'latest', version, integrity })},
+        ${JSON.stringify(join(dir, label))}, frozenRuntimePolicy(${JSON.stringify(source)}), ${JSON.stringify(join(evidence, label))}, 'baseline')
+      console.log(JSON.stringify(acquired))
+    `], { cwd: join(import.meta.dir, '../..'), env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') } })
+    const normalized = await normalize('0.0.2', legacy.integrity, 'normalized-legacy')
+    expect({ status: normalized.status, stderr: normalized.stderr }).toEqual({ status: 0, stderr: '' })
+    const legacyReceipt = JSON.parse(normalized.stdout).runtime as RuntimeReceipt
+    expect(legacyReceipt.policy).toMatchObject({ roots: ['elkjs'], packages: { elkjs: policy.packages.elkjs, 'runtime-leaf': policy.packages['runtime-leaf'] },
+      normalization: { mode: 'normalized-npm-compound', basis: 'current-frozen-source-projected-to-verified-npm-roots', originalFrozenBaseline: false,
+        sourceRoots: ['elkjs', 'yaml'], declaredRanges: { elkjs: '^0.11.0' }, archive: { name: 'agentic-mermaid', version: '0.0.2', integrity: legacy.integrity } } })
+    expect(legacyReceipt.policy.packages.yaml).toBeUndefined()
+    expect(legacyReceipt.policy.overrides).toEqual(policy.overrides)
+    const retained = join(evidence, 'normalized-legacy')
+    expect(readFileSync(join(retained, 'baseline.npm-archive/package.tgz'))).toEqual(readFileSync(legacy.path))
+    expect(JSON.parse(readFileSync(join(retained, 'baseline.original-package.json'), 'utf8'))).toEqual({ name: 'agentic-mermaid', version: '0.0.2', dependencies: { elkjs: '^0.11.0' } })
+    expect(legacyReceipt.graph).toEqual(receipt.graph.filter(row => row.name !== 'yaml'))
+    expect(assertNormalizedNpmRuntimes(legacyReceipt, receipt)).toMatchObject({ mode: 'normalized-npm-compound', isolatedProductionGain: false,
+      originalFrozenBaseline: false, baselineOnly: { roots: [], packages: [] }, candidateOnly: { roots: ['yaml'], packages: [{ name: 'yaml' }] } })
+    expect(() => assertMatchedAgenticRuntimes([legacyReceipt, receipt])).toThrow('graphs differ')
+    for (const [version, artifact, message] of [
+      ['0.0.3', unknownRoot, /unknown current runtime root runtime-leaf/],
+      ['0.0.4', incompatible, /does not admit frozen 2.9.0/],
+      ['0.0.5', nonsemver, /does not admit frozen 2.9.0/],
+      ['0.0.6', localRange, /does not admit frozen 2.9.0|npm install failed/],
+      ['0.0.7', aliasRange, /does not admit frozen 2.9.0|npm install failed/],
+      ['0.0.8', leadingZero, /does not admit frozen 2.9.0|npm install failed/],
+    ] as const) {
+      const rejected = await normalize(version, artifact.integrity, `rejected-${version}`)
+      expect({ version, status: rejected.status }).not.toEqual({ version, status: 0 })
+      expect(rejected.stderr).toMatch(message)
+      expect(rejected.stderr).not.toContain('BENCHMARK_WORKER_STARTED')
+      if (['0.0.3', '0.0.4', '0.0.5'].includes(version)) {
+        const rejectedOut = join(evidence, `rejected-${version}`)
+        expect(JSON.parse(readFileSync(join(rejectedOut, 'baseline.installed-package-lock.json'), 'utf8')).packages['node_modules/agentic-mermaid'].integrity).toBe(artifact.integrity)
+        expect(JSON.parse(readFileSync(join(rejectedOut, 'baseline.normalization-source-policy.json'), 'utf8'))).toEqual(policy)
+      }
+    }
+    const corruptArchive = await normalize('0.0.2', elk.integrity, 'wrong-original-sri')
+    expect(corruptArchive.status).not.toBe(0)
+    expect(corruptArchive.stderr).toContain('original npm archive integrity differs from the locked baseline')
+    expect(existsSync(join(dir, 'wrong-original-sri/package.json'))).toBe(false)
+    const incompatibleLock = join(dir, 'incompatible-npm.json')
+    writeFileSync(incompatibleLock, JSON.stringify({ requested: 'latest', version: '0.0.4', integrity: incompatible.integrity }))
+    for (const [entry, baselineFlags] of [
+      ['release-bench.ts', ['--baseline-npm', 'latest', '--baseline-lock', incompatibleLock]],
+      ['release-browser-bench.ts', ['--baseline-lock', incompatibleLock, '--executable', '/must-not-launch-chromium']],
+    ] as const) {
+      const rejected = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--candidate-tarball', archive.path,
+        '--candidate-sha256', createHash('sha256').update(readFileSync(archive.path)).digest('hex'), '--runtime-source', source,
+        '--runtime-comparison', 'normalized-npm-compound', '--out', join(evidence, 'normalized-command'), ...baselineFlags], {
+        env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+      })
+      expect(rejected.status).not.toBe(0)
+      expect(rejected.stderr).toContain('npm baseline range yaml@^3.0.0 is unsupported or does not admit frozen 2.9.0')
+      expect(rejected.stderr).not.toContain('BENCHMARK_WORKER_STARTED')
+      expect(rejected.stderr).not.toContain('must-not-launch-chromium')
+    }
     const installed = join(prefix, 'node_modules/.package-lock.json'), lock = JSON.parse(readFileSync(installed, 'utf8'))
     lock.packages['node_modules/yaml'].integrity = elk.integrity
     writeFileSync(installed, JSON.stringify(lock))
@@ -449,6 +524,16 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     })
   } finally { registry.stop(true) }
 }, 30_000)
+
+test('normalized npm mode cannot weaken a Git or tarball comparison', async () => {
+  for (const [entry, required] of [['release-bench.ts', '--baseline-npm'], ['release-browser-bench.ts', '--baseline-lock']] as const) {
+    const rejected = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--runtime-comparison', 'normalized-npm-compound',
+      '--baseline-tarball', '/must-not-read-baseline.tgz', '--baseline-sha256', '0'.repeat(64)])
+    expect(rejected.status).not.toBe(0)
+    expect(rejected.stderr).toContain(`Normalized npm comparison requires ${required}`)
+    expect(rejected.stderr).not.toContain('ENOENT')
+  }
+})
 
 test('historical runtime comparisons allow attributed roots while retaining strict shared identities and edges', () => {
   const shared = { name: 'elkjs', version: '0.11.0', integrity: 'sha512-YWJjZA==', dependencies: [] as string[] }

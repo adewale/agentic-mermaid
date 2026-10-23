@@ -2,8 +2,8 @@
 // installs, and reject dependency drift before Node or browser measurement.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
 interface PackageManifest {
@@ -18,6 +18,14 @@ export interface RuntimePolicy {
   roots: string[]
   overrides: Record<string, string>
   packages: Record<string, RuntimePin>
+  normalization?: {
+    mode: 'normalized-npm-compound'
+    basis: 'current-frozen-source-projected-to-verified-npm-roots'
+    originalFrozenBaseline: false
+    sourceRoots: string[]
+    archive: { name: 'agentic-mermaid'; version: string; integrity: string; sha256: string; path: string }
+    declaredRanges: Record<string, string>
+  }
 }
 export interface RuntimeReceipt {
   policy: RuntimePolicy
@@ -27,10 +35,19 @@ export interface RuntimeReceipt {
 }
 const manifest = (root: string) => JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageManifest
 const sri = (value: unknown): value is string => typeof value === 'string' && /^sha512-[A-Za-z0-9+/]+=*$/.test(value)
+// Bun treats invalid ranges such as "latest" as matching. Restrict this
+// opt-in legacy normalization to exact/caret/tilde/equal stable versions;
+// unsupported syntax must fail closed before any benchmark work.
+const NORMALIZED_NPM_RANGE = /^(?:[~^=])?(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/
 
 /** The consumer policy is separate from the shipped manifest. Include the
  * frozen runtime closure, including native optional packages and transitives. */
 export function frozenRuntimePolicy(source: string): RuntimePolicy {
+  const roots = Object.keys({ ...manifest(source).dependencies, ...manifest(source).optionalDependencies }).sort()
+  return frozenPolicyForRoots(source, roots)
+}
+
+function frozenPolicyForRoots(source: string, roots: string[]): RuntimePolicy {
   source = resolve(source)
   type Locked = [string, string, { dependencies?: Record<string, string>; optionalDependencies?: Record<string, string> }, string]
   const lock = parseYaml(readFileSync(join(source, 'bun.lock'), 'utf8')) as { packages: Record<string, Locked> }
@@ -47,7 +64,6 @@ export function frozenRuntimePolicy(source: string): RuntimePolicy {
     packages[name] = pin
     for (const dependency of Object.keys({ ...entry[2].dependencies, ...entry[2].optionalDependencies })) visit(dependency, key)
   }
-  const roots = Object.keys({ ...manifest(source).dependencies, ...manifest(source).optionalDependencies }).sort()
   for (const name of roots) visit(name)
   return { source, roots, overrides: Object.fromEntries(Object.entries(packages).sort(([a], [b]) => a.localeCompare(b)).map(([name, pin]) => [name, pin.version])), packages }
 }
@@ -161,9 +177,26 @@ export function assertHistoricalAgenticRuntimes(baseline: RuntimeReceipt, candid
     baselineOnly: exclusive(baseline, candidate), candidateOnly: exclusive(candidate, baseline) }
 }
 
+/** A published npm archive has no claimed original frozen source lock here.
+ * Normalize only its declared subset of current roots; retain the distinction
+ * from strict current-main and genuinely source-frozen historical comparisons. */
+export function assertNormalizedNpmRuntimes(baseline: RuntimeReceipt, candidate: RuntimeReceipt) {
+  const normalization = baseline.policy.normalization
+  if (!normalization || candidate.policy.normalization || baseline.policy.source !== candidate.policy.source
+    || JSON.stringify(normalization.sourceRoots) !== JSON.stringify(candidate.policy.roots)) throw new Error('Normalized npm comparison requires the same current frozen source policy')
+  return { ...assertHistoricalAgenticRuntimes(baseline, candidate), mode: 'normalized-npm-compound' as const,
+    policyBasis: normalization.basis, originalFrozenBaseline: false,
+    embeddedBrowserDependencies: 'Original browser bundles are unchanged; external consumer graph normalization does not establish embedded dependency equality' }
+}
+
 /** npm verifies fetched bytes against its lock. Compare that SRI to the
  * frozen source lock before returning an install eligible for timing. */
 export function installAgenticRuntime(spec: string, prefix: string, policy: RuntimePolicy, out: string, label: string, expectedIntegrity?: string, timeout = 300_000) {
+  return installRuntime(spec, prefix, policy, out, label, expectedIntegrity, timeout)
+}
+
+function installRuntime(spec: string, prefix: string, policy: RuntimePolicy, out: string, label: string, expectedIntegrity: string | undefined, timeout: number,
+  archive?: NonNullable<RuntimePolicy['normalization']>['archive']) {
   if (existsSync(join(prefix, 'package.json'))) throw new Error(`${label}: acquisition requires a fresh temporary consumer prefix`)
   mkdirSync(prefix, { recursive: true })
   const consumer = { private: true, overrides: policy.overrides }
@@ -176,7 +209,54 @@ export function installAgenticRuntime(spec: string, prefix: string, policy: Runt
   const integrity = lock.packages['node_modules/agentic-mermaid']?.integrity
   if (!sri(integrity) || (expectedIntegrity && expectedIntegrity !== integrity)) throw new Error(`${label}: installed package integrity differs from the verified artifact`)
   const root = join(prefix, 'node_modules/agentic-mermaid')
+  if (archive) {
+    const pkg = manifest(root)
+    writeFileSync(join(out, `${label}.original-package.json`), readFileSync(join(root, 'package.json')))
+    writeFileSync(join(out, `${label}.normalization-source-policy.json`), `${JSON.stringify(policy, null, 2)}\n`)
+    for (const [name, path] of [['source.bun.lock', join(policy.source, 'bun.lock')], ['package-lock.json', join(prefix, 'package-lock.json')],
+      ['installed-package-lock.json', join(prefix, 'node_modules/.package-lock.json')]]) {
+      writeFileSync(join(out, `${label}.${name}`), readFileSync(path!))
+    }
+    if (pkg.name !== archive.name || pkg.version !== archive.version) throw new Error(`${label}: installed npm package name/version differs from the verified baseline`)
+    const ranges = { ...pkg.dependencies, ...pkg.optionalDependencies }, roots = Object.keys(ranges).sort()
+    for (const name of roots) {
+      if (!policy.roots.includes(name)) throw new Error(`${label}: npm baseline declares unknown current runtime root ${name}`)
+      const range = ranges[name], pin = policy.packages[name]
+      if (typeof range !== 'string' || !NORMALIZED_NPM_RANGE.test(range) || !pin || !Bun.semver.satisfies(pin.version, range)) throw new Error(`${label}: npm baseline range ${name}@${range} is unsupported or does not admit frozen ${pin?.version ?? '(unlocked)'}`)
+    }
+    const projected = frozenPolicyForRoots(policy.source, roots)
+    for (const [name, pin] of Object.entries(projected.packages)) {
+      if (JSON.stringify(pin) !== JSON.stringify(policy.packages[name])) throw new Error(`${label}: projected npm closure differs from the current frozen policy for ${name}`)
+    }
+    policy = { ...projected, overrides: policy.overrides, normalization: { mode: 'normalized-npm-compound', basis: 'current-frozen-source-projected-to-verified-npm-roots',
+      originalFrozenBaseline: false, sourceRoots: policy.roots, archive, declaredRanges: ranges } }
+  }
   return { root, integrity, runtime: inspectAgenticRuntime(root, policy, out, label) }
+}
+
+/** Retain and verify original registry bytes before projecting the installed
+ * manifest. This mode is selected only by explicit npm-baseline callers. */
+export function installNormalizedNpmBaseline(locked: BaselineLock, prefix: string, policy: RuntimePolicy, out: string, label: string, timeout = 300_000) {
+  if (!/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(locked.version) || !sri(locked.integrity)) throw new Error('Normalized npm baseline requires an exact version and SHA-512 integrity')
+  const archiveDir = join(out, `${label}.npm-archive`), started = Date.now()
+  mkdirSync(archiveDir, { recursive: true })
+  if (readdirSync(archiveDir).length) throw new Error(`${label}: original npm archive destination must be empty`)
+  const packed = spawnSync('npm', ['pack', `agentic-mermaid@${locked.version}`, '--ignore-scripts', '--json', '--pack-destination', archiveDir], { encoding: 'utf8', timeout, killSignal: 'SIGKILL' })
+  if (packed.status !== 0) throw new Error(`${label}: original npm archive acquisition failed: ${packed.stderr || packed.error?.message}`)
+  writeFileSync(join(out, `${label}.npm-pack.json`), packed.stdout)
+  const result = JSON.parse(packed.stdout)[0] as { filename?: string }
+  if (!result?.filename || basename(result.filename) !== result.filename || !/^[a-z0-9][a-z0-9._-]*\.tgz$/i.test(result.filename)) throw new Error(`${label}: npm pack returned an unsafe archive filename`)
+  const original = join(archiveDir, result.filename)
+  if (!lstatSync(original).isFile() || readdirSync(archiveDir).length !== 1) throw new Error(`${label}: expected one original npm archive`)
+  const bytes = readFileSync(original), integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
+  if (integrity !== locked.integrity) throw new Error(`${label}: original npm archive integrity differs from the locked baseline`)
+  const path = join(archiveDir, 'package.tgz')
+  renameSync(original, path)
+  const archive = { name: 'agentic-mermaid' as const, version: locked.version, integrity, sha256: createHash('sha256').update(bytes).digest('hex'), path }
+  writeFileSync(join(out, `${label}.npm-archive.json`), `${JSON.stringify({ requested: locked.requested, ...archive }, null, 2)}\n`)
+  const remaining = timeout - (Date.now() - started)
+  if (remaining <= 0) throw new Error(`${label}: npm acquisition budget exhausted`)
+  return installRuntime(path, prefix, policy, out, label, integrity, remaining, archive)
 }
 
 export interface BaselineLock {

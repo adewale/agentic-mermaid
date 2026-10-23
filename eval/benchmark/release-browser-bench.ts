@@ -10,7 +10,7 @@ import { join, resolve, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { chromium, type Page } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
-import { frozenRuntimePolicy, installAgenticRuntime, assertMatchedAgenticRuntimes, type BaselineLock, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
+import { frozenRuntimePolicy, installAgenticRuntime, installNormalizedNpmBaseline, assertNormalizedNpmRuntimes, assertMatchedAgenticRuntimes, type BaselineLock, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 import { workingRevision } from './revision-tree.ts'
 import { browserPerformanceOptions, configureAgenticEngines, configureBrowserPage, type BrowserElkCache } from './browser-config.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from './browser-memory.ts'
@@ -183,7 +183,7 @@ export async function renderPass(page: Page, engine: Engine, origin: string, inp
 
 async function main() {
   const options = new Map<string, string>()
-  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes', 'elk-cache', 'bezel-dir', 'runtime-source'])
+  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes', 'elk-cache', 'bezel-dir', 'runtime-source', 'runtime-comparison'])
   for (let i = 2; i < process.argv.length; i += 2) {
     const flag = process.argv[i]!.replace(/^--/, ''), value = process.argv[i + 1]
     if (!allowed.has(flag) || value === undefined || (value === '' && flag !== 'features') || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
@@ -195,9 +195,12 @@ async function main() {
   if (bezel && diagnostics.memoryPasses) throw new Error('Bezel WASM is outside the JS-memory diagnostic; run timing and memory separately')
   const { features, elkCache } = browserPerformanceOptions(options)
   if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both baseline-tarball and baseline-sha256')
+  const comparisonMode = options.get('runtime-comparison') ?? 'matched'
+  if (!['matched', 'normalized-npm-compound'].includes(comparisonMode)) throw new Error('--runtime-comparison must be matched or normalized-npm-compound')
+  if (comparisonMode === 'normalized-npm-compound' && !options.has('baseline-lock')) throw new Error('Normalized npm comparison requires --baseline-lock; Git/tarball comparisons remain strict')
   if (options.has('elk-cache') && !['on', 'off'].includes(options.get('elk-cache')!)) throw new Error('--elk-cache must be on or off')
   const startedAt = new Date().toISOString()
-  const policy = { elkCache, sceneAssertions: 'off', aplEnvironment: {}, hostAplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }
+  const policy = { runtimeComparisonMode: comparisonMode, elkCache, sceneAssertions: 'off', aplEnvironment: {}, hostAplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }
   const out = resolve(options.get('out') ?? 'bench-report')
   mkdirSync(out, { recursive: true })
   const reportPath = join(out, 'browser-report.json')
@@ -239,9 +242,16 @@ async function main() {
     if (lockPath) {
       const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as BaselineLock
       if (!/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(lock.version) || !lock.integrity) throw new Error('Invalid baseline lock')
-      engines.push(install(`agentic-mermaid@${lock.version}`, 'agentic-mermaid', 'baseline', temporary, lock.integrity, runtimePolicy, out))
+      if (comparisonMode === 'normalized-npm-compound') {
+        const acquired = installNormalizedNpmBaseline(lock, join(temporary, 'baseline'), runtimePolicy, join(out, 'browser-npm-acquisition'), 'baseline', 180_000)
+        engines.push({ label: 'baseline', name: 'agentic-mermaid', version: lock.version, root: acquired.root, kind: 'agentic',
+          bundle: 'dist/browser.global.js', global: 'agenticMermaid', identity: { integrity: acquired.integrity, runtime: acquired.runtime } })
+      } else engines.push(install(`agentic-mermaid@${lock.version}`, 'agentic-mermaid', 'baseline', temporary, lock.integrity, runtimePolicy, out))
     }
-    assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!))
+    const runtimeComparison = comparisonMode === 'normalized-npm-compound'
+      ? assertNormalizedNpmRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, candidate.identity.runtime!)
+      : (assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!)), { mode: 'matched' as const })
+    writeFileSync(join(out, 'browser-runtime-comparison.json'), `${JSON.stringify(runtimeComparison, null, 2)}\n`)
     engines.push(install('pele@1.6.0', 'pele', 'pele', temporary), install('mermaid@12.2.0', 'mermaid', 'mermaid', temporary))
     if (bezel) engines.push(bezel)
     if (diagnostics.dart) {
@@ -323,11 +333,12 @@ async function main() {
         cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
         memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined },
       policy: { ...policy, features: features ?? null, featureConfiguration: features === undefined ? 'artifact defaults' : 'same explicit list on agentic candidate and baseline', rounds, warmup: `${Math.min(warmupCount, inputs.length)} selected-corpus attempts before each engine/round`, warmupRequested: warmup ?? 'all', elkCache: elkCache === 'off' ? 'disabled before library load; duplicate inputs still measure layout' : 'enabled before library load; artifact cache bounds and eligibility apply', ordering: 'reverse engine order on alternate rounds; one tab, fresh document per engine pass', viewport: { width: 1440, height: 1000 }, remoteAssets: 'blocked; image/asset errors are environment outcomes, not syntax failures', timing: 'public render call through SVG return; excludes inspection/cleanup/paint', compression: 'gzip level 9 of each shipped/fetched JS file', fullInventory: inventory.occurrenceCount, measured: inputs.length },
-      payload, ...(memory ? { memory } : {}), ...summary }
+      runtimeComparison, payload, ...(memory ? { memory } : {}), ...summary }
     // Keep artifact identity separate from per-engine acceptance summaries.
     const identities = engines.map(({ root, ...engine }) => engine)
     writeFileSync(reportPath, `${JSON.stringify({ ...report, identities }, null, 2)}\n`)
     const lines = ['# Browser and competitor scorecard (advisory)', '',
+      ...(comparisonMode === 'normalized-npm-compound' ? ['> Normalized npm compound comparison, not an isolated PR gain. Only the external consumer dependency graph is normalized to current frozen pins; original IIFE/lazy bundles are unchanged and their embedded dependency equality is not established.', ''] : []),
       `${inputs.length}/${inventory.occurrenceCount} upstream fence occurrences, ${inventory.distinctCount} distinct examples across ${inventory.pages.length} pages. Chromium ${browserVersion}; ${rounds} counterbalanced rounds.`, '',
       `Policy: ELK cache **${elkCache}**; built-in Scene assertions **off**; browser APL environment empty (host APL variables are not applied).`, '',
       '| Engine | Returns SVG in every round | Median all-attempt call time | Complete bundle gzip |', '|---|---:|---:|---:|']
