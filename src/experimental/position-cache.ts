@@ -2,6 +2,7 @@ import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
+import { observeCache } from '../performance-observations.ts'
 const familyIds = new WeakMap<object, number>()
 let nextFamilyId = 0
 interface PositionedSnapshot { result: FamilyLayoutResult; projection?: FamilyPositionedView }
@@ -35,21 +36,24 @@ function clonePositioned<T>(source: T): T {
 }
 export function cachedPositioned(family: object, key: string): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
+  observeCache('positioned-layout', value ? 'hit' : 'miss')
   return value ? clonePositioned(value.result) : undefined
 }
 /** Only the private native renderer may borrow this certified snapshot. */
 export function borrowedPositioned(family: object, key: string): PositionedSnapshot | undefined {
-  return results.get(isolatedKey(family, key))
+  const value = results.get(isolatedKey(family, key))
+  observeCache('positioned-layout', value ? 'hit' : 'miss')
+  return value
 }
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
   const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}) }
   const weight = key.length * 2 + estimatedResidency(snapshot, MAX_WEIGHT) + 1024
-  if (weight > MAX_WEIGHT) return
+  if (weight > MAX_WEIGHT) { observeCache('positioned-layout', 'store-skipped', 'weight-limit'); return }
   let copy: PositionedSnapshot
   try { copy = clonePositioned(snapshot) } catch (error) {
     // C4 identity planners carry callbacks. Keep the complete authoritative
     // artifact uncached when a private snapshot cannot preserve its evidence.
-    if (error instanceof Error && error.name === 'DataCloneError') return
+    if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
     throw error
   }
   results.set(isolatedKey(family, key), copy, weight)

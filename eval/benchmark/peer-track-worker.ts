@@ -1,0 +1,111 @@
+import { consumePeerOutput, emptyTrackObservation, finalizeTrackObservation, inspectPeerSemantics, peerTrackVariant } from './peer-tracks.ts'
+import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackInput, TrackVariant } from './peer-tracks.ts'
+
+type Render = (source: string) => unknown
+export interface TrackJob {
+  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number
+}
+const firstLine = (error: unknown) => String(error instanceof Error ? error.message : error).split('\n')[0]!
+const unsupported = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|unsupported.*(?:diagram|Agentic)|diagram type is not supported/i
+const thenable = (value: unknown): value is PromiseLike<unknown> => typeof (value as PromiseLike<unknown> | null)?.then === 'function'
+
+/** No observer is present during clocks or GCProfiler probes. Every timed
+ * observation is one call, never a calibrated batch average. */
+export async function measurePeerTrack(options: {
+  peer: string; input: TrackInput; track: TrackJob; render?: Render
+  allocation?: (run: () => unknown) => Promise<number>
+  validate(svg: string, input: TrackInput): { missing: string[]; error?: string }
+  progress?(row: PeerTrackObservation): void
+}): Promise<PeerTrackObservation> {
+  const { peer, input, track, render, allocation, validate } = options
+  const row = emptyTrackObservation(peer, track.round, input.id, track.phase, track.consumer)
+  if (!render) {
+    row.calls.push({ index: 0, variant: 0, status: 'unsupported', detail: 'peer has no complete serialized receipt API' })
+    return finalizeTrackObservation(row)
+  }
+  const observerKey = Symbol.for('agentic-mermaid.performance-observer.v1')
+  const global = globalThis as unknown as Record<symbol, unknown>
+  const priorObserver = global[observerKey]
+  delete global[observerKey]
+  let variantCounter = 0
+  const next = (): TrackVariant => peerTrackVariant(input, track.phase, ++variantCounter)
+  const invoke = async (variant: TrackVariant) => {
+    const start = performance.now()
+    let value = render(variant.source)
+    if (thenable(value)) value = await value
+    const consumed = consumePeerOutput(value, track.consumer)
+    return { ...consumed, elapsedMs: performance.now() - start }
+  }
+  const inspect = (svg: string, variant: TrackVariant) => {
+    const checked = validate(svg, variant)
+    const semantic = inspectPeerSemantics(svg, variant, peer === 'agentic' || peer.startsWith('agentic-'))
+    const status: PeerStatus = checked.error || semantic.failures.length ? 'error' : checked.missing.length ? 'lost-labels' : 'ok'
+    return { status, semantic, ...(checked.missing.length ? { missing: checked.missing.length, detail: checked.missing.slice(0, 3).join(', ') } : {}), ...(checked.error || semantic.failures.length ? { detail: checked.error ?? semantic.failures.join('; ') } : {}) }
+  }
+  try {
+    // Exact-repeat is deliberately primed at identical bytes; edit phases are
+    // primed at a different real input. First-use performs no earlier render.
+    if (track.phase !== 'first-use') {
+      for (let warm = 0; warm < (track.warmCalls ?? 3); warm++) {
+        const variant = next()
+        const result = await invoke(variant)
+        const checked = inspect(result.svg, variant)
+        if (checked.status !== 'ok') {
+          row.calls.push({ index: -warm - 1, variant: variant.variant, elapsedMs: result.elapsedMs, ...checked, detail: checked.detail ?? 'warmup failed semantic/label validation' })
+          return finalizeTrackObservation(row)
+        }
+      }
+    }
+    const started = performance.now()
+    for (let index = 0; index < (track.phase === 'first-use' ? 1 : track.samples); index++) {
+      const variant = next()
+      try {
+        const result = await invoke(variant)
+        row.calls.push({ index, variant: variant.variant, elapsedMs: result.elapsedMs, consumedBytes: result.bytes, checksum: result.checksum, ...inspect(result.svg, variant) })
+      } catch (error) {
+        const detail = firstLine(error)
+        row.calls.push({ index, variant: variant.variant, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
+      }
+      options.progress?.(row)
+      if (performance.now() - started > track.maxCaseMs) break
+    }
+    if (track.phase === 'first-use') row.allocationUnsupported = 'first-use allocation requires a separate fresh-process observation; warm probes are not equivalent'
+    else if (!allocation) row.allocationUnsupported = 'runtime has no V8 GC-boundary allocation probe'
+    else for (let index = 0; index < track.allocationSamples; index++) {
+      const variant = next()
+      let result: Awaited<ReturnType<typeof invoke>> | undefined
+      try {
+        const bytes = await allocation(async () => { result = await invoke(variant) })
+        const checked = inspect(result!.svg, variant)
+        if (checked.status !== 'ok') throw new Error(checked.detail ?? `allocation observation ${checked.status}`)
+        row.allocationSamplesBytes.push(bytes)
+      } catch (error) { (row.allocationErrors ??= []).push(firstLine(error)) }
+    }
+    if (track.phase === 'first-use') row.diagnostics.detail = 'cold diagnostic replay needs another fresh process; this worker has already rendered'
+    else {
+      global[observerKey] = (event: Record<string, unknown>) => {
+        if (event?.version !== 1 || !['scope', 'cache', 'fallback'].includes(String(event.kind))) return
+        if (event.kind === 'scope' && event.owner === 'graphical') row.diagnostics.status = 'observed'
+        const key = [event.kind, event.owner, event.outcome, event.reason].filter(value => value !== undefined).join(':')
+        row.diagnostics.counts[key] = (row.diagnostics.counts[key] ?? 0) + 1
+        if (row.diagnostics.events.length < 100) row.diagnostics.events.push({ ...event })
+      }
+      try {
+        const variant = next()
+        const result = await invoke(variant)
+        delete global[observerKey]
+        const checked = inspect(result.svg, variant)
+        if (checked.status !== 'ok') throw new Error(checked.detail ?? checked.status)
+        row.diagnostics.complete = row.diagnostics.status === 'observed'
+      } catch (error) { row.diagnostics.complete = false; row.diagnostics.detail = firstLine(error) }
+      delete global[observerKey]
+    }
+  } catch (error) {
+    const detail = firstLine(error)
+    row.calls.push({ index: row.calls.length, variant: variantCounter, status: unsupported.test(detail) ? 'unsupported' : 'error', detail })
+  } finally {
+    if (priorObserver === undefined) delete global[observerKey]
+    else global[observerKey] = priorObserver
+  }
+  return finalizeTrackObservation(row)
+}

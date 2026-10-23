@@ -7,6 +7,7 @@ import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
+import { observeFallback } from '../performance-observations.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
@@ -304,11 +305,16 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
   const bounded = preliminary ? [preliminary, ...fallbacks] : fallbacks
   let deferred: CertifiedCandidate | undefined
   let probe: 'readability' | 'routing' | undefined
+  let rejected = false
   const compared: CertifiedSelection['compared'] = []
   const accept = (selected: CertifiedCandidate, reason: LayoutPreferenceEvidence['reason']): CertifiedSelection =>
     ({ selected, reason, compared, attempts: attempts.length })
   for (const [index, candidate] of bounded.entries()) {
     if (deferred && probe === 'routing' && candidate.qualityAlternative === false) continue
+    if (rejected) {
+      observeFallback('layout-candidate', 'candidate-rejected', attempts.length + 1)
+      rejected = false
+    }
     const result = certifyCandidate(graph, style, candidate)
     attempts.push(result.attempt)
     const certified = result.certified
@@ -332,6 +338,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
       continue
     }
     if (deferred) return accept(deferred, 'alternative-invalid')
+    rejected = true
   }
   if (deferred) return accept(deferred, 'no-alternative')
   throw new LayoutCertificationError(attempts)

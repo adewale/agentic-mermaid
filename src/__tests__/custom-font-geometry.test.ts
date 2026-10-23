@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { createMermaidRenderer, DefaultBackend, registerBackend, renderMermaidSVG } from '../index.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { fitUncalibratedSvgText } from '../custom-font-geometry.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
@@ -25,6 +25,33 @@ describe('deterministic custom-font geometry', () => {
     ))
     expect(fonts).toEqual(['Georgia', 'Inter', 'JetBrains Mono'])
     expect(projected.match(/textLength="\d+"/g)).toEqual(['textLength="180"', 'textLength="60"', 'textLength="120"'])
+  })
+
+  test('host backend text remains fitted through the public bound renderer', () => {
+    const id = 'backend:test/unfitted-host-text'
+    let raw = ''
+    const unregister = registerBackend({
+      ...DefaultBackend, id, capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(doc, context) {
+        raw = DefaultBackend.render(doc, context).replace(/\s(?:data-prepared-text|textLength|lengthAdjust|data-font-metrics)="[^"]*"/g, '')
+        return raw
+      },
+    }, { compatibility: { core: '^0.4.0', scene: '^2.0.0' } })
+    try {
+      const renderer = createMermaidRenderer({
+        backendPolicy: { selectBackend: () => id },
+        textMeasurement: { id: 'test:host-font-fit', version: '1.0.0', measure: input => input.text.length * 10 },
+      })
+      const svg = renderer.renderMermaidSVG('flowchart LR\nA[Alpha] --> B[Beta]', { style: { font: 'Acme Wide' } })
+      const unfitted = raw.match(/<text\b([^>]*)>Alpha<\/text>/)?.[1]
+      const fitted = svg.match(/<text\b([^>]*)>Alpha<\/text>/)?.[1]
+      expect(unfitted).toBeDefined()
+      expect(unfitted).not.toContain('textLength=')
+      expect(unfitted).not.toContain('data-prepared-text=')
+      expect(fitted).toContain('textLength="50"')
+      expect(fitted).toContain('lengthAdjust="spacingAndGlyphs"')
+      expect(fitted).toContain('data-font-metrics="deterministic-fit"')
+    } finally { unregister() }
   })
 
   test('resource availability never masquerades as metric calibration', () => {

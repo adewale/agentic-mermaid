@@ -1,6 +1,6 @@
 import { createHash, type Hash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** Conservative source authority for the generated website. Directory entries
@@ -86,6 +86,18 @@ export function computeWebsiteBuildFingerprint(root: string, options: WebsiteBui
   }
   for (const rel of options.paths ?? WEBSITE_BUILD_FINGERPRINT_PATHS) addPathToHash(hash, root, rel)
   return hash.digest('hex')
+}
+
+/** Atomic filesystem boundary for the website fixture's directory lock.
+ * Only an existing lock is contention; other errors must retain their cause. */
+export function tryAcquireWebsiteBuildDirectory(path: string): boolean {
+  try {
+    mkdirSync(path, { recursive: false })
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
+    throw error
+  }
 }
 
 /** Waits for the build lock while comparing any completed sentinel with a

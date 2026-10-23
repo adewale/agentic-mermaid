@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText } from '../scene/serialization.ts'
+import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 
 // The default backend writes shape, text and connector elements from their
@@ -134,6 +135,18 @@ describe('typed Scene SVG writer', () => {
       transform: { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 2, f: 3 }, paint: { opacity: '0.8' }, children: [{ node: child, indent: 2 }],
     })
     expect(sceneNodeSerialization(group)).toBe('<g opacity="0.8" class="wrap" style="--tone: red" transform="translate(2 3)"><title>Tip</title>\n  <circle cx="1" cy="1" r="1" fill="red" />\n</g>')
+  })
+
+  test('escaped native output retains the Scene oversized-serialization diagnostic', () => {
+    const mark = marks.shape({ id: 'note', role: 'chrome',
+      geometry: { kind: 'rect', x: 0, y: 0, width: 1, height: 1 }, paint: {},
+      attributes: { data: { note: '&'.repeat(1_000_000) } },
+    })
+    const result = validateSceneDoc({ family: 'sequence', width: 10, height: 10,
+      colors: { bg: '#fff', fg: '#111' }, transparent: false, parts: [mark] })
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'SCENE_DOCUMENT', path: 'scene.parts[0]', message: 'has an oversized SVG serialization',
+    }))
   })
 
   test('does not replay construction-time SVG byte order', () => {

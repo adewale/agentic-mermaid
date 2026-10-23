@@ -155,6 +155,7 @@
     "bench:experiments": "bun run eval/benchmark/experiment-matrix.ts",
     "bench:pipeline": "bun run eval/benchmark/pipeline-audit.ts",
     "bench:peers": "bun run eval/benchmark/peer-bench.ts",
+    "bench:peers:qualify": "bun run eval/benchmark/qualify-peer-performance.ts",
     "bench:release": "bun run eval/benchmark/release-bench.ts",
     "bench:release:browser": "bun run eval/benchmark/release-browser-bench.ts",
     "harvest:upstream": "bun run eval/mermaid-upstream-suite-bench/harvest.ts",

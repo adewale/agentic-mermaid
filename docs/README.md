@@ -86,6 +86,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`contributing/doc-consistency.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/doc-consistency.md) | How docs stay consistent with the code: generated blocks, the doc checks, and the audit prompt. |
 | [`contributing/harvesting-upstream-tests.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/harvesting-upstream-tests.md) | How to vendor upstream/fork test suites into an executable compatibility bench. |
 | [`contributing/releasing.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/releasing.md) | How to cut an npm release (GitHub Release → provenance publish) and flip the "published" copy. |
+| [`eval/benchmark/RESULTS.md`](https://github.com/adewale/agentic-mermaid/blob/main/eval/benchmark/RESULTS.md) | Current performance findings, fixed-baseline scorecard, peer gaps and reproduction. |
 | [`layout-characterization/README.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/layout-characterization/README.md) | Layout and visual testing approach: properties, contact sheets, raster contracts, and approval artifacts. |
 | [`svg-semantic-contract.md`](./svg-semantic-contract.md) | Typed Scene identity, geometry, references, and accessibility contract. |
 | [`project/divergences.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/divergences.md) | Deliberate divergences and guardrails. |

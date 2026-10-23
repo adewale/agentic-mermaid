@@ -1,8 +1,8 @@
 // Compare built packages in alternating fresh Node processes. Publication runs
 // use --candidate-tarball: the measured bytes are the bytes queued for npm.
 // Reports are generated evidence, never committed baselines.
-import { spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash, randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { cpus, release, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -26,6 +26,7 @@ interface Identity {
   requested: string
   sha256?: string
   integrity?: string
+  dependencyLock?: { path: string; sha256: string }
 }
 interface Engine {
   label: string
@@ -65,7 +66,7 @@ const CASE_BUDGET_MS = 10 * 60 * 1000
 const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
 function args(): Map<string, string> {
-  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case'])
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'elk-cache'])
   const options = new Map<string, string>()
   const argv = process.argv.slice(2)
   for (let i = 0; i < argv.length; i++) {
@@ -85,6 +86,7 @@ function args(): Map<string, string> {
     throw new Error('--candidate-sha256 requires --candidate-tarball and a lowercase SHA-256 digest')
   }
   if (options.has('baseline-lock') && !options.has('baseline-npm')) throw new Error('--baseline-lock requires --baseline-npm')
+  if (options.has('elk-cache') && !['on', 'off'].includes(options.get('elk-cache')!)) throw new Error('--elk-cache must be on or off')
   return options
 }
 function positive(options: Map<string, string>, key: string, fallback: number): number {
@@ -123,7 +125,7 @@ function successful(run: EngineRun, input: Input, rounds: number): boolean {
   return !!result?.svg.ok && result.validSvg && result.deterministic && !result.missingSvgLabels.length && result.mediansMs.length === rounds
 }
 
-function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number): EngineRun[] {
+function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number, elkCache: 'on' | 'off'): EngineRun[] {
   const runs: EngineRun[] = engines.map(engine => ({ ...engine, importMs: [], firstRenderMs: [], coldDeterministic: true, results: new Map(), memory: new Map(), failures: new Map() }))
   const record = (value: unknown) => appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify(value)}\n`)
   function worker(run: EngineRun, mode: 'time' | 'memory', group: Group, round?: number): TimeResult | MemoryResult | undefined {
@@ -135,8 +137,8 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
       const result = join(out, 'result.json')
       rmSync(result, { force: true })
       writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps }))
-      // Time ELK rather than a cached result, and renders as users get them.
-      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+      // Default to timing ELK; cache-on measures repeated rendering as a host sees it.
+      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: elkCache === 'on' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
       if (child.status === 0) {
         const value = JSON.parse(readFileSync(result, 'utf8')) as TimeResult | MemoryResult
         const evidence =
@@ -222,9 +224,15 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   const corpus = inputs.filter(input => input.kind === 'corpus')
   const scaling = inputs.filter(input => input.kind !== 'corpus')
   const checks: Check[] = []
+  const completeMemory = (value: MemoryResult | undefined) => value !== undefined && [value.settledHeapBytes, value.retainedHeapBytes].every(bytes => Number.isFinite(bytes) && bytes >= 0)
+  const incompleteMemory = (run: EngineRun) => [...run.memory].filter(([, value]) => !completeMemory(value)).map(([name]) => name)
   const addRatio = (name: string, value: number | undefined, limit: number) => checks.push({ name, ok: value === undefined ? null : value <= limit, detail: value === undefined ? 'not compared: no matched measurement' : times(value) })
   const incomplete = inputs.filter(input => candidate.results.get(input.id)?.mediansMs.length !== rounds)
-  checks.push({ name: 'Every candidate measurement completes', ok: candidate.failures.size === 0 && !incomplete.length, detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds` })
+  checks.push({
+    name: 'Every candidate measurement completes',
+    ok: candidate.failures.size === 0 && !incomplete.length && !incompleteMemory(candidate).length,
+    detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || (incompleteMemory(candidate).length ? `incomplete absolute heap observations: ${incompleteMemory(candidate).join(', ')}` : `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds`),
+  })
   checks.push({ name: 'Cold SVG render succeeds', ok: candidate.firstRender?.ok === true, detail: candidate.firstRender?.error ?? (candidate.firstRender?.ok ? 'flowchart rendered' : 'not measured') })
   const unstable = [...candidate.results].filter(([, result]) => !result.deterministic).map(([id]) => id)
   checks.push({ name: 'Deterministic SVG and ASCII output', ok: candidate.coldDeterministic && !unstable.length, detail: unstable.join(', ') || (candidate.coldDeterministic ? 'all repeats and fresh processes agree' : 'cold renders differ between processes') })
@@ -236,7 +244,11 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   checks.push({ name: 'Every scaling and agent workflow succeeds', ok: !failedWorkloads.length, detail: failedWorkloads.map(input => input.id).join(', ') || `${scaling.length} workloads passed` })
   if (baseline) {
     const incompleteBaseline = inputs.filter(input => baseline.results.get(input.id)?.mediansMs.length !== rounds)
-    checks.push({ name: 'Every required baseline measurement completes', ok: baseline.failures.size === 0 && !incompleteBaseline.length, detail: [...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incompleteBaseline.length}/${inputs.length} inputs completed ${rounds} rounds` })
+    checks.push({
+      name: 'Every required baseline measurement completes',
+      ok: baseline.failures.size === 0 && !incompleteBaseline.length && !incompleteMemory(baseline).length,
+      detail: [...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || (incompleteMemory(baseline).length ? `incomplete absolute heap observations: ${incompleteMemory(baseline).join(', ')}` : `${inputs.length - incompleteBaseline.length}/${inputs.length} inputs completed ${rounds} rounds`),
+    })
     checks.push({ name: 'Baseline has comparable successful SVG measurements', ok: shared(inputs).length > 0 && (!corpus.length || shared(corpus).length > 0), detail: `${shared(inputs).length}/${inputs.length} total; ${shared(corpus).length}/${corpus.length} corpus inputs compared` })
     for (const format of ['svg', 'ascii'] as const) {
       const lost = measured(inputs).filter(input => baseline.results.get(input.id)![format].ok && !candidate.results.get(input.id)![format].ok)
@@ -253,7 +265,8 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
     checks.push({ name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`, ok: comparable.length ? !slow.length : null, detail: `${comparable.length}/${scaling.length} compared${slow.length ? `; slow: ${slow.map(input => input.id).join(', ')}` : ''}` })
     const before = baseline.memory.get('corpus')
     const after = candidate.memory.get('corpus')
-    if (shared(corpus).length) checks.push({ name: 'Required matched corpus memory measurements complete', ok: !!before && !!after, detail: before && after ? `${before.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate memory observations' })
+    if (shared(corpus).length)
+      checks.push({ name: 'Required matched corpus memory measurements complete', ok: completeMemory(before) && completeMemory(after), detail: completeMemory(before) && completeMemory(after) ? `${before!.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate absolute heap observations' })
     addRatio(`Corpus allocation ≤ ${GATES.allocationGrowth}× baseline`, ratio(after?.passAllocatedBytes, before?.passAllocatedBytes), GATES.allocationGrowth)
     addRatio(`Corpus peak RSS ≤ ${GATES.rssGrowth}× baseline`, ratio(after?.peakRssBytes, before?.peakRssBytes), GATES.rssGrowth)
   }
@@ -335,7 +348,9 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
     for (const [key, label] of [
       ['passAllocatedBytes', 'allocated / pass'],
       ['passPeakHeapBytes', 'peak heap during pass'],
-      ['retainedGrowthBytes', 'retained heap / pass'],
+      ['settledHeapBytes', 'settled heap before pass (post-GC)'],
+      ['retainedHeapBytes', 'retained heap after pass (post-GC)'],
+      ['retainedGrowthBytes', 'retained heap growth / pass'],
       ['peakRssBytes', 'whole worker peak RSS'],
     ] as const)
       metric(
@@ -345,7 +360,7 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   }
   md.push(
     '',
-    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Retained heap covers one settled pass. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
+    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Settled and retained heap are absolute used heap before and after one pass, each after GC; growth is their nonnegative difference. A single memory pair does not establish a retained-heap noise floor. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
   )
   return {
     ok,
@@ -377,6 +392,7 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
 
 function main() {
   const options = args()
+  const elkCache = (options.get('elk-cache') ?? 'off') as 'on' | 'off'
   const rounds = positive(options, 'rounds', 3)
   const reps = positive(options, 'reps', 5)
   const budgetMs = positive(options, 'budget-ms', DEFAULT_BUDGET_MS)
@@ -392,7 +408,7 @@ function main() {
   const startedAt = new Date().toISOString()
   // Leave time to finalize reports before the workflow's outer timeout.
   const deadline = Date.now() + budgetMs
-  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
+  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, elkCache, sceneAssertions: 'off', aplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }, environment: { node: execFileSync('node', ['--version'], { encoding: 'utf8' }).trim(), bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
     cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
     memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined } }
   writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
@@ -409,7 +425,11 @@ function main() {
     const lock = JSON.parse(readFileSync(join(dir, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
     const integrity = lock.packages['node_modules/agentic-mermaid']?.integrity
     if (identity.integrity && identity.integrity !== integrity) throw new Error(`${label}: installed package integrity differs from the locked identity`)
-    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity })
+    const bytes = readFileSync(join(dir, 'package-lock.json')), path = join(out, `${label}-${randomUUID()}.package-lock.json`)
+    writeFileSync(path, bytes, { flag: 'wx' })
+    const dependencyLock = { path, sha256: createHash('sha256').update(bytes).digest('hex') }
+    appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engine: label, dependencyLock })}\n`)
+    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity, dependencyLock })
   }
   try {
     const engines: Engine[] = []
@@ -435,8 +455,9 @@ function main() {
       engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir }))
     }
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
-    const runs = measure(out, engines, groups, rounds, reps, deadline)
+    const runs = measure(out, engines, groups, rounds, reps, deadline, elkCache)
     const result = report(inputs, groups, runs, rounds)
+    result.markdown += `\nEffective policy: ELK cache **${elkCache}**; built-in Scene assertions **off**; APL environment: ${JSON.stringify(metadata.config.aplEnvironment)}.\n`
     writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), ...result.summary }, null, 2))
     writeFileSync(join(out, 'report.md'), result.markdown)
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, result.markdown)

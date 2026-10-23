@@ -4,6 +4,15 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Performance
+
+- Published Node bundles compact whitespace without rewriting syntax or renaming
+  callable exports. The package keeps its existing exports, resources and lazy ELK
+  boundary.
+- Benchmarks retain verified packed inputs, dependency locks, complete peer
+  observations and explicit cache/assertion policy. Scoped findings and remaining
+  competitor gaps are in the benchmark report linked from the documentation hub.
+
 ### Known limitations
 
 - A preexisting combined Sequence box/`alt` case can omit the header and divider

@@ -9,7 +9,7 @@
 // Three arms, one install:
 //   T1  installed library  — `import('agentic-mermaid')` / `.../agent` resolve
 //       and render identically to the source build (crash parity + flowchart
-//       byte-equality + PNG crash-freedom).
+//       byte-equality + raw PNG parity across runtimes and packaged resources).
 //   T2  `am` bin           — `am batch --jsonl` over generated ops (one bad line
 //       never aborts the stream; ASCII output matches source), plus one-shot
 //       `am render` across formats and a not-found file.
@@ -26,14 +26,14 @@ import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import fc from 'fast-check'
 import '../src/__tests__/fc-seed.preload.ts'
-import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
+import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
 import { runGettingStartedCommands } from './helpers/getting-started.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
 const INSTALL_TIMEOUT_MS = 240_000
 const RUN_TIMEOUT_MS = 180_000
-const PNG_SMOKE_N = 6
+const PNG_PARITY_N = 6
 const PACKAGE_FAMILY_FIXTURES = [
   { family: 'mindmap', source: 'mindmap\n  Root\n    Research\n      Evidence' },
   { family: 'gitgraph', source: 'gitGraph\n  commit id:"base" msg:"Foundation"\n  branch feature\n  commit id:"work"' },
@@ -53,7 +53,7 @@ if (!NODE || !NPM) throw new Error('tarball consumer gate requires plain Node an
 // ---------------------------------------------------------------------------
 // Reference (source build, Bun). Node drivers below mirror this tag logic.
 // ---------------------------------------------------------------------------
-const sha = (s: string) => createHash('sha256').update(s).digest('hex')
+const sha = (s: string | Uint8Array) => createHash('sha256').update(s).digest('hex')
 const tag = (fn: () => string): string => { try { return sha(String(fn())) } catch { return 'THREW' } }
 const refLayout = (src: string) => tag(() => JSON.stringify(verifyMermaid(src).layout ?? null))
 const refSvg = (src: string) => tag(() => renderMermaidSVG(src))
@@ -159,7 +159,7 @@ test('Getting Started shell commands and pinned MCP config work against the pack
 const LIB_DRIVER = `
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-const inputs = JSON.parse(readFileSync(process.env.AM_FUZZ_INPUT, 'utf8'))
+const { inputs, pngInputs } = JSON.parse(readFileSync(process.env.AM_FUZZ_INPUT, 'utf8'))
 const base = await import('agentic-mermaid')
 const agent = await import('agentic-mermaid/agent')
 const core = await import('agentic-mermaid/agent/core')
@@ -171,8 +171,7 @@ const resolved = {
 const { verifyMermaid, renderMermaidSVG, renderMermaidASCII, renderMermaidPNG } = agent
 const sha = (s) => createHash('sha256').update(s).digest('hex')
 const tag = (fn) => { try { return sha(String(fn())) } catch { return 'THREW' } }
-const PNG_N = Number(process.env.AM_FUZZ_PNG_N || 0)
-const results = inputs.map((src, i) => {
+const results = inputs.map((src) => {
   const parsed = agent.parseRegisteredMermaid(src)
   const r = {
     kind: parsed.ok ? parsed.value.body.kind : 'THREW',
@@ -180,10 +179,17 @@ const results = inputs.map((src, i) => {
     svg: tag(() => renderMermaidSVG(src)),
     ascii: tag(() => renderMermaidASCII(src)),
   }
-  if (i < PNG_N) { try { r.pngLen = renderMermaidPNG(src).length } catch { r.pngLen = -1 } }
   return r
 })
-process.stdout.write(JSON.stringify({ resolved, results }))
+const pngResults = pngInputs.map(({ source, options }) => {
+  const png = renderMermaidPNG(source, options)
+  const bytes = Buffer.from(png.buffer, png.byteOffset, png.byteLength)
+  return {
+    sha256: sha(png), length: png.length, signature: [...png.subarray(0, 8)],
+    ihdr: bytes.toString('ascii', 12, 16), width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20),
+  }
+})
+process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
@@ -211,15 +217,21 @@ describe('installed tarball — library', () => {
     const canonicalInputs = BUILTIN_FAMILY_METADATA.map(family => family.example)
     const inputs = [...flow, ...canonicalInputs, ...PACKAGE_FAMILY_FIXTURES.map(fixture => fixture.source), ...mixed]
     const fixtureStart = flow.length + canonicalInputs.length
-    writeFileSync(join(work, 'inputs.json'), JSON.stringify(inputs))
+    const pngInputs: Array<{ source: string; options: NonNullable<Parameters<typeof renderMermaidPNG>[1]> }> = [
+      ...flow.slice(0, PNG_PARITY_N).map(source => ({ source, options: {} })),
+      { source: 'sequenceDiagram\n  participant A as Café\n  participant B as Zoë\n  A->>B: Contour ∮ integral', options: { scale: 1 } },
+      { source: 'flowchart LR\n  A[Draft] --> B[Review]', options: { style: 'hand-drawn', seed: 7, scale: 1 } },
+    ]
+    writeFileSync(join(work, 'inputs.json'), JSON.stringify({ inputs, pngInputs }))
     const r = spawnSync(NODE!, ['--input-type=module', '-e', LIB_DRIVER], {
       cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
-      env: { ...process.env, AM_FUZZ_INPUT: join(work, 'inputs.json'), AM_FUZZ_PNG_N: String(PNG_SMOKE_N) },
+      env: { ...process.env, AM_FUZZ_INPUT: join(work, 'inputs.json') },
     })
-    expect(r.status).toBe(0) // exports resolution / native dep load must not crash
-    const { resolved, results } = JSON.parse(r.stdout) as {
+    expect(r.status, `installed library Node driver stderr:\n${r.stderr}`).toBe(0) // exports resolution / native dep load must not crash
+    const { resolved, results, pngResults } = JSON.parse(r.stdout) as {
       resolved: Record<string, string>
-      results: Array<{ kind: string; layout: string; svg: string; ascii: string; pngLen?: number }>
+      results: Array<{ kind: string; layout: string; svg: string; ascii: string }>
+      pngResults: Array<{ sha256: string; length: number; signature: number[]; ihdr: string; width: number; height: number }>
     }
     // Bare-specifier resolution through the exports map.
     expect(resolved).toEqual({
@@ -252,7 +264,18 @@ describe('installed tarball — library', () => {
       expect(results[fixtureStart + index]!.svg).not.toBe('THREW')
       expect(results[fixtureStart + index]!.ascii).not.toBe('THREW')
     })
-    for (let i = 0; i < PNG_SMOKE_N; i++) expect(results[i]!.pngLen).toBeGreaterThan(0)
+    // This differential protects installed exports, native dependencies and font
+    // resources across Node/Bun. Raster quality has independent source keepers.
+    expect(pngResults).toHaveLength(pngInputs.length)
+    pngInputs.forEach(({ source, options }, index) => {
+      const installed = pngResults[index]!
+      expect(installed.signature, source).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+      expect(installed.ihdr, source).toBe('IHDR')
+      expect(installed.width, source).toBeGreaterThan(0)
+      expect(installed.height, source).toBeGreaterThan(0)
+      const reference = renderMermaidPNG(source, options)
+      expect({ sha256: installed.sha256, length: installed.length }, source).toEqual({ sha256: sha(reference), length: reference.length })
+    })
 
     // Bins are linked into node_modules/.bin.
     expect(existsSync(binShimAm)).toBe(true)
@@ -441,9 +464,11 @@ describe('installed tarball — mcp bin', () => {
       expect('result' in resp !== 'error' in resp).toBe(true) // exactly one
       if (resp.error) { expect(typeof resp.error.code).toBe('number'); expect(typeof resp.error.message).toBe('string') }
     }
-    // Every id-bearing request got exactly one matching response.
-    const byId = new Map(responses.filter(r => typeof r.id === 'number').map(r => [r.id as number, r]))
-    const missing = reqs.filter(rq => rq.expectResponse && !byId.has(rq.id as number)).map(rq => rq.id)
-    expect(missing).toEqual([])
+    // Compare the multiset before any indexing can hide duplicate responses.
+    // The two malformed input lines must still yield null-id parse errors.
+    const expectedIds = [...reqs.filter(rq => rq.expectResponse).map(rq => rq.id), null, null]
+    expect(responses.map(response => response.id).sort()).toEqual(expectedIds.sort())
+    expect(responses.filter(response => response.id === null).map(response => response.error?.code))
+      .toEqual([-32700, -32700])
   }, RUN_TIMEOUT_MS)
 })

@@ -1,7 +1,7 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
@@ -14,8 +14,10 @@ import type { Engine } from '../../eval/benchmark/release-browser-bench.ts'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const temp = useTempDirs()
+const runChild = useTestChildren(10_000)
 const input = (id: string, kind: Input['kind'] = 'corpus', family = 'flowchart'): Input => ({ id, kind, family, source: 'flowchart LR\n A --> B' })
 function run(label: string, inputs: Input[]): EngineRun {
   return {
@@ -26,7 +28,7 @@ function run(label: string, inputs: Input[]): EngineRun {
       ascii: { ok: true, bytes: 1, sha256: 'ascii' }, validSvg: true, deterministic: true,
       mediansMs: [1], samplesMs: [[1, 1, 1]], missingSvgLabels: [],
     }])),
-    memory: new Map([['corpus', { perInput: [], inputIds: inputs.map(input => input.id), passAllocatedBytes: 100, passPeakHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }]]),
+    memory: new Map([['corpus', { perInput: [], inputIds: inputs.map(input => input.id), passAllocatedBytes: 100, passPeakHeapBytes: 100, settledHeapBytes: 100, retainedHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }]]),
     failures: new Map(),
   }
 }
@@ -57,6 +59,26 @@ describe('release publication decisions', () => {
     const inputs = [input('flow')], before = run('baseline', inputs), after = run('candidate', inputs)
     before.memory.clear()
     expect(decision(inputs, before, after).ok).toBe(false)
+  })
+
+  test.each(['baseline', 'candidate'] as const)('missing absolute heap observations fail existing %s completeness checks', side => {
+    const inputs = [input('flow')],
+      before = run('baseline', inputs),
+      after = run('candidate', inputs)
+    const engine = side === 'baseline' ? before : after
+    const memory = engine.memory.get('corpus')!
+    for (const key of ['settledHeapBytes', 'retainedHeapBytes'] as const) {
+      const original = memory[key]
+      for (const invalid of [undefined, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1]) {
+        Object.assign(memory, { [key]: invalid })
+        const result = decision(inputs, before, after)
+        expect(result.ok).toBe(false)
+        expect(result.summary.checks.find(check => check.name === 'Required matched corpus memory measurements complete')?.ok).toBe(false)
+        expect(result.summary.checks.find(check => check.name === (side === 'baseline' ? 'Every required baseline measurement completes' : 'Every candidate measurement completes'))?.ok).toBe(false)
+      }
+      memory[key] = original
+    }
+    expect(decision(inputs, before, after).ok).toBe(true)
   })
 
   test('a newly enrolled workload must succeed even when both versions reject it', () => {
@@ -110,6 +132,15 @@ describe('release publication decisions', () => {
     expect(decision(inputs, before, after).ok).toBe(false)
     expect(missingSvgLabels('<svg><text>A &amp; <tspan>B</tspan></text></svg>', ['A & B'])).toEqual([])
   })
+
+  test('declared field prefixes allow either complete display form without matching another value', () => {
+    const expected = ['Requirement 1']
+    expect(missingSvgLabels('<svg><text>Requirement 1</text></svg>', expected, ['Text: '])).toEqual([])
+    expect(missingSvgLabels('<svg><text>Text: Requirement 1</text></svg>', expected, ['Text: '])).toEqual([])
+    expect(missingSvgLabels('<svg><text>Text: Requirement 10</text></svg>', expected, ['Text: '])).toEqual(expected)
+    expect(missingSvgLabels('<svg><text>Other: Requirement 1</text></svg>', expected, ['Text: '])).toEqual(expected)
+    expect(missingSvgLabels('<svg><text>Text: Requirement 1</text></svg>', expected)).toEqual(expected)
+  })
 })
 
 test('browser rejection changes coverage but never improves the shared-success speed ratio', () => {
@@ -130,7 +161,7 @@ test('browser pass warms only the requested prefix and still attempts every meas
   const calls: string[] = []
   const inputs = Array.from({ length: 35 }, (_, i) => ({ id: `case${i}`, source: `source${i}` }))
   const host = globalThis as unknown as Record<string, unknown>
-  const priorDocument = host.document, priorApi = host.benchmarkApi, priorCache = host.AGENTIC_MERMAID_ELK_CACHE, priorExperiments = host.AGENTIC_MERMAID_EXPERIMENTS
+  const priorDocument = host.document, priorApi = host.benchmarkApi, priorCache = host.AGENTIC_MERMAID_ELK_CACHE, priorExperiments = host.AGENTIC_MERMAID_EXPERIMENTS, priorAssertions = host.AGENTIC_MERMAID_SCENE_ASSERTIONS
   host.document = { querySelectorAll: () => [] }
   host.benchmarkApi = { renderMermaidSVG(source: string) {
     calls.push(source)
@@ -150,7 +181,7 @@ test('browser pass warms only the requested prefix and still attempts every meas
     expect(rows[32]?.ok).toBe(false)
     expect(rows.filter(row => row.ok)).toHaveLength(34)
   } finally {
-    for (const [key, value] of [['document', priorDocument], ['benchmarkApi', priorApi], ['AGENTIC_MERMAID_ELK_CACHE', priorCache], ['AGENTIC_MERMAID_EXPERIMENTS', priorExperiments]] as const) {
+    for (const [key, value] of [['document', priorDocument], ['benchmarkApi', priorApi], ['AGENTIC_MERMAID_ELK_CACHE', priorCache], ['AGENTIC_MERMAID_EXPERIMENTS', priorExperiments], ['AGENTIC_MERMAID_SCENE_ASSERTIONS', priorAssertions]] as const) {
       if (value === undefined) delete host[key]
       else host[key] = value
     }
@@ -170,24 +201,24 @@ test.each([
   }) satisfies Engine)
   configureAgenticEngines(engines, performance.features)
   const host = globalThis as unknown as Record<string, unknown>
-  const prior = new Map(['document', 'browserConfigurationApi', 'AGENTIC_MERMAID_EXPERIMENTS', 'AGENTIC_MERMAID_ELK_CACHE'].map(key => [key, host[key]]))
+  const prior = new Map(['document', 'browserConfigurationApi', 'AGENTIC_MERMAID_EXPERIMENTS', 'AGENTIC_MERMAID_ELK_CACHE', 'AGENTIC_MERMAID_SCENE_ASSERTIONS'].map(key => [key, host[key]]))
   host.document = { querySelectorAll: () => [] }
   host.browserConfigurationApi = { renderMermaidSVG: () => '<svg/>', render: () => '<svg/>', initialize: () => {} }
-  const startup: Array<{ engine: string; hasOverride: boolean; features: unknown; cache: unknown }> = []
+  const startup: Array<{ engine: string; hasOverride: boolean; features: unknown; cache: unknown; assertions: unknown }> = []
   try {
     for (const engine of engines) {
       const page = {
         // Real navigation creates a fresh global. Seed a stale override here
         // to catch accidental preservation or conversion to an empty list.
-        goto: async () => { host.AGENTIC_MERMAID_EXPERIMENTS = 'stale' },
+        goto: async () => { host.AGENTIC_MERMAID_EXPERIMENTS = 'stale'; host.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1' },
         evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
-        addScriptTag: async () => { startup.push({ engine: engine.label, hasOverride: Object.hasOwn(host, 'AGENTIC_MERMAID_EXPERIMENTS'), features: host.AGENTIC_MERMAID_EXPERIMENTS, cache: host.AGENTIC_MERMAID_ELK_CACHE }) },
+        addScriptTag: async () => { startup.push({ engine: engine.label, hasOverride: Object.hasOwn(host, 'AGENTIC_MERMAID_EXPERIMENTS'), features: host.AGENTIC_MERMAID_EXPERIMENTS, cache: host.AGENTIC_MERMAID_ELK_CACHE, assertions: host.AGENTIC_MERMAID_SCENE_ASSERTIONS }) },
       } as unknown as Page
       expect((await renderPass(page, engine, 'http://localhost', [{ id: 'one', source: 'flowchart LR\n A-->B' }], 1, 0, performance.elkCache))[0]?.ok).toBe(true)
     }
     expect(startup).toEqual(engines.map(engine => ({ engine: engine.label,
       hasOverride: engine.kind === 'agentic' && expected !== undefined,
-      features: engine.kind === 'agentic' ? expected : undefined, cache: elkCache === 'on' ? '1' : '0' })))
+      features: engine.kind === 'agentic' ? expected : undefined, cache: elkCache === 'on' ? '1' : '0', assertions: '0' })))
   } finally {
     for (const [key, value] of prior) {
       if (value === undefined) delete host[key]
@@ -297,6 +328,99 @@ test('baseline resolution survives a changed latest tag across CLI retries', asy
   expect(JSON.parse(readFileSync(lock, 'utf8'))).toEqual({ requested: 'latest', version: '0.4.1', integrity })
 })
 
+test('browser comparisons require one observation for every input in every paired round', () => {
+  const rows: BrowserSample[] = [
+    { engine: 'candidate', round: 1, id: 'a', ok: true, ms: 2 },
+    { engine: 'candidate', round: 2, id: 'a', ok: true, ms: 99 },
+    { engine: 'candidate', round: 3, id: 'a', ok: true, ms: 300 },
+    { engine: 'pele', round: 1, id: 'a', ok: true, ms: 1 },
+    { engine: 'pele', round: 2, id: 'a', ok: true, ms: 100 },
+    { engine: 'pele', round: 3, id: 'a', ok: true, ms: 101 },
+  ]
+  const score = (samples: BrowserSample[], population = 1) => browserScorecard(samples, ['candidate', 'pele'], 3, population)
+  expect(score(rows).engines.every(engine => engine.complete)).toBe(true)
+  expect(score(rows).matched[0]!.medianRatio).toBe(2)
+  // Preserve the success count while replacing round two by a second round
+  // one; counting receipts used to accept this incomplete population.
+  const duplicated = rows.map((row, i) => i === 1 ? { ...rows[0]! } : row)
+  for (const incomplete of [duplicated, rows.filter((_, i) => i !== 1), [...rows, { ...rows[0]! }]]) {
+    const result = score(incomplete)
+    expect(result.engines[0]!.complete).toBe(false)
+    expect(result.matched[0]!.inputIds).toEqual([])
+    expect(result.matched[0]!.medianRatio).toBeUndefined()
+  }
+  // A complete surviving input cannot stand in for an entirely missing one.
+  expect(score(rows, 2).matched[0]!.medianRatio).toBeUndefined()
+  const missingComparator = score(rows.filter((_, i) => i !== 4))
+  expect(missingComparator.engines[1]!.complete).toBe(false)
+  expect(missingComparator.matched[0]!.medianRatio).toBeUndefined()
+})
+
+test.each([
+  ['stable complete output', 0, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Keep</text></svg>', 'ok'],
+  ['empty output after the first call', 2, '', 'error'],
+  ['missing text during a measured sample', 3, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Other</text></svg>', 'lost-labels'],
+  ['malformed SVG carrying the expected text', 1, '<svg><text>Keep</text>', 'error'],
+] as const)('peer worker validates %s outside timing', async (_name, changeAt, replacement, status) => {
+  const dir = temp.dir(), entry = join(dir, 'renderer.mjs'), job = join(dir, 'job.json'), out = join(dir, 'samples.jsonl')
+  writeFileSync(entry, `let calls = 0; export function renderMermaidSVG() { return ++calls >= ${changeAt || 'Infinity'} ? ${JSON.stringify(replacement)} : '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Keep</text></svg>' }`)
+  writeFileSync(job, JSON.stringify({ peer: 'agentic', output: 'svg', entry,
+    timing: { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 100 },
+    workloads: [{ id: 'owned-text', source: 'fixture', expected: ['Keep'] }],
+  }))
+  writeFileSync(out, '')
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
+    cwd: join(import.meta.dir, '../..'),
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const observations = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+  const end = observations.find(row => row.type === 'end')
+  for (const key of ['rssBytes', 'peakRssBytes', 'settledHeapBytes']) expect(end[key]).toBeGreaterThan(0)
+  const result = observations.find(row => row.type === 'result')
+  expect(result.status).toBe(status)
+  if (status === 'ok') expect(result.samplesMs).toHaveLength(3)
+  else expect(result.medianMs).toBeUndefined()
+})
+
+test('release memory worker retains absolute post-GC heap observations', async () => {
+  const dir = temp.dir(),
+    entry = join(dir, 'renderer.mjs'),
+    job = join(dir, 'job.json'),
+    out = join(dir, 'memory.json')
+  writeFileSync(entry, 'export function renderMermaidSVG() { return "<svg/>" }')
+  writeFileSync(job, JSON.stringify({ entry, mode: 'memory', reps: 1, inputs: [input('fixture')] }))
+  const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, out])
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const memory = JSON.parse(readFileSync(out, 'utf8'))
+  expect(memory.settledHeapBytes).toBeGreaterThan(0)
+  expect(memory.retainedHeapBytes).toBeGreaterThan(0)
+  expect(memory.retainedGrowthBytes).toBe(Math.max(0, memory.retainedHeapBytes - memory.settledHeapBytes))
+})
+
+test('peer artifact mismatch fails before installation and retains explicit incomplete evidence', async () => {
+  const dir = temp.dir(), tarball = join(dir, 'candidate.tgz'), reportPath = join(dir, 'report.json')
+  writeFileSync(tarball, 'different bytes')
+  const bin = temp.dir(), npm = join(bin, 'npm'), installed = join(dir, 'npm-called')
+  writeFileSync(npm, '#!/bin/sh\n: > "$INSTALL_RECEIPT"\nexit 99\n')
+  chmodSync(npm, 0o755)
+  const invoke = () => runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'),
+    '--peers', 'agentic', '--workloads', 'flow5', '--candidate-tarball', tarball,
+    '--candidate-sha256', '0'.repeat(64), '--elk-cache', 'on', '--json', reportPath, '--markdown', join(dir, 'report.md'),
+  ], { cwd: join(import.meta.dir, '../..'), env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_RECEIPT: installed, APL_NO_CENTER: '1' } })
+  expect((await invoke()).status).not.toBe(0)
+  expect(existsSync(installed)).toBe(false)
+  const report = JSON.parse(readFileSync(reportPath, 'utf8'))
+  expect(report.status).toBe('failed')
+  expect(report.error).toContain('Candidate tarball SHA-256')
+  expect(report.policy).toMatchObject({ elkCache: 'on', sceneAssertions: 'off', aplEnvironment: { APL_NO_CENTER: '1' } })
+  const originalRaw = readFileSync(report.rawSamples, 'utf8')
+  const receipts = originalRaw.trim().split('\n').map(line => JSON.parse(line))
+  expect(receipts[0].status).toBe('started')
+  expect(receipts.at(-1)).toMatchObject({ status: 'failed', error: report.error })
+  expect((await invoke()).status).not.toBe(0)
+  expect(JSON.parse(readFileSync(reportPath, 'utf8')).rawSamples).not.toBe(report.rawSamples)
+  expect(readFileSync(report.rawSamples, 'utf8')).toBe(originalRaw)
+})
 
 test('failed editor benchmark reruns invalidate a previous completed report', async () => {
   const out = temp.dir(), site = temp.dir(), report = join(out, 'editor-preview.json')

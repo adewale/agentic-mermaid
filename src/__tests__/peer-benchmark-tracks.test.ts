@@ -1,0 +1,148 @@
+import { describe, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile } from '../../eval/benchmark/peer-tracks.ts'
+import { measurePeerTrack } from '../../eval/benchmark/peer-track-worker.ts'
+
+const input = { id: 'flow5', source: 'flowchart TD\n A[Start] --> B[End]', expected: ['Start', 'End'] }
+const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="20" height="20"/><g data-id="A"/><g data-id="B"/><path d="M0 0L10 10" data-from="A" data-to="B"/><text>Start</text><text>End</text></svg>'
+const track = { phase: 'exact-repeat', consumer: 'svg-utf8', round: 0, samples: 21, allocationSamples: 3, maxCaseMs: 1000 } as const
+
+describe('maintained consumed peer protocol', () => {
+  test('real label edits preserve IDs; new sources rename IDs consistently', () => {
+    const edit = peerTrackVariant(input, 'label-edit', 8)
+    expect(edit.source).toBe('flowchart TD\n A[q8] --> B[End]')
+    expect(edit.expected).toEqual(['q8', 'End'])
+    const fresh = peerTrackVariant(input, 'warm-new-source', 9)
+    expect(fresh.source).toBe('flowchart TD\n v9_A[q9] --> v9_B[End]')
+    expect(peerTrackVariant(input, 'exact-repeat', 10).source).toBe(input.source)
+    expect(parsePeerTracks('label-edit,exact-repeat')).toEqual(['label-edit', 'exact-repeat'])
+    expect(() => parsePeerTracks('cold')).toThrow('--tracks')
+  })
+  test.each([
+    { id: 'class80', source: 'classDiagram\n C0 <|-- C1', edited: 'classDiagram\n C0 <|-- C1 : q3', fresh: 'classDiagram\n v3_C0 <|-- v3_C1 : q3', from: 'C0', to: 'C1' },
+    { id: 'er40', source: 'erDiagram\n E0 ||--o{ E1 : has', edited: 'erDiagram\n E0 ||--o{ E1 : q3', fresh: 'erDiagram\n v3_E0 ||--o{ v3_E1 : q3', from: 'E0', to: 'E1' },
+    { id: 'state80', source: 'stateDiagram-v2\n S0 --> S1: e0', edited: 'stateDiagram-v2\n S0 --> S1 : q3', fresh: 'stateDiagram-v2\n v3_S0 --> v3_S1 : q3', from: 'S0', to: 'S1' },
+  ])('$id edits a real relationship label while preserving nodes and direction', fixture => {
+    const graph = { id: fixture.id, source: fixture.source, expected: [fixture.from, fixture.to] }
+    const edit = peerTrackVariant(graph, 'label-edit', 3)
+    expect(edit.source).toBe(fixture.edited)
+    expect(edit.expected).toEqual([fixture.from, fixture.to, 'q3'])
+    const fresh = peerTrackVariant(graph, 'warm-new-source', 3)
+    expect(fresh.source).toBe(fixture.fresh)
+    expect(fresh.expected).toEqual([`v3_${fixture.from}`, `v3_${fixture.to}`, 'q3'])
+    const graphSvg = svg.replaceAll('data-id="A"', `data-id="${fixture.from}"`).replaceAll('data-id="B"', `data-id="${fixture.to}"`).replace('data-from="A" data-to="B"', `data-from="${fixture.from}" data-to="${fixture.to}"`)
+    expect(inspectPeerSemantics(graphSvg, edit, true).ok).toBe(true)
+    expect(inspectPeerSemantics(graphSvg.replace(`data-to="${fixture.to}"`, `data-to="${fixture.from}"`), edit, true).failures).toContain('1 authored directed endpoint pairs absent')
+  })
+  test('semantic contract rejects text-only SVG and missing directed endpoints', () => {
+    expect(inspectPeerSemantics(svg, input).ok).toBe(true)
+    expect(inspectPeerSemantics(svg.replace('data-to="B"', 'data-to="A"'), input).failures).toContain('1 authored directed endpoint pairs absent')
+    expect(inspectPeerSemantics(svg.replace(/<path[^>]*\/>/, ''), input, true).failures).toContain('peer does not expose data-from/data-to relations')
+    expect(inspectPeerSemantics('<svg><text>Start End</text></svg>', input).failures).toContain('no nonempty drawable geometry')
+    const unobservable = inspectPeerSemantics('<svg><rect width="1" height="1"/></svg>', input)
+    expect(unobservable.ok).toBe(false)
+    expect(unobservable.unsupported).toContain('peer does not expose data-from/data-to relations')
+    const er = { id: 'er40', source: 'erDiagram\n E0 ||--o{ E1 : has', expected: ['E0', 'E1'] }
+    const erSvg = svg.replaceAll('data-id="A"', 'data-id="E0"').replaceAll('data-id="B"', 'data-id="E1"').replace('data-from="A" data-to="B"', 'data-entity1="E0" data-entity2="E1"')
+    expect(inspectPeerSemantics(erSvg, er).ok).toBe(true)
+    expect(inspectPeerSemantics(erSvg.replace('data-entity2="E1"', 'data-entity2="E0"'), er).failures).toContain('1 authored directed endpoint pairs absent')
+  })
+  test('consumes complete UTF8 and evaluates serialized receipt getters', () => {
+    let reads = 0
+    const value = { svg: svg.replace('Start', '東京'), get receipt() { reads++; return { deeply: { bound: '東京', fields: [1, 2, 3] } } } }
+    const consumed = consumePeerOutput(value, 'receipt-json-utf8')
+    expect(reads).toBeGreaterThan(0)
+    expect(consumed.bytes).toBe(Buffer.byteLength(JSON.stringify(value)))
+    expect(consumed.checksum).toBeGreaterThan(0)
+    expect(() => consumePeerOutput({ svg }, 'receipt-json-utf8')).toThrow('receipt')
+  })
+  test('keeps per-call tails, repeated allocation and observer only during replay', async () => {
+    const observerKey = Symbol.for('agentic-mermaid.performance-observer.v1')
+    const global = globalThis as unknown as Record<symbol, ((event: object) => void) | undefined>
+    let diagnostics = 0
+    let allocations = 0
+    let validations = 0
+    const result = await measurePeerTrack({ peer: 'fake', input, track,
+      render() {
+        if (global[observerKey]) { diagnostics++; global[observerKey]!({ version: 1, kind: 'scope', owner: 'graphical' }) }
+        return svg
+      },
+      async allocation(run) { expect(global[observerKey]).toBeUndefined(); allocations++; await run(); return 100 + allocations },
+      validate() { validations++; expect(global[observerKey]).toBeUndefined(); return { missing: [] } },
+    })
+    expect(result.callSamplesMs).toHaveLength(21)
+    expect(result.calls).toHaveLength(21)
+    expect(result.allocationSamplesBytes).toEqual([101, 102, 103])
+    expect(result.insufficientSamples).toBe(false)
+    expect(result.status).toBe('ok')
+    expect(validations).toBe(28)
+    expect(diagnostics).toBe(1)
+    expect(result.diagnostics.complete).toBe(true)
+    expect(result.diagnostics.counts).toEqual({ 'scope:graphical': 1 })
+    expect(global[observerKey]).toBeUndefined()
+    expect(percentile([1, 2, 3, 4, 100], 0.95)).toBe(100)
+  })
+  test('cold call does not warm first, and unavailable receipts remain explicit', async () => {
+    let calls = 0
+    const cold = await measurePeerTrack({ peer: 'fake', input, track: { ...track, phase: 'first-use' }, render: () => { calls++; return svg }, validate: () => ({ missing: [] }) })
+    expect(calls).toBe(1)
+    expect(cold.callSamplesMs).toHaveLength(1)
+    expect(cold.insufficientSamples).toBe(true)
+    expect(cold.allocationUnsupported).toContain('fresh-process')
+    const unavailable = await measurePeerTrack({ peer: 'fake', input, track: { ...track, consumer: 'receipt-json-utf8' }, validate: () => ({ missing: [] }) })
+    expect(unavailable.status).toBe('unsupported')
+    expect(unavailable.counts).toEqual({ ok: 0, unsupported: 1, lostLabels: 0, errors: 0 })
+  })
+  test('scope followed by a failed replay cannot qualify diagnostics', async () => {
+    const observerKey = Symbol.for('agentic-mermaid.performance-observer.v1')
+    const global = globalThis as unknown as Record<symbol, ((event: object) => void) | undefined>
+    const result = await measurePeerTrack({ peer: 'fake', input, track: { ...track, samples: 3, allocationSamples: 0 },
+      render() {
+        if (global[observerKey]) { global[observerKey]!({ version: 1, kind: 'scope', owner: 'graphical' }); throw new Error('replay failed') }
+        return svg
+      }, validate: () => ({ missing: [] }),
+    })
+    expect(result.status).toBe('ok')
+    expect(result.diagnostics.status).toBe('observed')
+    expect(result.diagnostics.complete).toBe(false)
+    expect(result.diagnostics.detail).toBe('replay failed')
+  })
+  test('bundled worker resolves harness XML parser and retains raw individual calls', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'peer-track-owner-'))
+    const root = resolve(import.meta.dir, '../..')
+    try {
+      const bundle = join(dir, 'worker.mjs'), entry = join(dir, 'renderer.mjs'), job = join(dir, 'job.json'), out = join(dir, 'out.jsonl')
+      const built = spawnSync(process.execPath, ['build', join(root, 'eval/benchmark/peer-bench.ts'), '--target=node', '--format=esm', '--outfile', bundle], { cwd: root, encoding: 'utf8' })
+      expect({ status: built.status, error: built.error }).toEqual({ status: 0, error: undefined })
+      writeFileSync(entry, `export const renderMermaidSVG = () => ${JSON.stringify(svg)}; export const renderMermaidSVGWithReceipt = () => ({svg:renderMermaidSVG(), receipt:{complete:[1,2,3]}})`)
+      writeFileSync(job, JSON.stringify({ peer: 'agentic-baseline', output: 'svg', entry, timing: { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 100 }, track: { ...track, samples: 3, consumer: 'receipt-json-utf8' }, workloads: [input] }))
+      writeFileSync(out, '')
+      const child = spawnSync('node', ['--expose-gc', bundle, '--child', '--job', job, '--out', out], { cwd: root, encoding: 'utf8' })
+      expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+      const rows = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+      expect(rows.filter(row => row.type === 'progress').every(row => row.observation.consumedBytes > 0)).toBe(true)
+      expect(rows.find(row => row.type === 'track').observation).toMatchObject({ peer: 'agentic-baseline', status: 'ok', counts: { ok: 3 }, insufficientSamples: true })
+      expect(rows.find(row => row.type === 'track').observation.allocationSamplesBytes).toHaveLength(3)
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+  test('runtime provenance excludes archive paths but retains dependency identities', () => {
+    const graph = peerRuntimeDependencyGraph({ packages: {
+      '': { version: '1.0.0' }, 'node_modules/agentic-mermaid': { version: '9.0.0' },
+      'node_modules/z': { version: '2.0.0', integrity: 'sha512-z' }, 'node_modules/a': { version: '1.0.0', link: true },
+    } })
+    expect(graph).toEqual([{ path: 'node_modules/a', version: '1.0.0', integrity: null, link: true }, { path: 'node_modules/z', version: '2.0.0', integrity: 'sha512-z', link: false }])
+    expect(peerRuntimeDependencyGraph({ packages: { 'node_modules/a': { version: '2.0.0', link: true }, 'node_modules/z': { version: '2.0.0', integrity: 'sha512-z' } } })).not.toEqual(graph)
+  })
+  test('never silently drops errors or missing labels while aggregating tails', () => {
+    const row = emptyTrackObservation('fake', 0, 'flow5', 'exact-repeat', 'svg-utf8')
+    row.calls.push({ index: 0, variant: 0, status: 'ok', elapsedMs: 1 }, { index: 1, variant: 0, status: 'lost-labels', elapsedMs: 2, missing: 1 }, { index: 2, variant: 0, status: 'error', detail: 'bad XML' })
+    finalizeTrackObservation(row)
+    expect(row.status).toBe('error')
+    expect(row.counts).toEqual({ ok: 1, unsupported: 0, lostLabels: 1, errors: 1 })
+    expect(row.calls).toHaveLength(3)
+    expect(row.callSamplesMs).toEqual([1])
+  })
+})

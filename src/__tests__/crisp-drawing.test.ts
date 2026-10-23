@@ -13,6 +13,8 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
     import { getBackendDescriptor } from './src/scene/backend.ts'
     import * as marks from './src/scene/marks.ts'
     import { withRenderStageObserver } from './src/render-stages.ts'
+    import { resolveRenderRequest, resolvedFamilyRenderContextOf } from './src/render-contract.ts'
+    import { positionResolvedFamily } from './src/positioning.ts'
     void getBackendDescriptor('default').conformance
     const group = marks.group
     let groups = 0
@@ -30,6 +32,30 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
     }
     if (!groups) throw new Error('no groups exercised')
     spy.mockRestore()
+    const er = getFamily('er')
+    const expected = renderMermaidSVGWithReceipt(er.example).svg
+    for (const [id, field] of [['er', 'entities'], ['class', 'classes']]) {
+      const family = getFamily(id)
+      const request = resolveRenderRequest(family.example)
+      const layout = positionResolvedFamily(id, request)
+      const values = layout.positioned[field]
+      let entered = false
+      Object.defineProperty(layout.positioned, field, { get() {
+        if (!entered) {
+          entered = true
+          if (renderMermaidSVGWithReceipt(er.example).svg !== expected)
+            throw new Error('native rendering inherited public lowering scope: ' + id)
+        }
+        return values
+      } })
+      family.lowerScene({ positioned: layout.positioned, colors: request.appearance.colors,
+        resolved: resolvedFamilyRenderContextOf(request) })
+      if (!entered) throw new Error('nested render was not exercised: ' + id)
+    }
+    const chart = renderMermaidSVGWithReceipt('---\\nconfig:\\n  xyChart:\\n    showDataLabel: true\\n---\\nxychart\\n x-axis [A, B]\\n y-axis 0 --> 30\\n bar [12, 2]').svg
+    const labels = [...chart.matchAll(/<text\\b[^>]*class="xychart-data-label"[^>]*>/g)]
+    if (labels.length !== 2 || labels.some(([tag]) => !tag.includes('data-font-metrics="deterministic-fit"')))
+      throw new Error('native XY data labels skipped deterministic text fitting')
     for (const options of [{ layoutSafety: 'strict' }, { style: 'excalidraw' }]) {
       const stages = []
       withRenderStageObserver(sample => stages.push(sample.stage),
