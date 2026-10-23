@@ -255,14 +255,21 @@ engine attempts, source IDs, errors, per-round times and app probes. The
 summarizer rejects incomplete or duplicated engine passes and incomplete app
 runs. Theme rows must identify the active theme; share rows must identify both
 the shared and restored theme. Older reports lacking that evidence are rejected
-by the summarizer. `RESUME_ENGINES=1` can repeat application probes after a harness change,
-reusing a complete same-revision, same-bundle engine run; the original engine
-measurement date is retained. Use a fresh output directory for independent runs.
+by the summarizer. Reports now retain the complete measured corpus and hashes
+of both dependency module trees, Modern's lockfile/theme config and the shipped
+Agentic bundle. The summarizer requires exact input ID coverage for each engine
+and round, and rejects a report paired with a different inventory.
+`RESUME_ENGINES=1` can repeat application probes after a harness change only
+when revisions, complete inputs and dependency/config bytes match. Admission
+runs before any existing evidence is overwritten; the original engine
+measurement date is retained. Older reports without the full input/dependency
+binding must rerun the engines. Use a fresh output directory for independent runs.
 Generated benchmark evidence is not committed.
 
 Agentic's typecheck and repository lint passed. Both benchmark scripts passed
 `node --check`, the full benchmark completed, and `git diff --check` passed.
-There are no production behavior changes requiring a new regression test.
+Focused tests cover evidence admission, changed dependencies and exact engine
+coverage. Generated benchmark evidence remains outside the repository.
 
 Primary implementation sources: [manifest and dependency declaration](https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/package.json),
 [resolved dependency lock](https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/pnpm-lock.yaml),

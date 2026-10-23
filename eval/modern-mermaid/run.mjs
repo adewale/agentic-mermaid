@@ -1,14 +1,15 @@
 // Run with Bun; all outputs belong outside the source tree. No peer code is patched.
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { cpus, release } from 'node:os'
-import { extname, join, resolve, sep } from 'node:path'
+import { extname, join, relative, resolve, sep } from 'node:path'
 import { gzipSync, brotliCompressSync } from 'node:zlib'
 import { chromium } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 import { probeModernThemes } from './themes.mjs'
+import { resumeEngineEvidence } from './evidence.mjs'
 
 const [peerArg, outArg] = process.argv.slice(2)
 if (!peerArg || !outArg) throw new Error('bun eval/modern-mermaid/run.mjs MODERN_CHECKOUT OUTPUT_DIRECTORY')
@@ -19,14 +20,25 @@ const json = (name, value) => writeFileSync(join(out, name), JSON.stringify(valu
 const revision = dir => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim()
 const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex')
 const corpus = officialCorpusInventory()
+const modernEngine = join(peer, 'node_modules/mermaid/dist')
+const referenceEngine = join(repo, 'node_modules/mermaid/dist')
+const agenticBundle = join(repo, 'dist/browser.global.js')
+const moduleBytes = root => readdirSync(root, { recursive: true, withFileTypes: true })
+  .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
+  .map(entry => join(entry.parentPath, entry.name)).sort()
+  .map(path => ({ path: relative(root, path).split(sep).join('/'), sha256: digest(path) }))
+const revisions = { agentic: revision(repo), modern: revision(peer) }
+const fetchedArtifacts = { modernLockSha256: digest(join(peer, 'pnpm-lock.yaml')), agenticBundleSha256: digest(agenticBundle),
+  modernModules: moduleBytes(modernEngine), referenceModules: moduleBytes(referenceEngine), modernThemesSourceSha256: digest(join(peer, 'src/utils/themes.ts')) }
+const resumed = process.env.RESUME_ENGINES === '1'
+  ? resumeEngineEvidence(JSON.parse(readFileSync(join(out, 'report.json'), 'utf8')), JSON.parse(readFileSync(join(out, 'inventory.json'), 'utf8')),
+    { revisions, fetchedArtifacts }, corpus)
+  : undefined
 json('inventory.json', corpus)
 const entry = join(out, 'fixture-entry.ts')
 writeFileSync(entry, ['themes', 'examples', 'fonts', 'backgrounds', 'compression'].map((name, i) => `import * as m${i} from ${JSON.stringify(join(peer, 'src/utils', name + '.ts'))};`).join('\n') + '\nglobalThis.modernBench = {...m0,...m1,...m2,...m3,...m4};\n')
 const built = await Bun.build({ entrypoints: [entry], outdir: out, naming: 'fixtures.js', target: 'browser', format: 'iife', minify: true })
 if (!built.success) throw new Error(built.logs.join('\n'))
-const modernEngine = join(peer, 'node_modules/mermaid/dist')
-const referenceEngine = join(repo, 'node_modules/mermaid/dist')
-const agenticBundle = join(repo, 'dist/browser.global.js')
 const roots = { '/modern-engine/': modernEngine, '/reference-engine/': referenceEngine }
 const server = createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname)
@@ -52,13 +64,8 @@ await context.route('**/*', route => {
   externalRequests.add(url)
   return route.abort()
 })
-const report = { status: 'incomplete', date: new Date().toISOString(), environment: { platform: process.platform, release: release(), cpu: cpus()[0].model, node: process.version, bun: Bun.version, browser: browser.version(), viewport: { width: 1440, height: 1000 }, externalNetwork: 'blocked', serviceWorkers: 'blocked' }, revisions: { agentic: revision(repo), modern: revision(peer) }, fetchedArtifacts: { modernLockSha256: digest(join(peer, 'pnpm-lock.yaml')), agenticBundleSha256: digest(agenticBundle) }, corpus: { upstream: corpus.upstream, occurrences: corpus.occurrenceCount, distinct: corpus.distinctCount }, engines: [], editor: [], themes: [], examples: [], exports: [], probes: {} }
-if (process.env.RESUME_ENGINES === '1') {
-  const prior = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))
-  if (JSON.stringify(prior.revisions) !== JSON.stringify(report.revisions) || prior.engines.length !== corpus.occurrenceCount * 9 || prior.fetchedArtifacts.agenticBundleSha256 !== report.fetchedArtifacts.agenticBundleSha256) throw new Error('Incomplete or different engine evidence; run without RESUME_ENGINES')
-  report.engines = prior.engines
-  report.engineMeasuredAt = prior.engineMeasuredAt ?? prior.date
-}
+const report = { status: 'incomplete', date: new Date().toISOString(), environment: { platform: process.platform, release: release(), cpu: cpus()[0].model, node: process.version, bun: Bun.version, browser: browser.version(), viewport: { width: 1440, height: 1000 }, externalNetwork: 'blocked', serviceWorkers: 'blocked' }, revisions, fetchedArtifacts, corpus,
+  engines: resumed?.engines ?? [], ...(resumed ? { engineMeasuredAt: resumed.engineMeasuredAt } : {}), editor: [], themes: [], examples: [], exports: [], probes: {} }
 json('report.json', report)
 try {
   // Same-document, serial SVG-return timing. This is the dependency engine with

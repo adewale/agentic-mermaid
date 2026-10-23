@@ -1,10 +1,12 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { ENGINES as engines, validateEngineEvidence } from './evidence.mjs'
 
 const out = resolve(process.argv[2] ?? '.')
 const report = JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))
 const inventory = JSON.parse(readFileSync(join(out, 'inventory.json'), 'utf8'))
 if (report.status !== 'completed') throw new Error('Application probes are incomplete')
+validateEngineEvidence(report, inventory)
 const catalog = report.catalog.themes
 for (const [name, rows] of [['themes', report.themes], ['themeSharing', report.themeSharing]]) {
   if (!Array.isArray(rows) || rows.length !== catalog.length || new Set(rows.map(row => row.theme)).size !== catalog.length
@@ -13,13 +15,8 @@ for (const [name, rows] of [['themes', report.themes], ['themeSharing', report.t
 if (report.themes.some(row => row.ok && row.activeTheme !== row.theme)) throw new Error('Theme success requires the requested active theme')
 if (report.themeSharing.some(row => row.ok && (row.sharedTheme !== row.theme || row.restoredTheme !== row.theme))) throw new Error('Theme sharing success requires preserved and restored theme identity')
 const median = values => [...values].sort((a, b) => a - b)[values.length >> 1]
-const engines = ['modern', 'agentic', 'reference']
 const accepted = Object.fromEntries(engines.map(engine => {
   const rows = report.engines.filter(row => row.engine === engine)
-  for (let round = 1; round <= 3; round++) {
-    const pass = rows.filter(row => row.round === round)
-    if (pass.length !== inventory.occurrences.length || new Set(pass.map(row => row.id)).size !== pass.length) throw new Error(`Incomplete or duplicated ${engine} round ${round}`)
-  }
   return [engine, new Set(inventory.occurrences.filter(input => rows.filter(row => row.id === input.id && row.ok).length === 3).map(input => input.id))]
 }))
 const totals = (engine, ids) => [1, 2, 3].map(round => report.engines.filter(row => row.engine === engine && row.round === round && (!ids || ids.has(row.id))).reduce((sum, row) => sum + row.ms, 0))
