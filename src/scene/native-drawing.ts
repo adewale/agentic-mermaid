@@ -6,7 +6,7 @@ import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
 import { indentLines } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
-import { inspectNativePaintGeometry, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
+import { inspectNativePaintGeometry, nativePaintAncestors, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 
@@ -38,19 +38,15 @@ export interface NativeDrawing {
  * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
 function* paintEntries(parts: readonly Fragment[]): Generator<NativePaintEntry> {
   const groups: GroupFragment[] = []
-  function* visit(children: readonly Fragment[], prefix: string): Generator<NativePaintEntry> {
+  type Occurrence = Omit<NativePaintEntry, 'node' | 'key'>
+  function* visit(children: readonly Fragment[], prefix: string, occurrence?: Occurrence): Generator<NativePaintEntry> {
     for (let index = 0; index < children.length; index++) {
       const fragment = children[index]!
       const key = `${prefix}.${index}`
       if (fragment.kind === 'group') {
         groups.push(fragment)
-        yield* visit(fragment.children, key)
-        groups.pop()
-      } else if (groups.length === 0) {
-        yield { node: fragment.node, key }
-      } else {
-        // Preserve bottom-up floating-point association whenever a transform
-        // exists. Two absent transforms already mean the identity.
+        // Reduce once per occurrence, preserving the original bottom-up
+        // floating-point association for both matrices and group opacity.
         let parentMatrix: ReturnType<typeof transformMatrix> | undefined
         let groupOpacity = 1
         let conditional: true | undefined
@@ -62,10 +58,14 @@ function* paintEntries(parts: readonly Fragment[]): Generator<NativePaintEntry> 
           groupOpacity = group.opacity * groupOpacity
           if (group.conditional) conditional = true
         }
-        const owner = fragment.node.owner ?? groups[groups.length - 1]!.owner
-        yield { node: fragment.node, key, ...(parentMatrix ? { parentMatrix } : {}),
-          ancestors: groups.map(group => group.own), owner,
-          conditional, groupOpacity }
+        const ancestors = nativePaintAncestors(occurrence?.ancestors, fragment.own)
+        const owner = fragment.owner?.id === fragment.own.id && fragment.owner.role === fragment.own.role ? ancestors.at(-1) : fragment.owner
+        yield* visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
+        groups.pop()
+      } else if (occurrence) {
+        yield { node: fragment.node, key, ...occurrence, owner: fragment.node.owner ?? occurrence.owner }
+      } else {
+        yield { node: fragment.node, key }
       }
     }
   }

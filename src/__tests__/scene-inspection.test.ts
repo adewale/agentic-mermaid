@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
-import { inspectScenePrimitives, inspectScenePaintGeometry, scenePrimitiveMatrix } from '../scene/inspection.ts'
+import { inspectScenePrimitives, inspectScenePaintGeometry, inspectNativePaintGeometry, nativePaintAncestors, scenePrimitiveMatrix } from '../scene/inspection.ts'
 import { drawNative } from '../scene/native-drawing.ts'
 import type { DrawingProducer } from '../scene/drawing.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
@@ -11,6 +11,20 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { sceneDocument } from '../shared/scene-document.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', transparent: false, width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, parts })
+
+test('native occurrence ancestry snapshots caller-owned parents and matrices cannot poison another primitive', () => {
+  const parent = { id: 'parent', role: 'group' as const }
+  const ancestors = nativePaintAncestors([parent], { id: 'child', role: 'group' })
+  const node = marks.shape({ id: 'surface', role: 'node', geometry: { kind: 'rect', x: 1, y: 2, width: 3, height: 4 }, paint: { fill: '#111' } })
+  const inspect = () => inspectNativePaintGeometry({ family: 'flowchart', width: 20, height: 20 }, [{ node, ancestors }, { node }])
+  const first = inspect()
+  parent.id = 'changed'
+  expect(first.primitives[0]!.ancestors).toEqual([{ id: 'parent', role: 'group' }, { id: 'child', role: 'group' }])
+  const matrix = scenePrimitiveMatrix(first.primitives[0]!)!
+  Reflect.set(matrix, 0, 99)
+  expect(scenePrimitiveMatrix(first.primitives[1]!)).toEqual([1, 0, 0, 1, 0, 0])
+  expect(scenePrimitiveMatrix(inspect().primitives[0]!)).toEqual([1, 0, 0, 1, 0, 0])
+})
 
 test('native reused fragments retain occurrence ownership and bottom-up affine paint geometry', () => {
   const colors = { bg: '#fff', fg: '#111', embedFontImport: false }
@@ -189,6 +203,8 @@ test.each([
   const inspection = inspectScenePrimitives(scene([edge]))
   expect(inspection.primitives[1]).toMatchObject({ id: 'inline-label', coverage })
   expect(inspection.coverage.preparedText).toBe(coverage === 'measured' ? 1 : 0)
+  Reflect.set(scenePrimitiveMatrix(inspection.primitives[0]!)!, 0, 99)
+  expect(scenePrimitiveMatrix(inspection.primitives[1]!)).toEqual([1, 0, 0, 1, 0, 0])
 })
 
 

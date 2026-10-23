@@ -61,6 +61,7 @@ export function paintPrimitiveSource(primitive: ScenePaintGeometry): NativePaint
 }
 
 const worldMatrices = new WeakMap<ScenePaintGeometry, AffineMatrix>()
+const IDENTITY_PAINT_MATRIX: AffineMatrix = Object.freeze([1, 0, 0, 1, 0, 0])
 export function scenePrimitiveMatrix(primitive: ScenePaintGeometry): AffineMatrix | undefined { return worldMatrices.get(primitive) }
 
 export function scenePrimitiveSource(primitive: ScenePaintGeometry): SceneNode | undefined {
@@ -133,12 +134,29 @@ export interface NativePaintEntry {
 }
 export type PaintInspectionHeader = Pick<SceneDoc, 'family' | 'width' | 'height'>
 
+const ownedAncestors = new WeakSet<readonly SceneOwner[]>()
+const ownedOwners = new WeakSet<SceneOwner>()
+const emptyAncestors: readonly SceneOwner[] = Object.freeze([])
+ownedAncestors.add(emptyAncestors)
+
+/** An occurrence owns one inert ancestry snapshot, shared by its leaves. */
+export function nativePaintAncestors(parent: readonly SceneOwner[] | undefined, owner: SceneOwner): readonly SceneOwner[] {
+  const snapshot = Object.freeze({ id: owner.id, role: owner.role })
+  ownedOwners.add(snapshot)
+  const prefix = parent === undefined ? emptyAncestors : ownedAncestors.has(parent) ? parent
+    : parent.map(ancestor => Object.freeze({ id: ancestor.id, role: ancestor.role }))
+  const ancestors = Object.freeze([...prefix, snapshot])
+  ownedAncestors.add(ancestors)
+  return ancestors
+}
+
 export function inspectNativePaintGeometry(header: PaintInspectionHeader, entries: Iterable<NativePaintEntry>): ScenePaintGeometryInspection {
   const recorder = createPaintRecorder(header, undefined, true)
   let index = 0
   for (const entry of entries) {
-    const ancestors = Object.freeze((entry.ancestors ?? []).map(owner => Object.freeze({ id: owner.id, role: owner.role })))
-    recorder.leaf(entry.node, entry.key ?? `native.${index}`, entry.parentMatrix ?? IDENTITY_MATRIX, ancestors, entry.conditional ?? false, entry.groupOpacity ?? 1, entry.owner)
+    const ancestors = entry.ancestors === undefined ? emptyAncestors : ownedAncestors.has(entry.ancestors) ? entry.ancestors
+      : Object.freeze(entry.ancestors.map(owner => Object.freeze({ id: owner.id, role: owner.role })))
+    recorder.leaf(entry.node, entry.key ?? `native.${index}`, entry.parentMatrix, ancestors, entry.conditional ?? false, entry.groupOpacity ?? 1, entry.owner)
     index++
   }
   return recorder.finish()
@@ -156,7 +174,7 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativeP
 function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false) {
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
-  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void => {
+  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void => {
     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
     const source = native ? nativePaintSource(node) : undefined
     const retainSource = (primitive: ScenePaintGeometry): void => {
@@ -164,14 +182,15 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       else sources.set(primitive, node)
     }
     const hidden = groupOpacity === 0 || nonPainting(node)
-    const [a, b, c, d, e, f] = parent
-    const parentTransform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+    const [a, b, c, d, e, f] = parent ?? IDENTITY_MATRIX
+    const parentTransform: SceneTransform | undefined = parent || node.transform ? { kind: 'matrix', a, b, c, d, e, f } : undefined
+    const matrix = !parent && !node.transform ? IDENTITY_PAINT_MATRIX : Object.freeze(composeMatrices(parent ?? IDENTITY_MATRIX, transformMatrix(node.transform)))
     const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
     const measured = !!bounds && finite(bounds)
     const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
     const primitive: ScenePaintGeometry = Object.freeze({
       key, id: node.id, kind: node.kind, role: node.role,
-      owner: Object.freeze({ id: owner.id, role: owner.role }),
+      owner: native && ownedOwners.has(owner) ? owner : Object.freeze({ id: owner.id, role: owner.role }),
       ancestors,
       order: primitives.length, coverage: status,
       ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
@@ -181,7 +200,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
     })
     retainSource(primitive)
-    worldMatrices.set(primitive, composeMatrices(parent, transformMatrix(node.transform)))
+    worldMatrices.set(primitive, matrix)
     primitives.push(primitive)
     if (hidden) coverage.nonPainting++
     else if (measured) coverage.measured++
@@ -195,7 +214,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
       const hidden = groupOpacity === 0 || !textPaints(hasDisplayedText(label.block, label.text), paint)
       const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
-      const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
+      const [la, lb, lc, ld, le, lf] = matrix
       const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
       const measured = !!bounds && finite(bounds)
       const inline: ScenePaintGeometry = Object.freeze({
@@ -208,7 +227,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
         text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
       })
       retainSource(inline)
-      worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
+      worldMatrices.set(inline, matrix)
       primitives.push(inline)
       if (hidden) coverage.nonPainting++
       else {

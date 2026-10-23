@@ -541,7 +541,7 @@ export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransfor
 
 function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
   const transform = composedTransform(parentTransform, node.transform)
-  if (!inverseMatrix(transformMatrix(transform))) return undefined
+  if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
   let local: AxisAlignedBox | undefined
   if (node.kind === 'shape') {
     local = geometryBounds(node.geometry)
