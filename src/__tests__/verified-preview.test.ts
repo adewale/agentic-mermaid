@@ -10,13 +10,13 @@ import { asFlowchart } from '../agent/types.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 
 describe('one positioned artifact for preview and verification', () => {
-  test('a suspended provider remains control flow through a family layout wrapper', () => {
+  test('verification preserves a suspended provider through a family layout wrapper', () => {
     const descriptor = getFamily('flowchart')!
     const deferred = new DeferredDependencyError('Layout provider', async () => {})
     const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout: () => { throw deferred } })
     try {
       let failure: unknown
-      try { renderAndVerifyMermaid(descriptor.example) } catch (error) { failure = error }
+      try { verifyMermaid(descriptor.example) } catch (error) { failure = error }
       expect(failure).toBe(deferred)
     }
     finally { restore() }
