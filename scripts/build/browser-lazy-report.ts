@@ -146,10 +146,17 @@ if (!MEASURE_ONLY && (agenticOutputs.length !== 1 || agenticLoaders.length !== 1
 if (!MEASURE_ONLY && agenticOutputs.some(output => initialFiles.includes(output) || BROWSER_BUILTIN_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(output)))) {
   throw new Error('Agentic implementation must load only when selected')
 }
+const forestOutputs = outputNames.filter(path => metafile.outputs[path]!.entryPoint === 'src/layout/forest-implementation.ts')
+if (!MEASURE_ONLY && forestOutputs.length !== 1) throw new Error('Forest must have one shared on-demand implementation')
+if (!MEASURE_ONLY && forestOutputs.some(output => initialFiles.includes(output) || MEASURED_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(output)))) {
+  throw new Error('Forest implementation must stay out of the initial and family static closures')
+}
 const agenticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
   agenticLoaders.some(loader => staticFamilyFiles[id].includes(loader))
-    ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs]) : undefined,
+    ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs, ...forestOutputs]) : undefined,
 ]))
+const implicitForestFiles = MEASURED_FAMILY_IDS.includes('flowchart') ? staticClosure([entry, renderCore, familyOutputs.flowchart, ...forestOutputs]) : undefined
+const implicitForestFallbackFiles = implicitForestFiles ? staticClosure([...implicitForestFiles, elkOutput]) : undefined
 const elkFiles = staticClosure([elkOutput])
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[id].includes(elkOutput)
   || elkLoaders.some(loader => staticFamilyFiles[id].includes(loader)))
@@ -202,7 +209,8 @@ if (!MEASURE_ONLY) {
 const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
-  familyCost: 'default includes selected ELK; nativeSolver is the structural closure with the native solver, not proof of input eligibility; static excludes on-demand dependencies; HTML5 tables and fallback dependencies are additional',
+  familyCost: 'selected ELK includes its solver; nativeSolver includes the shared forest implementation; omitted-layout Flowchart indexed forest and its ELK fallback union are reported and budgeted separately; static excludes on-demand dependencies; HTML5 tables remain additional',
+  ...(implicitForestFiles && implicitForestFallbackFiles ? { omittedLayoutFlowchart: { indexedForest: { requests: implicitForestFiles.length, ...transferSize(implicitForestFiles) }, indexedForestThenElk: { requests: implicitForestFallbackFiles.length, ...transferSize(implicitForestFallbackFiles) } } } : {}),
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
@@ -232,6 +240,10 @@ function checkBudget(label: string, actual: TransferSize & { requests: number },
 if (!MEASURE_ONLY) {
   checkBudget('initial', report.initial, budgets.initial)
   for (const id of BROWSER_BUILTIN_FAMILY_IDS) checkBudget(id, report.budgetedFamilies[id], budgets.families[id])
+  if (report.omittedLayoutFlowchart) {
+    checkBudget('flowchart omitted-layout forest', report.omittedLayoutFlowchart.indexedForest, budgets.families.flowchart)
+    checkBudget('flowchart omitted-layout forest then ELK', report.omittedLayoutFlowchart.indexedForestThenElk, budgets.families.flowchart)
+  }
 }
 if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\n${problems.join('\n')}`)
 
