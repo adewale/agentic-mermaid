@@ -1,0 +1,46 @@
+{
+  "protocol": "baseline-calibration-worker-derivation@1",
+  "original": {
+    "path": "/workspace/pr449-frontier/svg-receipt-cost-v2/svg-worker.mjs",
+    "sha256": "ff5145942ce2c9578b82cb6b77e7b5c99da3dba89f6408b8cb33c9487ec92a3d"
+  },
+  "worker": {
+    "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/calibration-worker.mjs",
+    "sha256": "971f8a4eee2333453a36f1fc50256c5fdf88daa8881c4d36ffb7366527bcffb4"
+  },
+  "patch": {
+    "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/worker-derivation.patch",
+    "sha256": "b5b822e2f8f5d2383f0aa38e9c609b43ed9cc0b292d337a6839bb81da2c2a1f6"
+  },
+  "edits": [
+    {
+      "old": "svg-consumed-receipt-worker@2",
+      "new": "baseline-repeatability-calibration-worker@1"
+    },
+    {
+      "old": "job.reps!==2||job.warmupPasses!==1",
+      "new": "job.reps!==4||job.warmupPasses!==2"
+    },
+    {
+      "old": "  if(!job.candidateSourceBinding||rejectedCore.has(job.candidateSourceBinding.sha256)||job.requiredFiles[job.candidateSourceBinding.path]!==job.candidateSourceBinding.sha256)throw Error('Forbidden or unbound candidate core')",
+      "new": "  if(job.candidateSourceBinding!==undefined||!['baseline-A','baseline-B'].includes(job.role))throw Error('Baseline-only calibration required')"
+    },
+    {
+      "old": "if(!job.baselineSourceBinding||rejectedCore.has(job.baselineSourceBinding.sha256))",
+      "new": "if(!job.baselineSourceBinding||rejectedCore.has(job.baselineSourceBinding.sha256)||job.requiredFiles[job.baselineSourceBinding.path]!==job.baselineSourceBinding.sha256)"
+    },
+    {
+      "old": "for(let rep=-1;rep<2;rep++)",
+      "new": "for(let rep=-2;rep<4;rep++)"
+    },
+    {
+      "old": "...(rep>=0?{wallMs:measured.wallMs,cpuUserMicros:measured.cpuUserMicros,cpuSystemMicros:measured.cpuSystemMicros}:{})",
+      "new": "wallMs:measured.wallMs,cpuUserMicros:measured.cpuUserMicros,cpuSystemMicros:measured.cpuSystemMicros"
+    },
+    {
+      "old": "result.calls.length!==150||result.warmupCalls.length!==75",
+      "new": "result.calls.length!==300||result.warmupCalls.length!==150"
+    }
+  ],
+  "unchanged": "measuredCall,invoke,workflow/options,defaultsecurity,cacheenvironment,oraclecheck,fullSVG/receiptUTF8CAS and journaling code; no renderer source changes."
+}

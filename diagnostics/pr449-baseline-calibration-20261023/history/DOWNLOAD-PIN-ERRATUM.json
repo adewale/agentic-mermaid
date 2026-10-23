@@ -1,0 +1,7 @@
+{
+  "status": "PRE_FREEZE_DRAFT_ERROR_NO_REMOTE_ATTEMPT",
+  "initialWorkflowSHA256": "4cf407da18a9181a51d0b71286ffbd4e2b207d469ffb3c580784c2b25038854f",
+  "wrong": "3e5f45b2cfb9172054b4087a40e8b5a5461e7c",
+  "correct": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+  "source": "Existing reviewed publish.yml pin; root independent review found omitted e0."
+}

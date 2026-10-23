@@ -1,0 +1,78 @@
+{
+  "protocol": "BASELINE-ONLY-fixed-repeatability-calibration-proposal@1",
+  "status": "PROPOSED-NOT-DECLARED-NOT-EXECUTED",
+  "rootReviewRequiredBeforeCapture": true,
+  "purpose": "Qualify same-artifact repeatability before enrolling ANY future candidate; cannot rescue or reinterpret C2-T@2.",
+  "baseline": "ec72 qualified ff canonical artifact05b105b1; freeze exact source/artifact/13links/deps and actualNode24.19 before execution",
+  "population": "Exact original enrollment636c39dc: ordered H27+D48 all75, unchanged workflow/options/full final SVG and receipt UTF8 consumption. No source-name filtering or omitted tails.",
+  "campaigns": [
+    {
+      "engine": "native",
+      "roles": [
+        "baseline-A",
+        "baseline-B"
+      ],
+      "freshWorkersPerPolicy": 6
+    },
+    {
+      "engine": "actual ELK from same accepted artifact",
+      "roles": [
+        "baseline-A",
+        "baseline-B"
+      ],
+      "freshWorkersPerPolicy": 6
+    }
+  ],
+  "caches": [
+    "OFF same originalcacheenvironment",
+    "NORMAL same originalcacheenvironment; does not assert hits"
+  ],
+  "rounds": 3,
+  "pairLaunchOrderByRound": [
+    [
+      "A",
+      "B"
+    ],
+    [
+      "B",
+      "A"
+    ],
+    [
+      "A",
+      "B"
+    ]
+  ],
+  "workerSchedule": {
+    "warmupPasses": 2,
+    "timedPasses": 4,
+    "inputsPerPass": 75,
+    "order": "Exact original all75 order on every pass; no adjacent per-input repeat specialization.",
+    "publicCallsPerWorker": 450,
+    "warmupCallTiming": "Record wall and processCPU descriptively on BOTH warmup passes without including them in measured aggregates.",
+    "timedWindow": "Fixed four complete passes,300 fully consumed API-call windows per worker. Their raw wall sums double the two-pass@2 aggregate; this is a longer aggregate observation, not a claim of one contiguous uninterrupted window. All per-call values retained.",
+    "measurementBoundary": "Same measuredCall invoke+SVGBuffer+full receipt stringify+UTF8buffer; hashing/payload/journal/progress I/O remain outside per-call windows. No profiler, forcedGC, adaptive time loop, early stability stop, candidate or runtime source hooks.",
+    "record": "All raw450calls+ordered journal, full output fingerprints/oracles, workerlaunch/reap chronology, actual import and total worker elapsed, environment/Node/artifact/dependency/fullsource bindings. Capture lightweight host/cgroup quota/throttle counters before/after outside measured windows if permitted; descriptive only."
+  },
+  "operationalGuards": {
+    "policySeconds": 480,
+    "workerMaximumSeconds": 120,
+    "boundScope": "Each engine is a separately predeclared baseline-only campaign with both cache policies. Each policy has6serialfreshworkers under a shared480s bound. Total planned24workers across both engines/policies. This is extra calibration, not an enlarged C2-T deadline.",
+    "ledger": "Allslots persisted before first launch; running persisted beforePopen; actual monotonic elapsed spans launch/reap/persistence; deadline/unlaunched/failed kept; no automatic retries, narrowed population or extra passes."
+  },
+  "prospectiveControlGates": {
+    "allWorkersAndProofsComplete": true,
+    "whole75AndH27AndD48": "Every SAME-ROUND A/B four-pass API-wall sum ratio must lie within reciprocal1.02 in BOTH cache policies for BOTH engines, not only the median across rounds.",
+    "everyInput": "Median of3same-round A/B ratios of four-call arithmetic-mean wall windows must lie within reciprocal1.05; all75 inputs BOTH engines/policies. Retain every perround and raw call.",
+    "sixCyclicTails": "Additionally each of3same-round per-input A/B ratios within reciprocal1.05; no subset of tails.",
+    "historyDiagnostic": "Every A/B worker reports timed-pass1..4 sums and warmup1..2 sums, so drift is visible. No post-hoc pass deletion or normalization.",
+    "missing": "Any missing/null/deadline/proof/artifact/control gate means calibration NOTQUALIFIED.",
+    "ifQualified": "Only after sealing this assessment may root predeclare a NEW future candidate experiment using the qualified fixed protocol and unchanged source-specific product targets. Calibration is neither candidate data nor a C2-T retry.",
+    "ifFailed": "Retain failure and do not launch candidate cost. Separate diagnosis may be proposed prospectively; no adaptive repetition or immediate better-run selection."
+  },
+  "limitations": [
+    "Longer fixed windows and declared warmup are a hypothesis about repeatability, not a proven correction or attribution to JIT/GC.",
+    "A/A qualification establishes precision on this setup/population/time only, not universal accuracy.",
+    "Recorded processCPU may exceed wall because its boundary/scope includes process threads; CPU cannot replace wall or normalize candidate figures.",
+    "Four-pass cache history is explicitly a new protocol; NORMAL remains configured-cache workload, never an all-hit assertion."
+  ]
+}
