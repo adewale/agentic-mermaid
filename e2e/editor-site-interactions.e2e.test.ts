@@ -494,49 +494,113 @@ Rel_Back(user,api,"Replies")`
     await page.close()
   }, 60_000)
 
-  test('Packet inspection is keyboard accessible across row fragments and leaves canonical exports intact', async () => {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
-    await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
-      return async function(source, options) {
-        var artifact = await original(source, options);
-        window.__inspectedPacket = artifact;
-        return artifact;
-      };
-    }`)
+  describe('Packet inspection', () => {
     const source = '---\nconfig:\n  packet:\n    bitsPerRow: 8\n    bitOrder: descending\n    showBits: false\n---\npacket\n+3: "Mode"\n+12: "Authentication tag"'
-    await page.goto(`${base}/editor/#${shareHash({ source, palette: 'paper', style: 'crisp' })}`, { waitUntil: 'networkidle' })
-    await waitForVerifiedRender(page)
-    const snapshot = () => page.evaluate(() => ({
-      artifact: (window as any).__inspectedPacket,
-      source: (document.getElementById('code-editor') as HTMLTextAreaElement).value,
-    }))
-    const before = await snapshot()
-    const select = page.getByLabel('Packet field', { exact: true })
-    expect(await select.locator('option').allTextContents()).toEqual(['Choose a field', 'Mode (0–2)', 'Authentication tag (3–14)'])
-    expect(await page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]').count()).toBe(1)
-    await page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]').focus()
-    await page.keyboard.press('Enter')
-    expect(await page.locator('#packet-field-details').textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
-    expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(2)
-    mkdirSync(SCREENSHOTS, { recursive: true })
-    await page.screenshot({ path: join(SCREENSHOTS, 'current-packet-inspection.png'), animations: 'disabled' })
-    await select.focus()
-    await page.keyboard.press('ArrowUp')
-    expect(await page.locator('#packet-field-details').textContent()).toContain('Mode: bits 0–2 (3 bits)')
-    expect(await snapshot()).toEqual(before)
-    await page.locator('#export-chevron-btn').click()
-    const download = page.waitForEvent('download', { timeout: 30_000 })
-    await page.locator('#export-svg-btn').click()
-    const exported = readFileSync((await (await download).path())!, 'utf8')
-    expect(exported).toContain('data-field-label="Authentication tag"')
-    expect(exported).not.toContain('data-packet-inspected')
-    expect(exported).not.toContain('tabindex=')
-    await page.locator('#format-unicode').click()
-    expect(await select.isVisible()).toBe(false)
-    await page.locator('#format-diagram').click()
-    expect(await select.inputValue()).toBe('field-0')
-    await page.close()
-  }, 60_000)
+
+    async function openPacket(page: Page) {
+      await page.goto(`${base}/editor/#${shareHash({ source, palette: 'paper', style: 'crisp' })}`, { waitUntil: 'networkidle' })
+      await waitForVerifiedRender(page)
+    }
+
+    test('SVG fields have one tab stop per authored field and support Enter and Space', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await openPacket(page)
+        const mode = page.locator('#preview-inner g[data-field-id="field-0"][tabindex="0"]')
+        const authentication = page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]')
+        const select = page.getByLabel('Packet field', { exact: true })
+        const details = page.locator('#packet-field-details')
+        expect(await mode.count()).toBe(1)
+        expect(await authentication.count()).toBe(1)
+        await mode.focus()
+        expect(await details.textContent()).toContain('Mode: bits 0–2 (3 bits)')
+        await page.keyboard.press('Tab')
+        expect(await authentication.evaluate(element => element === document.activeElement)).toBe(true)
+        expect(await details.textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
+        for (const key of ['Enter', 'Space']) {
+          // Focus already inspects the field. Clear it without moving focus
+          // so each activation key must restore the inspection itself.
+          await select.selectOption('')
+          expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(0)
+          expect(await authentication.evaluate(element => element === document.activeElement)).toBe(true)
+          await page.keyboard.press(key)
+          expect(await details.textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
+          expect(await page.locator('#preview-inner g[data-field-id="field-1"][data-packet-inspected]').count()).toBe(2)
+        }
+        mkdirSync(SCREENSHOTS, { recursive: true })
+        await page.screenshot({ path: join(SCREENSHOTS, 'current-packet-inspection.png'), animations: 'disabled' })
+        await page.keyboard.press('Shift+Tab')
+        expect(await mode.evaluate(element => element === document.activeElement)).toBe(true)
+        expect(await details.textContent()).toContain('Mode: bits 0–2 (3 bits)')
+      } finally { await page.close() }
+    }, 60_000)
+
+    test('dropdown selection updates field details and every row fragment', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await openPacket(page)
+        const select = page.getByLabel('Packet field', { exact: true })
+        const details = page.locator('#packet-field-details')
+        expect(await select.locator('option').allTextContents()).toEqual(['Choose a field', 'Mode (0–2)', 'Authentication tag (3–14)'])
+        // Native dropdown keyboard gestures differ by OS; commit the choice
+        // through Playwright's select API to exercise our change handler.
+        await select.selectOption('field-1')
+        expect(await details.textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
+        expect(await page.locator('#preview-inner g[data-field-id="field-1"][data-packet-inspected]').count()).toBe(2)
+        await select.selectOption('field-0')
+        expect(await details.textContent()).toContain('Mode: bits 0–2 (3 bits)')
+        expect(await page.locator('#preview-inner g[data-field-id="field-0"][data-packet-inspected]').count()).toBe(1)
+        expect(await page.locator('#preview-inner g[data-field-id="field-1"][data-packet-inspected]').count()).toBe(0)
+        await select.selectOption('')
+        expect(await details.textContent()).toBe('Select a field to inspect its bit range and byte offsets.')
+        expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(0)
+      } finally { await page.close() }
+    }, 60_000)
+
+    test('selection survives switching between diagram and text panes', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await openPacket(page)
+        const select = page.getByLabel('Packet field', { exact: true })
+        await select.selectOption('field-0')
+        await page.locator('#format-unicode').click()
+        expect(await select.isVisible()).toBe(false)
+        await page.locator('#format-diagram').click()
+        expect(await select.isVisible()).toBe(true)
+        expect(await select.inputValue()).toBe('field-0')
+        expect(await page.locator('#packet-field-details').textContent()).toContain('Mode: bits 0–2 (3 bits)')
+      } finally { await page.close() }
+    }, 60_000)
+
+    test('inspection leaves the canonical artifact, source and SVG export intact', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
+      try {
+        await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
+          return async function(source, options) {
+            var artifact = await original(source, options);
+            window.__inspectedPacket = artifact;
+            return artifact;
+          };
+        }`)
+        await openPacket(page)
+        const snapshot = () => page.evaluate(() => ({
+          artifact: (window as any).__inspectedPacket,
+          source: (document.getElementById('code-editor') as HTMLTextAreaElement).value,
+        }))
+        const before = await snapshot()
+        await page.getByLabel('Packet field', { exact: true }).selectOption('field-1')
+        expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(2)
+        expect(await snapshot()).toEqual(before)
+        await page.locator('#export-chevron-btn').click()
+        const download = page.waitForEvent('download', { timeout: 30_000 })
+        await page.locator('#export-svg-btn').click()
+        const exported = readFileSync((await (await download).path())!, 'utf8')
+        expect(exported).toContain('data-field-label="Authentication tag"')
+        expect(exported).not.toContain('data-packet-inspected')
+        expect(exported).not.toContain('tabindex=')
+      } finally { await page.close() }
+    }, 60_000)
+  })
 
   test('Kanban preview wrapping is explicit, follows scheduled viewport changes and preserves receipt parity', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
