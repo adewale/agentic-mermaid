@@ -18,8 +18,10 @@ measurements.
   forest does not pay that download cost.
 - A failed dynamic import produces a connection/retry message. The client
   discards the failed worker's module map, retains queue ordering, and permits
-  the next edit to retry in a new worker. Stale work still cannot replace the
-  newest verified source or authorize an export.
+  the next edit to retry in a new worker. If a deployment removed the old
+  module URLs, **Reload editor** preserves the current unverified source and
+  settings in the URL before loading the current deployment. Stale work still
+  cannot replace the newest verified source or authorize an export.
 - Offline operation covers already loaded code. A new family or an edit that
   first needs an uncached provider can require a connection. This is an
   intentional consequence of the requested hosted loading behavior. The
@@ -208,8 +210,86 @@ network limitations above.
   render-contract module avoids perturbing its unused-function minification;
   Block remains within its existing Brotli ceiling (212,989 B / 213,000 B).
 
-No rendering goldens changed. The work changes delivery and retry behavior,
-with exact output evidence instead of manufactured before/after images.
+No rendering goldens changed. Output parity establishes rendering stability;
+the recovery UI below has separate desktop and mobile screenshots.
+
+## Third audit fix qualification
+
+The production changes through `c97a25cb04cdc727f0b223278bc1018b8ce6ea26`
+were measured against the retained `861375d3` main build in three Chromium
+sessions. Recovery adds 662 B gzip to the preceding blank editor. The current
+totals are 134,730 B for blank, 830,754 B across 58 assets for first flowchart
+and 2,030,309 B across 139 assets fully consumed. Against main, the first
+flowchart saves **44.9%** and the fully consumed graph grows **2.4%**. The
+first-preview median was 467 ms versus 502 ms on main. These remain local
+diagnostics under the measurement policy above.
+
+All 87 captured artifacts and 1,095 official-corpus results still match main
+exactly, with 823 accepted and no browser errors. The full browser library's
+shipped bytes also match the previous Modern Mermaid engine qualification;
+these recovery changes do not replace its retained 9,855 engine attempts.
+
+The current 150 affected tests pass across 11 files. Six new cases fail their
+behavioral assertions against `adbda37d` production in the canonical red/green
+runner: three raw repository host cases and three runtime availability cases.
+All 24 editor interaction tests pass (400 assertions). Reload preserves exact
+source and settings with storage blocked at 1280 px and 390 px; failed encoding
+leaves the draft in place. The actual two-build rollback probe also passes at
+both widths, including reopening the older baseline editor. The synthetic npm
+CLI fixture now retains its GitLab URL, package match and source-review status;
+it is not evidence that the named package actually changed hosts.
+
+Typecheck, lint, family-generator freshness, website/library payload budgets,
+per-PR payload comparison and the exact 213-file package manifest pass. No
+budget increased. The readiness heuristic's secret matches are registry
+`Symbol` tokens, and its console matches are intentional diagnostic output.
+The full suite remains assigned to CI. The existing browser CI artifact
+captures `current-runtime-recovery-{1280,390}.png` before reload and
+`current-runtime-restored-{1280,390}.png` after state restoration. Review the
+visible recovery action, wrapping at mobile width and restored diagram.
+
+## Why the earlier audits missed the third round of findings
+
+The earlier checks covered many inputs within a fixed environment. They did
+not cover every transition between environments or representations. Three
+specific gaps explain these findings:
+
+| Finding | What we checked | What we missed |
+| --- | --- | --- |
+| Removed SVG chunks after rollback | A fixed site tree; blocked downloads followed by restoration of the same files; cached-family editing | An old document and module map requesting an unseen family from a different deployment's asset manifest. Resetting a worker cannot repair a permanently removed URL. No earlier audit lane explicitly owned this deployment boundary. |
+| Non-GitHub ownership conflict | Missing metadata and conflicting GitHub repositories at the candidate-matching boundary | npm ingestion had already discarded explicit URLs on other hosts. The preceding owner-fallback fix then treated that loss as absence and silently catalogued the package. This misclassification was introduced by the fix, rather than merely overlooked in the original implementation. |
+| Missing responsibility categories | Valid category names, graph endpoints, benchmark roles and selected source reviews | Semantic completeness against each project's public packages and authoring flows. Crafter's parser package was already recorded, and Visimer's parser role obscured its separately exposed editor. Valid labels did not prove complete classification. |
+
+The owner fallback entered in `0b5396e7`; its tests passed already-normalized
+candidates to matching. They never composed the URL parser with that fallback.
+The categories entered in `10e1bd92`. Our checks and audit assignments reused
+the same assumptions about these boundaries, so additional agents and larger
+input matrices did not provide independent coverage of those assumptions.
+
+The deployment fix offers **Reload editor** on runtime loading failures. It
+encodes the current source, palette, style, seed and config before reloading,
+without requiring a successful render or browser storage. It refuses to reload
+if that state cannot be encoded. The action also covers worker bootstrap
+failures, and disappears after a successful retry. This is explicit recovery;
+it does not retain every historical deployment's asset graph.
+
+Permanent browser coverage retires unseen runtime assets after a successful
+preview, then checks reload and exact state restoration at desktop/mobile
+widths with storage denied. A separate case checks that failed state encoding
+does not navigate away. A local reproduction switches between actual PR and
+baseline builds to verify rollback recovery. Availability callbacks also
+ignore superseded results.
+
+Discovery regression cases now enter through the same repository parser as
+the npm ingestion path, preserving explicit GitLab, Bitbucket and self-hosted
+URLs before owner matching. The category corrections cite pinned public
+READMEs. These guards address the demonstrated gaps; they do not establish
+that every responsibility of all 87 projects has received a fresh source audit.
+
+For future reviews of this delivery change, deployment transitions and raw
+metadata ingestion need explicit ownership alongside rendering, benchmark
+integrity and discovery policy. More agents or more diagram examples on the
+same paths would not exercise those missing boundaries.
 
 ## Reproduction
 

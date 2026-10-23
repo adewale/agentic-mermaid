@@ -201,6 +201,7 @@ describe('editor and site interactions in a real browser', () => {
       expect(await page.locator('.theme-dropdown-item[data-style="hand-drawn"]').getAttribute('aria-selected')).toBe('true')
       expect(JSON.parse(await page.locator('#cfg-advanced-options').inputValue()).padding).toBe(64)
       expect(await page.locator('#runtime-recovery').isVisible()).toBe(false)
+      await page.screenshot({ path: join(SCREENSHOTS, `current-runtime-restored-${width}.png`), animations: 'disabled' })
     } finally { await page.close(); served.server.stop(true) }
   }, 60_000)
 
