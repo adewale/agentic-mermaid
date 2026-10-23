@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile, peerExecutionEnvironment } from '../../eval/benchmark/peer-tracks.ts'
 import { measurePeerTrack } from '../../eval/benchmark/peer-track-worker.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(10_000)
 
 const input = { id: 'flow5', source: 'flowchart TD\n A[Start] --> B[End]', expected: ['Start', 'End'] }
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="20" height="20"/><g data-id="A"/><g data-id="B"/><path d="M0 0L10 10" data-from="A" data-to="B"/><text>Start</text><text>End</text></svg>'
@@ -117,17 +119,17 @@ describe('maintained consumed peer protocol', () => {
     expect(result.diagnostics.complete).toBe(false)
     expect(result.diagnostics.detail).toBe('replay failed')
   })
-  test('bundled worker resolves harness XML parser and retains raw individual calls', () => {
+  test('bundled worker resolves harness XML parser and retains raw individual calls', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'peer-track-owner-'))
     const root = resolve(import.meta.dir, '../..')
     try {
       const bundle = join(dir, 'worker.mjs'), entry = join(dir, 'renderer.mjs'), job = join(dir, 'job.json'), out = join(dir, 'out.jsonl')
-      const built = spawnSync(process.execPath, ['build', join(root, 'eval/benchmark/peer-bench.ts'), '--target=node', '--format=esm', '--outfile', bundle], { cwd: root, encoding: 'utf8' })
-      expect({ status: built.status, error: built.error }).toEqual({ status: 0, error: undefined })
+      const built = await runChild(process.execPath, ['build', join(root, 'eval/benchmark/peer-bench.ts'), '--target=node', '--format=esm', '--outfile', bundle], { cwd: root })
+      expect({ status: built.status, stderr: built.stderr }).toEqual({ status: 0, stderr: '' })
       writeFileSync(entry, `export const renderMermaidSVG = () => ${JSON.stringify(svg)}; export const renderMermaidSVGWithReceipt = () => ({svg:renderMermaidSVG(), receipt:{complete:[1,2,3]}})`)
       writeFileSync(job, JSON.stringify({ peer: 'agentic-baseline', output: 'svg', entry, timing: { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 100 }, track: { ...track, samples: 3, consumer: 'receipt-json-utf8' }, workloads: [input] }))
       writeFileSync(out, '')
-      const child = spawnSync('node', ['--expose-gc', bundle, '--child', '--job', job, '--out', out], { cwd: root, encoding: 'utf8' })
+      const child = await runChild('node', ['--expose-gc', bundle, '--child', '--job', job, '--out', out], { cwd: root })
       expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
       const rows = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
       expect(rows.filter(row => row.type === 'progress').every(row => row.observation.consumedBytes > 0)).toBe(true)
