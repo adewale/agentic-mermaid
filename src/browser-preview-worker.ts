@@ -13,7 +13,7 @@ let raster: { id: number; resolve: (result: BrowserPngRasterResult) => void; rej
 
 class DependencyLoadError extends Error {
   constructor(cause: unknown) {
-    super('Diagram code could not load. Check your connection and edit again to retry.', { cause })
+    super('Diagram code could not load. Check your connection and retry, or reload the editor.', { cause })
   }
 }
 

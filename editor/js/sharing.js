@@ -218,19 +218,54 @@ function getQueryExampleId() {
 
 var hashUpdateToken = 0;
 
+function currentEditorShareState() {
+  var obj = {
+    source: editor.value,
+    palette: state.palette || '',
+    style: state.style || 'crisp',
+    seed: typeof state.seed === 'number' && Number.isFinite(state.seed) ? state.seed : 0,
+  };
+  if (hasOwnConfig(state.config)) obj.config = state.config;
+  return obj;
+}
+
+var runtimeRecovery = document.getElementById('runtime-recovery');
+var reloadEditorButton = document.getElementById('reload-editor');
+window.addEventListener('mermaid-runtime-status', function(event) {
+  if (runtimeRecovery) runtimeRecovery.hidden = event.detail !== false;
+});
+if (reloadEditorButton) reloadEditorButton.addEventListener('click', async function() {
+  reloadEditorButton.disabled = true;
+  try {
+    // A failed render leaves the URL pointing at older verified content.
+    // Preserve current edits directly; browser storage may be unavailable.
+    for (;;) {
+      if (!editor.value.trim()) {
+        runtimeRecovery.hidden = true;
+        reloadEditorButton.disabled = false;
+        return;
+      }
+      var snapshot = JSON.stringify(currentEditorShareState());
+      var encoded = await encodeSourceCompressed(snapshot);
+      if (snapshot !== JSON.stringify(currentEditorShareState())) continue;
+      ++hashUpdateToken;
+      window.history.replaceState(null, '', window.location.pathname + '#' + encoded);
+      window.location.reload();
+      return;
+    }
+  } catch (error) {
+    showToast('Could not preserve this diagram for reload. Copy or export the source first.');
+    reloadEditorButton.disabled = false;
+  }
+});
+
 function updateHash() {
   if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
     if (typeof showToast === 'function') showToast('Render and verify this diagram before copying a share link.');
     return Promise.resolve(false);
   }
   var source = editor.value;
-  var obj = {
-    source: source,
-    palette: state.palette || '',
-    style: state.style || 'crisp',
-    seed: typeof state.seed === 'number' && Number.isFinite(state.seed) ? state.seed : 0,
-  };
-  if (hasOwnConfig(state.config)) obj.config = state.config;
+  var obj = currentEditorShareState();
   // Compression is async; the token drops stale writes when edits overlap.
   var token = ++hashUpdateToken;
   return encodeSourceCompressed(JSON.stringify(obj)).then(function(encoded) {

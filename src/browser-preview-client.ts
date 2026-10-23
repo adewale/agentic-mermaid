@@ -5,7 +5,7 @@ import type { PortablePngOutputOptions } from './png-contract.ts'
 import type { EditorWorkerArtifact, EditorWorkerOperation, PreviewArtifact, PreviewWorkerRequest, PreviewWorkerResponse } from './browser-editor-protocol.ts'
 import { assertBrowserPngByteBudget, browserRuntimeProvenance, intrinsicTypedArrayByteLength } from './browser-png-runtime.ts'
 import { DIAGRAM_WORK_LIMITS } from './shared/diagram-limits.ts'
-import { PreviewSupersededError } from './browser-preview-errors.ts'
+import { PreviewSupersededError, PreviewRuntimeLoadError } from './browser-preview-errors.ts'
 export { PreviewSupersededError } from './browser-preview-errors.ts'
 export type { PreviewArtifact, PreviewWorkerRequest, PreviewWorkerResponse } from './browser-editor-protocol.ts'
 
@@ -97,10 +97,12 @@ export class PreviewWorkerClient {
     else { this.active = this.queued; this.queued = undefined }
     try {
       if (!this.worker) {
-        const worker = this.createWorker()
+        let worker: PreviewWorker
+        try { worker = this.createWorker() }
+        catch (error) { throw new PreviewRuntimeLoadError('Background renderer could not start; reload the editor to retry', { cause: error }) }
         this.worker = worker
         worker.onmessage = event => { if (worker === this.worker) this.receive(worker, event.data) }
-        worker.onerror = event => { event.preventDefault(); if (worker === this.worker) this.dispose(new Error('Background renderer failed to start or crashed; edit again to retry')) }
+        worker.onerror = event => { event.preventDefault(); if (worker === this.worker) this.dispose(new PreviewRuntimeLoadError('Background renderer failed to start or crashed; reload the editor to retry')) }
         worker.onmessageerror = () => { if (worker === this.worker) this.dispose(new Error('Background renderer returned an unreadable response')) }
       }
       this.timer = setTimeout(() => this.dispose(new Error('Background render exceeded 30 seconds; simplify the diagram and retry')), this.timeoutMs)
@@ -140,7 +142,7 @@ export class PreviewWorkerClient {
       clearTimeout(this.timer); this.timer = undefined
       this.active = undefined
       if (response.ok) pending.resolve(response.artifact)
-      else pending.reject(new Error(response.error))
+      else pending.reject(response.dependencyLoadFailed ? new PreviewRuntimeLoadError(response.error) : new Error(response.error))
       this.drain()
     } catch (error) { this.dispose(error instanceof Error ? error : new Error(String(error))) }
   }

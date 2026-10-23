@@ -452,6 +452,7 @@ async function doRender(version) {
   clearRenderSpinner();
   var source = currentEditorSource();
   if (!source) {
+    if (runtimeRecovery) runtimeRecovery.hidden = true;
     if (!isCurrentRender(version, source)) return;
     previewInner.innerHTML = emptyPreviewHtml();
     markTextOutputsDirty();

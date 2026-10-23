@@ -5,21 +5,28 @@ import { verifyNoExternalRefs } from './output-security.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
 import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyleDescriptors, knownStyles, getStyle } from './scene/style-registry.ts'
 import { resolveEditorRenderOptions } from './editor-render-options.ts'
-import { PreviewSupersededError } from './browser-preview-errors.ts'
+import { PreviewSupersededError, PreviewRuntimeLoadError } from './browser-preview-errors.ts'
 import type { PreviewWorkerClient } from './browser-preview-client.ts'
 import type { AsciiRenderOptions } from './ascii/index.ts'
 import type { RenderOptions } from './types.ts'
 import type { BrowserPngRasterizer } from './browser-png.ts'
 import type { PortablePngOutputOptions } from './png-contract.ts'
 
-export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Promise<PreviewWorkerClient>) {
+export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Promise<PreviewWorkerClient>, onRuntimeStatus?: (available: boolean) => void) {
   let generation = 0, loaded: PreviewWorkerClient | undefined
   async function execute<T>(operation: (client: PreviewWorkerClient) => Promise<T>): Promise<T> {
     const requested = generation
-    const client = await load()
-    loaded = client
-    if (requested !== generation) throw new PreviewSupersededError()
-    return operation(client)
+    try {
+      const client = await load()
+      loaded = client
+      if (requested !== generation) throw new PreviewSupersededError()
+      const artifact = await operation(client)
+      if (requested === generation) onRuntimeStatus?.(true)
+      return artifact
+    } catch (error) {
+      if (requested === generation && error instanceof PreviewRuntimeLoadError) onRuntimeStatus?.(false)
+      throw error
+    }
   }
   return {
     renderMermaidSVGWithReceipt(source: string, options: RenderOptions = {}) {

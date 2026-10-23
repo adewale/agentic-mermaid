@@ -11,7 +11,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
-import { deflateRawSync } from 'node:zlib'
+import { deflateRawSync, inflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
 import { PNG_DEFAULT_SCALE } from '../src/png-contract.ts'
 import { getFamily, knownBuiltinFamilies } from '../src/agent/families.ts'
@@ -147,10 +147,77 @@ describe('editor and site interactions in a real browser', () => {
       await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
       expect(blocked).toBeGreaterThan(0)
       expect(await page.locator('.preview-error-detail').textContent()).toContain('Check your connection')
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(true)
       await page.unroute('**/editor/runtime/**')
       await page.locator('#code-editor').fill('sequenceDiagram\n Alice->>Bob: Recovered download')
       await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Recovered download'))
       expect(page.workers()).toHaveLength(1)
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(false)
+    } finally { await page.close() }
+  }, 60_000)
+
+  test.each([1280, 390])('reload recovery at %i px preserves unverified edits and settings without browser storage', async width => {
+    let retired = false, documents = 0
+    const served = serveWithAvailablePort({ preferredPort: 4801, fetch(request) {
+      const pathname = new URL(request.url).pathname
+      if (pathname === '/editor/') { documents++; retired = false }
+      if (retired && pathname.startsWith('/editor/runtime/')) return new Response('Retired asset', { status: 404, headers: { 'cache-control': 'no-store' } })
+      const file = fileForPath(pathname)
+      return file ? new Response(Bun.file(file), { headers: { 'content-type': MIME[extname(file)] ?? 'application/octet-stream',
+        'cache-control': extname(file) === '.js' ? 'public, max-age=31536000, immutable' : 'no-cache' } }) : new Response('Not found', { status: 404 })
+    } })
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const initial = { source: 'flowchart LR\nA-->B', palette: 'nord', style: 'hand-drawn', seed: 17, config: { padding: 64 } }
+    const source = 'sequenceDiagram\nAlice->>Bob: Keep latest β\n  '
+    try {
+      await page.addInitScript(() => {
+        for (const key of ['localStorage', 'sessionStorage']) Object.defineProperty(window, key, { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError') } })
+      })
+      await page.goto(served.base + '/editor/?example=sequence&empty=1#' + shareHash(initial))
+      await waitForVerifiedRender(page)
+      if (width < 768) await page.locator('#mode-source').click()
+      retired = true
+      await page.locator('#code-editor').fill(source)
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
+      if (width < 768) await page.locator('#mode-preview').click()
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(true)
+      expect(documents).toBe(1)
+      mkdirSync(SCREENSHOTS, { recursive: true })
+      await page.screenshot({ path: join(SCREENSHOTS, `current-runtime-recovery-${width}.png`), animations: 'disabled' })
+      const loaded = page.waitForEvent('load')
+      await page.locator('#reload-editor').click()
+      await loaded
+      await waitForVerifiedRender(page)
+      expect(documents).toBe(2)
+      expect(await page.locator('#code-editor').inputValue()).toBe(source)
+      expect(await page.locator('#preview-inner svg').textContent()).toContain('Keep latest β')
+      const encoded = new URL(page.url()).hash.slice('#deflate:'.length)
+      const restored = JSON.parse(inflateRawSync(Buffer.from(encoded, 'base64url')).toString())
+      expect(restored).toEqual({ ...initial, source })
+      expect(await page.locator('.theme-dropdown-item[data-theme="nord"]').getAttribute('aria-selected')).toBe('true')
+      expect(await page.locator('.theme-dropdown-item[data-style="hand-drawn"]').getAttribute('aria-selected')).toBe('true')
+      expect(JSON.parse(await page.locator('#cfg-advanced-options').inputValue()).padding).toBe(64)
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(false)
+    } finally { await page.close(); served.server.stop(true) }
+  }, 60_000)
+
+  test('reload recovery stays on the current diagram when state encoding is unavailable', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const source = 'sequenceDiagram\nAlice->>Bob: Keep this draft'
+    try {
+      await page.goto(base + '/editor/?empty=1')
+      await page.locator('#code-editor').fill('flowchart LR\nA-->B')
+      await waitForVerifiedRender(page)
+      await page.route('**/editor/runtime/**', route => route.abort())
+      await page.locator('#code-editor').fill(source)
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
+      const url = page.url()
+      await page.evaluate(() => { Object.defineProperty(window, 'CompressionStream', { value: undefined, configurable: true }) })
+      await page.locator('#reload-editor').click()
+      await page.waitForFunction(() => document.getElementById('toast')?.textContent?.includes('Copy or export the source first'))
+      expect(page.url()).toBe(url)
+      expect(await page.locator('#code-editor').inputValue()).toBe(source)
+      expect(await page.locator('#reload-editor').isEnabled()).toBe(true)
     } finally { await page.close() }
   }, 60_000)
 

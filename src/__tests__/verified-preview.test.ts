@@ -8,6 +8,7 @@ import { buildDocsEditDemo } from '../../website/docs-edit-demo.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { asFlowchart } from '../agent/types.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
+import { createBrowserEditorAdapter } from '../browser-editor-adapter.ts'
 
 describe('one positioned artifact for preview and verification', () => {
   test('verification preserves a suspended provider through a family layout wrapper', () => {
@@ -82,6 +83,42 @@ function workerHarness(timeout = 30_000) {
 }
 
 describe('persistent preview worker queue', () => {
+  test.each(['dependency import', 'worker error'])('reports runtime availability across a failed %s and successful retry', async failure => {
+    const h = workerHarness(), availability: boolean[] = []
+    const adapter = createBrowserEditorAdapter(() => h.client, available => availability.push(available))
+    try {
+      const failed = adapter.renderMermaidSVGWithReceipt('first', {}).catch(error => error)
+      await Promise.resolve()
+      if (failure === 'dependency import') h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'Module download failed', dependencyLoadFailed: true } })
+      else h.workers[0]!.onerror?.({ preventDefault() {} })
+      expect((await failed).name).toBe('PreviewRuntimeLoadError')
+      expect(availability).toEqual([false])
+      const recovered = adapter.renderMermaidSVGWithReceipt('second', {})
+      await Promise.resolve()
+      h.reply(2)
+      await recovered
+      expect(availability).toEqual([false, true])
+    } finally { h.client.dispose() }
+  })
+
+  test('does not show runtime recovery for a superseded preview failure', async () => {
+    const h = workerHarness(), availability: boolean[] = []
+    const adapter = createBrowserEditorAdapter(() => h.client, available => availability.push(available))
+    try {
+      const stale = adapter.renderMermaidSVGWithReceipt('old', {}).catch(error => error)
+      await Promise.resolve()
+      adapter.cancelPendingRender()
+      const current = adapter.renderMermaidSVGWithReceipt('new', {})
+      await Promise.resolve()
+      h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'Module download failed', dependencyLoadFailed: true } })
+      await stale
+      expect(availability).toEqual([])
+      h.reply(2)
+      await current
+      expect(availability).toEqual([true])
+    } finally { h.client.dispose() }
+  })
+
   test.each(['ascii', 'png'] as const)('replaces a failed dependency worker even when its %s request was superseded', async operation => {
     const h = workerHarness()
     try {
