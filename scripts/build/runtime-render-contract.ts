@@ -124,8 +124,57 @@ function runtimeConformanceSource(source: string, path: string): string {
   } finally { transformed.dispose() }
 }
 
+/** The private standalone worker offers rendering/verification, not the SDK's
+ * editor catalog. The page already embeds that catalog from canonical source.
+ * Remove only pure literal editor fields from the two exact owned seed tables;
+ * reject new table shapes rather than discarding unknown evaluation/metadata. */
+function runtimeFamilyEditorSource(source: string, path: string): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const stable = path.endsWith('stable-family-metadata.ts')
+  const tableName = stable ? 'STABLE_FAMILY_DESCRIPTOR_SEEDS' : 'BUILTIN_FAMILY_DESCRIPTOR_SEEDS'
+  const editorFields = new Set(['editorDiagramType', 'editorLabel', 'editorDescription', 'editorExampleId', 'editorGlyph', 'editorExample'])
+  let projected = 0, tables = 0
+  const unwrap = (node: ts.Expression): ts.Expression => {
+    while (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) node = node.expression
+    return node
+  }
+  const transformed = ts.transform(file, [context => root => {
+    const visit: ts.Visitor = node => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === tableName && node.initializer) {
+        if (!ts.isVariableDeclarationList(node.parent) || !ts.isVariableStatement(node.parent.parent) || !ts.isSourceFile(node.parent.parent.parent) || ++tables !== 1) throw new Error('Private editor projection requires one exact module seed table')
+        const table = unwrap(node.initializer)
+        if (!ts.isArrayLiteralExpression(table)) throw new Error('Unsupported private editor family seed table')
+        const elements = table.elements.map(seed => {
+          if (!stable && ts.isSpreadElement(seed) && ts.isIdentifier(seed.expression) && seed.expression.text === 'STABLE_FAMILY_DESCRIPTOR_SEEDS') return seed
+          if (!ts.isObjectLiteralExpression(seed)) throw new Error('Unsupported private editor family seed')
+          const omitted = new Set<string>()
+          const properties = seed.properties.filter(property => {
+            if (!ts.isPropertyAssignment(property) || (!ts.isIdentifier(property.name) && !ts.isStringLiteral(property.name))) throw new Error('Unsupported private editor family seed property')
+            const name = property.name.text
+            if (!editorFields.has(name)) return true
+            if (omitted.has(name) || (!ts.isStringLiteral(property.initializer) && !ts.isNoSubstitutionTemplateLiteral(property.initializer))) throw new Error('Private editor metadata must remain unique pure literals')
+            omitted.add(name)
+            return false
+          })
+          if (omitted.size !== editorFields.size) throw new Error('Incomplete private editor family metadata')
+          projected++
+          return ts.factory.updateObjectLiteralExpression(seed, properties)
+        })
+        return ts.factory.updateVariableDeclaration(node, node.name, node.exclamationToken, node.type,
+          ts.factory.updateArrayLiteralExpression(table, elements))
+      }
+      return ts.visitEachChild(node, visit, context)
+    }
+    return ts.visitNode(root, visit) as ts.SourceFile
+  }])
+  try {
+    if (!projected) throw new Error('Private editor projection could not find family seeds')
+    return ts.createPrinter().printFile(transformed.transformed[0]!)
+  } finally { transformed.dispose() }
+}
+
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
@@ -141,6 +190,11 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
       }))
       if (!conformanceObservations) build.onLoad({ filter: /[\\/]src[\\/]scene[\\/]backend-conformance\.ts$/ }, ({ path }) => ({
         contents: runtimeConformanceSource(readFileSync(path, 'utf8'), path),
+        loader: 'ts',
+        resolveDir: dirname(path),
+      }))
+      if (!familyEditorMetadata) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/](?:families|stable-family-metadata)\.ts$/ }, ({ path }) => ({
+        contents: runtimeFamilyEditorSource(readFileSync(path, 'utf8'), path),
         loader: 'ts',
         resolveDir: dirname(path),
       }))
