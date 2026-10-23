@@ -3,7 +3,7 @@
 Runtime 26 removes the retained Architecture crossing regression using bounded
 single-crossing cleanup scored against final family routes. Runtime 25's broader
 refinement remains an intermediate experiment with an expensive partial
-improvement. The cyclic search retains its existing candidate order and bounds; neither allocation
+improvement. The cyclic search retains its existing candidate order and bounds; no later cyclic
 prototype has earned inclusion. This report follows the
 [runtime24 qualification](layout-guidance-results.md); its successful results,
 failed release qualifications and adverse cyclic cases remain historical
@@ -55,6 +55,266 @@ Only 20/36 planned workers succeed overall: the normal-cache policy has two
 baseline observations, an A/A timing timeout and 15 unlaunched observations.
 It has no candidate observation or valid paired ratio. No deadline increase,
 population reduction or retry is used to turn this into a qualification pass.
+
+## Further cyclic attribution on frozen runtime 26
+
+The current owner guidance prioritizes repeated cyclic candidate/normalization
+cost. A new diagnostic binds its measurements to the accepted runtime 26 source
+`3258d80ce165457a1dd4695bb2bc12171f492006`, rather than treating older runtime 22
+profiles as descriptions of the current implementation. Twelve serial CPU/heap
+profile workers complete: cyclic-11, cyclic-15 and cyclic-18-cuts, two repeats of each profile type,
+cache off, Node 24.19, scene assertions off and full SVG/receipt consumption.
+These are diagnostic samples, not latency benchmarks or full proof comparisons.
+The worker does not retain a full receipt fingerprint; its zero SVG drift alone
+cannot establish receipt equality.
+
+The older general-crossing allocation hotspot has changed after the accepted
+two-route specialization. On cyclic-18, the general counter accounts for about
+10.7% of self-allocation samples, local ray construction about 5%, and the exact
+two-route counter 1.42–1.53%. An initial static proposal misattributed the core's
+4.4% self allocation to the pair counter; that premise is corrected here, without
+changing the already declared experimental targets. Pair-query inclusive samples
+(about 11.1%) overlap the functions below them. Cyclic15 still samples substantial core layout work
+(9.8–12.1% self CPU and 7.8–8.5% self allocation). Generator `next` frames are
+not all normalization: ancestry distinguishes core iteration from other
+generators. Percentages motivate mechanisms; they cannot be added to predict
+obtainable savings. The original raw profiles and completion observer remain
+part of the evidence, including the transient tool-environment interruption
+that did not stop the workers.
+
+Separate untimed source instrumentation tests two concrete subtractions on the
+existing 40-input population. All 1207 checks pass, all 40 outcomes agree with the
+uninstrumented control (38 successes and the same two declines), and 19 public
+render observations agree exactly with the frozen 26 SVG and full proof.
+Across 174 normalizations, exact ranking succeeds 160 times and declines 14.
+The successful cases overwrite 257 preceding greedy sweeps: 6748 node visits
+and 27496 edge visits. Those declining paths still need the original fallback
+and its existing guards/budgets. Strict improvements also create 245 new best-order
+snapshots, copying 3542 band arrays and 28310 vertex entries. Reusing detached
+snapshot arrays would remove allocation while retaining the copying work.
+Object/visit counts are not allocated-byte estimates or evidence of a speedup.
+
+These observations motivate isolated rank-first, band-snapshot and ray-view
+pilots. Each freezes all 27 historical inputs, baseline/A/A/candidate artifacts,
+three rounds, both cache policies and a 480-second **total** deadline. They retain
+all samples, proof fingerprints, adverse controls, timeouts and unlaunched slots;
+their decisions must follow the prospective targets, not these operation counts.
+A fourth combined crossing experiment has its own allocation-only declaration,
+made before inspecting ray timing data. It must be measured directly; multiplying
+the isolated pilots' medians would not measure their combination.
+
+| New isolated pilot | Successful workers /36 | Required uncached tails meeting primary target /6 | Whole 27 uncached allocation /26 | Decision |
+| --- | ---: | ---: | ---: | --- |
+| Exact ranks before overwritten greedy sweeps | 18 | 0 | 1.001150× | Reject this implementation: time target missed; cyclic19/9/13 allocation exceeds the 1.03 guard. Cached qualification incomplete. |
+| Reuse detached best-band snapshots | 16 | 0 | 1.000648× | Reject: 3% tail target and whole-pass nonincrease missed; third A/A round unavailable. |
+| Return ray views without temporary tuples | 18 | 0 | 1.002351× | Reject this fresh implementation: 3% tail target and whole-pass nonincrease missed despite healthy uncached allocation controls. |
+
+Ratios below are medians of three same-round candidate/accepted26 ratios, not
+ratios of separately pooled medians. Each column reports its declared primary
+metric. All cases and raw 15-call timing samples remain in the detailed evidence.
+
+| Required uncached tail | Rank-first time, target ≤0.95× | Band allocation, target ≤0.97× | Ray allocation, target ≤0.97× |
+| --- | ---: | ---: | ---: |
+| cyclic-labelled-11 | 1.020846× | 0.980994× | 0.998035× |
+| cyclic-labelled-15 | 0.987211× | 0.994211× | 0.992900× |
+| cyclic-labelled-19 | 0.994513× | 0.990640× | 1.002079× |
+| cyclic-labelled-9 | 0.958931× | 0.998877× | 0.990330× |
+| cyclic-labelled-13 | 0.996784× | 1.003651× | 1.007387× |
+| cyclic-labelled-18-cuts | 0.991516× | 0.999091× | 1.005877× |
+
+Rank-first's adverse allocation ratios are 1.148286× on cyclic19, 1.065844× on 9
+and 1.039948× on 13; counting fewer visits did not establish less allocation.
+Its cyclic11/15 time A/A medians 1.100839×/1.058056× also fail the tighter
+reciprocal 1.05 control. Ray timing has large individual A/A drift, including
+round 2 cyclic ratios around 0.71–0.88; apparent timing reductions establish no
+causal speedup. No timing claim is used to rescue a failed allocation target.
+Rank/ray uncached allocation A/A medians pass on 27/27 inputs; band has only
+two A/A rounds, so all its three-round A/A medians remain unavailable.
+
+Rank/ray finish all 18 uncached workers, then time out the first cached baseline
+worker and leave 17 slots unlaunched. Band finishes 16 uncached workers, times out
+the third A/A timing worker and leaves its memory slot plus all 18 cached slots
+unlaunched. No normal-policy candidate result exists. Available exact
+SVG/full-receipt/decision/certificate comparisons are 162/324, 135/324 and 162/324,
+with zero observed differences; the unavailable comparisons remain missing.
+Uncached whole-worker RSS paired medians are 0.965849×, 0.987615× and 1.010290×;
+all observed candidate settled growth is below 1.62 MB. Missing cached memory
+and controls prevent full resource qualification.
+
+Six synthetic reporting tests and 2370 independent raw metric/sample checks
+pass. The initial assessment misleadingly combined stock-summary consistency
+with completion in one gate. Its outputs are retained; corrected assessment
+separates matching plans/failed-slot lists (true) from completion (false).
+No worker result, ratio, target or deadline changes. None of these three pilots
+measures an ELK arm, and none earns production inclusion. The older interrupted
+ray attempt remains historically unqualified; the new complete uncached evidence
+is a separate adverse observation against accepted26.
+
+### Combined query-local crossing records: complete negative experiment
+
+A fourth prospective declaration, SHA256
+`2809a75e3e0e020de7ba74c22d8c7e0c1562a312b38e90fd057bb49b56b630e6`,
+is written at 05:27:44 UTC, before viewing ray timing results or building the
+combination. It combines the exact ray-view patch with two distinct lazily
+created segment records local to a single two-route query. Every surviving pair
+refreshes both endpoint references and both segment indices. The predicate is
+synchronous and retains only an owned crossing location; neither record escapes
+the query. Existing rejection order, numeric operations, deduplication and
+independent final proof remain unchanged. There is no cross-call cache, index,
+proof reuse, rank/band change or search-budget change.
+
+Prototype source is `d3ccf4e7c348d45f0dbdd980ef274929ced92484`; it deliberately
+keeps the 26 receipt identity for exact comparison, and **is not the accepted
+runtime26 renderer**. It passes 145 owning tests, core types and canonical
+Node/DTS/IIFE/lazy builds. Eight evaluator traces retain exact predicate-call
+order, returned x/y/error and independent general-counter equality. A three-crossing
+witness creates 24 baseline records versus two query-local records; deliberately
+omitting index updates changes its count 3→1, demonstrating that the regression
+test detects a real reuse fault. This logical object count predicts no byte saving.
+
+All 108 historical27/backend/cache rows match accepted26 exactly on full SVG,
+receipts, certificates, public layout, measured metrics and the complete edit
+workflow. No version normalization is used. Unchanged delivery caps pass, with
+worse reserve: Architecture default-ELK transfer 573892 B Brotli leaves 108 B,
+and standalone 4099694 raw/1229775 gzip leaves 306 raw bytes. Production26
+retains its 356/457-byte reserves because this prototype is rejected.
+
+The separate existing memory-only protocol runs all27 inputs in 30 fresh workers,
+three rounds, both cache policies, 480 seconds **per policy**. Accepted26 and its
+A/A control use the immutable baseline; ELK reference and ELK A/A run from the
+same checked joint artifact as joint native. Stock raw labels `native23` and
+`native24` are preserved and explicitly mapped to accepted26 and joint26 in the
+prelaunch execution declaration. The exact original historical27 envelope is
+used after verifying source/order/workflow/expected-label equality with the
+earlier ID-keyed pilot map. Initial declaration-helper format/lookup failures are
+retained; no worker runs before the corrected frozen plan. No workload, target,
+deadline or stock worker changes.
+
+| Joint prototype allocation /accepted26 | Uncached | Normal cache |
+| --- | ---: | ---: |
+| cyclic-labelled-11 | 0.997095× | 1.000879× |
+| cyclic-labelled-15 | 0.997228× | 1.000261× |
+| cyclic-labelled-19 | 1.004973× | 0.999257× |
+| cyclic-labelled-9 | 1.012170× | 1.002408× |
+| cyclic-labelled-13 | 0.995749× | 1.000343× |
+| cyclic-labelled-18-cuts | 0.999865× | 1.000414× |
+| Actual complete 27 pass | 0.998425× | 1.000087× |
+
+All 30 workers complete, artifact hashes remain unchanged and all stock gates
+pass. Nevertheless, **zero of six** required uncached tails reaches the declared
+0.95× allocation target, and whole-pass 0.998425× misses the declared 0.98×
+maximum. Normal-cache, per-input, A/A, RSS and absolute retained-growth guards
+pass; they do not compensate for those two failed improvement requirements.
+The observed 0.16% uncached difference does not qualify as a useful improvement.
+No implementation is promoted and no broad/future-cohort/browser promotion
+qualification is claimed for this rejected prototype.
+
+| Whole 27 paired median, direct observations | Uncached | Normal cache |
+| --- | ---: | ---: |
+| Joint /accepted26 allocation | 0.998425× | 1.000087× |
+| Accepted26 A/A allocation | 0.988489× | 0.999718× |
+| Joint /accepted26 worker RSS | 1.007720× | 0.958460× |
+| Accepted26 A/A worker RSS | 0.996570× | 0.950269× |
+| Joint /current-artifact ELK allocation | 0.959303× | 0.993433× |
+| Joint /current-artifact ELK worker RSS | 0.920201× | 0.920760× |
+| ELK A/A allocation | 0.999719× | 0.999973× |
+| ELK A/A worker RSS | 0.980387× | 1.003178× |
+
+Each ratio requires all three same-round observations. Eight individual per-input
+A/A round outliers remain descriptive, as prospectively declared; whole-pass
+A/A allocation/RSS are the required controls. The six uncached cyclic inputs
+still allocate about 1.26–1.78× ELK. Whole-pass averages do not establish universal
+memory superiority, and normal RSS differences alongside its A/A control do not
+establish a stable improvement over accepted26. Allocation is a GC-boundary
+estimate; RSS covers the fresh process, and retention has an absolute 16 MiB cap.
+This protocol consumes complete SVG/receipts but produces no latency samples or
+fingerprints; the separately frozen 108-row replay supplies the exact proof
+comparison. Its memory-mode `reps:25` is not 25 timed or memory repetitions.
+
+This complete negative experiment neither retries nor repairs the original
+three 480-second-total pilots. Their missing cached workers and failed primary
+targets remain. The result supports retaining accepted26 and prioritizing a new
+mechanism for repeated candidate work; deleting temporary JavaScript objects or
+visits alone has not delivered the declared benefit. Do not infer the cause from
+V8 sampling shares, add overlapping profile percentages, multiply isolated ratios
+or retune evaluated cases into a claimed holdout win.
+
+### Durable evidence for this round
+
+[The cyclic experiment archive](layout-runtime26-cyclic-experiments.json.gz)
+retains all four exact candidate source/test patches against the published f2af
+base, accepted3258 and prototype build identities, executed harness bytes and
+immutable declarations. It contains the12 raw CPU/heap profiles, complete40-case
+normalization diagnostic, all three pilots, the complete30-worker joint memory
+experiment and108-row parity replay, current-head CI raw reports/provenance,
+all samples/outliers/failures/missing slots and both initial/corrected reporting
+sources. The independently verified reporting checks total6+6 synthetic tests,
+2370 original-pilot raw checks and464 joint raw checks. Profile-premise,
+declaration-helper and reporting corrections remain visible.
+
+There is **no source or SVG projection** in this new archive: complete strings,
+receipts, certificates and other structured fields survive lossless interning.
+Canonical JSON changes formatting, so the file index also retains every original
+raw SHA256/size. The archive indexes831 files and581 unique bodies. It is
+9138100 gzip bytes, SHA256
+`ef582ba7b554106ddc4700a4f5f6f4af323ba35c4d512332ce5c8334eb1416da`.
+The existing readable decoder verifies all content hashes and restores256903815
+canonical bytes, SHA256
+`d762a447f5226d835205a8e5656e8d9f84adeb9a499ffdb2bedda6488beb1a17`:
+
+```sh
+python eval/benchmark/decode-layout-evidence.py \
+  docs/design/system/layout-runtime26-cyclic-experiments.json.gz \
+  /tmp/layout-runtime26-cyclic-experiments.json
+```
+
+Existing historical archives are unchanged. This is repository evaluation
+evidence, not an addition to a renderer's fetched bundle or a new qualification
+of the accepted production artifact.
+
+### Independent reporting-head CI observation
+
+The later documentation/evaluator head `f2af40c1` has completed required
+[CI39878862964](https://github.com/adewale/agentic-mermaid/actions/runs/39878862964)
+and Ruff successfully; the generated-layout advisory remains red. Its runtime,
+build and dependency sources are unchanged from frozen 3258. This is a separate
+canary, not a replacement for the renderer's dedicated campaigns below.
+All three raw uncached canary comparisons fail completion: ELK reference has
+1/21 memory groups, while ELK A/A, strict native and fallback each have 0/21
+after an ELK A/A module-import timeout consumes the shared deadline. All 27
+timing cases complete for three rounds. Cyclic15 native/ELK is 1.515862× strict
+and 1.512741× fallback, with paired ELK A/A 0.983853×; both exceed the 1.5 limit.
+All three normal-cache reports complete and pass. Workers use Node 24.21.0;
+the coordinator's Node 26.3.0 is not the measured worker runtime. This canary
+has source binding, without the dedicated campaigns' exact 20-Node-file equality
+manifest. A green reporting job does not repair failed backend qualification.
+
+### Landing contract and integration order
+
+A [newer owner review](https://github.com/adewale/agentic-mermaid/pull/449#issuecomment-6358150200)
+recognizes that runtime26 now has direct qualification and that release,
+differential and churn still fail. It prefers #467, then #433, then this branch;
+this is an integration preference, not a missing ancestry dependency. Current
+main remains `87c9c317` and both related PRs are unmerged. Their results cannot
+qualify an unbuilt combination. The accompanying
+[#433 review](https://github.com/adewale/agentic-mermaid/pull/433#issuecomment-6358155962)
+also requires reconciliation of native drawing/security ownership and retained
+State80/PNG controls.
+
+Before landing, resolve the failures or obtain owner review of an explicit
+narrower shipping contract. The [shipping options](layout-shipping-options.md)
+make that proposal concrete, including subtraction of production-native delivery
+from a prerequisite-only slice and the separate unmeasured acyclic-preview
+alternative. No narrower contract is implemented or approved here. Existing
+six-family opt-in alone is not a new narrower proposal, and Flowchart-only retains
+the failing cyclic tails.
+
+After actual integration/rebase, preserve thin CLI startup, backend-aware cache
+keys, fixed quotas, public-result isolation, inherited/sibling namespaces,
+malformed-envelope error precedence and final PNG security. Rebuild/freeze and
+qualify that exact package against its current base, including all original
+populations, declines and missing-data/deadline rules. Keep this PR draft; the
+four failed improvements do not resolve its landing conditions.
 
 ## Implications for scope and ELK comparison
 
