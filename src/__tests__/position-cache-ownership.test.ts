@@ -6,28 +6,70 @@ const runChild = useTestChildren(20_000)
 test('native cached rendering stays isolated from public geometry and replacement projectors', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
-    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { createMermaidRenderer, parseRegisteredMermaid, renderMermaidSVGWithReceipt } from './src/index.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionResolvedFamily, retainedFamilyProjection } from './src/positioning.ts'
     import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
-    const source = 'sequenceDiagram\\nCacheOwnerA->>CacheOwnerB: isolated text'
+    import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
+    const source = [
+      'sequenceDiagram',
+      'participant CacheOwnerA',
+      'participant CacheOwnerB',
+      'link CacheOwnerA: Docs @ https://example.test/docs',
+      'CacheOwnerA->>CacheOwnerB: isolated 界 text',
+      'Note over CacheOwnerA,CacheOwnerB: retained note'
+    ].join('\\n')
     const options = { embedFontImport: false }
+    const withoutPositionCache = callback => withPerformanceExperiments(
+      PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), callback)
+    const reference = withoutPositionCache(() => renderMermaidSVGWithReceipt(source, options))
     const first = renderMermaidSVGWithReceipt(source, options)
-    for (let i = 0; i < 3; i++) {
-      const request = resolveRenderRequestForExecution(source, options, 'svg')
-      const publicResult = positionResolvedFamily('sequence', request)
+    assert.deepEqual(first, reference)
+    const poison = publicResult => {
       publicResult.positioned.width = NaN
       publicResult.positioned.actors[0].label = 'poisoned'
-      retainedFamilyProjection(publicResult).nodes.length = 0
+      publicResult.positioned.actors[0].links.Docs = 'https://poisoned.test'
+      publicResult.positioned.notes[0].actors[0] = 'poisoned'
+      publicResult.positioned.messages[0].points[0].x = NaN
+      const projection = retainedFamilyProjection(publicResult)
+      projection.edges[0].path[0][0] = NaN
+      projection.nodes.length = 0
+    }
+    // A private miss and hit precede these public hits. None of their mutable
+    // geometry, note identities, links or prepared-text copies may poison SVG.
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+    for (let i = 0; i < 3; i++) {
+      const request = resolveRenderRequestForExecution(source, options, 'svg')
+      const publicResult = positionResolvedFamily('sequence', request, request.source, i > 0 ? { debug: true } : {})
+      poison(publicResult)
+      if (i === 0) publicResult.positioned.notes[0].block.text = 'poisoned prepared text'
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
     }
+    // The opposite order must also keep the public miss outside cache ownership.
+    const publicFirstSource = source.replaceAll('CacheOwner', 'PublicFirst')
+    const publicFirstReference = withoutPositionCache(() => renderMermaidSVGWithReceipt(publicFirstSource, options))
+    const publicRequest = resolveRenderRequestForExecution(publicFirstSource, options, 'svg')
+    poison(positionResolvedFamily('sequence', publicRequest))
+    assert.deepEqual(renderMermaidSVGWithReceipt(publicFirstSource, options), publicFirstReference)
+    assert.deepEqual(renderMermaidSVGWithReceipt(publicFirstSource, options), publicFirstReference)
+
+    const parsed = parseRegisteredMermaid(source)
+    assert.equal(parsed.ok, true)
+    assert.equal(parsed.value.body.kind, 'sequence')
+    assert.equal(renderMermaidSVGWithReceipt(parsed.value, options).svg, first.svg)
+    parsed.value.body.participants[0].label = 'poisoned parsed participant'
+    parsed.value.body.messages[0].text = 'poisoned parsed message'
+    parsed.value.body.statements.length = 0
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+
     for (const changed of [{ font: 'Arial' }, { style: 'paper' }, { layoutSafety: 'strict' }, { style: 'excalidraw' }]) {
       const rendered = renderMermaidSVGWithReceipt(source, { ...options, ...changed })
       assert.deepEqual(renderMermaidSVGWithReceipt(source, { ...options, ...changed }), rendered)
     }
     const original = getFamily('sequence')
-    let invalid = false, projections = 0
+    let invalid = false, projections = 0, callerOwned
     const restore = replaceFamilyForTest('sequence', { ...original,
+      layout(ctx) { return callerOwned ??= original.layout(ctx) },
       projectPositioned(ctx) {
         projections++
         const view = original.projectPositioned(ctx)
@@ -36,11 +78,27 @@ test('native cached rendering stays isolated from public geometry and replacemen
     })
     try {
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      callerOwned.positioned.actors[0].label = 'poisoned replacement-owned participant'
+      callerOwned.positioned.notes[0].actors[0] = 'poisoned'
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
       assert.equal(projections, 2)
       invalid = true
       assert.throws(() => renderMermaidSVGWithReceipt(source, options), { code: 'LAYOUT_CERTIFICATION_FAILED' })
     } finally { restore() }
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+
+    let nested
+    const measured = createMermaidRenderer({ textMeasurement: {
+      id: 'test:sequence-cache-ownership', version: '1.0.0',
+      measure(input) {
+        nested = renderMermaidSVGWithReceipt(source, options)
+        return [...input.text].length * 25
+      }
+    } })
+    const profiled = measured.renderMermaidSVGWithReceipt(source, options)
+    assert.notEqual(profiled.svg, first.svg)
+    assert.deepEqual(nested, first)
+    assert.deepEqual(measured.renderMermaidSVGWithReceipt(source, options), profiled)
     assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.stderr).toBe('')
