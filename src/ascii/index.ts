@@ -21,7 +21,6 @@ import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
 import {
-  sharedRenderOptionsOf,
   renderContractDigest,
   receiptOf,
   resolveRenderRequestForExecution,
@@ -29,6 +28,7 @@ import {
   resolvedRenderExecutionPlanOf,
   type RenderRequestReceipt,
 } from '../render-contract.ts'
+import { sharedRenderOptionsOf } from '../shared-render-options.ts'
 import { projectTerminalStyle, withTerminalConnectorScene, type ResolvedTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { visualWidth } from './width.ts'

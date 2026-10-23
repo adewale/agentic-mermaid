@@ -2,7 +2,8 @@ import type { EditorRasterResponse, EditorWorkerArtifact, PreviewWorkerRequest, 
 import type { BrowserPngRasterResult } from './browser-png.ts'
 import { detectBuiltinFamilyFromFirstLine } from './agent/family-registry.ts'
 import { normalizeMermaidSource } from './mermaid-source.ts'
-import { captureRenderOptions, capturedRenderBackend, sharedRenderOptionsOf } from './render-contract.ts'
+import { captureRenderOptions, capturedRenderBackend } from './render-contract.ts'
+import { sharedRenderOptionsOf } from './shared-render-options.ts'
 import { deferredDependency } from './layout/certification-error.ts'
 import { VERIFIED_FAMILY_LOADERS } from './browser-lazy/generated/verified-loaders.ts'
 
