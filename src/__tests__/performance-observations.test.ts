@@ -66,6 +66,7 @@ test('public rendering signals support and actual position-cache bypass; observe
   expect(actual).toBe(expected)
   expect(events).toContainEqual({ version: 1, kind: 'scope', owner: 'graphical' })
   expect(events).toContainEqual({ version: 1, kind: 'cache', owner: 'positioned-layout', outcome: 'bypass', reason: 'disabled' })
+  expect(events).toContainEqual({ version: 1, kind: 'cache', owner: 'backend-registry', outcome: 'hit' })
   expect(JSON.stringify(events)).not.toContain('Telemetry privacy')
   expect(withPerformanceObserver(() => { throw Error('diagnostic consumer failed') }, () => renderMermaidSVG(source))).toBe(expected)
   const enclosing: PerformanceObservation[] = []

@@ -1,3 +1,4 @@
+import { observeCache } from '../performance-observations.ts'
 // ============================================================================
 // StyleBackend interface + DefaultBackend + backend registry (SPEC §3.2).
 //
@@ -166,6 +167,9 @@ const HOST_BACKEND_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-proce
 const BACKENDS = new Map<string, ExtensionRegistration<StyleBackend, 'backend'>>()
 const BACKEND_INPUT_NAMES = new Map<string, string>()
 const BACKEND_CONFORMANCE = new Map<string, () => BackendConformanceReport>()
+// Internal selection reuses one immutable registry snapshot until publication
+// changes. Public discovery still returns its ordinary fresh descriptor array.
+let selectionSnapshot: readonly BackendDescriptor[] | undefined
 
 /** Registration executes caller-owned methods. Keep every registry mutation
  * outside that executable window so a callback cannot install/uninstall a
@@ -398,6 +402,7 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
     // and its proof together during the same synchronous mutation window.
     registerExtension(BACKENDS, { identity, value: snapshot })
     BACKEND_CONFORMANCE.set(id, () => conformance)
+    selectionSnapshot = undefined
     const registration = BACKENDS.get(id)!
     return () => {
       assertBackendRegistryMutationAllowed()
@@ -406,6 +411,7 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
       if (BACKENDS.get(id) !== registration) return
       BACKENDS.delete(id)
       BACKEND_CONFORMANCE.delete(id)
+      selectionSnapshot = undefined
     }
   } finally {
     backendConformanceCandidate = null
@@ -436,6 +442,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     })
     BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
+    selectionSnapshot = undefined
   } finally {
     backendConformanceCandidate = null
   }
@@ -476,7 +483,8 @@ export function getBackendDescriptor(
   id: string,
   policy?: HostBackendPolicy,
 ): BackendDescriptor | undefined {
-  const registered = knownBackendDescriptors()
+  observeCache('backend-registry', policy ? 'bypass' : selectionSnapshot ? 'hit' : 'miss')
+  const registered = policy ? knownBackendDescriptors() : (selectionSnapshot ??= knownBackendDescriptors())
   const requested = backendDescriptorFromSnapshot(registered, id)
   if (!policy) return requested
 
