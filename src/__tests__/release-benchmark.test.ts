@@ -16,7 +16,7 @@ import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/ben
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
-import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes } from '../../eval/benchmark/release-baseline.ts'
+import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
 
 const temp = useTempDirs()
 const runChild = useTestChildren(10_000)
@@ -416,7 +416,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     // prevents A/A1 from starting, rather than being discovered after controls.
     frozen.packages.yaml[3] = yaml.integrity
     writeFileSync(join(source, 'bun.lock'), JSON.stringify(frozen))
-    pack('runtime-extra', '1.0.0')
+    const extraRuntime = pack('runtime-extra', '1.0.0')
     const badCandidate = pack('agentic-mermaid', '0.0.1', { ...dependencies, 'runtime-extra': '^1.0.0' })
     const qualificationOut = join(evidence, 'qualification'), candidateSha = createHash('sha256').update(readFileSync(badCandidate.path)).digest('hex')
     const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/qualify-peer-performance.ts'),
@@ -430,8 +430,48 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     expect(JSON.parse(readFileSync(join(qualificationOut, 'acquisition/candidate.runtime.json'), 'utf8')).graph.some((entry: { name: string }) => entry.name === 'runtime-extra')).toBe(true)
     expect(JSON.parse(readFileSync(join(qualificationOut, 'qualification-status.json'), 'utf8'))).toMatchObject({ status: 'incomplete', complete: false, steps: [] })
     expect(existsSync(join(qualificationOut, 'aa-1.json'))).toBe(false)
+    const candidateSource = join(dir, 'candidate-source'), historicalOut = join(evidence, 'historical')
+    mkdirSync(candidateSource)
+    writeFileSync(join(candidateSource, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.1', dependencies: badCandidate.dependencies }))
+    writeFileSync(join(candidateSource, 'bun.lock'), JSON.stringify({ packages: { ...frozen.packages, 'runtime-extra': ['runtime-extra@1.0.0', '', {}, extraRuntime.integrity] } }))
+    lock.packages['node_modules/yaml'].integrity = yaml.integrity
+    writeFileSync(installed, JSON.stringify(lock))
+    const historical = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', badCandidate.path,
+      '--prefix', join(dir, 'historical-consumer'), '--runtime-source', candidateSource, '--out', historicalOut, '--label', 'candidate',
+      '--expected-integrity', badCandidate.integrity, '--compare-root', join(prefix, 'node_modules/agentic-mermaid'), '--compare-runtime-source', source,
+      '--runtime-comparison', 'historical-compound'], {
+      env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+    })
+    expect({ status: historical.status, stderr: historical.stderr }).toEqual({ status: 0, stderr: '' })
+    expect(JSON.parse(readFileSync(join(historicalOut, 'candidate.runtime-comparison.json'), 'utf8'))).toMatchObject({
+      mode: 'historical-compound', isolatedProductionGain: false, baselineOnly: { roots: [], packages: [] },
+      candidateOnly: { roots: ['runtime-extra'], packages: [{ name: 'runtime-extra', version: '1.0.0', integrity: extraRuntime.integrity }] },
+    })
   } finally { registry.stop(true) }
 }, 30_000)
+
+test('historical runtime comparisons allow attributed roots while retaining strict shared identities and edges', () => {
+  const shared = { name: 'elkjs', version: '0.11.0', integrity: 'sha512-YWJjZA==', dependencies: [] as string[] }
+  const receipt = (side: 'old' | 'new'): RuntimeReceipt => ({
+    policy: { source: `/${side}`, roots: ['elkjs', `${side}-root`], overrides: {}, packages: {} }, integritySource: 'npm-installed-lock', locks: [],
+    graph: [shared, { name: `${side}-leaf`, version: '1.0.0', integrity: 'sha512-ZWZnaA==', dependencies: [] },
+      { name: `${side}-root`, version: '1.0.0', integrity: 'sha512-aWprbA==', dependencies: ['elkjs@0.11.0', `${side}-leaf@1.0.0`] }],
+  })
+  const baseline = receipt('old'), candidate = receipt('new')
+  const comparison = assertHistoricalAgenticRuntimes(baseline, candidate)
+  expect(comparison).toMatchObject({ mode: 'historical-compound', isolatedProductionGain: false, sharedPackages: ['elkjs'], baselineOnly: { roots: ['old-root'] }, candidateOnly: { roots: ['new-root'] } })
+  expect(comparison.baselineOnly.packages.map(row => row.name)).toEqual(['old-leaf', 'old-root'])
+  expect(comparison.candidateOnly.packages.map(row => row.name)).toEqual(['new-leaf', 'new-root'])
+  expect(comparison.candidateOnly.closure.map(row => row.name)).toEqual(['elkjs', 'new-leaf', 'new-root'])
+  expect(() => assertMatchedAgenticRuntimes([baseline, candidate])).toThrow('graphs differ')
+  for (const changed of [{ version: '0.11.1' }, { integrity: 'sha512-bW5vcA==' }, { dependencies: ['new-leaf@1.0.0'] }]) {
+    const drift = { ...candidate, graph: candidate.graph.map(row => row.name === 'elkjs' ? { ...row, ...changed } : row) }
+    expect(() => assertHistoricalAgenticRuntimes(baseline, drift)).toThrow('Historical shared runtime version/integrity/edges differ for elkjs')
+  }
+  expect(() => assertHistoricalAgenticRuntimes(baseline, { ...candidate, graph: [...candidate.graph, { name: 'orphan', version: '1.0.0', integrity: 'sha512-cXJzdA==', dependencies: [] }] })).toThrow('not attributable to an exclusive declared root')
+  const unknown = { ...baseline, graph: baseline.graph.map(row => ({ ...row, integrity: null })) }
+  expect(() => assertHistoricalAgenticRuntimes(unknown, unknown)).toThrow('require verified SHA-512 integrity')
+})
 
 test('directory runtime drift is rejected before the release worker or timing starts', async () => {
   const source = temp.dir(), out = temp.dir(), dependencies = { elkjs: '^0.11.0', yaml: '^2.9.0' }

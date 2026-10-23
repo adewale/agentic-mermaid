@@ -124,6 +124,31 @@ Allocation is a V8 GC-boundary estimate, excluding native/WASM memory. Zero
 observations are retained, but never discarded to manufacture a finite favorable
 ratio. Short operations may be too noisy to qualify.
 
+## Immutable historical anchors
+
+The fixed historical workflow explicitly uses `historical-compound` runtime
+comparison. Baseline and candidate each install under their own frozen source
+policy; the shared dependency versions, SHA-512 integrities and dependency
+edges must still match exactly. Only package closures reachable from declared
+roots exclusive to one side may differ. Both policies, installed locks, root
+differences and closure differences accompany a comparison receipt marked
+`isolatedProductionGain:false`. The resulting ratios describe a compound
+historical comparison, never an isolated gain from this PR. Current-main and
+default commands retain exact full-graph equality; this exception cannot
+qualify the calibrated semantic controls. Historical A/A remains baseline-only,
+and unsupported inputs and existing numeric/coverage gates remain failures.
+Original shipped archive bytes and package manifests remain immutable; install
+overrides belong only to temporary consumers. Default validation and timing
+behavior remain unchanged.
+
+On-demand `evidence-scope: fixed` requires `fixed-baseline-sha` and retains
+candidate build, pack and provenance, then runs the original five-round fixed
+A/A, comparisons, peers and profiles. It explicitly skips the current-baseline
+Node comparisons, browser scorecard and semantic matrix. Scope receipts record
+those skipped lanes; this run cannot claim full qualification. The default
+`all` scope retains every lane. Prior reports keep their original harness and
+archive identities; controls are never reused across harness revisions.
+
 ## Actual cache hits and fallbacks
 
 An internal opt-in symbol observer reports decisions at their owning branches:

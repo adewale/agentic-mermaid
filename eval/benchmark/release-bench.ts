@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { extractOfficialCorpus, officialCorpusInventory } from '../shared/official-fences.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { agentEditCase } from './release-bench-fidelity.ts'
-import { resolveBaseline, frozenRuntimePolicy, installAgenticRuntime, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimeReceipt } from './release-baseline.ts'
+import { resolveBaseline, assertHistoricalAgenticRuntimes, frozenRuntimePolicy, installAgenticRuntime, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimeReceipt } from './release-baseline.ts'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 
 export interface Input extends BenchInput {
@@ -67,7 +67,7 @@ const CASE_BUDGET_MS = 10 * 60 * 1000
 const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
 function args(): Map<string, string> {
-  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'elk-cache', 'runtime-source'])
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'elk-cache', 'runtime-source', 'baseline-runtime-source', 'runtime-comparison'])
   const options = new Map<string, string>()
   const argv = process.argv.slice(2)
   for (let i = 0; i < argv.length; i++) {
@@ -85,6 +85,10 @@ function args(): Map<string, string> {
   ] as const) {
     if (options.has(a) && options.has(b)) throw new Error(`Use only one of --${a} and --${b}`)
   }
+  const runtimeComparison = options.get('runtime-comparison') ?? 'matched'
+  if (!['matched', 'historical-compound'].includes(runtimeComparison)) throw new Error('--runtime-comparison must be matched or historical-compound')
+  if (runtimeComparison === 'historical-compound' && (!options.has('baseline-runtime-source') || !['baseline', 'baseline-npm', 'baseline-tarball'].some(key => options.has(key)))) throw new Error('Historical comparison requires a baseline and --baseline-runtime-source')
+  if (runtimeComparison !== 'historical-compound' && options.has('baseline-runtime-source')) throw new Error('--baseline-runtime-source requires historical-compound mode')
   if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both --baseline-tarball and --baseline-sha256')
   if (options.has('candidate-sha256') && (!options.has('candidate-tarball') || !/^[a-f0-9]{64}$/.test(options.get('candidate-sha256')!))) {
     throw new Error('--candidate-sha256 requires --candidate-tarball and a lowercase SHA-256 digest')
@@ -412,7 +416,8 @@ function main() {
   const startedAt = new Date().toISOString()
   // Leave time to finalize reports before the workflow's outer timeout.
   const deadline = Date.now() + budgetMs
-  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, elkCache, sceneAssertions: 'off', aplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }, environment: { node: execFileSync('node', ['--version'], { encoding: 'utf8' }).trim(), bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
+  const comparisonMode = options.get('runtime-comparison') ?? 'matched'
+  const metadata = { runtimeComparisonMode: comparisonMode, startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, elkCache, sceneAssertions: 'off', aplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }, environment: { node: execFileSync('node', ['--version'], { encoding: 'utf8' }).trim(), bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
     cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
     memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined } }
   writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
@@ -420,13 +425,14 @@ function main() {
   writeFileSync(join(out, 'report.md'), '# Release benchmark: incomplete\n')
   const temporary: string[] = []
   const baselineSource = options.get('baseline')
-  const runtimePolicy = frozenRuntimePolicy(options.get('runtime-source') ?? (baselineSource && existsSync(join(resolve(baselineSource), 'bun.lock')) ? baselineSource : ROOT))
+  const runtimePolicy = frozenRuntimePolicy(options.get('runtime-source') ?? (comparisonMode !== 'historical-compound' && baselineSource && existsSync(join(resolve(baselineSource), 'bun.lock')) ? baselineSource : ROOT))
+  const baselinePolicy = comparisonMode === 'historical-compound' ? frozenRuntimePolicy(options.get('baseline-runtime-source')!) : runtimePolicy
   function install(spec: string, label: string, identity: Identity, prefix?: string): Engine {
     const dir = prefix ?? mkdtempSync(join(tmpdir(), 'am-bench-'))
     if (!prefix) temporary.push(dir)
     const remaining = Math.min(5 * 60 * 1000, deadline - Date.now())
     if (remaining <= 0) throw new Error('Overall benchmark budget exhausted during package installation')
-    const { integrity, runtime } = installAgenticRuntime(spec, dir, runtimePolicy, out, label, identity.integrity, remaining)
+    const { integrity, runtime } = installAgenticRuntime(spec, dir, label === 'baseline' ? baselinePolicy : runtimePolicy, out, label, identity.integrity, remaining)
     const bytes = readFileSync(join(dir, 'package-lock.json')), path = join(out, `${label}-${randomUUID()}.package-lock.json`)
     writeFileSync(path, bytes, { flag: 'wx' })
     const dependencyLock = { path, sha256: createHash('sha256').update(bytes).digest('hex') }
@@ -437,7 +443,7 @@ function main() {
     const engines: Engine[] = []
     const baseline = options.get('baseline')
     const npm = options.get('baseline-npm')
-    if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline), runtime: inspectAgenticRuntime(resolve(baseline), runtimePolicy, out, 'baseline') }))
+    if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline), runtime: inspectAgenticRuntime(resolve(baseline), baselinePolicy, out, 'baseline') }))
     else if (npm) {
       const locked = resolveBaseline(npm, resolve(options.get('baseline-lock') ?? join(out, 'baseline.json')))
       engines.push(install(`agentic-mermaid@${locked.version}`, 'baseline', { kind: 'npm', requested: npm, integrity: locked.integrity }))
@@ -463,11 +469,16 @@ function main() {
       engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir, runtime: inspectAgenticRuntime(dir, runtimePolicy, out, 'candidate') }))
     }
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
-    assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!))
+    const runtimeComparison = comparisonMode === 'historical-compound'
+      ? assertHistoricalAgenticRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, engines.find(engine => engine.label === 'candidate')!.identity.runtime!)
+      : (assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!)), { mode: 'matched' as const })
+    writeFileSync(join(out, 'runtime-comparison.json'), `${JSON.stringify(runtimeComparison, null, 2)}\n`)
+    appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ runtimeComparison })}\n`)
     const runs = measure(out, engines, groups, rounds, reps, deadline, elkCache)
     const result = report(inputs, groups, runs, rounds)
+    if (comparisonMode === 'historical-compound') result.markdown = `> Historical compound comparison: declared runtime roots differ. Shared dependency versions, integrities and edges match; this is not an isolated PR gain. See runtime-comparison.json.\n\n${result.markdown}`
     result.markdown += `\nEffective policy: ELK cache **${elkCache}**; built-in Scene assertions **off**; APL environment: ${JSON.stringify(metadata.config.aplEnvironment)}.\n`
-    writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), ...result.summary }, null, 2))
+    writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), runtimeComparison, ...result.summary }, null, 2))
     writeFileSync(join(out, 'report.md'), result.markdown)
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, result.markdown)
     console.log(result.markdown)

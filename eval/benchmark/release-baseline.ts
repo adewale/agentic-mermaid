@@ -132,6 +132,35 @@ export function assertMatchedAgenticRuntimes(receipts: RuntimeReceipt[]): void {
   if (receipts.some(receipt => JSON.stringify(receipt.graph) !== JSON.stringify(receipts[0]!.graph))) throw new Error('Agentic runtime dependency graphs differ; refusing to start benchmark workers or timing')
 }
 
+/** A historical anchor can have different declared runtime roots. Each side
+ * must first pass its own frozen policy; shared identities and edges still
+ * match exactly. Only closures attributable to exclusive roots may differ. */
+export function assertHistoricalAgenticRuntimes(baseline: RuntimeReceipt, candidate: RuntimeReceipt) {
+  if ([...baseline.graph, ...candidate.graph].some(row => !sri(row.integrity))) throw new Error('Historical runtime identities require verified SHA-512 integrity')
+  const sharedNames = [...new Set(baseline.graph.map(row => row.name))].filter(name => candidate.graph.some(row => row.name === name)).sort()
+  for (const name of sharedNames) {
+    if (JSON.stringify(baseline.graph.filter(row => row.name === name)) !== JSON.stringify(candidate.graph.filter(row => row.name === name))) {
+      throw new Error(`Historical shared runtime version/integrity/edges differ for ${name}; refusing to start benchmark workers or timing`)
+    }
+  }
+  function exclusive(own: RuntimeReceipt, other: RuntimeReceipt) {
+    const roots = own.policy.roots.filter(name => !other.policy.roots.includes(name))
+    const byIdentity = new Map(own.graph.map(row => [`${row.name}@${row.version}`, row]))
+    const reached = new Set<string>()
+    function visit(identity: string) {
+      if (reached.has(identity)) return
+      reached.add(identity)
+      for (const dependency of byIdentity.get(identity)?.dependencies ?? []) visit(dependency)
+    }
+    for (const row of own.graph.filter(row => roots.includes(row.name))) visit(`${row.name}@${row.version}`)
+    const packages = own.graph.filter(row => !other.graph.some(peer => peer.name === row.name))
+    if (packages.some(row => !reached.has(`${row.name}@${row.version}`))) throw new Error('Historical runtime difference is not attributable to an exclusive declared root')
+    return { roots, packages, closure: own.graph.filter(row => reached.has(`${row.name}@${row.version}`)) }
+  }
+  return { mode: 'historical-compound' as const, isolatedProductionGain: false, sharedPackages: sharedNames,
+    baselineOnly: exclusive(baseline, candidate), candidateOnly: exclusive(candidate, baseline) }
+}
+
 /** npm verifies fetched bytes against its lock. Compare that SRI to the
  * frozen source lock before returning an install eligible for timing. */
 export function installAgenticRuntime(spec: string, prefix: string, policy: RuntimePolicy, out: string, label: string, expectedIntegrity?: string, timeout = 300_000) {
@@ -175,10 +204,21 @@ if (import.meta.main) {
   if (process.argv[2] === '--install') {
     const args = process.argv.slice(2), option = (name: string) => args[args.indexOf(name) + 1]
     for (const name of ['--install', '--prefix', '--runtime-source', '--out']) if (!args.includes(name) || !option(name) || option(name)!.startsWith('--')) throw new Error(`Provide ${name}`)
+    const mode = args.includes('--runtime-comparison') ? option('--runtime-comparison') : 'matched'
+    if (!['matched', 'historical-compound'].includes(mode!)) throw new Error('Invalid runtime comparison mode')
+    if (mode === 'historical-compound' && (!args.includes('--compare-root') || !args.includes('--compare-runtime-source'))) throw new Error('Historical comparison requires --compare-root and --compare-runtime-source')
+    if (mode !== 'historical-compound' && args.includes('--compare-runtime-source')) throw new Error('--compare-runtime-source requires historical-compound mode')
     const policy = frozenRuntimePolicy(option('--runtime-source')!)
     const out = resolve(option('--out')!), label = args.includes('--label') ? option('--label')! : 'install'
     const result = installAgenticRuntime(resolve(option('--install')!), resolve(option('--prefix')!), policy, out, label, args.includes('--expected-integrity') ? option('--expected-integrity') : undefined)
-    if (args.includes('--compare-root')) assertMatchedAgenticRuntimes([result.runtime, inspectAgenticRuntime(resolve(option('--compare-root')!), policy, out, `${label}-comparator`)])
+    if (args.includes('--compare-root')) {
+      const comparatorPolicy = mode === 'historical-compound' ? frozenRuntimePolicy(option('--compare-runtime-source')!) : policy
+      const comparator = inspectAgenticRuntime(resolve(option('--compare-root')!), comparatorPolicy, out, `${label}-comparator`)
+      if (mode === 'historical-compound') {
+        const comparison = assertHistoricalAgenticRuntimes(comparator, result.runtime)
+        writeFileSync(join(out, `${label}.runtime-comparison.json`), `${JSON.stringify(comparison, null, 2)}\n`)
+      } else assertMatchedAgenticRuntimes([comparator, result.runtime])
+    }
     console.log(JSON.stringify(result))
   } else {
     const [requested, path] = process.argv.slice(2)
