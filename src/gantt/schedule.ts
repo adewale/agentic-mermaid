@@ -368,7 +368,7 @@ function extendOverExcludedDays(start: EpochMs, end: EpochMs, isExcluded: (d: Ep
       if (weeks > 0) {
         const dow = dayOfWeek(cursor)
         let excluded = 0, firstUpdate: number | undefined, steadyUpdate: number | undefined
-        let previous = invalid, steadyPrevious = pattern.weekdays[(dow + 6) % 7]!
+        let previous: boolean = invalid, steadyPrevious = pattern.weekdays[(dow + 6) % 7]!
         for (let offset = 0; offset < 7; offset++) {
           if (!previous) firstUpdate = excluded
           if (!steadyPrevious) steadyUpdate = excluded

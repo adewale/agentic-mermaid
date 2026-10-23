@@ -182,3 +182,37 @@ describe('label placement property: invariants hold for arbitrary point sets', (
     )
   })
 })
+
+describe('large-chart filtering retains source-priority visible geometry', () => {
+  it('adding duplicate point obstacles preserves every earlier label and leader across the large-chart threshold', () => {
+    // Past the density cap, plot/canvas size is fixed. Appended points are
+    // exact duplicate circles of P0: they add no new geometric obstacle to
+    // earlier labels. Source-priority placement cannot revisit that prefix.
+    // This compares the complete earlier geometry without copied coordinates
+    // or a second copy of the candidate-placement/collision algorithm.
+    const prefix = Array.from({ length: 127 }, (_, i) =>
+      `P${i}: [${(.5 + (i % 3 - 1) / 1000).toFixed(3)}, ${(.5 + (Math.floor(i / 3) % 3 - 1) / 1000).toFixed(3)}] radius: ${[1, 6, 18][i % 3]}`)
+    const source = 'quadrantChart\n' + prefix.join('\n')
+    const before = layout(source)
+    assertLabelInvariants(before)
+    expect(before.points.some(point => point.leader !== undefined)).toBe(true)
+    for (const additional of [1, 2]) {
+      const appended = Array.from({ length: additional }, (_, i) => `Extra${i}: [0.499, 0.499] radius: 1`)
+      const afterSource = source + '\n' + appended.join('\n')
+      const after = layout(afterSource)
+      expect(after.points).toHaveLength(127 + additional)
+      expect(after.plot).toEqual(before.plot)
+      expect([after.width, after.height]).toEqual([before.width, before.height])
+      expect(after.points.slice(0, 127)).toEqual(before.points)
+      assertLabelInvariants(after)
+      const svg = renderMermaidSVG(afterSource)
+      const leaders = [...svg.matchAll(/<line\b[^>]*\bclass="quadrant-leader"[^>]*>/g)].map(([element]) => {
+        const number = (name: string) => Number(element.match(new RegExp(`\\b${name}="([^"]+)"`))![1])
+        return { x1: number('x1'), y1: number('y1'), x2: number('x2'), y2: number('y2') }
+      })
+      expect(leaders).toEqual(after.points.flatMap(point => point.leader ? [point.leader] : []))
+      expect([...svg.matchAll(/<text\b[^>]*\bclass="quadrant-point-label"[^>]*>/g)])
+        .toHaveLength(after.points.filter(point => !point.labelHidden).length)
+    }
+  })
+})
