@@ -11,23 +11,24 @@ export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts
 // Keep cache storage inside the optional solver chunk: importing shared
 // request helpers here creates extra requests for families selecting ELK.
 class NativeResults<T> {
-  private readonly entries = new Map<string, { value: T; weight: number }>()
-  private weight = 0
-  constructor(private readonly maxWeight: number) {}
+  readonly #entries = new Map<string, { value: T; weight: number }>()
+  #weight = 0
+  readonly #maxWeight: number
+  constructor(maxWeight: number) { this.#maxWeight = maxWeight }
   get(key: string): T | undefined {
-    const found = this.entries.get(key)
+    const found = this.#entries.get(key)
     if (!found) return undefined
-    this.entries.delete(key); this.entries.set(key, found)
+    this.#entries.delete(key); this.#entries.set(key, found)
     return found.value
   }
   set(key: string, value: T, weight: number): void {
-    if (weight > this.maxWeight) return
-    const prior = this.entries.get(key)
-    if (prior) { this.entries.delete(key); this.weight -= prior.weight }
-    this.entries.set(key, { value, weight }); this.weight += weight
-    while (this.entries.size > 64 || this.weight > this.maxWeight) {
-      const oldest = this.entries.keys().next().value!
-      this.weight -= this.entries.get(oldest)!.weight; this.entries.delete(oldest)
+    if (weight > this.#maxWeight) return
+    const prior = this.#entries.get(key)
+    if (prior) { this.#entries.delete(key); this.#weight -= prior.weight }
+    this.#entries.set(key, { value, weight }); this.#weight += weight
+    while (this.#entries.size > 64 || this.#weight > this.#maxWeight) {
+      const oldest = this.#entries.keys().next().value!
+      this.#weight -= this.#entries.get(oldest)!.weight; this.#entries.delete(oldest)
     }
   }
 }
