@@ -10,7 +10,7 @@
 // ============================================================================
 
 import { scanStateComments } from './state/comment.ts'
-import YAML from 'yaml'
+import { DeferredDependencyError } from './layout/certification-error.ts'
 import { detectInstalledFamilyFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
 import type { FamilyId } from './agent/types.ts'
 import {
@@ -25,7 +25,7 @@ import {
   type MermaidAccessibility,
 } from './shared/accessibility-directives.ts'
 import { splitSequenceStatementLines } from './sequence/statements.ts'
-import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
+import { parseDirectiveYaml, parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
 import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
@@ -984,11 +984,11 @@ function directiveConfig(payload: string | undefined): MermaidFrontmatterMap | u
 function parseDirectiveMap(text: string): MermaidFrontmatterMap | undefined {
   assertJsonConfigSourceTextAdmission(text, 'Mermaid init directive', { trackFlowDepth: true })
   try {
-    const parsed: unknown = YAML.parse(text)
+    const parsed = parseDirectiveYaml(text)
     assertJsonConfigAdmission(parsed, 'Mermaid init directive')
     return toFrontmatterMap(parsed)
   } catch (error) {
-    if (error instanceof JsonConfigAdmissionError) throw error
+    if (error instanceof JsonConfigAdmissionError || error instanceof DeferredDependencyError) throw error
     const parsed = parseLooseObjectLiteral(text)
     if (parsed !== undefined) assertJsonConfigAdmission(parsed, 'Mermaid init directive')
     return parsed

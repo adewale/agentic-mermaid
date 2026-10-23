@@ -6,12 +6,22 @@ import { detectBrowserBuiltinFamilyFromFirstLine } from '../browser-lazy/generat
 import { renderLoadedFamilySvg, renderLoadedFamilySvgWithReceipt } from '../browser-lazy/render-core.ts'
 import { registerStyle } from '../scene/style-registry.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { LayoutCertificationError } from '../layout/certification-error.ts'
+import { DeferredDependencyError, LayoutCertificationError } from '../layout/certification-error.ts'
 import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
+  test('refuses another loader for a provider that already completed its dependency await', async () => {
+    const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
+    let firstLoads = 0, repeatedLoads = 0
+    const first = new DeferredDependencyError('YAML', async () => { firstLoads++ })
+    const repeated = new DeferredDependencyError('YAML', async () => { repeatedLoads++ })
+    const stalled: FamilyDescriptor = { ...descriptor, layout: () => { throw firstLoads ? repeated : first } }
+    await expect(renderLoadedFamilySvg('pie\n "One" : 1', {}, stalled)).rejects.toBe(repeated)
+    expect(firstLoads).toBe(1)
+    expect(repeatedLoads).toBe(0)
+  })
   test('retains the admitted named style and its receipt through an async registry replacement', async () => {
     const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
     const style = 'look:test/async-registry-snapshot'

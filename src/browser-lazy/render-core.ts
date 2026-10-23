@@ -25,7 +25,7 @@ export async function renderLoadedFamilySvgWithReceipt(
   if (capturedRenderBackend(options) !== 'default') await import('../scene/builtin-backends.ts')
   installLoadedFamilyDescriptor(family)
   let request: ResolvedRenderRequest | undefined
-  const loaded = new Set<() => Promise<void>>()
+  const loaded = new Map<'ELK' | 'YAML' | 'HTML entities', () => Promise<void>>()
   for (;;) {
     try {
       request ??= measureRenderStage('request', () => resolveRenderRequestForExecution(source, options, 'svg', undefined, {
@@ -36,11 +36,16 @@ export async function renderLoadedFamilySvgWithReceipt(
     } catch (error) {
       // Only the dependency demanded by this render is fetched. Replay the
       // admitted request so callbacks, options and host registrations retain
-      // their original snapshot across either dependency await.
+      // their original snapshot across each dependency await. Each named
+      // provider may be demanded only once; another loader for the same name
+      // cannot turn a failed replay into an unbounded retry.
       const load = error instanceof DeferredDependencyError ? error.load
         : (error as Partial<HtmlEntityTableNotLoadedError> | undefined)?.loadHtmlEntityTable
-      if (typeof load !== 'function' || loaded.has(load) || loaded.size >= 2) throw error
-      loaded.add(load)
+      const dependency = error instanceof DeferredDependencyError
+        ? error.dependency === 'ELK' || error.dependency === 'YAML' ? error.dependency : undefined
+        : typeof load === 'function' ? 'HTML entities' : undefined
+      if (!dependency || typeof load !== 'function' || loaded.has(dependency) || [...loaded.values()].includes(load)) throw error
+      loaded.set(dependency, load)
       await load()
     }
   }
