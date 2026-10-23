@@ -227,14 +227,17 @@ async function main() {
     // Exact competitor versions are intentionally advisory, independently
     // installed and pinned; they are not new library/runtime dependencies.
     const runtimePolicy = frozenRuntimePolicy(options.get('runtime-source') ?? resolve(import.meta.dir, '../..'))
-    const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`, runtimePolicy, out)
+    // Node and browser commands share a workflow report directory. Preserve
+    // each actual installation's policy and both locks without overwriting.
+    const acquisitionOut = join(out, 'browser-acquisition')
+    const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`, runtimePolicy, acquisitionOut)
     candidate.identity.tarballSha256 = expectedSha
     const engines = [candidate]
     if (options.has('baseline-tarball')) {
       const baselineBytes = readFileSync(resolve(options.get('baseline-tarball')!))
       const sha256 = createHash('sha256').update(baselineBytes).digest('hex')
       if (sha256 !== options.get('baseline-sha256')) throw new Error('Baseline tarball SHA-256 mismatch')
-      const baseline = install(resolve(options.get('baseline-tarball')!), 'agentic-mermaid', 'baseline', temporary, `sha512-${createHash('sha512').update(baselineBytes).digest('base64')}`, runtimePolicy, out)
+      const baseline = install(resolve(options.get('baseline-tarball')!), 'agentic-mermaid', 'baseline', temporary, `sha512-${createHash('sha512').update(baselineBytes).digest('base64')}`, runtimePolicy, acquisitionOut)
       baseline.identity.tarballSha256 = sha256
       engines.push(baseline)
     }
@@ -246,7 +249,7 @@ async function main() {
         const acquired = installNormalizedNpmBaseline(lock, join(temporary, 'baseline'), runtimePolicy, join(out, 'browser-npm-acquisition'), 'baseline', 180_000)
         engines.push({ label: 'baseline', name: 'agentic-mermaid', version: lock.version, root: acquired.root, kind: 'agentic',
           bundle: 'dist/browser.global.js', global: 'agenticMermaid', identity: { integrity: acquired.integrity, runtime: acquired.runtime } })
-      } else engines.push(install(`agentic-mermaid@${lock.version}`, 'agentic-mermaid', 'baseline', temporary, lock.integrity, runtimePolicy, out))
+      } else engines.push(install(`agentic-mermaid@${lock.version}`, 'agentic-mermaid', 'baseline', temporary, lock.integrity, runtimePolicy, acquisitionOut))
     }
     const runtimeComparison = comparisonMode === 'normalized-npm-compound'
       ? assertNormalizedNpmRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, candidate.identity.runtime!)

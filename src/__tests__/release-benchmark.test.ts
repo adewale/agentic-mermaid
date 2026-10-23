@@ -444,13 +444,15 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     expect(existsSync(join(dir, 'wrong-original-sri/package.json'))).toBe(false)
     const incompatibleLock = join(dir, 'incompatible-npm.json')
     writeFileSync(incompatibleLock, JSON.stringify({ requested: 'latest', version: '0.0.4', integrity: incompatible.integrity }))
+    const nodeAcquisitionFiles = ['candidate.package-lock.json', 'candidate.installed-package-lock.json', 'candidate.runtime-policy.json']
+    const nodeAcquisition = nodeAcquisitionFiles.map(file => readFileSync(join(evidence, file)))
     for (const [entry, baselineFlags] of [
       ['release-bench.ts', ['--baseline-npm', 'latest', '--baseline-lock', incompatibleLock]],
       ['release-browser-bench.ts', ['--baseline-lock', incompatibleLock, '--executable', '/must-not-launch-chromium']],
     ] as const) {
       const rejected = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--candidate-tarball', archive.path,
         '--candidate-sha256', createHash('sha256').update(readFileSync(archive.path)).digest('hex'), '--runtime-source', source,
-        '--runtime-comparison', 'normalized-npm-compound', '--out', join(evidence, 'normalized-command'), ...baselineFlags], {
+        '--runtime-comparison', 'normalized-npm-compound', '--out', evidence, ...baselineFlags], {
         env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
       })
       expect(rejected.status).not.toBe(0)
@@ -458,6 +460,8 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       expect(rejected.stderr).not.toContain('BENCHMARK_WORKER_STARTED')
       expect(rejected.stderr).not.toContain('must-not-launch-chromium')
     }
+    nodeAcquisitionFiles.forEach((file, index) => expect(readFileSync(join(evidence, file))).toEqual(nodeAcquisition[index]!))
+    expect(JSON.parse(readFileSync(join(evidence, 'browser-acquisition/candidate.installed-package-lock.json'), 'utf8')).packages['node_modules/agentic-mermaid'].integrity).toBe(archive.integrity)
     const installed = join(prefix, 'node_modules/.package-lock.json'), lock = JSON.parse(readFileSync(installed, 'utf8'))
     lock.packages['node_modules/yaml'].integrity = elk.integrity
     writeFileSync(installed, JSON.stringify(lock))
