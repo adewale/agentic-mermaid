@@ -47,6 +47,7 @@ produced *by* the system.
 - [`layout-backends.md`](./layout-backends.md) — explicit ELK and Agentic graph producers, fallback evidence, and comparable measurements.
 - [`pr449-frontier-2026-10-23.md`](./pr449-frontier-2026-10-23.md) — current integration checks, historical ELK wins and losses, rejected experiments, and remaining qualification.
 - [`pr449-frontier-2026-10-23-evidence.md`](./pr449-frontier-2026-10-23-evidence.md) — how to inspect and verify the selected primary evidence packet.
+- [`pr449-current-measurements-2026-10-23.md`](./pr449-current-measurements-2026-10-23.md) — both hosted canaries, the qualified standalone repair, profiling results and subsequent rejected trials.
 - [`route-contracts.md`](./route-contracts.md) — the flowchart routing engine (edge classification, direct-lane proofs, certifying straightener).
 - [`layout-rubric.md`](./layout-rubric.md) — the deterministic layout-quality rubric.
 - [`chart-honesty.md`](./chart-honesty.md) — what every family owes its reader (legible, contained, drawn-or-reported, style-invariant text; distinguishable peers; proportional quantities), measured on the rasterized output and bound to the registry.
