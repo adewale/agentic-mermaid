@@ -9,11 +9,15 @@ reject changes from evidence, then rebase and qualify the final revision.
 
 ## Scope and ownership
 
-PR #433 owns its release candidate, compatibility/security fixes and confirmed
-State cache-hit regression. PR #449 owns native solver algorithms, Architecture
-placement-only routing, cyclic cost tails and solver qualification. PR #465 owns
-the Architecture contact-authority fix. Their existing work is not credited to
-this campaign. Record any integrated dependency separately.
+PR #433 owns its release candidate, shared postprocessing and allocation work.
+Its latest source reports restored State parity; the earlier cache-hit
+regression is historical, not a current confirmed defect. Its broad performance
+targets remain unmet. PR #449 owns native solver algorithms, implemented
+Architecture placement-only routing, cyclic cost tails and solver qualification.
+Its runtime 26 source needs qualification beyond older runtime 24 reports.
+PR #465's Architecture contact authority is merged into main `87c9c317` and
+preserved as a separately attributed dependency. Their existing work is not
+credited to this campaign.
 
 The experiments cover:
 
@@ -60,10 +64,11 @@ limits and security. Optimizations should preserve output bytes; an intended
 visible change needs separate same-input evidence and an explanation. A faster
 rejection does not count as a successful render.
 
-Pixel and terminal measurement and layout remain separate. The Sequence helper
-aggregates numeric interval constraints; adapters prepare their own values.
-Gantt grouping uses section identity rather than label, and compact lanes choose
-the lowest eligible index. Terminal proof indexes are local to an assertion.
+Pixel and terminal measurement and layout remain separate. The proposed
+Sequence numeric interval helper was evaluated and rejected after measured
+slowdowns; it is not shipped. Gantt grouping uses section identity rather than
+label, and compact lanes choose the lowest eligible index. Terminal proof
+indexes are local to an assertion.
 
 Public objects are mutable. Proof reuse requires a privately owned immutable
 artifact and matching source, descriptor, font/style, options and backend
@@ -95,3 +100,15 @@ After rebasing onto current main, rerun affected contracts and benchmark the
 final artifact against its new base and the recorded starting point. Report
 what improved, what regressed, rejected experiments, remaining limitations and
 next work. Earlier measurements remain bound to their original revisions.
+
+
+## Recorded outcome
+
+PR #467 records the completed baseline, selected and rejected experiments,
+combined replay and rebased qualification in the
+[campaign report](../../project/archive/performance-campaign-2026-10-22.md).
+The [original recommendation crosswalk](../../project/archive/performance-campaign-2026-10-22-crosswalk.md)
+accounts for every original area, including broader work that remains absent.
+Lower allocation and faster editing/startup do not establish the competitive
+rendering or production bundle-size goal. `TODO.md` retains landing and
+remaining performance work; this design contract is not a second backlog.

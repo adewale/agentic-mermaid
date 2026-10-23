@@ -16,13 +16,21 @@ queues. Retired IDs are not reused.
 
 ## Release / owner decisions
 
-- [ ] **PERF-1 — Complete the measured performance campaign** (`todo`, owner
-  requested 2026-10-22). Baseline current main, evaluate all unclaimed
-  performance and consistency opportunities, retain changes from measured
-  combined results, then rebase and qualify the final artifact. Existing work
-  stays with #433/#449/#465. The
-  [campaign contract](docs/design/system/performance-campaign.md) defines scope
-  and preservation requirements.
+- [ ] **PERF-1 — Land the measured candidate and close performance gaps**
+  (`todo`, owner requested 2026-10-22). PR #467 completes the before/after
+  campaign, experiment selection and rebase qualification. Its
+  [report](docs/project/archive/performance-campaign-2026-10-22.md) and
+  [recommendation crosswalk](docs/project/archive/performance-campaign-2026-10-22-crosswalk.md)
+  distinguish retained changes, rejected trials and unfinished redesigns.
+  Merge/publication remain outstanding. Agentic still trails Beautiful and
+  Pele on the shared peer cohort, production bundle size grows slightly, and
+  several timing/memory risks remain. Next: calibrate semantic peer/tail and
+  allocation gates with #433, profile the common Sequence rendering path,
+  establish geometry/proof ownership before broader reuse, and qualify #449's
+  latest native solver. Production SVG-only distribution and renderer-instance
+  lifetime controls remain unimplemented. Existing work stays with its owners;
+  the [campaign contract](docs/design/system/performance-campaign.md) records
+  the preservation requirements.
 
 - [ ] **REL-1 — Publish and verify the prepared release** (`todo`,
   [#378](https://github.com/adewale/agentic-mermaid/issues/378)). Source declares
