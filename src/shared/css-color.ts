@@ -10,6 +10,7 @@ import { tryParseCssColor } from './color-math.ts'
 // ============================================================================
 
 const SIMPLE_COLOR_RE = /^(?:#[0-9a-f]{3,4}|#[0-9a-f]{6}|#[0-9a-f]{8}|[a-z][a-z0-9-]*)$/i
+const SIMPLE_CUSTOM_PROPERTY_RE = /^var\(--[a-z_][a-z0-9_-]*\)$/i
 // Underscores are inert and valid in custom-property names (the Scene
 // contract's derived paints intentionally use names such as `--_line`).
 const SAFE_FUNCTION_CHARS_RE = /^[a-z0-9_#(),.%+\-\s/]*$/i
@@ -113,6 +114,9 @@ export function drawableAuthoredCssPaint(value: unknown, allowNone = false): str
  * style/XML injection or URL-fetching channel.
  */
 export function safeCssPaint(value: unknown): string | undefined {
+  // Native marks predominantly use these derived palette references. Their
+  // closed grammar needs neither the color-function parser nor its retry.
+  if (typeof value === 'string' && value.length <= 256 && SIMPLE_CUSTOM_PROPERTY_RE.test(value)) return value
   const direct = safeCssColor(value)
   if (direct !== undefined) return direct
   if (typeof value !== 'string') return undefined

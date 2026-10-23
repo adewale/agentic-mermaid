@@ -446,6 +446,10 @@ function inspectAttributeSecurity(qualified: string, value: string, refs: string
     if (/^(?:javascript|vbscript|data|file):/.test(normalized)) active.push(`${qualified}=${value}`)
   }
   if (CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') {
+    // Without a function, scheme, at-rule, escape or entity delimiter, CSS
+    // normalization cannot introduce any of the active/fetching forms below.
+    // Escaped and encoded inputs retain every existing normalization pass.
+    if (!/[(:@\\&]/.test(value)) return
     if (unsafeCssOrAnimatedValue(value)) refs.push(`${qualified}=${value}`)
     if (unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
   }

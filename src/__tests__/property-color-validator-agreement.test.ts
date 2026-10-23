@@ -23,9 +23,15 @@ import { buildMermaid, serializeMermaid } from '../agent/index.ts'
 import type { RenderOptions } from '../types.ts'
 import { compositeCssColor, isHexColor, isSixDigitHex, parseHex, relativeLuminance, tryParseCssColor, tryParseHex } from '../shared/color-math.ts'
 import { drawableAuthoredCssPaint, safeCssPaint } from '../shared/css-color.ts'
+
 import { contrastTextColor } from '../color-resolver.ts'
 import { boxColorToHex, isCssColorToken } from '../sequence/colors.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
+
+test.each(['\n', '\r', '\r\n', '\u2028', '\u2029', ' '])('simple custom-property paints retain trimming with suffix %j', suffix => {
+  expect(safeCssPaint(`var(--_line)${suffix}`)).toBe('var(--_line)')
+  expect(safeCssPaint(` ${suffix}var(--_line)${suffix}`)).toBe('var(--_line)')
+})
 
 const NUM_RUNS = 500
 const RENDER_RUNS = 300
