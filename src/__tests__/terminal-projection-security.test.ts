@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { colorizeText } from '../ascii/ansi.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
 import {
   SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
   resolveRenderRequest,
@@ -93,6 +94,20 @@ describe('terminal projection color security', () => {
 })
 
 describe('canonical terminal field applicability', () => {
+  test.each(['receipt', 'terminalStyle', 'diagnostic callback'] as const)('preserves provider suspension while collecting %s', access => {
+    const descriptor = getFamily('flowchart')!
+    const deferred = new DeferredDependencyError('Layout provider', async () => {})
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout() { throw new Error('Layout wrapper', { cause: deferred }) } })
+    try {
+      expect(() => {
+        const rendered = renderMermaidASCIIWithReceipt(SOURCE, {
+          colorMode: 'none', ...(access === 'diagnostic callback' ? { onProjectionDiagnostic() {} } : {}),
+        })
+        if (access !== 'diagnostic callback') void rendered[access]
+      }).toThrow(deferred)
+    } finally { restore() }
+  })
+
   test('deferred connector evidence preserves eager diagnostics and the complete style digest', () => {
     const descriptor = getFamily('flowchart')!
     for (const projection of ['scene', 'failed'] as const) {

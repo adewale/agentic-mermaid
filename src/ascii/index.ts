@@ -29,6 +29,7 @@ import {
   type RenderRequestReceipt,
 } from '../render-contract.ts'
 import { sharedRenderOptionsOf } from '../shared-render-options.ts'
+import { deferredDependency } from '../layout/certification-error.ts'
 import { projectTerminalStyle, withTerminalConnectorScene, type ResolvedTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { visualWidth } from './width.ts'
@@ -249,7 +250,9 @@ export function executeTerminalRender(
           colors: connectorSceneColors(request.appearance.colors),
           resolved: familyContext,
         }), true)
-      } catch {
+      } catch (error) {
+        const deferred = deferredDependency(error)
+        if (deferred) throw deferred
         // Optional pixel evidence must not become a native layout dependency.
         failed = true
       }
