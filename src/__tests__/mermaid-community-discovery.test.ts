@@ -47,3 +47,11 @@ test.each(['conflicting repository', 'known repository with conflicting ownershi
   const candidates = mergeCandidates(members, [hit])
   expect(candidates[0]).toMatchObject({ id: hit.id, classification: 'needs-source-review', identityConflict: true, sources: hit.sources })
 })
+
+test.each(['https://gitlab.com/other/editor', 'https://bitbucket.org/other/editor', 'git+ssh://git@example.org/other/editor.git'])('preserves explicit npm repository metadata from %s before matching a curated package', repo => {
+  const members = [{ id: 'example/editor', categories: ['editor'], packages: [{ registry: 'npm', name: 'known-editor' }] }]
+  const identity = repositoryIdentity(repo, 'npm:known-editor')
+  const candidates = mergeCandidates(members, [{ ...(identity ?? { id: 'npm:known-editor' }), packages: ['known-editor'],
+    sources: [{ service: 'npm', query: 'mermaid editor', page: 1, url: 'https://registry.npmjs.org/-/v1/search' }] }])
+  expect(candidates[0]).toMatchObject({ id: 'npm:known-editor', repo, knownMember: false, classification: 'needs-source-review', identityConflict: true, packageMatches: ['example/editor'] })
+})

@@ -48,6 +48,10 @@ identities, marks known members and leaves new candidates for source review.
 When npm search omits a repository URL, an unambiguous curated package owner
 supplies the member identity. Conflicting repositories or package ownership
 remain separate, with the matched members recorded for review.
+Explicit URLs on GitLab, Bitbucket or other hosts remain observed metadata;
+failure to normalise them as GitHub identities never permits the missing-URL
+fallback. Responsibility reviews use public packages and authoring flows,
+independently of a member's benchmark role.
 No npm publication, popularity, ancestry or independent-renderer requirement
 is applied. The command does not rewrite the curated inventory or benchmark
 population. Review source responsibilities and dependencies before promotion;

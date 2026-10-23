@@ -19,9 +19,11 @@ interface Member {
   packages?: { registry: string; name: string }[]
 }
 
-export function repositoryIdentity(value: string): { id: string; repo: string } | undefined {
+export function repositoryIdentity(value: string, fallbackId?: string): { id: string; repo: string } | undefined {
   const match = /^(?:git\+)?(?:https?:\/\/|git:\/\/|ssh:\/\/(?:git@)?|git@)github\.com[:/]([\w.-]+)\/([\w.-]+)/i.exec(value)
-  if (!match) return undefined
+  // Unknown hosts are explicit metadata, not an absent repository. Keep the
+  // original URL under the package identity so owner matching can flag it.
+  if (!match) return value && fallbackId ? { id: fallbackId, repo: value } : undefined
   const id = `${match[1]}/${match[2]!.replace(/\.git$/, '')}`
   return { id, repo: `https://github.com/${id}` }
 }
@@ -106,7 +108,7 @@ if (import.meta.main) {
         const body = await response.json() as { total: number; objects: { package: { name: string; description?: string; links?: { repository?: string } } }[] }
         searches.push({ service: 'npm', query, page, total: body.total, returned: body.objects.length, incomplete: page * perPage < body.total })
         for (const { package: pkg } of body.objects) {
-          const repository = repositoryIdentity(pkg.links?.repository ?? '')
+          const repository = repositoryIdentity(pkg.links?.repository ?? '', `npm:${pkg.name}`)
           hits.push({ ...(repository ?? { id: `npm:${pkg.name}` }), description: pkg.description, packages: [pkg.name], sources: [{ service: 'npm', query, page, url }] })
         }
         if (body.objects.length < perPage) break
