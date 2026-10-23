@@ -3,6 +3,84 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+for (const family of ['flowchart', 'state'] as const) {
+  test(`native ${family} geometry stays isolated across private/public/PNG order and replacement hooks`, async () => {
+    const child = await runChild(process.execPath, ['-e', `
+      import assert from 'node:assert/strict'
+      import { renderMermaidSVGWithReceipt } from './src/index.ts'
+      import { renderMermaidPNGWithReceipt } from './src/agent/index.ts'
+      import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+      import { positionResolvedFamily, retainedFamilyProjection } from './src/positioning.ts'
+      import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+      import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
+      const family = ${JSON.stringify(family)}
+      const source = family === 'flowchart'
+        ? 'flowchart LR\\nsubgraph CacheOwnerGroup["Group"]\\nCacheOwnerA["wide 界 #35; text"] -->|first| CacheOwnerB["Tail"]\\nCacheOwnerA -->|second| CacheOwnerB\\nCacheOwnerB -->|return| CacheOwnerA\\nend'
+        : 'stateDiagram-v2\\nstate CacheOwnerGroup {\\nstate "wide 界 #35; text" as CacheOwnerA\\nstate "Tail" as CacheOwnerB\\nCacheOwnerA --> CacheOwnerB: first\\nCacheOwnerA --> CacheOwnerB: second\\nCacheOwnerB --> CacheOwnerA: return\\n}\\n[*] --> CacheOwnerGroup'
+      const options = { embedFontImport: false, seed: 7 }
+      const withoutPositionCache = callback => withPerformanceExperiments(
+        PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), callback)
+      const reference = withoutPositionCache(() => renderMermaidSVGWithReceipt(source, options))
+      const first = renderMermaidSVGWithReceipt(source, options)
+      assert.deepEqual(first, reference)
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      const poison = result => {
+        result.positioned.width = NaN
+        result.positioned.nodes[0].label = 'poisoned public node'
+        result.positioned.edges[0].points[0].x = NaN
+        result.positioned.groups[0].children.length = 0
+        const projection = retainedFamilyProjection(result)
+        projection.edges[0].path[0][0] = NaN
+        projection.groups[0].members.push('poisoned')
+        projection.nodes.length = 0
+      }
+      for (const debug of [false, true]) {
+        const request = resolveRenderRequestForExecution(source, options, 'svg')
+        poison(positionResolvedFamily(family, request, request.source, debug ? { debug: true } : {}))
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      }
+      const publicFirstSource = source.replaceAll('CacheOwner', 'PublicFirst')
+      const publicFirstReference = withoutPositionCache(() => renderMermaidSVGWithReceipt(publicFirstSource, options))
+      poison(positionResolvedFamily(family, resolveRenderRequestForExecution(publicFirstSource, options, 'svg')))
+      assert.deepEqual(renderMermaidSVGWithReceipt(publicFirstSource, options), publicFirstReference)
+      assert.deepEqual(renderMermaidSVGWithReceipt(publicFirstSource, options), publicFirstReference)
+
+      const pngOptions = { ...options, scale: 0.1, loadSystemFonts: false, onWarning: () => {} }
+      const pngReference = withoutPositionCache(() => renderMermaidPNGWithReceipt(source, pngOptions))
+      assert.deepEqual(renderMermaidPNGWithReceipt(source, pngOptions), pngReference)
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      for (const style of ['paper', 'excalidraw']) {
+        const expected = withoutPositionCache(() => renderMermaidSVGWithReceipt(source, { ...options, style }))
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, { ...options, style }), expected)
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      }
+
+      const original = getFamily(family)
+      let callerOwned, invalid = false, projections = 0
+      const restore = replaceFamilyForTest(family, { ...original,
+        layout(ctx) { return callerOwned ??= original.layout(ctx) },
+        projectPositioned(ctx) {
+          projections++
+          const view = original.projectPositioned(ctx)
+          return invalid ? { ...view, bounds: { ...view.bounds, w: NaN } } : view
+        }
+      })
+      try {
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+        callerOwned.positioned.nodes[0].label = 'poisoned replacement node'
+        callerOwned.positioned.edges[0].points[0].x = NaN
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+        assert.equal(projections, 2)
+        invalid = true
+        assert.throws(() => renderMermaidSVGWithReceipt(source, options), { code: 'LAYOUT_CERTIFICATION_FAILED' })
+      } finally { restore() }
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+  }, 30_000)
+}
+
 test('native cached rendering stays isolated from public geometry and replacement projectors', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'

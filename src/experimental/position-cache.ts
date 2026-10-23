@@ -48,8 +48,8 @@ export function borrowedPositioned(family: object, key: string): PositionedSnaps
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
   retainSnapshot(family, key, value, projection, true)
 }
-/** Only fresh original Sequence geometry in private native SVG rendering. */
-export function retainOwnedSequencePositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
+/** Fresh original Flowchart/State/Sequence geometry, private native SVG only. */
+export function retainOwnedNativeSvgPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
   retainSnapshot(family, key, value, projection, false)
 }
 function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean): void {
