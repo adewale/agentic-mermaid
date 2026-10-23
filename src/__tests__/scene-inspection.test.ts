@@ -49,6 +49,30 @@ test('native reused fragments retain occurrence ownership and bottom-up affine p
   expect(drawing.paint.coverage).toEqual({ measured: 4, unmeasured: 0, nonPainting: 2, preparedText: 0, fallbackText: 2 })
 })
 
+test('native paint bounds retain signed-zero arithmetic, piece strokes, text bands and transformed non-scaling ink', () => {
+  const colors = { bg: '#fff', fg: '#111' }
+  const block = preparePixelText('Z', { fontSize: 10, fontWeight: 400 })
+  const producer: DrawingProducer = factory => ({
+    family: 'flowchart', width: 100, height: 100, colors, transparent: false,
+    parts: [
+      factory.shape({ id: 'origin', role: 'icon', geometry: { kind: 'rect', x: -0, y: -0, width: 0, height: 0 }, paint: { fill: '#111' } }),
+      factory.shape({ id: 'pieces', role: 'icon', geometry: { kind: 'compound', children: [{ kind: 'rect', x: 10, y: 20, width: 30, height: 40 }, { kind: 'circle', cx: 50, cy: 60, r: 5 }] }, paint: {}, childPaints: [{ stroke: '#111', strokeWidth: '2', strokeLinejoin: 'round' }, { stroke: '#111', strokeWidth: '10', strokeLinejoin: 'round' }] }),
+      factory.shape({ id: 'scaled', role: 'icon', geometry: { kind: 'rect', x: 1, y: 2, width: 3, height: 4 }, transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 3, e: 5, f: 7 }, paint: { stroke: '#111', strokeWidth: '2', vectorEffect: 'non-scaling-stroke' } }),
+      factory.connector({ id: 'line', role: 'edge', geometry: { kind: 'line', x1: 5, y1: 10, x2: 25, y2: 10 }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' } }),
+      factory.text({ id: 'label', role: 'label', text: 'Z', block, x: 20, y: 30, fontSize: 10, fontWeight: 400, anchor: 'middle', paint: { fill: '#111', stroke: '#fff', strokeWidth: '2' } }),
+    ],
+  })
+  const drawing = drawNative(producer, { positioned: { width: 100, height: 100 }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+  expect(drawing.paint.primitives.map(primitive => primitive.bounds)).toEqual([
+    { x0: 0, y0: 0, x1: 0, y1: 0 },
+    { x0: 5, y0: 15, x1: 60, y1: 70 },
+    { x0: 6, y0: 12, x1: 14, y1: 26 },
+    { x0: 4, y0: 9, x1: 26, y1: 11 },
+    { x0: 20 - block.width / 2 - 1, y0: 30 - block.height / 2 - 1, x1: 20 - block.width / 2 + block.width + 1, y1: 30 + block.height / 2 + 1 },
+  ])
+  for (const value of Object.values(drawing.paint.primitives[0]!.bounds!)) expect(Object.is(value, 0)).toBe(true)
+})
+
 test('native composition rejects conflicting artwork enclosures even on unused groups', () => {
   const colors = { bg: '#fff', fg: '#111' }
   const producer: DrawingProducer = factory => {

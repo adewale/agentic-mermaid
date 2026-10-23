@@ -1,6 +1,6 @@
 import { tryParseCssColor } from '../shared/color-math.ts'
 import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
-import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
+import { connectorInlineLabelVisualBounds, nodePaintBounds, ownedNativePaintBounds, transformedBounds } from './bounds.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
@@ -134,7 +134,17 @@ export interface NativePaintEntry {
 export type PaintInspectionHeader = Pick<SceneDoc, 'family' | 'width' | 'height'>
 
 export function inspectNativePaintGeometry(header: PaintInspectionHeader, entries: Iterable<NativePaintEntry>): ScenePaintGeometryInspection {
-  const recorder = createPaintRecorder(header, undefined, true)
+  return inspectNativeEntries(header, entries)
+}
+
+/** The built-in factory has admitted and owns the leaves for this invocation;
+ * caller-owned Scene nodes never enter the allocation-reduced bounds path. */
+export function inspectOwnedNativePaintGeometry(header: PaintInspectionHeader, entries: Iterable<NativePaintEntry>): ScenePaintGeometryInspection {
+  return inspectNativeEntries(header, entries, true)
+}
+
+function inspectNativeEntries(header: PaintInspectionHeader, entries: Iterable<NativePaintEntry>, owned = false): ScenePaintGeometryInspection {
+  const recorder = createPaintRecorder(header, undefined, true, owned)
   let index = 0
   for (const entry of entries) {
     const ancestors = Object.freeze((entry.ancestors ?? []).map(owner => Object.freeze({ id: owner.id, role: owner.role })))
@@ -153,7 +163,7 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>): NativeP
   }
 }
 
-function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false) {
+function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDetails, native = false, owned = false) {
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
   const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void => {
@@ -164,9 +174,13 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       else sources.set(primitive, node)
     }
     const hidden = groupOpacity === 0 || nonPainting(node)
-    const [a, b, c, d, e, f] = parent
-    const parentTransform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
-    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
+    let bounds: AxisAlignedBox | undefined
+    if (owned) bounds = hidden ? undefined : ownedNativePaintBounds(node, parent)
+    else {
+      const [a, b, c, d, e, f] = parent
+      const parentTransform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+      bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
+    }
     const measured = !!bounds && finite(bounds)
     const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
     const primitive: ScenePaintGeometry = Object.freeze({

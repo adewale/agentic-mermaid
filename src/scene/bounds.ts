@@ -4,10 +4,18 @@ import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, Mark
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
-import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
+import { composeMatrices, inverseMatrix, transformMatrix, transformPoint, type AffineMatrix } from './transforms.ts'
 
-function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
+function pointsBounds(points: Array<{ x: number; y: number }>, owned = false): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
+  if (owned) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    for (const point of points) {
+      x0 = Math.min(x0, point.x); y0 = Math.min(y0, point.y)
+      x1 = Math.max(x1, point.x); y1 = Math.max(y1, point.y)
+    }
+    return { x0, y0, x1, y1 }
+  }
   return {
     x0: Math.min(...points.map(point => point.x)),
     y0: Math.min(...points.map(point => point.y)),
@@ -151,14 +159,29 @@ export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegm
 }
 
 export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
+  return geometryBoundsCore(geometry)
+}
+
+function geometryBoundsCore(geometry: Geometry, owned = false): AxisAlignedBox | undefined {
   switch (geometry.kind) {
     case 'rect': return { x0: geometry.x, y0: geometry.y, x1: geometry.x + geometry.width, y1: geometry.y + geometry.height }
     case 'circle': return { x0: geometry.cx - geometry.r, y0: geometry.cy - geometry.r, x1: geometry.cx + geometry.r, y1: geometry.cy + geometry.r }
     case 'ellipse': return { x0: geometry.cx - geometry.rx, y0: geometry.cy - geometry.ry, x1: geometry.cx + geometry.rx, y1: geometry.cy + geometry.ry }
     case 'line': return { x0: Math.min(geometry.x1, geometry.x2), y0: Math.min(geometry.y1, geometry.y2), x1: Math.max(geometry.x1, geometry.x2), y1: Math.max(geometry.y1, geometry.y2) }
     case 'polygon':
-    case 'polyline': return pointsBounds(geometry.points)
+    case 'polyline': return pointsBounds(geometry.points, owned)
     case 'compound': {
+      if (owned) {
+        if (geometry.children.length === 0) return undefined
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+        for (const child of geometry.children) {
+          const box = geometryBoundsCore(child, true)
+          if (!box) return undefined
+          x0 = Math.min(x0, box.x0); y0 = Math.min(y0, box.y0)
+          x1 = Math.max(x1, box.x1); y1 = Math.max(y1, box.y1)
+        }
+        return { x0, y0, x1, y1 }
+      }
       const children = geometry.children.map(geometryBounds)
       if (children.length === 0 || children.some(box => box === undefined)) return undefined
       const measured = children as AxisAlignedBox[]
@@ -376,19 +399,22 @@ export function connectorInlineLabelVisualBounds(
   }, halo)
 }
 
+function textLocalBounds(node: Extract<SceneNode, { kind: 'text' }>): AxisAlignedBox {
+  const metrics = node.textLayout ?? preparePixelText(node.text, { display: node.display, fontSize: node.fontSize, fontWeight: node.fontWeight ?? 500, letterSpacing: node.letterSpacing })
+  const width = metrics.width
+  const x0 = node.anchor === 'middle' ? node.x - width / 2 : node.anchor === 'end' ? node.x - width : node.x
+  const offsetY = 'offsetY' in metrics ? metrics.offsetY : -node.fontSize * 0.35
+  return { x0, y0: node.y + offsetY - metrics.height / 2, x1: x0 + width, y1: node.y + offsetY + metrics.height / 2 }
+}
+
 /** World-space visual bounds for typed Scene geometry. Connector paths use
  * routed source points and include stroke, endpoint markers, and label bounds. */
 export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
   let local: AxisAlignedBox | undefined
   if (node.kind === 'shape') local = geometryBounds(node.geometry)
   else if (node.kind === 'connector') local = connectorLocalBounds(node)
-  else if (node.kind === 'text') {
-    const metrics = node.textLayout ?? preparePixelText(node.text, { display: node.display, fontSize: node.fontSize, fontWeight: node.fontWeight ?? 500, letterSpacing: node.letterSpacing })
-    const width = metrics.width
-    const x0 = node.anchor === 'middle' ? node.x - width / 2 : node.anchor === 'end' ? node.x - width : node.x
-    const offsetY = 'offsetY' in metrics ? metrics.offsetY : -node.fontSize * 0.35
-    local = { x0, y0: node.y + offsetY - metrics.height / 2, x1: x0 + width, y1: node.y + offsetY + metrics.height / 2 }
-  } else return undefined
+  else if (node.kind === 'text') local = textLocalBounds(node)
+  else return undefined
   return local ? transformedBounds(local, node.transform) : undefined
 }
 
@@ -427,9 +453,19 @@ export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number
   return Number.isFinite(extent) ? extent : undefined
 }
 
-function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
-  if (!nonScaling) return transformedBounds(expandSceneBounds(box, extent), transform)
-  const world = transformedBounds(box, transform)
+/** The owned native path has already established an exact positive-zero
+ * identity matrix. Keep its arithmetic, including normalization of -0, while
+ * avoiding the four corner objects and coordinate arrays. */
+function paintProjection(box: AxisAlignedBox, transform?: SceneTransform, identity = false): AxisAlignedBox | undefined {
+  if (!identity) return transformedBounds(box, transform)
+  const { x0, y0, x1, y1 } = box
+  if (!Number.isFinite(x0) || !Number.isFinite(y0) || !Number.isFinite(x1) || !Number.isFinite(y1)) return undefined
+  return { x0: x0 + 0, y0: y0 + 0, x1: x1 + 0, y1: y1 + 0 }
+}
+
+function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, transform?: SceneTransform, identity = false): AxisAlignedBox | undefined {
+  if (!nonScaling) return paintProjection(expandSceneBounds(box, extent), transform, identity)
+  const world = paintProjection(box, transform, identity)
   return world ? expandSceneBounds(world, extent) : undefined
 }
 
@@ -445,8 +481,8 @@ function lineStrokeBox(line: Extract<Geometry, { kind: 'line' }>, extent: number
   return { x0: box.x0 - x, y0: box.y0 - y, x1: box.x1 + x, y1: box.y1 + y }
 }
 
-function strokedBox(geometry: Geometry, box: AxisAlignedBox, extent: number, cap: MarkPaint['strokeLinecap'], nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
-  return geometry.kind === 'line' && !nonScaling ? transformedBounds(lineStrokeBox(geometry, extent, cap), transform) : paintedBox(box, extent, nonScaling, transform)
+function strokedBox(geometry: Geometry, box: AxisAlignedBox, extent: number, cap: MarkPaint['strokeLinecap'], nonScaling: boolean, transform?: SceneTransform, identity = false): AxisAlignedBox | undefined {
+  return geometry.kind === 'line' && !nonScaling ? paintProjection(lineStrokeBox(geometry, extent, cap), transform, identity) : paintedBox(box, extent, nonScaling, transform, identity)
 }
 
 /** A flow ribbon `M x0 y0 C c y0, c y3, x3 y3`, its shared control abscissa
@@ -493,14 +529,14 @@ export function ribbonEndOvershoot(near: number, far: number, rise: number, half
   return Math.min(half, reach)
 }
 
-function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
+function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform, identity = false, owned = false): AxisAlignedBox | undefined {
   const geometry = node.route.geometry
-  const local = geometryBounds(geometry)
+  const local = geometryBoundsCore(geometry, owned)
   const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
   if (!local || extent === undefined) return undefined
   const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
     ? ribbonCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined
-  let result = singleCubic ? transformedBounds(singleCubic, transform) : paintedBox(local, extent, node.stroke.nonScaling, transform)
+  let result = singleCubic ? paintProjection(singleCubic, transform, identity) : paintedBox(local, extent, node.stroke.nonScaling, transform, identity)
   if (!result) return undefined
   const width = numericStrokeWidth(node.stroke.width)
   const anchors = connectorEndpointAnchors(geometry, node.route.closed)
@@ -514,7 +550,7 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
   ]
   for (const { marker, anchor } of markers) {
     const bounds = markerBoundsAt(marker, anchor, width, true)
-    const world = bounds && transformedBounds(bounds, transform)
+    const world = bounds && paintProjection(bounds, transform, identity)
     if (!world) return undefined
     result = unionSceneBounds(result, world)!
   }
@@ -524,7 +560,7 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
     const bounds = unionSceneBounds(label.bounds, connectorInlineLabelVisualBounds(label))
     if (label.visual?.kind === 'inline' && !bounds) return undefined
     if (bounds) {
-      const world = transformedBounds(bounds, transform)
+      const world = paintProjection(bounds, transform, identity)
       if (!world) return undefined
       result = unionSceneBounds(result, world)!
     }
@@ -539,36 +575,45 @@ export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransfor
   return paintBounds(node, parentTransform)
 }
 
-function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
-  const transform = composedTransform(parentTransform, node.transform)
-  if (!inverseMatrix(transformMatrix(transform))) return undefined
+/** Only the native drawing factory owns these admitted, transient leaves.
+ * Public Scene inspection keeps its ordinary property reads and transforms. */
+export function ownedNativePaintBounds(node: Exclude<SceneNode, { kind: 'group' }>, parent: AffineMatrix): AxisAlignedBox | undefined {
+  const [a, b, c, d, e, f] = parent
+  const identity = node.transform === undefined && a === 1 && d === 1
+    && Object.is(b, 0) && Object.is(c, 0) && Object.is(e, 0) && Object.is(f, 0)
+  return paintBounds(node, identity ? undefined : { kind: 'matrix', a, b, c, d, e, f }, true, identity)
+}
+
+function paintBounds(node: SceneNode, parentTransform?: SceneTransform, owned = false, identity = false): AxisAlignedBox | undefined {
+  const transform = identity ? undefined : composedTransform(parentTransform, node.transform)
+  if (!identity && !inverseMatrix(transformMatrix(transform))) return undefined
   let local: AxisAlignedBox | undefined
   if (node.kind === 'shape') {
-    local = geometryBounds(node.geometry)
+    local = geometryBoundsCore(node.geometry, owned)
     if (!local) return undefined
     const open = ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind)
     // A compound's pieces may stroke more widely than its summary paint.
     let base: AxisAlignedBox | undefined
     for (const paint of [node.paint, ...node.childPaints ?? []]) {
       const extent = paintedStrokeExtent(paint, open)
-      const box = extent === undefined ? undefined : strokedBox(node.geometry, local, extent, paint.strokeLinecap, paint.vectorEffect === 'non-scaling-stroke', transform)
+      const box = extent === undefined ? undefined : strokedBox(node.geometry, local, extent, paint.strokeLinecap, paint.vectorEffect === 'non-scaling-stroke', transform, identity)
       if (!box) return undefined
       base = base ? unionSceneBounds(base, box) : box
     }
     if (!node.conditionalPaint) return base
     const alternate = paintedStrokeExtent(node.conditionalPaint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
     if (!base || alternate === undefined) return undefined
-    const alternateBounds = strokedBox(node.geometry, local, alternate, node.conditionalPaint.strokeLinecap, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
+    const alternateBounds = strokedBox(node.geometry, local, alternate, node.conditionalPaint.strokeLinecap, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform, identity)
     return alternateBounds ? unionSceneBounds(base, alternateBounds) : undefined
   } else if (node.kind === 'connector') {
-    return connectorPaintBounds(node, transform)
+    return connectorPaintBounds(node, transform, identity, owned)
   } else if (node.kind === 'text') {
     // nodeWorldBounds already uses the retained occupied band/offset. Apply
     // the transform only once, after optional text stroke expansion.
-    local = nodeWorldBounds({ ...node, transform: undefined })
+    local = owned ? textLocalBounds(node) : nodeWorldBounds({ ...node, transform: undefined })
     const extent = paintedStrokeExtent(node.paint, false)
     if (!local || extent === undefined) return undefined
-    return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+    return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform, identity)
   } else if (node.kind === 'group') {
     for (const child of node.children) {
       if (child.node.kind === 'document' && child.node.nonPaint) continue
