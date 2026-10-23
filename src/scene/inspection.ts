@@ -135,16 +135,18 @@ export interface NativePaintEntry {
 export type PaintInspectionHeader = Pick<SceneDoc, 'family' | 'width' | 'height'>
 
 const ownedAncestors = new WeakSet<readonly SceneOwner[]>()
-const ownedOwners = new WeakSet<SceneOwner>()
 const emptyAncestors: readonly SceneOwner[] = Object.freeze([])
 ownedAncestors.add(emptyAncestors)
 
+function ownerSnapshot(owner: SceneOwner): SceneOwner {
+  return Object.freeze({ id: owner.id, role: owner.role })
+}
+
 /** An occurrence owns one inert ancestry snapshot, shared by its leaves. */
 export function nativePaintAncestors(parent: readonly SceneOwner[] | undefined, owner: SceneOwner): readonly SceneOwner[] {
-  const snapshot = Object.freeze({ id: owner.id, role: owner.role })
-  ownedOwners.add(snapshot)
+  const snapshot = ownerSnapshot(owner)
   const prefix = parent === undefined ? emptyAncestors : ownedAncestors.has(parent) ? parent
-    : parent.map(ancestor => Object.freeze({ id: ancestor.id, role: ancestor.role }))
+    : Array.from(parent, ownerSnapshot)
   const ancestors = Object.freeze([...prefix, snapshot])
   ownedAncestors.add(ancestors)
   return ancestors
@@ -155,7 +157,7 @@ export function inspectNativePaintGeometry(header: PaintInspectionHeader, entrie
   let index = 0
   for (const entry of entries) {
     const ancestors = entry.ancestors === undefined ? emptyAncestors : ownedAncestors.has(entry.ancestors) ? entry.ancestors
-      : Object.freeze(entry.ancestors.map(owner => Object.freeze({ id: owner.id, role: owner.role })))
+      : Object.freeze(Array.from(entry.ancestors, ownerSnapshot))
     recorder.leaf(entry.node, entry.key ?? `native.${index}`, entry.parentMatrix, ancestors, entry.conditional ?? false, entry.groupOpacity ?? 1, entry.owner)
     index++
   }
@@ -177,10 +179,6 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
   const leaf = (node: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner): void => {
     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
     const source = native ? nativePaintSource(node) : undefined
-    const retainSource = (primitive: ScenePaintGeometry): void => {
-      if (source) nativeSources.set(primitive, source)
-      else sources.set(primitive, node)
-    }
     const hidden = groupOpacity === 0 || nonPainting(node)
     const [a, b, c, d, e, f] = parent ?? IDENTITY_MATRIX
     const parentTransform: SceneTransform | undefined = parent || node.transform ? { kind: 'matrix', a, b, c, d, e, f } : undefined
@@ -190,7 +188,9 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
     const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
     const primitive: ScenePaintGeometry = Object.freeze({
       key, id: node.id, kind: node.kind, role: node.role,
-      owner: native && ownedOwners.has(owner) ? owner : Object.freeze({ id: owner.id, role: owner.role }),
+      // Native ancestry contains only our frozen snapshots, including when
+      // callers supplied mutable ancestor objects. Never share a raw owner.
+      owner: native && ancestors.includes(owner) ? owner : ownerSnapshot(owner),
       ancestors,
       order: primitives.length, coverage: status,
       ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
@@ -199,7 +199,8 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
       ...(node.kind === 'text' ? { text: Object.freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
     })
-    retainSource(primitive)
+    if (source) nativeSources.set(primitive, source)
+    else sources.set(primitive, node)
     worldMatrices.set(primitive, matrix)
     primitives.push(primitive)
     if (hidden) coverage.nonPainting++
@@ -226,7 +227,8 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
         ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
         text: Object.freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
       })
-      retainSource(inline)
+      if (source) nativeSources.set(inline, source)
+      else sources.set(inline, node)
       worldMatrices.set(inline, matrix)
       primitives.push(inline)
       if (hidden) coverage.nonPainting++
@@ -251,7 +253,7 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeom
       const key = `${prefix}.${index}`
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, Object.freeze({ id: own.id, role: own.role })]), conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
       } else recorder.leaf(node, key, parent, ancestors, conditional, groupOpacity)
     })
   }

@@ -18,23 +18,19 @@ export function compactSvg(svg: string): string {
   // style may contain arbitrary formats. Only indentation between tags in the
   // remaining structural segments is removable.
   const PROTECTED_BLOCK_RE = /<((?:[A-Za-z_][\w.-]*:)?(?:style|text|title|desc|metadata))\b[\s\S]*?<\/\1>/gi
-  const segments: { kind: 'plain' | 'protected'; text: string }[] = []
+  const parts: string[] = []
+  // Collapse only indentation between complete tags. Replacing whitespace
+  // inside tags could turn an inert `on\n load` pair into an event handler.
+  const plain = (text: string) => text.replace(/>\s*\r?\n\s*</g, '><')
   let last = 0
   let m: RegExpExecArray | null
   while ((m = PROTECTED_BLOCK_RE.exec(svg)) !== null) {
-    if (m.index > last) segments.push({ kind: 'plain', text: svg.slice(last, m.index) })
-    segments.push({ kind: 'protected', text: m[0] })
+    if (m.index > last) parts.push(plain(svg.slice(last, m.index)))
+    parts.push(m[0])
     last = m.index + m[0].length
   }
-  if (last < svg.length) segments.push({ kind: 'plain', text: svg.slice(last) })
-
-  return segments.map(seg => {
-    if (seg.kind === 'protected') return seg.text
-    // Collapse only indentation between complete tags. A broad `\n\s*`
-    // replacement can turn an inert `on\n load` pair into an `onload`
-    // attribute after the security gate, or alter quoted/text content.
-    return seg.text.replace(/>\s*\r?\n\s*</g, '><')
-  }).join('')
+  if (last < svg.length) parts.push(plain(svg.slice(last)))
+  return parts.join('')
 }
 
 /**

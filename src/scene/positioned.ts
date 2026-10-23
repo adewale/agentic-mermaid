@@ -49,18 +49,14 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
  * alternate backends deliberately retain the extension-facing Scene adapter. */
 export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): NativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
-  const bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
+  let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
     : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
       : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default') ? 'unsupported-mode' : undefined
+  const producer = bypass ? undefined : nativeDrawingOf(plan.family.lowerScene)
+  if (!producer) bypass ??= 'no-native-producer'
   if (bypass) {
     observeCache('native-drawing', 'bypass', bypass)
     observeFallback('native-drawing', bypass)
-    return undefined
-  }
-  const producer = nativeDrawingOf(plan.family.lowerScene)
-  if (!producer) {
-    observeCache('native-drawing', 'bypass', 'no-native-producer')
-    observeFallback('native-drawing', 'no-native-producer')
     return undefined
   }
   let requests = native.get(layout)
@@ -72,7 +68,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
-  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer,
+  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
     { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   requests.set(request, { drawing })
   return drawing

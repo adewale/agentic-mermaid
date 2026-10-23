@@ -12,14 +12,22 @@ import { sceneDocument } from '../shared/scene-document.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', transparent: false, width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, parts })
 
-test('native occurrence ancestry snapshots caller-owned parents and matrices cannot poison another primitive', () => {
+test.each(['ordinary', 'overridden-map'])('native occurrence snapshots %s caller ancestry and matrices cannot poison another primitive', variant => {
   const parent = { id: 'parent', role: 'group' as const }
-  const ancestors = nativePaintAncestors([parent], { id: 'child', role: 'group' })
+  const parents = [parent]
+  if (variant === 'overridden-map') Object.defineProperty(parents, 'map', { value: () => parents })
+  const ancestors = nativePaintAncestors(parents, { id: 'child', role: 'group' })
   const node = marks.shape({ id: 'surface', role: 'node', geometry: { kind: 'rect', x: 1, y: 2, width: 3, height: 4 }, paint: { fill: '#111' } })
-  const inspect = () => inspectNativePaintGeometry({ family: 'flowchart', width: 20, height: 20 }, [{ node, ancestors }, { node }])
+  const inspect = () => inspectNativePaintGeometry({ family: 'flowchart', width: 20, height: 20 }, [{ node, ancestors, owner: parent }, { node, ancestors: parents, owner: parent }, { node }])
   const first = inspect()
   parent.id = 'changed'
   expect(first.primitives[0]!.ancestors).toEqual([{ id: 'parent', role: 'group' }, { id: 'child', role: 'group' }])
+  expect(first.primitives[1]!.ancestors).toEqual([{ id: 'parent', role: 'group' }])
+  for (const primitive of first.primitives.slice(0, 2)) {
+    expect(primitive.owner).toEqual({ id: 'parent', role: 'group' })
+    expect(Object.isFrozen(primitive.owner)).toBe(true)
+    expect(primitive.owner).not.toBe(parent)
+  }
   const matrix = scenePrimitiveMatrix(first.primitives[0]!)!
   Reflect.set(matrix, 0, 99)
   expect(scenePrimitiveMatrix(first.primitives[1]!)).toEqual([1, 0, 0, 1, 0, 0])

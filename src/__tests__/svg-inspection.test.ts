@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { projectSvgCss, scanSvgStartTags, svgRootStartTag, transformSvgCssValues, visitSvgStartTags } from '../svg-structure.ts'
+import { projectSvgCss, scanSvgStartTags, svgRootStartTag, transformSvgCssValues, svgStyleRanges } from '../svg-structure.ts'
 import { withSvgInspectionCache } from '../svg-inspection-cache.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 
@@ -26,23 +26,12 @@ test('inspection evidence is immutable, exact-byte keyed, and mode independent',
   expect(svgRootStartTag(' <svg data-label="a > b"><text>ok</text></svg>')?.attributes[0]?.value).toBe('a > b')
 })
 
-test('selected lexical visits skip attributes while preserving quoted tag boundaries', () => {
+test('lexical inventories preserve quoted boundaries and skip comments and processing instructions', () => {
   const source = `<!--<g fill="hidden">--><?xml skip?><svg data-note="a > b"><g fill='red'/><path d="M0 0" /></svg>`
-  const events: string[] = []
-  visitSvgStartTags(source, {
-    startTag(name, start, end, selfClosing) {
-      events.push(`${name}:${source.slice(start, end)}:${selfClosing}`)
-      return name === 'g'
-    },
-    attribute(name, nameStart, valueStart, valueEnd, quote) {
-      events.push(`${name}:${source.slice(nameStart, valueStart - 2)}:${source.slice(valueStart, valueEnd)}:${quote}`)
-    },
-    endTag() { events.push('end') },
-  })
-  expect(events).toEqual([
-    'svg:<svg data-note="a > b">:false', 'end',
-    "g:<g fill='red'/>:true", "fill:fill:red:'", 'end',
-    'path:<path d="M0 0" />:true', 'end',
+  expect(scanSvgStartTags(source).map(tag => [tag.name, source.slice(tag.start, tag.end), tag.selfClosing])).toEqual([
+    ['svg', '<svg data-note="a > b">', false],
+    ['g', "<g fill='red'/>", true],
+    ['path', '<path d="M0 0" />', true],
   ])
   expect(scanSvgStartTags("<svg><g fill='red'/></svg>")).toEqual([
     { name: 'svg', start: 0, end: 5, selfClosing: false, attributes: [] },
@@ -52,21 +41,27 @@ test('selected lexical visits skip attributes while preserving quoted tag bounda
   ])
 })
 
-for (const [source, cssValues, contexts, styles, transformed] of [
+test('style-body ranges ignore attributes, comments and self-closing or differently cased tags', () => {
+  const source = '<svg style="--ignored:red"><!--<style>hidden</style>--><style data-note="a > b" broken=no>.x{fill:red}</style><style/><STYLE>upper</STYLE><style>.y{fill:blue}</style></svg>'
+  const ranges = svgStyleRanges(source)
+  expect(ranges.map(range => source.slice(range.start, range.end))).toEqual(['.x{fill:red}', '.y{fill:blue}'])
+  expect(svgStyleRanges('<svg><style>unclosed')).toEqual([])
+})
+
+for (const [source, cssValues, contexts, transformed] of [
   [
     '<svg style="--ink:red" data-note="red > blue"><style>.x{fill:red}</style><g fill="red" data-paint="red"/><text>red</text></svg>',
-    ['--ink:red', '.x{fill:red}', 'red'], ['--ink:red', '.x{fill:red}'], ['.x{fill:red}'],
+    ['--ink:red', '.x{fill:red}', 'red'], ['--ink:red', '.x{fill:red}'],
     '<svg style="--ink:tan" data-note="red > blue"><style>.x{fill:tan}</style><g fill="tan" data-paint="red"/><text>red</text></svg>',
   ],
   [
     '<svg><!--<g fill="red"/>--><style/><STYLE>red</STYLE><g fill="red" broken=unquoted stroke="red"/></svg>',
-    ['red'], [], [],
+    ['red'], [],
     '<svg><!--<g fill="red"/>--><style/><STYLE>red</STYLE><g fill="tan" broken=unquoted stroke="red"/></svg>',
   ],
   [
     '<svg><style><![CDATA[.x{content:\'<g fill="red">\';fill:red}]]></style></svg>',
     ['<![CDATA[.x{content:\'<g fill="red">\';fill:red}]]>', 'red'],
-    ['<![CDATA[.x{content:\'<g fill="red">\';fill:red}]]>'],
     ['<![CDATA[.x{content:\'<g fill="red">\';fill:red}]]>'],
     '<svg><style><![CDATA[.x{content:\'<g fill="tan">\';fill:tan}]]></style></svg>',
   ],
@@ -76,10 +71,6 @@ for (const [source, cssValues, contexts, styles, transformed] of [
     expect(projection.source).toBe(source)
     expect(projection.cssRanges.map(range => source.slice(range.start, range.end))).toEqual([...cssValues])
     expect(projection.styleContexts.map(range => source.slice(range.start, range.end))).toEqual([...contexts])
-    expect(projection.styleRanges.map(range => source.slice(range.start, range.end))).toEqual([...styles])
-    expect(Object.isFrozen(projection)).toBe(true)
-    expect(Object.isFrozen(projection.cssRanges)).toBe(true)
-    expect(projection.cssRanges.every(Object.isFrozen)).toBe(true)
     expect(transformSvgCssValues(source, css => css.replaceAll('red', 'tan'), projection)).toBe(transformed)
     expect(() => transformSvgCssValues(`${source} `, css => css, projection)).toThrow(/does not match/)
     expect(() => transformSvgCssValues(source.replace('svg', 'SVG'), css => css, projection)).toThrow(/does not match/)

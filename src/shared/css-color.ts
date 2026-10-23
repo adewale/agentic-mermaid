@@ -59,6 +59,10 @@ export function splitCssColorList(value: string): string[] {
  * every character capable of terminating an SVG/CSS context are rejected.
  */
 export function safeCssColor(value: unknown): string | undefined {
+  return safeCssToken(value, false)
+}
+
+function safeCssToken(value: unknown, allowVariables: boolean): string | undefined {
   if (typeof value !== 'string') return undefined
   const color = value.trim()
   if (color.length === 0 || color.length > 256) return undefined
@@ -79,12 +83,13 @@ export function safeCssColor(value: unknown): string | undefined {
   if (depth !== 0) return undefined
 
   // Every function call, including nested calls inside color-mix(), must be a
-  // known non-fetching CSS color function.
+  // known non-fetching CSS color function (or an allowed paint variable).
   for (const match of color.matchAll(/([a-z][a-z0-9-]*)\s*\(/gi)) {
-    if (!CSS_COLOR_FUNCTIONS.has(match[1]!.toLowerCase())) return undefined
+    const fn = match[1]!.toLowerCase()
+    if (!(allowVariables && fn === 'var') && !CSS_COLOR_FUNCTIONS.has(fn)) return undefined
   }
   const outer = color.slice(0, firstParen).trim().toLowerCase()
-  return CSS_COLOR_FUNCTIONS.has(outer) ? color : undefined
+  return (allowVariables && outer === 'var') || CSS_COLOR_FUNCTIONS.has(outer) ? color : undefined
 }
 
 export function isSafeCssColor(value: string): boolean {
@@ -103,7 +108,7 @@ export function drawableAuthoredCssPaint(value: unknown, allowNone = false): str
   if (paint === undefined) return undefined
   const lower = paint.toLowerCase()
   if (lower === 'currentcolor' || (allowNone && lower === 'none')) return paint
-  if (/^var\(--[a-z_][a-z0-9_-]*\)$/i.test(paint)) return paint
+  if (SIMPLE_CUSTOM_PROPERTY_RE.test(paint)) return paint
   return tryParseCssColor(paint) !== null ? paint : undefined
 }
 
@@ -117,33 +122,11 @@ export function safeCssPaint(value: unknown): string | undefined {
   // Native marks predominantly use these derived palette references. Their
   // closed grammar needs neither the color-function parser nor its retry.
   if (typeof value === 'string' && value.length <= 256 && SIMPLE_CUSTOM_PROPERTY_RE.test(value)) return value
-  const direct = safeCssColor(value)
-  if (direct !== undefined) return direct
-  if (typeof value !== 'string') return undefined
-  const paint = value.trim()
-  if (paint.length === 0 || paint.length > 256 || !SAFE_FUNCTION_CHARS_RE.test(paint)) return undefined
-
-  const firstParen = paint.indexOf('(')
-  if (firstParen <= 0 || !paint.endsWith(')')) return undefined
-  let depth = 0
-  for (const char of paint) {
-    if (char === '(') depth++
-    else if (char === ')') {
-      depth--
-      if (depth < 0) return undefined
-    }
-  }
-  if (depth !== 0) return undefined
-  for (const match of paint.matchAll(/([a-z][a-z0-9-]*)\s*\(/gi)) {
-    const fn = match[1]!.toLowerCase()
-    if (fn !== 'var' && !CSS_COLOR_FUNCTIONS.has(fn)) return undefined
-  }
-  const outer = paint.slice(0, firstParen).trim().toLowerCase()
   // A safe color function may contain a safe custom-property reference, e.g.
   // `color-mix(in srgb, var(--brand) 20%, #fff)`. Every nested function was
   // allowlisted above, so accepting the color-function outer shell does not
   // add a fetching or executable form.
-  return outer === 'var' || CSS_COLOR_FUNCTIONS.has(outer) ? paint : undefined
+  return safeCssToken(value, true)
 }
 
 export function requireSafeCssPaint(value: string, field: string): string {

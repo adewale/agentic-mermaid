@@ -159,13 +159,13 @@ export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
     case 'polygon':
     case 'polyline': return pointsBounds(geometry.points)
     case 'compound': {
-      const children = geometry.children.map(geometryBounds)
-      if (children.length === 0 || children.some(box => box === undefined)) return undefined
-      const measured = children as AxisAlignedBox[]
-      return {
-        x0: Math.min(...measured.map(box => box.x0)), y0: Math.min(...measured.map(box => box.y0)),
-        x1: Math.max(...measured.map(box => box.x1)), y1: Math.max(...measured.map(box => box.y1)),
+      let bounds: AxisAlignedBox | undefined
+      for (const child of geometry.children) {
+        const measured = geometryBounds(child)
+        if (!measured) return undefined
+        bounds = unionSceneBounds(bounds, measured)
       }
+      return bounds
     }
     case 'path': return pathBounds(geometry.d)
   }
