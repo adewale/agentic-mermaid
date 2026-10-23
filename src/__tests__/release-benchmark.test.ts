@@ -1,7 +1,8 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
-import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
@@ -15,6 +16,7 @@ import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/ben
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
+import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes } from '../../eval/benchmark/release-baseline.ts'
 
 const temp = useTempDirs()
 const runChild = useTestChildren(10_000)
@@ -326,6 +328,134 @@ test('baseline resolution survives a changed latest tag across CLI retries', asy
   writeFileSync(registry, JSON.stringify({ version: '0.4.2', 'dist.integrity': 'sha512-ZWZnaA==' }))
   expect(await invoke()).toEqual({ status: 0, stderr: '' })
   expect(JSON.parse(readFileSync(lock, 'utf8'))).toEqual({ requested: 'latest', version: '0.4.1', integrity })
+})
+
+test('archive acquisition pins the frozen runtime closure without changing shipped bytes', async () => {
+  const dir = temp.dir(), source = join(dir, 'source'), evidence = join(dir, 'evidence'), prefix = join(dir, 'consumer')
+  mkdirSync(source)
+  const archives = new Map<string, Buffer>()
+  const pack = (name: string, version: string, dependencies: Record<string, string> = {}) => {
+    const root = join(dir, `${name}-${version}`), pkg = join(root, 'package'), path = join(root, 'package.tgz')
+    mkdirSync(pkg, { recursive: true })
+    writeFileSync(join(pkg, 'package.json'), JSON.stringify({ name, version, dependencies }))
+    if (name === 'agentic-mermaid') {
+      mkdirSync(join(pkg, 'dist'))
+      writeFileSync(join(pkg, 'dist/index.js'), "throw Error('BENCHMARK_WORKER_STARTED')")
+    }
+    execFileSync('tar', ['-czf', path, '-C', root, 'package'])
+    const bytes = readFileSync(path), integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
+    archives.set(`/${name}-${version}.tgz`, bytes)
+    return { path, integrity, dependencies }
+  }
+  const leaf = pack('runtime-leaf', '1.0.0'), elk = pack('elkjs', '0.11.0', { 'runtime-leaf': '^1.0.0' }), yaml = pack('yaml', '2.9.0')
+  pack('runtime-leaf', '1.1.0'); pack('elkjs', '0.11.1'); pack('yaml', '2.9.1')
+  const dependencies = { elkjs: '^0.11.0', yaml: '^2.9.0' }, archive = pack('agentic-mermaid', '0.0.0', dependencies)
+  writeFileSync(join(source, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.0', dependencies }))
+  writeFileSync(join(source, 'bun.lock'), JSON.stringify({ packages: {
+    elkjs: ['elkjs@0.11.0', '', { dependencies: elk.dependencies }, elk.integrity],
+    yaml: ['yaml@2.9.0', '', {}, yaml.integrity],
+    'runtime-leaf': ['runtime-leaf@1.0.0', '', {}, leaf.integrity],
+  } }))
+  const requested: string[] = []
+  const registry = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch(request) {
+    const path = new URL(request.url).pathname
+    requested.push(path)
+    const bytes = archives.get(path)
+    if (bytes) return new Response(new Uint8Array(bytes), { headers: { 'content-type': 'application/octet-stream' } })
+    const name = path.slice(1), versions = Object.fromEntries([...archives].filter(([key]) => key.startsWith(`/${name}-`)).map(([key, value]) => {
+      const version = key.slice(name.length + 2, -4)
+      return [version, { name, version, dependencies: name === 'elkjs' && version === '0.11.0' ? { 'runtime-leaf': '^1.0.0' } : {}, dist: { tarball: `${new URL(request.url).origin}${key}`, integrity: `sha512-${createHash('sha512').update(value).digest('base64')}` } }]
+    }))
+    return Response.json({ name, versions, 'dist-tags': { latest: Object.keys(versions).at(-1) } })
+  } })
+  try {
+    const child = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', archive.path,
+      '--prefix', prefix, '--runtime-source', source, '--out', evidence, '--label', 'candidate', '--expected-integrity', archive.integrity], {
+      env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+    })
+    expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+    const policy = frozenRuntimePolicy(source), receipt = inspectAgenticRuntime(join(prefix, 'node_modules/agentic-mermaid'), policy, evidence, 'checked')
+    expect(policy.overrides).toEqual({ elkjs: '0.11.0', 'runtime-leaf': '1.0.0', yaml: '2.9.0' })
+    expect(receipt.graph.map(({ name, version, integrity }) => [name, version, integrity])).toEqual([
+      ['elkjs', '0.11.0', elk.integrity], ['runtime-leaf', '1.0.0', leaf.integrity], ['yaml', '2.9.0', yaml.integrity],
+    ])
+    expect(JSON.parse(readFileSync(join(evidence, 'candidate.install-package.json'), 'utf8'))).toEqual({ private: true, overrides: { elkjs: '0.11.0', 'runtime-leaf': '1.0.0', yaml: '2.9.0' } })
+    expect(receipt.locks.map(lock => lock.source)).toEqual(['source.bun.lock', 'package-lock.json', 'installed-package-lock.json'])
+    expect(new Uint8Array(readFileSync(archive.path))).toEqual(new Uint8Array(archives.get('/agentic-mermaid-0.0.0.tgz')!))
+    expect(requested.filter(path => path.endsWith('.tgz')).sort()).toEqual(['/elkjs-0.11.0.tgz', '/runtime-leaf-1.0.0.tgz', '/yaml-2.9.0.tgz'])
+    const installed = join(prefix, 'node_modules/.package-lock.json'), lock = JSON.parse(readFileSync(installed, 'utf8'))
+    lock.packages['node_modules/yaml'].integrity = elk.integrity
+    writeFileSync(installed, JSON.stringify(lock))
+    expect(() => inspectAgenticRuntime(join(prefix, 'node_modules/agentic-mermaid'), policy, evidence, 'mismatch')).toThrow('version/integrity')
+    expect(JSON.parse(readFileSync(join(evidence, 'mismatch.runtime.json'), 'utf8')).graph.find((row: { name: string }) => row.name === 'yaml').integrity).toBe(elk.integrity)
+    expect(() => assertMatchedAgenticRuntimes([receipt, { ...receipt, graph: receipt.graph.slice(1) }])).toThrow('refusing to start benchmark workers or timing')
+    // A registry can return a valid archive under the expected version while
+    // its SRI differs from the frozen source. Every timing entry point must
+    // reject that installed graph before importing the renderer or Chromium.
+    const frozen = JSON.parse(readFileSync(join(source, 'bun.lock'), 'utf8'))
+    frozen.packages.yaml[3] = elk.integrity
+    writeFileSync(join(source, 'bun.lock'), JSON.stringify(frozen))
+    const sha256 = createHash('sha256').update(readFileSync(archive.path)).digest('hex')
+    for (const [entry, extra] of [
+      ['release-bench.ts', ['--case', 'flowchart:tree-300']],
+      ['release-browser-bench.ts', ['--executable', '/must-not-launch-chromium']],
+      ['peer-bench.ts', ['--peers', 'agentic', '--workloads', 'flow5', '--json', join(evidence, 'peer.json'), '--markdown', join(evidence, 'peer.md')]],
+      ['qualify-peer-performance.ts', ['--baseline-tarball', archive.path, '--baseline-sha256', sha256, '--quick', '--rounds', '1']],
+    ] as const) {
+      const report = join(evidence, entry), flags = entry === 'peer-bench.ts' ? [] : ['--out', report]
+      const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--candidate-tarball', archive.path,
+        '--candidate-sha256', sha256, '--runtime-source', source, ...flags, ...extra], {
+        env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+      })
+      expect(failed.status).not.toBe(0)
+      expect(failed.stderr).toContain('runtime dependency yaml@2.9.0 differs from frozen version/integrity 2.9.0')
+      expect(failed.stderr).not.toContain('BENCHMARK_WORKER_STARTED')
+      expect(failed.stderr).not.toContain('must-not-launch-chromium')
+      if (entry === 'qualify-peer-performance.ts') {
+        expect(JSON.parse(readFileSync(join(report, 'qualification-status.json'), 'utf8'))).toMatchObject({ status: 'incomplete', complete: false, steps: [] })
+        expect(existsSync(join(report, 'aa-1.json'))).toBe(false)
+      } else expect(JSON.parse(readFileSync(entry === 'peer-bench.ts' ? join(evidence, 'peer.json') : join(report, entry === 'release-bench.ts' ? 'report.json' : 'browser-report.json'), 'utf8')).status).toBe('failed')
+    }
+  } finally { registry.stop(true) }
+}, 30_000)
+
+test('directory runtime drift is rejected before the release worker or timing starts', async () => {
+  const source = temp.dir(), out = temp.dir(), dependencies = { elkjs: '^0.11.0', yaml: '^2.9.0' }
+  writeFileSync(join(source, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.0', dependencies }))
+  writeFileSync(join(source, 'bun.lock'), JSON.stringify({ packages: {
+    elkjs: ['elkjs@0.11.0', '', {}, 'sha512-YWJjZA=='], yaml: ['yaml@2.9.0', '', {}, 'sha512-ZWZnaA=='],
+  } }))
+  mkdirSync(join(source, 'dist'))
+  const workerCalled = join(source, 'worker-called')
+  writeFileSync(join(source, 'dist/index.js'), `require('node:fs').writeFileSync(${JSON.stringify(workerCalled)}, 'called'); throw Error('must not load')`)
+  for (const [name, version] of [['elkjs', '0.11.1'], ['yaml', '2.9.1']]) {
+    mkdirSync(join(source, 'node_modules', name!), { recursive: true })
+    writeFileSync(join(source, 'node_modules', name!, 'package.json'), JSON.stringify({ name, version }))
+  }
+  const child = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-bench.ts'), '--baseline', source, '--candidate', source, '--case', 'flowchart:tree-300', '--out', out])
+  expect(child.status).not.toBe(0)
+  expect(child.stderr).toContain('runtime dependency elkjs@0.11.1 differs from frozen version/integrity 0.11.0')
+  expect(existsSync(workerCalled)).toBe(false)
+  expect(JSON.parse(readFileSync(join(out, 'report.json'), 'utf8'))).toMatchObject({ status: 'failed', ok: false })
+  expect(readFileSync(join(out, 'samples.jsonl'), 'utf8')).not.toContain('"mode":"time"')
+})
+
+test('Bun directory preflight compares its own fetched identity and fails closed without provenance', () => {
+  const policySource = temp.dir(), installed = temp.dir(), out = temp.dir()
+  const pkg = { name: 'agentic-mermaid', version: '0.0.0', dependencies: { elkjs: '^0.11.0' } }
+  const locked = (integrity: string) => JSON.stringify({ packages: { elkjs: ['elkjs@0.11.0', '', {}, integrity] } })
+  for (const root of [policySource, installed]) writeFileSync(join(root, 'package.json'), JSON.stringify(pkg))
+  writeFileSync(join(policySource, 'bun.lock'), locked('sha512-YWJjZA=='))
+  writeFileSync(join(installed, 'bun.lock'), locked('sha512-ZWZnaA=='))
+  mkdirSync(join(installed, 'node_modules/elkjs'), { recursive: true })
+  writeFileSync(join(installed, 'node_modules/elkjs/package.json'), JSON.stringify({ name: 'elkjs', version: '0.11.0' }))
+  const policy = frozenRuntimePolicy(policySource)
+  expect(() => inspectAgenticRuntime(installed, policy, out, 'wrong-sri')).toThrow('version/integrity')
+  expect(JSON.parse(readFileSync(join(out, 'wrong-sri.runtime.json'), 'utf8'))).toMatchObject({ integritySource: 'frozen-bun-lock', graph: [{ name: 'elkjs', version: '0.11.0', integrity: 'sha512-ZWZnaA==' }] })
+  writeFileSync(join(installed, 'bun.lock'), locked('sha512-YWJjZA=='))
+  expect(inspectAgenticRuntime(installed, policy, out, 'matched').graph).toEqual([{ name: 'elkjs', version: '0.11.0', integrity: 'sha512-YWJjZA==', dependencies: [] }])
+  unlinkSync(join(installed, 'bun.lock'))
+  expect(() => inspectAgenticRuntime(installed, policy, out, 'unknown')).toThrow('runtime integrity is unknown')
 })
 
 test('browser comparisons require one observation for every input in every paired round', () => {

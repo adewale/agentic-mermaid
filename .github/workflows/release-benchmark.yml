@@ -184,7 +184,9 @@ jobs:
         if: inputs.baseline-ref != ''
         run: |
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline "$RUNNER_TEMP/benchmark-baseline" --out bench-report
+          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" \
+            --baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" \
+            --runtime-source "$RUNNER_TEMP/benchmark-baseline" --out bench-report
 
       - name: Benchmark candidate against the baseline release
         if: inputs.baseline-ref == ''
@@ -213,7 +215,7 @@ jobs:
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
           baseline_args=(--baseline-lock benchmark-baseline/baseline.json)
           if [ -n "$BASELINE_REF" ]; then
-            baseline_args=(--baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)")
+            baseline_args=(--baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" --runtime-source "$RUNNER_TEMP/benchmark-baseline")
           fi
           timeout 12m bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" "${baseline_args[@]}" --out bench-report
 
@@ -299,7 +301,7 @@ jobs:
           baseline_sha="$(sha256sum semantic-evidence/baseline/package.tgz | cut -d ' ' -f 1)"
           bun run bench:peers:qualify --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" \
             --baseline-tarball semantic-evidence/baseline/package.tgz --baseline-sha256 "$baseline_sha" \
-            --elk-cache "$CACHE_POLICY" --rounds 5 --out semantic-evidence
+            --runtime-source "$RUNNER_TEMP/semantic-main" --elk-cache "$CACHE_POLICY" --rounds 5 --out semantic-evidence
 
       - name: Retain all controls, failures, cache events and scorecards
         if: always()
@@ -413,8 +415,9 @@ jobs:
           )
           baseline_sha="$(jq -er '.sha256' "$fixed_pack/package-manifest.json")"
           test "$(sha256sum "$fixed_pack/package.tgz" | cut -d ' ' -f 1)" = "$baseline_sha"
-          npm install --prefix "$fixed_prefix" --ignore-scripts --no-audit --no-fund "$fixed_pack/package.tgz"
           baseline_integrity="$(jq -er '.integrity' "$fixed_pack/package-manifest.json")"
+          bun run eval/benchmark/release-baseline.ts --install "$fixed_pack/package.tgz" --prefix "$fixed_prefix" \
+            --runtime-source "$fixed_tree" --out fixed-evidence/acquisition --label baseline --expected-integrity "$baseline_integrity"
           test "$(jq -er '.packages["node_modules/agentic-mermaid"].integrity' "$fixed_prefix/package-lock.json")" = "$baseline_integrity"
           cp "$fixed_tree/bun.lock" fixed-evidence/baseline-source.bun.lock
           cp "$fixed_pack/package-manifest.json" fixed-evidence/baseline-package-manifest.json
@@ -424,38 +427,39 @@ jobs:
           jq -n --arg source "$FIXED_BASELINE_SHA" --arg candidate "$GITHUB_SHA" --arg sha256 "$baseline_sha" --arg integrity "$baseline_integrity" \
             '{status:"prepared",fixedBaselineSha:$source,candidateSourceSha:$candidate,baselineTarballSha256:$sha256,baselineIntegrity:$integrity,timingScope:"this job only",baselineTarballRetained:false}' > fixed-evidence/identity.json
           printf 'FIXED_BASELINE_PACKAGE=%s\n' "$fixed_prefix/node_modules/agentic-mermaid" >> "$GITHUB_ENV"
+          printf 'FIXED_RUNTIME_SOURCE=%s\n' "$fixed_tree" >> "$GITHUB_ENV"
 
       - name: Measure exact-baseline A/A on the complete release population
         id: fixed_aa
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         timeout-minutes: 21
-        run: bun run bench:release --baseline "$FIXED_BASELINE_PACKAGE" --candidate "$FIXED_BASELINE_PACKAGE" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/aa
+        run: bun run bench:release --runtime-source "$FIXED_RUNTIME_SOURCE" --baseline "$FIXED_BASELINE_PACKAGE" --candidate "$FIXED_BASELINE_PACKAGE" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/aa
 
       - name: Compare the fixed baseline and candidate with ELK cache off
         id: fixed_off
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         timeout-minutes: 21
-        run: bun run bench:release --baseline "$FIXED_BASELINE_PACKAGE" --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/cache-off
+        run: bun run bench:release --runtime-source "$FIXED_RUNTIME_SOURCE" --baseline "$FIXED_BASELINE_PACKAGE" --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/cache-off
 
       - name: Compare the fixed baseline and candidate with ELK cache on
         id: fixed_on
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         timeout-minutes: 21
-        run: bun run bench:release --baseline "$FIXED_BASELINE_PACKAGE" --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache on --out fixed-evidence/cache-on
+        run: bun run bench:release --runtime-source "$FIXED_RUNTIME_SOURCE" --baseline "$FIXED_BASELINE_PACKAGE" --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache on --out fixed-evidence/cache-on
 
       - name: Compare the packed candidate with pinned peers and ELK cache off
         id: peers_off
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         continue-on-error: true
         timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache off --json fixed-evidence/peers-off.json --markdown fixed-evidence/peers-off.md
+        run: timeout --kill-after=15s 5m bun run bench:peers --runtime-source "$FIXED_RUNTIME_SOURCE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache off --json fixed-evidence/peers-off.json --markdown fixed-evidence/peers-off.md
 
       - name: Compare the packed candidate with pinned peers and ELK cache on
         id: peers_on
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         continue-on-error: true
         timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
+        run: timeout --kill-after=15s 5m bun run bench:peers --runtime-source "$FIXED_RUNTIME_SOURCE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
 
       - name: Retain sequential CPU profiles of the exact installed packages
         id: fixed_profiles
@@ -472,7 +476,9 @@ jobs:
           mkdir -p "$profile_out"
           test ! -e "$candidate_prefix"
           printf '%s  release-artifact/package.tgz\n' "$CANDIDATE_SHA256" | sha256sum --check
-          npm install --prefix "$candidate_prefix" --ignore-scripts --no-audit --no-fund "$PWD/release-artifact/package.tgz"
+          bun run eval/benchmark/release-baseline.ts --install "$PWD/release-artifact/package.tgz" --prefix "$candidate_prefix" \
+            --runtime-source "$FIXED_RUNTIME_SOURCE" --out "$profile_out/acquisition" --label candidate \
+            --expected-integrity "$(jq -er '.integrity' release-artifact/package-manifest.json)" --compare-root "$FIXED_BASELINE_PACKAGE"
           test "$(jq -er '.packages["node_modules/agentic-mermaid"].integrity' "$candidate_prefix/package-lock.json")" = "$(jq -er '.integrity' release-artifact/package-manifest.json)"
           cp "$candidate_prefix/package-lock.json" "$profile_out/candidate-runtime.package-lock.json"
           cp "$candidate_prefix/node_modules/.package-lock.json" "$profile_out/candidate-runtime.installed-package-lock.json"

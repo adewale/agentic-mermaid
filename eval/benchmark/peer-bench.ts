@@ -60,6 +60,7 @@ import { PEER_CONSUMERS, PEER_FROZEN_COHORT, PEER_EXPECTED_LABELS, emptyTrackObs
 import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
 import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
+import { frozenRuntimePolicy, installAgenticRuntime, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 
 type WorkloadId = string
 type Output = 'svg' | 'terminal'
@@ -502,6 +503,7 @@ interface Prepared {
   installedLocks?: string[]
   dependencyLocks?: Array<{ source: string; path: string; sha256: string }>
   runtimeDependencySha256?: string
+  runtime?: RuntimeReceipt
   error?: string
 }
 interface ProcessRecord {
@@ -522,7 +524,7 @@ const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiag
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const flags = new Set(['quick', 'child', 'corpus', 'aa'])
-  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'baseline-tarball', 'baseline-sha256'])
+  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'baseline-tarball', 'baseline-sha256', 'runtime-source'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -656,7 +658,7 @@ function prepare(peer: Peer, nodeVersion: string): Prepared {
   }
 }
 
-function preparePackedCandidate(tarball: string, expectedSha: string, parent: string): Prepared {
+function preparePackedCandidate(tarball: string, expectedSha: string, parent: string, policy: RuntimePolicy, out: string, label: string): Prepared {
   const bytes = readFileSync(resolve(tarball))
   const sha256 = createHash('sha256').update(bytes).digest('hex')
   if (sha256 !== expectedSha) throw new Error('Candidate tarball SHA-256 does not match the verified publication artifact')
@@ -665,14 +667,13 @@ function preparePackedCandidate(tarball: string, expectedSha: string, parent: st
   mkdirSync(prefix)
   const staged = join(prefix, 'package.tgz')
   writeFileSync(staged, bytes)
-  const installed = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', staged], { encoding: 'utf8', timeout: 300_000 })
-  if (installed.status !== 0) throw new Error(`Candidate package installation failed: ${installed.stderr || installed.error?.message}`)
+  const acquired = installAgenticRuntime(staged, prefix, policy, out, label, integrity)
   const root = join(prefix, 'node_modules', 'agentic-mermaid')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
   const lock = JSON.parse(readFileSync(join(prefix, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
   if (pkg.name !== 'agentic-mermaid' || lock.packages['node_modules/agentic-mermaid']?.integrity !== integrity) throw new Error('Installed candidate package identity differs from the verified tarball')
   return { peer: PEERS[0]!, root, version: pkg.version, warnings: [], label: `agentic-mermaid ${pkg.version} packed SHA-256 ${sha256}`,
-    identity: { kind: 'tarball', requested: resolve(tarball), sha256, integrity }, installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')].filter(existsSync) }
+    identity: { kind: 'tarball', requested: resolve(tarball), sha256, integrity }, runtime: acquired.runtime, installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')].filter(existsSync) }
 }
 
 interface WorkerRun {
@@ -918,11 +919,20 @@ async function main(): Promise<void> {
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-peers-'))
   const startLoad = loadavg()
   try {
+    const runtimePolicy = frozenRuntimePolicy(args.get('runtime-source') ?? ROOT)
+    const acquisitionOut = `${rawSamples}.acquisition`
     const prepared = peers.map(peer => {
       const archive = peer.id === 'agentic-baseline' ? args.get('baseline-tarball') ?? (args.has('aa') ? args.get('candidate-tarball') : undefined) : peer.id === 'agentic' ? args.get('candidate-tarball') : undefined
       const digest = peer.id === 'agentic-baseline' ? args.get('baseline-sha256') ?? args.get('candidate-sha256') : args.get('candidate-sha256')
-      const entry = archive ? preparePackedCandidate(archive, digest!, scratch) : prepare(peer, nodeVersion)
+      let entry: Prepared
+      if (archive) entry = preparePackedCandidate(archive, digest!, scratch, runtimePolicy, acquisitionOut, peer.id)
+      else if (peer.id === 'agentic-npm' && peer.source.registry === 'npm') {
+        const prefix = join(scratch, peer.id)
+        const acquired = installAgenticRuntime(`agentic-mermaid@${peer.source.version}`, prefix, runtimePolicy, acquisitionOut, peer.id)
+        entry = { peer, label: pin(peer), version: peer.source.version, root: acquired.root, integrity: acquired.integrity, runtime: acquired.runtime, warnings: [], installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')] }
+      } else entry = prepare(peer, nodeVersion)
       entry.peer = peer
+      if (peer.id.startsWith('agentic') && entry.root && !entry.runtime) entry.runtime = inspectAgenticRuntime(entry.root, runtimePolicy, acquisitionOut, peer.id)
       entry.dependencyLocks = entry.installedLocks?.map((source, index) => {
         const bytes = readFileSync(source), path = `${rawSamples}.${entry.peer.id}.${index}.package-lock.json`
         writeFileSync(path, bytes, { flag: 'wx' })
@@ -938,6 +948,7 @@ async function main(): Promise<void> {
       if (entry.dependencyLocks) appendFileSync(rawSamples, `${JSON.stringify({ peer: peer.id, dependencyLocks: entry.dependencyLocks })}\n`)
       return entry
     })
+    assertMatchedAgenticRuntimes(prepared.flatMap(entry => entry.runtime ? [entry.runtime] : []))
     const warnings = prepared.flatMap(entry => entry.warnings)
     for (const warning of warnings) console.error(`warning: ${warning}`)
     for (const entry of prepared.filter(entry => entry.error)) console.error(`${entry.peer.id}: ${entry.error}`)
@@ -1125,7 +1136,7 @@ async function main(): Promise<void> {
         ...metadata, status: 'completed', finishedAt: new Date().toISOString(),
         environment: { hostname: hostname(), node: nodeVersion, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemBytes: totalmem(), loadAverageStart: startLoad, loadAverageEnd: loadavg() },
         config: { rounds, timing, minSamples: MIN_SAMPLES, workloads: phases.length ? { svg: trackWorkloads, terminal: [] } : workloads, peers: phases.length ? prepared.map(entry => ({ peer: entry.peer.id, output: 'svg' })) : jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
-        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.dependencyLocks ? { dependencyLocks: entry.dependencyLocks } : {}), ...(entry.runtimeDependencySha256 ? { runtimeDependencySha256: entry.runtimeDependencySha256 } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
+        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.dependencyLocks ? { dependencyLocks: entry.dependencyLocks } : {}), ...(entry.runtime ? { runtime: entry.runtime } : {}), ...(entry.runtimeDependencySha256 ? { runtimeDependencySha256: entry.runtimeDependencySha256 } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
         tracks, tracksConfig,
         cohorts: { frozen: PEER_FROZEN_COHORT, all: Object.keys(EXPECTED_LABELS) },
         ...(phases.length ? {} : { frozenCohortComparisons: comparators.map(peer => {

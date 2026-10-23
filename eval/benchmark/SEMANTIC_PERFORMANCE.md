@@ -66,6 +66,30 @@ string that disables defaults, cannot qualify the default production profile.
 Missing or failed mandatory warm controls fail
 completeness; they cannot disable an otherwise adverse numeric gate.
 
+Before any benchmark worker, warmup, import measurement or browser launch,
+the shared acquisition owner (`release-baseline.ts`) derives an exact runtime
+closure from the frozen source `bun.lock`. `--runtime-source` selects that source
+directory; the Git-baseline workflow supplies its immutable baseline worktree,
+and standalone archive commands default to the current root. The Node
+`--baseline` directory mode also defaults to that directory's lock when present.
+Both Agentic archives install with the same exact temporary root overrides,
+including runtime transitives and native optional packages. Installed versions
+and fetched SHA-512 integrities must match the frozen policy, and the actual
+resolved dependency graphs must match each other. Equal fresh resolutions alone
+are insufficient: both resolving a newer caret-compatible ELK or YAML still
+fails the intended frozen policy. Third-party peers retain their own graphs.
+
+Each acquisition retains the separate consumer manifest/override policy,
+source policy, npm lock and installed lock, and actual runtime graph. Original
+shipped archives, their manifests and archive identities are unchanged. Git
+baseline release comparisons install both original archives under this policy;
+directory comparisons inspect actual installed versions and the directory's own
+frozen Bun identities, with that integrity source recorded explicitly. An
+unlocked directory with no installed npm lock is rejected as unverifiable.
+Drifted historical reports remain diagnostics for their recorded
+graphs and are never relabeled as dependency-matched qualification. Matched local
+reports using another explicitly recorded runtime graph remain distinct evidence.
+
 Targets are explicit and distinct:
 
 | Scorecard | p50 target | p95 target | Allocation target |
@@ -111,7 +135,9 @@ change rendering, and no public package export is added.
 
 The observer is absent during timing and allocation. Separate successful warm
 replays collect hits, misses, bypasses, skipped stores and fallback reasons.
-Hit rate is `hits/(hits+misses)`, excluding bypasses. A graphical support event
+Hit rate is `hits/(hits+misses)`, excluding bypasses. Positioned-cache events
+count one logical lookup: the private borrowed probe and any following cloned
+public probe do not count as two misses for one lookup. A graphical support event
 and successful complete replay establish observation; a scope event followed by
 an exception does not. Cold diagnostic replay and uninstrumented peers/baselines
 remain **unobserved**, never inferred zero hits. No fallback event during a
@@ -127,6 +153,7 @@ Then run each cache policy on an otherwise idle host:
 bun run bench:peers:qualify \
   --candidate-tarball candidate/package.tgz --candidate-sha256 <verified-sha256> \
   --baseline-tarball main/package.tgz --baseline-sha256 <verified-sha256> \
+  --runtime-source /path/to/frozen-baseline-source \
   --elk-cache off --rounds 5 --out bench-report/semantic-off
 ```
 

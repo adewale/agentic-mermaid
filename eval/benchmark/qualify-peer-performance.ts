@@ -1,10 +1,12 @@
 // Serial runner: use the maintained peer adapters/protocol, not another timer.
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { performanceMarkdown, performanceScorecard, PERFORMANCE_POLICY, type PerformanceReport } from './performance-gates.ts'
 import { ROOT } from './revision-tree.ts'
+import { assertMatchedAgenticRuntimes, frozenRuntimePolicy, installAgenticRuntime } from './release-baseline.ts'
 
 const args = process.argv.slice(2)
 const option = (name: string, fallback?: string) => {
@@ -24,6 +26,7 @@ if (!['on', 'off'].includes(cache)) throw new Error('--elk-cache must be on or o
 const rounds = Number(option('--rounds', '5'))
 if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
 const out = resolve(option('--out', 'bench-report/semantic-performance')!)
+const runtimeSource = resolve(option('--runtime-source', ROOT)!)
 mkdirSync(out, { recursive: true })
 const receipt: { status: string; complete: boolean; historicalAnchor: string; candidateSha: string; baselineSha: string; cache: string; rounds: number; quick: boolean; steps: object[] } = {
   status: 'incomplete', complete: false, historicalAnchor: PERFORMANCE_POLICY.historicalAnchor, candidateSha, baselineSha, cache, rounds, quick: args.includes('--quick'), steps: [],
@@ -34,7 +37,7 @@ async function run(name: string, aa: boolean): Promise<PerformanceReport> {
   const json = join(out, `${name}.json`)
   const command = ['run', 'eval/benchmark/peer-bench.ts', '--peers', 'agentic,beautiful,zombie,pele', '--tracks', 'all', '--rounds', String(rounds), '--elk-cache', cache,
     '--candidate-tarball', aa ? baseline : candidate, '--candidate-sha256', aa ? baselineSha : candidateSha,
-    '--baseline-tarball', baseline, '--baseline-sha256', baselineSha, '--json', json, '--markdown', join(out, `${name}.md`), ...(args.includes('--quick') ? ['--quick'] : [])]
+    '--baseline-tarball', baseline, '--baseline-sha256', baselineSha, '--runtime-source', runtimeSource, '--json', json, '--markdown', join(out, `${name}.md`), ...(args.includes('--quick') ? ['--quick'] : [])]
   const started = new Date().toISOString()
   const exit = await new Promise<number | null>((done, reject) => {
     const child = spawn(process.versions.bun ? process.execPath : 'bun', command, { cwd: ROOT, stdio: 'inherit', detached: process.platform !== 'win32' })
@@ -51,6 +54,14 @@ async function run(name: string, aa: boolean): Promise<PerformanceReport> {
   return JSON.parse(readFileSync(json, 'utf8')) as PerformanceReport
 }
 try {
+  // Verify both comparison archives before even the first A/A timing. Each
+  // independent run repeats this preflight for its own fresh installations.
+  const scratch = mkdtempSync(join(tmpdir(), 'am-qualification-acquisition-'))
+  try {
+    const policy = frozenRuntimePolicy(runtimeSource)
+    const runtimes = [baseline, candidate].map((archive, i) => installAgenticRuntime(archive, join(scratch, String(i)), policy, join(out, 'acquisition'), i ? 'candidate' : 'baseline', `sha512-${createHash('sha512').update(readFileSync(archive)).digest('base64')}`).runtime)
+    assertMatchedAgenticRuntimes(runtimes)
+  } finally { rmSync(scratch, { recursive: true, force: true }) }
   // Independent processes and report IDs; no reused partial controls.
   const controls = [await run('aa-1', true), await run('aa-2', true)]
   const comparison = await run('candidate', false)

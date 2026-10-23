@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { extractOfficialCorpus, officialCorpusInventory } from '../shared/official-fences.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { agentEditCase } from './release-bench-fidelity.ts'
-import { resolveBaseline } from './release-baseline.ts'
+import { resolveBaseline, frozenRuntimePolicy, installAgenticRuntime, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimeReceipt } from './release-baseline.ts'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 
 export interface Input extends BenchInput {
@@ -27,6 +27,7 @@ interface Identity {
   sha256?: string
   integrity?: string
   dependencyLock?: { path: string; sha256: string }
+  runtime?: RuntimeReceipt
 }
 interface Engine {
   label: string
@@ -66,7 +67,7 @@ const CASE_BUDGET_MS = 10 * 60 * 1000
 const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
 function args(): Map<string, string> {
-  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'elk-cache'])
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'elk-cache', 'runtime-source'])
   const options = new Map<string, string>()
   const argv = process.argv.slice(2)
   for (let i = 0; i < argv.length; i++) {
@@ -78,10 +79,13 @@ function args(): Map<string, string> {
   }
   for (const [a, b] of [
     ['baseline', 'baseline-npm'],
+    ['baseline', 'baseline-tarball'],
+    ['baseline-npm', 'baseline-tarball'],
     ['candidate', 'candidate-tarball'],
   ] as const) {
     if (options.has(a) && options.has(b)) throw new Error(`Use only one of --${a} and --${b}`)
   }
+  if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both --baseline-tarball and --baseline-sha256')
   if (options.has('candidate-sha256') && (!options.has('candidate-tarball') || !/^[a-f0-9]{64}$/.test(options.get('candidate-sha256')!))) {
     throw new Error('--candidate-sha256 requires --candidate-tarball and a lowercase SHA-256 digest')
   }
@@ -415,30 +419,34 @@ function main() {
   writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, ok: false, status: 'running' }, null, 2))
   writeFileSync(join(out, 'report.md'), '# Release benchmark: incomplete\n')
   const temporary: string[] = []
+  const baselineSource = options.get('baseline')
+  const runtimePolicy = frozenRuntimePolicy(options.get('runtime-source') ?? (baselineSource && existsSync(join(resolve(baselineSource), 'bun.lock')) ? baselineSource : ROOT))
   function install(spec: string, label: string, identity: Identity, prefix?: string): Engine {
     const dir = prefix ?? mkdtempSync(join(tmpdir(), 'am-bench-'))
     if (!prefix) temporary.push(dir)
     const remaining = Math.min(5 * 60 * 1000, deadline - Date.now())
     if (remaining <= 0) throw new Error('Overall benchmark budget exhausted during package installation')
-    const result = spawnSync('npm', ['install', '--prefix', dir, '--ignore-scripts', '--no-audit', '--no-fund', spec], { stdio: 'inherit', timeout: remaining, killSignal: 'SIGKILL' })
-    if (result.status !== 0) throw new Error(`${label}: npm install failed: ${result.error?.message ?? result.status ?? result.signal}`)
-    const lock = JSON.parse(readFileSync(join(dir, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
-    const integrity = lock.packages['node_modules/agentic-mermaid']?.integrity
-    if (identity.integrity && identity.integrity !== integrity) throw new Error(`${label}: installed package integrity differs from the locked identity`)
+    const { integrity, runtime } = installAgenticRuntime(spec, dir, runtimePolicy, out, label, identity.integrity, remaining)
     const bytes = readFileSync(join(dir, 'package-lock.json')), path = join(out, `${label}-${randomUUID()}.package-lock.json`)
     writeFileSync(path, bytes, { flag: 'wx' })
     const dependencyLock = { path, sha256: createHash('sha256').update(bytes).digest('hex') }
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engine: label, dependencyLock })}\n`)
-    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity, dependencyLock })
+    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity, dependencyLock, runtime })
   }
   try {
     const engines: Engine[] = []
     const baseline = options.get('baseline')
     const npm = options.get('baseline-npm')
-    if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline) }))
+    if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline), runtime: inspectAgenticRuntime(resolve(baseline), runtimePolicy, out, 'baseline') }))
     else if (npm) {
       const locked = resolveBaseline(npm, resolve(options.get('baseline-lock') ?? join(out, 'baseline.json')))
       engines.push(install(`agentic-mermaid@${locked.version}`, 'baseline', { kind: 'npm', requested: npm, integrity: locked.integrity }))
+    }
+    else if (options.has('baseline-tarball')) {
+      const path = resolve(options.get('baseline-tarball')!), bytes = readFileSync(path)
+      const sha256 = createHash('sha256').update(bytes).digest('hex')
+      if (sha256 !== options.get('baseline-sha256')) throw new Error('Baseline tarball SHA-256 does not match the verified artifact')
+      engines.push(install(path, 'baseline', { kind: 'tarball', requested: path, sha256, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }))
     }
     const tarball = options.get('candidate-tarball')
     if (tarball) {
@@ -452,9 +460,10 @@ function main() {
       engines.push(install(staged, 'candidate', { kind: 'tarball', requested: resolve(tarball), sha256, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }, dir))
     } else {
       const dir = resolve(options.get('candidate') ?? ROOT)
-      engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir }))
+      engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir, runtime: inspectAgenticRuntime(dir, runtimePolicy, out, 'candidate') }))
     }
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
+    assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!))
     const runs = measure(out, engines, groups, rounds, reps, deadline, elkCache)
     const result = report(inputs, groups, runs, rounds)
     result.markdown += `\nEffective policy: ELK cache **${elkCache}**; built-in Scene assertions **off**; APL environment: ${JSON.stringify(metadata.config.aplEnvironment)}.\n`

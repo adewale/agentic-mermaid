@@ -10,7 +10,7 @@ import { join, resolve, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { chromium, type Page } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
-import type { BaselineLock } from './release-baseline.ts'
+import { frozenRuntimePolicy, installAgenticRuntime, assertMatchedAgenticRuntimes, type BaselineLock, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 import { workingRevision } from './revision-tree.ts'
 import { browserPerformanceOptions, configureAgenticEngines, configureBrowserPage, type BrowserElkCache } from './browser-config.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from './browser-memory.ts'
@@ -25,7 +25,7 @@ export interface Engine {
   bundle: string
   global: string
   experiments?: string
-  identity: { integrity: string; tarballSha256?: string; bundleSha256?: string; revision?: string }
+  identity: { integrity: string; tarballSha256?: string; bundleSha256?: string; revision?: string; runtime?: RuntimeReceipt }
 }
 export interface BrowserSample {
   engine: string
@@ -91,10 +91,13 @@ export function browserScorecard(samples: BrowserSample[], labels: string[], rou
   return { engines, matched }
 }
 
-function install(spec: string, name: string, label: string, parent: string, expectedIntegrity?: string): Engine {
+function install(spec: string, name: string, label: string, parent: string, expectedIntegrity?: string, runtimePolicy?: RuntimePolicy, out?: string): Engine {
   const prefix = join(parent, label)
-  const child = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', spec], { encoding: 'utf8', timeout: 180_000 })
-  if (child.status !== 0) throw new Error(`${label}: package installation failed: ${child.stderr || child.error?.message}`)
+  const acquired = runtimePolicy ? installAgenticRuntime(spec, prefix, runtimePolicy, out!, label, expectedIntegrity, 180_000) : undefined
+  if (!acquired) {
+    const child = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', spec], { encoding: 'utf8', timeout: 180_000 })
+    if (child.status !== 0) throw new Error(`${label}: package installation failed: ${child.stderr || child.error?.message}`)
+  }
   const root = join(prefix, 'node_modules', name)
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
   const lock = JSON.parse(readFileSync(join(prefix, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
@@ -102,7 +105,7 @@ function install(spec: string, name: string, label: string, parent: string, expe
   if (pkg.name !== name || !integrity || (expectedIntegrity && expectedIntegrity !== integrity)) throw new Error(`${label}: package identity differs from the requested artifact`)
   return { label, name, version: pkg.version, root, kind: name === 'agentic-mermaid' ? 'agentic' : name as 'pele' | 'mermaid',
     bundle: name === 'agentic-mermaid' ? 'dist/browser.global.js' : name === 'pele' ? 'dist/pele.global.js' : 'dist/mermaid.min.js',
-    global: name === 'agentic-mermaid' ? 'agenticMermaid' : name, identity: { integrity } }
+    global: name === 'agentic-mermaid' ? 'agenticMermaid' : name, identity: { integrity, ...(acquired ? { runtime: acquired.runtime } : {}) } }
 }
 
 function size(paths: string[]) {
@@ -180,7 +183,7 @@ export async function renderPass(page: Page, engine: Engine, origin: string, inp
 
 async function main() {
   const options = new Map<string, string>()
-  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes', 'elk-cache', 'bezel-dir'])
+  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup', 'features', 'dart-bundle', 'dart-sha256', 'dart-revision', 'memory-passes', 'elk-cache', 'bezel-dir', 'runtime-source'])
   for (let i = 2; i < process.argv.length; i += 2) {
     const flag = process.argv[i]!.replace(/^--/, ''), value = process.argv[i + 1]
     if (!allowed.has(flag) || value === undefined || (value === '' && flag !== 'features') || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
@@ -220,14 +223,15 @@ async function main() {
     if (!Number.isSafeInteger(warmupCount) || warmupCount < 0) throw new Error('--warmup must be all or a nonnegative integer')
     // Exact competitor versions are intentionally advisory, independently
     // installed and pinned; they are not new library/runtime dependencies.
-    const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`)
+    const runtimePolicy = frozenRuntimePolicy(options.get('runtime-source') ?? resolve(import.meta.dir, '../..'))
+    const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`, runtimePolicy, out)
     candidate.identity.tarballSha256 = expectedSha
     const engines = [candidate]
     if (options.has('baseline-tarball')) {
       const baselineBytes = readFileSync(resolve(options.get('baseline-tarball')!))
       const sha256 = createHash('sha256').update(baselineBytes).digest('hex')
       if (sha256 !== options.get('baseline-sha256')) throw new Error('Baseline tarball SHA-256 mismatch')
-      const baseline = install(resolve(options.get('baseline-tarball')!), 'agentic-mermaid', 'baseline', temporary, `sha512-${createHash('sha512').update(baselineBytes).digest('base64')}`)
+      const baseline = install(resolve(options.get('baseline-tarball')!), 'agentic-mermaid', 'baseline', temporary, `sha512-${createHash('sha512').update(baselineBytes).digest('base64')}`, runtimePolicy, out)
       baseline.identity.tarballSha256 = sha256
       engines.push(baseline)
     }
@@ -235,8 +239,9 @@ async function main() {
     if (lockPath) {
       const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as BaselineLock
       if (!/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(lock.version) || !lock.integrity) throw new Error('Invalid baseline lock')
-      engines.push(install(`agentic-mermaid@${lock.version}`, 'agentic-mermaid', 'baseline', temporary, lock.integrity))
+      engines.push(install(`agentic-mermaid@${lock.version}`, 'agentic-mermaid', 'baseline', temporary, lock.integrity, runtimePolicy, out))
     }
+    assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!))
     engines.push(install('pele@1.6.0', 'pele', 'pele', temporary), install('mermaid@12.2.0', 'mermaid', 'mermaid', temporary))
     if (bezel) engines.push(bezel)
     if (diagnostics.dart) {
