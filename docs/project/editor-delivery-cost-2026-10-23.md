@@ -337,6 +337,18 @@ report based on those results. Local success and an older green revision do
 not substitute for that result. The sharing/editor checks pass (46 tests), and
 the existing desktop/mobile reload cases pass after the DOM binding move.
 
+The next run also rejected the unchanged dependency graph against newly
+updated advisory data. Zod 4.4.3, used by the development MCP SDK, was flagged
+by [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5).
+The local audit also flagged the SDK's Express/body-parser 2.3.0 path against
+[GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828).
+Both advisories were updated on 23 October. Existing override policy now pins
+the patched, compatible Zod 4.6.6 and body-parser 2.4.0 versions. The high and
+critical audit gate remains enabled; an earlier green audit does not establish
+the result of a later registry check. The qs override moves to 6.16.1 to satisfy
+body-parser's declared range. The updated graph passes the audit at the
+existing threshold and 78 MCP client/protocol/security contracts locally.
+
 ## Reproduction
 
 Build the unchanged baseline into one retained directory and the candidate into

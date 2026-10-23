@@ -226,6 +226,7 @@
   },
   "overrides": {
     "@hono/node-server": "1.19.17",
+    "body-parser": "2.4.0",
     "brace-expansion": "5.0.9",
     "browserslist": "4.28.9",
     "dompurify": "3.4.17",
@@ -236,10 +237,11 @@
     "katex": "0.18.2",
     "lodash-es": "4.18.1",
     "picomatch": "4.0.5",
-    "qs": "6.16.0",
+    "qs": "6.16.1",
     "proxy-addr": "2.0.8",
     "sharp": "0.35.5",
-    "undici": "7.29.1"
+    "undici": "7.29.1",
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
