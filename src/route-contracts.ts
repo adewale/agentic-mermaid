@@ -810,21 +810,16 @@ export function directLaneBlockers(
   ctx: LaneContext,
   axis: Axis = ctx.axis,
 ): RouteBlocker[] {
-  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, false)
-}
-
-/** Repair candidates only need an existence proof. Stop at the first blocker;
- * certificate-producing callers still collect the complete ordered evidence. */
-function hasDirectLaneBlocker(
-  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis,
-): boolean {
-  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true).length > 0
-}
-
-function collectLaneBlockers(
-  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: boolean,
-): RouteBlocker[] {
   const blockers: RouteBlocker[] = []
+  hasDirectLaneBlocker(edge, c, mainLo, mainHi, ctx, axis, blockers)
+  return dedupeBlockers(blockers)
+}
+
+/** Repair probes stop at the first blocker without constructing evidence.
+ * Supplying a collector retains the complete ordered certificate evidence. */
+function hasDirectLaneBlocker(
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, blockers?: RouteBlocker[],
+): boolean {
   const overlaps = (lo: number, hi: number, lo2: number, hi2: number) =>
     Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
 
@@ -835,8 +830,8 @@ function collectLaneBlockers(
     const nCrossLo = node[axis.cross] - CLEARANCE
     const nCrossHi = node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
     if (c > nCrossLo && c < nCrossHi && overlaps(mainLo, mainHi, nMainLo, nMainHi)) {
+      if (!blockers) return true
       blockers.push({ kind: 'node', id: node.id })
-      if (firstOnly) return blockers
     }
   }
 
@@ -851,8 +846,8 @@ function collectLaneBlockers(
       const rCrossLo = (axis.cross === 'y' ? rect.y : rect.x) - CLEARANCE
       const rCrossHi = rCrossLo + (axis.cross === 'y' ? rect.h : rect.w) + 2 * CLEARANCE
       if (c > rCrossLo && c < rCrossHi && overlaps(mainLo, mainHi, rMainLo, rMainHi)) {
+        if (!blockers) return true
         blockers.push({ kind: 'label', id: edgeId(other) })
-        if (firstOnly) return blockers
       }
     }
     // Collinear overlap with another edge's flow-axis segment would merge the
@@ -871,8 +866,8 @@ function collectLaneBlockers(
           Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
           continue
         }
+        if (!blockers) return true
         blockers.push({ kind: 'channel', id: edgeId(other) })
-        if (firstOnly) return blockers
         break
       }
     }
@@ -882,11 +877,12 @@ function collectLaneBlockers(
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
     const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {
+      if (!blockers) return true
       blockers.push({ kind: 'label', id: edgeId(edge) })
     }
   }
 
-  return dedupeBlockers(blockers)
+  return blockers !== undefined && blockers.length > 0
 }
 
 /**
