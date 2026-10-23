@@ -57,8 +57,16 @@ export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
   return inspectSvgOnce('start-tags', source, () => scanStartTags(source))
 }
 
-function scanStartTags(source: string): readonly SvgStartTagToken[] {
-  const tags: SvgStartTagToken[] = []
+/** Internal traversal for consumers that need selected ranges, not an inventory.
+ * Returning false from startTag skips attribute parsing and allocation entirely.
+ * Attribute values are sliced only by consumers that need them. */
+export interface SvgStartTagVisitor {
+  startTag(name: string, start: number, end: number, selfClosing: boolean): boolean
+  attribute(name: string, nameStart: number, valueStart: number, valueEnd: number, quote: '"' | "'"): void
+  endTag(): void
+}
+
+export function visitSvgStartTags(source: string, visitor: SvgStartTagVisitor): void {
   for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
     if (source.startsWith('<!--', start)) {
       const end = source.indexOf('-->', start + 4)
@@ -73,40 +81,63 @@ function scanStartTags(source: string): readonly SvgStartTagToken[] {
     if (nameEnd === start + 1) continue
     const end = scanTagEnd(source, nameEnd)
     if (end < 0) break
-    const attributes: SvgAttributeToken[] = []
-    let cursor = nameEnd
-    while (cursor < end - 1) {
-      while (isWhitespace(source[cursor])) cursor++
-      if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
-      const nameStart = cursor
-      while (isNameChar(source[cursor])) cursor++
-      if (cursor === nameStart) break
-      const name = source.slice(nameStart, cursor)
-      while (isWhitespace(source[cursor])) cursor++
-      if (source[cursor] !== '=') break
-      cursor++
-      while (isWhitespace(source[cursor])) cursor++
-      const quote = source[cursor]
-      if (quote !== '"' && quote !== "'") break
-      cursor++
-      const valueStart = cursor
-      while (cursor < end - 1 && source[cursor] !== quote) cursor++
-      if (source[cursor] !== quote) break
-      attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
-      cursor++
-    }
     // `/\s*>` at the end of the tag, read backwards without slicing it.
     let beforeClose = end - 2
     while (beforeClose > start && isWhitespace(source[beforeClose])) beforeClose--
-    tags.push(Object.freeze({
-      name: source.slice(start + 1, nameEnd),
-      start,
-      end,
-      attributes: Object.freeze(attributes),
-      selfClosing: source[beforeClose] === '/',
-    }))
+    if (visitor.startTag(source.slice(start + 1, nameEnd), start, end, source[beforeClose] === '/')) {
+      let cursor = nameEnd
+      while (cursor < end - 1) {
+        while (isWhitespace(source[cursor])) cursor++
+        if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
+        const nameStart = cursor
+        while (isNameChar(source[cursor])) cursor++
+        if (cursor === nameStart) break
+        const name = source.slice(nameStart, cursor)
+        while (isWhitespace(source[cursor])) cursor++
+        if (source[cursor] !== '=') break
+        cursor++
+        while (isWhitespace(source[cursor])) cursor++
+        const quote = source[cursor]
+        if (quote !== '"' && quote !== "'") break
+        cursor++
+        const valueStart = cursor
+        while (cursor < end - 1 && source[cursor] !== quote) cursor++
+        if (source[cursor] !== quote) break
+        visitor.attribute(name, nameStart, valueStart, cursor, quote)
+        cursor++
+      }
+    }
+    visitor.endTag()
     start = end - 1
   }
+}
+
+function scanStartTags(source: string): readonly SvgStartTagToken[] {
+  const tags: SvgStartTagToken[] = []
+  let currentName = ''
+  let currentStart = 0
+  let currentEnd = 0
+  let currentSelfClosing = false
+  let attributes: SvgAttributeToken[] = []
+  visitSvgStartTags(source, {
+    startTag(name, start, end, selfClosing) {
+      currentName = name
+      currentStart = start
+      currentEnd = end
+      currentSelfClosing = selfClosing
+      attributes = []
+      return true
+    },
+    attribute(name, nameStart, valueStart, valueEnd, quote) {
+      attributes.push(Object.freeze({ name, value: source.slice(valueStart, valueEnd), quote, nameStart, valueStart, valueEnd }))
+    },
+    endTag() {
+      tags.push(Object.freeze({
+        name: currentName, start: currentStart, end: currentEnd,
+        attributes: Object.freeze(attributes), selfClosing: currentSelfClosing,
+      }))
+    },
+  })
   return Object.freeze(tags)
 }
 
@@ -188,28 +219,60 @@ const CSS_VALUE_ATTRIBUTES = new Set([
   'stop-color', 'stroke', 'style',
 ])
 
-function svgCssRanges(source: string): readonly { readonly start: number; readonly end: number }[] {
-  const ranges: Array<{ start: number; end: number }> = []
-  for (const tag of scanSvgStartTags(source)) {
-    for (const attribute of tag.attributes) {
-      if (CSS_VALUE_ATTRIBUTES.has(attribute.name)) {
-        ranges.push({ start: attribute.valueStart, end: attribute.valueEnd })
-      }
-    }
-    if (tag.name === 'style' && !tag.selfClosing) {
-      const close = source.indexOf('</style', tag.end)
-      if (close >= 0) ranges.push({ start: tag.end, end: close })
-    }
-  }
-  return ranges
+export interface SvgRange {
+  readonly start: number
+  readonly end: number
+}
+
+/** Selected lexical CSS evidence, valid only for this exact immutable string.
+ * This is not XML or security admission and does not enter the inspection cache. */
+export interface SvgCssProjection {
+  readonly source: string
+  readonly cssRanges: readonly SvgRange[]
+  readonly styleContexts: readonly SvgRange[]
+  readonly styleRanges: readonly SvgRange[]
+}
+
+export function projectSvgCss(source: string): SvgCssProjection {
+  const cssRanges: SvgRange[] = []
+  const styleContexts: SvgRange[] = []
+  const styleRanges: SvgRange[] = []
+  let styleEnd: number | undefined
+  visitSvgStartTags(source, {
+    startTag(name, _start, end, selfClosing) {
+      styleEnd = name === 'style' && !selfClosing ? end : undefined
+      return true
+    },
+    attribute(name, _nameStart, valueStart, valueEnd) {
+      if (!CSS_VALUE_ATTRIBUTES.has(name)) return
+      const range = Object.freeze({ start: valueStart, end: valueEnd })
+      cssRanges.push(range)
+      if (name === 'style') styleContexts.push(range)
+    },
+    endTag() {
+      if (styleEnd === undefined) return
+      const close = source.indexOf('</style', styleEnd)
+      if (close < 0) return
+      const range = Object.freeze({ start: styleEnd, end: close })
+      cssRanges.push(range)
+      styleContexts.push(range)
+      styleRanges.push(range)
+    },
+  })
+  return Object.freeze({ source, cssRanges: Object.freeze(cssRanges), styleContexts: Object.freeze(styleContexts), styleRanges: Object.freeze(styleRanges) })
 }
 
 export function svgCssText(source: string): string {
-  return svgCssRanges(source).map(range => source.slice(range.start, range.end)).join('\n')
+  return projectSvgCss(source).cssRanges.map(range => source.slice(range.start, range.end)).join('\n')
 }
 
-export function transformSvgCssValues(source: string, transform: (css: string) => string): string {
-  return applyReplacements(source, svgCssRanges(source).map(range => ({
+export function transformSvgCssValues(
+  source: string,
+  transform: (css: string) => string,
+  projection: SvgCssProjection = projectSvgCss(source),
+): string {
+  if (projection.source !== source) throw new Error('SVG CSS projection does not match its source')
+  return applyReplacements(source, projection.cssRanges.map(range => ({
     ...range,
     value: transform(source.slice(range.start, range.end)),
   })))
