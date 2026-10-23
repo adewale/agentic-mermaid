@@ -32,7 +32,7 @@ The [machine-readable evidence](layout-guidance-results.json) retains all pilot
 rounds, rejected arms, quality/admission changes, adverse metric cases, edit
 comparison and raw-file hashes. The [runtime23 report](layout-experiment-results.md)
 remains historical evidence, not a relabelled runtime24 benchmark.
-The [final benchmark evidence](layout-guidance-benchmarks.json) retains the
+The [final benchmark evidence (gzip JSON)](layout-guidance-benchmarks.json.gz) retains the
 dedicated hosted campaigns, independent CI canary, per-case rounds and tails,
 missing/failed gates, churn observations, artifact provenance and the separate
 whole 27-input memory-only declaration and results.
