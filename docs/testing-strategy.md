@@ -560,7 +560,9 @@ table here, which would drift. In broad strokes:
   delta against the base branch built on the same runner), and the
   red → green changed-test check. Each unit shard runs its files with
   `--parallel=2` (isolated worker processes), so a test file cannot depend on
-  another file's imports. A final `CI complete` job waits for the required
+  another file's imports. CI prepares the shared website fixture in a separate
+  two-minute step before starting those workers, so parallel consumers reuse
+  a completed build instead of competing to generate it. A final `CI complete` job waits for the required
   test aggregate, every E2E matrix job and red → green, providing one
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property

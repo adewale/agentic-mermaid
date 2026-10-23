@@ -44,6 +44,12 @@ jobs:
       - name: Build the Node bundle for cross-runtime determinism contracts
         run: bunx --no-install tsup
 
+      # Materialize the shared fixture before isolated test workers start.
+      # A stalled cold build inside one worker otherwise strands lock waiters.
+      - name: Prepare website fixtures before parallel tests
+        timeout-minutes: 2
+        run: bun -e 'import { ensureWebsiteBuilt } from "./src/__tests__/website-public-fixture.ts"; ensureWebsiteBuilt()'
+
       # Coverage is a scheduled diagnostic, not a condition for passing tests.
       # Keep two isolated workers: subprocess-heavy suites contend at four.
       - name: Run test shard
