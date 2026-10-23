@@ -3,7 +3,7 @@
 The hosted editor now loads complete verified family implementations on demand,
 with deferred terminal/PNG output, sketch backends and ELK. A cold simple
 flowchart consumes **45.0% fewer gzip-equivalent asset bytes** in the PR recheck.
-Its median local first preview fell from **502 ms to 469 ms**. Blank startup is essentially
+Its median local first preview fell from **502 ms to 460 ms**. Blank startup is essentially
 unchanged. These are source-build Chromium diagnostics, not deployed-network
 measurements.
 
@@ -119,14 +119,14 @@ evidence; the following numbers qualify the rebased production implementation.
 | Session boundary | Main gzip | Candidate gzip | Distinct assets, main → candidate |
 | --- | ---: | ---: | ---: |
 | Blank editor | 134,064 B | 134,065 B | 3 → 3 |
-| First verified five-node flowchart | 1,507,773 B | 830,016 B | 6 → 58 |
-| Then Sequence | 1,507,773 B | 845,573 B | 6 → 60 |
-| All SVG families | 1,507,773 B | 1,429,249 B | 6 → 107 |
-| Then terminal output | 1,663,404 B | 1,676,398 B | 7 → 112 |
-| Then PNG export | 1,983,348 B | 2,018,448 B | 9 → 116 |
-| All families and features | 1,983,348 B | 2,029,533 B | 9 → 139 |
+| First verified five-node flowchart | 1,507,773 B | 830,023 B | 6 → 58 |
+| Then Sequence | 1,507,773 B | 845,580 B | 6 → 60 |
+| All SVG families | 1,507,773 B | 1,429,232 B | 6 → 107 |
+| Then terminal output | 1,663,404 B | 1,676,389 B | 7 → 112 |
+| Then PNG export | 1,983,348 B | 2,018,438 B | 9 → 116 |
+| All families and features | 1,983,348 B | 2,029,545 B | 9 → 139 |
 
-First-preview medians were 502 ms on main and 469 ms on the candidate.
+First-preview medians were 502 ms on main and 460 ms on the candidate.
 The first-flowchart gzip reduction is 45.0%; fully consumed gzip grows 2.3%.
 All 87 captured artifacts and all 1,095 official results match exactly between
 these builds, with 823 accepted inputs. No browser errors were recorded.
@@ -164,8 +164,11 @@ The same local-network and compression limits apply to this recheck.
   on the candidate and fails its assertion against main production in the
   repository's red-to-green runner; a combined render call had masked this
   distinction by eventually rethrowing the original error.
-- Typecheck, lint, generated-family checks, existing website payload budgets
-  and `git diff --check` pass. The existing blank-editor budgets were not raised.
+- Typecheck, lint, generated-family checks, existing website and library-lazy
+  payload budgets, the per-PR gzip comparison and `git diff --check` pass.
+  No budgets were raised. Keeping the adapter option helper outside the shared
+  render-contract module avoids perturbing its unused-function minification;
+  Block remains within its existing Brotli ceiling (212,989 B / 213,000 B).
 
 No rendering goldens changed. The work changes delivery and retry behavior,
 with exact output evidence instead of manufactured before/after images.
