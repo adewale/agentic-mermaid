@@ -360,16 +360,32 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
       ['settledHeapBytes', 'settled heap before pass (post-GC)'],
       ['retainedHeapBytes', 'retained heap after pass (post-GC)'],
       ['retainedGrowthBytes', 'retained heap growth / pass'],
-      ['peakRssBytes', 'whole worker peak RSS'],
+      ['peakRssBytes', 'process-lifetime peak RSS (getrusage)'],
     ] as const)
       metric(
         `${group.name}: ${label}`,
         runs.map(run => mb(run.memory.get(group.name)?.[key])),
       )
   }
+  for (const group of [...groups, { name: 'candidate-corpus' }]) {
+    if (!runs.some(run => run.memory.get(group.name)?.rss)) continue
+    for (const [checkpoint, label] of [
+      ['workerStart', 'worker entry after static imports, before job/package loading'],
+      ['beforeMemoryWork', 'after package imports, before memory warmup'],
+      ['afterMemoryWork', 'after memory measurement and final GC'],
+    ] as const) {
+      for (const [key, metricLabel] of [['currentRssBytes', 'current RSS'], ['maxRssBytes', 'process-lifetime peak RSS'], ['linuxVmHwmBytes', 'Linux current-mm VmHWM']] as const) {
+        metric(`${group.name}: ${label}: ${metricLabel}`, runs.map(run => {
+          const sample = run.memory.get(group.name)?.rss?.[checkpoint]
+          const value = sample?.[key]
+          return typeof value === 'number' ? mb(value) : sample?.linuxVmHwmUnavailableReason ?? 'not recorded'
+        }))
+      }
+    }
+  }
   md.push(
     '',
-    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Settled and retained heap are absolute used heap before and after one pass, each after GC; growth is their nonnegative difference. A single memory pair does not establish a retained-heap noise floor. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
+    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Settled and retained heap are absolute used heap before and after one pass, each after GC; growth is their nonnegative difference. A single memory pair does not establish a retained-heap noise floor. The backward-compatible peakRssBytes field is the process-lifetime getrusage maximum, including any inherited exec floor; its origin is not proven by these checkpoints. New receipts separately record current RSS and Linux current-mm VmHWM at worker entry after static imports, before memory warmup after package imports, and after measurement/final GC. Linux VmHWM is null with an explicit reason where unavailable; historical receipts have no checkpoints. Samples are sequential, not atomic. These resident-memory diagnostics are not allocation measurements or renderer-only peaks, and do not change any gate. A single pair does not establish an RSS noise floor; use matched A/A controls before attributing a difference. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
   )
   return {
     ok,

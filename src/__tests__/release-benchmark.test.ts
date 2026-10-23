@@ -16,6 +16,7 @@ import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/ben
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
+import { linuxRssHighWater } from '../../eval/benchmark/release-memory.ts'
 import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
 
 const temp = useTempDirs()
@@ -50,6 +51,15 @@ describe('release publication decisions', () => {
     const inputs = [input('flow'), input('sequence', 'scaling', 'sequence')]
     const before = run('baseline', inputs), after = run('candidate', inputs)
     expect(decision(inputs, before, after).ok).toBe(true)
+    after.memory.get('corpus')!.rss = {
+      workerStart: { phase: 'after-static-imports-before-job-and-package-loading', currentRssBytes: 1024, maxRssBytes: 2048, linuxVmHwmBytes: null, linuxVmHwmUnavailableReason: 'not-linux' },
+      beforeMemoryWork: { phase: 'after-package-imports-before-memory-warmup', currentRssBytes: 2048, maxRssBytes: 4096, linuxVmHwmBytes: null, linuxVmHwmUnavailableReason: 'not-linux' },
+      afterMemoryWork: { phase: 'after-memory-measurement-and-final-gc', currentRssBytes: 1024, maxRssBytes: 4096, linuxVmHwmBytes: null, linuxVmHwmUnavailableReason: 'not-linux' },
+    }
+    const diagnosticReport = decision(inputs, before, after)
+    expect(diagnosticReport.ok).toBe(true)
+    expect(diagnosticReport.markdown).toContain('Linux current-mm VmHWM | not recorded | not-linux |')
+    expect(diagnosticReport.markdown).toContain('process-lifetime peak RSS (getrusage)')
     before.results.delete('sequence')
     before.failures.set('time:sequence', 'worker timeout')
     const result = decision(inputs, before, after)
@@ -655,12 +665,22 @@ test.each([
   else expect(result.medianMs).toBeUndefined()
 })
 
-test('release memory worker retains absolute post-GC heap observations', async () => {
+test('release memory worker separates post-GC heap and phased resident-memory observations', async () => {
   const dir = temp.dir(),
     entry = join(dir, 'renderer.mjs'),
     job = join(dir, 'job.json'),
     out = join(dir, 'memory.json')
-  writeFileSync(entry, 'export function renderMermaidSVG() { return "<svg/>" }')
+  // Package import and rendering change only the RSS probes in this child.
+  // Distinct sentinels prove checkpoint order without a large allocation.
+  writeFileSync(entry, `
+    process.memoryUsage.rss = () => 123456;
+    const resourceUsage = process.resourceUsage;
+    process.resourceUsage = () => ({ ...resourceUsage(), maxRSS: 789 });
+    export function renderMermaidSVG() {
+      process.memoryUsage.rss = () => 234567;
+      return "<svg/>";
+    }
+  `)
   writeFileSync(job, JSON.stringify({ entry, mode: 'memory', reps: 1, inputs: [input('fixture')] }))
   const child = await runChild('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, out])
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
@@ -668,6 +688,30 @@ test('release memory worker retains absolute post-GC heap observations', async (
   expect(memory.settledHeapBytes).toBeGreaterThan(0)
   expect(memory.retainedHeapBytes).toBeGreaterThan(0)
   expect(memory.retainedGrowthBytes).toBe(Math.max(0, memory.retainedHeapBytes - memory.settledHeapBytes))
+  expect(memory.peakRssBytes).toBe(789 * 1024)
+  expect(memory.rss.workerStart.currentRssBytes).not.toBe(123456)
+  expect(memory.rss.workerStart.currentRssBytes).not.toBe(234567)
+  expect(memory.rss.workerStart.maxRssBytes).not.toBe(789 * 1024)
+  expect(memory.rss.beforeMemoryWork.currentRssBytes).toBe(123456)
+  expect(memory.rss.afterMemoryWork.currentRssBytes).toBe(234567)
+  expect(memory.rss.beforeMemoryWork.maxRssBytes).toBe(789 * 1024)
+  expect(memory.rss.afterMemoryWork.maxRssBytes).toBe(789 * 1024)
+  const phases = {
+    workerStart: 'after-static-imports-before-job-and-package-loading',
+    beforeMemoryWork: 'after-package-imports-before-memory-warmup',
+    afterMemoryWork: 'after-memory-measurement-and-final-gc',
+  }
+  for (const [key, phase] of Object.entries(phases)) {
+    const checkpoint = memory.rss[key]
+    expect(checkpoint.phase).toBe(phase)
+    expect(checkpoint.currentRssBytes).toBeGreaterThan(0)
+    expect(checkpoint.maxRssBytes).toBeGreaterThan(0)
+    if (checkpoint.linuxVmHwmBytes === null) expect(typeof checkpoint.linuxVmHwmUnavailableReason).toBe('string')
+    else {
+      expect(checkpoint.linuxVmHwmBytes).toBeGreaterThan(0)
+      expect(checkpoint.linuxVmHwmUnavailableReason).toBeNull()
+    }
+  }
 })
 
 test('peer artifact mismatch fails before installation and retains explicit incomplete evidence', async () => {
@@ -706,4 +750,15 @@ test('failed editor benchmark reruns invalidate a previous completed report', as
   expect(failed.status).toBe('failed')
   expect(failed.error).toContain('nonexistent-chromium')
   expect(failed).not.toHaveProperty('samples')
+})
+
+
+test('Linux RSS high-water observations preserve units and explicit portability failures', () => {
+  expect(linuxRssHighWater('linux', () => 'Name:\tnode\nVmRSS:\t128 kB\nVmHWM:\t256 kB\n')).toEqual({ linuxVmHwmBytes: 262144, linuxVmHwmUnavailableReason: null })
+  expect(linuxRssHighWater('darwin', () => { throw new Error('must not read procfs') })).toEqual({ linuxVmHwmBytes: null, linuxVmHwmUnavailableReason: 'not-linux' })
+  expect(linuxRssHighWater('linux', () => { throw new Error('permission denied') })).toEqual({ linuxVmHwmBytes: null, linuxVmHwmUnavailableReason: 'proc-self-status-unreadable' })
+  for (const status of ['VmRSS: 128 kB\n', 'VmHWM: -1 kB\n', 'VmHWM: 2 MB\n', 'VmHWM: NaN kB\n']) {
+    expect(linuxRssHighWater('linux', () => status)).toEqual({ linuxVmHwmBytes: null, linuxVmHwmUnavailableReason: 'proc-self-status-vmhwm-missing-or-invalid' })
+  }
+  expect(linuxRssHighWater('linux', () => 'VmHWM: 9007199254740992 kB\n')).toEqual({ linuxVmHwmBytes: null, linuxVmHwmUnavailableReason: 'proc-self-status-vmhwm-out-of-range' })
 })

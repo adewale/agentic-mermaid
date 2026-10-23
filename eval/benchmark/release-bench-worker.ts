@@ -13,6 +13,10 @@ import { pathToFileURL } from 'node:url'
 import { GCProfiler } from 'node:v8'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 import { missingSvgLabels, renderAgentEdit } from './release-bench-fidelity.ts'
+import { rssCheckpoint } from './release-memory.ts'
+
+// This is worker entry after static imports, not a pre-exec observation.
+const workerStartRss = rssCheckpoint('after-static-imports-before-job-and-package-loading')
 
 interface Job {
   entry: string
@@ -138,6 +142,7 @@ function measureHeap(work: () => void): { allocatedBytes: number; peakHeapBytes:
 function memoryMode(): MemoryResult {
   const gc = globalThis.gc
   if (!gc) throw new Error('memory mode needs node --expose-gc')
+  const beforeMemoryWork = rssCheckpoint('after-package-imports-before-memory-warmup')
   const render = (input: BenchInput) => {
     const outcome = attempt(() => renderSvg(input))
     if (!outcome.ok) throw new Error(`${input.id}: memory render failed: ${outcome.error}`)
@@ -164,8 +169,9 @@ function memoryMode(): MemoryResult {
     settledHeapBytes: settled,
     retainedHeapBytes: retained,
     retainedGrowthBytes,
-    // resourceUsage reports kilobytes.
+    // Keep the existing process-lifetime maximum, including any inherited floor.
     peakRssBytes: process.resourceUsage().maxRSS * 1024,
+    rss: { workerStart: workerStartRss, beforeMemoryWork, afterMemoryWork: rssCheckpoint('after-memory-measurement-and-final-gc') },
   }
 }
 
