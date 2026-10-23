@@ -42,18 +42,18 @@ export function borrowedPositioned(family: object, key: string): PositionedSnaps
   return results.get(isolatedKey(family, key))
 }
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
-  retainSnapshot(family, key, value, projection, 'copy')
+  retainSnapshot(family, key, value, projection, true)
 }
 /** Only fresh original Sequence geometry in private native SVG rendering. */
 export function retainOwnedSequencePositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
-  retainSnapshot(family, key, value, projection, 'owned-sequence')
+  retainSnapshot(family, key, value, projection, false)
 }
-function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, ownership: 'copy' | 'owned-sequence'): void {
+function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean): void {
   const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}) }
   const weight = key.length * 2 + estimatedResidency(snapshot, MAX_WEIGHT) + 1024
   if (weight > MAX_WEIGHT) return
   let retained = snapshot
-  if (ownership === 'copy') {
+  if (copy) {
     try { retained = clonePositioned(snapshot) } catch (error) {
       // C4 identity planners carry callbacks. Keep the complete authoritative
       // artifact uncached when a private snapshot cannot preserve its evidence.
