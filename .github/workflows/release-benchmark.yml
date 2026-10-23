@@ -419,6 +419,12 @@ jobs:
           bun run eval/benchmark/release-baseline.ts --install "$fixed_pack/package.tgz" --prefix "$fixed_prefix" \
             --runtime-source "$fixed_tree" --out fixed-evidence/acquisition --label baseline --expected-integrity "$baseline_integrity"
           test "$(jq -er '.packages["node_modules/agentic-mermaid"].integrity' "$fixed_prefix/package-lock.json")" = "$baseline_integrity"
+          printf '%s  release-artifact/package.tgz\n' "$CANDIDATE_SHA256" | sha256sum --check
+          bun run eval/benchmark/release-baseline.ts --install "$PWD/release-artifact/package.tgz" \
+            --prefix "$RUNNER_TEMP/agentic-mermaid-fixed-candidate-consumer" --runtime-source "$fixed_tree" \
+            --out fixed-evidence/acquisition --label candidate \
+            --expected-integrity "$(jq -er '.integrity' release-artifact/package-manifest.json)" \
+            --compare-root "$fixed_prefix/node_modules/agentic-mermaid"
           cp "$fixed_tree/bun.lock" fixed-evidence/baseline-source.bun.lock
           cp "$fixed_pack/package-manifest.json" fixed-evidence/baseline-package-manifest.json
           cp "$fixed_pack/package.sha256" fixed-evidence/baseline-package.sha256

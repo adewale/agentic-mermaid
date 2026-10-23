@@ -400,7 +400,6 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       ['release-bench.ts', ['--case', 'flowchart:tree-300']],
       ['release-browser-bench.ts', ['--executable', '/must-not-launch-chromium']],
       ['peer-bench.ts', ['--peers', 'agentic', '--workloads', 'flow5', '--json', join(evidence, 'peer.json'), '--markdown', join(evidence, 'peer.md')]],
-      ['qualify-peer-performance.ts', ['--baseline-tarball', archive.path, '--baseline-sha256', sha256, '--quick', '--rounds', '1']],
     ] as const) {
       const report = join(evidence, entry), flags = entry === 'peer-bench.ts' ? [] : ['--out', report]
       const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark', entry), '--candidate-tarball', archive.path,
@@ -411,11 +410,26 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       expect(failed.stderr).toContain('runtime dependency yaml@2.9.0 differs from frozen version/integrity 2.9.0')
       expect(failed.stderr).not.toContain('BENCHMARK_WORKER_STARTED')
       expect(failed.stderr).not.toContain('must-not-launch-chromium')
-      if (entry === 'qualify-peer-performance.ts') {
-        expect(JSON.parse(readFileSync(join(report, 'qualification-status.json'), 'utf8'))).toMatchObject({ status: 'incomplete', complete: false, steps: [] })
-        expect(existsSync(join(report, 'aa-1.json'))).toBe(false)
-      } else expect(JSON.parse(readFileSync(entry === 'peer-bench.ts' ? join(evidence, 'peer.json') : join(report, entry === 'release-bench.ts' ? 'report.json' : 'browser-report.json'), 'utf8')).status).toBe('failed')
+      expect(JSON.parse(readFileSync(entry === 'peer-bench.ts' ? join(evidence, 'peer.json') : join(report, entry === 'release-bench.ts' ? 'report.json' : 'browser-report.json'), 'utf8')).status).toBe('failed')
     }
+    // The baseline must pass first. A candidate-only graph mismatch still
+    // prevents A/A1 from starting, rather than being discovered after controls.
+    frozen.packages.yaml[3] = yaml.integrity
+    writeFileSync(join(source, 'bun.lock'), JSON.stringify(frozen))
+    pack('runtime-extra', '1.0.0')
+    const badCandidate = pack('agentic-mermaid', '0.0.1', { ...dependencies, 'runtime-extra': '^1.0.0' })
+    const qualificationOut = join(evidence, 'qualification'), candidateSha = createHash('sha256').update(readFileSync(badCandidate.path)).digest('hex')
+    const failed = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/qualify-peer-performance.ts'),
+      '--baseline-tarball', archive.path, '--baseline-sha256', sha256, '--candidate-tarball', badCandidate.path, '--candidate-sha256', candidateSha,
+      '--runtime-source', source, '--out', qualificationOut, '--quick', '--rounds', '1'], {
+      env: { ...process.env, npm_config_registry: `http://127.0.0.1:${registry.port}`, npm_config_cache: join(dir, 'npm-cache') },
+    })
+    expect(failed.status).not.toBe(0)
+    expect(failed.stderr).toContain('candidate: runtime dependency runtime-extra@1.0.0 differs from frozen version/integrity (unlocked)')
+    expect(JSON.parse(readFileSync(join(qualificationOut, 'acquisition/baseline.runtime.json'), 'utf8')).graph).toEqual(receipt.graph)
+    expect(JSON.parse(readFileSync(join(qualificationOut, 'acquisition/candidate.runtime.json'), 'utf8')).graph.some((entry: { name: string }) => entry.name === 'runtime-extra')).toBe(true)
+    expect(JSON.parse(readFileSync(join(qualificationOut, 'qualification-status.json'), 'utf8'))).toMatchObject({ status: 'incomplete', complete: false, steps: [] })
+    expect(existsSync(join(qualificationOut, 'aa-1.json'))).toBe(false)
   } finally { registry.stop(true) }
 }, 30_000)
 
