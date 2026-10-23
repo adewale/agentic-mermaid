@@ -6166,8 +6166,8 @@
     }
   },
   "benchmarks": {
-    "evidence": "layout-guidance-benchmarks.json",
-    "sha256": "64a39f5ce73ebd2fc6fd506bc8ff1c8369afac19f8c2c613a483c0a87fac6e35",
+    "evidence": "layout-guidance-benchmarks.json.gz",
+    "sha256": "bf34ecbb2ac7816defc571c0c386d445fae7e2b27eedf73fb37948d1104a93ee",
     "rendererReviewHead": "890abfa5a8e2b8323cdec9ccb0a7c56783741735",
     "runtimeSourceRevision": "d645c8c57b0dd8e3324632ded103d5cef873837c",
     "historical27": {
@@ -6197,6 +6197,8 @@
       "scope": "one whole27 mixed memory session per fresh worker; no timing; does not repair failed legacy qualification"
     },
     "elkAllAspectParity": false,
-    "controls": "A/A checks are independent, never ratio divisors. Missing and null outcomes remain explicit. Retained growth is not total retained heap. Allocation/peak heap are GC-boundary estimates."
+    "controls": "A/A checks are independent, never ratio divisors. Missing and null outcomes remain explicit. Retained growth is not total retained heap. Allocation/peak heap are GC-boundary estimates.",
+    "compression": "gzip; deterministic mtime=0",
+    "uncompressedSha256": "64a39f5ce73ebd2fc6fd506bc8ff1c8369afac19f8c2c613a483c0a87fac6e35"
   }
 }

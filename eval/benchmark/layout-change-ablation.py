@@ -55,6 +55,7 @@ def finite_number(value):
 
 
 def summarize(out, manifest):
+    arms = manifest['plan']['arms']
     results, failures = {}, []
     for row in manifest['observations']:
         if row.get('status') != 'ok':
@@ -74,10 +75,10 @@ def summarize(out, manifest):
         for case in [item['id'] for item in manifest['plan']['inputs']]:
             cell = {}
             for mode, collection, metric in [('time', 'results', 'ms'), ('memory', 'perInput', 'allocatedBytes')]:
-                values = {arm: [] for arm in ARMS}
+                values = {arm: [] for arm in arms}
                 for rnd in range(1, 4):
                     found_by_arm = {}
-                    for arm in ARMS:
+                    for arm in arms:
                         result = results.get((cache, rnd, arm, mode), {})
                         found = next((item for item in result.get(collection, []) if item.get('id') == case), None)
                         found_by_arm[arm] = found
@@ -92,7 +93,7 @@ def summarize(out, manifest):
                     if mode == 'time':
                         before = found_by_arm['before']
                         if before:
-                            for arm in ['before-aa', 'after', 'elk']:
+                            for arm in arms[1:]:
                                 found = found_by_arm[arm]
                                 if not found:
                                     continue
@@ -110,6 +111,8 @@ def summarize(out, manifest):
                 ratios = {}
                 for label, numerator, denominator in [('aa', 'before-aa', 'before'), ('afterBefore', 'after', 'before'),
                                                         ('beforeElk', 'before', 'elk'), ('afterElk', 'after', 'elk')]:
+                    if numerator not in arms or denominator not in arms:
+                        continue
                     per_round = [a / b if a is not None and b is not None and b > 0 else None
                                  for a, b in zip(values[numerator], values[denominator])]
                     valid = [value for value in per_round if value is not None]
@@ -133,6 +136,7 @@ def main():
     parser.add_argument('--node', default='node')
     parser.add_argument('--budget-seconds', type=float, default=600)
     parser.add_argument('--timeout-seconds', type=float, default=180)
+    parser.add_argument('--native-only', action='store_true', help='Compare native baseline/A/A/candidate; omit the unchanged ELK arm and all ELK ratios')
     args = parser.parse_args()
     if not finite_number(args.budget_seconds) or not finite_number(args.timeout_seconds) or args.budget_seconds <= 0 or args.timeout_seconds <= 0:
         parser.error('Budget and worker timeout must be positive')
@@ -167,15 +171,17 @@ def main():
         inputs.append(item)
     worker = REPO / 'eval/benchmark/release-bench-worker.ts'
     fidelity = REPO / 'eval/benchmark/release-bench-fidelity.ts'
+    arms = ARMS[:3] if args.native_only else ARMS
     plan = {'protocol': 'layout-final-cost@1', 'baseline': str(baseline), 'candidate': str(candidate), 'artifacts': identities,
             'worker': {'path': str(worker), 'sha256': sha(worker.read_bytes()), 'fidelitySha256': sha(fidelity.read_bytes())},
             'runner': {'path': str(pathlib.Path(__file__).resolve()), 'sha256': sha(pathlib.Path(__file__).read_bytes()), 'scope': 'portable wrapper'},
             'inputFile': {'path': str(input_path), 'sha256': sha(input_path.read_bytes())},
             'inputs': inputs, 'inputSha256': {item['id']: sha(item['source'].encode()) for item in inputs},
-            'rounds': 3, 'reps': 15, 'arms': ARMS, 'policies': ['off', 'normal'], 'modes': ['time', 'memory'],
+            'rounds': 3, 'reps': 15, 'arms': arms, 'nativeOnly': args.native_only, 'policies': ['off', 'normal'], 'modes': ['time', 'memory'],
             'budgetMs': args.budget_seconds * 1000, 'workerTimeoutMs': args.timeout_seconds * 1000,
             'armOrder': 'left rotation by round-1; identical case order in every arm within a round',
-            'inputOrder': 'supplied input insertion order, left rotation by round-1', 'elkArtifact': 'frozen baseline',
+            'inputOrder': 'supplied input insertion order, left rotation by round-1',
+            'elkArtifact': 'not measured; native-only counterfactual' if args.native_only else 'frozen baseline',
             'consumption': 'Existing release worker: complete SVG UTF8 + receipt JSON inside API timing; complete SHA256 fingerprints outside timing. Independent fresh GC memory workers.',
             'receiptPolicy': 'Implementation changes can intentionally alter receipts. Compare SVG separately; retain exact receipt, decision and certification differences without normalizing them away.',
             'cachePolicy': 'Existing layout-reference startup environment: off=text-spans + ELK_CACHE=0; normal=text-spans,position-cache + ELK_CACHE=1. indexed-layout intentionally excluded in both.',
@@ -188,10 +194,10 @@ def main():
     try:
         for cache in plan['policies']:
             for rnd in range(1, 4):
-                arms = ARMS[rnd - 1:] + ARMS[:rnd - 1]
+                round_arms = arms[rnd - 1:] + arms[:rnd - 1]
                 offset = (rnd - 1) % len(inputs)
                 round_inputs = inputs[offset:] + inputs[:offset]
-                for arm in arms:
+                for arm in round_arms:
                     for mode in plan['modes']:
                         prefix = out / f'{cache}-{rnd}-{arm}-{mode}'
                         package = candidate if arm == 'after' else baseline
@@ -208,7 +214,7 @@ def main():
                             command = [args.node, '--expose-gc', '--no-warnings', str(worker), str(path), str(result_path)]
                             row['command'] = command
                             try:
-                                completed = subprocess.run(command, cwd=REPO, capture_output=True, text=True, timeout=min(left, args.timeout_seconds))
+                                completed = subprocess.run(command, cwd=REPO, capture_output=True, text=True, timeout=min(left, args.timeout_seconds), check=False)
                                 row.update(exitCode=completed.returncode, stdout=completed.stdout, stderr=completed.stderr,
                                            status='ok' if completed.returncode == 0 else 'worker-failed')
                                 if row['status'] == 'ok':
@@ -240,7 +246,7 @@ def main():
         except (OSError, ValueError) as error:
             manifest['artifactsUnchanged'] = False
             manifest['finalArtifactError'] = str(error)
-        manifest['status'] = 'complete' if len(manifest['observations']) == 48 else 'interrupted'
+        manifest['status'] = 'complete' if len(manifest['observations']) == len(arms) * 12 else 'interrupted'
         write_json(out / 'manifest.json', manifest)
         summary = summarize(out, manifest)
         print('workers', summary['workers'], 'failed', len(summary['failed']), 'input failures', len(summary['inputFailures']),

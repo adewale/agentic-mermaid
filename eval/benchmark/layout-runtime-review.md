@@ -74,9 +74,25 @@ and RSS A/A median ratios must lie in reciprocal 1.1; candidate growth gates are
 denominators remain null. All granular values, failures and unlaunched rows stay
 in the report, including individual inputs/rounds outside aggregate controls.
 
-The [recorded experiment](../../docs/design/system/layout-guidance-benchmarks.json)
+The [recorded experiment (gzip JSON)](../../docs/design/system/layout-guidance-benchmarks.json.gz)
 contains the immutable declaration, exact executed driver bytes, input envelope,
 all 30 results and assessments. The portable runner subsequently narrows only
 its malformed-result exception handler for lint; its hash is recorded separately.
 No measured renderer or stock worker changed. Never use this new protocol to
 relabel a deadline failure as a passed release qualification.
+
+## Optional native-only cost pilot
+
+`layout-change-ablation.py --native-only` declares three arms: baseline native,
+independent baseline native A/A and candidate native. Its default remains the
+four-arm experiment including ELK. Both modes retain three rounds, 15 timing
+repetitions, both cache policies, the explicitly supplied population and the
+stock full-consumption worker. The native-only summary omits ELK ratios because
+it does not measure ELK. Its 36 planned worker slots and omitted arm are recorded
+in the plan. It is a cost pilot, not the 25-repetition release qualification.
+
+`--budget-seconds` bounds the entire pilot, including both cache policies;
+`--timeout-seconds` additionally bounds each worker. These differ from the
+release campaign's 480,000ms per-policy shared bound. Declare populations,
+acceptance targets and limits before launch. Retain interrupted experiments and
+unlaunched slots; a separately declared experiment does not repair them.
