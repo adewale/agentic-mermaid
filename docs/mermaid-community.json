@@ -1414,7 +1414,7 @@
     },
     {
       "id": "crafter-station/mermaid",
-      "categories": ["renderer"],
+      "categories": ["renderer", "parser"],
       "relation": "independent",
       "repo": "https://github.com/crafter-station/mermaid",
       "branch": "main",
@@ -1443,7 +1443,8 @@
         }
       ],
       "roles": ["observed"],
-      "notes": "README claims 30.5KB min+gzip. No LICENSE file and no npm license field."
+      "evidence": ["https://github.com/crafter-station/mermaid/blob/1bac24116826233c3b0ad8da589d7223d77a451a/README.md"],
+      "notes": "README claims 30.5KB min+gzip. No LICENSE file and no npm license field. Categories rechecked on 2026-10-23: independently published parser maps text to an AST with source spans; renderer maps positioned graphs to SVG. Existing package/head observations retain their dates."
     },
     {
       "id": "emtyty/merslim",
@@ -1512,7 +1513,7 @@
     },
     {
       "id": "inkeep/visimer",
-      "categories": ["parser", "integration"],
+      "categories": ["parser", "integration", "editor"],
       "relation": "independent",
       "repo": "https://github.com/inkeep/visimer",
       "branch": "main",
@@ -1533,7 +1534,8 @@
         }
       ],
       "roles": ["parser-peer"],
-      "notes": "Lossless CST and edit ops in @visimer/core; @visimer/dom renders through mermaid."
+      "evidence": ["https://github.com/inkeep/visimer/blob/594440dad857d4b040f205047289ef60d5e0618b/README.md"],
+      "notes": "Lossless CST and edit ops in @visimer/core; @visimer/dom renders through mermaid. Categories rechecked on 2026-10-23: DOM/React WYSIWYG authoring includes inline label edits, drag-to-connect and undo, independently of the parser benchmark role. Existing package/head observations retain their dates."
     },
     {
       "id": "justsml/rusty-mermaid",
