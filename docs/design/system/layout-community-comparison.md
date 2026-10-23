@@ -8,9 +8,30 @@ Rust native code, Rust/WASM and TypeScript are separate execution models.
 
 This comparison supplements the [full backend qualification](layout-qualification.md).
 It distinguishes inspected source, a project's published measurements, and our
-same-input experiment. None is substituted for another. The frozen renderer is
+same-input experiment. None is substituted for another. The peer campaign's frozen renderer is
 `e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01`, `agentic-layered@22`;
-subsequent commits add reporting and benchmark checks without changing it.
+its subsequent reporting and benchmark-check commits do not change that artifact.
+The current accepted PR renderer is runtime26, source
+`3258d80ce165457a1dd4695bb2bc12171f492006`; its separate
+[follow-up qualification](layout-followup-results.md) does not relabel this
+older peer campaign as current-renderer measurements.
+
+| Current comparison | What is established | What is still missing |
+| --- | --- | --- |
+| ELK quality | Runtime26 preserves the known-source crossing/label gains and bounded Architecture cleanup. | Fresh Architecture has21/64 crossing losses and48/128 worse edit transitions; bends, length, area and proof uncertainty remain separate dimensions. |
+| ELK cost | Separate accepted26 whole27 memory measurements show lower worker RSS and slightly lower allocation in both cache policies. Selected-native fetched closures are56–62% smaller than complete ELK closures. | Uncached cyclic allocation/time losses and failed hosted qualification remain. Both engines stay in the package, fallback adds ELK, and payload reserve is narrow. No universal speed/memory/size win. |
+| Pele/Ondine, Merman and other published peers | The pinned capability/source review and exact historical same-input experiment below remain evidence. | No fresh runtime26 same-input peer or human-readability experiment establishes a new lead. Compiler/mount-runtime and Rust-native/V8 memory scopes remain distinct. |
+| Zombie simple and family scope | Zombie's narrower optional solver remains a useful comparison with our six-family opt-in backend. | Neither expanding our families nor narrowing to Flowchart alone has measured justification; Flowchart-only would retain the cyclic tails. |
+
+Four further subtraction prototypes are now measured against accepted26:
+rank-first, best-band reuse, ray views, and a separately declared combined
+query-local crossing-record/ray-view variant. None meets its declared improvement
+targets; the complete combined memory run is allocation-flat and would reduce
+payload reserve. All remain outside production. Their exact source patches,
+controls and adverse results are retained in the
+[follow-up report](layout-followup-results.md#further-cyclic-attribution-on-frozen-runtime-26).
+Removing temporary objects or visits is therefore an evaluated mechanism here,
+not evidence that we have caught up with another implementation.
 
 ## What the community inventory actually represents
 
@@ -191,6 +212,14 @@ the cyclic cost regressions keep the full target open. They are not a new
 implementation speedup or a pooled best-of result.
 
 ## What the research suggests doing next
+
+These are the peer campaign's runtime22 hypotheses. ER40 label reservations are
+subsequently repaired in23; bounded26 cleanup fixes the duplicate Architecture0/5
+witnesses, while fresh Architecture still exposes placement/routing and edit-motion
+losses. The current [unfinished inventory](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449)
+and [experiment decisions](layout-followup-results.md) distinguish those repairs,
+rejected mechanisms and remaining work. Lane indexing, proof reuse, lazy orders
+and the four later prototypes are not untouched recommendations.
 
 The algorithmic family itself is established work. ELK, Pele, Zombie simple and
 our solver all use layered-drawing ideas. [Gansner et al.](https://graphviz.org/documentation/TSE93.pdf)
