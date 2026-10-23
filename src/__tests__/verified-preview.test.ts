@@ -82,6 +82,31 @@ function workerHarness(timeout = 30_000) {
 }
 
 describe('persistent preview worker queue', () => {
+  test.each(['ascii', 'png'] as const)('replaces a failed dependency worker even when its %s request was superseded', async operation => {
+    const h = workerHarness()
+    try {
+      const cancelled = (operation === 'ascii'
+        ? h.client.renderText('old', {}, true)
+        : h.client.renderPng('old', {}, 1, async () => ({ png: new Uint8Array([137, 80]) }))).catch(error => error)
+      h.client.invalidate()
+      const preview = h.client.render('new', {}).catch(error => error)
+      const exported = h.client.renderText('new', {}, false).catch(error => error)
+      const failedWorker = h.workers[0]!
+      failedWorker.onmessage?.({ data: { id: 1, ok: false, error: 'Module download failed', dependencyLoadFailed: true } })
+      expect(await cancelled).toBeInstanceOf(PreviewSupersededError)
+      expect(failedWorker.terminated).toBe(true)
+      expect(h.workers).toHaveLength(2)
+      expect(h.sent.map(request => request.operation)).toEqual([operation, 'preview'])
+      h.reply(2)
+      expect((await preview).svg).toBe('<svg/>')
+      expect(h.sent.map(request => request.operation)).toEqual([operation, 'preview', 'unicode'])
+      // Replies from the discarded worker cannot finish the new worker's job.
+      failedWorker.onmessage?.({ data: { id: 3, ok: true, artifact: { text: 'stale', receipt: { output: 'unicode' } } } })
+      h.replyArtifact(3, { text: 'recovered', receipt: { output: 'unicode' } })
+      expect((await exported).text).toBe('recovered')
+    } finally { h.client.dispose() }
+  })
+
   test('orders text exports with the newest preview and bounds pending exports', async () => {
     const h = workerHarness()
     try {

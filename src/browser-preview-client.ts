@@ -121,6 +121,9 @@ export class PreviewWorkerClient {
         return
       }
       if (response.ok !== true && response.ok !== false) throw new Error('Background renderer returned an unreadable response')
+      // Failed imports poison the worker's module map even when an edit has
+      // superseded the operation. Reset that state before draining queued work.
+      if (!response.ok && response.dependencyLoadFailed) { worker.terminate(); this.worker = undefined }
       if (pending.superseded) {
         clearTimeout(this.timer); this.timer = undefined; this.active = undefined
         pending.reject(new PreviewSupersededError()); this.drain(); return
@@ -137,12 +140,7 @@ export class PreviewWorkerClient {
       clearTimeout(this.timer); this.timer = undefined
       this.active = undefined
       if (response.ok) pending.resolve(response.artifact)
-      else {
-        pending.reject(new Error(response.error))
-        // A module worker caches failed imports. Recreate its module map for
-        // the next job while preserving the client's queued request order.
-        if (response.dependencyLoadFailed) { this.worker?.terminate(); this.worker = undefined }
-      }
+      else pending.reject(new Error(response.error))
       this.drain()
     } catch (error) { this.dispose(error instanceof Error ? error : new Error(String(error))) }
   }
