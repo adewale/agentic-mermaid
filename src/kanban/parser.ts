@@ -1,4 +1,4 @@
-import { isMap, isScalar, parseDocument } from 'yaml'
+import { readYamlMappingRanges } from '../shared/mermaid-yaml.ts'
 import type { Accessibility } from '../agent/types.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
@@ -6,6 +6,7 @@ import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { fromEntityMarkers, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservation } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
@@ -37,11 +38,8 @@ function metadataRanges(block: string, end: number, offset: number): Array<{ nam
     const edit = edits[lo - 1]
     return base + (edit ? at < edit.end ? edit.sourceStart : at - edit.end + edit.sourceEnd : at)
   }
-  const doc = parseDocument(toEntityMarkers(raw))
-  if (!isMap(doc.contents)) return result
-  for (const pair of doc.contents.items) {
-    if (!isScalar(pair.key) || !pair.key.range || !pair.value || !('range' in pair.value) || !pair.value.range) continue
-    result.push({ name: fromEntityMarkers(String(pair.key.value)), keyStart: authored(pair.key.range[0]), keyEnd: authored(pair.key.range[1]), valueStart: authored(pair.value.range[0]), valueEnd: authored(pair.value.range[1]) })
+  for (const range of readYamlMappingRanges(toEntityMarkers(raw))) {
+    result.push({ name: fromEntityMarkers(range.name), keyStart: authored(range.keyStart), keyEnd: authored(range.keyEnd), valueStart: authored(range.valueStart), valueEnd: authored(range.valueEnd) })
   }
   return result
 }
@@ -234,7 +232,8 @@ export function kanbanStatementEnds(lines: readonly string[]): number[] {
       const start = event.source.line - 1
       ends[start] = Math.min(lines.length - 1, start + event.text.split('\n').length - 1)
     }, () => parseKanbanDiagram(lines), { mutations: [] })
-  } catch {
+  } catch (error) {
+    if (error instanceof DeferredDependencyError) throw error
     // Invalid records remain family-visible; retain bounds of completed ones.
   }
   return ends

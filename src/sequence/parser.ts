@@ -5,6 +5,7 @@ import { scanAccessibilityDirectives } from '../shared/accessibility-directives.
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
 import { readSequenceLabel } from './text.ts'
 import { concatDisplayText, prepareDisplayText, resolveLabelContent, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
@@ -588,7 +589,10 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
   const statements: SequenceSourceStatement[] = scanSequenceStatementLines(lines).map(span => {
     if (!span.raw.trim() || isSequenceCommentLine(span.raw)) return { ...span, syntax: null }
     try { return { ...span, syntax: parseSequenceStatement(span.raw.trim()) } }
-    catch (error) { return { ...span, syntax: null, error } }
+    catch (error) {
+      if (error instanceof DeferredDependencyError) throw error
+      return { ...span, syntax: null, error }
+    }
   })
   const stack: number[] = []
   const issues: SequenceReadIssue[] = []

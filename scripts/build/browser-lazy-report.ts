@@ -135,6 +135,16 @@ const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
+const yamlOutputs = outputNames.filter(path =>
+  Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/yaml/')))
+if (yamlOutputs.length === 0) throw new Error('YAML parser has no emitted implementation')
+const yamlRuntimeOutputs = outputNames.filter(path =>
+  Object.hasOwn(metafile.outputs[path]!.inputs, 'src/shared/mermaid-yaml-runtime.ts'))
+// Baseline measurement also accepts the older eager package edge. New builds
+// start at the actual provider so a separate wrapper chunk cannot be omitted.
+const yamlProviderOutputs = yamlRuntimeOutputs.length ? yamlRuntimeOutputs : yamlOutputs
+const yamlFiles = staticClosure(yamlProviderOutputs)
+if (yamlOutputs.some(path => !yamlFiles.includes(path))) throw new Error('YAML provider closure omits part of its parser')
 
 // A family can still demand ELK after its initial static download. Preserve
 // that transfer in the existing ceilings, deriving consumers from the emitted
@@ -148,11 +158,16 @@ const elkFamilies = MEASURED_FAMILY_IDS.filter(id =>
 const elkFiles = staticClosure([elkOutput])
 const budgetedFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
-  staticClosure([...familyFiles[id], ...(elkFamilies.includes(id) ? elkFiles : [])]),
+  staticClosure([...familyFiles[id], ...yamlFiles, ...(elkFamilies.includes(id) ? elkFiles : [])]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (!MEASURE_ONLY) {
+  if (yamlRuntimeOutputs.length !== 1) throw new Error('YAML must have one demand-loaded provider')
+  if ([...yamlRuntimeOutputs, ...yamlOutputs].some(path => initialFiles.includes(path)
+    || BROWSER_BUILTIN_FAMILY_IDS.some(id => familyFiles[id].includes(path)))) {
+    throw new Error('YAML must load only on demand, never with the initial download or a family')
+  }
   // The complete HTML5 named-reference table (~23 KB gzip) is fetched on
   // demand (shared/html-entity-table.lazy.ts), only for a diagram that uses a
   // named code beyond XML's five. Keep it out of the initial download and out
@@ -168,7 +183,12 @@ if (!MEASURE_ONLY) {
   // table swap. Execute the emitted ESM entry so a broken on-demand decoder
   // fails this mandatory build gate.
   const { renderMermaidSVGAsync } = await import(pathToFileURL(join(ROOT, 'dist/browser-lazy/index.js')).href)
-  // The first render starts with the table unloaded, so it proves the fetch.
+  // The first render demands YAML, named entities and cyclic placement. It
+  // proves all three dependency awaits complete under the bounded replay.
+  const wrapped = await renderMermaidSVGAsync('---\ntitle: YAML demand\n---\nflowchart LR\n  A["x#hearts;y"] --> B\n  B --> A', { security: 'strict' })
+  if (!displayedTexts(wrapped).includes('YAML demand') || !displayedTexts(wrapped).includes('x♥y')) {
+    throw new Error('Built lazy rendering failed combined YAML/entity/placement demand')
+  }
   for (const [family, source] of [
     ['flowchart', 'flowchart LR\n  A["x#hearts;y"] --> B'],
     ['er', 'erDiagram\n  A ||--o{ B : "x#hearts;y"'],
@@ -192,8 +212,10 @@ if (!MEASURE_ONLY) {
 const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
-  familyClosure: 'static imports only; on-demand ELK and HTML entity downloads are additional when a diagram requires them',
-  budgetedFamilyClosure: 'static imports plus the complete ELK transfer for families that can demand its constructor',
+  familyClosure: 'static imports only; on-demand YAML, ELK and HTML entity downloads are additional when a diagram requires them',
+  budgetedFamilyClosure: 'static imports plus complete YAML transfer for frontmatter/directives and ELK transfer for families that can demand its constructor',
+  yamlChunks: yamlProviderOutputs,
+  yamlTransfer: transferSize(yamlFiles),
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
