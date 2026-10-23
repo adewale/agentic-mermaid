@@ -383,16 +383,13 @@ function unsafeCssReferences(value: string): string[] {
 
 function unsafeActiveCss(value: string): boolean {
   const scan = normalizeCssObfuscation(decodeXmlReferences(value))
+  return unsafeActiveCssScan(scan)
+}
+
+function unsafeActiveCssScan(scan: string): boolean {
   if (/(?:expression|behavior)\s*\(|-moz-binding\s*:/i.test(scan)) return true
   if (/(?:javascript|vbscript|data|file)\s*:/i.test(scan)) return true
   return false
-}
-
-function unsafeCssOrAnimatedValue(value: string): boolean {
-  const scan = normalizeCssObfuscation(decodeXmlReferences(value))
-  return unsafeCssReferences(scan).length > 0
-    || /(?:javascript|vbscript|data|file)\s*:/i.test(scan)
-    || /(?:expression|behavior)\s*\(/i.test(scan)
 }
 
 const CSS_VALUE_ATTRIBUTES = new Set([
@@ -433,10 +430,13 @@ function inspectAttributeSecurity(qualified: string, value: string, refs: string
   if (CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') {
     // Without a function, scheme, at-rule, escape or entity delimiter, CSS
     // normalization cannot introduce any of the active/fetching forms below.
-    // Escaped and encoded inputs retain every existing normalization pass.
+    // Escaped and encoded inputs retain full reference/active classification.
     if (!/[(:@\\&]/.test(value)) return
-    if (unsafeCssOrAnimatedValue(value)) refs.push(`${qualified}=${value}`)
-    if (unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
+    const scan = normalizeCssObfuscation(decodeXmlReferences(value))
+    if (unsafeCssReferences(scan).length > 0
+      || /(?:javascript|vbscript|data|file)\s*:/i.test(scan)
+      || /(?:expression|behavior)\s*\(/i.test(scan)) refs.push(`${qualified}=${value}`)
+    if (unsafeActiveCssScan(scan)) active.push(`${qualified}=${value}`)
   }
 }
 
