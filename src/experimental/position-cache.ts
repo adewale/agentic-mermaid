@@ -46,15 +46,24 @@ export function borrowedPositioned(family: object, key: string): PositionedSnaps
   return value
 }
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
+  retainSnapshot(family, key, value, projection, true)
+}
+/** Only fresh original Sequence geometry in private native SVG rendering. */
+export function retainOwnedSequencePositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
+  retainSnapshot(family, key, value, projection, false)
+}
+function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean): void {
   const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}) }
   const weight = key.length * 2 + estimatedResidency(snapshot, MAX_WEIGHT) + 1024
   if (weight > MAX_WEIGHT) { observeCache('positioned-layout', 'store-skipped', 'weight-limit'); return }
-  let copy: PositionedSnapshot
-  try { copy = clonePositioned(snapshot) } catch (error) {
-    // C4 identity planners carry callbacks. Keep the complete authoritative
-    // artifact uncached when a private snapshot cannot preserve its evidence.
-    if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
-    throw error
+  let retained = snapshot
+  if (copy) {
+    try { retained = clonePositioned(snapshot) } catch (error) {
+      // C4 identity planners carry callbacks. Keep the complete authoritative
+      // artifact uncached when a private snapshot cannot preserve its evidence.
+      if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
+      throw error
+    }
   }
-  results.set(isolatedKey(family, key), copy, weight)
+  results.set(isolatedKey(family, key), retained, weight)
 }

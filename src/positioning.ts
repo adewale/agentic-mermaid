@@ -3,7 +3,7 @@ import { DefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, retainOwnedSequencePositioned, retainPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
@@ -107,7 +107,13 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         throw new LayoutCertificationError([{ strategy, violations: [error instanceof Error ? error.message : String(error)] }])
       }
     }
-    if (!hit && boundedKey !== undefined) retainPositioned(descriptor, boundedKey, result, retainedProjections.get(result))
+    if (!hit && boundedKey !== undefined) {
+      // The original Sequence hook parses a fresh private diagram. Native SVG
+      // consumes its geometry without exposing it; shared prepared text is frozen.
+      const retain = borrow && familyId === 'sequence' && request.output === 'svg'
+        ? retainOwnedSequencePositioned : retainPositioned
+      retain(descriptor, boundedKey, result, retainedProjections.get(result))
+    }
     return result
   })
 }
