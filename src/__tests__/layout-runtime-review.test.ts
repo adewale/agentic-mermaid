@@ -95,5 +95,45 @@ test('private cache counters retain weighted eviction behavior and fail closed o
   expect(counter.distinctGetKeys).toBe(4)
   expect(counter.distinctSetKeys).toBe(3) // Oversized retention was rejected.
   expect(counter.getKeySha256.every(value => /^[a-f0-9]{64}$/.test(value))).toBe(true)
-  expect(() => instrumentCacheSource(original.replace('const found = this.entries.get(key)', 'const changed = this.entries.get(key)'), false, '/unused')).toThrow('exactly one')
+  expect(() => instrumentCacheSource(original.replace('const found = this.#entries.get(key)', 'const changed = this.#entries.get(key)'), false, '/unused')).toThrow('exactly one')
+})
+
+
+test('native private cache instrumentation preserves updates and weighted eviction', () => {
+  const original = readFileSync(new URL('../layout/agentic-producer-core.ts', import.meta.url), 'utf8')
+  const transformed = instrumentCacheSource(original, true, '/unused/diagnostic-state.ts')
+  const compile = (source: string) => {
+    const declaration = source.match(/class NativeResults<T> \{[\s\S]*?\n\}/)?.[0]
+    if (!declaration) throw new Error('Expected the private native cache class exactly')
+    const script = new Bun.Transpiler({ loader: 'ts' }).transformSync(declaration)
+    return new Function('cacheProbeEvent', `${script}\nreturn NativeResults`)(cacheProbeEvent) as new (capacity: number) => { get(key: string): number | undefined; set(key: string, value: number, weight: number): void }
+  }
+  const Control = compile(original), Diagnostic = compile(transformed)
+  const outcomes = [new Control(10), new Diagnostic(10)].map(cache => {
+    cache.set('a', 1, 4); cache.set('b', 2, 4)
+    const first = cache.get('a')
+    cache.set('c', 3, 4)
+    const evicted = cache.get('b'), retained = cache.get('c')
+    cache.set('oversized', 4, 11)
+    const rejected = cache.get('oversized')
+    cache.set('a', 9, 1)
+    return [first, evicted, retained, rejected, cache.get('a')]
+  })
+  expect(outcomes).toEqual([[1, undefined, 3, undefined, 9], [1, undefined, 3, undefined, 9]])
+  const counter = cacheProbeSnapshot().find(value => value.layer === 'native:10')!
+  expect(counter.events.evict).toBe(1)
+  expect(counter.events.rejected).toBe(1)
+  expect(counter.distinctGetKeys).toBe(4)
+  expect(counter.distinctSetKeys).toBe(3)
+})
+
+test.each([
+  ['weighted', '../experimental/weighted-lru.ts', false],
+  ['native', '../layout/agentic-producer-core.ts', true],
+] as const)('private %s cache source probes reject missing, duplicated and stale anchors', (_name, path, native) => {
+  const source = readFileSync(new URL(path, import.meta.url), 'utf8')
+  const anchor = 'const found = this.#entries.get(key)'
+  expect(() => instrumentCacheSource(source.replace(anchor, 'const changed = this.#entries.get(key)'), native, '/unused')).toThrow('exactly one')
+  expect(() => instrumentCacheSource(`${source}\n// ${anchor}`, native, '/unused')).toThrow('exactly one')
+  expect(() => instrumentCacheSource(source.replaceAll('this.#', 'this.'), native, '/unused')).toThrow('exactly one')
 })
