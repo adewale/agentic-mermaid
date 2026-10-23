@@ -28,6 +28,17 @@ describe('source-aware ELK child order', () => {
     expect(convertToElkFormat(parseMermaid(source)).children!.map(node => node.id)).toEqual(expected)
   })
 
+  test('mutable group membership keeps duplicate tie order and excludes outside endpoints', () => {
+    const graph = parseMermaid('flowchart TD\nsubgraph G\nA\nB\nend\nX\nA --> X\nX --> B')
+    // The conversion owner accepts a caller-adjusted group list. Original
+    // indices use the last occurrence, so this is not an already sorted heap.
+    graph.subgraphs[0]!.nodeIds = ['B', 'A', 'B']
+    const elk = convertToElkFormat(graph)
+    expect(elk.children!.map(node => node.id)).toEqual(['G', 'X'])
+    expect(elk.children!.find(node => node.id === 'G')!.children!.map(node => node.id)).toEqual(['A', 'B', 'B'])
+    expect(graph.subgraphs[0]!.nodeIds).toEqual(['B', 'A', 'B'])
+  })
+
   test('root container mapping and internal source order remain separate', () => {
     const elk = convertToElkFormat(parseMermaid('flowchart TD\nsubgraph Z\nB\nA\nA --> B\nend\nC\nC --> A'))
     expect(elk.children!.map(node => node.id)).toEqual(['C', 'Z'])

@@ -305,6 +305,51 @@ describe('classifyRoutes', () => {
     expect(classifyRoutes(graph)[0]).toBe('cross-hierarchy')
   })
 
+  it('keeps independent authored cycle decisions across branches, scopes and missing endpoints', () => {
+    const graph = parseMermaid(`flowchart TD
+      subgraph G1
+        A
+        B
+        C
+        D
+        E
+      end
+      subgraph G2
+        X
+      end
+      A --> B
+      A --> C
+      C --> D
+      D --> A
+      B --> E
+      E --> B
+      A --> B
+      A --> A
+      A --> G2
+      A --> X
+      X --> A
+      U --> A
+      A --> U`)
+    graph.nodes.delete('U')
+    expect(classifyRoutes(graph)).toEqual([
+      'primary-forward', 'primary-forward', 'primary-forward', 'feedback',
+      'primary-forward', 'feedback', 'primary-forward', 'self-loop', 'container',
+      'cross-hierarchy', 'feedback', 'cross-hierarchy', 'feedback',
+    ])
+  })
+
+  it('observes caller mutation at each edge and again on a later invocation', () => {
+    const graph = parseMermaid('flowchart TD\nA --> B\nB --> C\nC --> A')
+    Object.defineProperty(graph.edges[2]!, 'target', { get() {
+      // The first invocation has already admitted A -> B when this runs.
+      graph.edges[0]!.source = 'B'
+      graph.edges[0]!.target = 'A'
+      return 'A'
+    } })
+    expect(classifyRoutes(graph)).toEqual(['primary-forward', 'primary-forward', 'feedback'])
+    expect(classifyRoutes(graph)).toEqual(['primary-forward', 'primary-forward', 'primary-forward'])
+  })
+
   it('longer cycles mark only the closing edge as feedback', () => {
     const graph = parseMermaid('flowchart TD\n  A --> B\n  B --> C\n  C --> A')
     expect(classifyRoutes(graph)).toEqual(['primary-forward', 'primary-forward', 'feedback'])

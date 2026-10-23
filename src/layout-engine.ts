@@ -1,3 +1,4 @@
+import { directedReachability } from './shared/directed-reachability.ts'
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
@@ -146,18 +147,7 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
   const outgoing = new Map(nodeIds.map(id => [id, new Set<string>()]))
   const indegree = new Map(nodeIds.map(id => [id, 0]))
 
-  const reaches = (from: string, to: string): boolean => {
-    const seen = new Set<string>()
-    const stack = [from]
-    while (stack.length > 0) {
-      const id = stack.pop()!
-      if (id === to) return true
-      if (seen.has(id)) continue
-      seen.add(id)
-      for (const next of outgoing.get(id) ?? []) stack.push(next)
-    }
-    return false
-  }
+  const reaches = directedReachability(outgoing)
 
   for (const edge of edges) {
     if (edge.source === edge.target || !ids.has(edge.source) || !ids.has(edge.target)) continue

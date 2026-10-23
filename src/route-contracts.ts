@@ -1,3 +1,4 @@
+import { directedReachability } from './shared/directed-reachability.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 /**
  * Route contracts — principled routing without hitches (docs/design/system/route-contracts.md).
@@ -227,18 +228,7 @@ export function classifyRoutes(graph: MermaidGraph): RouteClass[] {
   visitScope(graph.subgraphs, '')
 
   const outgoing = new Map<string, Set<string>>()
-  const reaches = (from: string, to: string): boolean => {
-    const seen = new Set<string>()
-    const stack = [from]
-    while (stack.length > 0) {
-      const id = stack.pop()!
-      if (id === to) return true
-      if (seen.has(id)) continue
-      seen.add(id)
-      for (const next of outgoing.get(id) ?? []) stack.push(next)
-    }
-    return false
-  }
+  const reaches = directedReachability(outgoing)
 
   return graph.edges.map(edge => {
     if (edge.source === edge.target) return 'self-loop'
