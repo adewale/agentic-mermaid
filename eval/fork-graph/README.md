@@ -45,6 +45,9 @@ Queries live in the community inventory's `method.discovery`, covering GitHub
 editor/export/annotation/topic searches and npm editor/export/plugin/renderer
 searches. The report preserves every hit and query, merges repository/package
 identities, marks known members and leaves new candidates for source review.
+When npm search omits a repository URL, an unambiguous curated package owner
+supplies the member identity. Conflicting repositories or package ownership
+remain separate, with the matched members recorded for review.
 No npm publication, popularity, ancestry or independent-renderer requirement
 is applied. The command does not rewrite the curated inventory or benchmark
 population. Review source responsibilities and dependencies before promotion;
@@ -52,7 +55,7 @@ record unverified ancestry explicitly.
 
 The default bound is one page of 50 results per query; `--pages` (up to 3) and
 `--per-page` (up to 100) expose that bound. API ranking and incomplete searches
-still limit recall. The 23 October pass returned 264 candidates and found
+still limit recall. The original 23 October pass returned 264 candidates and found
 Modern Mermaid through editor, export and topic queries. This is a reproducible
 discovery sample, not a claim that every community member has been found.
 Failed searches are recorded alongside successful hits in a partial report;

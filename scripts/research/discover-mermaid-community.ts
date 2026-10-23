@@ -12,6 +12,13 @@ export interface Candidate {
   sources: { service: 'github' | 'npm'; query: string; page: number; url: string }[]
 }
 
+interface Member {
+  id: string
+  repo?: string
+  categories?: string[]
+  packages?: { registry: string; name: string }[]
+}
+
 export function repositoryIdentity(value: string): { id: string; repo: string } | undefined {
   const match = /^(?:git\+)?(?:https?:\/\/|git:\/\/|ssh:\/\/(?:git@)?|git@)github\.com[:/]([\w.-]+)\/([\w.-]+)/i.exec(value)
   if (!match) return undefined
@@ -19,20 +26,37 @@ export function repositoryIdentity(value: string): { id: string; repo: string } 
   return { id, repo: `https://github.com/${id}` }
 }
 
-export function mergeCandidates(members: { id: string; categories?: string[] }[], hits: Candidate[]) {
+export function mergeCandidates(members: Member[], hits: Candidate[]) {
   const known = new Map(members.map(member => [member.id.toLowerCase(), member]))
+  const packageOwners = new Map<string, Set<string>>()
+  for (const member of members) for (const pkg of member.packages ?? []) {
+    if (pkg.registry !== 'npm') continue
+    const owners = packageOwners.get(pkg.name) ?? new Set<string>()
+    owners.add(member.id.toLowerCase())
+    packageOwners.set(pkg.name, owners)
+  }
+  const matchingMembers = (packages: string[] = []) => new Set(packages.flatMap(name => [...(packageOwners.get(name) ?? [])]))
   const candidates = new Map<string, Candidate>()
   for (const hit of hits) {
-    const key = hit.id.toLowerCase(), previous = candidates.get(key)
+    const owners = matchingMembers(hit.packages)
+    // Missing search metadata may use an unambiguous curated package owner.
+    // A different observed repository must remain visible for source review.
+    const member = known.get(hit.id.toLowerCase()) ?? (!hit.repo && owners.size === 1 ? known.get([...owners][0]!) : undefined)
+    const key = (member?.id ?? hit.id).toLowerCase(), previous = candidates.get(key)
     if (previous) {
       previous.sources.push(...hit.sources)
       previous.packages = [...new Set([...(previous.packages ?? []), ...(hit.packages ?? [])])]
-    } else candidates.set(key, { ...hit, sources: [...hit.sources], packages: [...(hit.packages ?? [])] })
+      previous.repo ??= hit.repo
+    } else candidates.set(key, { ...hit, id: member?.id ?? hit.id, repo: hit.repo ?? member?.repo,
+      sources: [...hit.sources], packages: [...(hit.packages ?? [])] })
   }
-  return [...candidates].map(([key, candidate]) => ({ ...candidate,
-    knownMember: known.has(key), categories: known.get(key)?.categories ?? [],
-    classification: known.has(key) ? 'catalogued' : 'needs-source-review',
-  })).sort((a, b) => a.id.localeCompare(b.id, 'en'))
+  return [...candidates].map(([key, candidate]) => {
+    const owners = [...matchingMembers(candidate.packages)].filter(owner => owner !== key)
+    return { ...candidate, knownMember: known.has(key), categories: known.get(key)?.categories ?? [],
+      ...(owners.length ? { identityConflict: true, packageMatches: owners.map(owner => known.get(owner)!.id).sort() } : {}),
+      classification: known.has(key) && !owners.length ? 'catalogued' : 'needs-source-review',
+    }
+  }).sort((a, b) => a.id.localeCompare(b.id, 'en'))
 }
 
 if (import.meta.main) {
@@ -47,7 +71,7 @@ if (import.meta.main) {
     throw new Error('Usage: bun scripts/research/discover-mermaid-community.ts --out <file> [--pages 1..3] [--per-page 1..100]')
   }
   const graph = JSON.parse(readFileSync(new URL('../../docs/mermaid-community.json', import.meta.url), 'utf8')) as {
-    nodes: { id: string; categories?: string[] }[]
+    nodes: Member[]
     method: { discovery: { githubQueries: string[]; npmQueries: string[] } }
   }
   const hits: Candidate[] = []
@@ -95,7 +119,7 @@ if (import.meta.main) {
   const report = { checkedAt: new Date().toISOString(), policy: 'Bounded GitHub and npm searches; no stars, fork ancestry, publication or renderer-ownership gate. Source review is required before promotion.',
     status: errors.length ? 'partial' : 'complete', limits: { pages, perPage, exhaustive: false }, searches, errors, candidates: mergeCandidates(graph.nodes, hits) }
   writeFileSync(destination, JSON.stringify(report, null, 2) + '\n')
-  console.log(`${report.candidates.length} candidates (${report.candidates.filter(candidate => !candidate.knownMember).length} need source review); report: ${destination}`)
+  console.log(`${report.candidates.length} candidates (${report.candidates.filter(candidate => candidate.classification === 'needs-source-review').length} need source review); report: ${destination}`)
   if (errors.length) {
     console.error(`${errors.length} searches failed; retained successful results in the partial report`)
     process.exitCode = 1
