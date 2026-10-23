@@ -24,11 +24,17 @@ queues. Retired IDs are not reused.
   distinguish retained changes, rejected trials and unfinished redesigns.
   Merge/publication remain outstanding. Agentic still trails Beautiful and
   Pele on the shared peer cohort, production bundle size grows slightly, and
-  several timing/memory risks remain. Next: calibrate semantic peer/tail and
-  allocation gates with #433, profile the common Sequence rendering path,
-  establish geometry/proof ownership before broader reuse, and qualify #449's
-  latest native solver. Production SVG-only distribution and renderer-instance
-  lifetime controls remain unimplemented. Existing work stays with its owners;
+  several timing/memory risks remain. PR #468 retains narrow Sequence miss
+  ownership transfer for repeatable allocation savings; its
+  [follow-up report](docs/project/archive/performance-followup-2026-10-23.md)
+  preserves the full-corpus timing losses, noisy confirmations and mixed memory
+  results. The native recorder rewrite was rejected. Renderer-instance lifetime
+  controls are implemented separately but blocked by unchanged payload caps;
+  they are not shipped or measured as a memory improvement. Next: qualify the
+  shared reachability workspace, integrate #433's semantic peer/tail/allocation
+  gates, establish geometry/proof ownership before broader reuse, and resolve
+  #449's native qualification failures. Production SVG-only distribution remains
+  unimplemented. Existing work stays with its owners;
   the [campaign contract](docs/design/system/performance-campaign.md) records
   the preservation requirements.
 
