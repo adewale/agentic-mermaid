@@ -272,6 +272,16 @@ Agentic's typecheck and repository lint passed. Both benchmark scripts passed
 Focused tests cover evidence admission, changed dependencies and exact engine
 coverage. Generated benchmark evidence remains outside the repository.
 
+The evidence guards were qualified by a fresh full run at Agentic revision
+`97f5a178f12e9f68dda84694f90b256efe92c338`. All 9,855 engine attempts completed:
+795 Modern, 823 Agentic and 1,061 reference inputs were accepted, with 24/24 UI
+theme selections and 18/24 share restorations. The dependency snapshot includes
+199 Modern and 280 reference JavaScript/ESM modules. The original speed figures
+above retain their original measurement date and baseline. Actual CLI probes
+confirm that the old summarizer accepted altered-source and foreign-ID evidence
+and the corrected one rejects both. Invalid resumes leave the saved report and
+inventory untouched; valid resumes preserve the engine rows, date and environment.
+
 Primary implementation sources: [manifest and dependency declaration](https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/package.json),
 [resolved dependency lock](https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/pnpm-lock.yaml),
 [preview/render/export implementation](https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/src/components/Preview.tsx),

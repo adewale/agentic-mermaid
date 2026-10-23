@@ -58,6 +58,10 @@ The default bound is one page of 50 results per query; `--pages` (up to 3) and
 still limit recall. The original 23 October pass returned 264 candidates and found
 Modern Mermaid through editor, export and topic queries. This is a reproducible
 discovery sample, not a claim that every community member has been found.
+After correcting package identity matching, a fresh pass still returned 264
+candidates, with 247 needing source review. It recognises
+`@crafter/mermaid-renderer` as the existing `crafter-station/mermaid` member even
+though npm search omits its repository URL.
 Failed searches are recorded alongside successful hits in a partial report;
 the command exits with a failure status so an incomplete run cannot look complete.
 

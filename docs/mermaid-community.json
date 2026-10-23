@@ -21,7 +21,7 @@
         "topic:mermaid fork:true"
       ],
       "npmQueries": ["mermaid editor", "mermaid export", "mermaid plugin", "mermaid renderer"],
-      "review": "Retain every search hit and its query/source provenance before classification. The report merges repository/package identities, marks known members and leaves new candidates for source review. It never rewrites this inventory or changes benchmark populations.",
+      "review": "Retain every search hit and its query/source provenance before classification. The report merges repository/package identities, including unambiguous curated npm ownership when repository metadata is absent. Conflicting repositories or ownership remain review candidates with matched members recorded. It marks known members and leaves new candidates for source review, without rewriting this inventory or changing benchmark populations.",
       "limits": "Default one page of 50 hits per query; --pages and --per-page expose the bounds. Search ranking and API indexing limit recall. Record truncation and failures; the result is not an exhaustive ecosystem census. GitHub discovery requires the authenticated gh CLI. Web/topic searches and release/readme links can supplement these sources.",
       "historicalExclusions": "rendererBenchmarkExclusions records why the 18 October renderer census excluded package groups. These are benchmark exclusions, not community membership decisions; unreviewed integrations remain discovery candidates. eval/fork-graph/population.json retains its dated renderer benchmark population."
     },

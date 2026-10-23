@@ -151,6 +151,23 @@ same main build. The first-preview median was 473 ms; local timings remain
 diagnostic. All 87 artifacts and 1,095 official results still match main
 exactly, with 823 accepted inputs and no browser errors.
 
+A second audit found that a cold terminal receipt could swallow deferred ELK
+loading as an optional graphical failure. After a failed text download reset
+the worker, switching Diagram → Unicode without editing returned correct text
+but reported unavailable connector evidence. The terminal projection now
+preserves provider suspension so the worker can load it and retry. Genuine
+optional graphical failures still produce diagnostics. Cyclic and fan-in
+flowcharts and a cyclic state diagram now have identical cold, warm and baseline
+receipts. The normal text-pane recovery reproduction restores Scene evidence
+for both Unicode and ASCII without another SVG render.
+
+After both fixes, three rounds measured 134,068 B for the blank editor,
+830,006 B across 58 assets for the first flowchart, and 2,029,557 B across 139
+assets when fully consumed. The first-preview median was 472 ms. The 45.0%
+first-flowchart saving, 2.3% fully consumed growth, 87-artifact parity and
+1,095-result parity remain unchanged. These measurements retain the local
+network limitations above.
+
 ## Correctness and checks
 
 - **87/87 captured artifacts match exactly** between builds across three
@@ -161,12 +178,12 @@ exactly, with 823 accepted inputs and no browser errors.
   errors and digests of SVG/receipt/verification data; **823 accepted** in both
   builds. Its corpus and acceptance definition come from the existing official
   fence inventory, not a newly selected subset.
-- **309 focused unit tests pass**, covering family registration/conformance,
-  hooks, verification/source evidence, browser-lazy rendering, PNG contracts,
-  upstream cache ownership, mutation and wrapper fidelity. Six package manifest
-  tests also pass, and the rebuilt tarball passes the exact 213-file manifest.
-  The audit follow-up adds two worker recovery cases and two community
-  discovery cases; all **319 focused tests** pass in the combined candidate.
+- **144 affected tests pass** after the second audit fixes, covering terminal
+  output/security, family registration/conformance, cache ownership, routing
+  diagnostics, PNG, worker behavior, benchmark evidence and community discovery.
+  Seven assertions fail against the pre-fix PR head `775155b1`; import failures
+  from newly introduced modules are not counted as regression proof. The
+  rebuilt tarball also passes the exact 213-file manifest.
 - **21 browser tests pass**, including each of the 23 families as the first
   family in a fresh context, native ASCII/Unicode parity, blocked-download
   recovery, cached-module editing, worker ownership/cancellation, strict SVG
