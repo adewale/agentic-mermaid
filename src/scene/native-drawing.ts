@@ -91,10 +91,10 @@ export function drawNative(
     shape: fields => leaf(marks.shape(fields)),
     text: fields => leaf(marks.text(fields)),
     connector: fields => leaf(marks.connector(fields)),
-    documentOpen: (...args) => leaf(marks.documentOpen(...args)),
-    documentContent: (...args) => leaf(marks.documentContent(...args)),
-    documentText: (...args) => leaf(marks.documentText(...args)),
-    definitions: (...args) => leaf(marks.definitions(...args)),
+    documentOpen: (fields, svg) => leaf(marks.documentOpen(fields, svg)),
+    documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
+    documentText: fields => leaf(marks.documentText(fields)),
+    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
     documentClose: () => leaf(marks.documentClose()),
     group(fields) {
       let nodeCount = 1, characters = 0, depth = 1, prepared = true
