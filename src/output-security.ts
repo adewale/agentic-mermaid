@@ -129,6 +129,9 @@ function isAllowedXmlCodePoint(codePoint: number): boolean {
 }
 
 function hasOnlyXmlCharacters(source: string): boolean {
+  // Ordinary BMP text needs no per-codepoint walk. Surrogates retain the
+  // original path so valid astral pairs and forbidden lone units differ.
+  if (!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ud800-\udfff\ufffe\uffff]/.test(source)) return true
   for (let index = 0; index < source.length; index++) {
     const codePoint = source.codePointAt(index)!
     if (!isAllowedXmlCodePoint(codePoint)) return false
@@ -224,7 +227,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     let end = parsed.end
     const rawAttributes = new Set<string>()
-    const attributes: Array<{ readonly name: string; readonly qname: XmlQualifiedName; readonly value: string }> = []
+    const namespaceAttributes: Array<{ readonly name: string; readonly qname: XmlQualifiedName; readonly value: string }> = []
     let selfClosing = false
     for (;;) {
       const hadWhitespace = isXmlWhitespace(svg[end])
@@ -237,8 +240,10 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       }
       if (!hadWhitespace) return false
       const attribute = readXmlName(svg, end)
-      const attributeName = attribute && parseXmlQualifiedName(attribute.name)
-      if (!attribute || !attributeName || rawAttributes.has(attribute.name)) return false
+      if (!attribute || rawAttributes.has(attribute.name)) return false
+      const prefixed = attribute.name.includes(':')
+      const attributeName = prefixed ? parseXmlQualifiedName(attribute.name) : undefined
+      if (prefixed && !attributeName) return false
       rawAttributes.add(attribute.name)
       end = attribute.end
       while (isXmlWhitespace(svg[end])) end++
@@ -255,7 +260,12 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (end >= svg.length) return false
       const value = svg.slice(valueStart, end)
       if (!hasWellFormedXmlReferences(value)) return false
-      attributes.push({ name: attribute.name, qname: attributeName, value: decodeXmlReferences(value) })
+      // Namespace expansion never consumes ordinary unprefixed attributes:
+      // their raw names already prove uniqueness. Still validate every value
+      // and report its raw bytes to security in the original lexical order.
+      if (attributeName || attribute.name === 'xmlns') {
+        namespaceAttributes.push({ name: attribute.name, qname: attributeName ?? { local: attribute.name }, value: decodeXmlReferences(value) })
+      }
       observeAttribute?.(attribute.name, value)
       end++
     }
@@ -265,7 +275,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     const inheritedNamespaces = stack.at(-1)?.namespaces
     let namespaces: ReadonlyMap<string, string> = inheritedNamespaces ?? new Map([['xml', XML_NAMESPACE]])
     let declaredNamespaces: Map<string, string> | undefined
-    for (const attribute of attributes) {
+    for (const attribute of namespaceAttributes) {
       const isDefaultDeclaration = attribute.name === 'xmlns'
       const isPrefixedDeclaration = attribute.qname.prefix === 'xmlns'
       if (!isDefaultDeclaration && !isPrefixedDeclaration) continue
@@ -300,7 +310,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     let expandedAttributes: Set<string> | undefined
-    for (const attribute of attributes) {
+    for (const attribute of namespaceAttributes) {
       if (attribute.name === 'xmlns' || attribute.qname.prefix === 'xmlns') continue
       // Raw-name uniqueness already proves unprefixed attributes unique.
       // A declared prefix always has a nonempty URI, so only prefixed names

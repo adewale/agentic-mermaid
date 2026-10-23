@@ -167,6 +167,17 @@ describe('claim-keyed backend capability conformance', () => {
   test('rejects malformed XML during backend admission and final envelope validation', () => {
     const xmlns = 'xmlns="http://www.w3.org/2000/svg"'
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><text>safe &amp; sound</text></svg>`)).toBe(true)
+    // Raw XML characters and numeric references obey the same scalar bounds.
+    for (const text of ['\t\n\r', 'café 東京', '\u{10000}', '\u{10ffff}', '&#9;&#10;&#13;&#x10000;']) {
+      expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><text>${text}</text></svg>`), text).toBe(true)
+      expect(verifySvgDocumentEnvelope(`<svg ${xmlns} data-label="${text}"></svg>`), text).toBe(true)
+    }
+    for (const text of ['\u0000', '\u0008', '\u000b', '\u000c', '\u001f', '\ud800', '\udfff', '\ufffe', '\uffff', '&#0;', '&#xD800;', '&#xFFFE;', '&#x110000;']) {
+      for (const document of [`<svg ${xmlns}><text>${text}</text></svg>`, `<svg ${xmlns} data-label="${text}"></svg>`]) {
+        expect(verifySvgDocumentEnvelope(document), text).toBe(false)
+        expect(() => applyOutputSecurityPolicy(document, 'strict')).toThrow(/invalid SVG document envelope/)
+      }
+    }
     // Child bindings are inherited by descendants, then restored for siblings.
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner"><g xmlns:a="urn:inner"><rect a:x="1" /></g><rect a:x="1" b:x="2" /></svg>`)).toBe(true)
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner" xml:lang="en"><g xmlns:a="urn:inner" /><rect x="0" a:x="1" b:x="2" /></svg>`)).toBe(true)
