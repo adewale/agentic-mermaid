@@ -114,8 +114,17 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
 
     const budgets = Object.entries(pass.mayChangeMetrics ?? {}) as Array<[RubricMetric, MetricBudget]>
     const conditions = (budget: MetricBudget): readonly RubricMetric[] => budget === 'improve-only' || !budget.whenImproves ? [] : typeof budget.whenImproves === 'string' ? [budget.whenImproves] : budget.whenImproves
-    const measured = [...new Set(budgets.flatMap(([metric, budget]) => [metric, ...conditions(budget)]))]
-    const restorationMetrics = pass.proposal ? [...new Set([...measured, 'hard' as const])] : measured
+    // Capture entries in their original order, but avoid per-budget temporary
+    // arrays and Sets. Keep requests local: custom measurement may mutate them,
+    // and the captured budget objects remain live during run/check/rollback.
+    const measured: RubricMetric[] = []
+    for (const [metric, budget] of budgets) {
+      if (!measured.includes(metric)) measured.push(metric)
+      for (const condition of conditions(budget)) {
+        if (!measured.includes(condition)) measured.push(condition)
+      }
+    }
+    const restorationMetrics = pass.proposal ? measured.includes('hard') ? [...measured] : [...measured, 'hard' as const] : measured
     if ((budgets.length || pass.proposal) && !opts.measureMetrics) throw new LayoutPassContractError(pass.id, 'measurement', `Layout pass '${pass.id}' declares metric budgets but no geometry measurement was supplied`)
     const measure = (requested = measured): PassMetrics => {
       try { return opts.measureMetrics!(ctx, requested) }

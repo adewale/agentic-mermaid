@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
-import { inspectScenePrimitives, inspectScenePaintGeometry } from '../scene/inspection.ts'
+import { inspectScenePrimitives, inspectScenePaintGeometry, scenePrimitiveMatrix } from '../scene/inspection.ts'
+import { drawNative } from '../scene/native-drawing.ts'
+import type { DrawingProducer } from '../scene/drawing.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
@@ -9,6 +11,53 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { sceneDocument } from '../shared/scene-document.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', transparent: false, width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, parts })
+
+test('native reused fragments retain occurrence ownership and bottom-up affine paint geometry', () => {
+  const colors = { bg: '#fff', fg: '#111', embedFontImport: false }
+  const context = { positioned: { width: 200000, height: 2000 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const shape = factory.shape({ id: 'surface', role: 'node', owner: { id: 'sibling', role: 'group' }, geometry: { kind: 'rect', x: 3.2, y: 5.1, width: 11.7, height: 7.9 }, paint: { fill: '#111' } })
+    const label = factory.text({ id: 'label', role: 'label', text: 'Reusable', x: 15, y: 25, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    const children = [{ node: shape, indent: 2 }, { node: label, indent: 1 }]
+    const wrap = (id: string, values: [number, number, number, number, number, number], children: Parameters<typeof factory.group>[0]['children'], opacity: string, extra: Pick<Parameters<typeof factory.group>[0], 'owner' | 'visibility'> = {}) => factory.group({
+      id, role: 'group', open: `<g transform="matrix(${values.join(' ')})">`, close: '</g>',
+      transform: { kind: 'matrix', a: values[0], b: values[1], c: values[2], d: values[3], e: values[4], f: values[5] },
+      paint: { opacity }, children, ...extra,
+    })
+    const inner = wrap('inner', [-.6, .2, .3, .7, -1.7, 4.4], children, '.7')
+    children.length = 0
+    const middle = wrap('middle', [.8, -.7, .4, 1.2, 7.3, 99.9], [{ node: inner, indent: 3 }], '.3', { visibility: 'conditional' })
+    const outer = wrap('outer', [1.1, .3, -.2, .9, 100000.1, -13.25], [{ node: middle, indent: 2 }], '.2', { owner: { id: 'sibling', role: 'group' } })
+    const sibling = factory.group({ id: 'sibling', role: 'group', open: '<g>', close: '</g>', children: [{ node: shape, indent: 0 }, { node: label, indent: 2 }], paint: { opacity: '.5' } })
+    return { family: 'flowchart', ...context.positioned, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', ...context.positioned, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200000" height="2000">'),
+      outer, sibling, factory.documentClose(),
+    ] }
+  }
+  // Directly exercise the native path even when the suite requests full Scene assertions.
+  const drawing = drawNative(producer, context, 'flowchart')
+  const [surface, label, repeatedSurface, repeatedLabel] = drawing.paint.primitives.filter(value => value.kind !== 'document')
+  expect([surface!.key, label!.key, repeatedSurface!.key, repeatedLabel!.key]).toEqual(['scene.1.0.0.0', 'scene.1.0.0.1', 'scene.2.0', 'scene.2.1'])
+  expect([surface!.owner.id, label!.owner.id, repeatedSurface!.owner.id, repeatedLabel!.owner.id]).toEqual(['sibling', 'inner', 'sibling', 'sibling'])
+  expect(label!.ancestors.map(value => value.id)).toEqual(['outer', 'middle', 'inner'])
+  expect(surface!.groupOpacity).toBe(0.042)
+  expect(surface!.visibility).toBe('conditional')
+  expect(repeatedSurface!.groupOpacity).toBe(0.5)
+  expect(repeatedSurface!.visibility).toBeUndefined()
+  expect(scenePrimitiveMatrix(surface!)).toEqual([-0.572, 0.474, 0.44600000000000006, 0.7230000000000001, 99987.296, 84.793])
+  expect(surface!.bounds).toEqual({ x0: 99981.0478, y0: 89.9971, x1: 99991.2636, y1: 101.25460000000001 })
+  expect(drawing.paint.coverage).toEqual({ measured: 4, unmeasured: 0, nonPainting: 2, preparedText: 0, fallbackText: 2 })
+})
+
+test('native composition rejects conflicting artwork enclosures even on unused groups', () => {
+  const colors = { bg: '#fff', fg: '#111' }
+  const producer: DrawingProducer = factory => {
+    const artwork = factory.shape({ id: 'artwork', role: 'node', identity: false, owner: { id: 'A', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
+    for (const id of ['A', 'B']) factory.group({ id, role: 'node', open: '<g>', close: '</g>', children: [{ node: artwork, indent: 0 }] })
+    return { family: 'flowchart', width: 100, height: 100, colors, transparent: false, parts: [] }
+  }
+  expect(() => drawNative(producer, { positioned: { width: 100, height: 100 }, colors, resolved: { renderOptions: {} } }, 'flowchart')).toThrow('conflicting semantic enclosures')
+})
 
 test('owned surface artwork suppresses only its enclosing semantic identity, never a primary or unrelated subject', () => {
   const surface = () => marks.shape({ id: 'frame:A', role: 'node', identity: false, owner: { id: 'A', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 40 }, paint: { fill: '#fff', stroke: '#111' } }),

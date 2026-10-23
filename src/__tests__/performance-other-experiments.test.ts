@@ -126,3 +126,10 @@ test('explicit positioning source overrides retain their payload authority in ca
     })
   } finally { if (prior === undefined) delete process.env.AGENTIC_MERMAID_ELK_CACHE; else process.env.AGENTIC_MERMAID_ELK_CACHE = prior }
 })
+
+test('positioned residency accounts for Map contents and rejects oversized snapshots', () => {
+  const family = {}
+  const value = { positioned: { width: 1, height: 1, payload: new Map([['large', 'x'.repeat(5 * 1024 * 1024)]]) } }
+  retainPositioned(family, 'map-budget', value)
+  expect(cachedPositioned(family, 'map-budget')).toBeUndefined()
+})

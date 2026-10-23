@@ -38,6 +38,13 @@ function stateScopes(body: StateBody): Array<{ parent: string | null; region: nu
 
 /** Rebase identities before reparsing can mistake a deleted anchor for a new
  * occurrence with the same spelling. A removed anchor becomes unassociated. */
+export function snapshotBodyCommentAnchors(diagram: ParsedDiagram): ParsedDiagram {
+  if (!diagram.meta.bodyComments?.length || diagram.body.kind !== 'flowchart') return diagram
+  // An owned batch can edit the same graph again. Rebase needs the preceding
+  // edge identities, not a second copy of all node/style/group data.
+  return { ...diagram, body: { ...diagram.body, graph: { ...diagram.body.graph, edges: diagram.body.graph.edges.map(edge => ({ ...edge })) } } } as ParsedDiagram
+}
+
 export function rebaseBodyComments(diagram: ParsedDiagram, next: ParsedDiagram['body'], op: AnyMutationOp): ParsedDiagram {
   if (!diagram.meta.bodyComments?.length || next.kind === 'preserved' || next.kind === 'extension') return diagram
   const renamed = op.kind === 'rename_node' || op.kind === 'rename_state' ? op : undefined

@@ -448,9 +448,27 @@ export function arrowForStyle(s: SequenceMessageStyle): string {
 // op and refs are re-indexed when a message is removed.
 
 export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Result<SequenceBody, MutationError> {
+  return mutateSequenceBody(cloneSequenceBody(body), op)
+}
+
+export function createSequenceMutationDraft(body: SequenceBody): (op: SequenceMutationOp) => Result<SequenceBody, MutationError> {
+  let current = cloneSequenceBody(body)
+  return op => {
+    const result = mutateSequenceBody(current, op)
+    if (result.ok) current = result.value
+    return result
+  }
+}
+
+function cloneSequenceBody(body: SequenceBody): SequenceBody {
   const participants = body.participants.map(p => ({ ...p, ...(p.links ? { links: { ...p.links } } : {}) }))
   const messages = body.messages.map(m => ({ ...m }))
   const statements: SequenceStatement[] = body.statements.map(cloneStatement)
+  return { kind: 'sequence', participants, messages, statements }
+}
+
+function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<SequenceBody, MutationError> {
+  const { participants, messages, statements } = body
 
   switch (op.kind) {
     case 'add_participant': {

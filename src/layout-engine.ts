@@ -172,16 +172,40 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 
   const orderByOriginal = (a: string, b: string): number => (original.get(a) ?? 0) - (original.get(b) ?? 0)
   const ready = nodeIds.filter(id => (indegree.get(id) ?? 0) === 0).sort(orderByOriginal)
+  // Keep the existing authored-order cycle decisions; only replace repeated
+  // ready-list sorting with a heap using the same original-order tie breaker.
+  const addReady = (id: string): void => {
+    let index = ready.length
+    ready.push(id)
+    while (index > 0) {
+      const parent = (index - 1) >>> 1
+      if (orderByOriginal(ready[parent]!, id) <= 0) break
+      ready[index] = ready[parent]!
+      index = parent
+    }
+    ready[index] = id
+  }
   const out: string[] = []
   while (ready.length > 0) {
-    const id = ready.shift()!
+    const id = ready[0]!
+    const last = ready.pop()!
+    if (ready.length) {
+      let index = 0
+      while (index * 2 + 1 < ready.length) {
+        let child = index * 2 + 1
+        if (child + 1 < ready.length && orderByOriginal(ready[child + 1]!, ready[child]!) < 0) child++
+        if (orderByOriginal(last, ready[child]!) <= 0) break
+        ready[index] = ready[child]!
+        index = child
+      }
+      ready[index] = last
+    }
     out.push(id)
     for (const next of Array.from(outgoing.get(id) ?? []).sort(orderByOriginal)) {
       const nextDegree = (indegree.get(next) ?? 0) - 1
       indegree.set(next, nextDegree)
       if (nextDegree === 0) {
-        ready.push(next)
-        ready.sort(orderByOriginal)
+        addReady(next)
       }
     }
   }

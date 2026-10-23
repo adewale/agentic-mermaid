@@ -227,4 +227,13 @@ xychart
   test('a clean inline SVG passes', () => {
     expect(verifyNoExternalRefs('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>')).toEqual({ ok: true, refs: [] })
   })
+
+  test('final inspection preserves raw attribute decoding and reference diagnostic order', () => {
+    const encoded = 'javascript&amp;amp;amp;amp;#x3a;alert(1)'
+    const svg = svgDocument(`<a href="${encoded}"/><rect fill="url(//paint/x)"/><image href="//image/x"/><style>@import url(//css/x);</style>`, ' xml:base="//base/x"')
+    const refs = ['xml:base=//base/x', encoded, 'fill=url(//paint/x)', '//image/x', '@import', 'url(//css/x)', '<image>']
+    expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs })
+    expect(applyOutputSecurityPolicy(svg).diagnostics).toEqual(refs.map(reference => ({ code: 'EXTERNAL_REFERENCE', reference })))
+    expect(() => applyOutputSecurityPolicy(svg, 'strict')).toThrow(`OutputSecurityPolicy strict verification failed: ${refs.join(', ')}`)
+  })
 })

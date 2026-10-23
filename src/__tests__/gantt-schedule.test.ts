@@ -263,3 +263,32 @@ describe('formatGanttInstant (d3-format subset)', () => {
     expect(dayOfWeek(UTC(2024, 1, 7))).toBe(0) // Sunday
   })
 })
+
+describe('resolver — long library forward-reference chains', () => {
+  test('resolves dates and critical-path slack without depending on call-stack depth', () => {
+    // The library scheduler has no source-size cap. This exercises its stack
+    // boundary; the hosted MCP source limit is a separate admission policy.
+    const count = 10000
+    const ids = Array.from({ length: count }, (_, i) => i.toString(36))
+    const source = 'gantt\n' + ids.map((id, i) =>
+      `T:${id},${i + 1 < count ? `after ${ids[i + 1]}` : '2024-01-01'},1d`,
+    ).join('\n')
+    const schedule = scheduleOf(source)
+    const start = UTC(2024, 1, 1)
+    expect(schedule.tasks).toHaveLength(count)
+    // A serial chain has one working day per task, no slack, and its first
+    // source task is the latest chronological one. No scheduler output
+    // supplies the expected dates or critical-path membership.
+    schedule.tasks.forEach((task, i) => {
+      expect(task.id).toBe(ids[i])
+      expect(task.start).toBe(start + (count - i - 1) * DAY_MS)
+      expect(task.end).toBe(start + (count - i) * DAY_MS)
+      expect(schedule.analysis!.slackByTaskId[ids[i]!]).toBe(0)
+    })
+    expect(schedule.analysis!.criticalPathTaskIds).toEqual(ids)
+    expect(schedule.analysis!.entryTaskIds).toEqual([ids[count - 1]!])
+    expect(schedule.analysis!.sinkTaskIds).toEqual([ids[0]!])
+    expect(schedule.analysis!.projectStart).toBe(start)
+    expect(schedule.analysis!.projectEnd).toBe(start + count * DAY_MS)
+  })
+})

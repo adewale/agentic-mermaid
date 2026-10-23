@@ -181,7 +181,10 @@ jobs:
         if: ${{ !cancelled() }}
         continue-on-error: true
         timeout-minutes: 5
-        run: bunx playwright install --with-deps chromium
+        # An unrelated apt repository can fail on the hosted image even when
+        # Chromium's libraries are already installed. Still fetch the pinned
+        # browser; the scorecard's real launch will verify its dependencies.
+        run: bunx playwright install --with-deps chromium || bunx playwright install chromium
 
       - name: Measure exact-artifact browser and competitor performance
         if: ${{ !cancelled() }}

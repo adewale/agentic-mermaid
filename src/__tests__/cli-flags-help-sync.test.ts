@@ -8,10 +8,25 @@
 import { describe, test, expect } from 'bun:test'
 import { BOOLEAN_FLAGS, COMMAND_FLAGS, COMMAND_HELP, COMMAND_POSITIONALS, FLAG_SPECS, flagEnabled, flagValue, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
 import { parseFlagsBlock } from './helpers/cli-flag-parsing.ts'
-import { captureCli } from './helpers/cli-capture.ts'
+import { captureCli, captureCliAsync } from './helpers/cli-capture.ts'
+import { runAmCli } from '../cli/run-entrypoint.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs('am-flags-')
+
+test('async entry and synchronous CLI retain help, parser-error, and instruction precedence', async () => {
+  const cases = [[], ['--help'], ['--version'], ['--help=value'], ['--help', '--help'],
+    ['render', '--bogus', '--help'], ['render', '--output', '--help'], ['--', '--help'],
+    ['unknown', '--help'], ['unknown', '--json'], ['--agent-instructions', '--bogus'],
+    ['--agent-instructions', '--help=value'], ['verify', '--scale', '2'], ['parse', 'a', 'b', '--json']]
+  for (const argv of cases) {
+    const sync = captureCli(() => runCli(argv))
+    expect(typeof sync.code).toBe('number')
+    expect(await captureCliAsync(() => runAmCli(argv))).toEqual(sync)
+  }
+  expect(captureCli(() => runCli(['--help=value']))).toEqual({ code: 2, out: '', err: 'Flag --help does not accept a value.\n' })
+  expect(captureCli(() => runCli(['render', '--bogus', '--help']))).toEqual({ code: 0, out: COMMAND_HELP.render + '\n', err: '' })
+})
 
 /** runCli with stdout and stderr captured together (diagnostics go to either). */
 function capture(argv: string[]): { code: number; output: string } {

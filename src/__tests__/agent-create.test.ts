@@ -3,6 +3,7 @@ import { applyOps, buildMermaid, createMermaid, mutate, parseRegisteredMermaid a
 import { getFamily, replaceFamilyForTest, BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { applyMutationBatch } from '../agent/mutate.ts'
 
 // One long-lived pinned-Mermaid child is the oracle for every blank below.
 const upstream = startUpstreamMermaid()
@@ -327,4 +328,57 @@ test('a checked batch commits once and an invalid operation emits no partial sou
     expect('source' in rejected).toBe(false)
     expect(source).toBe('flowchart LR\n A --> B')
   } finally { restore() }
+})
+
+test('owned Flowchart batches isolate inputs, failures and subsequent single edits', () => {
+  const parsed = parseMermaid('flowchart LR\n A[Original] --> B[Other]')
+  if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw Error('Expected Flowchart')
+  const original = serializeMermaid(parsed.value)
+  const ops = [{ kind: 'set_label', target: 'A', label: 'Changed' }, { kind: 'add_node', id: 'C', label: 'Third' }]
+  const failed = applyMutationBatch(parsed.value, [...ops, { kind: 'add_node', id: 'Partial', label: 'Discard', parent: 'absent' }])
+  expect(failed).toMatchObject({ ok: false, error: { opIndex: 2 } })
+  expect(serializeMermaid(parsed.value)).toBe(original)
+  const edited = applyMutationBatch(parsed.value, ops)
+  if (!edited.ok || edited.value.body.kind !== 'flowchart') throw Error('Expected successful batch')
+  expect([...edited.value.body.graph.nodes.keys()]).toEqual(['A', 'B', 'C'])
+  expect(edited.value.body.graph.nodes.get('A')!.label).toBe('Changed')
+  const saved = serializeMermaid(edited.value)
+  const next = mutate(edited.value, { kind: 'rename_node', from: 'C', to: 'Next' })
+  expect(next.ok).toBe(true)
+  expect(serializeMermaid(edited.value)).toBe(saved)
+  expect(serializeMermaid(parsed.value)).toBe(original)
+  const empty = applyMutationBatch(parsed.value, [])
+  expect(empty.ok && empty.value).toBe(parsed.value)
+})
+
+test('owned Sequence batches refold participant order and message references between operations', () => {
+  const parsed = parseMermaid('sequenceDiagram\n A->>B: one\n %% preserve this\n B->>C: two\n C->>A: three')
+  if (!parsed.ok || parsed.value.body.kind !== 'sequence') throw Error('Expected Sequence')
+  const original = serializeMermaid(parsed.value)
+  const ops = [
+    { kind: 'remove_message', index: 0 },
+    { kind: 'add_message', index: 0, from: 'D', to: 'C', text: 'first' },
+    { kind: 'set_message_text', index: 2, text: 'last' },
+  ]
+  const failed = applyMutationBatch(parsed.value, [...ops, { kind: 'remove_message', index: 99 }])
+  expect(failed).toMatchObject({ ok: false, error: { opIndex: 3 } })
+  expect(serializeMermaid(parsed.value)).toBe(original)
+  const edited = applyMutationBatch(parsed.value, ops)
+  if (!edited.ok || edited.value.body.kind !== 'sequence') throw Error('Expected successful batch')
+  expect(edited.value.body.participants.map(actor => actor.id)).toEqual(['D', 'C', 'B', 'A'])
+  expect(edited.value.body.messages.map(message => [message.from, message.to, message.text])).toEqual([
+    ['D', 'C', 'first'], ['B', 'C', 'two'], ['C', 'A', 'last'],
+  ])
+  const saved = serializeMermaid(edited.value)
+  expect(saved).toContain('%% preserve this')
+  const reloaded = parseMermaid(saved)
+  if (!reloaded.ok || reloaded.value.body.kind !== 'sequence') throw Error('Expected Sequence after commit')
+  expect(reloaded.value.body.participants).toEqual(edited.value.body.participants)
+  expect(reloaded.value.body.messages.map(message => [message.from, message.to, message.text])).toEqual([
+    ['D', 'C', 'first'], ['B', 'C', 'two'], ['C', 'A', 'last'],
+  ])
+  expect(serializeMermaid(reloaded.value)).toBe(saved)
+  expect(mutate(edited.value, { kind: 'remove_participant', id: 'B' }).ok).toBe(true)
+  expect(serializeMermaid(edited.value)).toBe(saved)
+  expect(serializeMermaid(parsed.value)).toBe(original)
 })

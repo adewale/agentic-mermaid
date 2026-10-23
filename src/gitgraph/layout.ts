@@ -134,7 +134,10 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   })
   const positionedById = new Map(commits.map(commit => [commit.id, commit]))
   const edges: PositionedGitGraphEdge[] = []
+  const extentByBranch = new Map<string, number>()
   for (const commit of commits) {
+    const coordinate = diagram.direction === 'LR' ? commit.x : commit.y
+    extentByBranch.set(commit.branch, Math.max(extentByBranch.get(commit.branch) ?? -Infinity, coordinate))
     // Public typed callers can construct a history directly; never emit two
     // coincident semantic relations for a duplicated parent tuple.
     for (const [index, parentId] of [...new Set(commit.parents)].entries()) {
@@ -160,13 +163,13 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     }
   }
   const branches: PositionedGitGraphBranch[] = orderedBranches.map((branch, lane) => {
-    const own = commits.filter(commit => commit.branch === branch.name)
+    const extent = extentByBranch.get(branch.name) ?? -Infinity
     if (diagram.direction === 'LR') {
       const y = padding + titleHeight + lane * laneGap
-      return { ...branch, lane, x1: commitStart - 14, y1: y, x2: Math.max(commitStart, ...own.map(commit => commit.x)), y2: y }
+      return { ...branch, lane, x1: commitStart - 14, y1: y, x2: Math.max(commitStart, extent), y2: y }
     }
     const x = padding + branchLabelSpace + lane * verticalLaneGap
-    return { ...branch, lane, x1: x, y1: padding + titleHeight - 14, x2: x, y2: Math.max(verticalStart, ...own.map(commit => commit.y)) }
+    return { ...branch, lane, x1: x, y1: padding + titleHeight - 14, x2: x, y2: Math.max(verticalStart, extent) }
   })
   let width: number
   let height: number

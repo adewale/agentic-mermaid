@@ -1,3 +1,5 @@
+import { estimatedResidency } from './experimental/cache-residency.ts'
+import { WeightedLru } from './experimental/weighted-lru.ts'
 /**
  * Shared ELK instance singleton.
  *
@@ -97,36 +99,29 @@ export function elkLayoutSync(graph: ElkNode): ElkNode {
 // because JSON would merge them with absent fields and null. Results are
 // stored and returned as copies, since ELK returns its mutated input and
 // callers adjust the geometry they receive. Least recently used results are
-// evicted past either bound; a result takes about 2-7 bytes per key code
-// unit, so the cache holds at most roughly 4-9 MiB. AGENTIC_MERMAID_ELK_CACHE=0
+// evicted past 64 entries, 1 Mi key code units, or 8 MiB estimated residency.
+// Every weight includes at least eight units per key code unit, so its 8 MiB
+// quota also enforces the key bound. These are estimates, not engine heap limits.
+// AGENTIC_MERMAID_ELK_CACHE=0
 // in the environment, or as a global where there is no `process`, turns the
 // cache off, which the benchmarks do so that repeated renders time ELK itself.
 const host = globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }
 const ELK_CACHE_ENABLED = (host.process?.env?.AGENTIC_MERMAID_ELK_CACHE ?? host.AGENTIC_MERMAID_ELK_CACHE) !== '0'
 const ELK_CACHE_MAX_ENTRIES = 64
 const ELK_CACHE_MAX_KEY_UNITS = 1024 * 1024
-const elkResults = new Map<string, ElkNode>()
-let elkResultKeyUnits = 0
+const ELK_CACHE_MAX_RESIDENCY = 8 * 1024 * 1024
+const elkResults = new WeightedLru<string, ElkNode>(ELK_CACHE_MAX_ENTRIES, ELK_CACHE_MAX_RESIDENCY)
 
 function cachedElkLayout(graph: ElkNode): ElkNode {
   assertLayoutGraphWork(graph)
   if (!ELK_CACHE_ENABLED) return layoutElkGraph(graph)
   const key = elkGraphKey(graph)
   const cached = elkResults.get(key)
-  if (cached) {
-    elkResults.delete(key)
-    elkResults.set(key, cached)
-    return structuredClone(cached)
-  }
+  if (cached) return structuredClone(cached)
   const result = layoutElkGraph(graph)
   if (key.length <= ELK_CACHE_MAX_KEY_UNITS) {
-    elkResults.set(key, structuredClone(result))
-    elkResultKeyUnits += key.length
-    for (const oldest of elkResults.keys()) {
-      if (elkResults.size <= ELK_CACHE_MAX_ENTRIES && elkResultKeyUnits <= ELK_CACHE_MAX_KEY_UNITS) break
-      elkResults.delete(oldest)
-      elkResultKeyUnits -= oldest.length
-    }
+    const weight = Math.max(key.length * 8, key.length * 2 + estimatedResidency(result, ELK_CACHE_MAX_RESIDENCY))
+    if (weight <= ELK_CACHE_MAX_RESIDENCY) elkResults.set(key, structuredClone(result), weight)
   }
   return result
 }
@@ -144,7 +139,6 @@ function elkGraphKey(graph: ElkNode): string {
 /** Forget cached ELK results, so a test or diagnostic can time or compare a cold layout. */
 export function clearElkLayoutCache(): void {
   elkResults.clear()
-  elkResultKeyUnits = 0
 }
 
 function layoutElkGraph(graph: ElkNode): ElkNode {

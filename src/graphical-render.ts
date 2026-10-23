@@ -13,7 +13,7 @@ import type { FamilyLayoutResult } from './agent/families.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { inlineResolvedColors } from './theme.ts'
-import { positionResolvedFamily } from './positioning.ts'
+import { positionFamilyForNativeRender } from './positioning.ts'
 import {
   receiptOf,
   canonicalTextDigest,
@@ -218,10 +218,9 @@ export function renderResolvedMermaidSVG(
   request: ResolvedRenderRequest,
   securityDiagnostics: OutputSecurityDiagnostic[],
 ): ResolvedGraphicalExecution {
-  const familyId = resolvedRenderExecutionPlanOf(request).family.id
   return renderPositionedMermaidSVG(
     request,
-    measureRenderStage('layout', () => positionResolvedFamily(familyId, request)),
+    measureRenderStage('layout', () => positionFamilyForNativeRender(request)),
     securityDiagnostics,
   )
 }

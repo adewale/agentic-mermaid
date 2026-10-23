@@ -22,6 +22,7 @@ import {
 } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { useTestChildren } from './helpers/test-child.ts'
+import { applyMutationBatch } from '../agent/mutate.ts'
 
 const runChild = useTestChildren(20_000)
 
@@ -431,6 +432,27 @@ test('comment anchors survive renaming and JSON transport; metadata cannot intro
   expect(serializeMermaid(restored.value)).toContain('%% name rationale')
   payload.meta.bodyComments[0].raw = 'Injected --> Other'
   expect(synthesizeFromGraph(payload).ok).toBe(false)
+})
+
+test('batch edge removal and rename keep comments on the surviving occurrence', () => {
+  const wrapper = '---\ntitle: Kept wrapper\n---\n%% wrapper rationale\n'
+  const parsed = parseMermaid(wrapper + 'flowchart LR\n %% removed rationale\n A -->|first| B\n %% surviving rationale\n A -->|second| B')
+  if (!parsed.ok) throw Error('Expected Flowchart')
+  const before = serializeMermaid(parsed.value)
+  const result = applyMutationBatch(parsed.value, [
+    { kind: 'set_label', target: 'A', label: 'Updated' },
+    { kind: 'remove_edge', id: 'A->B#0' },
+    { kind: 'rename_node', from: 'A', to: 'Renamed' },
+    { kind: 'add_edge', from: 'A', to: 'B', label: 'replacement' },
+  ])
+  if (!result.ok) throw Error(result.error.message)
+  const source = serializeMermaid(result.value)
+  expect(source).toStartWith(wrapper)
+  expect(source).toMatch(/%% surviving rationale\n\s*Renamed\[Updated\] -->\|second\| B/)
+  expect(source.trimEnd()).toEndWith('%% removed rationale')
+  expect(serializeMermaid(parsed.value)).toBe(before)
+  const again = parseMermaid(source)
+  expect(again.ok && serializeMermaid(again.value)).toBe(source)
 })
 
 test('State comments stay before their authored state through serialization and renaming', () => {

@@ -16,6 +16,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderOptions } from '../types.ts'
 import { DAY_MS, dayOfWeek, formatGanttInstant, ganttDependencyEdges, startOfDay, WEEKDAY_INDEX } from './schedule.ts'
+import { groupGanttTasksBySection } from './task-groups.ts'
 import type { EpochMs, GanttBarLayout, GanttDependencyLayout, GanttExcludedBand, GanttLayoutResult, GanttModel, GanttRowLayout, GanttSchedule, GanttSectionBand, GanttTick, GanttTickUnit, GanttVertLayout } from './types.ts'
 
 export const GANTT_MAX_TICKS = 120
@@ -252,15 +253,41 @@ export function resolveTicks(schedule: GanttSchedule, model: GanttModel, targetT
 export function packCompactLanes(tasks: Array<{ start: EpochMs; end: EpochMs }>): number[] {
   const laneEnds: EpochMs[] = []
   const laneOf: number[] = []
+  let base = 0
+  let minimumEnd: number[] | undefined
   for (const t of tasks) {
-    let lane = laneEnds.findIndex(end => end <= t.start)
-    if (lane === -1) {
-      lane = laneEnds.length
-      laneEnds.push(t.end)
+    let lane = -1
+    if (minimumEnd) {
+      if (minimumEnd[1]! <= t.start) {
+        // Descend left first: choosing the smallest end would change first-fit.
+        let node = 1
+        while (node < base) node = minimumEnd[node * 2]! <= t.start ? node * 2 : node * 2 + 1
+        lane = node - base
+      }
     } else {
-      laneEnds[lane] = t.end
+      lane = laneEnds.findIndex(end => end <= t.start)
     }
+    if (lane === -1) lane = laneEnds.length
+    const addedLane = lane === laneEnds.length
+    laneEnds[lane] = t.end
     laneOf.push(lane)
+
+    if (minimumEnd && laneEnds.length <= base) {
+      let node = base + lane
+      minimumEnd[node] = laneEnds[lane]!
+      while ((node >>= 1) > 0) minimumEnd[node] = Math.min(minimumEnd[node * 2]!, minimumEnd[node * 2 + 1]!)
+    } else if (minimumEnd || (addedLane && laneEnds.length === 33 && laneOf.length < tasks.length
+      && tasks.every(task => Number.isFinite(task.start) && Number.isFinite(task.end)))) {
+      // Activate only above 32 lanes, after checking future tasks too.
+      // Thereafter grow only when a newly assigned lane exceeds capacity.
+      // Rebuilding from assigned ends includes this task's update.
+      base = base === 0 ? 64 : base * 2
+      minimumEnd = new Array<number>(base * 2).fill(Infinity)
+      for (let i = 0; i < laneEnds.length; i++) minimumEnd[base + i] = laneEnds[i]!
+      for (let node = base - 1; node > 0; node--) {
+        minimumEnd[node] = Math.min(minimumEnd[node * 2]!, minimumEnd[node * 2 + 1]!)
+      }
+    }
   }
   return laneOf
 }
@@ -547,6 +574,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
 
   const vertTasks = schedule.tasks.filter(t => t.tags.includes('vert'))
   const rowTasks = schedule.tasks.filter(t => !t.tags.includes('vert'))
+  const rowTasksBySection = groupGanttTasksBySection(rowTasks)
 
   // ---- label column ---------------------------------------------------------
   // Standard mode wraps task labels to the column budget (item 5); compact
@@ -635,7 +663,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
 
   for (let si = 0; si < model.sections.length; si++) {
     const section = model.sections[si]!
-    const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
+    const sectionTasks = rowTasksBySection.get(si) ?? []
     if (sectionTasks.length === 0 && section.label === undefined) continue
     // Bars/rows reference the BAND index in the emitted sections array (empty
     // implicit sections are skipped, so it can differ from the model index).

@@ -25,6 +25,7 @@ import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } fr
 // ============================================================================
 
 import { packCompactLanes, resolveTicks } from '../gantt/layout.ts'
+import { groupGanttTasksBySection } from '../gantt/task-groups.ts'
 import { applyResolvedGanttFrontmatterConfig, parseGanttModel, type ResolvedGanttFrontmatterConfig, resolveGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { formatGanttInstant, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { parseTodayMarkerStyle } from '../gantt/today-marker.ts'
@@ -107,29 +108,26 @@ export function renderGanttTerminal(
 
   const rowTasks = schedule.tasks.filter(t => !t.tags.includes('vert'))
   const vertTasks = schedule.tasks.filter(t => t.tags.includes('vert'))
+  const rowTasksBySection = groupGanttTasksBySection(rowTasks)
+  const vertTasksBySection = groupGanttTasksBySection(vertTasks)
   const compact = model.displayMode === 'compact'
 
   // Compact lanes are computed up front so the label column is sized for the
   // joined lane labels ("One / Three"), not the individual task labels.
-  const lanesBySection = new Map<number, number[]>()
+  const lanesBySection = new Map<number, ScheduledGanttTask[][]>()
   if (compact) {
     for (let si = 0; si < model.sections.length; si++) {
-      const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
-      if (sectionTasks.length > 0) lanesBySection.set(si, packCompactLanes(sectionTasks))
+      const sectionTasks = rowTasksBySection.get(si) ?? []
+      if (sectionTasks.length > 0) {
+        const lanes: ScheduledGanttTask[][] = []
+        packCompactLanes(sectionTasks).forEach((lane, index) => (lanes[lane] ??= []).push(sectionTasks[index]!))
+        lanesBySection.set(si, lanes)
+      }
     }
   }
   // Lane labels join with ", " — the ascii.test.ts diagonal guard forbids
   // "/" anywhere in ASCII output (it signals broken edge routing).
-  const laneLabels = (si: number, sectionTasks: ScheduledGanttTask[]): string[] => {
-    const lanes = lanesBySection.get(si) ?? sectionTasks.map((_, i) => i)
-    const count = sectionTasks.length === 0 ? 0 : Math.max(...lanes) + 1
-    return Array.from({ length: count }, (_, li) =>
-      sectionTasks
-        .filter((_, i) => lanes[i] === li)
-        .map(t => t.label)
-        .join(', '),
-    )
-  }
+  const laneLabels = (si: number): string[] => (lanesBySection.get(si) ?? []).map(tasks => tasks.map(task => task.label).join(', '))
   const generated = terminalIds(schedule.tasks.flatMap(task => (task.id === undefined ? [] : [task.id])))
   const taskOwner = (task: Pick<ScheduledGanttTask, 'id' | 'index'>): TerminalOwner => ({ id: task.id ?? generated(`task-${task.index}`), kind: 'node' })
   const labelRows = (tasks: ScheduledGanttTask[], width: number): TerminalRun[][] => {
@@ -157,9 +155,9 @@ export function renderGanttTerminal(
   // ---- column sizing: shrink the plot before wrapping labels ----------------
   let labelWidth = 0
   for (let si = 0; si < model.sections.length; si++) {
-    const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
+    const sectionTasks = rowTasksBySection.get(si) ?? []
     if (compact) {
-      for (const label of laneLabels(si, sectionTasks)) {
+      for (const label of laneLabels(si)) {
         labelWidth = Math.max(labelWidth, visualWidth(TASK_INDENT + label))
       }
     } else {
@@ -330,8 +328,8 @@ export function renderGanttTerminal(
   for (let si = 0; si < model.sections.length; si++) {
     const section = model.sections[si]!
     const sectionStart = document.height
-    const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
-    const sectionVertical = vertTasks.filter(task => task.sectionIndex === si)
+    const sectionTasks = rowTasksBySection.get(si) ?? []
+    const sectionVertical = vertTasksBySection.get(si) ?? []
     if (sectionTasks.length === 0 && sectionVertical.length === 0 && section.label === undefined) continue
     if (sectionTasks.length === 0 && section.label === undefined) {
       sectionVertical.forEach(emitVertical)
@@ -354,9 +352,8 @@ export function renderGanttTerminal(
       // Compact mode: tasks pack into shared lanes; each lane renders the
       // overlay of its tasks' bars (deterministic first-fit, source order).
       const lanes = lanesBySection.get(si)!
-      const laneCount = Math.max(...lanes) + 1
-      for (let li = 0; li < laneCount; li++) {
-        const laneTasks = sectionTasks.filter((_, i) => lanes[i] === li)
+      for (let li = 0; li < lanes.length; li++) {
+        const laneTasks = lanes[li]!
         const cells: TerminalRun[] = Array.from({ length: plotWidth }, () => ({ text: g.track, role: 'line', kind: 'stroke' }))
         for (const t of laneTasks) {
           const track = buildTrack(t)

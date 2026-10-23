@@ -1,6 +1,6 @@
 import { HOSTED_FONT_RESOURCES } from './font-manifest.ts'
-import { PNG_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
-export { PNG_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
+import { PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE } from './output-policy-versions.ts'
+export { PNG_OUTPUT_POLICY_VERSION, PNG_DEFAULT_SCALE } from './output-policy-versions.ts'
 import { tryParseCssColor } from './shared/color-math.ts'
 import {
   decodedSvgAttributeValue,
@@ -12,7 +12,6 @@ import {
 } from './svg-structure.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
 /** Logical PNG projection policy shared by every first-party raster adapter. */
-export const PNG_DEFAULT_SCALE = 2 as const
 export const PNG_DEFAULT_FONT_FAMILY = 'Inter' as const
 /** ~16.7 megapixels / ~64 MiB of raw RGBA before encoder overhead. */
 export const MAX_PNG_PIXELS = 16_777_216 as const

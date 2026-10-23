@@ -88,6 +88,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
   }
 
   const mainDelta = new Map<string, number>() // net main-axis shift applied per node
+  const changed = new Set<PositionedNode>()
   const moveSet = (starts: string[], delta: number): void => {
     if (Math.abs(delta) < 0.5) return
     const seen = new Set<string>()
@@ -98,7 +99,9 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
       seen.add(id)
       const n = nodeMap.get(id)
       if (n) {
+        const previous = n[f.main]
         n[f.main] += delta
+        if (n[f.main] !== previous) changed.add(n)
         mainDelta.set(id, (mainDelta.get(id) ?? 0) + delta)
       }
       for (const next of outgoing.get(id) ?? []) stack.push(next)
@@ -156,16 +159,36 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     return ox > 0.5 && oy > 0.5
   }
   const pairKey = (a: PositionedNode, b: PositionedNode): string => (a.id < b.id ? `${a.id}\0${b.id}` : `${b.id}\0${a.id}`)
-  const overlappingPairs = (): Array<[PositionedNode, PositionedNode]> => {
-    const pairs: Array<[PositionedNode, PositionedNode]> = []
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        if (boxesOverlap(nodes[i]!, nodes[j]!)) pairs.push([nodes[i]!, nodes[j]!])
+  const preShovePairs = new Set<string>()
+  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+    if (boxesOverlap(nodes[i]!, nodes[j]!)) preShovePairs.add(pairKey(nodes[i]!, nodes[j]!))
+  }
+  interface ActivePair { a: PositionedNode; b: PositionedNode; key: string; index: number }
+  // Index identity stays separate from the legacy string ordering/exclusion
+  // key, which can collide for directly supplied IDs containing delimiters.
+  const activePairs = new Map<number, ActivePair>()
+  const refreshPair = (i: number, j: number): void => {
+    const a = nodes[i]!, b = nodes[j]!, index = i * nodes.length + j
+    const key = pairKey(a, b)
+    if (preShovePairs.has(key) || !boxesOverlap(a, b)) activePairs.delete(index)
+    else if (!activePairs.has(index)) activePairs.set(index, { a, b, key, index })
+  }
+  const refreshChangedPairs = (): void => {
+    if (!changed.size) return
+    if (changed.size > nodes.length / 2) {
+      // Dense movement favors one simple triangular pass.
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) refreshPair(i, j)
+    } else {
+      for (let i = 0; i < nodes.length; i++) {
+        if (!changed.has(nodes[i]!)) continue
+        for (let j = 0; j < nodes.length; j++) {
+          if (i === j || (j < i && changed.has(nodes[j]!))) continue
+          refreshPair(Math.min(i, j), Math.max(i, j))
+        }
       }
     }
-    return pairs
+    changed.clear()
   }
-  const preShovePairs = new Set(overlappingPairs().map(([a, b]) => pairKey(a, b)))
 
   for (let i = 0; i < graph.edges.length; i++) {
     const spec = graph.edges[i]!
@@ -179,6 +202,7 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     const minGap = DEFAULTS.layerSpacing + (length - 1) * (DEFAULTS.layerSpacing + 40)
     if (currentGap < minGap) moveSet(movableUnit(constraint.source, constraint.target), (minGap - currentGap) * f.sign)
   }
+  refreshChangedPairs()
 
   // Treat the shove as physical: whatever it lands on is pushed ahead, never
   // sat on. The ahead node of each shove-introduced overlap moves further
@@ -192,16 +216,19 @@ export function honorLinkRankDistance(nodes: PositionedNode[], edges: Positioned
     return [id]
   }
   for (let round = 0; round < nodes.length * 4; round++) {
-    const created = overlappingPairs().filter(([a, b]) => !preShovePairs.has(pairKey(a, b)))
-    if (created.length === 0) break
-    created.sort((p, q) => (pairKey(p[0], p[1]) < pairKey(q[0], q[1]) ? -1 : 1))
-    const [a, b] = created[0]!
+    let first: ActivePair | undefined
+    for (const pair of activePairs.values()) {
+      if (!first || pair.key < first.key || (pair.key === first.key && pair.index < first.index)) first = pair
+    }
+    if (!first) break
+    const { a, b } = first
     const flowGap = (nodeMainCenter(a, graph.direction) - nodeMainCenter(b, graph.direction)) * f.sign
     const [behind, ahead] = (flowGap !== 0 ? flowGap > 0 : a.id > b.id) ? [b, a] : [a, b]
     const delta = f.sign === 1
       ? behind[f.main] + nodeMainSize(behind, graph.direction) + DEFAULTS.nodeSpacing - ahead[f.main]
       : ahead[f.main] + nodeMainSize(ahead, graph.direction) + DEFAULTS.nodeSpacing - behind[f.main]
     moveSet(separationUnit(ahead.id, behind.id), f.sign === 1 ? delta : -delta)
+    refreshChangedPairs()
   }
 
   // Grow/translate every container so it still encloses its (possibly moved) members.

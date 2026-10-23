@@ -139,6 +139,19 @@ describe('claim-keyed backend capability conformance', () => {
     }, BACKEND_REGISTRATION_OPTIONS)).toThrow(/single-svg-document/)
   })
 
+  test('envelope validation stays independent of CSS inspection errors and wins for malformed XML', () => {
+    const opening = '<svg xmlns="http://www.w3.org/2000/svg">'
+    for (const content of ['<rect fill="\\ffffff"/>', '<style>.x{fill:\\ffffff}</style>']) {
+      const valid = `${opening}${content}</svg>`
+      expect(verifySvgDocumentEnvelope(valid)).toBe(true)
+      expect(() => applyOutputSecurityPolicy(valid, 'strict')).toThrow(RangeError)
+      for (const malformed of [`${opening}${content}</g>`, `${opening}${content}<rect x="1" x="2"/></svg>`]) {
+        expect(verifySvgDocumentEnvelope(malformed)).toBe(false)
+        expect(() => applyOutputSecurityPolicy(malformed, 'strict')).toThrow(/invalid SVG document envelope/)
+      }
+    }
+  })
+
   test('projects every first-party backend through native and browser PNG adapters', async () => {
     const source = 'flowchart LR\n  A[Alpha] --> B[Beta]'
     const options = {

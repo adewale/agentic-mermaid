@@ -85,6 +85,8 @@ export function wrapperPrefix(
  * identity—decides whether each directive still needs the shared envelope.
  */
 function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): string {
+  // Without authored directives there is nothing to restore or deduplicate.
+  if (meta.initDirectives.length === 0) return ''
   // Count what the emitted text already owns through the shared grammar, not
   // by searching for the authored bytes: a serializer that re-indents or
   // re-spaces preserved source still owns that directive, and a byte search

@@ -1,3 +1,4 @@
+import { enrollOwnedFamily } from '../experimental/owned-family.ts'
 import { STABLE_FAMILY_DESCRIPTOR_SEEDS } from './stable-family-metadata.ts'
 // ============================================================================
 // Family descriptor registry.
@@ -1839,6 +1840,7 @@ function buildBuiltinRegistry(): Map<FamilyId, FamilyDescriptor> {
   for (const seed of BUILTIN_FAMILY_DESCRIPTOR_SEEDS) {
     const descriptor = completeBuiltinDescriptor(seed)
     validateDescriptor(descriptor, undefined, candidate)
+    enrollOwnedFamily(descriptor)
     candidate.set(descriptor.id, descriptor)
   }
   return candidate

@@ -676,7 +676,15 @@ function styleProps(props: Record<string, string>): string {
 // upstream's flowchart DB does), so a typed edit stores the label that its
 // serialized source re-parses to.
 export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
+  return mutateFlowchartGraph(cloneGraph(body.graph), op)
+}
+
+export function createFlowchartMutationDraft(body: FlowchartBody): (op: FlowchartMutationOp) => Result<FlowchartBody, MutationError> {
   const graph = cloneGraph(body.graph)
+  return op => mutateFlowchartGraph(graph, op)
+}
+
+function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
   const done = (): Result<FlowchartBody, MutationError> => ok({ kind: 'flowchart', graph })
   switch (op.kind) {
     case 'add_node': {

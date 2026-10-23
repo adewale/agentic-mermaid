@@ -1,3 +1,4 @@
+import { enrollOwnedFamily } from '../experimental/owned-family.ts'
 import { inheritNativeDrawing } from '../scene/drawing.ts'
 import type {
   FamilyDescriptor,
@@ -43,10 +44,12 @@ export function createBrowserFamilyDescriptor(
   data: BrowserFamilyDescriptorData,
   hooks: BrowserSvgFamilyHooks,
 ): FamilyDescriptor {
-  return Object.freeze({
+  const descriptor: FamilyDescriptor = Object.freeze({
     ...data,
     ...hooks,
     contractVersion: 2,
     capabilityEvidence: Object.freeze([]),
   })
+  enrollOwnedFamily(descriptor)
+  return descriptor
 }
