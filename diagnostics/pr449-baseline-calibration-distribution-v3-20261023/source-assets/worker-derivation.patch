@@ -1,0 +1,42 @@
+--- /workspace/pr449-frontier/svg-receipt-cost-v2/svg-worker.mjs
++++ /workspace/pr449-frontier/baseline-repeatability-calibration/calibration-worker.mjs
+@@ -39,12 +39,12 @@
+ function payload(store,bytes){const digest=hash(bytes),path=join(store,digest);if(!verifiedPayloads.has(path)){if(existsSync(path)){if(hash(readFileSync(path))!==digest)throw Error('Stored payload drift')}else writeFileSync(path,bytes,{flag:'wx'});verifiedPayloads.add(path)}return {sha256:digest,bytes:bytes.length,path}}
+ export async function runJob(jobPath,resultPath) {
+   const job=JSON.parse(readFileSync(jobPath,'utf8'))
+-  if(job.protocol!=='svg-consumed-receipt-worker@2'||job.reps!==2||job.warmupPasses!==1||!['off','normal'].includes(job.policy))throw Error('Wrong new workload protocol')
++  if(job.protocol!=='baseline-repeatability-calibration-worker@1'||job.reps!==4||job.warmupPasses!==2||!['off','normal'].includes(job.policy))throw Error('Wrong new workload protocol')
+   const executionEnvironment={AGENTIC_MERMAID_SCENE_ASSERTIONS:process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS??null,NODE_OPTIONS:process.env.NODE_OPTIONS??null}
+   if(executionEnvironment.AGENTIC_MERMAID_SCENE_ASSERTIONS!==null||executionEnvironment.NODE_OPTIONS!==''||job.executionEnvironment?.AGENTIC_MERMAID_SCENE_ASSERTIONS!==null||job.executionEnvironment?.NODE_OPTIONS!=='')throw Error('Default execution environment required before renderer imports')
+   const rejectedCore=new Set(['4bde7a94a2cb1ea31fdbbb9ce8f96c8477d9eb18f5ee639223be6f0bf07aec54','3c59b7ed7d0f50770925e80b37f8c6282af13c2f2a8bee67666ff08525460040'])
+-  if(!job.candidateSourceBinding||rejectedCore.has(job.candidateSourceBinding.sha256)||job.requiredFiles[job.candidateSourceBinding.path]!==job.candidateSourceBinding.sha256)throw Error('Forbidden or unbound candidate core')
+-  if(!job.baselineSourceBinding||rejectedCore.has(job.baselineSourceBinding.sha256))throw Error('Forbidden or unbound baseline core')
++  if(job.candidateSourceBinding!==undefined||!['baseline-A','baseline-B'].includes(job.role))throw Error('Baseline-only calibration required')
++  if(!job.baselineSourceBinding||rejectedCore.has(job.baselineSourceBinding.sha256)||job.requiredFiles[job.baselineSourceBinding.path]!==job.baselineSourceBinding.sha256)throw Error('Forbidden or unbound baseline core')
+   validatePopulation(job.inputs)
+   for(const [path,digest]of Object.entries(job.requiredFiles))frozen(path,digest)
+   verifyRuntimeLinks(job.artifactRoot,job.artifactSymlinks)
+@@ -74,7 +74,7 @@
+     return {...final,finalSource,callbackCalls}
+   }
+   try{
+-    for(let rep=-1;rep<2;rep++)for(const input of job.inputs){
++    for(let rep=-2;rep<4;rep++)for(const input of job.inputs){
+       const stage=rep<0?'prewarm':'timed';progress(stage,input,rep)
+       // Warmup uses identical full transport materialization, with no retained cost claim.
+       const measured=measuredCall(()=>invoke(input)),expected=byId.get(input.occurrenceId)
+@@ -82,12 +82,12 @@
+       const finalSourceSha256=hash(measured.rendered.finalSource)
+       const matches=svg.sha256===expected.svg.sha256&&receipt.sha256===expected.receipt.sha256&&finalSourceSha256===expected.finalSourceSha256
+       const row={stage,rep,occurrenceId:input.occurrenceId,stratum:input.stratum,originalId:input.id,svg,receipt,finalSourceSha256,callbackCalls:measured.rendered.callbackCalls,oracleMatches:matches,
+-        ...(rep>=0?{wallMs:measured.wallMs,cpuUserMicros:measured.cpuUserMicros,cpuSystemMicros:measured.cpuSystemMicros}:{})}
++        wallMs:measured.wallMs,cpuUserMicros:measured.cpuUserMicros,cpuSystemMicros:measured.cpuSystemMicros}
+       appendFileSync(journal,json(row)+'\n')
+       if(rep<0)result.warmupCalls.push(row);else result.calls.push(row)
+       if(!matches)throw Error('Independent full oracle mismatch:'+input.occurrenceId)
+     }
+-    if(result.calls.length!==150||result.warmupCalls.length!==75)throw Error('Incomplete fixed call schedule')
++    if(result.calls.length!==300||result.warmupCalls.length!==150)throw Error('Incomplete fixed call schedule')
+     verifyRuntimeLinks(job.artifactRoot,job.artifactSymlinks);result.runtimeLinksVerified.after=true
+     result.status='completed';result.ok=true
+   }catch(error){result.status='failed';result.failure={name:error?.name,message:String(error),code:error?.code,stack:error?.stack};throw error}

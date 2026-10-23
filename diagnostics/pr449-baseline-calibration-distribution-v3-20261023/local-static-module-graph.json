@@ -1,0 +1,5223 @@
+{
+  "protocol": "source-only-lexical-distribution-module-edges@1",
+  "rendererImported": false,
+  "scope": "All emitted distribution JS: import/export source literals, import expressions and require/__require identifier calls. Lexical catalogue, not actual resolution or all possible execution.",
+  "files": [
+    {
+      "path": "dist/agent-core.js",
+      "sha256": "9c3025152f995b0111fba2746419155cc011ebb082b1c669ddde1c1d7855aaf6",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 219,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 214,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 178,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 123,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 122,
+          "column": 0,
+          "specifier": "./chunk-NXJJTGFW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 110,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 42,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-SFWBF353.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/agent.js",
+      "sha256": "628433c8a2a17b688796eae364d829e57cb8d609e06d170c8de11b5623c17e56",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 227,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 222,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 186,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 131,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 130,
+          "column": 0,
+          "specifier": "./chunk-NXJJTGFW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 118,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 50,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 9,
+          "column": 0,
+          "specifier": "./chunk-SFWBF353.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 4,
+          "column": 0,
+          "specifier": "./chunk-MW3MQ7D4.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-QN6SXPDQ.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/agentic-mermaid-mcp.js",
+      "sha256": "9da6b16dc0404d6381482b754a954b2bbc522ad03af00e321f08d43cdcff41bf",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 6,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 5,
+          "column": 0,
+          "specifier": "./chunk-KZ6ESUSS.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 2,
+          "column": 0,
+          "specifier": "./chunk-3S4H2RF5.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/am.js",
+      "sha256": "0c833892ab65a2809bcba7f9e8efff4b738ab4919bf5e40b6d7930c1851f9466",
+      "literalEdges": [
+        {
+          "kind": "ImportExpression",
+          "line": 17,
+          "column": 35,
+          "specifier": "./cli-JCWFRVA2.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 12,
+          "column": 32,
+          "specifier": "./mcp-cli-FP37N4MR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 7,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 6,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 5,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 2,
+          "column": 0,
+          "specifier": "./chunk-KAXS3DL2.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/agentic-producer-core-6FD5ISWA.js",
+      "sha256": "d95cfd7f5b6683b4f5358b61aa7d7bb974caabcfbaca6399d9994112922fc423",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 90,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-QW346T4I.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/architecture-BT7ADUI3.js",
+      "sha256": "8512f9582b27952329de04bd2d108b1b0c5a1396fe51dd2996e26bd4647f6149",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1251,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1223,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1073,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1000,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 897,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 856,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 828,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 787,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 746,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 690,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 641,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 584,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 535,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 507,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 458,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 430,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 389,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 361,
+          "specifier": "./chunk-EI5QM7M3.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 320,
+          "specifier": "./chunk-FQNTOYNB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 292,
+          "specifier": "./chunk-A3GBNR3V.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 264,
+          "specifier": "./chunk-QW346T4I.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 223,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 195,
+          "specifier": "./chunk-GJIZBK2R.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 167,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 139,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 90,
+          "specifier": "./chunk-I25NWDM7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-NTD4ADQU.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-5YLXY5JS.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/block-562LYOF5.js",
+      "sha256": "2ff4a93c154e2562d7d6d8797589fb1dcc624d4853d784bef4d0136b6734208a",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 992,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 964,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 857,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 776,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 673,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 645,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 596,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 555,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 506,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 450,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 401,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 373,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 345,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 296,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 268,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 219,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 191,
+          "specifier": "./chunk-QW346T4I.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 142,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 114,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 57,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-I25NWDM7.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/builtin-backends-WD6MXPLD.js",
+      "sha256": "2e76949becea3b1d5edcaa126e6c6c7ad8530db2efcaf16148290f1f8027de50",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 340,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 312,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 186,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 158,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 77,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 28,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-3LNPGYZF.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/c4-4RFMZQVJ.js",
+      "sha256": "6d2bd91374dd51cf47b310d8277200472f898563ac4d687fe2e52557659fdf01",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1190,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1149,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1042,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 929,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 811,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 783,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 734,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 685,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 628,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 579,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 530,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 502,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 474,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 446,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 405,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 356,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 328,
+          "specifier": "./chunk-QW346T4I.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 287,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 246,
+          "specifier": "./chunk-XOQFAIPE.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 218,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 190,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 69,
+          "specifier": "./chunk-I25NWDM7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-NTD4ADQU.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-UUCNC73T.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-2MS72CRI.js",
+      "sha256": "ec670618a2a233078050ded18738be42ffce017e4ba7e2805a3644d5057daad4",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-2W4OSYDD.js",
+      "sha256": "83386f42cf5af839b14d63bab51e50fd86c8b3de284a91606494ad3508e3a47f",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-QTKVRDXP.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-3LNPGYZF.js",
+      "sha256": "c7522a95336fe350aaafd6f99f555a5bdbd7ee11425f9c036f6b3d38e4f91d49",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-O34ZEG3N.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-4QUINBQR.js",
+      "sha256": "f5f249140625c3fc4bdd090ab06bb483d0b22f27b9268fc5eaeea60646b0a516",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-5NB5BW4W.js",
+      "sha256": "8ec44ab4c588622363ae77d940f882e7a937f22b131105fa327d8fa662eb0cd2",
+      "literalEdges": [
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 140,
+          "specifier": "./decode-75ORJPPS.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 61,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-QTKVRDXP.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-5YLXY5JS.js",
+      "sha256": "e3ad29da0d27491da69ff41784e7fac9edde167370e20aa51978dd2bfe44d9e9",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 791,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 689,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 632,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 585,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 514,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 449,
+          "specifier": "./chunk-FQNTOYNB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 409,
+          "specifier": "./chunk-GJIZBK2R.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 354,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-I25NWDM7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-NTD4ADQU.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-6UCYRUSA.js",
+      "sha256": "cbdf9b65c8b6d53f71b8595a6ea98b47839e780bd8acc646f5e1cc5aaae42752",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-QTKVRDXP.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-7YGJF3CV.js",
+      "sha256": "b642f7fa5ddae7c32c54c81937c91d0ea3544402759da39202416b04f7c276bd",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TKTNMOPO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-A3GBNR3V.js",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-A53CVZWT.js",
+      "sha256": "af6387fa856ed797a3c6927cb634e906cfa33df4e6aa9da934ff842ff1c9226f",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 630,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 541,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 492,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 422,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 382,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 341,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 301,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 261,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 172,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 131,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 82,
+          "specifier": "./chunk-6UCYRUSA.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-NARGOOTK.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-C6H5HZM5.js",
+      "sha256": "bf237d0576e70a34def034d5c9c0d550ad88c370783a1a759940a25875e54c82",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TKTNMOPO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-CALWWBOH.js",
+      "sha256": "c480a0d75cab5f3ee63bf109e0c47c4b21a4bc470f4e16841c4c436ed3da069d",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-7YGJF3CV.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-CML5DD2S.js",
+      "sha256": "5ca614fdd4b197aedcb563d1ba34959bef5833d56b0a7fef5de55d3c5f7cad7e",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-EI5QM7M3.js",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-EMH4QCMV.js",
+      "sha256": "dae4fb8fa15e4fea754f66f707cccf729249046b348a4f1781279c7c85f14729",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-FQNTOYNB.js",
+      "sha256": "a09c037db32662e36768600e887005afcf14013fb5bc3d2d40a692098ed7403e",
+      "literalEdges": [
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3469,
+          "specifier": "./agentic-producer-core-6FD5ISWA.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 176,
+          "specifier": "./elk.bundled-K3MN4H6K.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 94,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 54,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-V3VLWYUW.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-GJIZBK2R.js",
+      "sha256": "12192e8b92d35e5cc728e401c4419e3a423947aa7d1dd1a41210dfebf5b4f590",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-HG7UOI6A.js",
+      "sha256": "1cc07909fa8aedd597ffb7f409ef4eac9c13ee8a746d022ff2610a91f5310896",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TKTNMOPO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-I25NWDM7.js",
+      "sha256": "b8f647334f9de7213f9a9d603005d4fd29772b5c5234a05605668426e89e7d41",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 399,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 211,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 170,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 129,
+          "specifier": "./chunk-QW346T4I.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-I6VE56S7.js",
+      "sha256": "c6ec80358c6f8f72d5a71129c4bd802bca25913511b77f5af9554387d5768cfc",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-IXDYND44.js",
+      "sha256": "19ddce18212beb519f4765ccf006ce7f06b63c44bfa87a66d3baefbc4ab52852",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-NARGOOTK.js",
+      "sha256": "11563787e5630c0ac61e8ce8e109450f6a9d50b0d6784f3c5182a5b7ff15cb70",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-NCYCN2JW.js",
+      "sha256": "986d73e01ac94273d73c255e2468d90c177283d5b73bcaeb80f3ec376a4ad6a8",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-CALWWBOH.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-NTD4ADQU.js",
+      "sha256": "4d4998d67ea6ca39f50127fdc2be8e0f798f6dc8041e698841d8b54a298153dc",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-O34ZEG3N.js",
+      "sha256": "256b13d857c1367a2cb1d274080ca99b9851dcf7627156bd040c57323fe4cb1b",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 57,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-PAKPK36X.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-OFRMKQA6.js",
+      "sha256": "da6a6565981d7212b441dc86bcb1c7b2113932eacf86acc13e81a97371f62228",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-ONMVXYVY.js",
+      "sha256": "0ceca305f57784d82c54b75bdd87f15bd97879eecfe755267f25a72b9caf44b8",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TLMGXQWB.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-OOAEFMBX.js",
+      "sha256": "6006660934881459c6a136ed23b9bbad78709553f65f40057089784f6f34a177",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-PAKPK36X.js",
+      "sha256": "97ec1b3c533023dc0407722c0b60e090fe98e95477ade2a219db9bf0d3388d8f",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TKTNMOPO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-QTKVRDXP.js",
+      "sha256": "594e2789b83d5e58750c369766e0aca7e184fb87e3118d9795605f8b0463c89d",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 269,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 228,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 163,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 122,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-O34ZEG3N.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-QW346T4I.js",
+      "sha256": "f70f0ffd05cb68352b5e31d42fae7bbdc8e186aa66b163f40446894235218082",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-RJ4X2GYM.js",
+      "sha256": "3263736d7ee1df72c34c7ff210eda42819bbcc55739a7e65e4b051d49f95b053",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 583,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 495,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 454,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 398,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 349,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 308,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 259,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 218,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 146,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 81,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-SOSZEBIK.js",
+      "sha256": "ee341526ab32a0157c86e362e09bb1da1e9cfeedc8c1138ab056c854618dd17d",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TKTNMOPO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-TKTNMOPO.js",
+      "sha256": "f9fb6ab1f52363ac4aab02fd9ffc1dab4dec461b6dac64e2680c7f9acb8050b2",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-OOAEFMBX.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-TLMGXQWB.js",
+      "sha256": "a9046009b86a02d5c1b4eaa8b9e55e9d84a162fb4023141919295248630e4629",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TKTNMOPO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-UUCNC73T.js",
+      "sha256": "bd3f610204eaf67b53ce5ba22ce9409d6651a9456abdf32ffcf8f0a8b0152930",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 298,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 228,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 181,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 141,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-NTD4ADQU.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-V3VLWYUW.js",
+      "sha256": "4847b18ec0dfcae68fa86654034eafb167a08152c1606a78a8ee28374e426c5b",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-VXMS36WY.js",
+      "sha256": "0eb38a48791f142185b36fe5dc94298adcd95d75f612fc118a87783a8adecdea",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-WDPK6XKW.js",
+      "sha256": "62dc415a14427ff60460ae6959a49a07353f6b042fc58ee5a25f63c1be13b07a",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-CML5DD2S.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-XOQFAIPE.js",
+      "sha256": "d50d9f1d229a9e27ae81bab40d81915eb0f99a8cb63dda3929e531313d9fba7b",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-Z6GZ4A6L.js",
+      "sha256": "fa32ac5e5e04d95a85b3a615a2ffe2bfdbb011bf31da5f597f9fe94c78ac2d58",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 40,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-ZAAOZSHO.js",
+      "sha256": "5040c1a3c09da6d2af016d6e8949df823404cfbd9a425e609263a913160da992",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 40,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-VXMS36WY.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/chunk-ZBMVPYYR.js",
+      "sha256": "8c99b6199446aa8a77720680d53262afec8f598ab312d6526a9f3f7001c408b7",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 155,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 94,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 47,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-QTKVRDXP.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/class-7FNHEAQF.js",
+      "sha256": "d4560414b20687c83b50f8ccb048b60da65078c3621272e12d3cdf68edb9d389",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1324,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1284,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1114,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 970,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 867,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 827,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 770,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 729,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 680,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 624,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 583,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 518,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 490,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 449,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 408,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 359,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 331,
+          "specifier": "./chunk-EI5QM7M3.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 282,
+          "specifier": "./chunk-FQNTOYNB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 254,
+          "specifier": "./chunk-A3GBNR3V.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 213,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 172,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 131,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 90,
+          "specifier": "./chunk-GJIZBK2R.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-XOQFAIPE.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-2W4OSYDD.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/decode-75ORJPPS.js",
+      "sha256": "05fa4ad2221d8c7a66cbdda921baa56c5f708f0745bd664d6ff4242346ec8a10",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-IXDYND44.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/elk.bundled-K3MN4H6K.js",
+      "sha256": "90fce6f36069100005f76d3c13f9eab2b59b9261c4d762f2d5ef1c33b319d819",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-IXDYND44.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/er-U5WUHEDP.js",
+      "sha256": "28083851c9cb9a895ef9b2ad7c39bd2c4dad20adc54f879cfbf9958ed0d39573",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1509,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1481,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1312,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1168,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1065,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1024,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 967,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 926,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 877,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 821,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 772,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 723,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 674,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 646,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 618,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 590,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 541,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 513,
+          "specifier": "./chunk-EI5QM7M3.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 464,
+          "specifier": "./chunk-FQNTOYNB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 436,
+          "specifier": "./chunk-A3GBNR3V.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 408,
+          "specifier": "./chunk-QW346T4I.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 367,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 326,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 285,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 244,
+          "specifier": "./chunk-GJIZBK2R.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 203,
+          "specifier": "./chunk-XOQFAIPE.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 154,
+          "specifier": "./chunk-2W4OSYDD.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 126,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 98,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-I25NWDM7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-NARGOOTK.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/flowchart-T3ZMSGFO.js",
+      "sha256": "a308f2b5c80b71911e3353094390c437c41cd538e4e68fb9220eb4b3dfa940a6",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 955,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 927,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 880,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 833,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 772,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 744,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 704,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 676,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 636,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 608,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 580,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 552,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 524,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 496,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 442,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 414,
+          "specifier": "./chunk-EI5QM7M3.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 386,
+          "specifier": "./chunk-FQNTOYNB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 358,
+          "specifier": "./chunk-QW346T4I.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 330,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 302,
+          "specifier": "./chunk-6UCYRUSA.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 274,
+          "specifier": "./chunk-GJIZBK2R.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 246,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 218,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 190,
+          "specifier": "./chunk-I25NWDM7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 162,
+          "specifier": "./chunk-NARGOOTK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 134,
+          "specifier": "./chunk-NTD4ADQU.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 94,
+          "specifier": "./chunk-5YLXY5JS.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 54,
+          "specifier": "./chunk-UUCNC73T.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-A53CVZWT.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/gantt-PCZKZ2MS.js",
+      "sha256": "cc7e47b84048ebf484fe049abbc9f60bc67879b2db1c9031dba0bdea3725a49c",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 767,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 739,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 647,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 566,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 471,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 443,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 402,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 329,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 264,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 215,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 187,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 146,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 118,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 69,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 28,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/gitgraph-LU7NDCNY.js",
+      "sha256": "920db27b926fdc6016dc8dd3098fab00fc69761e76f3e6d1700baf940db81bcd",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 720,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 692,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 532,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 451,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 357,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 300,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 236,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 179,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 138,
+          "specifier": "./chunk-TLMGXQWB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 110,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 82,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-XOQFAIPE.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/ishikawa-64CZFX2O.js",
+      "sha256": "912124b2be6d6299516313ff9ee0d3de964643186927a02398c5216703b5fbce",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 654,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 626,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 586,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 477,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 381,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 353,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 325,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 284,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 235,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 179,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 139,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 98,
+          "specifier": "./chunk-HG7UOI6A.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-WDPK6XKW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-PAKPK36X.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/journey-FXUNC6SB.js",
+      "sha256": "be1c5d5048d462036165d24c559a85a8c2c88e87b1f4c3ad664a1b48392f8048",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 945,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 917,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 742,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 653,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 559,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 518,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 490,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 449,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 368,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 328,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 248,
+          "specifier": "./chunk-TLMGXQWB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 220,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 179,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 151,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 110,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 69,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 28,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/kanban-XFV2LEF2.js",
+      "sha256": "f2773a48b89012c33bf56612081fc530362bbef3be1ec88fb7c78f195dbd4971",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 943,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 915,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 867,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 771,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 669,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 628,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 600,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 559,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 494,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 446,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 406,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 358,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 317,
+          "specifier": "./chunk-HG7UOI6A.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 289,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 261,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 220,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 123,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 82,
+          "specifier": "./chunk-EMH4QCMV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-6UCYRUSA.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/mindmap-O5YA4AHB.js",
+      "sha256": "fb73bdc67b7cad6f970799ca7080a8a2a5447f036f40dc11eccf1ba04938cccd",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 732,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 704,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 568,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 465,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 371,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 343,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 294,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 254,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 213,
+          "specifier": "./chunk-TLMGXQWB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 185,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 157,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 129,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 88,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 47,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-NTD4ADQU.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/packet-SKX5PWQI.js",
+      "sha256": "cffd7e43659a07c0ccaca483455593335826264021905c3122ac9647a62ee32c",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 736,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 708,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 654,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 568,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 477,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 437,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 409,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 368,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 300,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 252,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 212,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 172,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 131,
+          "specifier": "./chunk-HG7UOI6A.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 103,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 75,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 47,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-QTKVRDXP.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/pie-Q2YD5Y6U.js",
+      "sha256": "ee3865e077c7efe5c9c79a14f4c9e9877b0a9d8bbe60ca8f59cafec7040c69e6",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1019,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 979,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 844,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 772,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 678,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 638,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 610,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 569,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 520,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 464,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 408,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 380,
+          "specifier": "./chunk-TLMGXQWB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 352,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 324,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 296,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 216,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 175,
+          "specifier": "./chunk-EMH4QCMV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 134,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 106,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-C6H5HZM5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ONMVXYVY.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/quadrant-4NNRCP3S.js",
+      "sha256": "07fdcc3ec384d58bd821dff05d5b0657fd32fe673f3e4a4350f556eac70b1fe3",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 817,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 789,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 689,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 600,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 507,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 466,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 409,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 345,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 280,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 252,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 224,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 196,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 139,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 98,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 57,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-C6H5HZM5.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/radar-VJVPF5CW.js",
+      "sha256": "6a08afc0638c0a379b105b5edd96a6efcb42518d43d59875b24fd5b498fe3182",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 918,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 890,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 762,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 665,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 570,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 529,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 465,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 417,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 360,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 332,
+          "specifier": "./chunk-TLMGXQWB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 304,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 276,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 248,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 200,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 159,
+          "specifier": "./chunk-EMH4QCMV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 118,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 77,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ONMVXYVY.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/render-core-BKHYMTQE.js",
+      "sha256": "68e71d5e6ef9b41fcf940a0b1cd786d6ce67e94811d2abc4ed9fc1822a8a95b7",
+      "literalEdges": [
+        {
+          "kind": "ImportExpression",
+          "line": 3,
+          "column": 19417,
+          "specifier": "./builtin-backends-WD6MXPLD.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1183,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1142,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 718,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 661,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 633,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 605,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 577,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 549,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 461,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 433,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 405,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 285,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 257,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 229,
+          "specifier": "./chunk-EI5QM7M3.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 201,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 105,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 77,
+          "specifier": "./chunk-NTD4ADQU.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 28,
+          "specifier": "./chunk-UUCNC73T.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-3LNPGYZF.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/requirement-DYVQANKP.js",
+      "sha256": "d866f975035d7f2a549bba7737d38b410b04afb1f79807c30616e3aec83a7caa",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 949,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 921,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 831,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 750,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 649,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 621,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 572,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 531,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 461,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 405,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 357,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 308,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 280,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 231,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 203,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 146,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 105,
+          "specifier": "./chunk-EMH4QCMV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 77,
+          "specifier": "./chunk-EI5QM7M3.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 28,
+          "specifier": "./chunk-FQNTOYNB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-A3GBNR3V.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/sankey-QBHGZB54.js",
+      "sha256": "e9db1db9e99a85013913d00c2e7d11b006714d400801d51a3f65b2f61c9f792a",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 790,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 762,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 652,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 579,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 483,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 442,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 361,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 305,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 264,
+          "specifier": "./chunk-TLMGXQWB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 236,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 208,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 167,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 118,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 77,
+          "specifier": "./chunk-XOQFAIPE.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 49,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ONMVXYVY.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/sequence-QDK3K53E.js",
+      "sha256": "00d2e3b05e58b45eb8051f2f3ab4b9ed230605579d8b80b1f49b8d31cdfb8db9",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1174,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 1133,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 888,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 743,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 646,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 605,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 577,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 528,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 479,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 415,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 374,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 333,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 305,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 208,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 159,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 110,
+          "specifier": "./chunk-6UCYRUSA.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 69,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 28,
+          "specifier": "./chunk-I6VE56S7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/state-LMLZ34CW.js",
+      "sha256": "ae2602f7c3c7bef55c57490e0a4de10abb2527086bfe147c844622b078e11052",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 902,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 874,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 833,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 779,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 718,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 690,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 650,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 622,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 594,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 566,
+          "specifier": "./chunk-V3VLWYUW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 538,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 510,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 482,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 442,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 414,
+          "specifier": "./chunk-EI5QM7M3.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 386,
+          "specifier": "./chunk-FQNTOYNB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 358,
+          "specifier": "./chunk-QW346T4I.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 330,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 302,
+          "specifier": "./chunk-6UCYRUSA.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 274,
+          "specifier": "./chunk-GJIZBK2R.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 246,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 218,
+          "specifier": "./chunk-RJ4X2GYM.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 190,
+          "specifier": "./chunk-I25NWDM7.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 162,
+          "specifier": "./chunk-NARGOOTK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 134,
+          "specifier": "./chunk-NTD4ADQU.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 94,
+          "specifier": "./chunk-5YLXY5JS.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 54,
+          "specifier": "./chunk-UUCNC73T.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-A53CVZWT.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/timeline-OEYTLLU6.js",
+      "sha256": "cb2c37d6ad637bc5dbdd88122965eef0d567e6f399aaf904c96f55ed270c5b55",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 723,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 695,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 596,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 507,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 413,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 373,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 345,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 304,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 255,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 207,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 179,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 151,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 123,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 82,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-OFRMKQA6.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-I6VE56S7.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/treemap-EFNDO3CX.js",
+      "sha256": "d034a9045805349225ca688d376e1f34fbce4ba0044cf9838185ae186b8e1fc8",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 800,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 772,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 662,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 551,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 448,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 420,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 371,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 330,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 274,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 212,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 171,
+          "specifier": "./chunk-CML5DD2S.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 130,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 89,
+          "specifier": "./chunk-HG7UOI6A.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 41,
+          "specifier": "./chunk-WDPK6XKW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-TLMGXQWB.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/chunks/xychart-OCIXTPIG.js",
+      "sha256": "187d1b4e2dac0f363cc9804907400100628c733304b9a8ed25956f83c426bbec",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 983,
+          "specifier": "./chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 955,
+          "specifier": "./chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 827,
+          "specifier": "./chunk-TKTNMOPO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 730,
+          "specifier": "./chunk-7YGJF3CV.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 636,
+          "specifier": "./chunk-CALWWBOH.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 608,
+          "specifier": "./chunk-VXMS36WY.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 580,
+          "specifier": "./chunk-ZAAOZSHO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 539,
+          "specifier": "./chunk-Z6GZ4A6L.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 452,
+          "specifier": "./chunk-SOSZEBIK.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 380,
+          "specifier": "./chunk-NCYCN2JW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 323,
+          "specifier": "./chunk-4QUINBQR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 274,
+          "specifier": "./chunk-TLMGXQWB.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 246,
+          "specifier": "./chunk-2MS72CRI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 218,
+          "specifier": "./chunk-PAKPK36X.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 190,
+          "specifier": "./chunk-O34ZEG3N.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 126,
+          "specifier": "./chunk-QTKVRDXP.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 85,
+          "specifier": "./chunk-5NB5BW4W.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 57,
+          "specifier": "./chunk-ZBMVPYYR.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-C6H5HZM5.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser-lazy/index.js",
+      "sha256": "212f61b7bb439628555672d27c1f1ec95d98efdbfaf352cf7bb3920f23f2e494",
+      "literalEdges": [
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3934,
+          "specifier": "./chunks/render-core-BKHYMTQE.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3480,
+          "specifier": "./chunks/c4-4RFMZQVJ.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3435,
+          "specifier": "./chunks/sankey-QBHGZB54.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3387,
+          "specifier": "./chunks/radar-VJVPF5CW.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3337,
+          "specifier": "./chunks/gitgraph-LU7NDCNY.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3285,
+          "specifier": "./chunks/mindmap-O5YA4AHB.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3236,
+          "specifier": "./chunks/gantt-PCZKZ2MS.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3186,
+          "specifier": "./chunks/quadrant-4NNRCP3S.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3138,
+          "specifier": "./chunks/pie-Q2YD5Y6U.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3091,
+          "specifier": "./chunks/xychart-OCIXTPIG.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 3035,
+          "specifier": "./chunks/architecture-BT7ADUI3.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2979,
+          "specifier": "./chunks/journey-FXUNC6SB.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2933,
+          "specifier": "./chunks/er-U5WUHEDP.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2889,
+          "specifier": "./chunks/class-7FNHEAQF.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2839,
+          "specifier": "./chunks/timeline-OEYTLLU6.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2786,
+          "specifier": "./chunks/sequence-QDK3K53E.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2736,
+          "specifier": "./chunks/state-LMLZ34CW.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2685,
+          "specifier": "./chunks/flowchart-T3ZMSGFO.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2634,
+          "specifier": "./chunks/block-562LYOF5.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2584,
+          "specifier": "./chunks/ishikawa-64CZFX2O.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2532,
+          "specifier": "./chunks/treemap-EFNDO3CX.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2477,
+          "specifier": "./chunks/requirement-DYVQANKP.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2423,
+          "specifier": "./chunks/kanban-XFV2LEF2.js"
+        },
+        {
+          "kind": "ImportExpression",
+          "line": 1,
+          "column": 2374,
+          "specifier": "./chunks/packet-SKX5PWQI.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 94,
+          "specifier": "./chunks/chunk-IXDYND44.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 47,
+          "specifier": "./chunks/chunk-OOAEFMBX.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunks/chunk-2MS72CRI.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/browser.global.js",
+      "sha256": "73d72940d09d5b1fb5a9337ab6094510e7e79fc74cf56f19a36b520aae9d4679",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-3S4H2RF5.js",
+      "sha256": "e4ee596a233650d195cc65dced920380d632920f77bd2621875732b18729f516",
+      "literalEdges": [
+        {
+          "kind": "ImportExpression",
+          "line": 127,
+          "column": 38,
+          "specifier": "./server-IRCPVUQT.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-KZ6ESUSS.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-FBQG35C5.js",
+      "sha256": "d578a1a81bc7b4426b85f34f1fc9a6f25c7c7a9c3ecbf58566434fb525ace2b4",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 4429,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 492,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 8,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-K7DWD4DY.js",
+      "sha256": "366fedc87aadd64bc4db03ff3bf5f59908c33d7cea9c93812323b66ea496a26e",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 4,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-KAXS3DL2.js",
+      "sha256": "37f0f0b5f93e9d9df8d1f663c2b2ad6fddfe0fd751eec3eebacc68dc8c57954b",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-KNGCBVHG.js",
+      "sha256": "b4e564dfd417443d7b11cce96253b8a8c10ab8faaeb081a64d4cf07bdffc79de",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 18513,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 4687,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3847,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3231,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 2190,
+          "column": 0,
+          "specifier": "yaml"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 576,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 423,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 349,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-KZ6ESUSS.js",
+      "sha256": "56df220f15cf8f8133b6aa09386c80d3485658c8d7640c18253d1f8c0293a80e",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-L77HDLGO.js",
+      "sha256": "352f4285c087284e0182417e7c03978de042d6877c170f8cb994e08caf9c6ef0",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 45852,
+          "column": 0,
+          "specifier": "d3-sankey"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 33054,
+          "column": 0,
+          "specifier": "d3-format"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 21144,
+          "column": 0,
+          "specifier": "#elk-constructor"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 19242,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 16569,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 14736,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 14228,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 14030,
+          "column": 0,
+          "specifier": "yaml"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 12480,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 12437,
+          "column": 0,
+          "specifier": "entities/decode"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 11256,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 4084,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3927,
+          "column": 0,
+          "specifier": "yaml/util"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3926,
+          "column": 0,
+          "specifier": "yaml"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3797,
+          "column": 0,
+          "specifier": "yaml"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 145,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-MW3MQ7D4.js",
+      "sha256": "ad56fa5f7ec6a8b63af0d10b1cd30c33e9e3133321659d887dcc26fccf59f83d",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 467,
+          "column": 0,
+          "specifier": "fs"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 466,
+          "column": 0,
+          "specifier": "path"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 465,
+          "column": 0,
+          "specifier": "os"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 278,
+          "column": 0,
+          "specifier": "path"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 269,
+          "column": 0,
+          "specifier": "fs"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 268,
+          "column": 0,
+          "specifier": "crypto"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 83,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 80,
+          "column": 0,
+          "specifier": "path"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 79,
+          "column": 0,
+          "specifier": "fs"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 30,
+          "column": 0,
+          "specifier": "@resvg/resvg-js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 29,
+          "column": 0,
+          "specifier": "fs"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 28,
+          "column": 0,
+          "specifier": "path"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 27,
+          "column": 0,
+          "specifier": "os"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 26,
+          "column": 0,
+          "specifier": "url"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 14,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-NXJJTGFW.js",
+      "sha256": "a279c6b52bbb84d67142435edde2f703abc03f62e55527a0b766247028bbac58",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1808,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-PZ5AY32C.js",
+      "sha256": "40c1be907ef01c2fa72b19a2d3873e62f68ffaf37d4de958cc6c07fe90b79493",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-QN6SXPDQ.js",
+      "sha256": "edd8d90e27c3df3342231e480b519bab01ecdfa308b0c76988724e032602a7c9",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 22,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 18,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 15,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 10,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 4,
+          "column": 0,
+          "specifier": "./chunk-SFWBF353.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-MW3MQ7D4.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-SFWBF353.js",
+      "sha256": "1246f1d5d58fa3a28cc76eb45d57e564a3d0e31f5939ba8e64e11c27c15e5e02",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 205,
+          "column": 0,
+          "specifier": "entities"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 199,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 192,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 169,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 64,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-WLBNPIHQ.js",
+      "sha256": "293e45bc5cda9e7863301824ec1e47b6d373543646b0ad1ed7cc2138c1b4b9a5",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/chunk-XDDTVTCJ.js",
+      "sha256": "3cf04109667e5866df9ada0de9d0565f3fcc6e55073d5b085f8b52812db141cb",
+      "literalEdges": [],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/cli-JCWFRVA2.js",
+      "sha256": "474a3be5ceafed83ab79b79bad830a87006254c49a8b995fcef15c7d8dc7e073",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 382,
+          "column": 0,
+          "specifier": "path"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 381,
+          "column": 0,
+          "specifier": "fs"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 86,
+          "column": 0,
+          "specifier": "path"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 85,
+          "column": 0,
+          "specifier": "os"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 84,
+          "column": 0,
+          "specifier": "fs"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 83,
+          "column": 0,
+          "specifier": "child_process"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 80,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 79,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 70,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 52,
+          "column": 0,
+          "specifier": "./chunk-KAXS3DL2.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 45,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 44,
+          "column": 0,
+          "specifier": "./chunk-NXJJTGFW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 39,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 27,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 10,
+          "column": 0,
+          "specifier": "./chunk-SFWBF353.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 7,
+          "column": 0,
+          "specifier": "./chunk-MW3MQ7D4.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 6,
+          "column": 0,
+          "specifier": "./chunk-QN6SXPDQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-K7DWD4DY.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/elk-constructor.js",
+      "sha256": "b54a7e45d487478fe1eb64140bea5558d7bc9efecd43c9deadb34afd4eab9a68",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 4,
+          "column": 0,
+          "specifier": "elkjs/lib/elk.bundled.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/elk-constructor.node.js",
+      "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+      "literalEdges": [
+        {
+          "kind": "require",
+          "line": 9,
+          "column": 6,
+          "specifier": "elkjs/lib/elk.bundled.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 5,
+          "column": 0,
+          "specifier": "node:module"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/index.js",
+      "sha256": "65491a8faf3a8dee345c50ea7cfe0845a1500c518220a97a0a27fc9f80c5c3bd",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 187,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 182,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 175,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 94,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 93,
+          "column": 0,
+          "specifier": "./chunk-NXJJTGFW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 63,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/mcp-cli-FP37N4MR.js",
+      "sha256": "9dea8e07921fcf4a4bbff9008f189968b141e60dd3b5d1b9e5938d81caafa9f3",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 8,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 7,
+          "column": 0,
+          "specifier": "./chunk-KZ6ESUSS.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-3S4H2RF5.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/server-IRCPVUQT.js",
+      "sha256": "f81c9236fc7b8ee6b03d831d7722c311f1c4a4dd808b9a96f515fb3217484b7d",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 3370,
+          "column": 0,
+          "specifier": "path"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3369,
+          "column": 0,
+          "specifier": "os"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3353,
+          "column": 0,
+          "specifier": "fs"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 3352,
+          "column": 0,
+          "specifier": "crypto"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1007,
+          "column": 0,
+          "specifier": "acorn"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1004,
+          "column": 0,
+          "specifier": "vm"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 108,
+          "column": 0,
+          "specifier": "url"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 107,
+          "column": 0,
+          "specifier": "http"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 106,
+          "column": 0,
+          "specifier": "crypto"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 103,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 100,
+          "column": 0,
+          "specifier": "./chunk-KZ6ESUSS.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 99,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 72,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 60,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 59,
+          "column": 0,
+          "specifier": "./chunk-NXJJTGFW.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 51,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 39,
+          "column": 0,
+          "specifier": "./chunk-KNGCBVHG.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 9,
+          "column": 0,
+          "specifier": "./chunk-SFWBF353.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 6,
+          "column": 0,
+          "specifier": "./chunk-MW3MQ7D4.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-K7DWD4DY.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/svg-styles.js",
+      "sha256": "4036898a628a5550ea77f121141c7dcdb6754f591b9d7bf7222f96d394895660",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 9,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 8,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 2,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-NXJJTGFW.js"
+        }
+      ],
+      "computedEdges": []
+    },
+    {
+      "path": "dist/svg.js",
+      "sha256": "04aa2d6d30442f90c8c61ce5b4fb9bac8601c7835a18b01041aa2930e9770c7e",
+      "literalEdges": [
+        {
+          "kind": "ImportDeclaration",
+          "line": 35,
+          "column": 0,
+          "specifier": "./chunk-PZ5AY32C.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 34,
+          "column": 0,
+          "specifier": "./chunk-XDDTVTCJ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 33,
+          "column": 0,
+          "specifier": "./chunk-WLBNPIHQ.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 30,
+          "column": 0,
+          "specifier": "./chunk-FBQG35C5.js"
+        },
+        {
+          "kind": "ImportDeclaration",
+          "line": 1,
+          "column": 0,
+          "specifier": "./chunk-L77HDLGO.js"
+        }
+      ],
+      "computedEdges": []
+    }
+  ],
+  "localActualLoaderGraph": "UNAVAILABLE_NOT_CAPTURED",
+  "noJSNormalization": true
+}

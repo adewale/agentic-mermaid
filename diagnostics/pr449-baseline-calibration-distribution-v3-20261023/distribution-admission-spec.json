@@ -1,0 +1,349 @@
+{
+  "protocol": "pinned-source-stable-distribution-admission@3",
+  "source": "ec72a06dcf57d1e429fab9672a9acbf794e22d9f",
+  "sources": {
+    "package.json": {
+      "sha256": "7c72487fedc9429e749367d57031d9b68b915c5222d64db2124ae18607cc6fdb",
+      "bytes": 10619
+    },
+    "tsup.config.ts": {
+      "sha256": "97ab28385836d848997a23bd73a04362925148124e9a88821a7d04832ef69409",
+      "bytes": 2141
+    },
+    "tsup.browser.config.ts": {
+      "sha256": "4d8da660450ef7147b1c25b664aa27a2e1879f4fec47d650af680b9541cee85d",
+      "bytes": 1245
+    },
+    "tsup.browser-lazy.config.ts": {
+      "sha256": "38302cc1954ee05be51054580ad353ca7ac92efd435ef1d40560ad3a98a03832",
+      "bytes": 3409
+    },
+    "src/elk-constructor.node.js": {
+      "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+      "bytes": 535
+    }
+  },
+  "stableFiles": [
+    {
+      "path": "dist/agent-core.d.ts",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "dtsLiteralEntry": "agent-core",
+          "input": "src/agent/core.ts"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1agent~1core/types",
+          "literal": "./dist/agent-core.d.ts"
+        }
+      ]
+    },
+    {
+      "path": "dist/agent-core.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "agent-core",
+          "input": "src/agent/core.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1agent~1core/import",
+          "literal": "./dist/agent-core.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1agent~1core/default",
+          "literal": "./dist/agent-core.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/agent.d.ts",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "dtsLiteralEntry": "agent",
+          "input": "src/agent/index.ts"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1agent/types",
+          "literal": "./dist/agent.d.ts"
+        }
+      ]
+    },
+    {
+      "path": "dist/agent.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "agent",
+          "input": "src/agent/index.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1agent/import",
+          "literal": "./dist/agent.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1agent/default",
+          "literal": "./dist/agent.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/agentic-mermaid-mcp.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "agentic-mermaid-mcp",
+          "input": "src/mcp/mcp-bin.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/bin/agentic-mermaid-mcp",
+          "literal": "dist/agentic-mermaid-mcp.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/am.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "am",
+          "input": "src/cli/am-bin.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/bin/am",
+          "literal": "dist/am.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/bin/agentic-mermaid",
+          "literal": "dist/am.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/browser-lazy/index.d.ts",
+      "provenance": [
+        {
+          "source": "tsup.browser-lazy.config.ts",
+          "dtsLiteralEntry": "browser-lazy/index",
+          "input": "src/browser-lazy.ts"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1browser~1lazy/types",
+          "literal": "./dist/browser-lazy/index.d.ts"
+        }
+      ]
+    },
+    {
+      "path": "dist/browser-lazy/index.js",
+      "provenance": [
+        {
+          "source": "tsup.browser-lazy.config.ts",
+          "literalEntry": "browser-lazy/index",
+          "input": "src/browser-lazy.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1browser~1lazy/import",
+          "literal": "./dist/browser-lazy/index.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1browser~1lazy/default",
+          "literal": "./dist/browser-lazy/index.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/browser.global.js",
+      "provenance": [
+        {
+          "source": "tsup.browser.config.ts",
+          "literalEntry": "browser",
+          "format": "iife",
+          "declaredGlobalName": "agenticMermaid",
+          "packageExport": "./browser"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1browser",
+          "literal": "./dist/browser.global.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/elk-constructor.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "elk-constructor",
+          "input": "src/elk-constructor.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/imports/#elk-constructor/default",
+          "literal": "./dist/elk-constructor.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/elk-constructor.node.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalOnSuccess": "copyFileSync('src/elk-constructor.node.js', 'dist/elk-constructor.node.js')",
+          "verbatimInputSHA256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/imports/#elk-constructor/node",
+          "literal": "./dist/elk-constructor.node.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/index.d.ts",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "dtsLiteralEntry": "index",
+          "input": "src/index.ts"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/types",
+          "literal": "dist/index.d.ts"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/./types",
+          "literal": "./dist/index.d.ts"
+        }
+      ]
+    },
+    {
+      "path": "dist/index.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "index",
+          "input": "src/index.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/main",
+          "literal": "dist/index.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/./import",
+          "literal": "./dist/index.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/./default",
+          "literal": "./dist/index.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/svg-styles.d.ts",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "dtsLiteralEntry": "svg-styles",
+          "input": "src/svg-styles.ts"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1svg~1styles/types",
+          "literal": "./dist/svg-styles.d.ts"
+        }
+      ]
+    },
+    {
+      "path": "dist/svg-styles.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "svg-styles",
+          "input": "src/svg-styles.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1svg~1styles/import",
+          "literal": "./dist/svg-styles.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1svg~1styles/default",
+          "literal": "./dist/svg-styles.js"
+        }
+      ]
+    },
+    {
+      "path": "dist/svg.d.ts",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "dtsLiteralEntry": "svg",
+          "input": "src/svg.ts"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1svg/types",
+          "literal": "./dist/svg.d.ts"
+        }
+      ]
+    },
+    {
+      "path": "dist/svg.js",
+      "provenance": [
+        {
+          "source": "tsup.config.ts",
+          "literalEntry": "svg",
+          "input": "src/svg.ts",
+          "format": "esm"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1svg/import",
+          "literal": "./dist/svg.js"
+        },
+        {
+          "source": "package.json",
+          "jsonPointer": "/exports/.~1svg/default",
+          "literal": "./dist/svg.js"
+        }
+      ]
+    }
+  ],
+  "cardinalities": {
+    "distributionRegularFiles": 134,
+    "rootJavaScriptFiles": 27,
+    "entireArtifactRegularFiles": 737,
+    "runtimePackageFiles": 601,
+    "relativeContainedLinks": 13,
+    "distributionLexicalJavaScriptModules": 99
+  },
+  "generatedNames": "All non-stable generated names are catalogued verbatim and may change hash suffix under the pre-existing NEW hosted artifact policy. No prefix heuristic designates fixed files.",
+  "limits": "This stable-entry projection is not an actual build or a graph equivalence claim. Exact counts, physical census, runtime bytes, lexical/observed graph admission and300 original full-value/fourUTF8 outputs remain required."
+}

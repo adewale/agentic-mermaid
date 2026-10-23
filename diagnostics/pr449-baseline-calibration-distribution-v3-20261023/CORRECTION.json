@@ -1,0 +1,49 @@
+{
+  "protocol": "separate-prospective-source-enrolled-hosted-study-correction@3",
+  "status": "LOCAL_ONLY_NO_ACTUAL_PRODUCT_RESOLUTION_BUILD_CAPTURE_OR_REMOTE_OPERATION",
+  "predecessor": {
+    "diagnosticCommit": "61293a6f917695290c62db77cb1ad55fe3e70c1d",
+    "workflowRun": 40016887994,
+    "sourceFreezeSHA256": "c3e6d4962a5cf56f3d0d87efd519372c69cd2c8fb341933ac04c0472956966a5",
+    "firstResultManifestSHA256": "23ba0586815ca90a11cfd314b5c5a0bf53a860679005aea96930a7f413558eab",
+    "result": "FAILED_COMPOUND_DISTRIBUTION_ADMISSION_BEFORE_RENDERER_CALLS",
+    "exactFailedDisjunct": "UNAVAILABLE",
+    "immutable": true
+  },
+  "fixedSource": "ec72a06dcf57d1e429fab9672a9acbf794e22d9f",
+  "branch": "diagnostic/pr449-baseline-calibration-distribution-v3-20261023",
+  "workflow": ".github/workflows/pr449-baseline-calibration-distribution-v3-20261023.yml",
+  "message": "Declare source-enrolled baseline calibration v3 20261023",
+  "correction": "Replace generated-name fixed-entry heuristic with exact17stable source-derived paths. Persist complete actual distribution census BEFORE admission, then all individual check outcomes. No cardinality/dependency/output/measurement relaxation.",
+  "distributionSpecSHA256": "9b057bc553ed3369397a2850038b4087487d2e1cb4b2c51b98c4f1acbc268ddf",
+  "diffSHA256": "63310094b2123479e9e5589dfdcad63508666378b28cf72f91e76a426fb2326b",
+  "unchanged": {
+    "counts": {
+      "distributionRegularFiles": 134,
+      "rootJavaScriptFiles": 27,
+      "entireArtifactRegularFiles": 737,
+      "runtimePackageFiles": 601,
+      "relativeContainedLinks": 13,
+      "distributionLexicalJavaScriptModules": 99
+    },
+    "workerSHA256": "971f8a4eee2333453a36f1fc50256c5fdf88daa8881c4d36ffb7366527bcffb4",
+    "assessorSHA256": "b6a5ee4d925261202d917d07e5c10f737b7d5d04bbf7e5a1e69dddc0e6e5f548",
+    "sourceAndLockNodeRuntimeBytes": true,
+    "cohort": 75,
+    "workers": 24,
+    "passes": "2warm+4timed",
+    "gates": "all36aggregate reciprocal1.02/all300inputmedians1.05/all72tailrounds1.05",
+    "bounds": "120worker/480perengine-policy",
+    "exact4UTF8PlusTagged300FullValues": true
+  },
+  "preparationChecks": {
+    "distributionFilesystemFixtures": 9,
+    "affectedPreparationFixtures": 7,
+    "staticSyntaxPinsYAMLAndUnchangedChecks": 28,
+    "reusedConsumerFixtures": 11,
+    "reusedManifestLockChecks": 70,
+    "reusedSemanticFixtures": 22
+  },
+  "noRetryOfAnyFailedStudy": true,
+  "noRemoteAuthorization": true
+}

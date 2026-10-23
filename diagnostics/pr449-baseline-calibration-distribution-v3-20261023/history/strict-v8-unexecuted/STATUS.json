@@ -1,0 +1,4 @@
+{
+  "status": "UNEXECUTED_PRE_FREEZE_DRAFT",
+  "reason": "Parent selected tagged semantic data fingerprints before any hosted build/capture. Original V8 encoding hashes remain provenance, not canonical value equality."
+}

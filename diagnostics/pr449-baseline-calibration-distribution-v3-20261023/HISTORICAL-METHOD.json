@@ -1,0 +1,140 @@
+{
+  "protocol": "fresh-host-baseline-only-calibration-origin@3",
+  "status": "LOCAL_V3_PREPARATION_ONLY_NO_NEW_BUILD_RESOLUTION_CAPTURE_REMOTE_WRITE",
+  "source": "ec72a06dcf57d1e429fab9672a9acbf794e22d9f",
+  "oldCandidateCostPlanSHA256": "2f8c6ec70e1b39618867094cd2a27d693c08561779af6dda0898d8eb1b28f136",
+  "oldBaselineCalibrationPlanSHA256": "ef1a4d6a174a22e19ad5ed495fb4084fe822364ccc25a0e27c06a329fc90abbc",
+  "originalWorkerSHA256": "971f8a4eee2333453a36f1fc50256c5fdf88daa8881c4d36ffb7366527bcffb4",
+  "unchanged": {
+    "inputs": 75,
+    "warmupPasses": 2,
+    "timedPasses": 4,
+    "callsPerWorker": 450,
+    "rounds": 3,
+    "roles": [
+      "baseline-A",
+      "baseline-B"
+    ],
+    "roundRoleOrder": [
+      [
+        "baseline-A",
+        "baseline-B"
+      ],
+      [
+        "baseline-B",
+        "baseline-A"
+      ],
+      [
+        "baseline-A",
+        "baseline-B"
+      ]
+    ],
+    "engines": [
+      "native",
+      "elk"
+    ],
+    "policies": [
+      "off",
+      "normal"
+    ],
+    "workers": 24,
+    "workerSeconds": 120,
+    "eachEnginePolicySeconds": 480,
+    "targets": {
+      "allRoundWholeAndStrataAA": 1.02,
+      "allInputMedianAA": 1.05,
+      "allTailRoundAA": 1.05
+    }
+  },
+  "newProtocolDifferences": [
+    "Independent hosted runner, exact accepted source/lock/tools/runtime dependency bytes; generated distribution is a NEW artifact identity. Every compiled byte/path and lexical graph difference from local is retained without normalization.",
+    "V2 corrects package LOCATION only: follow7original project consumer roots and6 package-consumer edges using public createRequire.resolve, then find containing package root without importing modules. Original exact601 runtime bytes and13 contained links are mandatory; no global matching-version search or dependency relaxation.",
+    "V3 corrects stable-entry enrollment only:17 exact stable paths derive from pinned build-entry/declaration/IIFE/manual-copy/package exports/bins sources. Generated hash names may change as already allowed. COMPLETE generated path/SHA/size/rootJS census is saved before admission, followed by each failed-check reason;134/27/737/99 counts unchanged.",
+    "Four new untimed full75 baseline captures compare all original retained full values using tagged own-data structural fingerprints, plus exact original fourUTF8 hashes/bytes and required-success/paint metadata. V8 encoding hashes remain provenance only, never canonical equality.",
+    "A public synchronous main-thread Node24 resolution hook is installed by an explicit launcher in untimed preflight only, not --import. Unobserved worker-thread loaders and the unavailable local actual-loader graph remain explicit limitations.",
+    "Structured metadata path relocation and derived controller globals/oracle root before declaration; unchanged worker and statistic formulas.",
+    "Preparation and measurement in separate hosted jobs; new immutable artifact transport reverified before timing."
+  ],
+  "noCandidateNoNormalizationNoHistoricalRescue": true,
+  "sourceOrigins": {
+    "calibrate.py": {
+      "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/calibrate.py",
+      "sha256": "8e85a0057de0bd5ee366ced453c57fed089663e2e2e6d4a84b6cd477dcd2834d"
+    },
+    "assess-calibration.py": {
+      "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/assess-calibration.py",
+      "sha256": "b6a5ee4d925261202d917d07e5c10f737b7d5d04bbf7e5a1e69dddc0e6e5f548"
+    },
+    "calibration-worker.mjs": {
+      "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/calibration-worker.mjs",
+      "sha256": "971f8a4eee2333453a36f1fc50256c5fdf88daa8881c4d36ffb7366527bcffb4"
+    },
+    "test-calibration.py": {
+      "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/test-calibration.py",
+      "sha256": "e8314ae02632e75344440162f8fc1c104ffcd5ae26ca9284fa1ac29b92f6a709"
+    },
+    "worker-derivation.json": {
+      "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/worker-derivation.json",
+      "sha256": "8616215031bbe08795f03b092e6eba7055c53fd0d9df133de139bea0275c7fef"
+    },
+    "worker-derivation.patch": {
+      "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/worker-derivation.patch",
+      "sha256": "b5b822e2f8f5d2383f0aa38e9c609b43ed9cc0b292d337a6839bb81da2c2a1f6"
+    },
+    "fidelity.mjs": {
+      "path": "/workspace/pr449-frontier/dirty-bilayer-968-evidence/fidelity.mjs",
+      "sha256": "b7ba8cad29c77dd4b826f7609851fd2939a34b21a54032cc756e21fa83fc6867"
+    },
+    "capture-baseline.mjs": {
+      "path": "/workspace/pr449-frontier/interval-median-subtraction/capture-baseline.mjs",
+      "sha256": "0bfe10aef8d8bd66319c9fd8b950caf203c5607e6f48e69984c829784e290c89"
+    },
+    "enrollment.json": {
+      "path": "/workspace/pr449-frontier/svg-receipt-cost/enrollment.json",
+      "sha256": "636c39dc787ce860ade86061b704c6a5e7db9f858f02991871112ff0fd6842f0"
+    },
+    "historical-proposal.json": {
+      "path": "/workspace/pr449-frontier/c2-t-exact-ec72-cost/repeatability-analysis/baseline-only-calibration.PROPOSAL.json",
+      "sha256": "e40ada958133bad3311e3c51e2210e19fa50c5dc53ce309d3343b16b8145ff1f"
+    },
+    "record-host-observer.py": {
+      "path": "/workspace/pr449-frontier/baseline-repeatability-calibration/record-host-observer.py",
+      "sha256": "ea84c73888ce09854f749bc2155af0664506e9ca6a9cf687d65d0446138efecb"
+    }
+  },
+  "baselineManifestOrigin": {
+    "path": "/workspace/pr449-frontier/bounded-crossing-cost/baseline-artifact-manifest.json",
+    "sha256": "120723160a39b962c6f16840133fecf6adf0fbd0e00f22b4ca5093ab03d0b9e5"
+  },
+  "semanticFingerprint": {
+    "protocol": "tagged-own-data-structure-SHA256@1",
+    "allFields": [
+      "finalSource",
+      "svg",
+      "receipt",
+      "debugLayout",
+      "metrics",
+      "missingLabels"
+    ],
+    "scope": "Retained deserialized acyclic plain data, own-key order and data descriptors; repeated acyclic references by content. Unsupported types/proxies/accessors/cycles fail closed. No live alias or pre-V8 descriptor identity claim."
+  },
+  "predecessor": {
+    "diagnosticCommit": "61293a6f917695290c62db77cb1ad55fe3e70c1d",
+    "workflowRun": 40016887994,
+    "sourceFreezeSHA256": "c3e6d4962a5cf56f3d0d87efd519372c69cd2c8fb341933ac04c0472956966a5",
+    "firstResultManifestSHA256": "23ba0586815ca90a11cfd314b5c5a0bf53a860679005aea96930a7f413558eab",
+    "result": "FAILED_COMPOUND_DISTRIBUTION_ADMISSION_BEFORE_RENDERER_CALLS",
+    "exactFailedDisjunct": "UNAVAILABLE",
+    "immutable": true
+  },
+  "dependencyLocationSpecSHA256": "1a8eb3305da0fb022631fbdfc9212cb069b78aa3fa8700edbfaedbf4f7fcfa1b",
+  "firstFailedStudy": {
+    "diagnosticCommit": "16a862dd4311f351d93339aee0682f7609602921",
+    "workflowRun": 40013934556,
+    "sourceFreezeSHA256": "44e6909beb1068031300b9df336d904687e69ad75e9322cbf7d343324ca1e4c8",
+    "firstResultManifestSHA256": "c5aaccaa1a1dc8c1e929aa5efac3aa7b1c918cb14a7997d8ededa67cf2d3b67f",
+    "result": "FAILED_DEPENDENCY_ADMISSION_BEFORE_ANY_RENDERER_CALL",
+    "immutable": true
+  },
+  "distributionAdmissionSpecSHA256": "9b057bc553ed3369397a2850038b4087487d2e1cb4b2c51b98c4f1acbc268ddf"
+}

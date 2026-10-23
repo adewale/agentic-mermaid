@@ -1,0 +1,140 @@
+{
+  "protocol": "source-enrolled-v3-local-static-review@3",
+  "rendererImported": false,
+  "checks": [
+    {
+      "check": "Python syntax:host-study.py",
+      "passed": true
+    },
+    {
+      "check": "Python syntax:test-host-study.py",
+      "passed": true
+    },
+    {
+      "check": "Python syntax:distribution_admission.py",
+      "passed": true
+    },
+    {
+      "check": "Python syntax:test-distribution-admission.py",
+      "passed": true
+    },
+    {
+      "check": "Python syntax:derive-distribution-spec.py",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/checkout",
+      "gitCommit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/checkout",
+      "gitCommit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:oven-sh/setup-bun",
+      "gitCommit": "0c5077e51419868618aeaa5fe8019c62421857d6",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/setup-node",
+      "gitCommit": "820762786026740c76f36085b0efc47a31fe5020",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/upload-artifact",
+      "gitCommit": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/checkout",
+      "gitCommit": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/setup-node",
+      "gitCommit": "820762786026740c76f36085b0efc47a31fe5020",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/download-artifact",
+      "gitCommit": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+      "passed": true
+    },
+    {
+      "check": "Reviewed action:actions/upload-artifact",
+      "gitCommit": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "passed": true
+    },
+    {
+      "check": "V3exactbranch/path/twojobs",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:source-assets/calibration-worker.mjs",
+      "sha256": "971f8a4eee2333453a36f1fc50256c5fdf88daa8881c4d36ffb7366527bcffb4",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:source-assets/assess-calibration.py",
+      "sha256": "b6a5ee4d925261202d917d07e5c10f737b7d5d04bbf7e5a1e69dddc0e6e5f548",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:source-assets/enrollment.json",
+      "sha256": "636c39dc787ce860ade86061b704c6a5e7db9f858f02991871112ff0fd6842f0",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:expected-artifact.json",
+      "sha256": "5ca4db1575f5fb0f7d122a0a526cd4ec000bea20415f44520b1f4a1827be79ba",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:expected-oracles.semantic.json",
+      "sha256": "e3adaddc77b1ba6db10ed7669c7800cf0c6ed8a081839895f3f5febb9c6073ef",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:structural-digest.mjs",
+      "sha256": "29392c3847dbaa1c2e44daee3bc18f3fe13d72fe3a1a37d26b78433da0bd47cd",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:test-structural-digest.mjs",
+      "sha256": "99b83d581c9005aef175b24d43f350fb55976ce7a614e04eb7122fb82a2756c5",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:structural-tests.json",
+      "sha256": "56c6505baef05979695534ae2bbf54bdb1c05112f2a128bb5e76c370ed402836",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:resolve-runtime-closure.mjs",
+      "sha256": "9440c34f85c94275d9830b4857dc21c2b4b1c96f4cf2da3dfe65356783d1323c",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:runtime-resolution-spec.json",
+      "sha256": "1a8eb3305da0fb022631fbdfc9212cb069b78aa3fa8700edbfaedbf4f7fcfa1b",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:test-runtime-resolution.mjs",
+      "sha256": "12cfdf046ba5c01c816aab1f25d35c0120e0e539c439940fbc62d04d92289cac",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:runtime-resolution-fixtures.json",
+      "sha256": "9180e5e1d800af9d01f8316a6545f26a106c5a2461dbf56c5f386fc176891a63",
+      "passed": true
+    },
+    {
+      "check": "Unchanged:resolution-spec-readback.json",
+      "sha256": "1ca2c4954a53764e33277b0da2cd2a2cbc2460bad7e522892df2a8660b1da5e0",
+      "passed": true
+    }
+  ]
+}
