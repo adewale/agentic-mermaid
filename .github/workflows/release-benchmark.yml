@@ -148,8 +148,7 @@ jobs:
           actual_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")"
           test "$actual_integrity" = "$manifest_integrity"
 
-      - name: Retain the verified candidate for optional fixed evidence
-        if: inputs.fixed-baseline-sha != ''
+      - name: Retain the verified candidate for semantic gates and optional fixed evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: fixed-benchmark-candidate-${{ github.run_id }}
@@ -226,7 +225,99 @@ jobs:
           if-no-files-found: warn
           overwrite: true
 
-  # A separate optional runner keeps the publication gate and its 105-minute
+  # Repeated controls and candidate runs are serial within each cache-policy
+  # runner. Never combine timings between these jobs or with release medians.
+  semantic-performance:
+    name: Calibrated semantic, tail and allocation gates (cache ${{ matrix.cache }})
+    needs: benchmark
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        cache: ['off', 'on']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+
+      - name: Install frozen harness and pinned npm
+        run: |
+          bun install --frozen-lockfile
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = "11.18.0"
+
+      - name: Download the exact verified candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: fixed-benchmark-candidate-${{ github.run_id }}
+          path: release-artifact
+
+      - name: Build and retain the pinned current-main calibration baseline
+        env:
+          REQUESTED_REF: ${{ inputs.baseline-ref }}
+        run: |
+          mkdir -p semantic-evidence/baseline
+          if [ -n "$REQUESTED_REF" ]; then
+            [[ "$REQUESTED_REF" =~ ^[a-f0-9]{40}$ ]]
+            git fetch --no-tags origin "$REQUESTED_REF"
+            baseline_revision="$REQUESTED_REF"
+          else
+            git fetch --no-tags origin main
+            baseline_revision="$(git rev-parse FETCH_HEAD)"
+          fi
+          git worktree add --detach "$RUNNER_TEMP/semantic-main" "$baseline_revision"
+          printf '%s\n' "$baseline_revision" > semantic-evidence/baseline/source.sha
+          cp "$RUNNER_TEMP/semantic-main/bun.lock" semantic-evidence/baseline/source.bun.lock
+          cp bun.lock semantic-evidence/candidate-source.bun.lock
+          cd "$RUNNER_TEMP/semantic-main"
+          bun install --frozen-lockfile
+          bun run build
+          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/semantic-evidence/baseline"
+          mv "$GITHUB_WORKSPACE"/semantic-evidence/baseline/*.tgz "$GITHUB_WORKSPACE/semantic-evidence/baseline/package.tgz"
+
+      - name: Calibrate twice and apply separate semantic performance scorecards
+        env:
+          CACHE_POLICY: ${{ matrix.cache }}
+        run: |
+          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
+          printf '%s  release-artifact/package.tgz\n' "$candidate_sha" | sha256sum --check
+          baseline_sha="$(sha256sum semantic-evidence/baseline/package.tgz | cut -d ' ' -f 1)"
+          bun run bench:peers:qualify --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" \
+            --baseline-tarball semantic-evidence/baseline/package.tgz --baseline-sha256 "$baseline_sha" \
+            --elk-cache "$CACHE_POLICY" --rounds 5 --out semantic-evidence
+
+      - name: Retain all controls, failures, cache events and scorecards
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: semantic-performance-${{ github.sha }}-cache-${{ matrix.cache }}-${{ github.run_attempt }}
+          path: semantic-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish qualification status
+        if: always()
+        run: |
+          if [ -f semantic-evidence/gates.md ]; then
+            cat semantic-evidence/gates.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'Semantic performance incomplete: inspect retained setup and worker evidence.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+  # A separate optional runner keeps the existing release job's 105-minute
   # budget unchanged. Compare timings only within this job, never across jobs.
   fixed-evidence:
     name: Fixed baseline and pinned peer evidence

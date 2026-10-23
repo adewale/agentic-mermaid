@@ -6,6 +6,7 @@ import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { graphTextBlock } from './graph-text.ts'
 import { performanceExperimentEnabled } from './experimental-performance.ts'
 import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
+import { observeFallback } from './performance-observations.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
@@ -1897,7 +1898,10 @@ function layoutCandidate(
   ]
   let result: ElkNode | undefined
   let lastError: unknown
+  let degradationReason = 'exception'
+  let attemptNumber = 0
   for (const overrides of degradations) {
+    if (++attemptNumber > 1) observeFallback('elk-degradation', degradationReason, attemptNumber)
     const attempt = Object.keys(overrides).length === 0 ? elkGraph : mermaidToElk(graph, opts, style)
     if (Object.keys(overrides).length > 0) {
       attempt.layoutOptions = { ...attempt.layoutOptions, ...overrides }
@@ -1910,6 +1914,7 @@ function layoutCandidate(
       // degradation ladder gets a chance to produce usable geometry.
       if (containsNonFiniteNumber(candidate)) {
         lastError = new Error('ELK returned non-finite layout geometry')
+        degradationReason = 'non-finite-geometry'
         continue
       }
       result = candidate
@@ -1917,6 +1922,7 @@ function layoutCandidate(
     } catch (err) {
       if (err instanceof DiagramWorkLimitError) throw err
       lastError = err
+      degradationReason = 'exception'
     }
   }
   if (!result) throw lastError

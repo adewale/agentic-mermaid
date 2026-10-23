@@ -316,3 +316,10 @@ Historical records retain their original environment and conclusions:
 [consumed 0.5 investigation](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/docs/project/0.5-performance-investigation.md),
 [18 October peer/C4 observations](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/docs/comparison.md#fresh-performance-observations),
 and [older macOS/Bun results](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/eval/benchmark/RESULTS.md).
+
+The [maintained semantic performance qualification](SEMANTIC_PERFORMANCE.md)
+defines the fixed shared peer cohort, separate first-use/new-source/repeat/edit
+tracks, consumed SVG and complete receipts, repeated A/A calibration,
+per-call tails, allocation/scaling targets and actual cache/fallback reporting.
+Its peer competitiveness scorecard is separate from relative release budgets.
+Uncalibrated or semantically unobservable comparisons are not performance passes.

@@ -9,6 +9,10 @@
 // Options: --peers a,b, --workloads a,b, --rounds N (3), --json PATH,
 // --markdown PATH, --quick (fewer, shorter samples), --agentic-npm VERSION,
 // --elk-cache on|off (off), --candidate-tarball PATH --candidate-sha256 DIGEST.
+// --tracks all|first-use,warm-new-source,exact-repeat,label-edit opts into
+// consumed SVG/complete receipts and per-call p50/p95 rather than legacy batches.
+// --aa adds an independently installed identical agentic-baseline; alternatively
+// --baseline-tarball PATH --baseline-sha256 DIGEST installs a pinned baseline.
 // Durable reports default to bench-report/peer-report.{json,md}; adjacent JSONL
 // files retain raw worker receipts even if the orchestrator is interrupted.
 // --corpus uses every official fence occurrence (including unsupported types),
@@ -16,7 +20,8 @@
 // Corpus success is nonempty output, not a semantic/visual fidelity claim.
 //
 // Advisory only: it replaces the dated hand-run tables in docs/comparison.md
-// with a re-runnable command and is never part of tests or CI. `agentic` is the
+// with a re-runnable command. The qualification wrapper can run consumed tracks
+// in CI with separate calibrated gates. `agentic` is the
 // local `dist/` (run `bun run build` first). Registry peers are installed at
 // the exact version pinned below into
 // node_modules/.cache/agentic-mermaid-peers/<name>@<version>/, with install
@@ -42,7 +47,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { cpus, loadavg, release, tmpdir, totalmem } from 'node:os'
+import { cpus, hostname, loadavg, release, tmpdir, totalmem } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
@@ -51,6 +56,10 @@ import type { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { allocationProbe, median } from './bench-stats.ts'
 import { missingSvgLabels } from './release-bench-fidelity.ts'
 import { git, ROOT } from './revision-tree.ts'
+import { PEER_CONSUMERS, PEER_FROZEN_COHORT, emptyTrackObservation, finalizeTrackObservation, parsePeerTracks, peerRuntimeDependencyGraph } from './peer-tracks.ts'
+import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
+import { measurePeerTrack } from './peer-track-worker.ts'
+import type { TrackJob } from './peer-track-worker.ts'
 
 type WorkloadId = string
 type Output = 'svg' | 'terminal'
@@ -224,9 +233,10 @@ interface WorkerJob {
   output: Output
   entry: string
   timing: Timing
+  track?: TrackJob
   workloads: Array<{ id: string; source: string; expected: readonly string[]; svgLabelPrefixes?: readonly string[] }>
 }
-type WorkerLine = { type: 'import'; importMs: number; setupMs: number } | { type: 'fatal'; error: string } | { type: 'start'; workload: string } | ({ type: 'result' } & WorkloadResult) | { type: 'end'; rssBytes?: number; peakRssBytes?: number; settledHeapBytes?: number }
+type WorkerLine = { type: 'track'; observation: PeerTrackObservation } | { type: 'progress'; workload: string; calls: number; observation: import('./peer-tracks.ts').PeerCallObservation } | { type: 'import'; importMs: number; setupMs: number } | { type: 'fatal'; error: string } | { type: 'start'; workload: string } | ({ type: 'result' } & WorkloadResult) | { type: 'end'; rssBytes?: number; peakRssBytes?: number; settledHeapBytes?: number }
 
 const firstLine = (error: unknown) => (error instanceof Error ? `${error.name === 'Error' ? '' : `${error.name}: `}${error.message}` : String(error)).split('\n')[0]!.trim()
 const isThenable = (value: unknown): value is PromiseLike<unknown> => typeof (value as PromiseLike<unknown> | undefined)?.then === 'function'
@@ -360,16 +370,18 @@ async function runWorker(jobPath: string, outPath: string): Promise<void> {
   const job = JSON.parse(readFileSync(jobPath, 'utf8')) as WorkerJob
   const emit = (line: WorkerLine) => appendFileSync(outPath, `${JSON.stringify(line)}\n`)
   // --agentic-npm adds a peer at run time; it uses agentic's adapters.
-  const peer = PEERS.find(entry => entry.id === job.peer) ?? (job.peer === 'agentic-npm' ? PEERS[0] : undefined)
+  const peer = PEERS.find(entry => entry.id === job.peer) ?? (job.peer.startsWith('agentic-') ? PEERS[0] : undefined)
   const make = peer?.[job.output]?.make
   if (!make) throw new Error(`no ${job.output} adapter for ${job.peer}`)
   const allocation = await allocationProbe()
   let render: Render
+  let receiptRender: Render | undefined
   try {
     const importStart = performance.now()
     const module = (await import(pathToFileURL(job.entry).href)) as PeerModule
     const setupStart = performance.now()
     render = await make(module)
+    if (job.peer === 'agentic' || job.peer.startsWith('agentic-')) receiptRender = typeof module.renderMermaidSVGWithReceipt === 'function' ? source => module.renderMermaidSVGWithReceipt(source) : undefined
     emit({ type: 'import', importMs: setupStart - importStart, setupMs: performance.now() - setupStart })
   } catch (error) {
     emit({ type: 'fatal', error: firstLine(error) })
@@ -377,7 +389,19 @@ async function runWorker(jobPath: string, outPath: string): Promise<void> {
   }
   for (const workload of job.workloads) {
     emit({ type: 'start', workload: workload.id })
-    emit({ type: 'result', ...(await measure(render, job.output, workload, job.timing, allocation)) })
+    if (job.track) {
+      const { Resvg } = createRequire(join(process.cwd(), 'package.json'))('@resvg/resvg-js') as typeof import('@resvg/resvg-js')
+      const observation = await measurePeerTrack({ peer: job.peer, input: workload, track: job.track,
+        render: job.track.consumer === 'svg-utf8' ? render : receiptRender, allocation,
+        validate(svg, input) {
+          try {
+            new Resvg(svg, { font: { loadSystemFonts: false } })
+            return { missing: missingLabels('svg', svg, input.expected, input.svgLabelPrefixes) }
+          } catch (error) { return { missing: [], error: firstLine(error) } }
+        }, progress: row => emit({ type: 'progress', workload: workload.id, calls: row.calls.length, observation: row.calls.at(-1)! }),
+      })
+      emit({ type: 'track', observation })
+    } else emit({ type: 'result', ...(await measure(render, job.output, workload, job.timing, allocation)) })
   }
   const rssBytes = process.memoryUsage().rss
   if (!globalThis.gc) throw new Error('peer worker needs node --expose-gc')
@@ -496,6 +520,7 @@ interface Prepared {
   identity?: { kind: 'tarball'; requested: string; sha256: string; integrity: string }
   installedLocks?: string[]
   dependencyLocks?: Array<{ source: string; path: string; sha256: string }>
+  runtimeDependencySha256?: string
   error?: string
 }
 interface ProcessRecord {
@@ -515,8 +540,8 @@ interface ProcessRecord {
 const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|(?:unsupported|inventory-only) in Agentic Mermaid|unsupported diagram|diagram type is not supported/i
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
-  const flags = new Set(['quick', 'child', 'corpus'])
-  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache'])
+  const flags = new Set(['quick', 'child', 'corpus', 'aa'])
+  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache', 'tracks', 'baseline-tarball', 'baseline-sha256'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -527,6 +552,10 @@ function parseArgs(argv: readonly string[]): Map<string, string> {
   if (options.has('elk-cache') && !['on', 'off'].includes(options.get('elk-cache')!)) throw new Error('--elk-cache must be on or off')
   if (options.has('candidate-tarball') !== options.has('candidate-sha256')) throw new Error('Provide both --candidate-tarball and --candidate-sha256')
   if (options.has('candidate-sha256') && !/^[a-f0-9]{64}$/.test(options.get('candidate-sha256')!)) throw new Error('--candidate-sha256 must be a lowercase SHA-256 digest')
+  if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both --baseline-tarball and --baseline-sha256')
+  if (options.has('baseline-sha256') && !/^[a-f0-9]{64}$/.test(options.get('baseline-sha256')!)) throw new Error('--baseline-sha256 must be a lowercase SHA-256 digest')
+  if (options.has('aa') && options.has('baseline-tarball')) throw new Error('--aa and --baseline-tarball are separate controls')
+  parsePeerTracks(options.get('tracks'))
   return options
 }
 
@@ -651,7 +680,7 @@ function preparePackedCandidate(tarball: string, expectedSha: string, parent: st
   const sha256 = createHash('sha256').update(bytes).digest('hex')
   if (sha256 !== expectedSha) throw new Error('Candidate tarball SHA-256 does not match the verified publication artifact')
   const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
-  const prefix = join(parent, 'candidate')
+  const prefix = join(parent, `candidate-${randomUUID()}`)
   mkdirSync(prefix)
   const staged = join(prefix, 'package.tgz')
   writeFileSync(staged, bytes)
@@ -764,6 +793,44 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
   return record
 }
 
+/** Enhanced measurements use the same prepared packages, adapters, worker,
+ * watchdog, raw receipts and provenance as the legacy peer suite. */
+async function runTrackProcess(prepared: Prepared, workloads: readonly string[], track: TrackJob, context: {
+  scratch: string; bundle: string; timing: Timing; sources: Record<string, string>; expectedLabels: Record<string, readonly string[]>; rawSamples: string; elkCache: 'on' | 'off'
+}): Promise<PeerTrackObservation[]> {
+  const rows: PeerTrackObservation[] = []
+  // Every first-use workload has its own import/process, including receipt API.
+  const groups = track.phase === 'first-use' ? workloads.map(id => [id]) : [workloads]
+  for (const group of groups) {
+    const key = `${prepared.peer.id}-${track.phase}-${track.consumer}-r${track.round}-${group[0]}`
+    const failed = (id: string, status: 'error' | 'unsupported', detail: string) => {
+      const row = emptyTrackObservation(prepared.peer.id, track.round, id, track.phase, track.consumer)
+      row.calls.push({ index: 0, variant: 0, status, detail })
+      return finalizeTrackObservation(row)
+    }
+    if (prepared.error || !prepared.peer.svg || prepared.peer.runtime !== 'node') {
+      const detail = prepared.error ?? 'enhanced consumed/semantic protocol requires a Node SVG adapter; legacy runtime results retained separately'
+      rows.push(...group.map(id => failed(id, prepared.error ? 'error' : 'unsupported', detail)))
+      continue
+    }
+    const base = join(context.scratch, key)
+    const job: WorkerJob = { peer: prepared.peer.id, output: 'svg', entry: packageEntry(prepared.root!, prepared.peer.svg.subpath), timing: context.timing, track,
+      workloads: group.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]!, svgLabelPrefixes: SVG_LABEL_PREFIXES[id] })) }
+    writeFileSync(`${base}.job.json`, JSON.stringify(job))
+    const receipts = `${context.rawSamples}.${key}.jsonl`
+    const run = await spawnWorker(['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts], receipts, { importMs: 120_000, workloadMs: Math.max(60_000, 10 * track.maxCaseMs) }, context.elkCache)
+    for (const line of run.lines) appendFileSync(context.rawSamples, `${JSON.stringify({ peer: prepared.peer.id, round: track.round, phase: track.phase, consumer: track.consumer, ...line })}\n`)
+    const completed = run.lines.flatMap(line => line.type === 'track' ? [line.observation] : [])
+    const imported = run.lines.find(line => line.type === 'import')
+    if (track.phase === 'first-use' && imported?.type === 'import') for (const row of completed) Object.assign(row, { importMs: imported.importMs, setupMs: imported.setupMs })
+    rows.push(...completed)
+    const fatal = run.lines.find(line => line.type === 'fatal')
+    for (const id of group.filter(id => !completed.some(row => row.workload === id))) rows.push(failed(id, 'error', fatal?.type === 'fatal' ? fatal.error : run.exit ?? 'worker omitted observation'))
+  }
+  for (const row of rows) appendFileSync(context.rawSamples, `${JSON.stringify({ type: 'track-observation', ...row })}\n`)
+  return rows
+}
+
 // --- Report -----------------------------------------------------------------
 
 const formatMs = (ms: number | undefined) => (ms === undefined ? '—' : ms >= 100 ? ms.toFixed(0) : ms >= 10 ? ms.toFixed(1) : ms >= 1 ? ms.toFixed(2) : ms.toFixed(3))
@@ -833,9 +900,11 @@ async function main(): Promise<void> {
   const elkCache = (args.get('elk-cache') ?? 'off') as 'on' | 'off'
   if (inventory && args.has('quick')) throw new Error('--corpus and --quick are separate sampling policies')
   const timing: Timing = inventory ? { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 5000 } : args.has('quick') ? QUICK_TIMING : TIMING
+  const phases = parsePeerTracks(args.get('tracks'))
+  if (inventory && phases.length) throw new Error('--tracks uses synthetic semantic contracts and cannot be combined with --corpus')
   const npmVersion = args.get('agentic-npm')
   if (npmVersion !== undefined && !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(npmVersion)) throw new Error('--agentic-npm takes an exact version such as 0.4.1')
-  const catalog = [PEERS[0]!, ...(npmVersion ? [{ ...PEERS[0]!, id: 'agentic-npm', source: { registry: 'npm', name: 'agentic-mermaid', version: npmVersion } } satisfies Peer] : []), ...PEERS.slice(1)]
+  const catalog = [PEERS[0]!, ...(npmVersion ? [{ ...PEERS[0]!, id: 'agentic-npm', source: { registry: 'npm', name: 'agentic-mermaid', version: npmVersion } } satisfies Peer] : []), ...PEERS.slice(1), ...(args.has('aa') || args.has('baseline-tarball') ? [{ ...PEERS[0]!, id: 'agentic-baseline' }] : [])]
   const requested = args
     .get('peers')
     ?.split(',')
@@ -844,7 +913,7 @@ async function main(): Promise<void> {
     if (id === 'mermaid') console.error(`skipping mermaid: ${NOT_COVERED[0]}`)
     else if (!catalog.some(peer => peer.id === id)) throw new Error(`Unknown peer ${id}; choose from ${catalog.map(peer => peer.id).join(', ')}`)
   }
-  const peers = catalog.filter(peer => peer.id === 'agentic-npm' || (requested ? requested.includes(peer.id) : !peer.optIn))
+  const peers = catalog.filter(peer => (peer.id === 'agentic-npm' || peer.id === 'agentic-baseline') || (requested ? requested.includes(peer.id) : !peer.optIn))
   const selected = (args
     .get('workloads')
     ?.split(',')
@@ -869,12 +938,21 @@ async function main(): Promise<void> {
   const startLoad = loadavg()
   try {
     const prepared = peers.map(peer => {
-      const entry = peer.id === 'agentic' && args.has('candidate-tarball') ? preparePackedCandidate(args.get('candidate-tarball')!, args.get('candidate-sha256')!, scratch) : prepare(peer, nodeVersion)
+      const archive = peer.id === 'agentic-baseline' ? args.get('baseline-tarball') ?? (args.has('aa') ? args.get('candidate-tarball') : undefined) : peer.id === 'agentic' ? args.get('candidate-tarball') : undefined
+      const digest = peer.id === 'agentic-baseline' ? args.get('baseline-sha256') ?? args.get('candidate-sha256') : args.get('candidate-sha256')
+      const entry = archive ? preparePackedCandidate(archive, digest!, scratch) : prepare(peer, nodeVersion)
+      entry.peer = peer
       entry.dependencyLocks = entry.installedLocks?.map((source, index) => {
         const bytes = readFileSync(source), path = `${rawSamples}.${entry.peer.id}.${index}.package-lock.json`
         writeFileSync(path, bytes, { flag: 'wx' })
         return { source: source.endsWith('.package-lock.json') ? 'node_modules/.package-lock.json' : 'package-lock.json', path, sha256: createHash('sha256').update(bytes).digest('hex') }
       })
+      const runtimeLock = entry.installedLocks?.find(path => path.endsWith('node_modules/.package-lock.json'))
+      if (runtimeLock) {
+        const lock = JSON.parse(readFileSync(runtimeLock, 'utf8')) as { packages?: Record<string, { version?: string; integrity?: string; link?: boolean }> }
+        const dependencies = peerRuntimeDependencyGraph(lock)
+        entry.runtimeDependencySha256 = createHash('sha256').update(JSON.stringify(dependencies)).digest('hex')
+      }
       delete entry.installedLocks
       if (entry.dependencyLocks) appendFileSync(rawSamples, `${JSON.stringify({ peer: peer.id, dependencyLocks: entry.dependencyLocks })}\n`)
       return entry
@@ -890,13 +968,34 @@ async function main(): Promise<void> {
     const bundle = join(scratch, 'peer-bench.node.mjs')
     const built = spawnSync(process.versions.bun ? process.execPath : 'bun', ['build', fileURLToPath(import.meta.url), '--target=node', '--format=esm', '--outfile', bundle], { stdio: ['ignore', 'ignore', 'inherit'] })
     if (built.status !== 0) throw new Error('bun build of the Node worker failed')
+    const trackSources = { ...sources }
+    const trackExpected = { ...expectedLabels }
+    const scaling: string[] = []
+    if (phases.length) {
+      const { flowchartTree, flowchartMesh } = await import(pathToFileURL(join(ROOT, 'eval/benchmark/release-bench-cases.ts')).href) as typeof import('./release-bench-cases.ts')
+      if (selected.includes('tree50')) { scaling.push('tree100'); trackSources.tree100 = flowchartTree(100); trackExpected.tree100 = range('Node ', 100) }
+      if (selected.includes('mesh50')) { scaling.push('mesh100'); trackSources.mesh100 = flowchartMesh(100, 40); trackExpected.mesh100 = range('label ', 40) }
+    }
+    const trackSettings = { warmCalls: 3, samples: args.has('quick') ? 3 : 31, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 30_000 }
+    const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers: PEER_CONSUMERS, scaling, observations: [] }
+    const trackWorkloads = [...workloads.svg, ...scaling]
+    const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
+    const harnessFiles = ['peer-bench.ts', 'peer-tracks.ts', 'peer-track-worker.ts', 'bench-stats.ts', 'release-bench-fidelity.ts', 'micro-bench-cases.ts', 'release-bench-cases.ts']
+    const harnessHash = createHash('sha256')
+    for (const file of harnessFiles) harnessHash.update(file).update('\0').update(readFileSync(join(ROOT, 'eval/benchmark', file))).update('\0')
+    const tracksConfig = { phases, consumers: PEER_CONSUMERS, ...trackSettings, minimumTailCalls: 20, inputs: trackInputs, sourceSha256: createHash('sha256').update(JSON.stringify(trackInputs)).digest('hex'), harnessSha256: harnessHash.digest('hex') }
     const processes: ProcessRecord[] = []
     for (let round = 0; round < rounds; round++) {
-      for (const { prepared: entry, output } of round % 2 === 0 ? jobs : [...jobs].reverse()) {
+      for (const { prepared: entry, output } of phases.length ? [] : round % 2 === 0 ? jobs : [...jobs].reverse()) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${output} (${workloads[output].length} workloads)`)
         const observation = await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources, elkCache, rawSamples, expectedLabels })
         processes.push(observation)
         appendFileSync(rawSamples, `${JSON.stringify({ type: 'process', ...observation })}\n`)
+      }
+      if (phases.length) for (const entry of round % 2 === 0 ? prepared : [...prepared].reverse()) for (const phase of phases) for (const consumer of PEER_CONSUMERS) {
+        console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${phase} ${consumer} (${trackWorkloads.length} workloads)`)
+        tracks.observations.push(...await runTrackProcess(entry, trackWorkloads, { ...trackSettings, phase, consumer, round }, { scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }))
+        writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'incomplete', tracks, tracksConfig }, null, 2)}\n`)
       }
     }
 
@@ -913,20 +1012,30 @@ async function main(): Promise<void> {
     const terminalPeers = jobs.filter(job => job.output === 'terminal').map(job => job.prepared.peer.id)
     const comparators = svgPeers.filter(id => id !== 'agentic')
 
-    const coverage = jobs.map(({ prepared: entry, output }) => {
+    const legacyCoverage = jobs.map(({ prepared: entry, output }) => {
       const statuses = workloads[output].map(id => {
         const result = cell(entry.peer.id, output, id)
         return result?.rounds === rounds ? result.status : undefined
       })
       return { peer: entry.peer.id, output, population: statuses.length, ok: statuses.filter(status => status === 'ok').length, unsupported: statuses.filter(status => status === 'unsupported').length, lostLabels: statuses.filter(status => status === 'lost-labels').length, errors: statuses.filter(status => status === 'error').length, missing: statuses.filter(status => status === undefined).length }
     })
+    const trackCoverage = (consumer: (typeof PEER_CONSUMERS)[number]) => prepared.map(entry => {
+      const cells = trackWorkloads.map(workload => {
+        const rows = tracks.observations.filter(row => row.peer === entry.peer.id && row.workload === workload && row.consumer === consumer)
+        const status = rows.length === rounds * phases.length ? rows.some(row => row.status === 'error') ? 'error' : rows.some(row => row.status === 'lost-labels') ? 'lost-labels' : rows.some(row => row.status === 'unsupported') ? 'unsupported' : 'ok' : undefined
+        return { workload, status, semanticQualified: rows.length === rounds * phases.length && rows.every(row => row.semantic.ok), observations: rows.length, expectedObservations: rounds * phases.length }
+      })
+      return { peer: entry.peer.id, output: 'svg' as const, consumer, population: cells.length, ok: cells.filter(cell => cell.status === 'ok').length, unsupported: cells.filter(cell => cell.status === 'unsupported').length, lostLabels: cells.filter(cell => cell.status === 'lost-labels').length, errors: cells.filter(cell => cell.status === 'error').length, missing: cells.filter(cell => cell.status === undefined).length, semanticQualified: cells.filter(cell => cell.semanticQualified).length, workloads: cells }
+    })
+    const coverage = phases.length ? trackCoverage('svg-utf8') : legacyCoverage
+    const receiptCoverage = phases.length ? trackCoverage('receipt-json-utf8') : []
     const out: string[] = []
     out.push('# Peer benchmark (advisory)', '')
     out.push(`- Date: ${createdAt}`)
     out.push(`- Machine: ${cpus()[0]?.model ?? 'unknown CPU'}, ${cpus().length} logical CPUs, ${(totalmem() / 1024 ** 3).toFixed(0)} GiB, ${process.platform} ${process.arch} ${release()}; load average ${startLoad.map(value => value.toFixed(2)).join(' ')} at start, ${loadavg()[0]!.toFixed(2)} at end`)
     out.push(`- Runtimes: Node ${nodeVersion} (Node workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator)`)
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
-    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
+    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(phases.length ? ['--tracks', quote(phases.join(','))] : []), ...(args.has('aa') ? ['--aa'] : []), ...(args.has('baseline-tarball') ? ['--baseline-tarball', quote(resolve(args.get('baseline-tarball')!)), '--baseline-sha256', args.get('baseline-sha256')!] : []), ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
     out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
     out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; Node --expose-gc and final untimed GC; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
     if (inventory)
@@ -936,91 +1045,95 @@ async function main(): Promise<void> {
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
     for (const entry of prepared) for (const lock of entry.dependencyLocks ?? []) out.push(`- ${entry.peer.id} ${lock.source}: ${lock.path} (SHA-256 ${lock.sha256})`)
     out.push(
-      `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
+      phases.length ? `- Track method: ${rounds} paired round(s), ${trackSettings.warmCalls} priming calls, up to ${trackSettings.samples} individually clocked calls (minimum 20 for tail qualification), ${trackSettings.allocationSamples} separate allocation probes, wall cap ${trackSettings.maxCaseMs} ms; consumption inside clocks and allocation probes, validation outside. First-use has one call in a fresh worker per case/consumer, no priming or warm allocation probe. Diagnostics replay is untimed. No observable endpoint contract means semantic.ok=false and excludes semantic numeric qualification.` : `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
     )
     out.push(`- Not covered: ${NOT_COVERED.join('; ')}`)
     for (const warning of warnings) out.push(`- Warning: ${warning}`)
     for (const entry of prepared.filter(entry => entry.error)) out.push(`- Unavailable: ${entry.peer.id}: ${entry.error}`)
-    out.push('', '## Coverage across all rounds', '', markdownTable(['peer', 'output', 'population', 'successful', 'unsupported', 'lost labels', 'errors', 'missing'], coverage.map(row => [row.peer, row.output, ...[row.population, row.ok, row.unsupported, row.lostLabels, row.errors, row.missing].map(String)]), 2))
-    out.push('', '## Adapters', '')
-    out.push(
-      markdownTable(
-        ['peer', 'output', 'timed call', 'note'],
-        jobs.map(({ prepared: entry, output }) => [entry.peer.id, output, entry.peer[output]!.api, entry.peer.note ?? '']),
-        4,
-      ),
-    )
-    out.push('', '## Coverage (successful in every round)', '')
-    out.push(
-      markdownTable(
-        ['peer', 'output', 'ok', 'lost labels', 'unsupported', 'error', 'total'],
-        jobs.map(({ prepared: entry, output }) => {
-          const cells = workloads[output].map(id => cell(entry.peer.id, output, id))
-          return [entry.peer.id, output, ...(['ok', 'lost-labels', 'unsupported', 'error'] as const).map(status => String(cells.filter(result => result?.status === status).length)), String(cells.length)]
-        }),
-        2,
-      ),
-    )
-    if (svgPeers.length) {
-      out.push('', '## Warm SVG, median ms per call', '')
+    if (!phases.length) {
+      out.push('', '## Coverage across all rounds', '', markdownTable(['peer', 'output', 'population', 'successful', 'unsupported', 'lost labels', 'errors', 'missing'], coverage.map(row => [row.peer, row.output, ...[row.population, row.ok, row.unsupported, row.lostLabels, row.errors, row.missing].map(String)]), 2))
+      out.push('', '## Adapters', '')
       out.push(
         markdownTable(
-          ['workload', ...svgPeers],
-          workloads.svg.map(id => [id, ...svgPeers.map(peer => statusText(cell(peer, 'svg', id)))]),
+          ['peer', 'output', 'timed call', 'note'],
+          jobs.map(({ prepared: entry, output }) => [entry.peer.id, output, entry.peer[output]!.api, entry.peer.note ?? '']),
+          4,
         ),
       )
-      if (svgPeers.includes('agentic') && comparators.length) {
-        out.push('', '## Warm SVG ratio, peer ÷ agentic (below 1: the peer is faster)', '', 'Per-round ratio, then the median, on workloads both pass in every round.', '')
-        const ratios = workloads.svg.map(id => comparators.map(peer => ratio(peer, id)))
-        const geomean = comparators.map((_, column) => {
-          const values = ratios.map(row => row[column]).filter((value): value is number => value !== undefined)
-          return values.length ? `${Math.exp(values.reduce((sum, value) => sum + Math.log(value), 0) / values.length).toPrecision(3)}× (${values.length})` : '—'
-        })
-        out.push(markdownTable(['workload', ...comparators], [...workloads.svg.map((id, row) => [id, ...ratios[row]!.map(value => (value === undefined ? '—' : `${value.toPrecision(3)}×`))]), ['geometric mean (n)', ...geomean]]))
+      out.push('', '## Coverage (successful in every round)', '')
+      out.push(
+        markdownTable(
+          ['peer', 'output', 'ok', 'lost labels', 'unsupported', 'error', 'total'],
+          jobs.map(({ prepared: entry, output }) => {
+            const cells = workloads[output].map(id => cell(entry.peer.id, output, id))
+            return [entry.peer.id, output, ...(['ok', 'lost-labels', 'unsupported', 'error'] as const).map(status => String(cells.filter(result => result?.status === status).length)), String(cells.length)]
+          }),
+          2,
+        ),
+      )
+      if (svgPeers.length) {
+        out.push('', '## Warm SVG, median ms per call', '')
+        out.push(
+          markdownTable(
+            ['workload', ...svgPeers],
+            workloads.svg.map(id => [id, ...svgPeers.map(peer => statusText(cell(peer, 'svg', id)))]),
+          ),
+        )
+        if (svgPeers.includes('agentic') && comparators.length) {
+          out.push('', '## Warm SVG ratio, peer ÷ agentic (below 1: the peer is faster)', '', 'Per-round ratio, then the median, on workloads both pass in every round.', '')
+          const ratios = workloads.svg.map(id => comparators.map(peer => ratio(peer, id)))
+          const geomean = comparators.map((_, column) => {
+            const values = ratios.map(row => row[column]).filter((value): value is number => value !== undefined)
+            return values.length ? `${Math.exp(values.reduce((sum, value) => sum + Math.log(value), 0) / values.length).toPrecision(3)}× (${values.length})` : '—'
+          })
+          out.push(markdownTable(['workload', ...comparators], [...workloads.svg.map((id, row) => [id, ...ratios[row]!.map(value => (value === undefined ? '—' : `${value.toPrecision(3)}×`))]), ['geometric mean (n)', ...geomean]]))
+        }
+        out.push('', '## SVG output size and V8 allocation per call', '', 'Allocation is a GC-boundary estimate of the JS heap; it does not see WASM linear memory (mermaid-rs) or native heap (merman), and is not measured for Go or Python.', '')
+        out.push(
+          markdownTable(
+            ['workload', ...svgPeers],
+            workloads.svg.map(id => [
+              id,
+              ...svgPeers.map(peer => {
+                const summary = cell(peer, 'svg', id)
+                return summary?.status === 'ok' ? `${formatKiB(summary.outputBytes)} / ${formatKiB(summary.allocBytesPerCall)}` : '—'
+              }),
+            ]),
+          ),
+        )
       }
-      out.push('', '## SVG output size and V8 allocation per call', '', 'Allocation is a GC-boundary estimate of the JS heap; it does not see WASM linear memory (mermaid-rs) or native heap (merman), and is not measured for Go or Python.', '')
-      out.push(
-        markdownTable(
-          ['workload', ...svgPeers],
-          workloads.svg.map(id => [
-            id,
-            ...svgPeers.map(peer => {
-              const summary = cell(peer, 'svg', id)
-              return summary?.status === 'ok' ? `${formatKiB(summary.outputBytes)} / ${formatKiB(summary.allocBytesPerCall)}` : '—'
-            }),
-          ]),
-        ),
-      )
-    }
-    out.push('', '## Cold start, median across rounds', '', 'Import includes one-time setup (Merman engine creation); first render is the first call in a fresh process; end RSS is resident memory after the last workload before the final untimed GC. Node peak RSS is the process high-water mark; settled heap is absolute used heap after that GC. All include harness/parser/sink state, not pure renderer retention; Python has no corresponding JS heap/peak receipt. Allocation excludes validation and capture-array allocation.', '')
-    const coldRows = jobs.map(({ prepared: entry, output }) => {
-      const records = processes.filter(record => record.peer === entry.peer.id && record.output === output)
-      const pick = (values: Array<number | undefined>) => {
-        const present = values.filter((value): value is number => typeof value === 'number')
-        return present.length ? median(present) : undefined
+      out.push('', '## Cold start, median across rounds', '', 'Import includes one-time setup (Merman engine creation); first render is the first call in a fresh process; end RSS is resident memory after the last workload before the final untimed GC. Node peak RSS is the process high-water mark; settled heap is absolute used heap after that GC. All include harness/parser/sink state, not pure renderer retention; Python has no corresponding JS heap/peak receipt. Allocation excludes validation and capture-array allocation.', '')
+      const coldRows = jobs.map(({ prepared: entry, output }) => {
+        const records = processes.filter(record => record.peer === entry.peer.id && record.output === output)
+        const pick = (values: Array<number | undefined>) => {
+          const present = values.filter((value): value is number => typeof value === 'number')
+          return present.length ? median(present) : undefined
+        }
+        const first = cell(entry.peer.id, output, 'flow5')
+        const restarts = records.reduce((sum, record) => sum + record.restarts, 0)
+        return [
+          `${entry.peer.id}${restarts ? ` (${restarts} restart${restarts > 1 ? 's' : ''})` : ''}`,
+          output,
+          entry.peer.runtime === 'go' ? 'static binary' : formatMs(pick(records.map(record => (record.importMs === undefined ? undefined : record.importMs + (record.setupMs ?? 0))))),
+          first?.firstMs === undefined ? '—' : formatMs(first.firstMs),
+          formatMiB(pick(records.map(record => record.rssBytes))),
+          formatMiB(pick(records.map(record => record.peakRssBytes))),
+          formatMiB(pick(records.map(record => record.settledHeapBytes))),
+        ]
+      })
+      out.push(markdownTable(['peer', 'output', 'import ms', 'first flow5 ms', 'end RSS MiB', 'peak RSS MiB', 'settled heap MiB'], coldRows, 2))
+      if (terminalPeers.length) {
+        out.push('', '## Warm terminal (Unicode, no colour), median ms per call', '')
+        out.push(
+          markdownTable(
+            ['workload', ...terminalPeers],
+            workloads.terminal.map(id => [id, ...terminalPeers.map(peer => statusText(cell(peer, 'terminal', id)))]),
+          ),
+        )
       }
-      const first = cell(entry.peer.id, output, 'flow5')
-      const restarts = records.reduce((sum, record) => sum + record.restarts, 0)
-      return [
-        `${entry.peer.id}${restarts ? ` (${restarts} restart${restarts > 1 ? 's' : ''})` : ''}`,
-        output,
-        entry.peer.runtime === 'go' ? 'static binary' : formatMs(pick(records.map(record => (record.importMs === undefined ? undefined : record.importMs + (record.setupMs ?? 0))))),
-        first?.firstMs === undefined ? '—' : formatMs(first.firstMs),
-        formatMiB(pick(records.map(record => record.rssBytes))),
-        formatMiB(pick(records.map(record => record.peakRssBytes))),
-        formatMiB(pick(records.map(record => record.settledHeapBytes))),
-      ]
-    })
-    out.push(markdownTable(['peer', 'output', 'import ms', 'first flow5 ms', 'end RSS MiB', 'peak RSS MiB', 'settled heap MiB'], coldRows, 2))
-    if (terminalPeers.length) {
-      out.push('', '## Warm terminal (Unicode, no colour), median ms per call', '')
-      out.push(
-        markdownTable(
-          ['workload', ...terminalPeers],
-          workloads.terminal.map(id => [id, ...terminalPeers.map(peer => statusText(cell(peer, 'terminal', id)))]),
-        ),
-      )
     }
+    if (phases.length) out.push('', '## Consumed SVG coverage across every phase/round', '', markdownTable(['peer', 'population', 'label/geometry OK', 'semantic qualified', 'unsupported', 'lost labels', 'errors', 'missing'], coverage.map(row => [row.peer, ...[row.population, row.ok, 'semanticQualified' in row ? row.semanticQualified : 0, row.unsupported, row.lostLabels, row.errors, row.missing].map(String)])), '', 'Receipt availability and coverage are counted separately.', '', markdownTable(['peer', 'receipt population', 'OK', 'unsupported', 'lost labels', 'errors', 'missing'], receiptCoverage.map(row => [row.peer, ...[row.population, row.ok, row.unsupported, row.lostLabels, row.errors, row.missing].map(String)])))
+    if (phases.length) out.push('', '## Consumed semantic tracks', '', 'Per-call observations, allocation samples, bounded identity/endpoint checks and untimed cache/fallback diagnostics are retained in JSON under tracks.observations. First-use uses a fresh process for each workload and consumer. Cold tails remain insufficient below 20 independent rounds; receipt-unavailable peers are explicitly unsupported. These contracts do not establish visual equivalence or endpoint attachment geometry.', '', markdownTable(['peer', 'phase', 'consumer', 'workload', 'status', 'calls', 'p50 ms', 'p95 ms'], tracks.observations.map(row => [row.peer, row.phase, row.consumer, row.workload, row.status, String(row.callSamplesMs.length), formatMs(row.p50Ms), formatMs(row.p95Ms)]), 5))
     const markdown = `${out.join('\n')}\n`
     console.log(markdown)
     writeFileSync(markdownPath, markdown)
@@ -1030,17 +1143,22 @@ async function main(): Promise<void> {
       for (const { prepared: entry, output } of jobs) summary[output][entry.peer.id] = Object.fromEntries(workloads[output].map(id => [id, { ...cell(entry.peer.id, output, id), ...(output === 'svg' && entry.peer.id !== 'agentic' ? { ratioToAgentic: ratio(entry.peer.id, id) } : {}) }]))
       const report = {
         ...metadata, status: 'completed', finishedAt: new Date().toISOString(),
-        environment: { node: nodeVersion, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemBytes: totalmem(), loadAverageStart: startLoad, loadAverageEnd: loadavg() },
-        config: { rounds, timing, minSamples: MIN_SAMPLES, workloads, peers: jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
-        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.dependencyLocks ? { dependencyLocks: entry.dependencyLocks } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
-        coverage,
+        environment: { hostname: hostname(), node: nodeVersion, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemBytes: totalmem(), loadAverageStart: startLoad, loadAverageEnd: loadavg() },
+        config: { rounds, timing, minSamples: MIN_SAMPLES, workloads: phases.length ? { svg: trackWorkloads, terminal: [] } : workloads, peers: phases.length ? prepared.map(entry => ({ peer: entry.peer.id, output: 'svg' })) : jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
+        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.dependencyLocks ? { dependencyLocks: entry.dependencyLocks } : {}), ...(entry.runtimeDependencySha256 ? { runtimeDependencySha256: entry.runtimeDependencySha256 } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
+        tracks, tracksConfig,
+        cohorts: { frozen: PEER_FROZEN_COHORT, all: Object.keys(EXPECTED_LABELS) },
+        ...(phases.length ? {} : { frozenCohortComparisons: comparators.map(peer => {
+          const values = PEER_FROZEN_COHORT.map(workload => ratio(peer, workload))
+          return { peer, expected: PEER_FROZEN_COHORT.length, supported: values.filter(value => value !== undefined).length, ratioToAgentic: values.every((value): value is number => value !== undefined) ? Math.exp(values.reduce((sum, value) => sum + Math.log(value), 0) / values.length) : undefined }
+        }) }),
+        coverage, receiptCoverage,
         ...(inventory ? { corpus: inventory } : {}),
-        expectedLabels,
+        expectedLabels: phases.length ? trackExpected : expectedLabels,
         expectedSvgLabelPrefixes: SVG_LABEL_PREFIXES,
         warnings,
         notCovered: NOT_COVERED,
-        processes,
-        summary,
+        ...(phases.length ? {} : { processes, summary }),
       }
       writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`)
     }

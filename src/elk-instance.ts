@@ -18,6 +18,7 @@ import type { ElkNode } from 'elkjs'
 import { assertLayoutGraphWork } from './shared/diagram-limits.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { elkConstructor } from './elk-constructor.ts'
+import { observeCache } from './performance-observations.ts'
 
 interface RawFakeWorker {
   postMessage(msg: unknown): void
@@ -110,14 +111,16 @@ let elkResultKeyUnits = 0
 
 function cachedElkLayout(graph: ElkNode): ElkNode {
   assertLayoutGraphWork(graph)
-  if (!ELK_CACHE_ENABLED) return layoutElkGraph(graph)
+  if (!ELK_CACHE_ENABLED) { observeCache('elk-layout', 'bypass', 'disabled'); return layoutElkGraph(graph) }
   const key = elkGraphKey(graph)
   const cached = elkResults.get(key)
   if (cached) {
+    observeCache('elk-layout', 'hit')
     elkResults.delete(key)
     elkResults.set(key, cached)
     return structuredClone(cached)
   }
+  observeCache('elk-layout', 'miss')
   const result = layoutElkGraph(graph)
   if (key.length <= ELK_CACHE_MAX_KEY_UNITS) {
     elkResults.set(key, structuredClone(result))
@@ -127,7 +130,7 @@ function cachedElkLayout(graph: ElkNode): ElkNode {
       elkResults.delete(oldest)
       elkResultKeyUnits -= oldest.length
     }
-  }
+  } else observeCache('elk-layout', 'store-skipped', 'key-limit')
   return result
 }
 

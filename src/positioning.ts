@@ -1,5 +1,6 @@
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
 import { cachedPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
 // Public adapters resolve source, config, appearance and shared options once.
@@ -52,6 +53,10 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
   const cacheKey = cacheEnabled ? JSON.stringify([cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions,
     Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
+  if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
+    !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
+      : familyId === 'gantt' ? 'time-dependent-family' : executionPlan.textMeasurement ? 'custom-text-measurement'
+        : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
   return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey)
     const result = hit ?? normalizeFamilyLayoutResult(

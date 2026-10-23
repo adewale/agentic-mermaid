@@ -1,6 +1,7 @@
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
+import { observeCache } from '../performance-observations.ts'
 const familyIds = new WeakMap<object, number>()
 let nextFamilyId = 0
 const results = new WeightedLru<string, FamilyLayoutResult>(128, 16 * 1024 * 1024)
@@ -27,17 +28,18 @@ function clonePositioned<T>(source: T): T {
 }
 export function cachedPositioned(family: object, key: string): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
+  observeCache('positioned-layout', value ? 'hit' : 'miss')
   return value ? clonePositioned(value) : undefined
 }
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult): void {
   // Conservative weighted estimate; the cache never retains caller objects.
   const weight = key.length * 2 + JSON.stringify(value).length * 4 + 1024
-  if (weight > 16 * 1024 * 1024) return
+  if (weight > 16 * 1024 * 1024) { observeCache('positioned-layout', 'store-skipped', 'weight-limit'); return }
   let copy: FamilyLayoutResult
   try { copy = clonePositioned(value) } catch (error) {
     // C4 identity planners carry callbacks. Keep the complete authoritative
     // artifact uncached when a private snapshot cannot preserve its evidence.
-    if (error instanceof Error && error.name === 'DataCloneError') return
+    if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
     throw error
   }
   results.set(isolatedKey(family, key), copy, weight)
