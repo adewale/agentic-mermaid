@@ -11,6 +11,7 @@ var spinner = document.getElementById("render-spinner");
 var unicodeOutput = document.getElementById("unicode-output");
 var asciiOutput = document.getElementById("ascii-output");
 var copyTextOutputBtn = document.getElementById("copy-text-output-btn");
+var runtimeRecovery = document.getElementById('runtime-recovery');
 var verifySummary = document.getElementById("verify-summary");
 var verifyTierStructural = document.getElementById("verify-tier-structural");
 var verifyTierGeometric = document.getElementById("verify-tier-geometric");

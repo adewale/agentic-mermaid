@@ -229,8 +229,6 @@ function currentEditorShareState() {
   return obj;
 }
 
-var runtimeRecovery = document.getElementById('runtime-recovery');
-
 function updateHash() {
   if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
     if (typeof showToast === 'function') showToast('Render and verify this diagram before copying a share link.');
