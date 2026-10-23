@@ -62,6 +62,15 @@ describe('calibrated semantic performance decisions', () => {
     expect(result.ok).toBe(false)
   })
 
+  test('a family outside the shared seven still has calibrated Agentic regression gates', () => {
+    const { candidate, controls } = setup()
+    for (const row of candidate.tracks.observations) if (row.peer === 'agentic' && row.workload === 'packet240') row.callSamplesMs.fill(2)
+    const result = performanceScorecard(candidate, controls)
+    expect(result.releaseRegression.some(g => g.workload === 'packet240' && g.metric === 'p50' && g.status === 'fail' && g.blocking)).toBe(true)
+    expect(result.peerCompetitiveness.some(g => g.workload === 'packet240')).toBe(false)
+    expect(result.ok).toBe(false)
+  })
+
   test('per-call p95 catches a tail regression hidden by an unchanged median', () => {
     const { candidate, controls } = setup()
     for (const row of candidate.tracks.observations) if (row.peer === 'agentic' && row.workload === 'mesh100') row.callSamplesMs.splice(29, 2, 10, 10)

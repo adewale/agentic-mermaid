@@ -72,7 +72,7 @@ Targets are explicit and distinct:
 The first two tables pair each case's same-round observations, then take the
 median ratio across rounds. Scaling growth is
 `(candidate100/candidate50)/(baseline100/baseline50)` per round, then its median.
-Each large case also retains independent absolute relative-regression gates.
+All 14 Agentic cases and both larger cases retain independent relative-regression gates.
 No corpus median can conceal a failing case or tail.
 
 For each metric, calibration uses the largest symmetric A/A ratio across all

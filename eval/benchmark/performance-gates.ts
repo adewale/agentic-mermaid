@@ -121,8 +121,8 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
   const baselineGraph = graph(candidate, 'agentic-baseline')
   check('Resolved runtime dependency graphs match all Agentic sides and controls', graphValid(baselineGraph) && graph(candidate, 'agentic') === baselineGraph && controls.every(r => graph(r, 'agentic') === baselineGraph && graph(r, 'agentic-baseline') === baselineGraph))
   const controlFailures: string[] = []
-  for (const r of controls) for (const peer of allPeers) for (let round = 0; round < r.config.rounds; round++) for (const workload of [...policy.cohort, ...policy.scaling]) for (const phase of policy.phases) for (const consumer of policy.consumers) {
-    if (!peer.startsWith('agentic') && (consumer === 'receipt-json-utf8' || policy.scaling.includes(workload as 'tree100' | 'mesh100'))) continue
+  for (const r of controls) for (const peer of allPeers) for (let round = 0; round < r.config.rounds; round++) for (const workload of [...policy.fullAgenticCoverage, ...policy.scaling]) for (const phase of policy.phases) for (const consumer of policy.consumers) {
+    if (!peer.startsWith('agentic') && (consumer === 'receipt-json-utf8' || !(policy.cohort as readonly string[]).includes(workload))) continue
     const o = at(r, peer, round, workload, phase, consumer)
     const minimumCalls = phase === 'first-use' ? 1 : Math.min(policy.minimumTailCallsPerRound, r.tracksConfig?.samples ?? policy.minimumTailCallsPerRound)
     if (!o || o.status !== 'ok' || o.semantic?.failures?.length || (peer.startsWith('agentic') && !o.semantic?.ok) || !o.callSamplesMs?.length || !o.callSamplesMs.every(positive) ||
@@ -141,7 +141,7 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
     (candidate.tracksConfig?.allocationSamples ?? 0) >= policy.minimumAllocationSamplesPerRound
   const calibrationReason = validControls ? undefined : 'Need at least two distinct completed same-runner/contract/policy A/A reports, each ≥5 rounds, using the exact comparison baseline archive'
   const gates: NumericGate[] = []
-  for (const workload of [...policy.cohort, ...policy.scaling]) for (const phase of policy.phases) for (const consumer of policy.consumers) for (const metric of ['p50', 'p95', 'allocation'] as const) {
+  for (const workload of [...policy.fullAgenticCoverage, ...policy.scaling]) for (const phase of policy.phases) for (const consumer of policy.consumers) for (const metric of ['p50', 'p95', 'allocation'] as const) {
     const controlRatios = validControls ? controls.flatMap(r => ratios(r, 'agentic', 'agentic-baseline', workload, phase, consumer, metric) ?? []) : []
     const expectedControls = controls.reduce((sum, r) => sum + r.config.rounds, 0)
     const spread = controlRatios.length ? Math.max(...controlRatios.map(r => Math.max(r, 1 / r))) : Infinity
@@ -151,7 +151,7 @@ export function performanceScorecard(candidate: PerformanceReport, controls: rea
     const ratio = result ? median(result) : undefined
     const reason = calibrationReason ?? (!calibrated ? 'Insufficient per-call/allocation observations or A/A spread exceeds the predeclared noise ceiling' : ratio === undefined ? 'Missing, failed or zero-denominator metric' : undefined)
     gates.push({ workload, phase, consumer, metric, status: !calibrated ? 'uncalibrated' : ratio === undefined ? 'unavailable' : ratio <= budget! ? 'pass' : 'fail', blocking: calibrated, ratio, target: policy.targets[metric], budget, controls: controlRatios, ...(reason ? { reason } : {}) })
-    if (consumer === 'receipt-json-utf8' || policy.scaling.includes(workload as 'tree100' | 'mesh100')) continue
+    if (consumer === 'receipt-json-utf8' || !(policy.cohort as readonly string[]).includes(workload)) continue
     for (const peer of policy.competitivePeers) {
       const paired = ratios(candidate, 'agentic', peer, workload, phase, consumer, metric)
       const peerRatio = paired ? median(paired) : undefined
