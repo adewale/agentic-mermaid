@@ -262,7 +262,8 @@ and round, and rejects a report paired with a different inventory.
 `RESUME_ENGINES=1` can repeat application probes after a harness change only
 when revisions, complete inputs and dependency/config bytes match. Admission
 runs before any existing evidence is overwritten; the original engine
-measurement date is retained. Older reports without the full input/dependency
+measurement date and environment are retained separately from the new app
+probes. Older reports without the full input/dependency
 binding must rerun the engines. Use a fresh output directory for independent runs.
 Generated benchmark evidence is not committed.
 

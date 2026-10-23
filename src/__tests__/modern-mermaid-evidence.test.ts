@@ -4,7 +4,7 @@ import { resumeEngineEvidence, validateEngineEvidence } from '../../eval/modern-
 function evidence() {
   const inventory = { upstream: { commit: 'upstream' }, pages: [{ file: 'example.md', sha256: 'fetched-page' }],
     occurrences: [{ id: 'example.md:1', family: 'flowchart', source: 'flowchart LR\nA-->B' }] }
-  const report = { date: '2026-10-23T00:00:00Z', corpus: inventory, revisions: { modern: 'modern', agentic: 'agentic' },
+  const report = { date: '2026-10-23T00:00:00Z', environment: { browser: 'measured-browser' }, corpus: inventory, revisions: { modern: 'modern', agentic: 'agentic' },
     fetchedArtifacts: { modernLockSha256: 'lock', modernModules: [{ path: 'engine.js', sha256: 'engine' }], referenceModules: [{ path: 'engine.js', sha256: 'reference' }], modernThemesSourceSha256: 'config', agenticBundleSha256: 'bundle' },
     engines: ['modern', 'agentic', 'reference'].flatMap(engine => [1, 2, 3].map(round => ({ engine, round, id: 'example.md:1', family: 'flowchart', ok: true, ms: 1 }))),
   }
@@ -13,8 +13,9 @@ function evidence() {
 
 test('resumes complete unchanged engine measurements with their original measurement date', () => {
   const { inventory, report } = evidence()
-  expect(resumeEngineEvidence(report, inventory, report, inventory)).toEqual({ engines: report.engines, engineMeasuredAt: report.date })
+  expect(resumeEngineEvidence(report, inventory, report, inventory)).toEqual({ engines: report.engines, engineMeasuredAt: report.date, engineEnvironment: report.environment })
   expect(resumeEngineEvidence({ ...report, engineMeasuredAt: 'original' }, inventory, report, inventory).engineMeasuredAt).toBe('original')
+  expect(resumeEngineEvidence({ ...report, engineEnvironment: { browser: 'original-browser' } }, inventory, report, inventory).engineEnvironment).toEqual({ browser: 'original-browser' })
 })
 
 test('rejects an inventory paired with measurements of different source under the same IDs', () => {

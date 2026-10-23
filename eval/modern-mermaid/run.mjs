@@ -24,7 +24,7 @@ const modernEngine = join(peer, 'node_modules/mermaid/dist')
 const referenceEngine = join(repo, 'node_modules/mermaid/dist')
 const agenticBundle = join(repo, 'dist/browser.global.js')
 const moduleBytes = root => readdirSync(root, { recursive: true, withFileTypes: true })
-  .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
+  .filter(entry => entry.isFile() && /\.(?:mjs|cjs|js)$/.test(entry.name))
   .map(entry => join(entry.parentPath, entry.name)).sort()
   .map(path => ({ path: relative(root, path).split(sep).join('/'), sha256: digest(path) }))
 const revisions = { agentic: revision(repo), modern: revision(peer) }
@@ -65,7 +65,7 @@ await context.route('**/*', route => {
   return route.abort()
 })
 const report = { status: 'incomplete', date: new Date().toISOString(), environment: { platform: process.platform, release: release(), cpu: cpus()[0].model, node: process.version, bun: Bun.version, browser: browser.version(), viewport: { width: 1440, height: 1000 }, externalNetwork: 'blocked', serviceWorkers: 'blocked' }, revisions, fetchedArtifacts, corpus,
-  engines: resumed?.engines ?? [], ...(resumed ? { engineMeasuredAt: resumed.engineMeasuredAt } : {}), editor: [], themes: [], examples: [], exports: [], probes: {} }
+  ...(resumed ?? { engines: [] }), editor: [], themes: [], examples: [], exports: [], probes: {} }
 json('report.json', report)
 try {
   // Same-document, serial SVG-return timing. This is the dependency engine with

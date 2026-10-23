@@ -28,5 +28,6 @@ export function resumeEngineEvidence(prior, priorInventory, current, inventory) 
     throw new Error('Different engine inputs or dependencies; run without RESUME_ENGINES')
   }
   validateEngineEvidence(prior, inventory)
-  return { engines: prior.engines, engineMeasuredAt: prior.engineMeasuredAt ?? prior.date }
+  return { engines: prior.engines, engineMeasuredAt: prior.engineMeasuredAt ?? prior.date,
+    engineEnvironment: prior.engineEnvironment ?? prior.environment }
 }

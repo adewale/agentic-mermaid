@@ -31,6 +31,7 @@ const families = [...new Set(inventory.occurrences.map(input => input.family))].
 })
 const summary = {
   measuredAt: report.date, revisions: report.revisions, environment: report.environment,
+  engineMeasuredAt: report.engineMeasuredAt ?? report.date, engineEnvironment: report.engineEnvironment ?? report.environment,
   population: inventory.occurrences.length, distinctSources: inventory.distinctCount,
   acceptance: engines.map(engine => ({ engine, accepted: accepted[engine].size, distinctAccepted: new Set(inventory.occurrences.filter(input => accepted[engine].has(input.id)).map(input => input.source.trim())).size, attemptRoundMs: totals(engine) })),
   comparisons, families,
