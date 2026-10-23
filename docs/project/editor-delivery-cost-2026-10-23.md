@@ -296,6 +296,47 @@ metadata ingestion need explicit ownership alongside rendering, benchmark
 integrity and discovery policy. More agents or more diagram examples on the
 same paths would not exercise those missing boundaries.
 
+## CI failures and missing follow-through
+
+The final CI run for `31638f218d2b129ddee52d807f3cfaed9a15af07`
+([run 40009230861](https://github.com/adewale/agentic-mermaid/actions/runs/40009230861))
+failed after the implementation handoff. Browser, package, payload, quality and
+semantic checks passed, but that was insufficient to establish merge readiness.
+
+- Unit shard 3 failed the existing editor link producer/consumer contract with
+  `ReferenceError: document is not defined`. Recovery initialization put a DOM
+  lookup at the top level of `sharing.js`, although its codec consumer runs
+  without a document. The lookup now lives with the other DOM bindings in
+  `elements.js`. The existing contract fails before this move and passes after
+  it; adding a fake document to that codec test would have hidden the coupling.
+  The previous local selection covered browser recovery and worker behavior,
+  but omitted this existing sharing consumer.
+- Unit shard 2 did not merely run slowly. Its logs show two website consumers
+  timing out on the fixture build lock, followed by no progress after the last
+  completed test until the 20-minute job limit. The previously successful
+  `adbda37d` run completed the same shard, including its cold website build.
+  A focused clean local reproduction also passed. The exact Bun/child-process
+  stall remains unproven; it is not attributed to the last completed test.
+  CI now prepares the shared fixture in a separate two-minute step before
+  parallel workers start. A build stall therefore fails in its own bounded
+  phase, while consumers normally reuse the completed fixture. Neither the
+  job limit nor test exclusions increase. Local preparation followed by all
+  70 website/deploy/PNG contracts under `--parallel=2` passes.
+
+The sharing failure appeared at 20:19 BST on 23 October; shard 2 was cancelled
+at 20:31, and the aggregate failed at 20:31. I had ended the turn while that
+revision's CI was still running. The earlier watcher was bound to the previous
+run, `40008007717`; a snapshot of the new run did not establish its eventual
+outcome. There was no scheduled follow-up to deliver a later failure into the
+chat. Reporting pending checks was accurate, but the handoff left verification
+unfinished and required the user to ask for readiness.
+
+For this follow-up, completion requires the checks for the exact pushed head to
+reach terminal states, investigation of any failure, and a final readiness
+report based on those results. Local success and an older green revision do
+not substitute for that result. The sharing/editor checks pass (46 tests), and
+the existing desktop/mobile reload cases pass after the DOM binding move.
+
 ## Reproduction
 
 Build the unchanged baseline into one retained directory and the candidate into
