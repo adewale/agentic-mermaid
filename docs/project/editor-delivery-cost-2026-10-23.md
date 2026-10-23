@@ -2,8 +2,8 @@
 
 The hosted editor now loads complete verified family implementations on demand,
 with deferred terminal/PNG output, sketch backends and ELK. A cold simple
-flowchart consumes **44.9% fewer gzip-equivalent asset bytes**. Its median local
-first preview fell from **507 ms to 453 ms**. Blank startup is essentially
+flowchart consumes **45.0% fewer gzip-equivalent asset bytes** in the PR recheck.
+Its median local first preview fell from **502 ms to 469 ms**. Blank startup is essentially
 unchanged. These are source-build Chromium diagnostics, not deployed-network
 measurements.
 
@@ -56,7 +56,8 @@ error class.
 
 Baseline: the saved production site from
 `87c9c3174c0d4edc16c69c0da82b69a325cc32ec`, before production edits in this task.
-Candidate: this local implementation. Both use Bun 1.4.2 and Chromium
+Candidate: the implementation before the PR rebase; the recheck below records
+the newer main baseline. Both original builds use Bun 1.4.2 and Chromium
 145.0.7632.6 on the same Apple M2 Ultra machine, with fresh contexts, remote
 assets blocked and local uncompressed HTTP. The harness records hashes of the
 actual fetched assets. Compression estimates use gzip level 9 and Brotli
@@ -105,6 +106,32 @@ HTTP/2 or HTTP/3 waterfall is the next performance investigation. This work
 does not attribute algorithmic layout improvements to the observed timing
 variation.
 
+## PR recheck after rebasing
+
+Main advanced during the investigation. The PR was rebased onto
+`861375d33807a668a0dd3674257840d027ea299e`, preserving its cache ownership
+registration in the deferred installer and retaining its mutation drafts.
+Both sites were rebuilt with that revision's frozen dependencies. The same
+three-round diagnostic and complete official inventory were then run serially
+against main and the candidate. The original measurements above remain dated
+evidence; the following numbers qualify the rebased production implementation.
+
+| Session boundary | Main gzip | Candidate gzip | Distinct assets, main → candidate |
+| --- | ---: | ---: | ---: |
+| Blank editor | 134,064 B | 134,065 B | 3 → 3 |
+| First verified five-node flowchart | 1,507,773 B | 830,016 B | 6 → 58 |
+| Then Sequence | 1,507,773 B | 845,573 B | 6 → 60 |
+| All SVG families | 1,507,773 B | 1,429,249 B | 6 → 107 |
+| Then terminal output | 1,663,404 B | 1,676,398 B | 7 → 112 |
+| Then PNG export | 1,983,348 B | 2,018,448 B | 9 → 116 |
+| All families and features | 1,983,348 B | 2,029,533 B | 9 → 139 |
+
+First-preview medians were 502 ms on main and 469 ms on the candidate.
+The first-flowchart gzip reduction is 45.0%; fully consumed gzip grows 2.3%.
+All 87 captured artifacts and all 1,095 official results match exactly between
+these builds, with 823 accepted inputs. No browser errors were recorded.
+The same local-network and compression limits apply to this recheck.
+
 ## Correctness and checks
 
 - **87/87 captured artifacts match exactly** between builds across three
@@ -115,8 +142,10 @@ variation.
   errors and digests of SVG/receipt/verification data; **823 accepted** in both
   builds. Its corpus and acceptance definition come from the existing official
   fence inventory, not a newly selected subset.
-- **193 focused unit tests pass**, covering family registration/conformance,
-  hooks, verification/source evidence, browser-lazy rendering and PNG contracts.
+- **309 focused unit tests pass**, covering family registration/conformance,
+  hooks, verification/source evidence, browser-lazy rendering, PNG contracts,
+  upstream cache ownership, mutation and wrapper fidelity. Six package manifest
+  tests also pass, and the rebuilt tarball passes the exact 213-file manifest.
 - **21 browser tests pass**, including each of the 23 families as the first
   family in a fresh context, native ASCII/Unicode parity, blocked-download
   recovery, cached-module editing, worker ownership/cancellation, strict SVG
@@ -131,6 +160,10 @@ variation.
   and activation. Clearing selection without moving SVG focus ensures Enter
   and Space are actually exercised. The complete editor interaction file now
   passes without exclusions (371 assertions); Packet production code is unchanged.
+- The suspension regression test exercises verification directly. It passes
+  on the candidate and fails its assertion against main production in the
+  repository's red-to-green runner; a combined render call had masked this
+  distinction by eventually rethrowing the original error.
 - Typecheck, lint, generated-family checks, existing website payload budgets
   and `git diff --check` pass. The existing blank-editor budgets were not raised.
 
