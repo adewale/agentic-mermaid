@@ -34,9 +34,9 @@ function clonePositioned<T>(source: T): T {
   visit(source, copy)
   return copy
 }
-export function cachedPositioned(family: object, key: string): FamilyLayoutResult | undefined {
+export function cachedPositioned(family: object, key: string, alreadyObserved = false): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
-  observeCache('positioned-layout', value ? 'hit' : 'miss')
+  if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
   return value ? clonePositioned(value.result) : undefined
 }
 /** Only the private native renderer may borrow this certified snapshot. */

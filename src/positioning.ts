@@ -81,7 +81,9 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         return snapshot.result
       }
     }
-    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey)
+    // The private borrow probe already observed this logical lookup. Retain
+    // the public-copy fallback without counting its second probe again.
+    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey, borrow)
     const result = hit ?? normalizeFamilyLayoutResult(
       descriptor.layout!({
         source,

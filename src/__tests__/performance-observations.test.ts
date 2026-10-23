@@ -136,12 +136,29 @@ test('the installed-compatible symbol observes actual ELK and native cache hits 
     const strict = resolveRenderRequestForExecution(source, { layoutSafety: 'strict' }, 'svg')
     retainedNativeDrawing(strict, layout)
     renderMermaidSVG(source)
+    const lookups = []
+    const captureLookup = callback => {
+      const start = events.length
+      callback()
+      lookups.push(events.slice(start).filter(event => event.kind === 'cache' && event.owner === 'positioned-layout').map(event => event.outcome))
+    }
+    const countedSource = 'sequenceDiagram\\n CountedAlice->>CountedBob: one logical lookup'
+    captureLookup(() => renderMermaidSVG(countedSource))
+    captureLookup(() => renderMermaidSVG(countedSource))
+    let publicPosition
+    captureLookup(() => {
+      const request = resolveRenderRequestForExecution(countedSource, {}, 'svg')
+      publicPosition = positionResolvedFamily('sequence', request)
+    })
+    publicPosition.positioned.width = NaN
+    captureLookup(() => renderMermaidSVG(countedSource))
     delete globalThis[symbol]
-    console.log(JSON.stringify(events))
+    console.log(JSON.stringify({ events, lookups }))
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.status).toBe(0)
   expect(child.stderr).toBe('')
-  const events = JSON.parse(child.stdout) as PerformanceObservation[]
+  const { events, lookups } = JSON.parse(child.stdout) as { events: PerformanceObservation[]; lookups: string[][] }
+  expect(lookups).toEqual([['miss'], ['hit'], ['hit'], ['hit']])
   for (const owner of ['elk-layout', 'positioned-layout', 'native-drawing', 'positioned-scene'] as const) {
     expect(events).toContainEqual({ version: 1, kind: 'cache', owner, outcome: 'miss' })
     expect(events).toContainEqual({ version: 1, kind: 'cache', owner, outcome: 'hit' })
