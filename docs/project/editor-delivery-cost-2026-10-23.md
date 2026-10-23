@@ -215,13 +215,13 @@ the recovery UI below has separate desktop and mobile screenshots.
 
 ## Third audit fix qualification
 
-The production changes through `c97a25cb04cdc727f0b223278bc1018b8ce6ea26`
+The production changes through `78ff713b52eafacfb512e29d3d82eea2e184b3ea`
 were measured against the retained `861375d3` main build in three Chromium
-sessions. Recovery adds 662 B gzip to the preceding blank editor. The current
-totals are 134,730 B for blank, 830,754 B across 58 assets for first flowchart
-and 2,030,309 B across 139 assets fully consumed. Against main, the first
+sessions. Recovery adds 683 B gzip to the preceding blank editor. The current
+totals are 134,751 B for blank, 830,775 B across 58 assets for first flowchart
+and 2,030,330 B across 139 assets fully consumed. Against main, the first
 flowchart saves **44.9%** and the fully consumed graph grows **2.4%**. The
-first-preview median was 467 ms versus 502 ms on main. These remain local
+first-preview median was 459 ms versus 502 ms on main. These remain local
 diagnostics under the measurement policy above.
 
 All 87 captured artifacts and 1,095 official-corpus results still match main
@@ -243,7 +243,12 @@ Typecheck, lint, family-generator freshness, website/library payload budgets,
 per-PR payload comparison and the exact 213-file package manifest pass. No
 budget increased. The readiness heuristic's secret matches are registry
 `Symbol` tokens, and its console matches are intentional diagnostic output.
-The full suite remains assigned to CI. The existing browser CI artifact
+The first CI run caught a separate standalone budget overrun: the recovery
+assets were included in both editor modes, producing 1,260,089 B gzip against
+the existing 1,260,000 B ceiling. The build now includes recovery markup, styles
+and handlers only for the hosted editor. Standalone is 1,259,790 B gzip and its
+existing budget and persistent Blob-worker/crash-recovery tests both pass
+(14 assertions). Its ceiling is unchanged. The full suite remains assigned to CI. The existing browser CI artifact
 captures `current-runtime-recovery-{1280,390}.png` before reload and
 `current-runtime-restored-{1280,390}.png` after state restoration. Review the
 visible recovery action, wrapping at mobile width and restored diagram.
