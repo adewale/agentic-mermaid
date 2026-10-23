@@ -154,25 +154,27 @@ export function layoutArchitectureDiagram(
 
   const services: PositionedArchitectureService[] = []
   const junctions: PositionedArchitectureJunction[] = []
-  const serviceBounds = new Map<string, Bounds>()
-  const junctionBounds = new Map<string, Bounds>()
+  const serviceBounds = new Map<string, PositionedArchitectureService>()
+  const junctionBounds = new Map<string, PositionedArchitectureJunction>()
 
   for (const node of positioned.nodes) {
-    const bounds = { x: node.x, y: node.y, width: node.width, height: node.height }
     if (servicesById.has(node.id)) {
       const service = servicesById.get(node.id)!
-      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
-      serviceBounds.set(node.id, bounds)
+      const placed: PositionedArchitectureService = { x: node.x, y: node.y, width: node.width, height: node.height, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId }
+      services.push(placed)
+      serviceBounds.set(node.id, placed)
     } else if (junctionsById.has(node.id)) {
       const junction = junctionsById.get(node.id)!
-      const ring = {
+      const placed: PositionedArchitectureJunction = {
         x: node.x + (node.width - junctionDiameter) / 2,
         y: node.y + (node.height - junctionDiameter) / 2,
         width: junctionDiameter,
         height: junctionDiameter,
+        id: junction.id,
+        parentId: junction.parentId,
       }
-      junctions.push({ ...ring, id: junction.id, parentId: junction.parentId })
-      junctionBounds.set(node.id, ring)
+      junctions.push(placed)
+      junctionBounds.set(node.id, placed)
     }
   }
 
@@ -196,11 +198,8 @@ export function layoutArchitectureDiagram(
     junctions,
     options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
   )
-  // Alignment mutates positioned items after their initial bounds maps were
-  // built. Refresh the route lookup so every side anchor follows the aligned
-  // card/ring rather than the pre-constraint ELK coordinate.
-  for (const service of services) serviceBounds.set(service.id, service)
-  for (const junction of junctions) junctionBounds.set(junction.id, junction)
+  // Arrays and route lookups share the actual positioned items, so every
+  // alignment/side-constraint move updates their authored contacts together.
 
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
   const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
@@ -216,17 +215,19 @@ export function layoutArchitectureDiagram(
     junctions,
     flatGroups,
     options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
+    servicesById,
+    groupsById,
+    junctionsById,
+    serviceBounds,
+    junctionBounds,
     nativePlacement ? validate => { legalSlots = validate } : undefined,
   )
   if (sideConstraintsChanged) {
     // Port constraints can reorder a child or a whole nested group. Refit once
     // more before resolving `{group}` anchors and route obstacles.
     expandGroupBounds(groups, services, junctions, true)
-    for (const service of services) serviceBounds.set(service.id, service)
-    for (const junction of junctions) junctionBounds.set(junction.id, junction)
   }
 
-  const positionedJunctionsById = new Map(junctions.map(junction => [junction.id, junction]))
   const routeEdges = () => diagram.edges.map((edge) =>
     routeArchitectureEdge(
       edge,
@@ -235,7 +236,7 @@ export function layoutArchitectureDiagram(
       junctionBounds,
       flatGroups,
       services,
-      positionedJunctionsById,
+      junctionBounds,
     )
   )
   let edges = routeEdges()
@@ -483,14 +484,14 @@ function applyArchitectureSideConstraints(
   junctions: PositionedArchitectureJunction[],
   groups: Map<string, PositionedArchitectureGroup>,
   spacing: number,
+  serviceMeta: Map<string, ArchitectureService>,
+  groupMeta: Map<string, ArchitectureGroup>,
+  junctionMeta: Map<string, ArchitectureDiagram['junctions'][number]>,
+  positionedServices: Map<string, Bounds>,
+  positionedJunctions: Map<string, Bounds>,
   retainLegality?: (validate: () => boolean) => void,
 ): boolean {
   let changed = false
-  const groupMeta = new Map(diagram.groups.map(group => [group.id, group]))
-  const serviceMeta = new Map(diagram.services.map(service => [service.id, service]))
-  const junctionMeta = new Map(diagram.junctions.map(junction => [junction.id, junction]))
-  const positionedServices = new Map(services.map(service => [service.id, service]))
-  const positionedJunctions = new Map(junctions.map(junction => [junction.id, junction]))
   const unitKey = (kind: ArchitectureChildRef['kind'], id: string): string => `${kind}:${id}`
   const splitUnitKey = (key: string): { kind: ArchitectureChildRef['kind']; id: string } => {
     const separator = key.indexOf(':')

@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 import { cacheChurnGenerator, cacheChurnPopulation } from './cache-churn-population.ts'
 
 const sha = (value: string) => createHash('sha256').update(value).digest('hex')
-const event = (layer: string, name: string) => `cacheProbeEvent(this, ${layer}, '${name}', this.weight, this.entries.size${name === 'get' || name === 'set' ? ', key' : ''});`
+const event = (layer: string, name: string) => `cacheProbeEvent(this, ${layer}, '${name}', this.#weight, this.#entries.size${name === 'get' || name === 'set' ? ', key' : ''});`
 
 function once(source: string, search: string, replacement: string): string {
   if (source.split(search).length !== 2) throw new Error(`Cache instrumentation expected exactly one occurrence: ${search}`)
@@ -15,20 +15,20 @@ function once(source: string, search: string, replacement: string): string {
 }
 
 export function instrumentCacheSource(source: string, native: boolean, statePath: string): string {
-  const layer = native ? '`native:${this.maxWeight}`' : '`weighted:${this.maxEntries}:${this.maxWeight}`'
-  source = once(source, 'const found = this.entries.get(key)', `const found = this.entries.get(key); ${event(layer, 'get')} ${event(layer, 'placeholder')}`)
-  source = once(source, event(layer, 'placeholder'), `cacheProbeEvent(this, ${layer}, found ? 'hit' : 'miss', this.weight, this.entries.size);`)
+  const layer = native ? '`native:${this.#maxWeight}`' : '`weighted:${this.#maxEntries}:${this.#maxWeight}`'
+  source = once(source, 'const found = this.#entries.get(key)', `const found = this.#entries.get(key); ${event(layer, 'get')} ${event(layer, 'placeholder')}`)
+  source = once(source, event(layer, 'placeholder'), `cacheProbeEvent(this, ${layer}, found ? 'hit' : 'miss', this.#weight, this.#entries.size);`)
   if (native) {
-    source = once(source, 'constructor(private readonly maxWeight: number) {}', `constructor(private readonly maxWeight: number) { ${event(layer, 'create')} }`)
-    source = once(source, 'if (weight > this.maxWeight) return', `if (weight > this.maxWeight) { ${event(layer, 'rejected')} return }`)
-    source = once(source, 'this.entries.set(key, { value, weight }); this.weight += weight', `this.entries.set(key, { value, weight }); this.weight += weight; ${event(layer, 'set')}`)
-    source = once(source, 'this.weight -= this.entries.get(oldest)!.weight; this.entries.delete(oldest)', `this.weight -= this.entries.get(oldest)!.weight; this.entries.delete(oldest); ${event(layer, 'evict')}`)
+    source = once(source, 'constructor(maxWeight: number) { this.#maxWeight = maxWeight }', `constructor(maxWeight: number) { this.#maxWeight = maxWeight; ${event(layer, 'create')} }`)
+    source = once(source, 'if (weight > this.#maxWeight) return', `if (weight > this.#maxWeight) { ${event(layer, 'rejected')} return }`)
+    source = once(source, 'this.#entries.set(key, { value, weight }); this.#weight += weight', `this.#entries.set(key, { value, weight }); this.#weight += weight; ${event(layer, 'set')}`)
+    source = once(source, 'this.#weight -= this.#entries.get(oldest)!.weight; this.#entries.delete(oldest)', `this.#weight -= this.#entries.get(oldest)!.weight; this.#entries.delete(oldest); ${event(layer, 'evict')}`)
   } else {
-    source = once(source, 'this.maxEntries = maxEntries; this.maxWeight = maxWeight }', `this.maxEntries = maxEntries; this.maxWeight = maxWeight; ${event(layer, 'create')} }`)
-    source = once(source, 'if (!Number.isFinite(weight) || weight < 0 || weight > this.maxWeight) return', `if (!Number.isFinite(weight) || weight < 0 || weight > this.maxWeight) { ${event(layer, 'rejected')} return }`)
-    source = once(source, 'this.entries.set(key, { value, weight }); this.weight += weight', `this.entries.set(key, { value, weight }); this.weight += weight; ${event(layer, 'set')}`)
-    source = once(source, 'this.weight -= this.entries.get(oldest)!.weight; this.entries.delete(oldest)', `this.weight -= this.entries.get(oldest)!.weight; this.entries.delete(oldest); ${event(layer, 'evict')}`)
-    source = once(source, 'this.entries.clear(); this.weight = 0', `this.entries.clear(); this.weight = 0; ${event(layer, 'clear')}`)
+    source = once(source, 'this.#maxEntries = maxEntries; this.#maxWeight = maxWeight }', `this.#maxEntries = maxEntries; this.#maxWeight = maxWeight; ${event(layer, 'create')} }`)
+    source = once(source, 'if (!Number.isFinite(weight) || weight < 0 || weight > this.#maxWeight) return', `if (!Number.isFinite(weight) || weight < 0 || weight > this.#maxWeight) { ${event(layer, 'rejected')} return }`)
+    source = once(source, 'this.#entries.set(key, { value, weight }); this.#weight += weight', `this.#entries.set(key, { value, weight }); this.#weight += weight; ${event(layer, 'set')}`)
+    source = once(source, 'this.#weight -= this.#entries.get(oldest)!.weight; this.#entries.delete(oldest)', `this.#weight -= this.#entries.get(oldest)!.weight; this.#entries.delete(oldest); ${event(layer, 'evict')}`)
+    source = once(source, 'this.#entries.clear(); this.#weight = 0', `this.#entries.clear(); this.#weight = 0; ${event(layer, 'clear')}`)
   }
   return `import { cacheProbeEvent } from ${JSON.stringify(statePath)};\n${source}`
 }
