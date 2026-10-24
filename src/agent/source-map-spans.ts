@@ -2,7 +2,7 @@ import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, fl
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan } from './types.ts'
 import type { MermaidCleanup } from '../shared/mermaid-cleanup.ts'
-import { sourceLineStarts, sourcePointAt, sourceSpan } from '../shared/source-spans.ts'
+import { sourceLineStarts, sourcePointAt, sourceSpan } from '../family-detection.ts'
 
 interface PhysicalLine {
   text: string
