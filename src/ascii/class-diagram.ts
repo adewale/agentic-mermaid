@@ -74,6 +74,10 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     ...(rel.fromCardinality ? { fromLines: prepared(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent)) } : {}),
     ...(rel.toCardinality ? { toLines: prepared(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent)) } : {}),
   }))
+  const relationshipById = new Map<string, (typeof diagram.relationships)[number]>()
+  relations.forEach((relation, index) => {
+    if (!relationshipById.has(relation.id)) relationshipById.set(relation.id, diagram.relationships[index]!)
+  })
   const notePlans = diagram.notes.map((note, index) => ({ id: generated(`note:${index}`), parentId: note.for, lines: wrapText(displayText(resolveLabelContent(note.text, note.textContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined) }))
   const noteRelations: BoxRelation[] = notePlans.flatMap(note => (note.parentId ? [{ id: generated(`${note.id}:connector`), from: note.parentId, to: note.id }] : []))
   const faceSizes = boxFaceSizes([...relations, ...noteRelations], direction)
@@ -253,15 +257,14 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     doc.scope(owner, () => box.labelLines.forEach((line, row) => doc.text(box.x + Math.max(1, Math.floor((box.width - visualWidth(line) - 2) / 2)), box.y + row, ` ${line} `)))
   }
   for (const route of routes) {
-    const relationIndex = relations.findIndex(relation => relation.id === route.relation.id)
-    if (relationIndex < 0) {
+    const rel = relationshipById.get(route.relation.id)
+    if (!rel) {
       const owner = { id: route.relation.id, kind: 'edge' as const, from: route.relation.from, to: route.relation.to }
       paintBoxRoute(doc, route, owner, ascii)
       doc.expectMarkers(owner, 'start', [])
       doc.expectMarkers(owner, 'end', [])
       continue
     }
-    const rel = diagram.relationships[relationIndex]!
     const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.from, to: rel.to })
     paintBoxRoute(doc, route, owner, ascii, classRelationshipLineStyle(rel) === 'dashed')
     for (const [end, port, type, enabled] of [
