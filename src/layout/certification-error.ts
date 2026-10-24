@@ -12,10 +12,10 @@ export class LayoutCertificationError extends Error {
   }
 }
 
-/** Internal control flow for an async entry's not-yet-loaded provider.
+/** Internal control flow for an async entry's not-yet-loaded layout provider.
  * Synchronous entries retain their bundled provider and never throw this. */
 export class DeferredDependencyError extends Error {
-  constructor(readonly dependency: 'ELK' | 'YAML', readonly load: () => Promise<void>) {
+  constructor(dependency: string, readonly load: () => Promise<void>) {
     super(`${dependency} has not loaded`)
   }
 }

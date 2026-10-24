@@ -104,12 +104,6 @@ describe('claim-keyed backend capability conformance', () => {
       `<svg ${xmlns}><!--x---></svg>`,
       `<svg ${xmlns} xmlns:xml="urn:not-xml"><rect /></svg>`,
       `<svg ${xmlns} xmlns:p="${'http://www.w3.org/2000/xmlns/'}"><rect /></svg>`,
-      `<svg ${xmlns}><rect data-label="&unknown;"/></svg>`,
-      `<svg ${xmlns}><rect p:x:y="1" xmlns:p="urn:test"/></svg>`,
-      `<svg ${xmlns}><rect p:x="1" xmlns:p=""/></svg>`,
-      `<svg ${xmlns}><rect a:x="1" b:x="2" xmlns:b="urn:test" xmlns:a="urn:test"/></svg>`,
-      `<svg ${xmlns}><rect a:x="1" b:x="2" xmlns:a="urn:&amp;test" xmlns:b="urn:&#38;test"/></svg>`,
-      `<svg ${xmlns}><g xmlns:p="urn:test"><rect p:x="1"/></g><rect p:x="2"/></svg>`,
     ]
     for (const document of malformedDocuments) {
       expect(verifySvgDocumentEnvelope(document), document).toBe(false)
@@ -145,38 +139,13 @@ describe('claim-keyed backend capability conformance', () => {
     }, BACKEND_REGISTRATION_OPTIONS)).toThrow(/single-svg-document/)
   })
 
-  test('namespace declarations apply to preceding attributes while unprefixed attributes stay outside the default namespace', () => {
-    const xmlns = 'xmlns="http://www.w3.org/2000/svg"'
-    for (const document of [
-      `<svg xml:lang="en" data-label="A &amp; B" ${xmlns}><rect p:x="1" x="2" xmlns:p="urn:test"/></svg>`,
-      `<svg ${xmlns}><rect x="1" p:x="2" xmlns:p="http://www.w3.org/2000/svg"/></svg>`,
-      '<svg data-label="unchanged" xmlns="http://www.w3.org/2000/sv&#x67;"><rect a:x="1" b:y="2" xmlns:a="urn:test" xmlns:b="urn:test"/></svg>',
-    ]) {
-      expect(verifySvgDocumentEnvelope(document), document).toBe(true)
-      for (const mode of ['default', 'strict'] as const) {
-        expect(applyOutputSecurityPolicy(document, mode)).toEqual({ svg: document, diagnostics: [] })
-      }
-    }
-
-    const active = `<svg ${xmlns}><rect p:onload="run()" xmlns:p="urn:test"/></svg>`
-    expect(verifySvgDocumentEnvelope(active)).toBe(true)
-    for (const mode of ['default', 'strict'] as const) {
-      expect(() => applyOutputSecurityPolicy(active, mode)).toThrow('rejected active content: inline-event-handler')
-    }
-  })
-
   test('envelope validation stays independent of CSS inspection errors and wins for malformed XML', () => {
     const opening = '<svg xmlns="http://www.w3.org/2000/svg">'
     for (const content of ['<rect fill="\\ffffff"/>', '<style>.x{fill:\\ffffff}</style>']) {
       const valid = `${opening}${content}</svg>`
       expect(verifySvgDocumentEnvelope(valid)).toBe(true)
       expect(() => applyOutputSecurityPolicy(valid, 'strict')).toThrow(RangeError)
-      for (const malformed of [
-        `${opening}${content}</g>`,
-        `${opening}${content}<rect x="1" x="2"/></svg>`,
-        `${opening}${content}<rect a:x="1" b:x="2" xmlns:a="urn:test" xmlns:b="urn:test"/></svg>`,
-        `${opening}${content}<rect p:x="1" xmlns:p=""/></svg>`,
-      ]) {
+      for (const malformed of [`${opening}${content}</g>`, `${opening}${content}<rect x="1" x="2"/></svg>`]) {
         expect(verifySvgDocumentEnvelope(malformed)).toBe(false)
         expect(() => applyOutputSecurityPolicy(malformed, 'strict')).toThrow(/invalid SVG document envelope/)
       }

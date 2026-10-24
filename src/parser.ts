@@ -31,7 +31,6 @@ import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, 
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
-import { DeferredDependencyError } from './layout/certification-error.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 
 // ============================================================================
@@ -63,8 +62,7 @@ export function parseFlowchartRenderSource(authoredFamilyText: string, decodedFa
   if (authoredFamilyText === decodedFamilyText) return parseMermaid(decodedFamilyText)
   try {
     return parseMermaid(labelReferencesAsEntityCodes(authoredFamilyText))
-  } catch (error) {
-    if (error instanceof DeferredDependencyError) throw error
+  } catch {
     return parseMermaid(decodedFamilyText)
   }
 }
@@ -584,8 +582,7 @@ export function flowchartStatementNotes(statement: string, graph: MermaidGraph =
     if (parsed.ok) return notes
     if (commaIdStop(statement, parsed)) return new Set(['comma-id'])
     return new Set(mismatchedLinkMarkers(parsed) !== undefined ? ['link-markers'] : [])
-  } catch (error) {
-    if (error instanceof DeferredDependencyError) throw error
+  } catch {
     return new Set() // Metadata ours rejects fails the parse; verify reports that.
   }
 }

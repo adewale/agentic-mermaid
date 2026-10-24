@@ -25,8 +25,9 @@ export default defineConfig({
   metafile: true,
   noExternal: [/.*/],
   external: [],
-  // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
-  // Build-only facade twins preserve the synchronous source/Node APIs.
+  // ELK and the HTML5 entity table load on demand here: every import of
+  // src/shared/html-entity-table.ts gets its lazy twin, which fetches the
+  // table only when renderMermaidSVGAsync sees a named code beyond XML's five.
   esbuildPlugins: [{
     name: 'lazy-browser-dependencies',
     setup(build) {
@@ -38,8 +39,6 @@ export default defineConfig({
         loader: 'ts',
       }))
       build.onResolve({ filter: /\/html-entity-table\.ts$/ }, args =>
-        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
-      build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))

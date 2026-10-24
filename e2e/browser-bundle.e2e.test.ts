@@ -81,16 +81,6 @@ function lazyElkChunk(): string {
   return matches[0]![0].replace(/^dist\//, '')
 }
 
-function lazyYamlChunks(): string[] {
-  const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
-    outputs: Record<string, { inputs: Record<string, unknown> }>
-  }
-  const matches = Object.entries(metafile.outputs).filter(([, output]) =>
-    Object.keys(output.inputs).some(input => input.includes('node_modules/yaml/') || input === 'src/shared/mermaid-yaml-runtime.ts'))
-  expect(matches.length).toBeGreaterThan(0)
-  return matches.map(([path]) => path.replace(/^dist\//, ''))
-}
-
 describe('browser bundle', () => {
   let browser: Browser
   let page: Page
@@ -391,7 +381,7 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
-  test('ordinary diagrams fetch no YAML and a wrapped named-reference cycle loads every demanded provider once', async () => {
+  test('a certified forest renders before ELK loads and a cyclic named-reference flow loads it once', async () => {
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
@@ -404,15 +394,8 @@ describe('async family-loaded browser renderer', () => {
       }, [`${base}/dist/browser-lazy/index.js`, forest] as const)
       expect(result).toBe(renderMermaidSVG(forest, { security: 'strict' }))
       expect(requests).not.toContain(lazyElkChunk())
-      const sequence = 'sequenceDiagram\n  Alice->>Bob: Ready'
-      const plainSequence = await page.evaluate(async ([entryUrl, source]) => {
-        const api = await import(entryUrl)
-        return api.renderMermaidSVGAsync(source, { security: 'strict' })
-      }, [`${base}/dist/browser-lazy/index.js`, sequence] as const)
-      expect(plainSequence).toBe(renderMermaidSVG(sequence, { security: 'strict' }))
-      for (const chunk of lazyYamlChunks()) expect(requests).not.toContain(chunk)
 
-      const cycle = '---\ntitle: YAML demand\n---\nflowchart LR\n  A["x#hearts;y"] --> B[End]\n  B --> A'
+      const cycle = 'flowchart LR\n  A["x#hearts;y"] --> B[End]\n  B --> A'
       const resumed = await page.evaluate(async ([entryUrl, source]) => {
         const api = await import(entryUrl)
         const diagnostics: string[] = []
@@ -433,43 +416,10 @@ describe('async family-loaded browser renderer', () => {
       expect(resumed.diagnostics).toEqual(['flowchart.defaultRenderer'])
       expect(resumed.reads).toBe(1)
       expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
-      for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(1)
     } finally {
       await page.close()
     }
   })
-
-  for (const [syntax, source] of [
-    ['init directive', '%%{init: {"theme": "base"}}%%\nsequenceDiagram\n  Alice->>Bob: Configured'],
-    ['flowchart metadata', 'flowchart LR\n  A@{ shape: rect, label: "Meta &amp; data" } --> B'],
-    ['sequence metadata', 'sequenceDiagram\n  participant A@{ "type": "database", "alias": "Metadata" }\n  A->>B: Ready'],
-    ['Kanban metadata boundaries', 'kanban\nTodo\n  t[Work]@{assigned: Alice, ticket: ID-42}\nDone'],
-    ['invalid frontmatter', '---\ntitle: [unclosed\n---\nsequenceDiagram\n  A->>B: Refused'],
-    ['invalid metadata', 'sequenceDiagram\n  participant A@{ "type": [unclosed }\n  A->>B: Refused'],
-  ] as const) {
-    test(`first-use ${syntax} retains synchronous output or error after loading YAML`, async () => {
-      const page = await browser.newPage()
-      const requests: string[] = []
-      page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
-      try {
-        await page.goto(`${base}/blank.html`)
-        const actual = await page.evaluate(async ([entryUrl, source]) => {
-          const api = await import(entryUrl)
-          try {
-            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' })
-            return { svg: result.svg, receipt: result.receipt }
-          } catch (error) { return { error: String(error) } }
-        }, [`${base}/dist/browser-lazy/index.js`, source] as const)
-        let expected
-        try {
-          const result = renderMermaidSVGWithReceipt(source, { security: 'strict' })
-          expected = { svg: result.svg, receipt: result.receipt }
-        } catch (error) { expected = { error: String(error) } }
-        expect(actual).toEqual(expected)
-        for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(1)
-      } finally { await page.close() }
-    })
-  }
 
   test('the emitted lazy artifact rejects hostile strict-mode theme CSS', async () => {
     const page = await browser.newPage()

@@ -14,7 +14,7 @@
 // browser support them, which keeps raster and inline rendering in agreement.
 // ============================================================================
 
-import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag, svgStyleRanges } from './svg-structure.ts'
+import { replaceSvgRootStartTag, scanSvgStartTags, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 
 export const SVG_STYLE_SCOPE_PREFIX = 'am-'
 
@@ -175,7 +175,12 @@ export function svgStyleScope(svg: string): string | undefined {
 export function scopeSvgStyles(svg: string): string {
   const root = svgRootStartTag(svg)
   if (!root) return svg
-  const styleRanges = svgStyleRanges(svg)
+  const styleRanges: Array<{ start: number; end: number }> = []
+  for (const tag of scanSvgStartTags(svg)) {
+    if (tag.name !== 'style' || tag.selfClosing) continue
+    const close = svg.indexOf('</style', tag.end)
+    if (close >= 0) styleRanges.push({ start: tag.end, end: close })
+  }
   if (styleRanges.length === 0) return svg
 
   const scope = `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`

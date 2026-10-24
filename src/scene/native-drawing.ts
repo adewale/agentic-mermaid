@@ -6,7 +6,7 @@ import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
 import { indentLines } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
-import { inspectOwnedNativePaintGeometry, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
+import { inspectNativePaintGeometry, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 
@@ -131,5 +131,5 @@ export function drawNative(
   const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
   const svg = document.parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n')
   assertFinalSvgByteBudget(svg, 'native drawing output')
-  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText: document.parts.every(part => part.prepared), paint: inspectOwnedNativePaintGeometry(document, paintEntries(document.parts)) })
+  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText: document.parts.every(part => part.prepared), paint: inspectNativePaintGeometry(document, paintEntries(document.parts)) })
 }

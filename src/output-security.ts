@@ -224,8 +224,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     let end = parsed.end
     const rawAttributes = new Set<string>()
-    let declarations: Array<readonly [prefix: string, uri: string]> | undefined
-    let prefixedAttributes: XmlQualifiedName[] | undefined
+    const attributes: Array<{ readonly name: string; readonly qname: XmlQualifiedName; readonly value: string }> = []
     let selfClosing = false
     for (;;) {
       const hadWhitespace = isXmlWhitespace(svg[end])
@@ -238,10 +237,8 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       }
       if (!hadWhitespace) return false
       const attribute = readXmlName(svg, end)
-      if (!attribute) return false
-      const prefixed = attribute.name.includes(':')
-      const attributeName = prefixed ? parseXmlQualifiedName(attribute.name) : undefined
-      if ((prefixed && !attributeName) || rawAttributes.has(attribute.name)) return false
+      const attributeName = attribute && parseXmlQualifiedName(attribute.name)
+      if (!attribute || !attributeName || rawAttributes.has(attribute.name)) return false
       rawAttributes.add(attribute.name)
       end = attribute.end
       while (isXmlWhitespace(svg[end])) end++
@@ -258,13 +255,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (end >= svg.length) return false
       const value = svg.slice(valueStart, end)
       if (!hasWellFormedXmlReferences(value)) return false
-      if (attribute.name === 'xmlns' || attributeName?.prefix === 'xmlns') {
-        declarations ??= []
-        declarations.push([attributeName?.local ?? '', decodeXmlReferences(value)])
-      } else if (attributeName) {
-        prefixedAttributes ??= []
-        prefixedAttributes.push(attributeName)
-      }
+      attributes.push({ name: attribute.name, qname: attributeName, value: decodeXmlReferences(value) })
       observeAttribute?.(attribute.name, value)
       end++
     }
@@ -272,7 +263,12 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     const namespaces = new Map(stack.at(-1)?.namespaces ?? [
       ['xml', XML_NAMESPACE],
     ])
-    if (declarations) for (const [prefix, uri] of declarations) {
+    for (const attribute of attributes) {
+      const isDefaultDeclaration = attribute.name === 'xmlns'
+      const isPrefixedDeclaration = attribute.qname.prefix === 'xmlns'
+      if (!isDefaultDeclaration && !isPrefixedDeclaration) continue
+      const prefix = isDefaultDeclaration ? '' : attribute.qname.local
+      const uri = attribute.value
       if (prefix === 'xmlns'
         || uri === XMLNS_NAMESPACE
         || (prefix === 'xml' && uri !== XML_NAMESPACE)
@@ -297,15 +293,14 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       return false
     }
 
-    // Raw-name uniqueness already proves unprefixed attributes unique. A
-    // declared prefix cannot bind an empty URI, and the default namespace
-    // applies only to elements, so only prefixed attributes can alias here.
-    let expandedAttributes: Set<string> | undefined
-    if (prefixedAttributes) for (const attribute of prefixedAttributes) {
-      const namespace = namespaces.get(attribute.prefix!)
-      if (namespace === undefined) return false
-      const expanded = `${namespace}\u0000${attribute.local}`
-      expandedAttributes ??= new Set()
+    const expandedAttributes = new Set<string>()
+    for (const attribute of attributes) {
+      if (attribute.name === 'xmlns' || attribute.qname.prefix === 'xmlns') continue
+      const namespace = attribute.qname.prefix === undefined
+        ? ''
+        : namespaces.get(attribute.qname.prefix)
+      if (namespace === undefined || attribute.qname.prefix === 'xmlns') return false
+      const expanded = `${namespace}\u0000${attribute.qname.local}`
       if (expandedAttributes.has(expanded)) return false
       expandedAttributes.add(expanded)
     }
@@ -394,13 +389,16 @@ function unsafeCssReferences(value: string): string[] {
 
 function unsafeActiveCss(value: string): boolean {
   const scan = normalizeCssObfuscation(decodeXmlReferences(value))
-  return unsafeActiveCssScan(scan)
-}
-
-function unsafeActiveCssScan(scan: string): boolean {
   if (/(?:expression|behavior)\s*\(|-moz-binding\s*:/i.test(scan)) return true
   if (/(?:javascript|vbscript|data|file)\s*:/i.test(scan)) return true
   return false
+}
+
+function unsafeCssOrAnimatedValue(value: string): boolean {
+  const scan = normalizeCssObfuscation(decodeXmlReferences(value))
+  return unsafeCssReferences(scan).length > 0
+    || /(?:javascript|vbscript|data|file)\s*:/i.test(scan)
+    || /(?:expression|behavior)\s*\(/i.test(scan)
 }
 
 const CSS_VALUE_ATTRIBUTES = new Set([
@@ -439,14 +437,8 @@ function inspectAttributeSecurity(qualified: string, value: string, refs: string
     if (/^(?:javascript|vbscript|data|file):/.test(normalized)) active.push(`${qualified}=${value}`)
   }
   if (CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') {
-    // Every rejected CSS form requires @, (, or :. Escapes and references can
-    // introduce those characters, so their introducers must also be inspected.
-    if (!/[@(:\\&]/.test(value)) return
-    const scan = normalizeCssObfuscation(decodeXmlReferences(value))
-    if (unsafeCssReferences(scan).length > 0
-      || /(?:javascript|vbscript|data|file)\s*:/i.test(scan)
-      || /(?:expression|behavior)\s*\(/i.test(scan)) refs.push(`${qualified}=${value}`)
-    if (unsafeActiveCssScan(scan)) active.push(`${qualified}=${value}`)
+    if (unsafeCssOrAnimatedValue(value)) refs.push(`${qualified}=${value}`)
+    if (unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
   }
 }
 
