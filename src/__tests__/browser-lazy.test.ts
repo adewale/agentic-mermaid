@@ -17,10 +17,10 @@ describe('async browser SVG entry', () => {
     ['flowchart', 'flowchart TD\n  A["x\naccTitle: y"] --> B'],
   ])('%s preserves quoted accessibility-shaped text on the first family load and when warm', async (family, source) => {
     const child = Bun.spawn([process.execPath, '-e', `
-      import { getFamily } from ${JSON.stringify(new URL('../agent/family-registry.ts', import.meta.url).pathname)};
+      import { getInstalledFamilyDescriptor } from ${JSON.stringify(new URL('../agent/family-router.ts', import.meta.url).pathname)};
       import { normalizeMermaidSource } from ${JSON.stringify(new URL('../mermaid-source.ts', import.meta.url).pathname)};
       import { renderMermaidSVGWithReceiptAsync } from ${JSON.stringify(new URL('../browser-lazy.ts', import.meta.url).pathname)};
-      const unloaded = getFamily(${JSON.stringify(family)}) === undefined;
+      const unloaded = getInstalledFamilyDescriptor(${JSON.stringify(family)}) === undefined;
       const source = ${JSON.stringify(source)};
       const options = { security: 'strict', embedFontImport: false };
       const cold = await renderMermaidSVGWithReceiptAsync(source, options);
