@@ -39,6 +39,7 @@ const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 
 const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
   layoutHints: ['flowchart', 'state'],
+  graphLayout: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'],
   padding: ['flowchart', 'state', 'architecture', 'c4'],
   nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
   layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
@@ -57,6 +58,7 @@ const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
 
 const FAMILY_SCOPED_OPTION_VALUES = {
   layoutHints: { ranks: { A: 0, B: 1 } },
+  graphLayout: { backend: 'elk' },
   padding: 12,
   nodeSpacing: 77,
   layerSpacing: 91,

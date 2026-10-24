@@ -263,13 +263,15 @@ interface CertifiedSelection {
   attempts: number
 }
 
-function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate): {
+export function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, strictProducer = false): {
   certified?: CertifiedCandidate
   attempt: LayoutCertificationAttempt
 } {
   try {
     const positioned = candidate.produce()
-    const violations = [...correspondenceViolations(graph, positioned, style), ...positionedGeometryViolations(positioned, style)]
+    const correspondence = correspondenceViolations(graph, positioned, style)
+    if (strictProducer && correspondence.length) throw new TypeError(`Owned layout changed authored meaning: ${correspondence.join('; ')}`)
+    const violations = [...correspondence, ...positionedGeometryViolations(positioned, style)]
     const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
     if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
     const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
@@ -281,7 +283,7 @@ function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candi
     }
   } catch (error) {
     // A successful alternative cannot hide a broken pass or exceeded input work limit.
-    if (error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
+    if (strictProducer || error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
     return { attempt: { strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] } }
   }
 }
@@ -337,7 +339,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
   throw new LayoutCertificationError(attempts)
 }
 
-function retainSelection(graph: MermaidGraph, selection: CertifiedSelection): PositionedGraph {
+export function retainSelection(graph: MermaidGraph, selection: CertifiedSelection): PositionedGraph {
   const { selected, reason, compared, attempts } = selection
   retainAuthoredMembership(graph, selected.positioned)
   selected.positioned.certification = {

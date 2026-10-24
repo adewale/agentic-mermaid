@@ -22,6 +22,7 @@ interface Segment {
 }
 
 interface CrossingLocation extends CrossingPoint { error: number }
+type RouteSegment = Pick<Segment, 'a' | 'b' | 'edgeIndex' | 'pointIndex'>
 
 function locationTolerance(a: CrossingPoint, b: CrossingPoint): number {
   return 8 * Number.EPSILON * Math.max(1, Math.abs(a.x), Math.abs(a.y), Math.abs(b.x), Math.abs(b.y))
@@ -36,7 +37,22 @@ function pointOrder(a: CrossingPoint, b: CrossingPoint): number {
   return a.x - b.x || a.y - b.y
 }
 
-function localRays(segment: Segment, point: CrossingLocation, routes: readonly CrossingPolyline[]): [CrossingPoint, CrossingPoint] | undefined {
+export function retainCrossingLocation(points: CrossingLocation[], point: CrossingLocation): void {
+  const duplicate = points.find(p => p.x === point.x && p.y === point.y)
+  if (duplicate) duplicate.error = Math.max(duplicate.error, point.error)
+  else points.push(point)
+}
+
+export function distinctCrossingLocations(points: CrossingLocation[]): number {
+  points.sort(pointOrder)
+  const distinct: CrossingLocation[] = []
+  for (const point of points) {
+    if (!distinct.some(previous => sameLocation(previous, point, Math.max(previous.error, point.error)))) distinct.push(point)
+  }
+  return distinct.length
+}
+
+function localRays(segment: RouteSegment, point: CrossingLocation, routes: readonly CrossingPolyline[]): [CrossingPoint, CrossingPoint] | undefined {
   const points = routes[segment.edgeIndex]!.points
   // The physical contact tolerance belongs to the whole route's endpoints.
   // Applying it to internal bends changes topology when a segment is split.
@@ -53,7 +69,7 @@ function localRays(segment: Segment, point: CrossingLocation, routes: readonly C
   return [points[before]!, points[after]!]
 }
 
-function crossingPoint(a: Segment, b: Segment, routes: readonly CrossingPolyline[]): CrossingLocation | undefined {
+export function crossingPoint(a: RouteSegment, b: RouteSegment, routes: readonly CrossingPolyline[]): CrossingLocation | undefined {
   // The same geometry uses the same arithmetic under route reversal/order.
   let p = a.a, q = a.b, r = b.a, s = b.b
   if (pointOrder(p, q) > 0) [p, q] = [q, p]
@@ -122,11 +138,16 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
     }
   })
   segments.sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex)
-  let active: Segment[] = []
+  const active: Segment[] = []
   const locations = new Map<string, CrossingLocation[]>()
   for (const segment of segments) {
-    active = active.filter(other => other.maxX >= segment.minX)
-    for (const other of active) {
+    // Stable compaction retains the same candidate order without allocating a
+    // new active array at every segment in repeated layout/search scoring.
+    let retained = 0
+    for (let index = 0; index < active.length; index++) {
+      const other = active[index]!
+      if (!(other.maxX >= segment.minX)) continue
+      active[retained++] = other
       if (other.edgeIndex === segment.edgeIndex || (involved && !involved.has(other.edgeIndex) && !involved.has(segment.edgeIndex)) || other.maxY < segment.minY || other.minY > segment.maxY) continue
       const point = crossingPoint(segment, other, routes)
       if (!point) continue
@@ -141,6 +162,7 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
       }
       else locations.set(key, [point])
     }
+    active.length = retained
     active.push(segment)
   }
   let crossings = 0

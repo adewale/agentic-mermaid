@@ -1,29 +1,22 @@
 import { applyLayoutHints } from './layout/layout-hints.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { graphTextBlock } from './graph-text.ts'
+import { LABEL_PILL_PADDING } from './shared/edge-label-geometry.ts'
 import { performanceExperimentEnabled } from './experimental-performance.ts'
 import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
- * Layout engine for Agentic Mermaid (ELK.js based).
+ * Synchronous graph layout selection and shared final geometry.
  *
- * Converts MermaidGraph to ELK's JSON format, runs layout, and converts
- * the result back to PositionedGraph. This is the core layout engine used
- * by all graph-based diagram types (flowcharts, state, ER, class).
- *
- * ELK (Eclipse Layout Kernel) features:
- *   - Native orthogonal edge routing (no post-processing needed)
- *   - Proper handling of compound nodes (subgraphs)
- *   - Support for disconnected graphs
- *   - Direction overrides per subgraph
- *   - Sophisticated algorithms for complex graphs
- *
- * Uses elk.bundled.js (pure synchronous JS, no WASM/Workers).
- * Safe for Electron, Node, and browser environments.
+ * The ELK adapter prepares its JSON graph and extracts positioned geometry.
+ * The owned producer consumes measured neutral graphs. Both retain authored
+ * identities, shared route/shape rules and independent final certification.
+ * Specialized Class, ER and Architecture adapters keep their family contracts.
  */
 
 import type { ElkNode, ElkExtendedEdge, LayoutOptions } from 'elkjs'
@@ -49,15 +42,19 @@ import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
+import { layoutAgenticCandidate, layoutAgenticPlacement } from './layout/agentic-layered.ts'
+import { customTextMeasurementActive } from './text-measurement-profile.ts'
+import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupportedError } from './layout/backend.ts'
+import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
+import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -1266,7 +1263,7 @@ function rootChildOrder(
  */
 /** The mutable bag the post-ELK geometry passes thread through (see ./layout/pass.ts). */
 export interface LayoutPassContext extends PassContextBase {
-  readonly elkResult: ElkNode
+  readonly elkResult?: ElkNode
   readonly graph: MermaidGraph
   nodes: PositionedNode[]
   edges: PositionedEdge[]
@@ -1320,11 +1317,17 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
     after: [], mutates: ['extract'], determinism: 'pure-order',
-    run: c => { extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins); retainGraphText(c, c.style) },
+    run: c => {
+      if (c.elkResult) extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins)
+      retainGraphText(c, c.style)
+    },
   },
   {
     id: 'alignLayerNodes', doc: 'snap same-layer nodes onto a shared flow-axis line',
     after: ['extractEdgesRecursively'], mutates: ['positions', 'edges'], determinism: 'in-place',
+    // Native layered placement owns rank alignment, ports and label channels.
+    // ELK repairs and the shared forest fan preparation retain their passes.
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     mayChangeMetrics: { bends: 'improve-only', straight: 'improve-only' },
     run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction) },
   },
@@ -1333,17 +1336,21 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['alignLayerNodes'], mutates: ['positions', 'dimensions'], determinism: 'in-place',
     // This preparation pass equalizes dimensions and may move peer centers.
     // The following alignment passes own the final barycenter contract.
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
     id: 'alignForkRejoinPeerCenters', doc: 'center fork/rejoin hubs on their peer barycenter',
     after: ['equalizePeerNodeDimensions'], mutates: ['positions'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { alignForkRejoinPeerCenters(c.nodes, c.edges, c.groups, c.graph, c.style) },
   },
   {
     id: 'alignPortLanes', doc: 'slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)',
     after: ['alignForkRejoinPeerCenters'], mutates: ['positions', 'edges'], determinism: 'in-place',
+    // Moving a native node would invalidate its reserved label channels.
+    enabled: c => Boolean(c.elkResult),
     mayChangeMetrics: { straight: 'improve-only', portRate: 'improve-only', bends: 'improve-only' },
     run: c => { alignPortLanes(c.nodes, c.edges, c.groups, c.graph.direction, c.style) },
   },
@@ -1351,6 +1358,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'centerPeerBarycenters', proposal: true, doc: 'center peer fan-in/fan-out trunks over peer barycenters (#57/#61)',
     after: ['alignPortLanes'], mutates: ['positions'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => {
       let rollback: (() => void) | undefined
       centerPeerBarycenters(c.nodes, c.edges, c.groups, c.graph, c.style, () => { rollback ??= checkpointCentering(c) })
@@ -1360,6 +1368,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'honorLinkRankDistance', doc: 'shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)',
     after: ['centerPeerBarycenters'], mutates: ['positions'], determinism: 'in-place',
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { honorLinkRankDistance(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
@@ -1369,6 +1378,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'alignLabeledSourcePort', doc: 'slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)',
     after: ['honorLinkRankDistance'], mutates: ['positions', 'edges'], determinism: 'in-place',
     mayChangeMetrics: { portRate: 'improve-only' },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { alignLabeledSourcePort(c.nodes, c.edges, c.groups, c.graph, c.graph.direction, c.style) },
   },
   {
@@ -1388,6 +1398,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // whether or not the plain bundler ran, so the marker must too.
     id: 'markCorankFanInBundles', doc: 're-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)',
     after: ['bundleEdgePaths'], mutates: ['edges'], determinism: 'in-place',
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { markCorankFanInBundles(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
@@ -1411,23 +1422,24 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     id: 'applySymmetricFanoutEmissions', doc: 're-route small equivalent fan-outs symmetrically; mark bundle-owned',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
     mayChangeMetrics: { symErr: 'improve-only', bends: { worsenBy: 2 } },
+    enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     run: c => { applySymmetricFanoutEmissions(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'applySymmetricParallelEdgeLanes', doc: 'separate parallel edges into symmetric non-crossing lanes',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
-    enabled: context => hasParallelPair(context.edges, true),
+    enabled: context => (Boolean(context.elkResult) || context.mergeEdges) && hasParallelPair(context.edges, true),
     mayChangeMetrics: { symErr: 'improve-only', crossings: 'improve-only' },
     run: c => { applySymmetricParallelEdgeLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'applyParallelDuplicateLanes', doc: 'split exact duplicate edges into separated lanes',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
-    enabled: context => hasParallelPair(context.edges),
+    enabled: context => (Boolean(context.elkResult) || context.mergeEdges) && hasParallelPair(context.edges),
     // Separating genuinely shared duplicate ink preserves authored multiplicity.
     // A local lane proposal may spend at most one crossing per repaired pair.
     mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true }, parallelOverlaps: 'improve-only' },
-    run: c => { applyParallelDuplicateLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled) },
+    run: c => { applyParallelDuplicateLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.elkResult ? undefined : c.style) },
   },
   {
     id: 'collapseTinyBundledHitches', doc: 'remove sub-perceptual hitches introduced by bundling',
@@ -1451,7 +1463,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
       portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
     },
-    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
+    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true }) },
   },
   {
     id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
@@ -1476,7 +1488,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'separateEdgeLabelPills', doc: 'slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)',
     after: ['repairLabelsOffOwnRoute'], mutates: ['edges'], determinism: 'in-place',
-    run: c => { separateEdgeLabelPills({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => { separateEdgeLabelPills({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style, c.elkResult ? undefined : { preserveRouteClearance: true }) },
   },
   {
     id: 'closeRouteContracts', doc: 're-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)',
@@ -1660,6 +1672,23 @@ function elkToPositioned(
   // Extract nodes and groups recursively
   extractNodesAndGroups(elkResult, graph, subgraphIds, nodes, groups, 0, 0)
 
+  return finishGraphGeometry({ width: elkResult.width ?? 800, height: elkResult.height ?? 600, nodes, edges, groups }, graph, mergeEdges, layoutPadding, style, stateNoteMargin, elkResult)
+}
+
+/** Both producers enter the same route, text and geometry contracts. Direct
+ * producers already own edges; only the ELK adapter needs edge extraction. */
+function finishGraphGeometry(
+  initial: PositionedGraph,
+  graph: MermaidGraph,
+  mergeEdges: boolean,
+  layoutPadding: number,
+  style: ResolvedRenderStyle,
+  stateNoteMargin: number,
+  elkResult?: ElkNode,
+  sharedEdges?: readonly number[],
+): LayoutRouteProposal {
+  const { nodes, edges, groups } = initial
+
   // Compute margin positions for cross-hierarchy edge routing.
   // Margins sit outside all group bounding boxes so edges don't cross through subgraphs.
   const allBounds = flattenGroupBounds(groups)
@@ -1689,13 +1718,14 @@ function elkToPositioned(
     stateNoteMargin,
     frozen: false,
   }
+  if (sharedEdges) for (const index of sharedEdges) ctx.bundled.add(edges[index]!)
   retainGraphText(ctx, style)
   runPipeline(ctx, LAYOUT_PIPELINE, { measureMetrics: measureLayoutPass })
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
-  let width = elkResult.width ?? 800
-  let height = elkResult.height ?? 600
+  let width = initial.width
+  let height = initial.height
   const arrowMargin = ARROW_HEAD.width
   const padding = layoutPadding
 
@@ -1856,6 +1886,16 @@ export function layoutGraphSync(
   return positioned
 }
 
+/** @internal Architecture owns routes and its final family certificate. This
+ * result is placement only and must never be exposed as a certified graph. */
+export function layoutNativeGraphPlacementSync(
+  graph: MermaidGraph, options: LayoutEngineOptions = {},
+): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+  assertMermaidGraphWork(graph)
+  const style = resolveRenderStyle(options, undefined, options.styleFace)
+  return layoutAgenticPlacement(graph, options, style, agenticGraphBindings)
+}
+
 function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
   const moveGroup = (group: PositionedGroup): void => {
     group.y += dy
@@ -1939,7 +1979,7 @@ function layoutCandidate(
       result = candidate
       break
     } catch (err) {
-      if (err instanceof DiagramWorkLimitError) throw err
+      if (err instanceof DiagramWorkLimitError || err instanceof DeferredDependencyError) throw err
       lastError = err
     }
   }
@@ -1953,9 +1993,48 @@ function layoutCandidate(
   return bundled.positioned
 }
 
+export type AgenticGraphOptions = LayoutEngineOptions
+export type AgenticGraphBindings = {
+  customTextMeasurementActive: typeof customTextMeasurementActive
+  certifyCandidate: typeof certifyCandidate
+  retainSelection: typeof retainSelection
+  countOpposingRouteOverlaps: typeof countOpposingRouteOverlaps
+  countParallelRouteOverlaps: typeof countParallelRouteOverlaps
+  measureLabelConflicts: typeof measureLabelConflicts
+  countEdgeCrossings: typeof countEdgeCrossings
+  DEFAULTS: typeof DEFAULTS
+  LABEL_PILL_PADDING: typeof LABEL_PILL_PADDING
+  measureRenderStage: typeof measureRenderStage
+  graphTextBlock: typeof graphTextBlock
+  resolveLabelContent: typeof resolveLabelContent
+  groupTitleWidth: typeof groupTitleWidth
+  estimateNodeSize: typeof estimateNodeSize
+  resolveNodeInlineStyle: typeof resolveNodeInlineStyle
+  resolveEdgeInlineStyle: typeof resolveEdgeInlineStyle
+  resolveClassInlineStyle: typeof resolveClassInlineStyle
+  containsNonFiniteNumber: typeof containsNonFiniteNumber
+  finishGraphGeometry: typeof finishGraphGeometry
+  unsupported: (reason: string) => never
+}
+const agenticGraphBindings: AgenticGraphBindings = {
+  customTextMeasurementActive, certifyCandidate, retainSelection, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts,
+  DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry,
+  unsupported: reason => { throw new GraphLayoutUnsupportedError(reason) },
+}
+
+function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+  // Preserve existing bytes, receipts and the explicitly enabled legacy forest
+  // experiment when no selector was supplied.
+  if (!options.graphLayout) return layoutElkGraph(graph, options)
+  return runMeasuredGraphBackend(options, () => {
+    const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
+    return layoutAgenticCandidate(graph, options, style, agenticGraphBindings)
+  }, () => layoutElkGraph(graph, options), true, (positioned, decision) => { positioned.layoutDecision = decision })
+}
+
 /** Four deterministic strategy combinations, each with the existing bounded
  * ELK option degradation ladder. No recursive retry or process-env mutation. */
-function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
   const compareRoutes = options.compareRoutePreferences !== false
@@ -1976,7 +2055,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   // Tight spacing can remove the forest producer's route channels and break
   // mandatory downstream pass contracts. Preserve ELK for those requests.
   const forestSpacing = (options.nodeSpacing ?? DEFAULTS.nodeSpacing) > 0 && (options.layerSpacing ?? DEFAULTS.layerSpacing) > 0
-  const preliminary = performanceExperimentEnabled('indexed-layout') && forestSpacing && !options.stateVisual && !options.preserveSubgraphChildOrder && isIndexedForestGraph(graph)
+  const preliminary = options.graphLayout === undefined && performanceExperimentEnabled('indexed-layout') && forestSpacing && !options.stateVisual && !options.preserveSubgraphChildOrder && isIndexedForestGraph(graph)
     ? { strategy: 'indexed-forest', produce: () => layoutCandidate(graph, options, rememberAlternative, true), preferNext: preferReadableTitles }
     : undefined
   if (!options.separateHierarchy) {

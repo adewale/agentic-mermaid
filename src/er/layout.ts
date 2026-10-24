@@ -3,7 +3,7 @@ import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limi
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 /**
- * ER diagram layout engine (ELK.js).
+ * ER measured layout adapters.
  *
  * Each entity box has:
  *   1. Header (entity name)
@@ -20,6 +20,9 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout/direction.ts'
+import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
+import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
+import { measureRenderStage } from '../render-stages.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../shared/config-spacing.ts'
 import { erCommentText } from './text.ts'
@@ -28,6 +31,8 @@ import { segmentThroughShape } from '../layout-rubric.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { simplifyPolyline } from '../route-contracts.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
+import { erRelationshipBlock, finalizeErRelationshipLabels } from './label-layout.ts'
+export { erRelationshipBlock } from './label-layout.ts'
 export { erCommentText } from './text.ts'
 
 /** Layout constants for ER diagrams */
@@ -118,10 +123,7 @@ export function erGroupBlock(text: DisplayTextInput, style: ResolvedRenderStyle)
   return preparePixelText(text, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
 }
 
-export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' | 'identifying' | 'labelContent'>, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PixelTextBlock {
-  const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
-  return preparePixelText(resolveLabelContent(rel.label, rel.labelContent), { transform: role?.textTransform ?? style.edgeTextTransform, fontSize: role?.fontSize ?? style.edgeLabelFontSize, fontWeight: role?.fontWeight ?? style.edgeLabelFontWeight, letterSpacing: role?.letterSpacing ?? style.edgeLetterSpacing })
-}
+
 
 export function erAttributeBlocks(attr: ErAttribute) {
   const mono = { display: 'literal' as const, fontSize: ER.attrFontSize, fontWeight: ER.attrFontWeight, monospace: true }
@@ -182,7 +184,7 @@ function erInteriorRoute(from: { x: number; y: number; width: number; height: nu
 function erPreferredLabelBounds(relationships: readonly PositionedErRelationship[], blocks: readonly PixelTextBlock[]) {
   return relationships.flatMap((rel, index) => {
     if (!rel.label || rel.points.length < 2) return []
-    const mid = calculatePathMidpoint(rel.points), block = blocks[index]!
+    const mid = rel.labelPosition ?? calculatePathMidpoint(rel.points), block = blocks[index]!
     return [{ x0: mid.x - block.width / 2 - 8, x1: mid.x + block.width / 2 + 8, y0: mid.y - block.height / 2 - 8, y1: mid.y + block.height / 2 + 8 }]
   })
 }
@@ -200,22 +202,30 @@ export class ErRouteGeometryError extends Error {
 /** Reroute each relationship whose route crosses an unrelated card or a group
  * header: a route to a group frame, or one rebuilt after separating compounds
  * moved only one of its ends. */
-function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[]): void {
+function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[], style?: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): void {
   if (groups.length === 0) return
   const generated = generatedIds([...entities.map(entity => entity.id), ...groups.map(group => group.id)])
-  const groupIds = new Set(groups.map(group => group.id)), entityIds = new Map<string, string>()
+  const groupIds = new Set(groups.map(group => group.id)), entityIds = new Map<string, string>(), headerIds = new Map<string, string>()
   const obstacles: PositionedNode[] = [
     ...entities.map(entity => { const id = generated(`er-entity:${entity.id}`, ['er', 'entity', entity.id]); entityIds.set(id, entity.id); return { ...entity, id, shape: 'rectangle' as const } }),
-    ...groups.map(group => ({ ...group, id: generated(`er-header:${group.id}`, ['er', 'header', group.id]), height: group.headerHeight, shape: 'rectangle' as const })),
+    ...groups.map(group => { const id = generated(`er-header:${group.id}`, ['er', 'header', group.id]); headerIds.set(id, group.id); return { ...group, id, height: group.headerHeight, shape: 'rectangle' as const } }),
   ]
   let operations = 0
   const charge = (count: number) => { operations += count; if (operations > 400_000) throw new ErRouteWorkLimitError() }
   for (const [index, rel] of relationships.entries()) {
     if (rel.points.length < 2) continue
     const [start, end] = [rel.points[0]!, rel.points.at(-1)!]
+    const roleStyle = style ? resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false }) : undefined
+    // A clear sharp polyline can still cut a card when its corners are rounded.
+    // Native frame repair reserves the rendered bend and stroke envelope too.
+    const clearance = style ? (roleStyle?.bendRadius ?? style.edgeBendRadius) + 2 * (roleStyle?.lineWidth ?? style.lineWidth) : 0
     const physical = obstacles.filter(node => { const id = entityIds.get(node.id); return id === undefined || groupIds.has(id) || id !== rel.entity1 && id !== rel.entity2 })
+      .map(node => clearance && headerIds.get(node.id) !== rel.entity1 && headerIds.get(node.id) !== rel.entity2
+        ? { ...node, x: node.x - clearance, y: node.y - clearance, width: node.width + 2 * clearance, height: node.height + 2 * clearance } : node)
     const blocked = (points: Point[]) => points.slice(1).some((point, i) => physical.some(node => { charge(1); return segmentThroughShape(points[i]!, point, node) }))
     if (!blocked(rel.points)) continue
+    // A replacement route does not preserve the producer's reserved segment.
+    delete rel.labelPosition
     // Keep actual cardinality-bearing face contacts; shared routing owns only
     // the middle between 20px terminal stems in the reserved sibling exits.
     const next = rel.points.find(point => point.x !== start.x || point.y !== start.y)!, previous = [...rel.points].reverse().find(point => point.x !== end.x || point.y !== end.y)!
@@ -249,6 +259,16 @@ function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedE
         : { ...node, y: node.y - padY, height: node.height + padY * 2 })
       rerouteEdgesThroughNodes([...crossPadded, from, to], [edge], { direction }, charge)
     }
+    if (style && blocked(edge.points)) {
+      // A wide header can separate vertically attached ports even when their
+      // centers differ more in x. Try the other aisle within the same budget.
+      const otherDirection = direction === 'LR' || direction === 'RL' ? end.y >= start.y ? 'TB' : 'BT' : end.x >= start.x ? 'LR' : 'RL'
+      charge(physical.length)
+      const otherPadded = physical.map(node => otherDirection === 'TB' || otherDirection === 'BT'
+        ? { ...node, x: node.x - padX, width: node.width + padX * 2 }
+        : { ...node, y: node.y - padY, height: node.height + padY * 2 })
+      rerouteEdgesThroughNodes([...otherPadded, from, to], [edge], { direction: otherDirection }, charge)
+    }
     rel.points = simplifyPolyline([start, ...edge.points, end])
     if (blocked(rel.points)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   }
@@ -265,13 +285,19 @@ export function erCommentColumnWidth(attributes: readonly ErAttribute[]): number
   return widest > 0 ? widest + ER_COMMENT_GAP : 0
 }
 
-/** Build ELK graph and size map from an ER diagram. */
-function buildErElkGraph(
-  diagram: ErDiagram,
-  options: RenderOptions,
-  styleFace?: Readonly<InternalStyleFace>,
-): { elkGraph: ElkNode; entitySizes: EntitySizeMap } {
-  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
+interface ErPlacement {
+  width?: number
+  height?: number
+  entities: { id: string; x?: number; y?: number; width?: number; height?: number }[]
+  routes: Map<number, Point[]>
+  labelPositions?: Map<number, Point>
+  /** Producer-owned selection metadata, independent of requested backend or surviving anchors. */
+  labelPlacement?: 'shaft-aware'
+  /** Scoped placement repairs must leave cardinalities outside their cards. */
+  preserveTerminalNormals?: true
+}
+
+function measureErEntities(diagram: ErDiagram, style: ResolvedRenderStyle): EntitySizeMap {
   const entitySizes: EntitySizeMap = new Map()
 
   for (const entity of diagram.entities) {
@@ -290,6 +316,18 @@ function buildErElkGraph(
     const height = headerHeight + Math.max(entity.attributes.length, 1) * ER.rowHeight
     entitySizes.set(entity.id, { width, height, headerHeight })
   }
+
+  return entitySizes
+}
+
+/** Construct ELK input only when that backend is selected. */
+function buildErElkGraph(
+  diagram: ErDiagram,
+  options: RenderOptions,
+  entitySizes: EntitySizeMap,
+  styleFace?: Readonly<InternalStyleFace>,
+): { elkGraph: ElkNode; entitySizes: EntitySizeMap } {
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
 
   const elkGraph: ElkNode = {
     id: 'root',
@@ -329,9 +367,9 @@ function buildErElkGraph(
   return { elkGraph, entitySizes }
 }
 
-/** Extract positioned entities and relationships from ELK result. */
+/** Project either measured placement through the ER-owned geometry rules. */
 function extractErLayout(
-  result: ElkNode,
+  result: ErPlacement,
   diagram: ErDiagram,
   entitySizes: EntitySizeMap,
   style: ResolvedRenderStyle,
@@ -341,7 +379,7 @@ function extractErLayout(
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
 
   const positionedEntities: PositionedErEntity[] = []
-  for (const child of result.children ?? []) {
+  for (const child of result.entities) {
     const entity = entityLookup.get(child.id)
     if (entity) {
       const classStyle: Record<string, string> = {}
@@ -371,11 +409,14 @@ function extractErLayout(
   const interior = erInteriorCorridors(diagram, relationshipBlocks)
   applyErGroupDirections(diagram, positionedEntities, relationshipBlocks)
   const positionedGroups = deriveErGroups(diagram, positionedEntities, style, interior.padding)
-  separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks, interior.padding, interior.exits)
+  // Reserve a full terminal zone plus the rounded envelopes of both peers.
+  // Otherwise an unrelated card can leave no legal cardinality-bearing stem.
+  const siblingGap = result.preserveTerminalNormals ? 20 + 2 * Math.max(style.edgeBendRadius, ...diagram.relationships.map(rel => resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })?.bendRadius ?? style.edgeBendRadius)) : 20
+  separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks, interior.padding, interior.exits, siblingGap)
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
   positionedGroups.forEach(group => boxes.set(group.id, group))
-  const edgeById = new Map((result.edges ?? []).map(edge => [edge.id, edge]))
+  const edgeById = result.routes
   const relationships: PositionedErRelationship[] = []
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
@@ -384,18 +425,18 @@ function extractErLayout(
     const dx = from && originalFrom ? from.x - originalFrom.x : undefined
     const dy = from && originalFrom ? from.y - originalFrom.y : undefined
     // A local direction or compound repair must not replace an unrelated
-    // ELK route. Whole-component translations preserve its complete shape.
-    const elkEdge = dx !== undefined && dy !== undefined && to && originalTo &&
+    // producer route. Whole-component translations preserve its complete shape.
+    const placementRoute = dx !== undefined && dy !== undefined && to && originalTo &&
       Math.abs(to.x - originalTo.x - dx) < 0.001 && Math.abs(to.y - originalTo.y - dy) < 0.001
-      ? edgeById.get(`e${i}`) : undefined
+      ? edgeById.get(i) : undefined
     const points: Point[] = []
+    let labelPosition: Point | undefined
     if (from && to && interior.lanes.has(i)) {
       points.push(...erInteriorRoute(from, to, interior.lanes.get(i)!))
-    } else if (elkEdge?.sections?.length) {
-      const section = elkEdge.sections[0]!
-      points.push({ x: section.startPoint.x + dx!, y: section.startPoint.y + dy! })
-      for (const bp of section.bendPoints ?? []) points.push({ x: bp.x + dx!, y: bp.y + dy! })
-      points.push({ x: section.endPoint.x + dx!, y: section.endPoint.y + dy! })
+    } else if (placementRoute?.length) {
+      points.push(...placementRoute.map(point => ({ x: point.x + dx!, y: point.y + dy! })))
+      const reserved = result.labelPositions?.get(i)
+      if (reserved) labelPosition = { x: reserved.x + dx!, y: reserved.y + dy! }
     } else {
       if (from && to) {
         const fromCenter = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
@@ -404,8 +445,13 @@ function extractErLayout(
         const end = rectBoundaryToward(to, fromCenter)
         points.push(start)
         if (Math.abs(start.x - end.x) > 0.5 && Math.abs(start.y - end.y) > 0.5) {
-          const horizontalFirst = Math.abs(toCenter.x - fromCenter.x) >= Math.abs(toCenter.y - fromCenter.y)
-          if (horizontalFirst) {
+          const horizontalFirst = result.preserveTerminalNormals
+            ? Math.abs(start.x - from.x) < .01 || Math.abs(start.x - from.x - from.width) < .01
+            : Math.abs(toCenter.x - fromCenter.x) >= Math.abs(toCenter.y - fromCenter.y)
+          const horizontalLast = Math.abs(end.x - to.x) < .01 || Math.abs(end.x - to.x - to.width) < .01
+          if (result.preserveTerminalNormals && horizontalFirst !== horizontalLast) {
+            points.push(horizontalFirst ? { x: end.x, y: start.y } : { x: start.x, y: end.y })
+          } else if (horizontalFirst) {
             const middleX = (start.x + end.x) / 2
             points.push({ x: middleX, y: start.y }, { x: middleX, y: end.y })
           } else {
@@ -420,10 +466,11 @@ function extractErLayout(
       entity1: rel.entity1, entity2: rel.entity2,
       cardinality1: rel.cardinality1, cardinality2: rel.cardinality2,
       label: rel.label, ...(rel.labelContent ? { labelContent: rel.labelContent } : {}), labelBlock: relationshipBlocks[i], identifying: rel.identifying, points,
+      ...(labelPosition ? { labelPosition } : {}),
     })
   }
 
-  repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks)
+  repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks, result.preserveTerminalNormals ? style : undefined, styleFace)
 
   // Nested group padding can extend left/top of ELK's entity-only canvas, and
   // group endpoints are routed after ELK. Translate the complete geometry as
@@ -445,7 +492,10 @@ function extractErLayout(
   if (dx !== 0 || dy !== 0) {
     for (const entity of positionedEntities) { entity.x += dx; entity.y += dy }
     for (const group of positionedGroups) { group.x += dx; group.y += dy }
-    for (const relationship of relationships) for (const point of relationship.points) { point.x += dx; point.y += dy }
+    for (const relationship of relationships) {
+      for (const point of relationship.points) { point.x += dx; point.y += dy }
+      if (relationship.labelPosition) { relationship.labelPosition.x += dx; relationship.labelPosition.y += dy }
+    }
   }
   const width = Math.max(
     (result.width ?? 600) + dx,
@@ -468,6 +518,7 @@ function extractErLayout(
     entities: positionedEntities,
     relationships,
     groups: positionedGroups,
+    ...(result.labelPlacement ? { labelPlacement: result.labelPlacement } : {}),
   }
 }
 
@@ -490,7 +541,7 @@ function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity
     const horizontal = group.direction === 'LR' || group.direction === 'RL'
     const ordered = group.direction === 'RL' || group.direction === 'BT' ? [...members].reverse() : members
     const ids = new Set(members.map(member => member.id))
-    // The scoped adapter replaces ELK routes. Retain enough straight corridor
+    // The scoped adapter replaces producer routes. Retain enough straight corridor
     // for the actual label plus both cardinality glyphs before rerouting.
     const gap = Math.max(48, ...diagram.relationships.flatMap((rel, i) =>
       rel.label && ids.has(rel.entity1) && ids.has(rel.entity2)
@@ -528,12 +579,12 @@ function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], styl
   return positioned
 }
 
-/** Flat ELK placement reserves entity boxes, not their surrounding frames.
+/** Measured placement reserves entity boxes, not their surrounding frames.
  * Pack only colliding sibling compounds/direct entities, bottom-up, moving
  * each compound as one unit so scoped directions and ownership survive.
  * Each collision advances beyond a previously placed item, bounding a local
  * repair by the number of siblings; no convergence/retry loop is needed. */
-function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], style: ResolvedRenderStyle, relationshipBlocks: readonly PixelTextBlock[], bottomPadding: ReadonlyMap<string, number>, exitPadding: ReadonlyMap<string, number>): boolean {
+function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], style: ResolvedRenderStyle, relationshipBlocks: readonly PixelTextBlock[], bottomPadding: ReadonlyMap<string, number>, exitPadding: ReadonlyMap<string, number>, siblingGap = 20): boolean {
   if (groups.length === 0) return false
   type Box = { x: number; y: number; width: number; height: number }
   type Item = { box: Box; ids: Set<string>; move: (dx: number, dy: number) => void }
@@ -595,8 +646,8 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
           const mainSpan = horizontal ? 'width' : 'height'
           const mainOverlap = Math.min(item.box[main] + item.box[mainSpan], other.box[main] + other.box[mainSpan]) - Math.max(item.box[main], other.box[main])
           const crossOverlap = Math.min(item.box[cross] + item.box[span], other.box[cross] + other.box[span]) - Math.max(item.box[cross], other.box[cross])
-          if (mainOverlap > 0.5 && crossOverlap > -clearance + 0.5) {
-            delta = Math.max(delta, other.box[cross] + other.box[span] + Math.max(20, clearance) - item.box[cross])
+          if (mainOverlap > 0.5 && crossOverlap > -Math.max(clearance, siblingGap > 20 ? siblingGap : 0) + 0.5) {
+            delta = Math.max(delta, other.box[cross] + other.box[span] + Math.max(siblingGap, clearance) - item.box[cross])
           }
         }
         if (delta === 0) break
@@ -728,14 +779,45 @@ export function layoutErDiagram(
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
   assertErDiagramWork(diagram)
+  const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
   if (diagram.entities.length === 0) {
-    if (diagram.groups.length > 0) return withErTitle(prepareErText(layoutErGroupsOnly(diagram, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
-    return withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+    const empty = (): PositionedErDiagram => withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, style)
+    const frames = () => diagram.groups.length ? withErTitle(prepareErText(layoutErGroupsOnly(diagram, style, styleFace), style, styleFace), diagram.title, style) : empty()
+    return runMeasuredGraphBackend(options, frames, frames)
   }
-
-  const { elkGraph, entitySizes } = buildErElkGraph(diagram, options, styleFace)
-  const result = elkLayoutSync(elkGraph)
-  return withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+  const entitySizes = measureErEntities(diagram, style)
+  const result = runMeasuredGraphBackend<ErPlacement>(options, () => {
+    const indices = new Map(diagram.entities.map((entity, index) => [entity.id, index]))
+    const subjects = new Set([...indices.keys(), ...diagram.groups.map(group => group.id)])
+    const edges = diagram.relationships.flatMap((rel, relationshipIndex) => {
+      const source = indices.get(rel.entity1), target = indices.get(rel.entity2)
+      if (!subjects.has(rel.entity1) || !subjects.has(rel.entity2)) throw new Error('ER relationship references an undeclared entity or frame')
+      // The ER adapter owns frame endpoints and boundary routes after placement.
+      if (source === undefined || target === undefined) return []
+      const block = erRelationshipBlock(rel, style, styleFace)
+      return [{ relationshipIndex, source, target, minSpan: 1, ...(rel.label ? { label: { width: block.width + 8, height: block.height + 6 } } : {}) }]
+    })
+    const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
+      nodes: diagram.entities.map(entity => ({ id: entity.id, ...entitySizes.get(entity.id)! })), edges,
+      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: options.nodeSpacing ?? ER.nodeSpacing,
+      layerSpacing: options.layerSpacing ?? ER.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+    }))
+    return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
+      entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...entitySizes.get(diagram.entities[index]!.id)! })),
+      routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),
+      labelPositions: new Map(placed.edges.flatMap((route, index) => route.labelPosition
+        ? [[edges[index]!.relationshipIndex, { ...route.labelPosition }] as const] : [])) }
+  }, () => {
+    const { elkGraph } = buildErElkGraph(diagram, options, entitySizes, styleFace)
+    const placed = elkLayoutSync(elkGraph)
+    return { width: placed.width, height: placed.height, entities: placed.children ?? [], routes: new Map((placed.edges ?? []).map(edge => {
+      const section = edge.sections?.[0]
+      return [Number(edge.id.slice(1)), section ? [section.startPoint, ...(section.bendPoints ?? []), section.endPoint] : []]
+    })) }
+  })
+  const positioned = withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, style, styleFace), style, styleFace), diagram.title, style)
+  finalizeErRelationshipLabels(positioned, style, styleFace)
+  return positioned
 }
 
 /** The diagram's title takes a band above everything the layout placed. */
@@ -746,7 +828,10 @@ function withErTitle(positioned: PositionedErDiagram, title: string | undefined,
   const dy = band.height
   for (const entity of positioned.entities) entity.y += dy
   for (const group of positioned.groups) group.y += dy
-  for (const rel of positioned.relationships) for (const point of rel.points) point.y += dy
+  for (const rel of positioned.relationships) {
+    for (const point of rel.points) point.y += dy
+    if (rel.labelPosition) rel.labelPosition.y += dy
+  }
   const width = Math.max(positioned.width, band.width + 2 * ER.padding)
   return { ...positioned, width, height: positioned.height + dy, title: positionDiagramTitle(band, width, ER.padding) }
 }

@@ -113,7 +113,7 @@ function renderArchitectureTerminalWithContext(ctx: AsciiContext): TerminalArtif
   // precedence (explicit RenderOptions > source config > defaults) and the
   // terminal projector has sanitized it. Re-reading raw themeVariables here
   // created a second, unsafe color authority unique to Architecture.
-  return renderArchitectureTerminal(architectureSourceLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, ctx.options)
+  return renderArchitectureTerminal(architectureSourceLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, { ...ctx.options, graphLayout: ctx.renderOptions.graphLayout })
 }
 
 const FLOWCHART_RENDER_HOOKS = {

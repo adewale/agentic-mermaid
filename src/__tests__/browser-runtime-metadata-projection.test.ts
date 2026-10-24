@@ -1,0 +1,157 @@
+import { afterAll, describe, expect, test } from 'bun:test'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { transformSync } from 'esbuild'
+import ts from 'typescript'
+import { runtimeRenderContractPlugin } from '../../scripts/build/runtime-render-contract.ts'
+
+const root = fileURLToPath(new URL('../../', import.meta.url))
+const temporary = mkdtempSync(join(tmpdir(), 'mermaid-runtime-metadata-'))
+afterAll(() => rmSync(temporary, { recursive: true, force: true }))
+
+type ProjectionOptions = Parameters<typeof runtimeRenderContractPlugin>[0]
+
+function project(path: string, options: ProjectionOptions = {}): string {
+  const loaders: Array<{
+    filter: RegExp
+    load: (args: { path: string }) => { contents: string; loader: 'ts'; resolveDir: string } | undefined
+  }> = []
+  runtimeRenderContractPlugin(options).setup({
+    onLoad({ filter }, load) { loaders.push({ filter, load }) },
+  })
+  return loaders.find(loader => loader.filter.test(path))?.load({ path })?.contents ?? readFileSync(path, 'utf8')
+}
+
+function fixture(relative: string, source: string): string {
+  const path = join(temporary, relative)
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, source)
+  return path
+}
+
+const printer = ts.createPrinter({ removeComments: true })
+function conformanceStructure(source: string) {
+  const file = ts.createSourceFile('backend-conformance.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const calls: Array<{ arguments: string[]; literalObservation: boolean; observation?: string; evaluatedObservation?: string }> = []
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'outcome') {
+      const observation = node.arguments[1]
+      const literal = observation && (ts.isStringLiteral(observation) || ts.isNoSubstitutionTemplateLiteral(observation)) ? observation : undefined
+      const discarded = observation && ts.isParenthesizedExpression(observation) ? observation.expression : undefined
+      const evaluated = discarded && ts.isBinaryExpression(discarded) && discarded.operatorToken.kind === ts.SyntaxKind.CommaToken ? discarded.left : undefined
+      calls.push({
+        arguments: node.arguments.map(argument => printer.printNode(ts.EmitHint.Expression, argument, file)),
+        literalObservation: literal !== undefined,
+        observation: literal?.text,
+        evaluatedObservation: evaluated && printer.printNode(ts.EmitHint.Expression, evaluated, file),
+      })
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(file)
+  const functions = new Map(file.statements.flatMap(statement => ts.isFunctionDeclaration(statement) && statement.name
+    ? [[statement.name.text, printer.printNode(ts.EmitHint.Unspecified, statement, file)] as const] : []))
+  return { calls, functions }
+}
+
+describe('browser runtime metadata projection', () => {
+  test('leaves conformance reports untouched unless explicitly opted out', () => {
+    const path = join(root, 'src/scene/backend-conformance.ts'), source = readFileSync(path, 'utf8')
+    expect(project(path)).toBe(source)
+    expect(project(path, { conformanceObservations: true })).toBe(source)
+  })
+
+  test('preserves predicates, diagnostics and observation evaluation in the real executable conformance module', () => {
+    const path = join(root, 'src/scene/backend-conformance.ts')
+    const before = conformanceStructure(readFileSync(path, 'utf8'))
+    const after = conformanceStructure(project(path, { conformanceObservations: false }))
+    expect(after.calls.length).toBe(before.calls.length)
+    expect(before.calls.filter(call => call.literalObservation).length).toBeGreaterThan(0)
+    for (const [index, original] of before.calls.entries()) {
+      const projected = after.calls[index]!
+      expect(projected.arguments[0]).toBe(original.arguments[0])
+      expect(projected.arguments.slice(2)).toEqual(original.arguments.slice(2))
+      if (original.literalObservation) expect(projected.observation).toBe('')
+      else expect(projected.evaluatedObservation).toBe(original.arguments[1])
+    }
+    // These owners preserve witness IDs, claim statuses/limitations, report
+    // acceptance and failure diagnostics independently of observation prose.
+    for (const name of ['outcome', 'runCapabilityClaims', 'runBackendConformance']) {
+      expect(before.functions.has(name)).toBe(true)
+      expect(after.functions.get(name)).toBe(before.functions.get(name))
+    }
+  })
+
+  test('preserves evaluation, coercion, throws and diagnostics after minifying projected observations', () => {
+    const source = [
+      'function outcome(passed, observation, diagnostic) { return passed ? { passed, observation } : { passed, observation, diagnostic }; }',
+      'function run() {',
+      '  const events = [];',
+      "  const check = () => { events.push('check'); return false; };",
+      "  const observe = () => { events.push('observe'); return 'dynamic observation'; };",
+      "  const diagnose = () => { events.push('diagnose'); return 'failure diagnostic'; };",
+      "  const object = { toString() { events.push('coerce'); return 'coerced observation'; } };",
+      '  const results = [',
+      "    outcome(check(), 'literal observation', diagnose()),",
+      "    outcome(true, `plain template observation`, 'unused diagnostic'),",
+      '    outcome(false, observe(), diagnose()),',
+      "    outcome(true, `computed ${observe()}`, 'template diagnostic'),",
+      "    outcome(true, check() ? 'yes' : 'no', diagnose()),",
+      "    outcome(true, `object ${object}`, diagnose()),",
+      '  ];',
+      '  let thrown;',
+      "  try { outcome(true, (() => { events.push('throw'); throw new Error('observation failure'); })(), diagnose()); }",
+      '  catch (error) { thrown = error.message; }',
+      '  return { events, results, thrown };',
+      '}',
+    ].join('\n')
+    const path = fixture('src/scene/backend-conformance.ts', source)
+    const before = Function(`${source}\nreturn run();`)() as { events: string[]; results: Array<{ passed: boolean; observation: string; diagnostic?: string }>; thrown?: string }
+    const projected = project(path, { conformanceObservations: false })
+    const minified = transformSync(`${projected}\ncapture(run());`, { loader: 'js', minify: true }).code
+    let emitted: typeof before | undefined
+    Function('capture', minified)((value: typeof before) => { emitted = value })
+    const direct = Function(`${projected}\nreturn run();`)() as typeof before
+    for (const after of [direct, emitted!]) {
+      expect(after.events).toEqual(before.events)
+      expect(after.thrown).toBe(before.thrown)
+      expect(after.results.map(({ passed, diagnostic }) => ({ passed, diagnostic }))).toEqual(before.results.map(({ passed, diagnostic }) => ({ passed, diagnostic })))
+      expect(after.results.map(result => result.observation)).toEqual(before.results.map(() => ''))
+    }
+  })
+
+  test('keeps schema prose and terminal metadata independently configurable', () => {
+    const source = [
+      'const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = Object.freeze({',
+      '  style: {',
+      "    typeScript: 'string', defaultLabel: 'default label', description: 'option prose',",
+      "    validationExpectation: 'required diagnostic expectation', terminal: 'projected', terminalNote: 'required terminal note',",
+      "    schema: { type: 'object', description: 'schema prose', properties: { description: { type: 'string', description: 'property prose' } } },",
+      '  },',
+      '});',
+      "function paintSchema(description) { return { type: 'string', description }; }",
+      "const PAINT_SCHEMA = paintSchema('helper schema prose');",
+      'function run() { return { field: SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style, paint: PAINT_SCHEMA }; }',
+    ].join('\n')
+    const path = fixture('src/render-contract.ts', source)
+    const terminalRenderer = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: true })}\nreturn run();`)()
+    expect(terminalRenderer.field.terminal).toBe('projected')
+    expect(terminalRenderer.field.terminalNote).toBe('required terminal note')
+    expect(terminalRenderer.field.validationExpectation).toBe('required diagnostic expectation')
+    expect(terminalRenderer.field.schema).toEqual({ type: 'object', properties: { description: { type: 'string' } } })
+    expect(terminalRenderer.paint).toEqual({ type: 'string' })
+    const lazy = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: false })}\nreturn run();`)()
+    expect(lazy.field.terminal).toBeUndefined()
+    expect(lazy.field.terminalNote).toBeUndefined()
+    expect(lazy.field.validationExpectation).toBe(terminalRenderer.field.validationExpectation)
+    expect(lazy.field.schema).toEqual(terminalRenderer.field.schema)
+    const inspector = Function(`${project(path)}\nreturn run();`)()
+    expect(inspector.field.schema.description).toBe('schema prose')
+    expect(inspector.paint.description).toBe('helper schema prose')
+    expect(inspector.field.terminalNote).toBe('required terminal note')
+    const editor = Function(`${project(path, { conformanceObservations: false })}\nreturn run();`)()
+    expect(editor).toEqual(inspector)
+  })
+})

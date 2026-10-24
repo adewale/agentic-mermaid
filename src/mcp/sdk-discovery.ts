@@ -1,6 +1,6 @@
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { describeOps, opSignatures, type OpFamily } from '../agent/op-schema.ts'
-import { CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS } from './sdk-decl.ts'
+import { CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS, compactSdkWhitespace } from './sdk-decl.ts'
 import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface.ts'
 
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
@@ -13,7 +13,7 @@ const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}(d:Pa
  * of initial model context; describe_sdk returns the one family schema needed
  * by the task. SDK_DECLARATION remains the full reference used by docs/evals.
  */
-export const SDK_CORE_DECLARATION = `type DiagramKind = ${DIAGRAM_KIND.replaceAll(' | ', '|')}
+export const SDK_CORE_DECLARATION = compactSdkWhitespace(`type DiagramKind = ${DIAGRAM_KIND.replaceAll(' | ', '|')}
 type MutationOp = { kind: string; [field: string]: unknown }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
 interface SourceLocation { readonly line: number; readonly col: number }
@@ -120,7 +120,7 @@ ${NARROWERS}
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
-}`.replace(/^[ \t]+/gm, '').replace(/; +/g, ';').replace(/: +/g, ':')
+}`.replace(/^[ 	]+/gm, ''))
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 

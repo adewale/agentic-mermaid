@@ -50,6 +50,24 @@ describe('rendered edge label conflicts', () => {
     })
   })
 
+  it('scopes proposal scoring to changed labels or routes without counting unrelated collisions', () => {
+    const positioned = {
+      nodes: [node(), node({ id: 'far', x: 290 })],
+      edges: [
+        labeled(), labeled({ labelPosition: { x: 136, y: 100 } }),
+        edge({ points: [{ x: 90, y: 0 }, { x: 90, y: 200 }] }),
+        edge({ points: [{ x: 110, y: 0 }, { x: 110, y: 200 }] }),
+        labeled({ labelPosition: { x: 300, y: 100 } }),
+        edge({ points: [{ x: 300, y: 0 }, { x: 300, y: 200 }] }),
+      ],
+    }
+    expect(measureLabelConflicts(positioned, style, new Set([2]))).toEqual({ total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1 })
+    expect(measureLabelConflicts(positioned, style, new Set([0]))).toEqual({ total: 4, labelLabel: 1, labelNode: 1, labelEdge: 2 })
+    expect(measureLabelConflicts(positioned, style, new Set([1, 2]))).toEqual({ total: 2, labelLabel: 1, labelNode: 0, labelEdge: 1 })
+    expect(measureLabelConflicts(positioned, style, new Set([4]))).toEqual({ total: 2, labelLabel: 0, labelNode: 1, labelEdge: 1 })
+    expect(measureLabelConflicts(positioned, style, new Set())).toEqual({ total: 0, labelLabel: 0, labelNode: 0, labelEdge: 0 })
+  })
+
   it('does not infer shared semantic label ownership from a bundle or matching text', () => {
     const bundled = labeled({ routeCertificate: { invariant: 'bundle', edgeIndex: 0, routeClass: 'primary-forward', bendCount: 1 } })
     const sibling = labeled({ target: 'C', routeCertificate: { invariant: 'bundle', edgeIndex: 1, routeClass: 'primary-forward', bendCount: 1 } })
@@ -171,15 +189,15 @@ describe('label conflict projections share geometry', () => {
     expect(hiddenShaftLabel.labelConflicts?.labelNode).toBe(1)
   })
 
-  it('limits pill counts to graph families and leaves missing text geometry unmeasured', () => {
+  it('measures specialized text footprints without inventing pills or missing measurements', () => {
     const layout = positionedToRenderedLayout(graph([labeled()], [node()]), 'flowchart')
     for (const kind of ['class', 'er', 'sequence'] as const) {
       const other = { ...layout, kind }
-      expect(measureRenderedLabelConflicts(other)).toBeUndefined()
-      expect(measureQuality(other)).not.toHaveProperty('labelConflicts')
+      expect(measureRenderedLabelConflicts(other)?.labelNode).toBe(1)
+      expect(measureQuality(other).labelMeasurement.measuredEdges).toBe(1)
     }
     delete layout.edges[0]!.label!.bounds
-    expect(measureQuality(layout).labelConflicts?.total).toBe(0)
+    expect(measureQuality(layout).labelConflicts).toBeUndefined()
     expect(measureQuality(layout).labelMeasurement.unmeasuredEdges).toBe(1)
   })
 })

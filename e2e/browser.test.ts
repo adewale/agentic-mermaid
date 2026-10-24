@@ -302,11 +302,38 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
     expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
     expect(worker.url()).toStartWith('blob:')
-    const checks = await standalone.evaluate(async () => {
-      const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt('flowchart LR\nStandalone --> Verified')
-      return artifact.verification.checks
+    const preview = await standalone.evaluate(async () => {
+      const api = (globalThis as any).__mermaid
+      const source = 'flowchart LR\nStandalone --> Verified'
+      const artifact = await api.renderMermaidSVGWithReceipt(source)
+      const selections = []
+      for (const backend of ['elk', 'agentic']) {
+        const result = await api.renderMermaidSVGWithReceipt(source, { graphLayout: { backend } })
+        selections.push({ selected: result.receipt.layoutDecisions?.[0]?.selected, verified: result.verification.ok })
+      }
+      const compound = 'flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nOne --> C'
+      const promoted = await api.renderMermaidSVGWithReceipt(compound, { graphLayout: { backend: 'agentic' } })
+      const fallback = await api.renderMermaidSVGWithReceipt(compound.replace('One --> C', 'One --> A'), {
+        graphLayout: { backend: 'agentic', fallback: 'elk' },
+      })
+      return { checks: artifact.verification.checks, selections, promoted: promoted.receipt.layoutDecisions?.[0], fallback: fallback.receipt.layoutDecisions?.[0] }
     })
-    expect(checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    expect(preview.checks).toEqual({ renderability: 'passed', sourceLoss: 'not-detected', taskCorrectness: 'not-checked' })
+    expect(preview.selections).toEqual([{ selected: 'elk', verified: true }, { selected: 'agentic', verified: true }])
+    expect(preview.promoted).toMatchObject({ requested: 'agentic', selected: 'agentic' })
+    expect(preview.fallback).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+    // The self-contained module has its own compression path. Exercise every
+    // registered family through that emitted worker against the source renderer.
+    const parity = await standalone.evaluate(async examples => {
+      const results = []
+      for (const example of examples) {
+        const artifact = await (globalThis as any).__mermaid.renderMermaidSVGWithReceipt(example.source)
+        results.push({ id: example.id, equal: artifact.svg === example.svg })
+      }
+      return results
+    }, BUILTIN_FAMILY_METADATA.map(family => ({ id: family.id, source: family.example,
+      svg: renderMermaidSVG(family.example, { security: 'strict', embedFontImport: false }) })))
+    expect(parity).toEqual(BUILTIN_FAMILY_METADATA.map(family => ({ id: family.id, equal: true })))
     await standalone.locator('#code-editor').fill('flowchart LR\nSecond --> Verified')
     await standalone.waitForFunction(() => document.getElementById('preview-inner')?.textContent?.includes('Second') && document.getElementById('status-text')?.textContent === 'OK')
     expect(standalone.workers()).toEqual([worker])
@@ -336,16 +363,21 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
       const api = (window as any).__mermaid
       const source = 'flowchart LR\nRecovered --> Verified'
       const [ascii, unicode] = await Promise.all([
-        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
-        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none' }),
+        api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
+        api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none', graphLayout: { backend: 'agentic' } }),
       ])
       return {
         ascii: ascii.text,
         unicode: unicode.text,
+        asciiDecisions: ascii.receipt.layoutDecisions,
+        unicodeDecisions: unicode.receipt.layoutDecisions,
       }
     })
     expect(text.ascii).toContain('Recovered')
     expect(text.unicode).toContain('Verified')
+    for (const decisions of [text.asciiDecisions, text.unicodeDecisions]) expect(decisions).toEqual([
+      expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+    ])
     // Exercise the real Canvas/font/export path, which remains on the main thread.
     await standalone.locator('#export-chevron-btn').click()
     const downloaded = standalone.waitForEvent('download')

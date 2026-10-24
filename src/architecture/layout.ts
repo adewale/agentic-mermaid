@@ -3,10 +3,14 @@ import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
-import { layoutGraphSync } from '../layout-engine.ts'
+import { layoutGraphSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
+import { withGraphLayoutDecisionObserver } from '../layout/backend.ts'
+import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { improveArchitectureSiblingSlots } from '../layout/agentic-layered.ts'
+import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import type {
   ArchitectureChildRef,
   ArchitectureDiagram,
@@ -89,7 +93,7 @@ export function layoutArchitectureDiagram(
   }
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
-  const positioned = layoutGraphSync(graph, {
+  const placementOptions = {
     // Keep placement clearance separate from the drawn surface. Larger rings
     // reserve their own footprint instead of borrowing State's fixed size.
     nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
@@ -99,7 +103,6 @@ export function layoutArchitectureDiagram(
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
-    preserveSubgraphChildOrder: true,
     // The graph's temporary routes do not describe the side-constrained paths
     // below. Their cosmetic score cannot rank Architecture's final artifact.
     compareRoutePreferences: false,
@@ -134,7 +137,16 @@ export function layoutArchitectureDiagram(
         lineWidth: metrics.groupLineWidth,
       },
     } : undefined,
-  })
+  }
+  // All relationships constrain placement; no filtered scaffolding retry.
+  // Native placement returns no graph route proof for geometry replaced below.
+  let nativePlacement = false
+  const positioned = runMeasuredGraphBackend(options,
+    () => layoutNativeGraphPlacementSync(graph, placementOptions),
+    () => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
+      ...placementOptions, preserveSubgraphChildOrder: true,
+      ...(options.graphLayout ? { graphLayout: { backend: 'elk' } } : {}),
+    })), false, (_result, decision) => { nativePlacement = decision.selected === 'agentic' })
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
@@ -142,25 +154,27 @@ export function layoutArchitectureDiagram(
 
   const services: PositionedArchitectureService[] = []
   const junctions: PositionedArchitectureJunction[] = []
-  const serviceBounds = new Map<string, Bounds>()
-  const junctionBounds = new Map<string, Bounds>()
+  const serviceBounds = new Map<string, PositionedArchitectureService>()
+  const junctionBounds = new Map<string, PositionedArchitectureJunction>()
 
   for (const node of positioned.nodes) {
-    const bounds = { x: node.x, y: node.y, width: node.width, height: node.height }
     if (servicesById.has(node.id)) {
       const service = servicesById.get(node.id)!
-      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
-      serviceBounds.set(node.id, bounds)
+      const placed: PositionedArchitectureService = { x: node.x, y: node.y, width: node.width, height: node.height, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), ...(service.iconText !== undefined ? { iconText: service.iconText, iconTextBlock: iconTextBlocks.get(service.id) } : {}), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId }
+      services.push(placed)
+      serviceBounds.set(node.id, placed)
     } else if (junctionsById.has(node.id)) {
       const junction = junctionsById.get(node.id)!
-      const ring = {
+      const placed: PositionedArchitectureJunction = {
         x: node.x + (node.width - junctionDiameter) / 2,
         y: node.y + (node.height - junctionDiameter) / 2,
         width: junctionDiameter,
         height: junctionDiameter,
+        id: junction.id,
+        parentId: junction.parentId,
       }
-      junctions.push({ ...ring, id: junction.id, parentId: junction.parentId })
-      junctionBounds.set(node.id, ring)
+      junctions.push(placed)
+      junctionBounds.set(node.id, placed)
     }
   }
 
@@ -184,11 +198,8 @@ export function layoutArchitectureDiagram(
     junctions,
     options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
   )
-  // Alignment mutates positioned items after their initial bounds maps were
-  // built. Refresh the route lookup so every side anchor follows the aligned
-  // card/ring rather than the pre-constraint ELK coordinate.
-  for (const service of services) serviceBounds.set(service.id, service)
-  for (const junction of junctions) junctionBounds.set(junction.id, junction)
+  // Arrays and route lookups share the actual positioned items, so every
+  // alignment/side-constraint move updates their authored contacts together.
 
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
   const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
@@ -197,23 +208,27 @@ export function layoutArchitectureDiagram(
     group.iconFallbackBlock = architectureIconFallbackBlock(group.icon, typography.iconSize ?? DEFAULT_ARCHITECTURE_VISUAL.iconSize)
   }
   expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0)
+  let legalSlots: (() => boolean) | undefined
   const sideConstraintsChanged = applyArchitectureSideConstraints(
     diagram,
     services,
     junctions,
     flatGroups,
     options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
+    servicesById,
+    groupsById,
+    junctionsById,
+    serviceBounds,
+    junctionBounds,
+    nativePlacement ? validate => { legalSlots = validate } : undefined,
   )
   if (sideConstraintsChanged) {
     // Port constraints can reorder a child or a whole nested group. Refit once
     // more before resolving `{group}` anchors and route obstacles.
     expandGroupBounds(groups, services, junctions, true)
-    for (const service of services) serviceBounds.set(service.id, service)
-    for (const junction of junctions) junctionBounds.set(junction.id, junction)
   }
 
-  const positionedJunctionsById = new Map(junctions.map(junction => [junction.id, junction]))
-  const edges = diagram.edges.map((edge) =>
+  const routeEdges = () => diagram.edges.map((edge) =>
     routeArchitectureEdge(
       edge,
       servicesById,
@@ -221,9 +236,16 @@ export function layoutArchitectureDiagram(
       junctionBounds,
       flatGroups,
       services,
-      positionedJunctionsById,
+      junctionBounds,
     )
   )
+  let edges = routeEdges()
+  if (legalSlots) edges = improveArchitectureSiblingSlots(diagram, services, edges, routeEdges, legalSlots, routes => {
+    // Private all-pair shaft grouping, with the public predicates' unchanged
+    // thresholds. Keep generic metric dependencies out of the optional solver.
+    const ink = routes.map(({ points }) => ({ points, style: 'solid' as const, source: '', target: '_' }))
+    return countOpposingRouteOverlaps(ink) || countParallelRouteOverlaps(ink)
+  })
   edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
   separateEdgeLabels(edges, services, metrics)
 
@@ -462,13 +484,14 @@ function applyArchitectureSideConstraints(
   junctions: PositionedArchitectureJunction[],
   groups: Map<string, PositionedArchitectureGroup>,
   spacing: number,
+  serviceMeta: Map<string, ArchitectureService>,
+  groupMeta: Map<string, ArchitectureGroup>,
+  junctionMeta: Map<string, ArchitectureDiagram['junctions'][number]>,
+  positionedServices: Map<string, Bounds>,
+  positionedJunctions: Map<string, Bounds>,
+  retainLegality?: (validate: () => boolean) => void,
 ): boolean {
   let changed = false
-  const groupMeta = new Map(diagram.groups.map(group => [group.id, group]))
-  const serviceMeta = new Map(diagram.services.map(service => [service.id, service]))
-  const junctionMeta = new Map(diagram.junctions.map(junction => [junction.id, junction]))
-  const positionedServices = new Map(services.map(service => [service.id, service]))
-  const positionedJunctions = new Map(junctions.map(junction => [junction.id, junction]))
   const unitKey = (kind: ArchitectureChildRef['kind'], id: string): string => `${kind}:${id}`
   const splitUnitKey = (key: string): { kind: ArchitectureChildRef['kind']; id: string } => {
     const separator = key.indexOf(':')
@@ -745,8 +768,18 @@ function applyArchitectureSideConstraints(
     }
     expandGroupBounds(roots, services, junctions, true)
   }
+  // Native optional slot trials reuse exactly the authored constraints and
+  // sibling geometry already owned by this pass. No trial refits groups.
+  retainLegality?.(() => constraints.every(({ axis, before, after }) => {
+    const a = unitBounds(before)!, b = unitBounds(after)!
+    return a[axis] + (axis === 'x' ? a.width : a.height) + spacing <= b[axis] + ROUTE_EPSILON
+  }) && contexts.every(context => {
+    const bounds = siblingRefs(context.parentId).map(ref => unitBounds(unitKey(ref.kind, ref.id))).filter((bound): bound is Bounds => bound !== undefined)
+    return bounds.every((bound, index) => bounds.slice(index + 1).every(other => !overlaps(bound, other)))
+  }))
   return changed
 }
+
 
 function mapGroup(
   group: LayoutGroup,
@@ -1295,34 +1328,21 @@ function movePoint(point: Point, side: ArchitectureEndpoint['side'], distance: n
   }
 }
 
-function simplifyOrthogonalPoints(points: Point[]): Point[] {
+export function simplifyOrthogonalPoints(points: Point[]): Point[] {
   const simplified: Point[] = []
-
+  let previousInput: Point | undefined
   for (const point of points) {
-    const last = simplified[simplified.length - 1]
-    if (last && last.x === point.x && last.y === point.y) {
-      continue
+    // Deduplicate authored neighbors before reducing collinearity: a U-turn
+    // can introduce equal endpoints which the old reduction retained.
+    if (previousInput && previousInput.x === point.x && previousInput.y === point.y) continue
+    previousInput = point
+    while (simplified.length > 1) {
+      const prev = simplified[simplified.length - 2]!, curr = simplified[simplified.length - 1]!
+      if ((prev.x === curr.x && curr.x === point.x) || (prev.y === curr.y && curr.y === point.y)) simplified.pop()
+      else break
     }
     simplified.push(point)
   }
-
-  let changed = true
-  while (changed) {
-    changed = false
-    for (let i = 1; i < simplified.length - 1; i++) {
-      const prev = simplified[i - 1]!
-      const curr = simplified[i]!
-      const next = simplified[i + 1]!
-      const sameX = prev.x === curr.x && curr.x === next.x
-      const sameY = prev.y === curr.y && curr.y === next.y
-      if (sameX || sameY) {
-        simplified.splice(i, 1)
-        changed = true
-        break
-      }
-    }
-  }
-
   return simplified
 }
 

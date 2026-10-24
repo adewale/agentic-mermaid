@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
 import { countEdgeCrossings, onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -14,8 +14,29 @@ import { renderMermaidSVG } from '../index.ts'
 import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 
 describe('route proposal crossing consistency', () => {
+  it('keeps settled reciprocal labels as obstacles in the final closure and its auditor', () => {
+    const graph = parseMermaid('flowchart RL\nA --> B\nB -->|feedback| A')
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 400, y: 180, width: 120, height: 60 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 100, y: 180, width: 120, height: 60 },
+    ]
+    const edges: PositionedEdge[] = [
+      { ...graph.edges[0]!, edgeIndex: 0, points: [{ x: 400, y: 190 }, { x: 380, y: 190 }, { x: 380, y: 160 }, { x: 240, y: 160 }, { x: 240, y: 195 }, { x: 220, y: 195 }],
+        routeCertificate: { edgeIndex: 0, routeClass: 'primary-forward', invariant: 'explained-detour', bendCount: 4, directLaneClear: false } },
+      { ...graph.edges[1]!, edgeIndex: 1, points: [{ x: 220, y: 220 }, { x: 400, y: 220 }], labelPosition: { x: 310, y: 220 },
+        routeCertificate: { edgeIndex: 1, routeClass: 'feedback', invariant: 'straight', bendCount: 0, directLaneClear: true } },
+    ]
+    const positioned = { nodes, edges, groups: [] }, style = resolveRenderStyle()
+    expect(measureLabelConflicts(positioned, style).total).toBe(0)
+    const label = structuredClone(edges[1]!.labelPosition)
+    closeRouteContracts(positioned, graph, style)
+    expect(edges[1]!.labelPosition).toEqual(label)
+    expect(measureLabelConflicts(positioned, style).total).toBe(0)
+    expect(findRouteHitches(positioned, graph, style)).toEqual([])
+  })
   it.each([false, true])('does not add a crossing when the other route is subdivided=%s', subdivided => {
     const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode =>
       ({ id, label: id, shape: 'rectangle', x, y, width, height })
@@ -52,6 +73,30 @@ describe('colliding duplicate labels', () => {
 })
 
 describe('label candidate endpoint clearance', () => {
+  it('preserves clear foreign shafts while moving a label away from a terminal marker', () => {
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 0, y: 0, width: 80, height: 40 },
+      { id: 'C', label: 'C', shape: 'rectangle', x: 0, y: 200, width: 80, height: 40 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 180, y: 280, width: 80, height: 40 },
+    ]
+    const labeled: PositionedEdge = { source: 'A', target: 'C', style: 'solid', hasArrowStart: false, hasArrowEnd: true,
+      label: 'handoff', labelPosition: { x: 40, y: 181 }, points: [{ x: 40, y: 40 }, { x: 40, y: 200 }] }
+    const foreign: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true,
+      points: [{ x: 80, y: 20 }, { x: 220, y: 20 }, { x: 220, y: 120 }, { x: -40, y: 120 }, { x: -40, y: 240 }, { x: 220, y: 240 }, { x: 220, y: 280 }] }
+    const positioned = { nodes, groups: [], edges: [labeled, foreign] }, style = resolveRenderStyle()
+    const marker = graphEdgeMarkerPaintRegions(labeled, style)[0]!.bounds!
+    const coversMarker = (): boolean => {
+      const pill = labelRect(labeled, style)!
+      return pill.x - 4 < marker.x1 && pill.x + pill.w + 4 > marker.x0 && pill.y - 4 < marker.y1 && pill.y + pill.h + 4 > marker.y0
+    }
+    expect(coversMarker()).toBe(true)
+    expect(measureLabelConflicts(positioned, style).labelEdge).toBe(0)
+    separateEdgeLabelPills(positioned, parseMermaid('flowchart TD\nA -->|handoff| C\nA --> B'), style, { preserveRouteClearance: true })
+    expect(coversMarker()).toBe(false)
+    expect(measureLabelConflicts(positioned, style).total).toBe(0)
+    expect(labeled.labelPosition!.x).toBe(40)
+  })
+
   for (const marker of ['arrow', 'circle', 'cross'] as const) for (const endpoint of ['start', 'end'] as const) {
     it.each(['default', 'scaled', 'fixed'] as const)(`${marker} ${endpoint}: preserves neighboring marker ink with %s stroke units`, units => {
       const labeled: PositionedEdge[] = [100, 110].map((y, i) => ({

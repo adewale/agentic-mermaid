@@ -1,8 +1,12 @@
+import { measureLabelConflicts } from '../layout/label-conflicts.ts'
+import { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+import { refineOwnedLayoutCandidate as refineNative, certifyOwnedLayoutCandidate as certifyNative } from '../layout/agentic-producer-core.ts'
 import '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyCandidate, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
+import { DeferredDependencyError, GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { withPerformanceExperiments, type PerformanceExperiment } from '../experimental-performance.ts'
@@ -23,7 +27,79 @@ function routeWitness(graph: MermaidGraph, positions: Record<string, [number, nu
   }
 }
 
+const certifyOwnedLayoutCandidate = (...args: [Parameters<typeof certifyNative>[0], Parameters<typeof certifyNative>[1], Parameters<typeof certifyNative>[2]]) =>
+  certifyNative(...args, { certifyCandidate, retainSelection })
+
+const refineOwnedLayoutCandidate = (...args: [Parameters<typeof refineNative>[0], Parameters<typeof refineNative>[1], Parameters<typeof refineNative>[2], Parameters<typeof refineNative>[3]]) =>
+  refineNative(...args, { certifyCandidate, retainSelection, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts })
+
 describe('bounded final layout certification', () => {
+  const crossingWitness = () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const positions: Record<string, [number, number]> = { A: [0, 120], B: [300, 120], C: [100, 0], D: [100, 240] }
+    const first = routeWitness(graph, positions, [[[40, 140], [300, 140]], [[120, 40], [120, 240]]], 360, 340)
+    const other = routeWitness(graph, positions, [[[40, 140], [80, 140], [80, 300], [280, 300], [280, 140], [300, 140]], [[120, 40], [120, 240]]], 360, 340)
+    return { graph, first, other, style: resolveRenderStyle() }
+  }
+
+  test('certifies both owned candidates before preferring fewer final crossings', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => other)).toBe(other)
+    expect(other.certification?.status).toBe('passed')
+  })
+
+  test('preserves the owned primary after typed decline or invalid alternative geometry', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => { throw new GraphLayoutUnsupportedError('optional channel limit') })).toBe(first)
+    other.edges[0]!.points = []
+    expect(refineOwnedLayoutCandidate(graph, style, first, () => other)).toBe(first)
+  })
+
+  test('certifies a compact candidate after an orientation decline', () => {
+    const { graph, first, other, style } = crossingWitness()
+    expect(refineOwnedLayoutCandidate(graph, style, first, [
+      { strategy: 'orientation', produce: () => { throw new GraphLayoutUnsupportedError('optional orientation limit') } },
+      { strategy: 'compact-ranks', produce: () => other },
+    ])).toBe(other)
+    expect(other.certification).toMatchObject({ status: 'passed', strategy: 'compact-ranks' })
+  })
+
+  test('bounds optional owned trials while retaining the feasible primary', () => {
+    const { graph, first, other, style } = crossingWitness()
+    other.edges[0]!.points = []
+    expect(refineOwnedLayoutCandidate(graph, style, first, [
+      { strategy: 'orientation', produce: () => { throw new GraphLayoutUnsupportedError('optional orientation limit') } },
+      { strategy: 'invalid-compact', produce: () => other },
+      { strategy: 'outside-budget', produce: () => { throw new Error('must not execute beyond two alternatives') } },
+    ])).toBe(first)
+  })
+
+  test.each([new TypeError('unexpected refinement defect'), new DiagramWorkLimitError('nodes', 5_001), new DeferredDependencyError('native', async () => {})])('propagates owned refinement failure %s', failure => {
+    const { graph, first, style } = crossingWitness()
+    expect(() => refineOwnedLayoutCandidate(graph, style, first, () => { throw failure })).toThrow(failure)
+  })
+
+  test('never hides changed meaning in an owned alternative', () => {
+    const { graph, first, other, style } = crossingWitness()
+    other.nodes[0]!.label = 'lost authored identity'
+    expect(() => refineOwnedLayoutCandidate(graph, style, first, () => other)).toThrow(TypeError)
+  })
+  test('owned candidate correspondence failures are engine defects, not recoverable geometry', () => {
+    const graph = parseMermaid('flowchart TD\nA --> B')
+    const changed = layoutGraphSync(graph)
+    changed.nodes[0]!.label = 'changed meaning'
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => changed })).toThrow(TypeError)
+  })
+
+  test('owned candidate exceptions propagate while geometric rejection stays classified', () => {
+    const graph = parseMermaid('flowchart TD\nA --> B')
+    const failure = new TypeError('unexpected solver failure')
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => { throw failure } })).toThrow(failure)
+    const rejected = layoutGraphSync(graph)
+    rejected.edges[0]!.points = []
+    expect(() => certifyOwnedLayoutCandidate(graph, resolveRenderStyle({}), { strategy: 'owned', produce: () => rejected })).toThrow(LayoutCertificationError)
+  })
+
   test.each([false, true])('a rejected conditional solver preserves all four fallbacks with route selection %s', routeSelection => {
     const graph = parseMermaid('flowchart LR\nA --> B')
     const clean = layoutGraphSync(graph)
@@ -520,6 +596,7 @@ describe('bounded final layout certification', () => {
   test.each([
     new LayoutMetricBudgetError('straighten', 'bends', 0, 4, 2),
     new DiagramWorkLimitError('nodes', 5_001),
+    new DeferredDependencyError('ELK', async () => {}),
   ])('a non-recoverable %s cannot be hidden by an otherwise clean fallback', error => {
     const graph = parseMermaid(source)
     const clean = layoutGraphSync(graph)

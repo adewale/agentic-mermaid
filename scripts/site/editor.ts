@@ -17,6 +17,8 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
+import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
+import { minify } from '@swc/core'
 import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
@@ -190,10 +192,16 @@ async function readHtmlPartials(themeItems: string): Promise<{
   leftPanel: string
   rightPanel: string
 }> {
+  // Compact static markup before inserting catalogs or runtime code. Preserve
+  // preformatted and raw-text elements, including any literal comment text.
+  const readPartial = async (path: string): Promise<string> => (await readFile(path)).replace(
+    /<(pre|textarea|script|style)\b[^>]*>[\s\S]*?<\/\1\s*>|<!--[\s\S]*?-->|^[\t ]+(?=<)/gim,
+    (markup, rawTag) => rawTag ? markup : '',
+  )
   const [topbar, leftPanel, rightPanel] = await Promise.all([
-    readFile('html/topbar.html'),
-    readFile('html/left-panel.html'),
-    readFile('html/right-panel.html'),
+    readPartial('html/topbar.html'),
+    readPartial('html/left-panel.html'),
+    readPartial('html/right-panel.html'),
   ])
   return {
     topbar: topbar
@@ -215,6 +223,7 @@ async function generateEditorHtml(): Promise<string> {
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
+      plugins: [runtimeRenderContractPlugin({ conformanceObservations: false })],
       target: 'browser', format: 'esm', minify: true,
       outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js' },
     })
@@ -223,6 +232,7 @@ async function generateEditorHtml(): Promise<string> {
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
+    plugins: [runtimeRenderContractPlugin({ conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory) })],
     target: 'browser',
     format: 'esm',
     minify: true,
@@ -245,7 +255,16 @@ async function generateEditorHtml(): Promise<string> {
     if (!entry) throw new Error('Hosted editor runtime entry not found')
     bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
   } else {
-    bundleJs = await buildResult.outputs[0]!.text()
+    // Compress the complete inline module after omitting unpublished
+    // conformance observations. Retain schema prose, both solvers and the
+    // terminal adapter; keep legal comments and escape script delimiters.
+    const compressed = await minify(await buildResult.outputs[0]!.text(), {
+      ecma: 2022, module: true, mangle: true,
+      compress: { defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true },
+      format: { comments: 'some', inlineScript: true },
+    })
+    if (!compressed.code) throw new Error('Standalone runtime compression produced no module')
+    bundleJs = compressed.code
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 

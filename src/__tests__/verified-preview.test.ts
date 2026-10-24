@@ -7,8 +7,35 @@ import { PreviewWorkerClient, PreviewSupersededError } from '../browser-preview-
 import { buildDocsEditDemo } from '../../website/docs-edit-demo.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { asFlowchart } from '../agent/types.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 
 describe('one positioned artifact for preview and verification', () => {
+  test.each([
+    { name: 'ELK', backend: 'elk', frame: false, fallback: false },
+    { name: 'native', backend: 'agentic', frame: false, fallback: false },
+    { name: 'native frame terminal', backend: 'agentic', frame: true, fallback: false },
+    { name: 'explicit fallback', backend: 'agentic', frame: true, fallback: true },
+  ] as const)('retains $name selection while positioning and verifying a preview once', ({ backend, frame, fallback }) => {
+    const source = `flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\n${frame ? 'One' : 'B'} -->|handoff| ${fallback ? 'A' : 'C'}`
+    const options = { security: 'strict' as const, embedFontImport: false,
+      graphLayout: { backend, ...(fallback ? { fallback: 'elk' as const } : {}) } }
+    const expected = renderMermaidSVGWithReceipt(source, options)
+    const expectedVerification = verifyMermaid(source, { renderOptions: options })
+    const descriptor = getFamily('flowchart')!, stages: string[] = []
+    let calls = 0
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout: context => { calls++; return descriptor.layout!(context) } })
+    try {
+      const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderAndVerifyMermaid(source, options))
+      expect(calls).toBe(1)
+      expect(result.svg).toBe(expected.svg)
+      expect(result.receipt).toEqual(expected.receipt)
+      expect(result.verification).toEqual(expectedVerification)
+      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe(fallback ? 'elk' : backend)
+      if (backend === 'agentic' && !fallback) expect(stages).not.toContain('elk')
+      else expect(stages).toContain('elk')
+    } finally { restore() }
+  })
+
   test('positions once while keeping canonical SVG, receipt and verification for every built-in example', () => {
     for (const id of knownBuiltinFamilies()) {
       const descriptor = getFamily(id)!, source = descriptor.example
@@ -183,7 +210,7 @@ describe('persistent preview worker queue', () => {
       const first = h.client.render('first', {})
       const replaced = h.client.render('replaced', {})
       const rejected = replaced.catch(error => error)
-      const options = { style: ['crisp', 'paper'] }
+      const options = { style: ['crisp', 'paper'], graphLayout: { backend: 'agentic' as const } }
       const newest = h.client.render('newest', options)
       options.style[1] = 'dusk'
       expect(await rejected).toBeInstanceOf(PreviewSupersededError)
@@ -193,7 +220,7 @@ describe('persistent preview worker queue', () => {
       h.reply(1, '<svg>first</svg>')
       expect((await first).svg).toContain('first')
       expect(h.sent.map(r => r.source)).toEqual(['first', 'newest'])
-      expect(h.sent[1]?.options).toEqual({ style: ['crisp', 'paper'] })
+      expect(h.sent[1]?.options).toEqual({ style: ['crisp', 'paper'], graphLayout: { backend: 'agentic' } })
       h.reply(3, '<svg>newest</svg>')
       expect((await newest).svg).toContain('newest')
       expect(h.workers).toHaveLength(1)

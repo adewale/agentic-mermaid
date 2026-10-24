@@ -10,14 +10,16 @@ import { memberToString } from './text.ts'
 export { memberToString } from './text.ts'
 
 /**
- * Class diagram layout engine (ELK.js).
+ * Class measured layout adapters.
  *
  * Each class box has 3 compartments:
  *   1. Header (class name + optional annotation)
  *   2. Attributes section
  *   3. Methods section
  *
- * Namespaces lay out as ELK compound nodes (the flowchart-subgraph pattern):
+ * The native producer places independent namespace scopes from measured frames.
+ * Cross-namespace leaf routes retain an explicit capability decline.
+ * ELK namespaces lay out as compound nodes (the flowchart-subgraph pattern):
  * member classes are children of their namespace's compound, the compound
  * reserves a header band for the label via top padding, and relationships are
  * hosted on the lowest common ancestor compound so ELK (INCLUDE_CHILDREN)
@@ -26,6 +28,11 @@ export { memberToString } from './text.ts'
  */
 
 import type { ElkExtendedEdge, ElkNode, LayoutOptions } from 'elkjs'
+import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
+import { generatedIds } from '../shared/generated-identity.ts'
+import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
+import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
+import { measureRenderStage } from '../render-stages.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout/direction.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
@@ -150,8 +157,7 @@ function namespaceHeaderHeight(style: ResolvedRenderStyle, title: string | undef
   return style.groupHeaderFontSize + 16 + (lines - 1) * style.groupHeaderFontSize * LINE_HEIGHT_RATIO
 }
 
-function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, styleFace?: Readonly<InternalStyleFace>, titles: ReadonlyMap<string, string> = new Map()): { elkGraph: ElkNode; classSizes: ClassSizeMap } {
-  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
+function measureClassCards(diagram: ClassDiagram, style: ResolvedRenderStyle): ClassSizeMap {
   const classSizes: ClassSizeMap = new Map()
 
   for (const cls of diagram.classes) {
@@ -178,6 +184,11 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, style
     classSizes.set(cls.id, { width, height, headerHeight, attrHeight, methodHeight })
   }
 
+  return classSizes
+}
+
+function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, classSizes: ClassSizeMap, styleFace?: Readonly<InternalStyleFace>, titles: ReadonlyMap<string, string> = new Map()): { elkGraph: ElkNode; classSizes: ClassSizeMap } {
+  const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
   const nodeSpacing = options.nodeSpacing ?? CLS.nodeSpacing
   const layerSpacing = options.layerSpacing ?? CLS.layerSpacing
 
@@ -278,16 +289,15 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, style
   return { elkGraph, classSizes }
 }
 
-/** Extract positioned classes, namespaces, and relationships from ELK result. */
-function extractClassLayout(result: ElkNode, diagram: ClassDiagram, classSizes: ClassSizeMap, style: ResolvedRenderStyle, hierarchicalNamespaces: boolean, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
-  const classLookup = new Map<string, ClassNode>()
-  for (const cls of diagram.classes) classLookup.set(cls.id, cls)
-  const namespaceInfoByPath = new Map(flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces).map(info => [info.path, info]))
+interface ClassPlacement {
+  width?: number
+  height?: number
+  nodes: { id: string; x: number; y: number; width?: number; height?: number; namespace?: true }[]
+  routes: Map<number, { points: Point[]; labelPosition?: Point }>
+}
 
-  const positionedClasses: PositionedClassNode[] = []
-  const positionedNamespaces: PositionedClassNamespace[] = []
-  const edgeSections = new Map<string, { points: Point[]; labelPosition?: Point }>()
-
+function projectClassElkPlacement(result: ElkNode): ClassPlacement {
+  const nodes: ClassPlacement['nodes'] = [], routes: ClassPlacement['routes'] = new Map()
   const walk = (node: ElkNode, offsetX: number, offsetY: number): void => {
     for (const elkEdge of node.edges ?? []) {
       const points: Point[] = []
@@ -307,68 +317,84 @@ function extractClassLayout(result: ElkNode, diagram: ClassDiagram, classSizes: 
           y: label.y + (label.height ?? 0) / 2 + offsetY,
         }
       }
-      edgeSections.set(elkEdge.id, { points, labelPosition })
+      routes.set(Number(elkEdge.id.slice(1)), { points, labelPosition })
     }
 
     for (const child of node.children ?? []) {
-      const x = (child.x ?? 0) + offsetX
-      const y = (child.y ?? 0) + offsetY
-      if (child.id.startsWith(NS_PREFIX)) {
-        const path = child.id.slice(NS_PREFIX.length)
-        const info = namespaceInfoByPath.get(path)
-        positionedNamespaces.push({
-          id: path,
-          name: info?.ns.name ?? path,
-          label: info?.ns.label ?? info?.ns.name ?? path,
-          ...(info?.ns.labelContent ? { labelContent: info.ns.labelContent } : {}),
-          parentId: info?.parentPath,
-          classIds: info ? [...info.ns.classIds] : [],
-          x,
-          y,
-          width: child.width ?? 0,
-          height: child.height ?? 0,
-          headerHeight: namespaceHeaderHeight(style, titles.get(path) ?? classTextBlock(resolveLabelContent(info?.ns.label ?? info?.ns.name ?? path, info?.ns.labelContent), style, 'group').text),
-          ...(titles.has(path) ? { title: titles.get(path)! } : {}),
-        })
-        walk(child, x, y)
-        continue
-      }
-      const cls = classLookup.get(child.id)
-      if (cls) {
-        const size = classSizes.get(cls.id)!
-        positionedClasses.push({
-          id: cls.id,
-          ...(cls.isInterface ? { isInterface: true } : {}),
-          label: cls.label,
-          ...(cls.labelContent ? { labelContent: cls.labelContent } : {}),
-          annotation: cls.annotation,
-          attributes: cls.attributes,
-          methods: cls.methods,
-          x,
-          y,
-          width: child.width ?? size.width,
-          height: child.height ?? size.height,
-          headerHeight: size.headerHeight,
-          attrHeight: size.attrHeight,
-          methodHeight: size.methodHeight,
-          ...(cls.className ? { className: cls.className } : {}),
-          ...(cls.href ? { href: cls.href } : {}),
-          ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
-          ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle
-            ? {
-                inlineStyle: { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) },
-              }
-            : {}),
-        })
-      }
+      const x = (child.x ?? 0) + offsetX, y = (child.y ?? 0) + offsetY
+      nodes.push({ id: child.id, x, y, width: child.width, height: child.height, ...(child.id.startsWith(NS_PREFIX) ? { namespace: true } : {}) })
+      if (child.id.startsWith(NS_PREFIX)) walk(child, x, y)
     }
   }
   walk(result, 0, 0)
+  return { width: result.width, height: result.height, nodes, routes }
+}
+
+/** Project either measured placement through Class-owned card/marker rules. */
+function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, classSizes: ClassSizeMap, style: ResolvedRenderStyle, hierarchicalNamespaces: boolean, titles: ReadonlyMap<string, string> = new Map()): PositionedClassDiagram {
+  const classLookup = new Map<string, ClassNode>()
+  for (const cls of diagram.classes) classLookup.set(cls.id, cls)
+  const namespaceInfoByPath = new Map(flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces).map(info => [info.path, info]))
+
+  const positionedClasses: PositionedClassNode[] = []
+  const positionedNamespaces: PositionedClassNamespace[] = []
+  const edgeSections = result.routes
+
+  for (const child of result.nodes) {
+    const { x, y } = child
+    if (child.namespace) {
+      const path = child.id.slice(NS_PREFIX.length)
+      const info = namespaceInfoByPath.get(path)
+      positionedNamespaces.push({
+        id: path,
+        name: info?.ns.name ?? path,
+        label: info?.ns.label ?? info?.ns.name ?? path,
+        ...(info?.ns.labelContent ? { labelContent: info.ns.labelContent } : {}),
+        parentId: info?.parentPath,
+        classIds: info ? [...info.ns.classIds] : [],
+        x,
+        y,
+        width: child.width ?? 0,
+        height: child.height ?? 0,
+        headerHeight: namespaceHeaderHeight(style, titles.get(path) ?? classTextBlock(resolveLabelContent(info?.ns.label ?? info?.ns.name ?? path, info?.ns.labelContent), style, 'group').text),
+        ...(titles.has(path) ? { title: titles.get(path)! } : {}),
+      })
+      continue
+    }
+    const cls = classLookup.get(child.id)
+    if (cls) {
+      const size = classSizes.get(cls.id)!
+      positionedClasses.push({
+        id: cls.id,
+        ...(cls.isInterface ? { isInterface: true } : {}),
+        label: cls.label,
+        ...(cls.labelContent ? { labelContent: cls.labelContent } : {}),
+        annotation: cls.annotation,
+        attributes: cls.attributes,
+        methods: cls.methods,
+        x,
+        y,
+        width: child.width ?? size.width,
+        height: child.height ?? size.height,
+        headerHeight: size.headerHeight,
+        attrHeight: size.attrHeight,
+        methodHeight: size.methodHeight,
+        ...(cls.className ? { className: cls.className } : {}),
+        ...(cls.href ? { href: cls.href } : {}),
+        ...(cls.tooltip !== undefined ? { tooltip: cls.tooltip } : {}),
+        ...((cls.className && diagram.classDefs.get(cls.className)) || cls.inlineStyle
+          ? {
+              inlineStyle: { ...(cls.className ? checkedAuthoredStyle(diagram.classDefs.get(cls.className), `classDef ${cls.className}`) : {}), ...checkedAuthoredStyle(cls.inlineStyle, `style ${cls.id}`) },
+            }
+          : {}),
+      })
+    }
+  }
 
   const relationships: PositionedClassRelationship[] = []
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
-    const section = edgeSections.get(`e${i}`)
+    const section = edgeSections.get(i)
     relationships.push({
       from: rel.from,
       to: rel.to,
@@ -571,29 +597,75 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
 }
 
 /**
- * Lay out a parsed class diagram using ELK.js.
+ * Lay out measured Class cards with the selected graph backend.
  */
 export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
-  if (diagram.classes.length === 0) {
-    return withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
+  if (diagram.classes.length === 0 && (!diagram.namespaces.length || options.graphLayout?.backend !== 'agentic')) {
+    const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
+    return runMeasuredGraphBackend(options, empty, empty)
   }
-
+  const classSizes = measureClassCards(diagram, style)
   const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
-  // A namespace is as wide as its classes, and its header title is drawn from
-  // its left edge; a title wider than that wraps, and the layout runs again
-  // with a header band tall enough for the lines. Titles that fit never wrap,
-  // so most diagrams lay out once.
   let titles: Map<string, string> = new Map()
-  let positioned: PositionedClassDiagram | undefined
-  for (let pass = 0; pass < 3; pass++) {
-    const { elkGraph, classSizes } = buildClassElkGraph(diagram, options, styleFace, titles)
-    positioned = extractClassLayout(elkLayoutSync(elkGraph), diagram, classSizes, style, hierarchicalNamespaces, titles)
-    const wrapped = wrappedNamespaceTitles(positioned.namespaces, style)
-    if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title)) break
-    titles = wrapped
-  }
+  const positioned = runMeasuredGraphBackend(options, () => {
+    const namespaces = flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces)
+    const groupIndices = new Map(namespaces.map((info, index) => [info.path, index]))
+    if (groupIndices.size !== namespaces.length) throw new GraphLayoutUnsupportedError('ambiguous Class namespace paths')
+    const membership = new Map<string, number>()
+    for (const [index, info] of namespaces.entries()) for (const id of info.ns.classIds) if (!membership.has(id)) membership.set(id, index)
+    const generated = generatedIds(diagram.classes.map(cls => cls.id))
+    const groups = namespaces.map(info => {
+      const block = classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group')
+      const headerHeight = namespaceHeaderHeight(style, block.text)
+      return {
+        id: generated(`class-namespace:${info.path}`, ['class', 'namespace', info.path]),
+        ...(info.parentPath ? { parent: groupIndices.get(info.parentPath)! } : {}),
+        minWidth: block.width + 2 * Math.max(style.groupLabelPaddingX, style.groupPaddingX + 8),
+        headerHeight,
+        padding: { top: headerHeight + style.groupPaddingY,
+          right: style.groupPaddingX + 8, bottom: style.groupPaddingY + 8, left: style.groupPaddingX + 8 },
+      }
+    })
+    const indices = new Map(diagram.classes.map((cls, index) => [cls.id, index]))
+    const labels = diagram.relationships.map(rel => {
+      const block = rel.label ? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge') : undefined
+      return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + 6 } : undefined
+    })
+    const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
+      nodes: diagram.classes.map(cls => ({ id: cls.id, width: classSizes.get(cls.id)!.width, height: classSizes.get(cls.id)!.height,
+        ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })), groups,
+      edges: diagram.relationships.map((rel, index) => {
+        const source = indices.get(rel.from), target = indices.get(rel.to)
+        if (source === undefined || target === undefined) throw new Error('Class relationship references an undeclared card')
+        return { source, target, minSpan: 1, ...(labels[index] ? { label: labels[index] } : {}) }
+      }), direction: diagram.direction ?? 'TB', padding: CLS.padding, nodeSpacing: options.nodeSpacing ?? CLS.nodeSpacing,
+      layerSpacing: options.layerSpacing ?? CLS.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+    }))
+    if (placed.nodes.length !== diagram.classes.length || (placed.groups?.length ?? 0) !== namespaces.length || placed.edges.length !== diagram.relationships.length) {
+      throw new TypeError('Native Class placement lost measured subjects')
+    }
+    const geometry: ClassPlacement = { width: placed.width, height: placed.height,
+      nodes: [...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: classSizes.get(diagram.classes[index]!.id)!.width, height: classSizes.get(diagram.classes[index]!.id)!.height })),
+        ...namespaces.map((info, index) => ({ ...placed.groups![index]!, id: NS_PREFIX + info.path, namespace: true as const }))],
+      routes: new Map(placed.edges.map((edge, index) => [index, { points: edge.points,
+        // Class text is painted eight pixels above its stored route anchor.
+        ...(edge.labelPosition ? { labelPosition: { x: edge.labelPosition.x, y: edge.labelPosition.y + 8 } } : {}),
+      }])) }
+    return extractClassLayout(geometry, diagram, classSizes, style, hierarchicalNamespaces)
+  }, () => {
+    // Wrapped namespace headers retain the existing bounded ELK sizing loop.
+    let result: PositionedClassDiagram | undefined
+    for (let pass = 0; pass < 3; pass++) {
+      const { elkGraph } = buildClassElkGraph(diagram, options, classSizes, styleFace, titles)
+      result = extractClassLayout(projectClassElkPlacement(elkLayoutSync(elkGraph)), diagram, classSizes, style, hierarchicalNamespaces, titles)
+      const wrapped = wrappedNamespaceTitles(result.namespaces, style)
+      if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title)) break
+      titles = wrapped
+    }
+    return result!
+  })
   if (!hierarchicalNamespaces) {
     avoidFlatNamespaceHeaders(positioned!.relationships, positioned!.classes, positioned!.namespaces, style, positioned!.width, positioned!.height)
     placeClassCardinalityLabels(positioned!.relationships, positioned!.classes, style, positioned!.width, positioned!.height)

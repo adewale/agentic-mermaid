@@ -1,0 +1,4040 @@
+{
+  "schemaVersion": 1,
+  "runtimeRevision": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+  "baseRevision": "009159f93e6cea53f97ca53e416cf66b130c8e49",
+  "implementation": "agentic-layered@22",
+  "qualification": "partial; not an across-the-board ELK win",
+  "quality": {
+    "corpus": {
+      "population": 246,
+      "native": 246,
+      "elk": 246,
+      "distinctSources": 231,
+      "families": {
+        "architecture": {
+          "population": 10,
+          "elk": 10,
+          "native": 10
+        },
+        "class": {
+          "population": 42,
+          "elk": 42,
+          "native": 42
+        },
+        "er": {
+          "population": 29,
+          "elk": 29,
+          "native": 29
+        },
+        "flowchart": {
+          "population": 139,
+          "elk": 139,
+          "native": 139
+        },
+        "requirement": {
+          "population": 4,
+          "elk": 4,
+          "native": 4
+        },
+        "state": {
+          "population": 22,
+          "elk": 22,
+          "native": 22
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 246,
+          "better": 22,
+          "equal": 222,
+          "worse": 2,
+          "elkTotal": 879,
+          "nativeTotal": 533,
+          "worseCases": [
+            "corpus/architecture/5",
+            "corpus/architecture/0"
+          ]
+        },
+        "labels": {
+          "measured": 246,
+          "better": 16,
+          "equal": 229,
+          "worse": 1,
+          "elkTotal": 40,
+          "nativeTotal": 16,
+          "worseCases": [
+            "workload-source/er:40-entities"
+          ]
+        },
+        "parallel": {
+          "measured": 246,
+          "better": 14,
+          "equal": 232,
+          "worse": 0,
+          "elkTotal": 18,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 246,
+          "better": 4,
+          "equal": 242,
+          "worse": 0,
+          "elkTotal": 9,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 246,
+          "better": 31,
+          "equal": 190,
+          "worse": 25,
+          "elkTotal": 2673,
+          "nativeTotal": 3190,
+          "worseCases": [
+            "workload-source/flowchart:cyclic-labelled-11",
+            "corpus/er/6",
+            "workload-source/flowchart:multigraph-24-loops",
+            "corpus/flowchart/96",
+            "workload-source/flowchart:cyclic-labelled-15",
+            "corpus/class/17",
+            "corpus/er/4",
+            "corpus/class/18",
+            "corpus/class/0",
+            "fixture/cyclic-labelled-11.mmd",
+            "fixture/cyclic-labelled-15.mmd",
+            "workload-source/flowchart:mesh-120-labelled-40",
+            "workload-source/flowchart:subgraphs-12x8",
+            "corpus/flowchart/81",
+            "corpus/flowchart/108",
+            "corpus/flowchart/82",
+            "fixture/cyclic-labelled-15-chains.mmd",
+            "workload-source/flowchart:cyclic-labelled-15-chains",
+            "fixture/class-basic.mmd",
+            "workload-source/er:40-entities",
+            "corpus/er/5",
+            "corpus/er/17",
+            "corpus/er/9",
+            "corpus/flowchart/94",
+            "workload-source/class:80-classes"
+          ]
+        },
+        "length": {
+          "measured": 246,
+          "better": 83,
+          "equal": 143,
+          "worse": 20,
+          "elkTotal": 797806.6096735965,
+          "nativeTotal": 595120.1998060591,
+          "worseCases": [
+            "fixture/class-compound-backends.mmd",
+            "fixture/fan-in-fan-out.mmd",
+            "fixture/fan-in.mmd",
+            "workload-source/flowchart:cyclic-labelled-15",
+            "workload-source/flowchart:tree-300",
+            "corpus/class/18",
+            "corpus/class/14",
+            "fixture/cyclic-labelled-15.mmd",
+            "workload-source/flowchart:subgraphs-12x8",
+            "corpus/flowchart/81",
+            "corpus/architecture/5",
+            "corpus/architecture/0",
+            "corpus/flowchart/108",
+            "corpus/flowchart/82",
+            "fixture/class-basic.mmd",
+            "workload-source/class:compound-namespaces",
+            "corpus/er/17",
+            "corpus/flowchart/94",
+            "workload-source/class:80-classes",
+            "corpus/architecture/3"
+          ]
+        },
+        "area": {
+          "measured": 246,
+          "better": 70,
+          "equal": 142,
+          "worse": 34,
+          "elkTotal": 106290464.2114328,
+          "nativeTotal": 84291286.752242,
+          "worseCases": [
+            "workload-source/flowchart:cyclic-labelled-9-chains",
+            "corpus/class/23",
+            "corpus/class/27",
+            "corpus/class/33",
+            "workload-source/flowchart:cyclic-labelled-11",
+            "corpus/class/2",
+            "workload-source/flowchart:multigraph-24-loops",
+            "fixture/cyclic-labelled-9.mmd",
+            "workload-source/flowchart:cyclic-labelled-15",
+            "corpus/class/29",
+            "workload-source/flowchart:tree-300",
+            "corpus/flowchart/90",
+            "corpus/class/9",
+            "corpus/class/14",
+            "corpus/class/0",
+            "workload-source/requirement:cyclic-labelled-relations",
+            "fixture/cyclic-labelled-11.mmd",
+            "fixture/cyclic-labelled-15.mmd",
+            "corpus/er/19",
+            "fixture/cyclic-labelled-9-chains.mmd",
+            "workload-source/flowchart:cyclic-labelled-9",
+            "corpus/flowchart/91",
+            "fixture/cyclic-labelled-15-chains.mmd",
+            "workload-source/flowchart:cyclic-labelled-15-chains",
+            "corpus/class/19",
+            "corpus/state/14",
+            "corpus/class/16",
+            "corpus/class/30",
+            "fixture/nested-wide-titles.mmd",
+            "corpus/flowchart/94",
+            "workload-source/class:80-classes",
+            "fixture/requirement-backends.mmd",
+            "corpus/class/28",
+            "corpus/architecture/3"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "passed": 217,
+            "unverified": 29
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 208
+          },
+          "issueTotal": 208,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "passed": 219,
+            "unverified": 27
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 180
+          },
+          "issueTotal": 180,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [],
+        "native": []
+      },
+      "shared": 246,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "passed": 217,
+            "unverified": 29
+          },
+          "issues": 208
+        },
+        "native": {
+          "statuses": {
+            "passed": 219,
+            "unverified": 27
+          },
+          "issues": 180
+        },
+        "nativeMoreIssues": 0
+      }
+    },
+    "lcg-v1-0": {
+      "population": 256,
+      "native": 256,
+      "elk": 253,
+      "distinctSources": 256,
+      "families": {
+        "flowchart": {
+          "population": 256,
+          "elk": 253,
+          "native": 256
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 253,
+          "better": 251,
+          "equal": 2,
+          "worse": 0,
+          "elkTotal": 8424,
+          "nativeTotal": 2573,
+          "worseCases": []
+        },
+        "labels": {
+          "measured": 253,
+          "better": 206,
+          "equal": 47,
+          "worse": 0,
+          "elkTotal": 676,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "parallel": {
+          "measured": 253,
+          "better": 158,
+          "equal": 95,
+          "worse": 0,
+          "elkTotal": 302,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 253,
+          "better": 60,
+          "equal": 193,
+          "worse": 0,
+          "elkTotal": 104,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 253,
+          "better": 126,
+          "equal": 10,
+          "worse": 117,
+          "elkTotal": 18558,
+          "nativeTotal": 18358,
+          "worseCases": [
+            "generated-cyclic:109",
+            "generated-cyclic:176",
+            "generated-cyclic:121",
+            "generated-cyclic:246",
+            "generated-cyclic:247",
+            "generated-cyclic:2",
+            "generated-cyclic:206",
+            "generated-cyclic:18",
+            "generated-cyclic:222",
+            "generated-cyclic:83",
+            "generated-cyclic:75",
+            "generated-cyclic:162",
+            "generated-cyclic:229",
+            "generated-cyclic:34",
+            "generated-cyclic:224",
+            "generated-cyclic:4",
+            "generated-cyclic:227",
+            "generated-cyclic:25",
+            "generated-cyclic:124",
+            "generated-cyclic:105",
+            "generated-cyclic:159",
+            "generated-cyclic:58",
+            "generated-cyclic:6",
+            "generated-cyclic:44",
+            "generated-cyclic:47",
+            "generated-cyclic:175",
+            "generated-cyclic:95",
+            "generated-cyclic:217",
+            "generated-cyclic:111",
+            "generated-cyclic:33",
+            "generated-cyclic:137",
+            "generated-cyclic:164",
+            "generated-cyclic:53",
+            "generated-cyclic:99",
+            "generated-cyclic:129",
+            "generated-cyclic:233",
+            "generated-cyclic:100",
+            "generated-cyclic:88",
+            "generated-cyclic:43",
+            "generated-cyclic:160",
+            "generated-cyclic:104",
+            "generated-cyclic:158",
+            "generated-cyclic:49",
+            "generated-cyclic:142",
+            "generated-cyclic:40",
+            "generated-cyclic:255",
+            "generated-cyclic:62",
+            "generated-cyclic:180",
+            "generated-cyclic:219",
+            "generated-cyclic:78",
+            "generated-cyclic:32",
+            "generated-cyclic:90",
+            "generated-cyclic:236",
+            "generated-cyclic:179",
+            "generated-cyclic:203",
+            "generated-cyclic:173",
+            "generated-cyclic:31",
+            "generated-cyclic:232",
+            "generated-cyclic:156",
+            "generated-cyclic:168",
+            "generated-cyclic:3",
+            "generated-cyclic:174",
+            "generated-cyclic:16",
+            "generated-cyclic:26",
+            "generated-cyclic:196",
+            "generated-cyclic:77",
+            "generated-cyclic:211",
+            "generated-cyclic:36",
+            "generated-cyclic:143",
+            "generated-cyclic:38",
+            "generated-cyclic:30",
+            "generated-cyclic:60",
+            "generated-cyclic:103",
+            "generated-cyclic:74",
+            "generated-cyclic:141",
+            "generated-cyclic:149",
+            "generated-cyclic:218",
+            "generated-cyclic:150",
+            "generated-cyclic:118",
+            "generated-cyclic:154",
+            "generated-cyclic:139",
+            "generated-cyclic:205",
+            "generated-cyclic:167",
+            "generated-cyclic:171",
+            "generated-cyclic:207",
+            "generated-cyclic:87",
+            "generated-cyclic:11",
+            "generated-cyclic:231",
+            "generated-cyclic:93",
+            "generated-cyclic:72",
+            "generated-cyclic:12",
+            "generated-cyclic:125",
+            "generated-cyclic:220",
+            "generated-cyclic:155",
+            "generated-cyclic:20",
+            "generated-cyclic:101",
+            "generated-cyclic:14",
+            "generated-cyclic:23",
+            "generated-cyclic:39",
+            "generated-cyclic:85",
+            "generated-cyclic:24",
+            "generated-cyclic:71",
+            "generated-cyclic:21",
+            "generated-cyclic:234",
+            "generated-cyclic:138",
+            "generated-cyclic:89",
+            "generated-cyclic:29",
+            "generated-cyclic:228",
+            "generated-cyclic:116",
+            "generated-cyclic:208",
+            "generated-cyclic:128",
+            "generated-cyclic:107",
+            "generated-cyclic:178",
+            "generated-cyclic:212",
+            "generated-cyclic:202",
+            "generated-cyclic:68",
+            "generated-cyclic:27"
+          ]
+        },
+        "length": {
+          "measured": 253,
+          "better": 228,
+          "equal": 0,
+          "worse": 25,
+          "elkTotal": 4535332.105067599,
+          "nativeTotal": 3347216.1431666273,
+          "worseCases": [
+            "generated-cyclic:187",
+            "generated-cyclic:80",
+            "generated-cyclic:247",
+            "generated-cyclic:222",
+            "generated-cyclic:229",
+            "generated-cyclic:175",
+            "generated-cyclic:35",
+            "generated-cyclic:111",
+            "generated-cyclic:137",
+            "generated-cyclic:43",
+            "generated-cyclic:117",
+            "generated-cyclic:219",
+            "generated-cyclic:78",
+            "generated-cyclic:156",
+            "generated-cyclic:26",
+            "generated-cyclic:196",
+            "generated-cyclic:211",
+            "generated-cyclic:185",
+            "generated-cyclic:11",
+            "generated-cyclic:125",
+            "generated-cyclic:225",
+            "generated-cyclic:39",
+            "generated-cyclic:85",
+            "generated-cyclic:234",
+            "generated-cyclic:69"
+          ]
+        },
+        "area": {
+          "measured": 253,
+          "better": 172,
+          "equal": 0,
+          "worse": 81,
+          "elkTotal": 320127572.9297222,
+          "nativeTotal": 276321336.900364,
+          "worseCases": [
+            "generated-cyclic:120",
+            "generated-cyclic:109",
+            "generated-cyclic:81",
+            "generated-cyclic:113",
+            "generated-cyclic:121",
+            "generated-cyclic:115",
+            "generated-cyclic:187",
+            "generated-cyclic:80",
+            "generated-cyclic:97",
+            "generated-cyclic:213",
+            "generated-cyclic:239",
+            "generated-cyclic:222",
+            "generated-cyclic:83",
+            "generated-cyclic:145",
+            "generated-cyclic:75",
+            "generated-cyclic:162",
+            "generated-cyclic:229",
+            "generated-cyclic:210",
+            "generated-cyclic:4",
+            "generated-cyclic:105",
+            "generated-cyclic:159",
+            "generated-cyclic:17",
+            "generated-cyclic:15",
+            "generated-cyclic:175",
+            "generated-cyclic:111",
+            "generated-cyclic:164",
+            "generated-cyclic:197",
+            "generated-cyclic:99",
+            "generated-cyclic:233",
+            "generated-cyclic:237",
+            "generated-cyclic:65",
+            "generated-cyclic:43",
+            "generated-cyclic:73",
+            "generated-cyclic:214",
+            "generated-cyclic:49",
+            "generated-cyclic:153",
+            "generated-cyclic:255",
+            "generated-cyclic:117",
+            "generated-cyclic:131",
+            "generated-cyclic:9",
+            "generated-cyclic:219",
+            "generated-cyclic:91",
+            "generated-cyclic:67",
+            "generated-cyclic:221",
+            "generated-cyclic:0",
+            "generated-cyclic:156",
+            "generated-cyclic:86",
+            "generated-cyclic:3",
+            "generated-cyclic:16",
+            "generated-cyclic:26",
+            "generated-cyclic:196",
+            "generated-cyclic:211",
+            "generated-cyclic:165",
+            "generated-cyclic:249",
+            "generated-cyclic:151",
+            "generated-cyclic:141",
+            "generated-cyclic:185",
+            "generated-cyclic:218",
+            "generated-cyclic:169",
+            "generated-cyclic:66",
+            "generated-cyclic:167",
+            "generated-cyclic:171",
+            "generated-cyclic:11",
+            "generated-cyclic:182",
+            "generated-cyclic:72",
+            "generated-cyclic:125",
+            "generated-cyclic:225",
+            "generated-cyclic:220",
+            "generated-cyclic:39",
+            "generated-cyclic:183",
+            "generated-cyclic:215",
+            "generated-cyclic:85",
+            "generated-cyclic:13",
+            "generated-cyclic:234",
+            "generated-cyclic:138",
+            "generated-cyclic:69",
+            "generated-cyclic:228",
+            "generated-cyclic:57",
+            "generated-cyclic:107",
+            "generated-cyclic:54",
+            "generated-cyclic:45"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "unverified": 253
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 2704
+          },
+          "issueTotal": 2704,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "unverified": 256
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 2590
+          },
+          "issueTotal": 2590,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [
+          {
+            "id": "generated-cyclic:123",
+            "errorCode": "LAYOUT_CERTIFICATION_FAILED",
+            "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: No certified layout after 4 bounded attempts: default: offOutlineEndpoints: n3->n10 target on n10(diamond) at (362.2,639.9) | separate-hierarchy: offOutlineEndpoints: n3->n10 target on n10(diamond) at (362.2,639.9) | without-corank: o"
+          },
+          {
+            "id": "generated-cyclic:135",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n5->n1#0: Final connector shaft crosses opaque artwork owned by unrelated card n3; edge:n12->n2#0: Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified; edge:n5->n8#0: Later filled artwork ove"
+          },
+          {
+            "id": "generated-cyclic:243",
+            "errorCode": "LAYOUT_CERTIFICATION_FAILED",
+            "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: No certified layout after 4 bounded attempts: default: offOutlineEndpoints: n5->n10 target on n10(diamond) at (655.7,605.1) | separate-hierarchy: offOutlineEndpoints: n5->n10 target on n10(diamond) at (655.7,605.1) | without-corank: o"
+          }
+        ],
+        "native": []
+      },
+      "shared": 253,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "unverified": 253
+          },
+          "issues": 2704
+        },
+        "native": {
+          "statuses": {
+            "unverified": 253
+          },
+          "issues": 2551
+        },
+        "nativeMoreIssues": 13
+      }
+    },
+    "lcg-v1-256": {
+      "population": 64,
+      "native": 64,
+      "elk": 63,
+      "distinctSources": 64,
+      "families": {
+        "flowchart": {
+          "population": 64,
+          "elk": 63,
+          "native": 64
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 63,
+          "better": 63,
+          "equal": 0,
+          "worse": 0,
+          "elkTotal": 2046,
+          "nativeTotal": 671,
+          "worseCases": []
+        },
+        "labels": {
+          "measured": 63,
+          "better": 47,
+          "equal": 16,
+          "worse": 0,
+          "elkTotal": 127,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "parallel": {
+          "measured": 63,
+          "better": 36,
+          "equal": 27,
+          "worse": 0,
+          "elkTotal": 73,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 63,
+          "better": 15,
+          "equal": 48,
+          "worse": 0,
+          "elkTotal": 34,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 63,
+          "better": 32,
+          "equal": 7,
+          "worse": 24,
+          "elkTotal": 4694,
+          "nativeTotal": 4652,
+          "worseCases": [
+            "generated-cyclic:291",
+            "generated-cyclic:256",
+            "generated-cyclic:266",
+            "generated-cyclic:293",
+            "generated-cyclic:309",
+            "generated-cyclic:278",
+            "generated-cyclic:302",
+            "generated-cyclic:295",
+            "generated-cyclic:297",
+            "generated-cyclic:289",
+            "generated-cyclic:276",
+            "generated-cyclic:294",
+            "generated-cyclic:301",
+            "generated-cyclic:288",
+            "generated-cyclic:307",
+            "generated-cyclic:314",
+            "generated-cyclic:270",
+            "generated-cyclic:269",
+            "generated-cyclic:298",
+            "generated-cyclic:282",
+            "generated-cyclic:299",
+            "generated-cyclic:262",
+            "generated-cyclic:268",
+            "generated-cyclic:284"
+          ]
+        },
+        "length": {
+          "measured": 63,
+          "better": 59,
+          "equal": 0,
+          "worse": 4,
+          "elkTotal": 1171248.9955842895,
+          "nativeTotal": 882667.5444530359,
+          "worseCases": [
+            "generated-cyclic:293",
+            "generated-cyclic:277",
+            "generated-cyclic:274",
+            "generated-cyclic:267"
+          ]
+        },
+        "area": {
+          "measured": 63,
+          "better": 43,
+          "equal": 0,
+          "worse": 20,
+          "elkTotal": 83271134.34417643,
+          "nativeTotal": 73793005.999952,
+          "worseCases": [
+            "generated-cyclic:291",
+            "generated-cyclic:265",
+            "generated-cyclic:285",
+            "generated-cyclic:293",
+            "generated-cyclic:277",
+            "generated-cyclic:316",
+            "generated-cyclic:260",
+            "generated-cyclic:319",
+            "generated-cyclic:310",
+            "generated-cyclic:261",
+            "generated-cyclic:294",
+            "generated-cyclic:274",
+            "generated-cyclic:267",
+            "generated-cyclic:301",
+            "generated-cyclic:307",
+            "generated-cyclic:314",
+            "generated-cyclic:287",
+            "generated-cyclic:269",
+            "generated-cyclic:264",
+            "generated-cyclic:275"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 687
+          },
+          "issueTotal": 687,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 637
+          },
+          "issueTotal": 637,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [
+          {
+            "id": "generated-cyclic:303",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n7->n6#0: Final connector shaft crosses opaque artwork owned by unrelated card n9; edge:n7->n6#0: Final connector shaft crosses opaque artwork owned by unrelated card n9; edge:n1->n8#0: Later filled artwork overlaps an endpoint ma"
+          }
+        ],
+        "native": []
+      },
+      "shared": 63,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": 687
+        },
+        "native": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": 627
+        },
+        "nativeMoreIssues": 2
+      }
+    },
+    "lcg-v1-320": {
+      "population": 64,
+      "native": 64,
+      "elk": 64,
+      "distinctSources": 64,
+      "families": {
+        "flowchart": {
+          "population": 64,
+          "elk": 64,
+          "native": 64
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 64,
+          "better": 64,
+          "equal": 0,
+          "worse": 0,
+          "elkTotal": 2065,
+          "nativeTotal": 665,
+          "worseCases": []
+        },
+        "labels": {
+          "measured": 64,
+          "better": 53,
+          "equal": 11,
+          "worse": 0,
+          "elkTotal": 171,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "parallel": {
+          "measured": 64,
+          "better": 39,
+          "equal": 25,
+          "worse": 0,
+          "elkTotal": 78,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 64,
+          "better": 12,
+          "equal": 52,
+          "worse": 0,
+          "elkTotal": 22,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 64,
+          "better": 30,
+          "equal": 4,
+          "worse": 30,
+          "elkTotal": 4788,
+          "nativeTotal": 4866,
+          "worseCases": [
+            "generated-cyclic:335",
+            "generated-cyclic:375",
+            "generated-cyclic:331",
+            "generated-cyclic:344",
+            "generated-cyclic:345",
+            "generated-cyclic:324",
+            "generated-cyclic:346",
+            "generated-cyclic:371",
+            "generated-cyclic:337",
+            "generated-cyclic:372",
+            "generated-cyclic:363",
+            "generated-cyclic:379",
+            "generated-cyclic:374",
+            "generated-cyclic:323",
+            "generated-cyclic:322",
+            "generated-cyclic:365",
+            "generated-cyclic:334",
+            "generated-cyclic:357",
+            "generated-cyclic:383",
+            "generated-cyclic:348",
+            "generated-cyclic:366",
+            "generated-cyclic:342",
+            "generated-cyclic:360",
+            "generated-cyclic:338",
+            "generated-cyclic:355",
+            "generated-cyclic:382",
+            "generated-cyclic:341",
+            "generated-cyclic:343",
+            "generated-cyclic:361",
+            "generated-cyclic:339"
+          ]
+        },
+        "length": {
+          "measured": 64,
+          "better": 59,
+          "equal": 0,
+          "worse": 5,
+          "elkTotal": 1155322.0209002586,
+          "nativeTotal": 868178.6305041496,
+          "worseCases": [
+            "generated-cyclic:330",
+            "generated-cyclic:337",
+            "generated-cyclic:348",
+            "generated-cyclic:367",
+            "generated-cyclic:355"
+          ]
+        },
+        "area": {
+          "measured": 64,
+          "better": 42,
+          "equal": 0,
+          "worse": 22,
+          "elkTotal": 83506630.31330274,
+          "nativeTotal": 73021534.492892,
+          "worseCases": [
+            "generated-cyclic:329",
+            "generated-cyclic:331",
+            "generated-cyclic:345",
+            "generated-cyclic:371",
+            "generated-cyclic:337",
+            "generated-cyclic:372",
+            "generated-cyclic:325",
+            "generated-cyclic:349",
+            "generated-cyclic:378",
+            "generated-cyclic:323",
+            "generated-cyclic:357",
+            "generated-cyclic:327",
+            "generated-cyclic:383",
+            "generated-cyclic:367",
+            "generated-cyclic:338",
+            "generated-cyclic:355",
+            "generated-cyclic:333",
+            "generated-cyclic:341",
+            "generated-cyclic:343",
+            "generated-cyclic:369",
+            "generated-cyclic:381",
+            "generated-cyclic:339"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 727
+          },
+          "issueTotal": 727,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 693
+          },
+          "issueTotal": 693,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [],
+        "native": []
+      },
+      "shared": 64,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": 727
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": 693
+        },
+        "nativeMoreIssues": 5
+      }
+    },
+    "sha256-counter-v1-0": {
+      "population": 64,
+      "native": 64,
+      "elk": 64,
+      "distinctSources": 64,
+      "families": {
+        "flowchart": {
+          "population": 64,
+          "elk": 64,
+          "native": 64
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 64,
+          "better": 64,
+          "equal": 0,
+          "worse": 0,
+          "elkTotal": 1680,
+          "nativeTotal": 507,
+          "worseCases": []
+        },
+        "labels": {
+          "measured": 64,
+          "better": 46,
+          "equal": 18,
+          "worse": 0,
+          "elkTotal": 97,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "parallel": {
+          "measured": 64,
+          "better": 22,
+          "equal": 42,
+          "worse": 0,
+          "elkTotal": 31,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 64,
+          "better": 18,
+          "equal": 46,
+          "worse": 0,
+          "elkTotal": 28,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 64,
+          "better": 41,
+          "equal": 0,
+          "worse": 23,
+          "elkTotal": 4525,
+          "nativeTotal": 4318,
+          "worseCases": [
+            "generated-sha256-counter-v1:9",
+            "generated-sha256-counter-v1:22",
+            "generated-sha256-counter-v1:40",
+            "generated-sha256-counter-v1:38",
+            "generated-sha256-counter-v1:59",
+            "generated-sha256-counter-v1:20",
+            "generated-sha256-counter-v1:15",
+            "generated-sha256-counter-v1:10",
+            "generated-sha256-counter-v1:46",
+            "generated-sha256-counter-v1:26",
+            "generated-sha256-counter-v1:11",
+            "generated-sha256-counter-v1:34",
+            "generated-sha256-counter-v1:32",
+            "generated-sha256-counter-v1:36",
+            "generated-sha256-counter-v1:4",
+            "generated-sha256-counter-v1:6",
+            "generated-sha256-counter-v1:25",
+            "generated-sha256-counter-v1:35",
+            "generated-sha256-counter-v1:52",
+            "generated-sha256-counter-v1:12",
+            "generated-sha256-counter-v1:57",
+            "generated-sha256-counter-v1:24",
+            "generated-sha256-counter-v1:62"
+          ]
+        },
+        "length": {
+          "measured": 64,
+          "better": 61,
+          "equal": 0,
+          "worse": 3,
+          "elkTotal": 1168913.8670429057,
+          "nativeTotal": 823673.3976880715,
+          "worseCases": [
+            "generated-sha256-counter-v1:59",
+            "generated-sha256-counter-v1:26",
+            "generated-sha256-counter-v1:52"
+          ]
+        },
+        "area": {
+          "measured": 64,
+          "better": 47,
+          "equal": 0,
+          "worse": 17,
+          "elkTotal": 84783832.7502975,
+          "nativeTotal": 69269049.04645601,
+          "worseCases": [
+            "generated-sha256-counter-v1:1",
+            "generated-sha256-counter-v1:59",
+            "generated-sha256-counter-v1:15",
+            "generated-sha256-counter-v1:13",
+            "generated-sha256-counter-v1:45",
+            "generated-sha256-counter-v1:26",
+            "generated-sha256-counter-v1:11",
+            "generated-sha256-counter-v1:41",
+            "generated-sha256-counter-v1:51",
+            "generated-sha256-counter-v1:63",
+            "generated-sha256-counter-v1:33",
+            "generated-sha256-counter-v1:47",
+            "generated-sha256-counter-v1:49",
+            "generated-sha256-counter-v1:53",
+            "generated-sha256-counter-v1:57",
+            "generated-sha256-counter-v1:43",
+            "generated-sha256-counter-v1:0"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 660
+          },
+          "issueTotal": 660,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 633
+          },
+          "issueTotal": 633,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [],
+        "native": []
+      },
+      "shared": 64,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": 660
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": 633
+        },
+        "nativeMoreIssues": 6
+      }
+    },
+    "sha256-counter-v1-64": {
+      "population": 64,
+      "native": 64,
+      "elk": 63,
+      "distinctSources": 64,
+      "families": {
+        "flowchart": {
+          "population": 64,
+          "elk": 63,
+          "native": 64
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 63,
+          "better": 63,
+          "equal": 0,
+          "worse": 0,
+          "elkTotal": 1806,
+          "nativeTotal": 516,
+          "worseCases": []
+        },
+        "labels": {
+          "measured": 63,
+          "better": 41,
+          "equal": 22,
+          "worse": 0,
+          "elkTotal": 117,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "parallel": {
+          "measured": 63,
+          "better": 23,
+          "equal": 40,
+          "worse": 0,
+          "elkTotal": 27,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 63,
+          "better": 13,
+          "equal": 50,
+          "worse": 0,
+          "elkTotal": 15,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 63,
+          "better": 37,
+          "equal": 3,
+          "worse": 23,
+          "elkTotal": 4508,
+          "nativeTotal": 4385,
+          "worseCases": [
+            "generated-sha256-counter-v1:127",
+            "generated-sha256-counter-v1:88",
+            "generated-sha256-counter-v1:75",
+            "generated-sha256-counter-v1:90",
+            "generated-sha256-counter-v1:124",
+            "generated-sha256-counter-v1:89",
+            "generated-sha256-counter-v1:116",
+            "generated-sha256-counter-v1:117",
+            "generated-sha256-counter-v1:77",
+            "generated-sha256-counter-v1:123",
+            "generated-sha256-counter-v1:93",
+            "generated-sha256-counter-v1:76",
+            "generated-sha256-counter-v1:115",
+            "generated-sha256-counter-v1:103",
+            "generated-sha256-counter-v1:106",
+            "generated-sha256-counter-v1:100",
+            "generated-sha256-counter-v1:92",
+            "generated-sha256-counter-v1:95",
+            "generated-sha256-counter-v1:64",
+            "generated-sha256-counter-v1:102",
+            "generated-sha256-counter-v1:94",
+            "generated-sha256-counter-v1:83",
+            "generated-sha256-counter-v1:118"
+          ]
+        },
+        "length": {
+          "measured": 63,
+          "better": 53,
+          "equal": 0,
+          "worse": 10,
+          "elkTotal": 1138636.4021042632,
+          "nativeTotal": 845655.8767587643,
+          "worseCases": [
+            "generated-sha256-counter-v1:127",
+            "generated-sha256-counter-v1:91",
+            "generated-sha256-counter-v1:69",
+            "generated-sha256-counter-v1:75",
+            "generated-sha256-counter-v1:124",
+            "generated-sha256-counter-v1:97",
+            "generated-sha256-counter-v1:106",
+            "generated-sha256-counter-v1:101",
+            "generated-sha256-counter-v1:105",
+            "generated-sha256-counter-v1:109"
+          ]
+        },
+        "area": {
+          "measured": 63,
+          "better": 43,
+          "equal": 0,
+          "worse": 20,
+          "elkTotal": 81360337.91365105,
+          "nativeTotal": 72195862.660512,
+          "worseCases": [
+            "generated-sha256-counter-v1:127",
+            "generated-sha256-counter-v1:121",
+            "generated-sha256-counter-v1:69",
+            "generated-sha256-counter-v1:113",
+            "generated-sha256-counter-v1:75",
+            "generated-sha256-counter-v1:90",
+            "generated-sha256-counter-v1:117",
+            "generated-sha256-counter-v1:123",
+            "generated-sha256-counter-v1:93",
+            "generated-sha256-counter-v1:97",
+            "generated-sha256-counter-v1:106",
+            "generated-sha256-counter-v1:107",
+            "generated-sha256-counter-v1:81",
+            "generated-sha256-counter-v1:101",
+            "generated-sha256-counter-v1:105",
+            "generated-sha256-counter-v1:95",
+            "generated-sha256-counter-v1:122",
+            "generated-sha256-counter-v1:109",
+            "generated-sha256-counter-v1:83",
+            "generated-sha256-counter-v1:104"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 706
+          },
+          "issueTotal": 706,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 685
+          },
+          "issueTotal": 685,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [
+          {
+            "id": "generated-sha256-counter-v1:85",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge:n7->n8#0: Final connector shaft crosses opaque artwork owned by unrelated card n11; edge:n7->n8#0: Final connector shaft crosses opaque artwork owned by unrelated card n11; edge:n0->n10#0: Later filled artwork overlaps an endpoint"
+          }
+        ],
+        "native": []
+      },
+      "shared": 63,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": 706
+        },
+        "native": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": 678
+        },
+        "nativeMoreIssues": 6
+      }
+    },
+    "sha256-counter-v1-128": {
+      "population": 64,
+      "native": 64,
+      "elk": 63,
+      "distinctSources": 64,
+      "families": {
+        "flowchart": {
+          "population": 64,
+          "elk": 63,
+          "native": 64
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 63,
+          "better": 63,
+          "equal": 0,
+          "worse": 0,
+          "elkTotal": 1920,
+          "nativeTotal": 529,
+          "worseCases": []
+        },
+        "labels": {
+          "measured": 63,
+          "better": 43,
+          "equal": 20,
+          "worse": 0,
+          "elkTotal": 111,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "parallel": {
+          "measured": 63,
+          "better": 23,
+          "equal": 40,
+          "worse": 0,
+          "elkTotal": 26,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 63,
+          "better": 14,
+          "equal": 49,
+          "worse": 0,
+          "elkTotal": 22,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 63,
+          "better": 34,
+          "equal": 1,
+          "worse": 28,
+          "elkTotal": 4423,
+          "nativeTotal": 4416,
+          "worseCases": [
+            "generated-sha256-counter-v1:141",
+            "generated-sha256-counter-v1:164",
+            "generated-sha256-counter-v1:156",
+            "generated-sha256-counter-v1:187",
+            "generated-sha256-counter-v1:158",
+            "generated-sha256-counter-v1:167",
+            "generated-sha256-counter-v1:131",
+            "generated-sha256-counter-v1:183",
+            "generated-sha256-counter-v1:128",
+            "generated-sha256-counter-v1:170",
+            "generated-sha256-counter-v1:155",
+            "generated-sha256-counter-v1:188",
+            "generated-sha256-counter-v1:166",
+            "generated-sha256-counter-v1:178",
+            "generated-sha256-counter-v1:190",
+            "generated-sha256-counter-v1:168",
+            "generated-sha256-counter-v1:143",
+            "generated-sha256-counter-v1:147",
+            "generated-sha256-counter-v1:185",
+            "generated-sha256-counter-v1:162",
+            "generated-sha256-counter-v1:150",
+            "generated-sha256-counter-v1:134",
+            "generated-sha256-counter-v1:165",
+            "generated-sha256-counter-v1:130",
+            "generated-sha256-counter-v1:174",
+            "generated-sha256-counter-v1:189",
+            "generated-sha256-counter-v1:139",
+            "generated-sha256-counter-v1:142"
+          ]
+        },
+        "length": {
+          "measured": 63,
+          "better": 59,
+          "equal": 0,
+          "worse": 4,
+          "elkTotal": 1148120.6008154457,
+          "nativeTotal": 846686.6214911841,
+          "worseCases": [
+            "generated-sha256-counter-v1:175",
+            "generated-sha256-counter-v1:137",
+            "generated-sha256-counter-v1:157",
+            "generated-sha256-counter-v1:181"
+          ]
+        },
+        "area": {
+          "measured": 63,
+          "better": 47,
+          "equal": 0,
+          "worse": 16,
+          "elkTotal": 83794997.77112629,
+          "nativeTotal": 69652437.252968,
+          "worseCases": [
+            "generated-sha256-counter-v1:164",
+            "generated-sha256-counter-v1:158",
+            "generated-sha256-counter-v1:161",
+            "generated-sha256-counter-v1:131",
+            "generated-sha256-counter-v1:183",
+            "generated-sha256-counter-v1:137",
+            "generated-sha256-counter-v1:143",
+            "generated-sha256-counter-v1:147",
+            "generated-sha256-counter-v1:162",
+            "generated-sha256-counter-v1:157",
+            "generated-sha256-counter-v1:149",
+            "generated-sha256-counter-v1:135",
+            "generated-sha256-counter-v1:165",
+            "generated-sha256-counter-v1:130",
+            "generated-sha256-counter-v1:151",
+            "generated-sha256-counter-v1:139"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 708
+          },
+          "issueTotal": 708,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 687
+          },
+          "issueTotal": 687,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [
+          {
+            "id": "generated-sha256-counter-v1:177",
+            "errorCode": "PAINT_LAYOUT_CERTIFICATION_FAILED",
+            "error": "PaintLayoutCertificationError: Final paint certification failed: edge-label:n6->n7#0:text: Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified; edge:n14->n10#0: Final connector shaft crosses opaque artwork owned by unrelated card n9; edge:n14->n10#0: Final "
+          }
+        ],
+        "native": []
+      },
+      "shared": 63,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": 708
+        },
+        "native": {
+          "statuses": {
+            "unverified": 63
+          },
+          "issues": 672
+        },
+        "nativeMoreIssues": 8
+      }
+    },
+    "sha256-counter-v1-192": {
+      "population": 64,
+      "native": 64,
+      "elk": 64,
+      "distinctSources": 64,
+      "families": {
+        "flowchart": {
+          "population": 64,
+          "elk": 64,
+          "native": 64
+        }
+      },
+      "metrics": {
+        "crossings": {
+          "measured": 64,
+          "better": 63,
+          "equal": 1,
+          "worse": 0,
+          "elkTotal": 1825,
+          "nativeTotal": 521,
+          "worseCases": []
+        },
+        "labels": {
+          "measured": 64,
+          "better": 44,
+          "equal": 20,
+          "worse": 0,
+          "elkTotal": 93,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "parallel": {
+          "measured": 64,
+          "better": 22,
+          "equal": 42,
+          "worse": 0,
+          "elkTotal": 27,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "opposing": {
+          "measured": 64,
+          "better": 16,
+          "equal": 48,
+          "worse": 0,
+          "elkTotal": 20,
+          "nativeTotal": 0,
+          "worseCases": []
+        },
+        "bends": {
+          "measured": 64,
+          "better": 37,
+          "equal": 4,
+          "worse": 23,
+          "elkTotal": 4472,
+          "nativeTotal": 4383,
+          "worseCases": [
+            "generated-sha256-counter-v1:219",
+            "generated-sha256-counter-v1:210",
+            "generated-sha256-counter-v1:239",
+            "generated-sha256-counter-v1:223",
+            "generated-sha256-counter-v1:242",
+            "generated-sha256-counter-v1:199",
+            "generated-sha256-counter-v1:216",
+            "generated-sha256-counter-v1:202",
+            "generated-sha256-counter-v1:247",
+            "generated-sha256-counter-v1:192",
+            "generated-sha256-counter-v1:226",
+            "generated-sha256-counter-v1:251",
+            "generated-sha256-counter-v1:207",
+            "generated-sha256-counter-v1:196",
+            "generated-sha256-counter-v1:230",
+            "generated-sha256-counter-v1:209",
+            "generated-sha256-counter-v1:220",
+            "generated-sha256-counter-v1:204",
+            "generated-sha256-counter-v1:193",
+            "generated-sha256-counter-v1:246",
+            "generated-sha256-counter-v1:200",
+            "generated-sha256-counter-v1:206",
+            "generated-sha256-counter-v1:249"
+          ]
+        },
+        "length": {
+          "measured": 64,
+          "better": 58,
+          "equal": 0,
+          "worse": 6,
+          "elkTotal": 1148633.840218209,
+          "nativeTotal": 862562.0966015564,
+          "worseCases": [
+            "generated-sha256-counter-v1:245",
+            "generated-sha256-counter-v1:199",
+            "generated-sha256-counter-v1:215",
+            "generated-sha256-counter-v1:227",
+            "generated-sha256-counter-v1:209",
+            "generated-sha256-counter-v1:229"
+          ]
+        },
+        "area": {
+          "measured": 64,
+          "better": 49,
+          "equal": 0,
+          "worse": 15,
+          "elkTotal": 86909262.40581633,
+          "nativeTotal": 74132383.408188,
+          "worseCases": [
+            "generated-sha256-counter-v1:219",
+            "generated-sha256-counter-v1:239",
+            "generated-sha256-counter-v1:243",
+            "generated-sha256-counter-v1:245",
+            "generated-sha256-counter-v1:236",
+            "generated-sha256-counter-v1:215",
+            "generated-sha256-counter-v1:227",
+            "generated-sha256-counter-v1:209",
+            "generated-sha256-counter-v1:224",
+            "generated-sha256-counter-v1:253",
+            "generated-sha256-counter-v1:229",
+            "generated-sha256-counter-v1:204",
+            "generated-sha256-counter-v1:235",
+            "generated-sha256-counter-v1:221",
+            "generated-sha256-counter-v1:225"
+          ]
+        }
+      },
+      "paint": {
+        "elk": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 686
+          },
+          "issueTotal": 686,
+          "unmeasured": 0
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": {
+            "POTENTIAL_OCCLUSION": 653
+          },
+          "issueTotal": 653,
+          "unmeasured": 0
+        }
+      },
+      "errors": {
+        "elk": [],
+        "native": []
+      },
+      "shared": 64,
+      "revision": {
+        "elk": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "native": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+      },
+      "dirty": {
+        "elk": false,
+        "native": false
+      },
+      "sharedPaint": {
+        "elk": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": 686
+        },
+        "native": {
+          "statuses": {
+            "unverified": 64
+          },
+          "issues": 653
+        },
+        "nativeMoreIssues": 8
+      }
+    },
+    "baselineChange": {
+      "population": 222,
+      "promotions": [
+        "corpus/flowchart/96",
+        "corpus/architecture/0",
+        "corpus/architecture/1",
+        "corpus/architecture/3",
+        "corpus/architecture/5",
+        "fixture/architecture-basic.mmd"
+      ],
+      "lost": [],
+      "sameSvg": 216,
+      "changedSvg": []
+    },
+    "edits": {
+      "off": {
+        "elk": {
+          "population": 39,
+          "rendered": 39,
+          "undo": {
+            "True": 6
+          },
+          "transitions": 33,
+          "meanUnchangedNormalizedMotion": 0.6841512720462324,
+          "orderInversions": 17,
+          "routeChanges": 27,
+          "bboxSideChanges": 32,
+          "errors": []
+        },
+        "agentic": {
+          "population": 39,
+          "rendered": 38,
+          "undo": {
+            "True": 6
+          },
+          "transitions": 31,
+          "meanUnchangedNormalizedMotion": 0.6264930315468843,
+          "orderInversions": 17,
+          "routeChanges": 22,
+          "bboxSideChanges": 32,
+          "errors": [
+            {
+              "family": "flowchart",
+              "edit": "eligibility-layout-hint",
+              "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: Agentic graph layout does not support this input: layout hints"
+            }
+          ]
+        },
+        "agentic-with-elk": {
+          "population": 39,
+          "rendered": 39,
+          "undo": {
+            "True": 6
+          },
+          "transitions": 33,
+          "meanUnchangedNormalizedMotion": 0.6268238899662878,
+          "orderInversions": 20,
+          "routeChanges": 28,
+          "bboxSideChanges": 33,
+          "errors": []
+        },
+        "pairedUnchangedMotion": {
+          "worse": 4,
+          "better": 13,
+          "compared": 31
+        }
+      },
+      "normal": {
+        "elk": {
+          "population": 39,
+          "rendered": 39,
+          "undo": {
+            "True": 6
+          },
+          "transitions": 33,
+          "meanUnchangedNormalizedMotion": 0.6841512720462324,
+          "orderInversions": 17,
+          "routeChanges": 27,
+          "bboxSideChanges": 32,
+          "errors": []
+        },
+        "agentic": {
+          "population": 39,
+          "rendered": 38,
+          "undo": {
+            "True": 6
+          },
+          "transitions": 31,
+          "meanUnchangedNormalizedMotion": 0.6264930315468843,
+          "orderInversions": 17,
+          "routeChanges": 22,
+          "bboxSideChanges": 32,
+          "errors": [
+            {
+              "family": "flowchart",
+              "edit": "eligibility-layout-hint",
+              "error": "FamilyLayoutError: Mermaid family \"flowchart\" layout hook failed: Agentic graph layout does not support this input: layout hints"
+            }
+          ]
+        },
+        "agentic-with-elk": {
+          "population": 39,
+          "rendered": 39,
+          "undo": {
+            "True": 6
+          },
+          "transitions": 33,
+          "meanUnchangedNormalizedMotion": 0.6268238899662878,
+          "orderInversions": 20,
+          "routeChanges": 28,
+          "bboxSideChanges": 33,
+          "errors": []
+        },
+        "pairedUnchangedMotion": {
+          "worse": 4,
+          "better": 13,
+          "compared": 31
+        }
+      }
+    }
+  },
+  "cost": {
+    "off": {
+      "elk-aa": {
+        "revision": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": false,
+        "status": "completed",
+        "corpusTimeRatio": null,
+        "memoryRatios": {},
+        "failedChecks": [
+          {
+            "name": "Every candidate measurement completes",
+            "ok": false,
+            "detail": "time:batched-time: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:corpus: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:requirement:100-requirements-99-relations: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:requirement:cyclic-labelled-relations: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-11: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-10: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-15: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-19: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-9: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-13: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-18-cuts: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-15-chains: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-9-chains: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:class:compound-namespaces: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:class:cyclic-labelled-members: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:class:80-classes: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:er:compound-domains: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:er:cyclic-labelled-entities: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:er:40-entities: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:architecture:aligned-junction-services: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:architecture:40-services: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:agent:edit-flowchart: spawnSync node ETIMEDOUT; last worker stage: timing; result missing"
+          },
+          {
+            "name": "Every scaling and agent workflow succeeds",
+            "ok": false,
+            "detail": "requirement:100-requirements-99-relations, requirement:cyclic-labelled-relations, flowchart:cyclic-labelled-11, flowchart:cyclic-labelled-10, flowchart:cyclic-labelled-15, flowchart:cyclic-labelled-19, flowchart:cyclic-labelled-9, flowchart:cyclic-labelled-13, flowchart:cyclic-labelled-18-cuts, flowchart:cyclic-labelled-15-chains, flowchart:cyclic-labelled-9-chains, class:compound-namespaces, class:cyclic-labelled-members, class:80-classes, er:compound-domains, er:cyclic-labelled-entities, er:40-entities, architecture:aligned-junction-services, architecture:40-services, agent:edit-flowchart"
+          },
+          {
+            "name": "Baseline has comparable successful SVG measurements",
+            "ok": false,
+            "detail": "0/27 total; 0/7 corpus inputs compared"
+          }
+        ],
+        "reference": {
+          "importMs": [
+            200.81487900000002,
+            191.60988600000002,
+            190.707384
+          ],
+          "firstRenderMs": [
+            282.71954600000004,
+            284.39505500000007,
+            283.10014599999994
+          ],
+          "failures": {},
+          "agentEditMs": [
+            18.15433700000176,
+            20.141161999999895,
+            18.432709999999133
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            184.649415,
+            183.34256299999998
+          ],
+          "firstRenderMs": [
+            282.69430500000004,
+            285.18536
+          ],
+          "failures": {
+            "time:batched-time": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:corpus": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:requirement:100-requirements-99-relations": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:requirement:cyclic-labelled-relations": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-11": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-10": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-15": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-19": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-9": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-13": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-18-cuts": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-15-chains": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-9-chains": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:class:compound-namespaces": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:class:cyclic-labelled-members": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:class:80-classes": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:er:compound-domains": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:er:cyclic-labelled-entities": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:er:40-entities": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:architecture:aligned-junction-services": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:architecture:40-services": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:agent:edit-flowchart": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing"
+          },
+          "agentEditMs": [
+            18.257214000001113,
+            18.052984999998444
+          ]
+        },
+        "agentEditTimeRatio": null
+      },
+      "agentic": {
+        "revision": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": false,
+        "status": "completed",
+        "corpusTimeRatio": 0.6172538065110205,
+        "memoryRatios": {},
+        "failedChecks": [
+          {
+            "name": "Every candidate measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Every required baseline measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Each large case \u2264 1.5\u00d7 baseline",
+            "ok": false,
+            "detail": "20/20 compared; slow: flowchart:cyclic-labelled-15, flowchart:cyclic-labelled-13, flowchart:cyclic-labelled-18-cuts"
+          },
+          {
+            "name": "Required matched corpus memory measurements complete",
+            "ok": false,
+            "detail": "incomplete: missing baseline or candidate memory observations"
+          }
+        ],
+        "reference": {
+          "importMs": [
+            200.81487900000002,
+            191.60988600000002,
+            190.707384
+          ],
+          "firstRenderMs": [
+            282.71954600000004,
+            284.39505500000007,
+            283.10014599999994
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            18.15433700000176,
+            20.141161999999895,
+            18.432709999999133
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            185.14798,
+            204.021626,
+            191.56849599999998
+          ],
+          "firstRenderMs": [
+            89.97699499999999,
+            89.93959000000001,
+            92.61429999999996
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            11.616695999997319,
+            11.608188000001974,
+            11.643033000000287
+          ]
+        },
+        "agentEditTimeRatio": 0.6316506362873845
+      },
+      "agentic-with-elk": {
+        "revision": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": false,
+        "status": "completed",
+        "corpusTimeRatio": 0.6281483472970513,
+        "memoryRatios": {},
+        "failedChecks": [
+          {
+            "name": "Every candidate measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Every required baseline measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Each large case \u2264 1.5\u00d7 baseline",
+            "ok": false,
+            "detail": "20/20 compared; slow: flowchart:cyclic-labelled-15, flowchart:cyclic-labelled-13, flowchart:cyclic-labelled-18-cuts"
+          },
+          {
+            "name": "Required matched corpus memory measurements complete",
+            "ok": false,
+            "detail": "incomplete: missing baseline or candidate memory observations"
+          }
+        ],
+        "reference": {
+          "importMs": [
+            200.81487900000002,
+            191.60988600000002,
+            190.707384
+          ],
+          "firstRenderMs": [
+            282.71954600000004,
+            284.39505500000007,
+            283.10014599999994
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            18.15433700000176,
+            20.141161999999895,
+            18.432709999999133
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            185.557313,
+            188.27612,
+            186.141237
+          ],
+          "firstRenderMs": [
+            89.77635800000002,
+            90.690497,
+            91.60916199999997
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            11.697575000000143,
+            12.148244999996678,
+            11.767994999998336
+          ]
+        },
+        "agentEditTimeRatio": 0.6384299975423522
+      }
+    },
+    "normal": {
+      "elk-aa": {
+        "revision": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": true,
+        "status": "completed",
+        "corpusTimeRatio": 1.0192109003672896,
+        "memoryRatios": {
+          "corpus": {
+            "passAllocatedBytes": 1.0003488698163576,
+            "passPeakHeapBytes": 1.0000412242890617,
+            "retainedGrowthBytes": 1.005349323785078,
+            "peakRssBytes": 0.9937547767223496
+          },
+          "agent:edit-flowchart": {
+            "passAllocatedBytes": 0.9999255884711739,
+            "passPeakHeapBytes": 1.0000549633129563,
+            "retainedGrowthBytes": 1.021396797153025,
+            "peakRssBytes": 1.0133807501407153
+          }
+        },
+        "failedChecks": [],
+        "reference": {
+          "importMs": [
+            193.72662799999998,
+            189.82838200000003,
+            183.98629800000003
+          ],
+          "firstRenderMs": [
+            289.334776,
+            291.8397990000001,
+            285.717584
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.81684800000221,
+            11.841904999997496,
+            10.546173999999155
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            197.12494900000002,
+            188.44977599999999,
+            183.48521
+          ],
+          "firstRenderMs": [
+            294.861553,
+            284.890151,
+            283.06073699999996
+          ],
+          "failures": {},
+          "agentEditMs": [
+            10.976434000000154,
+            11.035119000000122,
+            10.96364099999846
+          ]
+        },
+        "agentEditTimeRatio": 0.9318702522949184
+      },
+      "agentic": {
+        "revision": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": true,
+        "status": "completed",
+        "corpusTimeRatio": 0.9894235025319733,
+        "memoryRatios": {
+          "corpus": {
+            "passAllocatedBytes": 0.997654512896039,
+            "passPeakHeapBytes": 0.6008756906876501,
+            "retainedGrowthBytes": 0.9783654364659952,
+            "peakRssBytes": 0.7788404847690796
+          },
+          "agent:edit-flowchart": {
+            "passAllocatedBytes": 1.0007585841966449,
+            "passPeakHeapBytes": 0.7251594371524513,
+            "retainedGrowthBytes": 0.9789813167259787,
+            "peakRssBytes": 0.8747889269815279
+          }
+        },
+        "failedChecks": [],
+        "reference": {
+          "importMs": [
+            193.72662799999998,
+            189.82838200000003,
+            183.98629800000003
+          ],
+          "firstRenderMs": [
+            289.334776,
+            291.8397990000001,
+            285.717584
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.81684800000221,
+            11.841904999997496,
+            10.546173999999155
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            188.21768600000001,
+            185.750901,
+            185.248065
+          ],
+          "firstRenderMs": [
+            93.17178200000001,
+            91.42519900000002,
+            92.23850200000004
+          ],
+          "failures": {},
+          "agentEditMs": [
+            10.984434000001784,
+            10.771656000000803,
+            11.700941999999486
+          ]
+        },
+        "agentEditTimeRatio": 0.9295570189275286
+      },
+      "agentic-with-elk": {
+        "revision": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": true,
+        "status": "completed",
+        "corpusTimeRatio": 0.9857092591006538,
+        "memoryRatios": {
+          "corpus": {
+            "passAllocatedBytes": 0.9978388839698735,
+            "passPeakHeapBytes": 0.6007929528162699,
+            "retainedGrowthBytes": 0.9825068484286361,
+            "peakRssBytes": 0.7870728245441642
+          },
+          "agent:edit-flowchart": {
+            "passAllocatedBytes": 1.0007389478209825,
+            "passPeakHeapBytes": 0.7252691702455718,
+            "retainedGrowthBytes": 1.0297375444839858,
+            "peakRssBytes": 0.8667297753671391
+          }
+        },
+        "failedChecks": [],
+        "reference": {
+          "importMs": [
+            193.72662799999998,
+            189.82838200000003,
+            183.98629800000003
+          ],
+          "firstRenderMs": [
+            289.334776,
+            291.8397990000001,
+            285.717584
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.81684800000221,
+            11.841904999997496,
+            10.546173999999155
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            184.74251800000002,
+            183.447268,
+            182.54102799999998
+          ],
+          "firstRenderMs": [
+            92.05840699999999,
+            92.43396899999999,
+            91.19779299999999
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.43315999999868,
+            10.707248999999138,
+            10.966266999999789
+          ]
+        },
+        "agentEditTimeRatio": 0.9675304277415213
+      }
+    }
+  },
+  "previousCostRun": {
+    "off": {
+      "elk-aa": {
+        "revision": "81b23ada68e4e3198565dd11021c5aa1e03bb4c0",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": false,
+        "status": "completed",
+        "corpusTimeRatio": null,
+        "memoryRatios": {},
+        "failedChecks": [
+          {
+            "name": "Every candidate measurement completes",
+            "ok": false,
+            "detail": "time:batched-time: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:corpus: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:requirement:100-requirements-99-relations: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:requirement:cyclic-labelled-relations: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-11: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-10: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-15: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-19: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-9: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-13: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-18-cuts: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-15-chains: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:flowchart:cyclic-labelled-9-chains: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:class:compound-namespaces: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:class:cyclic-labelled-members: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:class:80-classes: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:er:compound-domains: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:er:cyclic-labelled-entities: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:er:40-entities: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:architecture:aligned-junction-services: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:architecture:40-services: spawnSync node ETIMEDOUT; last worker stage: timing; result missing; time:agent:edit-flowchart: spawnSync node ETIMEDOUT; last worker stage: timing; result missing"
+          },
+          {
+            "name": "Every scaling and agent workflow succeeds",
+            "ok": false,
+            "detail": "requirement:100-requirements-99-relations, requirement:cyclic-labelled-relations, flowchart:cyclic-labelled-11, flowchart:cyclic-labelled-10, flowchart:cyclic-labelled-15, flowchart:cyclic-labelled-19, flowchart:cyclic-labelled-9, flowchart:cyclic-labelled-13, flowchart:cyclic-labelled-18-cuts, flowchart:cyclic-labelled-15-chains, flowchart:cyclic-labelled-9-chains, class:compound-namespaces, class:cyclic-labelled-members, class:80-classes, er:compound-domains, er:cyclic-labelled-entities, er:40-entities, architecture:aligned-junction-services, architecture:40-services, agent:edit-flowchart"
+          },
+          {
+            "name": "Baseline has comparable successful SVG measurements",
+            "ok": false,
+            "detail": "0/27 total; 0/7 corpus inputs compared"
+          }
+        ],
+        "reference": {
+          "importMs": [
+            192.77157,
+            183.30302899999998,
+            191.36041500000002
+          ],
+          "firstRenderMs": [
+            295.6906680000001,
+            283.971836,
+            287.22757999999993
+          ],
+          "failures": {},
+          "agentEditMs": [
+            19.39813100000174,
+            19.658355999999912,
+            19.002909999999247
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            195.53545000000003,
+            189.21538700000002
+          ],
+          "firstRenderMs": [
+            292.00748799999997,
+            291.26694399999997
+          ],
+          "failures": {
+            "time:batched-time": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:corpus": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:requirement:100-requirements-99-relations": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:requirement:cyclic-labelled-relations": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-11": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-10": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-15": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-19": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-9": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-13": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-18-cuts": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-15-chains": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:flowchart:cyclic-labelled-9-chains": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:class:compound-namespaces": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:class:cyclic-labelled-members": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:class:80-classes": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:er:compound-domains": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:er:cyclic-labelled-entities": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:er:40-entities": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:architecture:aligned-junction-services": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:architecture:40-services": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing",
+            "time:agent:edit-flowchart": "spawnSync node ETIMEDOUT; last worker stage: timing; result missing"
+          },
+          "agentEditMs": [
+            19.11684400000013,
+            19.921901999998227
+          ]
+        },
+        "agentEditTimeRatio": null
+      },
+      "agentic": {
+        "revision": "81b23ada68e4e3198565dd11021c5aa1e03bb4c0",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": false,
+        "status": "completed",
+        "corpusTimeRatio": 0.6040600447563788,
+        "memoryRatios": {},
+        "failedChecks": [
+          {
+            "name": "Every candidate measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Every required baseline measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Each large case \u2264 1.5\u00d7 baseline",
+            "ok": false,
+            "detail": "20/20 compared; slow: flowchart:cyclic-labelled-15, flowchart:cyclic-labelled-18-cuts"
+          },
+          {
+            "name": "Required matched corpus memory measurements complete",
+            "ok": false,
+            "detail": "incomplete: missing baseline or candidate memory observations"
+          }
+        ],
+        "reference": {
+          "importMs": [
+            192.77157,
+            183.30302899999998,
+            191.36041500000002
+          ],
+          "firstRenderMs": [
+            295.6906680000001,
+            283.971836,
+            287.22757999999993
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            19.39813100000174,
+            19.658355999999912,
+            19.002909999999247
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            190.86989800000003,
+            188.04828400000002,
+            184.22323
+          ],
+          "firstRenderMs": [
+            91.16365100000002,
+            94.47028899999998,
+            90.86366799999996
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            11.535742000000027,
+            11.879851000001509,
+            11.600413000000117
+          ]
+        },
+        "agentEditTimeRatio": 0.6043155897676062
+      },
+      "agentic-with-elk": {
+        "revision": "81b23ada68e4e3198565dd11021c5aa1e03bb4c0",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": false,
+        "status": "completed",
+        "corpusTimeRatio": 0.608158197833981,
+        "memoryRatios": {},
+        "failedChecks": [
+          {
+            "name": "Every candidate measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Every required baseline measurement completes",
+            "ok": false,
+            "detail": "memory:corpus: overall benchmark budget exhausted; memory:requirement:100-requirements-99-relations: overall benchmark budget exhausted; memory:requirement:cyclic-labelled-relations: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-11: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-10: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-19: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-13: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-18-cuts: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-15-chains: overall benchmark budget exhausted; memory:flowchart:cyclic-labelled-9-chains: overall benchmark budget exhausted; memory:class:compound-namespaces: overall benchmark budget exhausted; memory:class:cyclic-labelled-members: overall benchmark budget exhausted; memory:class:80-classes: overall benchmark budget exhausted; memory:er:compound-domains: overall benchmark budget exhausted; memory:er:cyclic-labelled-entities: overall benchmark budget exhausted; memory:er:40-entities: overall benchmark budget exhausted; memory:architecture:aligned-junction-services: overall benchmark budget exhausted; memory:architecture:40-services: overall benchmark budget exhausted; memory:agent:edit-flowchart: overall benchmark budget exhausted"
+          },
+          {
+            "name": "Each large case \u2264 1.5\u00d7 baseline",
+            "ok": false,
+            "detail": "20/20 compared; slow: flowchart:cyclic-labelled-15, flowchart:cyclic-labelled-18-cuts"
+          },
+          {
+            "name": "Required matched corpus memory measurements complete",
+            "ok": false,
+            "detail": "incomplete: missing baseline or candidate memory observations"
+          }
+        ],
+        "reference": {
+          "importMs": [
+            192.77157,
+            183.30302899999998,
+            191.36041500000002
+          ],
+          "firstRenderMs": [
+            295.6906680000001,
+            283.971836,
+            287.22757999999993
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            19.39813100000174,
+            19.658355999999912,
+            19.002909999999247
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            189.557507,
+            187.56497,
+            187.13597799999997
+          ],
+          "firstRenderMs": [
+            94.20438900000005,
+            91.98344799999995,
+            92.00403899999998
+          ],
+          "failures": {
+            "memory:corpus": "overall benchmark budget exhausted",
+            "memory:requirement:100-requirements-99-relations": "overall benchmark budget exhausted",
+            "memory:requirement:cyclic-labelled-relations": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-11": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-10": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-19": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-13": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-18-cuts": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-15-chains": "overall benchmark budget exhausted",
+            "memory:flowchart:cyclic-labelled-9-chains": "overall benchmark budget exhausted",
+            "memory:class:compound-namespaces": "overall benchmark budget exhausted",
+            "memory:class:cyclic-labelled-members": "overall benchmark budget exhausted",
+            "memory:class:80-classes": "overall benchmark budget exhausted",
+            "memory:er:compound-domains": "overall benchmark budget exhausted",
+            "memory:er:cyclic-labelled-entities": "overall benchmark budget exhausted",
+            "memory:er:40-entities": "overall benchmark budget exhausted",
+            "memory:architecture:aligned-junction-services": "overall benchmark budget exhausted",
+            "memory:architecture:40-services": "overall benchmark budget exhausted",
+            "memory:agent:edit-flowchart": "overall benchmark budget exhausted"
+          },
+          "agentEditMs": [
+            11.781081000000995,
+            11.68628499999977,
+            11.291242000002967
+          ]
+        },
+        "agentEditTimeRatio": 0.5944690898872633
+      }
+    },
+    "normal": {
+      "elk-aa": {
+        "revision": "81b23ada68e4e3198565dd11021c5aa1e03bb4c0",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": true,
+        "status": "completed",
+        "corpusTimeRatio": 1.0167183808887064,
+        "memoryRatios": {
+          "corpus": {
+            "passAllocatedBytes": 1.0002002287302543,
+            "passPeakHeapBytes": 1.0000883891518302,
+            "retainedGrowthBytes": 1.0069675586916966,
+            "peakRssBytes": 1.0210167055864918
+          },
+          "agent:edit-flowchart": {
+            "passAllocatedBytes": 0.9998572377364112,
+            "passPeakHeapBytes": 1.0000507153869904,
+            "retainedGrowthBytes": 1.0336287621608073,
+            "peakRssBytes": 1.0006629101756712
+          }
+        },
+        "failedChecks": [],
+        "reference": {
+          "importMs": [
+            188.671785,
+            187.585415,
+            191.26351499999998
+          ],
+          "firstRenderMs": [
+            285.140985,
+            293.12090699999993,
+            289.155067
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.065479000000778,
+            11.868654000001698,
+            11.326333000000886
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            186.10934699999999,
+            195.741488,
+            188.24306800000002
+          ],
+          "firstRenderMs": [
+            289.7636,
+            291.399681,
+            291.66105500000003
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.366597000000183,
+            11.03277899999921,
+            10.947920000000522
+          ]
+        },
+        "agentEditTimeRatio": 0.9665899810644509
+      },
+      "agentic": {
+        "revision": "81b23ada68e4e3198565dd11021c5aa1e03bb4c0",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": true,
+        "status": "completed",
+        "corpusTimeRatio": 1.0224719066527954,
+        "memoryRatios": {
+          "corpus": {
+            "passAllocatedBytes": 0.9982515198741514,
+            "passPeakHeapBytes": 0.6009320932619836,
+            "retainedGrowthBytes": 1.001930501930502,
+            "peakRssBytes": 0.8133420154481767
+          },
+          "agent:edit-flowchart": {
+            "passAllocatedBytes": 1.001721423236317,
+            "passPeakHeapBytes": 0.7253719209033533,
+            "retainedGrowthBytes": 1.04707115353945,
+            "peakRssBytes": 0.8710894673771704
+          }
+        },
+        "failedChecks": [],
+        "reference": {
+          "importMs": [
+            188.671785,
+            187.585415,
+            191.26351499999998
+          ],
+          "firstRenderMs": [
+            285.140985,
+            293.12090699999993,
+            289.155067
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.065479000000778,
+            11.868654000001698,
+            11.326333000000886
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            185.43506099999996,
+            186.06097799999998,
+            189.13247099999995
+          ],
+          "firstRenderMs": [
+            92.43655799999999,
+            92.00235799999996,
+            92.89065399999998
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.019639000000097,
+            10.954834000000119,
+            11.38039900000149
+          ]
+        },
+        "agentEditTimeRatio": 0.99585738674298
+      },
+      "agentic-with-elk": {
+        "revision": "81b23ada68e4e3198565dd11021c5aa1e03bb4c0",
+        "environment": {
+          "node": "26.3.0",
+          "bun": "1.4.2",
+          "platform": "linux",
+          "arch": "x64",
+          "osRelease": "6.17.0-1022-azure",
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "logicalCpus": 4
+        },
+        "ok": true,
+        "status": "completed",
+        "corpusTimeRatio": 1.0249693366185608,
+        "memoryRatios": {
+          "corpus": {
+            "passAllocatedBytes": 0.9984998034996668,
+            "passPeakHeapBytes": 0.600880014547321,
+            "retainedGrowthBytes": 1.0112057870678561,
+            "peakRssBytes": 0.8121070594575175
+          },
+          "agent:edit-flowchart": {
+            "passAllocatedBytes": 1.0017224577454735,
+            "passPeakHeapBytes": 0.7253785022894513,
+            "retainedGrowthBytes": 1.0162220045111754,
+            "peakRssBytes": 0.8817215267331276
+          }
+        },
+        "failedChecks": [],
+        "reference": {
+          "importMs": [
+            188.671785,
+            187.585415,
+            191.26351499999998
+          ],
+          "firstRenderMs": [
+            285.140985,
+            293.12090699999993,
+            289.155067
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.065479000000778,
+            11.868654000001698,
+            11.326333000000886
+          ]
+        },
+        "candidate": {
+          "importMs": [
+            188.2874,
+            193.380497,
+            192.66154
+          ],
+          "firstRenderMs": [
+            92.342127,
+            95.04665,
+            91.85846300000003
+          ],
+          "failures": {},
+          "agentEditMs": [
+            11.43275100000028,
+            11.294549000000188,
+            11.309943000000203
+          ]
+        },
+        "agentEditTimeRatio": 0.998552929708081
+      }
+    }
+  },
+  "cacheChurn": {
+    "protocol": "bounded-cache-churn@1",
+    "population": 96,
+    "rounds": 3,
+    "workers": 12,
+    "summary": {
+      "elk-aa": {
+        "ratios": {
+          "passAllocatedBytes": [
+            0.9999067704941031,
+            1.00003947180343,
+            0.9999442187676871
+          ],
+          "passPeakHeapBytes": [
+            0.9999316168574751,
+            0.9998477457947972,
+            1.001389334199448
+          ],
+          "peakRssBytes": [
+            1.0252861780283615,
+            1.022643576136428,
+            0.9495415238459799
+          ],
+          "retainedGrowthBytes": [
+            0.9974696807561976,
+            0.9969263427901731,
+            1.2215298988664902
+          ]
+        },
+        "medians": {
+          "passAllocatedBytes": 0.9999442187676871,
+          "passPeakHeapBytes": 0.9999316168574751,
+          "peakRssBytes": 1.022643576136428,
+          "retainedGrowthBytes": 0.9974696807561976
+        },
+        "retainedBytes": [
+          715880,
+          721344,
+          719872
+        ]
+      },
+      "agentic": {
+        "ratios": {
+          "passAllocatedBytes": [
+            1.001092050337549,
+            1.0010600553757483,
+            1.0013128636582118
+          ],
+          "passPeakHeapBytes": [
+            0.5896730421890682,
+            0.5896661751100278,
+            0.5905275946850697
+          ],
+          "peakRssBytes": [
+            0.7332232283539306,
+            0.7133954032973882,
+            0.6915769143771858
+          ],
+          "retainedGrowthBytes": [
+            0.9381465132869627,
+            0.9310417265550716,
+            1.140175117084097
+          ]
+        },
+        "medians": {
+          "passAllocatedBytes": 1.001092050337549,
+          "passPeakHeapBytes": 0.5896730421890682,
+          "peakRssBytes": 0.7133954032973882,
+          "retainedGrowthBytes": 0.9381465132869627
+        },
+        "retainedBytes": [
+          673304,
+          673672,
+          671928
+        ]
+      },
+      "agentic-with-elk": {
+        "ratios": {
+          "passAllocatedBytes": [
+            1.0012245569087697,
+            1.0012096901019665,
+            1.0015122046845024
+          ],
+          "passPeakHeapBytes": [
+            0.5896229778183613,
+            0.5896832425670704,
+            0.5905457313908018
+          ],
+          "peakRssBytes": [
+            0.7426201188374433,
+            0.7468036486563049,
+            0.6693229864458093
+          ],
+          "retainedGrowthBytes": [
+            0.9326511503477796,
+            0.9326117241226809,
+            1.1432294848299736
+          ]
+        },
+        "medians": {
+          "passAllocatedBytes": 1.0012245569087697,
+          "passPeakHeapBytes": 0.5896832425670704,
+          "peakRssBytes": 0.7426201188374433,
+          "retainedGrowthBytes": 0.9326511503477796
+        },
+        "retainedBytes": [
+          669360,
+          674808,
+          673728
+        ]
+      }
+    }
+  },
+  "firstUse": {
+    "protocol": "actual-first-use@1",
+    "scenarios": 7,
+    "families": 6,
+    "rounds": 3,
+    "workers": 168,
+    "rendered": 162,
+    "expectedStrictNativeDeclines": 6,
+    "summary": {
+      "off": {
+        "eligible": {
+          "elk-aa": {
+            "importMs": 1.0402667103074403,
+            "firstRenderMs": 1.0179327617276321,
+            "importPlusFirstMs": 1.0259438668686343,
+            "warmMedianMs": 1.0304230510741628
+          },
+          "agentic": {
+            "importMs": 0.9829032546208532,
+            "firstRenderMs": 0.3470010169847908,
+            "importPlusFirstMs": 0.5698518639365434,
+            "warmMedianMs": 0.4626321769222263
+          },
+          "agentic-with-elk": {
+            "importMs": 1.0266069347084983,
+            "firstRenderMs": 0.34413473085797536,
+            "importPlusFirstMs": 0.5964277562505397,
+            "warmMedianMs": 0.47088376215647515
+          }
+        },
+        "fallback": {
+          "elk-aa": {
+            "importMs": 0.9316840488094464,
+            "firstRenderMs": 0.9686049017989199,
+            "importPlusFirstMs": 0.9352137437645339,
+            "warmMedianMs": 0.9724039874020257
+          },
+          "agentic": {
+            "importMs": null,
+            "firstRenderMs": null,
+            "importPlusFirstMs": null,
+            "warmMedianMs": null
+          },
+          "agentic-with-elk": {
+            "importMs": 0.9517826801233101,
+            "firstRenderMs": 1.0795815871210093,
+            "importPlusFirstMs": 1.0307423422800026,
+            "warmMedianMs": 1.149146582239724
+          }
+        },
+        "state": {
+          "elk-aa": {
+            "importMs": 0.9433962418921494,
+            "firstRenderMs": 0.9211866478728195,
+            "importPlusFirstMs": 0.922789811951023,
+            "warmMedianMs": 0.9465237618879078
+          },
+          "agentic": {
+            "importMs": 0.9262155226097447,
+            "firstRenderMs": 0.3153622734119824,
+            "importPlusFirstMs": 0.5074755365277602,
+            "warmMedianMs": 0.40181335775944305
+          },
+          "agentic-with-elk": {
+            "importMs": 0.9133843242239235,
+            "firstRenderMs": 0.35418598961954334,
+            "importPlusFirstMs": 0.5539651813034746,
+            "warmMedianMs": 0.4589116679925806
+          }
+        },
+        "class": {
+          "elk-aa": {
+            "importMs": 0.9034361663545221,
+            "firstRenderMs": 0.9236230052676565,
+            "importPlusFirstMs": 0.9159918123938179,
+            "warmMedianMs": 0.967932408009373
+          },
+          "agentic": {
+            "importMs": 0.9745332145169584,
+            "firstRenderMs": 0.3370115913589791,
+            "importPlusFirstMs": 0.5601219005905946,
+            "warmMedianMs": 0.5712590451996611
+          },
+          "agentic-with-elk": {
+            "importMs": 0.871019526089079,
+            "firstRenderMs": 0.33472601909970096,
+            "importPlusFirstMs": 0.5245817755252525,
+            "warmMedianMs": 0.5427288428677118
+          }
+        },
+        "er": {
+          "elk-aa": {
+            "importMs": 1.0184734152985766,
+            "firstRenderMs": 0.9824057212450565,
+            "importPlusFirstMs": 0.9961713213021841,
+            "warmMedianMs": 1.0699525637961056
+          },
+          "agentic": {
+            "importMs": 1.0681427194445625,
+            "firstRenderMs": 0.3960825520444541,
+            "importPlusFirstMs": 0.6567333465953746,
+            "warmMedianMs": 0.6497333438937316
+          },
+          "agentic-with-elk": {
+            "importMs": 1.0253686073851274,
+            "firstRenderMs": 0.38170169817589494,
+            "importPlusFirstMs": 0.631340494595798,
+            "warmMedianMs": 0.6772375686066912
+          }
+        },
+        "requirement": {
+          "elk-aa": {
+            "importMs": 0.9175083364678299,
+            "firstRenderMs": 0.9370583597874904,
+            "importPlusFirstMs": 0.9521510295792753,
+            "warmMedianMs": 0.9875060880823985
+          },
+          "agentic": {
+            "importMs": 0.9627733277414556,
+            "firstRenderMs": 0.28838347442504914,
+            "importPlusFirstMs": 0.5582418672839343,
+            "warmMedianMs": 0.4935931473806272
+          },
+          "agentic-with-elk": {
+            "importMs": 1.0132935510732903,
+            "firstRenderMs": 0.35862965830198346,
+            "importPlusFirstMs": 0.6124113082359017,
+            "warmMedianMs": 0.493633598202349
+          }
+        },
+        "architecture": {
+          "elk-aa": {
+            "importMs": 1.0610318137549195,
+            "firstRenderMs": 0.9479419818814567,
+            "importPlusFirstMs": 0.9846671912575355,
+            "warmMedianMs": 1.0484913440926111
+          },
+          "agentic": {
+            "importMs": 1.0688947940867688,
+            "firstRenderMs": 0.32305440156776066,
+            "importPlusFirstMs": 0.6030788136471549,
+            "warmMedianMs": 0.49966179268865485
+          },
+          "agentic-with-elk": {
+            "importMs": 1.014013104996657,
+            "firstRenderMs": 0.32203812501996887,
+            "importPlusFirstMs": 0.5645616640113253,
+            "warmMedianMs": 0.5658663486423872
+          }
+        }
+      },
+      "normal": {
+        "eligible": {
+          "elk-aa": {
+            "importMs": 0.8988020260071032,
+            "firstRenderMs": 0.9501302000607689,
+            "importPlusFirstMs": 0.9304417452032835,
+            "warmMedianMs": 0.8212933590349477
+          },
+          "agentic": {
+            "importMs": 0.9967943676955963,
+            "firstRenderMs": 0.35019867645728,
+            "importPlusFirstMs": 0.5982197742793038,
+            "warmMedianMs": 0.8486075242470009
+          },
+          "agentic-with-elk": {
+            "importMs": 0.9956296638794653,
+            "firstRenderMs": 0.33629004784306915,
+            "importPlusFirstMs": 0.5891994588131868,
+            "warmMedianMs": 0.819774463563541
+          }
+        },
+        "fallback": {
+          "elk-aa": {
+            "importMs": 1.1070493600682085,
+            "firstRenderMs": 1.0362552769357645,
+            "importPlusFirstMs": 1.0715524943134742,
+            "warmMedianMs": 1.101816516219618
+          },
+          "agentic": {
+            "importMs": null,
+            "firstRenderMs": null,
+            "importPlusFirstMs": null,
+            "warmMedianMs": null
+          },
+          "agentic-with-elk": {
+            "importMs": 1.0180103908133151,
+            "firstRenderMs": 0.9942944142631539,
+            "importPlusFirstMs": 1.0310467166776225,
+            "warmMedianMs": 1.055395848754129
+          }
+        },
+        "state": {
+          "elk-aa": {
+            "importMs": 0.990878067443893,
+            "firstRenderMs": 0.9824492867340526,
+            "importPlusFirstMs": 0.9853773689982719,
+            "warmMedianMs": 1.0220156518068166
+          },
+          "agentic": {
+            "importMs": 1.0513928769377061,
+            "firstRenderMs": 0.3627366512628519,
+            "importPlusFirstMs": 0.619210059483309,
+            "warmMedianMs": 0.9142473947312065
+          },
+          "agentic-with-elk": {
+            "importMs": 1.0143817338638237,
+            "firstRenderMs": 0.3517174398356339,
+            "importPlusFirstMs": 0.5915089084293206,
+            "warmMedianMs": 1.0848258942146516
+          }
+        },
+        "class": {
+          "elk-aa": {
+            "importMs": 1.1738652253139954,
+            "firstRenderMs": 1.0442382158650916,
+            "importPlusFirstMs": 1.0922837010730668,
+            "warmMedianMs": 0.9985777200590403
+          },
+          "agentic": {
+            "importMs": 1.0732637648580534,
+            "firstRenderMs": 0.384249793151414,
+            "importPlusFirstMs": 0.6396287510280014,
+            "warmMedianMs": 1.0224590806501532
+          },
+          "agentic-with-elk": {
+            "importMs": 1.0133632507449775,
+            "firstRenderMs": 0.374297775563531,
+            "importPlusFirstMs": 0.611163618301813,
+            "warmMedianMs": 1.012207924952697
+          }
+        },
+        "er": {
+          "elk-aa": {
+            "importMs": 0.9906227823915618,
+            "firstRenderMs": 0.9866481088583334,
+            "importPlusFirstMs": 0.9783284317847444,
+            "warmMedianMs": 1.0148770933555937
+          },
+          "agentic": {
+            "importMs": 0.9381109004428007,
+            "firstRenderMs": 0.36017066712683915,
+            "importPlusFirstMs": 0.5926935579108051,
+            "warmMedianMs": 0.953288127829445
+          },
+          "agentic-with-elk": {
+            "importMs": 1.0529052293760284,
+            "firstRenderMs": 0.40264286696053386,
+            "importPlusFirstMs": 0.6773957645678611,
+            "warmMedianMs": 0.9621877597555148
+          }
+        },
+        "requirement": {
+          "elk-aa": {
+            "importMs": 1.0011907785727583,
+            "firstRenderMs": 1.011610224658024,
+            "importPlusFirstMs": 0.9705101860087253,
+            "warmMedianMs": 0.9607441659245133
+          },
+          "agentic": {
+            "importMs": 1.0220463779346383,
+            "firstRenderMs": 0.33999133028604295,
+            "importPlusFirstMs": 0.6175170911686468,
+            "warmMedianMs": 0.9267823526004408
+          },
+          "agentic-with-elk": {
+            "importMs": 0.9987879904682616,
+            "firstRenderMs": 0.3161886566269391,
+            "importPlusFirstMs": 0.5625065719003303,
+            "warmMedianMs": 0.8653644532296582
+          }
+        },
+        "architecture": {
+          "elk-aa": {
+            "importMs": 1.1284920250245236,
+            "firstRenderMs": 1.3349061223652545,
+            "importPlusFirstMs": 1.2599790522026335,
+            "warmMedianMs": 0.8895595118418547
+          },
+          "agentic": {
+            "importMs": 0.9603295754914285,
+            "firstRenderMs": 0.44545069308166985,
+            "importPlusFirstMs": 0.6666720159601197,
+            "warmMedianMs": 1.0081296972038627
+          },
+          "agentic-with-elk": {
+            "importMs": 1.1264274363993767,
+            "firstRenderMs": 0.39817095186878326,
+            "importPlusFirstMs": 0.6625236555638917,
+            "warmMedianMs": 0.8730513281503851
+          }
+        }
+      }
+    }
+  },
+  "defaultControl": {
+    "revisions": {
+      "baseline": "009159f93e6cea53f97ca53e416cf66b130c8e49",
+      "candidate": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01"
+    },
+    "elapsedMs": 123475.78199900001,
+    "errors": [],
+    "results": {
+      "off": {
+        "baseline-aa": {
+          "ratios": {
+            "time": [
+              0.71260263276334,
+              0.8667528138049223,
+              0.9288217140360611
+            ],
+            "passAllocatedBytes": [
+              0.999929152837903,
+              1.0000297069286221,
+              1.0004287942113497
+            ],
+            "passPeakHeapBytes": [
+              1.0000357336110346,
+              0.9998833027836186,
+              1.000105921433521
+            ],
+            "retainedGrowthBytes": [
+              1.0062218611421414,
+              0.9955479475226154,
+              1.0140855577256944
+            ],
+            "peakRssBytes": [
+              1.0072654522480784,
+              1.0081382180199636,
+              1.0132661673172276
+            ]
+          },
+          "medians": {
+            "time": 0.8667528138049223,
+            "passAllocatedBytes": 1.0000297069286221,
+            "passPeakHeapBytes": 1.0000357336110346,
+            "retainedGrowthBytes": 1.0062218611421414,
+            "peakRssBytes": 1.0081382180199636
+          },
+          "svgIdentical": true,
+          "asciiIdentical": true,
+          "deterministic": true
+        },
+        "candidate": {
+          "ratios": {
+            "time": [
+              0.6217069404916084,
+              1.1162057287001037,
+              0.9843798965932301
+            ],
+            "passAllocatedBytes": [
+              0.9973668471420595,
+              0.9976042972682868,
+              0.9975623514387334
+            ],
+            "passPeakHeapBytes": [
+              1.0017764709485741,
+              1.0016994120757372,
+              1.0016076803390392
+            ],
+            "retainedGrowthBytes": [
+              0.9928032226397211,
+              0.988078242454177,
+              0.9910142686631944
+            ],
+            "peakRssBytes": [
+              1.0029219753606402,
+              1.0043983249493007,
+              0.9718852199599114
+            ]
+          },
+          "medians": {
+            "time": 0.9843798965932301,
+            "passAllocatedBytes": 0.9975623514387334,
+            "passPeakHeapBytes": 1.0016994120757372,
+            "retainedGrowthBytes": 0.9910142686631944,
+            "peakRssBytes": 1.0029219753606402
+          },
+          "svgIdentical": true,
+          "asciiIdentical": true,
+          "deterministic": true
+        }
+      },
+      "normal": {
+        "baseline-aa": {
+          "ratios": {
+            "time": [
+              0.8213716095926971,
+              0.8870911035468408,
+              1.1903558932223472
+            ],
+            "passAllocatedBytes": [
+              0.9997366248262456,
+              0.9999385073341944,
+              0.9996161568706577
+            ],
+            "passPeakHeapBytes": [
+              1.0001056830086459,
+              0.9999654574581519,
+              0.9999688256216508
+            ],
+            "retainedGrowthBytes": [
+              1.0022799240025333,
+              0.9814981138853961,
+              0.9756510745891277
+            ],
+            "peakRssBytes": [
+              0.9981714588578243,
+              0.9850643138088657,
+              0.9896003370017377
+            ]
+          },
+          "medians": {
+            "time": 0.8870911035468408,
+            "passAllocatedBytes": 0.9997366248262456,
+            "passPeakHeapBytes": 0.9999688256216508,
+            "retainedGrowthBytes": 0.9814981138853961,
+            "peakRssBytes": 0.9896003370017377
+          },
+          "svgIdentical": true,
+          "asciiIdentical": true,
+          "deterministic": true
+        },
+        "candidate": {
+          "ratios": {
+            "time": [
+              0.9558869692442099,
+              0.8728076429676012,
+              1.0243226797680465
+            ],
+            "passAllocatedBytes": [
+              1.0023739598994874,
+              1.0011650770613552,
+              1.0005309929448678
+            ],
+            "passPeakHeapBytes": [
+              1.001269220731259,
+              1.0010885291683225,
+              1.0009305478757955
+            ],
+            "retainedGrowthBytes": [
+              1.0195566814439518,
+              0.9050270728014576,
+              0.9981036662452591
+            ],
+            "peakRssBytes": [
+              1.0060686365443223,
+              1.0032422663973637,
+              0.999157495655837
+            ]
+          },
+          "medians": {
+            "time": 0.9558869692442099,
+            "passAllocatedBytes": 1.0011650770613552,
+            "passPeakHeapBytes": 1.0010885291683225,
+            "retainedGrowthBytes": 0.9981036662452591,
+            "peakRssBytes": 1.0032422663973637
+          },
+          "svgIdentical": true,
+          "asciiIdentical": true,
+          "deterministic": true
+        }
+      }
+    }
+  },
+  "browser": {
+    "schemaVersion": 1,
+    "compression": "sum of each fetched file; gzip level 9; Brotli quality 11",
+    "familyCost": "default includes selected ELK; nativeSolver is the structural closure with the native solver, not proof of input eligibility; static excludes on-demand dependencies; HTML5 tables and fallback dependencies are additional",
+    "elkChunk": "dist/browser-lazy/chunks/elk.bundled-VF4HLRNQ.js",
+    "elkTransfer": {
+      "raw": 1476649,
+      "gzip": 446219,
+      "brotli": 342090
+    },
+    "initial": {
+      "requests": 4,
+      "raw": 14233,
+      "gzip": 5494,
+      "brotli": 4935
+    },
+    "budgetedFamilies": {
+      "flowchart": {
+        "requests": 34,
+        "elk": true,
+        "raw": 2274599,
+        "gzip": 711870,
+        "brotli": 576891
+      },
+      "state": {
+        "requests": 33,
+        "elk": true,
+        "raw": 2274933,
+        "gzip": 711822,
+        "brotli": 576789
+      },
+      "sequence": {
+        "requests": 29,
+        "elk": false,
+        "raw": 643400,
+        "gzip": 210082,
+        "brotli": 186418
+      },
+      "timeline": {
+        "requests": 27,
+        "elk": false,
+        "raw": 590799,
+        "gzip": 193023,
+        "brotli": 171125
+      },
+      "class": {
+        "requests": 34,
+        "elk": true,
+        "raw": 2114040,
+        "gzip": 656045,
+        "brotli": 528117
+      },
+      "er": {
+        "requests": 38,
+        "elk": true,
+        "raw": 2227475,
+        "gzip": 697557,
+        "brotli": 564018
+      },
+      "journey": {
+        "requests": 28,
+        "elk": false,
+        "raw": 611797,
+        "gzip": 200352,
+        "brotli": 177767
+      },
+      "architecture": {
+        "requests": 34,
+        "elk": true,
+        "raw": 2269311,
+        "gzip": 709038,
+        "brotli": 573993
+      },
+      "xychart": {
+        "requests": 29,
+        "elk": false,
+        "raw": 634703,
+        "gzip": 208342,
+        "brotli": 184808
+      },
+      "pie": {
+        "requests": 31,
+        "elk": false,
+        "raw": 604618,
+        "gzip": 200593,
+        "brotli": 177897
+      },
+      "quadrant": {
+        "requests": 29,
+        "elk": false,
+        "raw": 598072,
+        "gzip": 196725,
+        "brotli": 174420
+      },
+      "gantt": {
+        "requests": 27,
+        "elk": false,
+        "raw": 616938,
+        "gzip": 202531,
+        "brotli": 179800
+      },
+      "mindmap": {
+        "requests": 27,
+        "elk": false,
+        "raw": 596776,
+        "gzip": 197521,
+        "brotli": 175174
+      },
+      "gitgraph": {
+        "requests": 29,
+        "elk": false,
+        "raw": 605235,
+        "gzip": 200100,
+        "brotli": 177470
+      },
+      "radar": {
+        "requests": 31,
+        "elk": false,
+        "raw": 610408,
+        "gzip": 202153,
+        "brotli": 179323
+      },
+      "sankey": {
+        "requests": 28,
+        "elk": false,
+        "raw": 602667,
+        "gzip": 199413,
+        "brotli": 176885
+      },
+      "c4": {
+        "requests": 29,
+        "elk": false,
+        "raw": 758293,
+        "gzip": 250942,
+        "brotli": 221278
+      },
+      "packet": {
+        "requests": 27,
+        "elk": false,
+        "raw": 577867,
+        "gzip": 189961,
+        "brotli": 168389
+      },
+      "kanban": {
+        "requests": 30,
+        "elk": false,
+        "raw": 586369,
+        "gzip": 193674,
+        "brotli": 171652
+      },
+      "requirement": {
+        "requests": 29,
+        "elk": true,
+        "raw": 2074414,
+        "gzip": 643026,
+        "brotli": 516597
+      },
+      "treemap": {
+        "requests": 29,
+        "elk": false,
+        "raw": 596989,
+        "gzip": 198159,
+        "brotli": 175852
+      },
+      "ishikawa": {
+        "requests": 27,
+        "elk": false,
+        "raw": 577773,
+        "gzip": 189634,
+        "brotli": 168116
+      },
+      "block": {
+        "requests": 28,
+        "elk": false,
+        "raw": 722837,
+        "gzip": 240861,
+        "brotli": 212569
+      }
+    },
+    "families": {
+      "flowchart": {
+        "requests": 34,
+        "elk": true,
+        "raw": 2274599,
+        "gzip": 711870,
+        "brotli": 576891,
+        "static": {
+          "requests": 33,
+          "raw": 798410,
+          "gzip": 265951,
+          "brotli": 235049
+        },
+        "nativeSolver": {
+          "requests": 34,
+          "raw": 853518,
+          "gzip": 286669,
+          "brotli": 253431
+        }
+      },
+      "state": {
+        "requests": 33,
+        "elk": true,
+        "raw": 2274933,
+        "gzip": 711822,
+        "brotli": 576789,
+        "static": {
+          "requests": 32,
+          "raw": 798744,
+          "gzip": 265903,
+          "brotli": 234947
+        },
+        "nativeSolver": {
+          "requests": 33,
+          "raw": 853852,
+          "gzip": 286621,
+          "brotli": 253329
+        }
+      },
+      "sequence": {
+        "requests": 29,
+        "elk": false,
+        "raw": 643400,
+        "gzip": 210082,
+        "brotli": 186418,
+        "static": {
+          "requests": 29,
+          "raw": 643400,
+          "gzip": 210082,
+          "brotli": 186418
+        }
+      },
+      "timeline": {
+        "requests": 27,
+        "elk": false,
+        "raw": 590799,
+        "gzip": 193023,
+        "brotli": 171125,
+        "static": {
+          "requests": 27,
+          "raw": 590799,
+          "gzip": 193023,
+          "brotli": 171125
+        }
+      },
+      "class": {
+        "requests": 34,
+        "elk": true,
+        "raw": 2114040,
+        "gzip": 656045,
+        "brotli": 528117,
+        "static": {
+          "requests": 33,
+          "raw": 637851,
+          "gzip": 210126,
+          "brotli": 186275
+        },
+        "nativeSolver": {
+          "requests": 35,
+          "raw": 695687,
+          "gzip": 232132,
+          "brotli": 205853
+        }
+      },
+      "er": {
+        "requests": 38,
+        "elk": true,
+        "raw": 2227475,
+        "gzip": 697557,
+        "brotli": 564018,
+        "static": {
+          "requests": 37,
+          "raw": 751286,
+          "gzip": 251638,
+          "brotli": 222176
+        },
+        "nativeSolver": {
+          "requests": 38,
+          "raw": 806394,
+          "gzip": 272356,
+          "brotli": 240558
+        }
+      },
+      "journey": {
+        "requests": 28,
+        "elk": false,
+        "raw": 611797,
+        "gzip": 200352,
+        "brotli": 177767,
+        "static": {
+          "requests": 28,
+          "raw": 611797,
+          "gzip": 200352,
+          "brotli": 177767
+        }
+      },
+      "architecture": {
+        "requests": 34,
+        "elk": true,
+        "raw": 2269311,
+        "gzip": 709038,
+        "brotli": 573993,
+        "static": {
+          "requests": 33,
+          "raw": 793122,
+          "gzip": 263119,
+          "brotli": 232151
+        },
+        "nativeSolver": {
+          "requests": 34,
+          "raw": 848230,
+          "gzip": 283837,
+          "brotli": 250533
+        }
+      },
+      "xychart": {
+        "requests": 29,
+        "elk": false,
+        "raw": 634703,
+        "gzip": 208342,
+        "brotli": 184808,
+        "static": {
+          "requests": 29,
+          "raw": 634703,
+          "gzip": 208342,
+          "brotli": 184808
+        }
+      },
+      "pie": {
+        "requests": 31,
+        "elk": false,
+        "raw": 604618,
+        "gzip": 200593,
+        "brotli": 177897,
+        "static": {
+          "requests": 31,
+          "raw": 604618,
+          "gzip": 200593,
+          "brotli": 177897
+        }
+      },
+      "quadrant": {
+        "requests": 29,
+        "elk": false,
+        "raw": 598072,
+        "gzip": 196725,
+        "brotli": 174420,
+        "static": {
+          "requests": 29,
+          "raw": 598072,
+          "gzip": 196725,
+          "brotli": 174420
+        }
+      },
+      "gantt": {
+        "requests": 27,
+        "elk": false,
+        "raw": 616938,
+        "gzip": 202531,
+        "brotli": 179800,
+        "static": {
+          "requests": 27,
+          "raw": 616938,
+          "gzip": 202531,
+          "brotli": 179800
+        }
+      },
+      "mindmap": {
+        "requests": 27,
+        "elk": false,
+        "raw": 596776,
+        "gzip": 197521,
+        "brotli": 175174,
+        "static": {
+          "requests": 27,
+          "raw": 596776,
+          "gzip": 197521,
+          "brotli": 175174
+        }
+      },
+      "gitgraph": {
+        "requests": 29,
+        "elk": false,
+        "raw": 605235,
+        "gzip": 200100,
+        "brotli": 177470,
+        "static": {
+          "requests": 29,
+          "raw": 605235,
+          "gzip": 200100,
+          "brotli": 177470
+        }
+      },
+      "radar": {
+        "requests": 31,
+        "elk": false,
+        "raw": 610408,
+        "gzip": 202153,
+        "brotli": 179323,
+        "static": {
+          "requests": 31,
+          "raw": 610408,
+          "gzip": 202153,
+          "brotli": 179323
+        }
+      },
+      "sankey": {
+        "requests": 28,
+        "elk": false,
+        "raw": 602667,
+        "gzip": 199413,
+        "brotli": 176885,
+        "static": {
+          "requests": 28,
+          "raw": 602667,
+          "gzip": 199413,
+          "brotli": 176885
+        }
+      },
+      "c4": {
+        "requests": 29,
+        "elk": false,
+        "raw": 758293,
+        "gzip": 250942,
+        "brotli": 221278,
+        "static": {
+          "requests": 29,
+          "raw": 758293,
+          "gzip": 250942,
+          "brotli": 221278
+        }
+      },
+      "packet": {
+        "requests": 27,
+        "elk": false,
+        "raw": 577867,
+        "gzip": 189961,
+        "brotli": 168389,
+        "static": {
+          "requests": 27,
+          "raw": 577867,
+          "gzip": 189961,
+          "brotli": 168389
+        }
+      },
+      "kanban": {
+        "requests": 30,
+        "elk": false,
+        "raw": 586369,
+        "gzip": 193674,
+        "brotli": 171652,
+        "static": {
+          "requests": 30,
+          "raw": 586369,
+          "gzip": 193674,
+          "brotli": 171652
+        }
+      },
+      "requirement": {
+        "requests": 29,
+        "elk": true,
+        "raw": 2074414,
+        "gzip": 643026,
+        "brotli": 516597,
+        "static": {
+          "requests": 28,
+          "raw": 598225,
+          "gzip": 197107,
+          "brotli": 174755
+        },
+        "nativeSolver": {
+          "requests": 30,
+          "raw": 656061,
+          "gzip": 219113,
+          "brotli": 194333
+        }
+      },
+      "treemap": {
+        "requests": 29,
+        "elk": false,
+        "raw": 596989,
+        "gzip": 198159,
+        "brotli": 175852,
+        "static": {
+          "requests": 29,
+          "raw": 596989,
+          "gzip": 198159,
+          "brotli": 175852
+        }
+      },
+      "ishikawa": {
+        "requests": 27,
+        "elk": false,
+        "raw": 577773,
+        "gzip": 189634,
+        "brotli": 168116,
+        "static": {
+          "requests": 27,
+          "raw": 577773,
+          "gzip": 189634,
+          "brotli": 168116
+        }
+      },
+      "block": {
+        "requests": 28,
+        "elk": false,
+        "raw": 722837,
+        "gzip": 240861,
+        "brotli": 212569,
+        "static": {
+          "requests": 28,
+          "raw": 722837,
+          "gzip": 240861,
+          "brotli": 212569
+        }
+      }
+    }
+  },
+  "standalone": {
+    "raw": 4097251,
+    "gzip": 1233822,
+    "rawCap": 4100000,
+    "gzipCap": 1260000
+  },
+  "artifacts": {
+    "ci": "https://github.com/adewale/agentic-mermaid/actions/runs/39692904654",
+    "quality": "https://github.com/adewale/agentic-mermaid/actions/runs/39692904654/artifacts/12389776376",
+    "cost": "https://github.com/adewale/agentic-mermaid/actions/runs/39692904654/artifacts/12389169062"
+  },
+  "validation": {
+    "runtimeCI": "all required lanes passed at e9db0dbe; generated quality and cache-off cost remain adverse",
+    "coverageGuardTests": {
+      "pass": 11,
+      "fail": 0,
+      "assertions": 1808
+    },
+    "coverageGuardReportReplay": "all eight frozen HTML reports byte-identical",
+    "rendererSourceUnchangedSinceRuntimeRevision": true
+  },
+  "followupCostRun": {
+    "sourceRevision": "b4734ec7ed0c3c477d85fa5c2e6cc3c122625a7c",
+    "runtimeUnchangedFrom": "e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01",
+    "results": "layout-cost-b473-results.json",
+    "retainsEarlierCostCampaigns": true,
+    "all27MeasurementsCompleteBothCaches": true,
+    "aaPassesBothCaches": true,
+    "nativeOffQualification": false,
+    "offSlowCases": [
+      "flowchart:cyclic-labelled-15",
+      "flowchart:cyclic-labelled-18-cuts"
+    ],
+    "normalNativeQualification": true
+  }
+}

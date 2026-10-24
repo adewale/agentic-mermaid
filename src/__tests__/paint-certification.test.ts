@@ -23,6 +23,22 @@ const label = () => {
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
 
+test.each(['ellipse', 'circle'] as const)('a supporting line proves a diagonal marker outside a %s while retaining an entering marker as uncertain', kind => {
+  const rx = kind === 'circle' ? 20 : 30, ry = 20, cx = 60, cy = 40
+  const point = { x: cx - rx / Math.SQRT2, y: cy - ry / Math.SQRT2 }
+  const nx = (point.x - cx) / (rx * rx), ny = (point.y - cy) / (ry * ry), norm = Math.hypot(nx, ny)
+  const direction = { x: nx / norm, y: ny / norm }
+  const marker = { id: 'arrow', shape: 'arrow' as const, units: 'userSpaceOnUse' as const, ref: { x: 8, y: 2.5 }, geometry: { kind: 'polygon' as const, points: [{ x: 0, y: 0 }, { x: 8, y: 2.5 }, { x: 0, y: 5 }] }, paint: { fill: '#111' } }
+  const card = marks.shape({ id: 'node', role: 'node', geometry: kind === 'circle' ? { kind, cx, cy, r: rx } : { kind, cx, cy, rx, ry }, paint: { fill: '#fff' } })
+  const connector = (inset: number) => marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', endpoints: { from: 'outside', to: 'node' },
+    geometry: { kind: 'line', x1: point.x + direction.x * 20, y1: point.y + direction.y * 20, x2: point.x - direction.x * inset, y2: point.y - direction.y * inset },
+    paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } })
+  expect(certifyScenePaint(scene([connector(0), card])).status).toBe('passed')
+  const entering = certifyScenePaint(scene([connector(4), card]))
+  expect(entering.status).not.toBe('passed')
+  expect(entering.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'edge', by: 'node' }))
+})
+
 test('final paint order catches fully hidden text, including artwork with the same owner', () => {
   const text = label(), cover = surface()
   const hidden = certifyScenePaint(scene([text, cover]))

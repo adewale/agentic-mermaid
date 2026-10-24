@@ -1,3 +1,4 @@
+import { releaseBenchCases } from '../eval/benchmark/release-bench-cases.ts'
 /**
  * Browser bundle contract (BUILD-30).
  *
@@ -29,7 +30,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt, sharedRenderOptionsJsonSchema } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const REPO = join(import.meta.dir, '..')
@@ -41,6 +42,16 @@ const BUILD_TIMEOUT_MS = 300_000
 const GLOBAL = 'agenticMermaid'
 /** Every family carries a canonical `example`; a registry smaller than this means something is wrong. */
 const MIN_EXPECTED_FAMILIES = 10
+
+// Exercise the vocabulary whose documentation prose is omitted only from the
+// lazy build. Authored labels/accessibility and executable shape metadata must
+// still cross both emitted browser boundaries without changing the receipt.
+const SHAPE_METADATA_PARITY_CASES = [
+  { name: 'aliases', source: 'flowchart LR\nA@{ shape: card, label: "Card" }\nB@{ shape: database, label: "Database" }\nA --> B' },
+  { name: 'semantic geometry', source: 'flowchart LR\nA@{ shape: cloud, label: "Cloud" }\nB@{ shape: hourglass, label: "Hourglass" }\nC@{ shape: document, label: "Document" }\nA --> B --> C' },
+  { name: 'unknown shape', source: 'flowchart LR\nA@{ shape: zigzag, label: "Unknown shape" }\nA --> B' },
+  { name: 'authored descriptions', source: 'flowchart LR\naccTitle: Authored shape metadata\naccDescr: Authored description: Process\nA@{ shape: rect, label: "description: \'Process\'" }\nA --> B' },
+] as const
 
 /** Newest modification time among the bundle's build inputs: production
  *  source, the tsup configs, and package.json. Tests are not inputs, and
@@ -56,7 +67,7 @@ function newestBuildInputMtime(): number {
     }
   }
   visit(join(REPO, 'src'))
-  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts']) visit(join(REPO, file))
+  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts', 'scripts/build/runtime-render-contract.ts']) visit(join(REPO, file))
   return newest
 }
 
@@ -71,12 +82,12 @@ function ensureBrowserBundle() {
   }
 }
 
-function lazyElkChunk(): string {
+function lazyImplementationChunk(input = 'node_modules/elkjs/'): string {
   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
     outputs: Record<string, { inputs: Record<string, unknown> }>
   }
   const matches = Object.entries(metafile.outputs).filter(([, output]) =>
-    Object.keys(output.inputs).some(input => input.includes('node_modules/elkjs/')))
+    Object.keys(output.inputs).some(path => path.includes(input)))
   expect(matches.length).toBe(1)
   return matches[0]![0].replace(/^dist\//, '')
 }
@@ -142,6 +153,34 @@ describe('browser bundle', () => {
       expect(new Set(actual.identities).size).toBe(actual.identities.length)
     }
   })
+
+  test('preserves the complete public render-option schema in the IIFE', async () => {
+    const schema = await page.evaluate(name => (globalThis as Record<string, any>)[name].sharedRenderOptionsJsonSchema(), GLOBAL)
+    expect(schema).toEqual(sharedRenderOptionsJsonSchema())
+  })
+
+  test.each(['elk', 'agentic'] as const)('IIFE preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {
+    for (const input of SHAPE_METADATA_PARITY_CASES) {
+      const options = {
+        security: 'strict' as const,
+        graphLayout: { backend },
+        mermaidConfig: { flowchart: { defaultRenderer: 'dagre' } },
+      }
+      const actual = await page.evaluate(({ name, source, options }) => {
+        const diagnostics: unknown[] = []
+        const rendered = (globalThis as Record<string, any>)[name].renderMermaidSVGWithReceipt(source, {
+          ...options, onConfigDiagnostic: (value: unknown) => diagnostics.push(value),
+        })
+        return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
+      }, { name: GLOBAL, source: input.source, options })
+      const diagnostics: unknown[] = []
+      const expected = renderMermaidSVGWithReceipt(input.source, {
+        ...options, onConfigDiagnostic: value => diagnostics.push(value),
+      })
+      expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
+      expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
+    }
+  }, BUILD_TIMEOUT_MS)
 
   // B2. Registry-driven, so future families enroll without touching this file.
   test('registry is non-empty, so the per-family checks below are not vacuous', () => {
@@ -331,6 +370,76 @@ describe('async family-loaded browser renderer', () => {
     }
   }, BUILD_TIMEOUT_MS)
 
+  test('checked options retain source diagnostics in the lazy artifact', async () => {
+    const page = await browser.newPage()
+    const cases = [
+      { nodeSpacing: -1 },
+      { graphLayout: { backend: 'elk', fallback: 'elk' } },
+      { graphLayout: { backend: 'agentic', extra: true } },
+      { graphLayout: { backend: 'wrong' } },
+      { bg: 'url(https://example.invalid/image)' },
+      { architecture: { visual: { junctionInnerRadius: 10, junctionOuterRadius: 5 } } },
+    ]
+    try {
+      await page.goto(`${base}/blank.html`)
+      const authored = { style: { blurb: 'Authored runtime style metadata', colors: { accent: '#0055AA' } } }
+      const expected = renderMermaidSVGWithReceipt('flowchart TD\nA --> B', authored)
+      const rendered = await page.evaluate(async ({ entryUrl, options }) => {
+        const api = await import(entryUrl)
+        return api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', options)
+      }, { entryUrl: `${base}/dist/browser-lazy/index.js`, options: authored })
+      expect(rendered).toEqual(JSON.parse(JSON.stringify(expected)))
+      for (const options of cases) {
+        let expected: string | undefined
+        try { renderMermaidSVG('flowchart TD\nA --> B', options as never) }
+        catch (error) { expected = String(error) }
+        expect(expected).toBeDefined()
+        const actual = await page.evaluate(async ({ entryUrl, options }) => {
+          const api = await import(entryUrl)
+          try { await api.renderMermaidSVGAsync('flowchart TD\nA --> B', options); return undefined }
+          catch (error) { return String(error) }
+        }, { entryUrl: `${base}/dist/browser-lazy/index.js`, options })
+        expect(actual).toBe(expected)
+      }
+    } finally { await page.close() }
+  }, BUILD_TIMEOUT_MS)
+
+  test.each(['elk', 'agentic'] as const)('lazy prose stripping preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/blank.html`)
+      for (const input of SHAPE_METADATA_PARITY_CASES) {
+        const options = {
+          security: 'strict' as const,
+          graphLayout: { backend },
+          mermaidConfig: { flowchart: { defaultRenderer: 'dagre' } },
+        }
+        const actual = await page.evaluate(async ({ entryUrl, source, options }) => {
+          const api = await import(entryUrl)
+          const diagnostics: unknown[] = []
+          const rendered = await api.renderMermaidSVGWithReceiptAsync(source, {
+            ...options, onConfigDiagnostic: (value: unknown) => diagnostics.push(value),
+          })
+          return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
+        }, { entryUrl: `${base}/dist/browser-lazy/index.js`, source: input.source, options })
+        const diagnostics: unknown[] = []
+        const expected = renderMermaidSVGWithReceipt(input.source, {
+          ...options, onConfigDiagnostic: value => diagnostics.push(value),
+        })
+        expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
+        expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
+        if (input.name === 'authored descriptions') {
+          const text = await page.evaluate(svg => {
+            const document = new DOMParser().parseFromString(svg, 'image/svg+xml')
+            return { description: document.querySelector('desc')?.textContent, text: document.documentElement.textContent }
+          }, actual.svg)
+          expect(text.description).toBe('Authored description: Process')
+          expect(text.text).toContain("description: 'Process'")
+        }
+      }
+    } finally { await page.close() }
+  }, BUILD_TIMEOUT_MS)
+
   test('the emitted Pie family decodes full named references in a real browser', async () => {
     const source = 'pie\n  "A#NotEqualTilde;B" : 1\n  "C#notit;D" : 2\n'
     const page = await browser.newPage()
@@ -358,24 +467,36 @@ describe('async family-loaded browser renderer', () => {
         const api = await import(entryUrl)
         await api.renderMermaidSVGAsync('timeline\n  title Small\n  2026 : Ship')
       }, `${base}/dist/browser-lazy/index.js`)
-      expect(requests).not.toContain(lazyElkChunk())
+      expect(requests).not.toContain(lazyImplementationChunk())
     } finally {
       await page.close()
     }
   })
 
-  test('ELK-backed families fetch and reuse one shared ELK chunk', async () => {
+  test.each(['elk', 'agentic'] as const)('%s-backed families fetch and reuse only the selected solver', async backend => {
     const page = await browser.newPage()
     const requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     try {
       await page.goto(`${base}/blank.html`)
-      await page.evaluate(async entryUrl => {
+      await page.evaluate(async ({ entryUrl, backend }) => {
         const api = await import(entryUrl)
-        await api.renderMermaidSVGAsync('flowchart LR\n  A --> B')
-        await api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready')
-      }, `${base}/dist/browser-lazy/index.js`)
-      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
+        await Promise.all([
+          api.renderMermaidSVGAsync('flowchart LR\n  A --> B', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\nB -->|handoff| C', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('stateDiagram-v2\nstate One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('classDiagram\nnamespace One {\nclass A\n}\nnamespace Two {\nclass B\n}\nA --> B : handoff', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R --> L:b', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('classDiagram\nclass Account {\n+String name\n}\nAccount --> Audit : records', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('classDiagram\nnamespace Platform {\nclass A\nclass B\nA --> B : delegates\nnamespace Domain {\nclass User\n}\n}', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('erDiagram\nCUSTOMER ||--o{ ORDER : places', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('erDiagram\nsubgraph Accounts\n CUSTOMER ||--o{ ORDER : places\nend\nsubgraph Audit\n AUDIT\nend\nAccounts ||--|| Audit : reports\nORDER ||..o{ AUDIT : logs', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('stateDiagram-v2\n  [*] --> Ready', { graphLayout: { backend } }),
+          api.renderMermaidSVGAsync('requirementDiagram\nrequirement fast {\ntext: Respond quickly\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> fast', { graphLayout: { backend } }),
+        ])
+      }, { entryUrl: `${base}/dist/browser-lazy/index.js`, backend })
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(backend === 'elk' ? 1 : 0)
+      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(backend === 'agentic' ? 1 : 0)
     } finally {
       await page.close()
     }
@@ -393,7 +514,7 @@ describe('async family-loaded browser renderer', () => {
         return api.renderMermaidSVGAsync(source, { security: 'strict' })
       }, [`${base}/dist/browser-lazy/index.js`, forest] as const)
       expect(result).toBe(renderMermaidSVG(forest, { security: 'strict' }))
-      expect(requests).not.toContain(lazyElkChunk())
+      expect(requests).not.toContain(lazyImplementationChunk())
 
       const cycle = 'flowchart LR\n  A["x#hearts;y"] --> B[End]\n  B --> A'
       const resumed = await page.evaluate(async ([entryUrl, source]) => {
@@ -415,11 +536,45 @@ describe('async family-loaded browser renderer', () => {
       expect(resumed.first.receipt.layoutCertification?.status).toBe('passed')
       expect(resumed.diagnostics).toEqual(['flowchart.defaultRenderer'])
       expect(resumed.reads).toBe(1)
-      expect(requests.filter(path => path === lazyElkChunk())).toHaveLength(1)
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(1)
     } finally {
       await page.close()
     }
   })
+
+  test.each(['native', 'cross-scope', 'large-cross-scope', 'frame-endpoint', 'compound', 'local-limit', 'refined-cycle'])('native graph placement fetches ELK only for an actual fallback (%s)', async mode => {
+    const fallback = mode === 'compound' || mode === 'local-limit'
+    const page = await browser.newPage()
+    const requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
+      : mode === 'large-cross-scope' ? releaseBenchCases().find(input => input.id === 'flowchart:subgraphs-12x8')!.source
+      : mode === 'frame-endpoint' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOutside --> Inner'
+      : mode === 'compound' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOuter --> A'
+      : `flowchart TD\n${mode === 'cross-scope' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'cross-scope' ? '\nend' : ''}`
+    const options = {
+      graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
+      security: 'strict' as const, mermaidConfig: { flowchart: { nodeSpacing: -1 } },
+    }
+    try {
+      await page.goto(`${base}/blank.html`)
+      const result = await page.evaluate(async ({ entry, source, options }) => {
+        const api = await import(entry)
+        const diagnostics: unknown[] = []
+        const rendered = await api.renderMermaidSVGWithReceiptAsync(source, {
+          ...options, onConfigDiagnostic: (value: unknown) => diagnostics.push(value),
+        })
+        return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+      const diagnostics: unknown[] = []
+      const expected = renderMermaidSVGWithReceipt(source, { ...options, onConfigDiagnostic: value => diagnostics.push(value) })
+      expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
+      expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(fallback ? 1 : 0)
+      expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(1)
+      expect(result.receipt.layoutDecisions[0].selected).toBe(fallback ? 'elk' : 'agentic')
+    } finally { await page.close() }
+  })
+
 
   test('the emitted lazy artifact rejects hostile strict-mode theme CSS', async () => {
     const page = await browser.newPage()
@@ -498,7 +653,7 @@ describe('demo page', () => {
   test('fetches Timeline but neither ELK nor the classic all-family bundle', () => {
     expect(demoRequests).toContainEqual(expect.stringMatching(/^\/demo\/browser-lazy\/index-[a-f0-9]{12}\.js$/))
     expect(demoRequests).toContainEqual(expect.stringMatching(/^\/demo\/browser-lazy\/chunks\/timeline-[A-Z0-9]{8}\.js$/))
-    expect(demoRequests).not.toContain(`/demo/${lazyElkChunk()}`)
+    expect(demoRequests).not.toContain(`/demo/${lazyImplementationChunk()}`)
     expect(demoRequests).not.toContainEqual(expect.stringMatching(/^\/demo\/browser-[a-f0-9]{12}\.js$/))
 
     const requestedFamilyChunks = demoRequests.filter(path =>

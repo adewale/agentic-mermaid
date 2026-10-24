@@ -39,7 +39,7 @@ export async function renderLoadedFamilySvgWithReceipt(
       // their original snapshot across either dependency await.
       const load = error instanceof DeferredDependencyError ? error.load
         : (error as Partial<HtmlEntityTableNotLoadedError> | undefined)?.loadHtmlEntityTable
-      if (typeof load !== 'function' || loaded.has(load) || loaded.size >= 2) throw error
+      if (typeof load !== 'function' || loaded.has(load) || loaded.size >= 3) throw error
       loaded.add(load)
       await load()
     }
