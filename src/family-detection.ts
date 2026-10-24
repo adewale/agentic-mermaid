@@ -1,5 +1,5 @@
 import type { FamilyDescriptor } from './agent/families.ts'
-import { detectInstalledFamilyDescriptorFromFirstLine, installedFamilyStatementEnds, normalizeFamilyDetectionLine } from './agent/family-router.ts'
+import { detectInstalledFamilyDescriptorFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
 import type {
   FamilyId,
   PreservedDiagramBody,
@@ -13,7 +13,7 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
-import { matchMermaidFrontmatter, splitHeaderStatement } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, normalizeFamilyDetectionLine, splitHeaderStatement } from './mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective, statementEndAt } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =

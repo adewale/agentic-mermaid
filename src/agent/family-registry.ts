@@ -30,7 +30,8 @@ import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { C4_CONFIG_KEYS, C4_NOOP_CONFIG_KEYS } from '../c4/config.ts'
-import { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose, installRegisteredFamilyByIdResolver, installRegisteredFamilyResolver, normalizeFamilyDetectionLine } from './family-router.ts'
+import { detectsFlowchartFamily, detectsStateFamily, detectsStateFamilyLoose, installRegisteredFamilyByIdResolver, installRegisteredFamilyResolver } from './family-router.ts'
+import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
 
 /** Frozen source provenance for map builders; no runtime config authority. */

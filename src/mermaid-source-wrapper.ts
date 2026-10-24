@@ -89,10 +89,13 @@ export const MERMAID_DIRECTIVE_REGEX = /%%\{\s*\w+(?:(?!\}%%)[\s\S])*\}%%/g
 /** Header discovery and full preprocessing consume the same directive-free
  * body. Only full preprocessing interprets init payloads as configuration. */
 export function stripMermaidDirectives(text: string, onInit?: (payload: string | undefined) => void): string {
-  return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, onItsLine: string | undefined, inStatement: string | undefined) => {
-    onInit?.(onItsLine ?? inStatement)
-    return ''
-  }).replace(MERMAID_DIRECTIVE_REGEX, '')
+  const body = onInit
+    ? text.replace(INIT_DIRECTIVE_REGEX, (_match, onItsLine: string | undefined, inStatement: string | undefined) => {
+      onInit(onItsLine ?? inStatement)
+      return ''
+    })
+    : text.replace(INIT_DIRECTIVE_REGEX, '')
+  return body.replace(MERMAID_DIRECTIVE_REGEX, '')
 }
 
 export function toMermaidLines(text: string): string[] {
@@ -134,6 +137,12 @@ export function splitHeaderStatement(body: string): string {
   // A Mindmap root keeps its leading whitespace, which is its level.
   lines.splice(at, 1, header[0], /^\s*mindmap/i.test(header[0]) ? statement.trimEnd() : statement.trim())
   return lines.join('\n')
+}
+
+/** Comments on a family declaration are inert. Authored bytes stay in source
+ * receipts; executable and not-yet-loaded families share this header view. */
+export function normalizeFamilyDetectionLine(firstLine: string): string {
+  return firstLine.replace(/%%.*$/, '').split(';', 1)[0]!.trim().toLowerCase()
 }
 
 /** The first family line, lowercased: the line `normalizeMermaidSource`

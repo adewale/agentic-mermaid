@@ -475,7 +475,7 @@ const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
  * the same directive boundary automatically.
  */
 export function stripMermaidInitDirectives(text: string): string {
-  return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+  return text.replace(INIT_DIRECTIVE_REGEX, '')
 }
 
 /** Read the shared post-wrapper source without normalizing payload line endings.
@@ -635,7 +635,7 @@ export function normalizeMermaidSourceWithOverrides(
 
 /** Semantic input for render admission and hosts that load its family first.
  * Decode transport spelling once while retaining original bytes for receipts. */
-export function normalizeMermaidRenderSource(text: string, overrides: MermaidRuntimeConfig = {}): NormalizedMermaidSource {
+export function normalizeMermaidRenderSource(text: string, overrides?: MermaidRuntimeConfig): NormalizedMermaidSource {
   return normalizeMermaidSourceWithOverrides(text, overrides, 'render')
 }
 

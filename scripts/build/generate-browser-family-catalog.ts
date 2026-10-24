@@ -49,7 +49,7 @@ const descriptors = ids.map(id => {
 const catalogRows = descriptors.map(descriptor =>
   `  Object.freeze({ id: ${JSON.stringify(descriptor.id)}, detect: ${functionSource(descriptor.detect)} }),`)
 const catalog = `${generatedHeader()}
-import { normalizeFamilyDetectionLine } from '../../agent/family-router.ts'
+import { normalizeFamilyDetectionLine } from '../../mermaid-source-wrapper.ts'
 
 export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(${JSON.stringify(ids)} as const)
 export type BrowserBuiltinFamilyId = (typeof BROWSER_BUILTIN_FAMILY_IDS)[number]
