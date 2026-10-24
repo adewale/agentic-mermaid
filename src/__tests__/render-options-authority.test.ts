@@ -11,6 +11,7 @@ import {
   SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
   sharedRenderOptionsJsonSchema,
   styleInputJsonSchema,
+  deferredRenderContractDigest,
   resolveRenderRequest,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
@@ -225,6 +226,78 @@ describe('shared RenderOptions authority', () => {
     expect(failure).toBeUndefined()
     expect(intercepted).toBe(0)
     expect(digest).toBe(renderContractDigest([marker]))
+  })
+
+  test.each(['array', 'object'] as const)('digest capture freezes each %s before a branding hook can change it', shape => {
+    const original = Object.getOwnPropertyDescriptor(WeakSet.prototype, 'add')!
+    const marker = 123456
+    const source = () => shape === 'array' ? [marker] : { proofMarker: marker }
+    let observed = 0
+    let mutable = 0
+    let digest: string | undefined
+    let deferred: (() => string) | undefined
+    let failure: unknown
+    try {
+      Object.defineProperty(WeakSet.prototype, 'add', { ...original,
+        value(this: WeakSet<object>, value: object) {
+          const key = Array.isArray(value) ? '0' : 'proofMarker'
+          if (Reflect.get(value, key) === marker) {
+            observed++
+            if (!Object.isFrozen(value)) mutable++
+            Reflect.set(value, key, Number.POSITIVE_INFINITY)
+          }
+          return Reflect.apply(original.value, this, [value])
+        },
+      })
+      try {
+        digest = renderContractDigest(source())
+        deferred = deferredRenderContractDigest(source())
+      } catch (error) { failure = error }
+    } finally { Object.defineProperty(WeakSet.prototype, 'add', original) }
+    expect(failure).toBeUndefined()
+    expect(observed).toBe(2)
+    expect(mutable).toBe(0)
+    // Independent FNV-1a-64 vectors for [123456] / {"proofMarker":123456}.
+    const expected = shape === 'array' ? 'fnv1a64:7dabd99ba02ca668' : 'fnv1a64:1c35bbcc0f62d15e'
+    expect(digest).toBe(expected)
+    expect(deferred!()).toBe(expected)
+  })
+
+  test.each(['proxy', 'getter'] as const)('bounds array copying when a %s grows after the length preflight', kind => {
+    const maximum = 100_000
+    let lastAllowedReads = 0
+    let overflowReads = 0
+    let source: unknown[]
+    if (kind === 'proxy') {
+      let lengthReads = 0
+      source = new Proxy([], {
+        get(target, key, receiver) {
+          if (key === 'length') return lengthReads++ === 0 ? 0 : maximum + 1
+          if (typeof key === 'string' && /^\d+$/.test(key)) {
+            if (Number(key) === maximum - 1) lastAllowedReads++
+            if (Number(key) === maximum) { overflowReads++; throw new Error('overflow slot was read') }
+            return null
+          }
+          return Reflect.get(target, key, receiver)
+        },
+        getOwnPropertyDescriptor(target, key) {
+          if (typeof key === 'string' && /^\d+$/.test(key)) return { value: null, writable: true, enumerable: true, configurable: true }
+          return Reflect.getOwnPropertyDescriptor(target, key)
+        },
+      })
+    } else {
+      source = [null]
+      Object.defineProperty(source, '0', { get() {
+        source.length = maximum + 1
+        source.fill(null, 1, maximum)
+        Object.defineProperty(source, maximum - 1, { get() { lastAllowedReads++; return null } })
+        Object.defineProperty(source, maximum, { get() { overflowReads++; throw new Error('overflow slot was read') } })
+        return null
+      } })
+    }
+    expect(() => renderContractDigest(source)).toThrow('100000-entry limit at $')
+    expect(lastAllowedReads).toBe(1)
+    expect(overflowReads).toBe(0)
   })
 
   test('graphical digests preserve the established canonical JSON string encoding', () => {

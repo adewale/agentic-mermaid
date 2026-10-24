@@ -1092,6 +1092,8 @@ function omitUndefinedObjectFields(
       const slot: PropertyDescriptor = Object.create(null)
       slot.enumerable = slot.configurable = slot.writable = true
       for (let index = 0; index < value.length; index++) {
+        // An accessor or Proxy can grow the source after the length preflight.
+        if (index >= FAMILY_DATA_MAX_NODES) throw new TypeError(`data array exceeds the ${FAMILY_DATA_MAX_NODES}-entry limit at ${path}`)
         if (!Object.prototype.hasOwnProperty.call(value, index)) throw new TypeError(`data must not contain a sparse array at ${path}[${index}]`)
         const child = omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget)
         // The fresh destination must own its slots. Ambient array setters or
@@ -1320,8 +1322,11 @@ export function canonicalTextDigest(text: string): string {
 const IMMUTABLE_SNAPSHOTS = new WeakSet<object>()
 
 function freezeSnapshot<T extends object>(value: T, reusable = true): T {
+  // Branding is observable if a host replaces WeakSet.prototype.add. Expose
+  // only the frozen container, after its captured descendants are frozen too.
+  Object.freeze(value)
   if (reusable) IMMUTABLE_SNAPSHOTS.add(value)
-  return Object.freeze(value)
+  return value
 }
 
 function immutableSnapshot<T>(value: T, path = '$', ancestors?: Set<object>, copies?: WeakMap<object, object>): T {
