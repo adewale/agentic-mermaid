@@ -17,7 +17,7 @@ export { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
  */
 
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
-import { diamondFacetPorts, findRouteHitches, invalidEndpointApproaches, PORT_EXACT, shapePorts } from './route-contracts.ts'
+import { diamondFacetPorts, findRouteHitches, hasBundleRouteExemption, invalidEndpointApproaches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
@@ -26,6 +26,7 @@ import type { PassMetrics, RubricMetric } from './layout/pass.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { countPolylineCrossings } from './shared/edge-crossings.ts'
 import { graphReachability } from './layout/geometry.ts'
+import { hasConstructedBundleRoute } from './layout/bundle-routes.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -500,7 +501,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
     // penalty and the HARD hitch-invariant AGREE on what is justified. This does
     // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
     // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
-    const justifiedConvergenceBend = e.routeCertificate?.invariant === 'bundle'
+    const justifiedConvergenceBend = hasBundleRouteExemption(e)
     if (e.style !== 'invisible' && !justifiedConvergenceBend) {
       totalBends += bends
       maxBends = Math.max(maxBends, bends)
@@ -640,7 +641,7 @@ export function measureRubricMetrics(
         result.endpointApproaches = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target))), 0)
         break
       }
-      case 'bends': result.bends = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' || bundled.has(edge) || edge.routeCertificate?.invariant === 'bundle' ? 0 : Math.max(0, edge.points.length - 2)), 0); break
+      case 'bends': result.bends = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' || (edge.routeCertificate ? hasBundleRouteExemption(edge) : bundled.has(edge) && hasConstructedBundleRoute(edge)) ? 0 : Math.max(0, edge.points.length - 2)), 0); break
       case 'straight': result.straight = positioned.edges.filter(edge => edge.style !== 'invisible' && edge.points.length === 2).length; break
     }
   }

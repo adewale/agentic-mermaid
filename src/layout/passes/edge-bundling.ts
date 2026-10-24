@@ -1,4 +1,5 @@
 import type { Direction, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
+import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 
 /**
  * Find all groups (outermost first) that geometrically contain the given point.
@@ -195,8 +196,8 @@ export function bundleEdgePaths(
       if (clear.length === members.length) {
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
-          processed.add(edge)
         }
+        retainConstructedBundleRoutes(members.map(member => member.edge), processed)
         break
       }
       members = clear
@@ -287,8 +288,8 @@ export function bundleEdgePaths(
       if (clear.length === members.length) {
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
-          processed.add(edge)
         }
+        retainConstructedBundleRoutes(members.map(member => member.edge), processed)
         break
       }
       members = clear

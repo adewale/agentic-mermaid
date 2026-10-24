@@ -1,6 +1,7 @@
 import type { MermaidGraph, Point, PositionedEdge, PositionedNode } from '../../types.ts'
 import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
 import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
+import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, routeClearOfNodes } from './shared.ts'
 
@@ -175,6 +176,7 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   for (const edge of edges) {
     if (!bundled.has(edge) || edge.label || edge.points.length !== 4) continue
+    const bundle = bundleRouteBeforeRewrite(edge)
     const [a, b, c, d] = edge.points
     if (!a || !b || !c || !d) continue
     const target = nodeMap.get(edge.target)
@@ -186,6 +188,7 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
       if (onTargetSide && end.y >= target.y - 0.5 && end.y <= target.y + target.height + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
         edge.points = [a, end]
         edge.routeCertificate = undefined
+        retainBundleRouteAfterRewrite(edge, bundle)
       }
       continue
     }
@@ -195,6 +198,7 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
       if (onTargetSide && end.x >= target.x - 0.5 && end.x <= target.x + target.width + 0.5 && routeClearOfNodes([a, end], nodes, exclude)) {
         edge.points = [a, end]
         edge.routeCertificate = undefined
+        retainBundleRouteAfterRewrite(edge, bundle)
       }
     }
   }
