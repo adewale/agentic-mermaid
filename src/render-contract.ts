@@ -599,11 +599,10 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
   const admissionProblems = renderOptionsAdmissionMessages(value)
   if (admissionProblems.length > 0) return admissionProblems
   const problems: string[] = []
-  const allowed = new Set<string>(SHARED_RENDER_OPTION_FIELDS)
   // The schema is a projection of frozen module constants: build it once.
   const rootSchema = validationRootSchema ??= deepFreeze(sharedRenderOptionsJsonSchema())
   for (const [field, fieldValue] of Object.entries(value)) {
-    if (!allowed.has(field)) {
+    if (!Object.hasOwn(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS, field)) {
       problems.push(`unknown render option "${field}"`)
       continue
     }
@@ -1298,11 +1297,13 @@ function freezeSnapshot<T extends object>(value: T, reusable = true): T {
   return Object.freeze(value)
 }
 
-function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(), copies = new WeakMap<object, object>()): T {
+function immutableSnapshot<T>(value: T, path = '$', ancestors?: Set<object>, copies?: WeakMap<object, object>): T {
   if (value === null || typeof value !== 'object') return value
   // Object.isFrozen is insufficient: an externally frozen object may retain
   // getters or mutable descendants. Reuse only snapshots created here.
   if (IMMUTABLE_SNAPSHOTS.has(value)) return value
+  ancestors ??= new Set<object>()
+  copies ??= new WeakMap<object, object>()
   if (ancestors.has(value)) throw new TypeError(`render request contains a cycle at ${path}`)
   const existing = copies.get(value)
   if (existing) return existing as T
@@ -1341,11 +1342,9 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
  * graph and cloning it later would permit a different value at execution. */
 function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
   try {
-    const captured = omitUndefinedObjectFields(value) as T
     // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
     // it, after the complete budget/accessor pass has kept its error order.
-    return captured !== null && typeof captured === 'object' && !IMMUTABLE_SNAPSHOTS.has(captured)
-      ? immutableSnapshot(captured) : captured
+    return immutableSnapshot(omitUndefinedObjectFields(value)) as T
   } catch (error) {
     throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -1849,13 +1848,12 @@ export function resolveRenderRequestForExecution(
   // callers use its digest to prove that SVG, PNG, terminal and layout
   // transports received the same source and appearance request. The full
   // request receipt below restores the exact output negotiation decision.
+  const sharedResolutions = Object.freeze(capabilityDecision.resolutions.filter(isSharedCapabilityResolution))
   const sharedCapabilityDecision: CapabilityDecision = Object.freeze({
     version: capabilityDecision.version,
-    accepted: capabilityDecision.resolutions
-      .filter(isSharedCapabilityResolution)
+    accepted: sharedResolutions
       .every(resolution => resolution.level !== 'required' || resolution.status === 'selected'),
-    resolutions: Object.freeze(capabilityDecision.resolutions
-      .filter(isSharedCapabilityResolution)),
+    resolutions: sharedResolutions,
   })
   const sharedRequestReceipt = {
     version: RENDER_CONTRACT_VERSION,
