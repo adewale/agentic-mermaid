@@ -246,7 +246,8 @@ function installRuntime(spec: string, prefix: string, policy: RuntimePolicy, out
   writeFileSync(join(prefix, 'package.json'), `${JSON.stringify(consumer, null, 2)}\n`)
   mkdirSync(out, { recursive: true })
   writeFileSync(join(out, `${label}.install-package.json`), `${JSON.stringify(consumer, null, 2)}\n`)
-  const result = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', spec], { encoding: 'utf8', timeout, killSignal: 'SIGKILL' })
+  // npm 10 drops root overrides when its consumer prefix is a symlink.
+  const result = spawnSync('npm', ['install', '--prefix', realpathSync(prefix), '--ignore-scripts', '--no-audit', '--no-fund', spec], { encoding: 'utf8', timeout, killSignal: 'SIGKILL' })
   if (result.status !== 0) throw new Error(`${label}: npm install failed: ${result.stderr || result.error?.message || result.status}`)
   const root = join(prefix, 'node_modules/agentic-mermaid')
   const { integrity } = installedNpmPackagePin(prefix, root, 'agentic-mermaid', manifest(root).version, join(prefix, 'package-lock.json'))
