@@ -7,6 +7,7 @@ import { convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { parseMermaid } from '../parser.ts'
 import { canonicalTextDigest } from '../render-contract.ts'
+import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
 
 describe('focused SVG entry', () => {
   test('plain SVG does not hash unused output evidence, and consumed receipts hash it once', () => {
@@ -64,12 +65,33 @@ describe('focused SVG entry', () => {
     expect(artifact.receipt).toBe(actual)
   })
 
-  test('preserves complete-library SVG and receipts for every native family', () => {
+  test('preserves full receipts and ownership for simple and rich inputs in every native family', () => {
     for (const id of knownBuiltinFamilies()) {
-      const source = getFamily(id)!.example
-      expect(focused(source, { security: 'strict' }), id).toEqual(complete(source, { security: 'strict' }))
+      const witness = FAMILY_CONFORMANCE_PROFILES[id].citizenship
+      for (const source of [getFamily(id)!.example, witness.source]) {
+        const options = { ...witness.options, security: 'strict' as const, idPrefix: 'receipt-check-', embedFontImport: false }
+        const callerOptions = { ...options }
+        const artifact = focused(source, callerOptions)
+        callerOptions.idPrefix = 'changed-after-render-'
+        const serialized = JSON.stringify(artifact)
+        expect(serialized, id).toBe(JSON.stringify(complete(source, options)))
+
+        // Independent FNV-1a reference over the actual final SVG's UTF-16
+        // JSON code units; production uses two 32-bit halves.
+        const text = JSON.stringify(artifact.svg)
+        let hash = 0xcbf29ce484222325n
+        for (let index = 0; index < text.length; index++) hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 0x100000001b3n)
+        const digest = `fnv1a64:${hash.toString(16).padStart(16, '0')}`
+        expect(artifact.receipt.graphicalProjectionDigest, id).toBe(digest)
+        expect(artifact.receipt.layoutCertification?.outputDigest, id).toBe(digest)
+        // A consumer's attempted write must not poison later render evidence.
+        Reflect.set(artifact.receipt, 'graphicalProjectionDigest', 'poisoned-receipt')
+        const alternate = { ...options, idPrefix: 'other-receipt-', bg: options.bg === '#e0f2fe' ? '#f1f5f9' : '#e0f2fe' }
+        expect(focused(source, alternate).receipt.graphicalProjectionDigest, id).not.toBe(digest)
+        expect(JSON.stringify(focused(source, options)), id).toBe(serialized)
+      }
     }
-  })
+  }, 30_000)
 
   test('loads optional sketch support explicitly in an isolated consumer', async () => {
     const child = Bun.spawn([process.execPath, '-e', `
