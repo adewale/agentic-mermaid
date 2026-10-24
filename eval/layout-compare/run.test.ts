@@ -41,6 +41,10 @@ test('typed failure transport preserves complete causes and certification withou
   } })
   expect(retained.stack).toBeUndefined()
   expect(retained.cause.stack).toBeUndefined()
+  const record = Object.assign(Object.create(null), { name: 'ProviderRefusal', message: 'plain typed refusal', code: 'DECLINED', certification })
+  expect(apiFailure(record)).toMatchObject({ name: record.name, message: record.message, code: record.code, properties: { certification } })
+  const withoutMessage = Object.assign(Object.create(null), { code: 'DECLINED' })
+  expect(apiFailure(withoutMessage)).toEqual({ name: 'Error', message: 'Thrown object without a string message', code: 'DECLINED', properties: { code: 'DECLINED' } })
   const before = { id: 'refused', family: 'flowchart', source: 'flowchart TD\nA-->B', ok: false,
     error: 'outer family context', failures: { layout: retained } }
   const changed = structuredClone(before)
