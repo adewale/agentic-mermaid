@@ -141,6 +141,90 @@ describe('shared RenderOptions authority', () => {
     })
     expect(renderContractDigest(accessorBacked)).toBe(renderContractDigest({ value: 1 }))
     expect(getterReads).toBe(1)
+
+    let boundary: unknown = null
+    for (let index = 0; index < 64; index++) boundary = { a: boundary }
+    expect(renderContractDigest(boundary)).toMatch(/^fnv1a64:/)
+    expect(() => renderContractDigest({ a: boundary })).toThrow('exceeds maximum nesting depth 64')
+
+    const width = Array(4096).fill(null)
+    expect(renderContractDigest(width)).toMatch(/^fnv1a64:/)
+    width.push(null)
+    expect(() => renderContractDigest(width)).toThrow('at most 4096 items')
+    let lengthReads = 0
+    const changingLength = new Proxy(width, { get(target, key, receiver) {
+      if (key === 'length' && lengthReads++ === 0) return 0
+      return Reflect.get(target, key, receiver)
+    } })
+    expect(() => renderContractDigest(changingLength)).toThrow('at most 4096 items')
+
+    const nodes = Array.from({ length: 25 }, (_, index) => Array(index === 24 ? 3974 : 4000).fill(null))
+    expect(renderContractDigest(nodes)).toMatch(/^fnv1a64:/)
+    nodes[24]!.push(null)
+    expect(() => renderContractDigest(nodes)).toThrow('100000-node limit')
+
+    for (const key of ['__proto__', 'prototype', 'constructor']) {
+      expect(() => renderContractDigest(Object.fromEntries([[key, 1]]))).toThrow('forbidden prototype key')
+      expect(renderContractDigest(Object.fromEntries([[key, undefined]]))).toBe(renderContractDigest({}))
+    }
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, undefined, 1n, Symbol('invalid')]) {
+      expect(() => renderContractDigest([value])).toThrow(TypeError)
+    }
+    expect(() => renderContractDigest({ first: [Number.POSITIVE_INFINITY], second: {
+      get value() { throw new Error('capture must finish before validation') },
+    } })).toThrow('capture must finish before validation')
+  })
+
+  test.each(['drop', 'leak'] as const)('digest capture owns its slots when an inherited setter would %s a write', mode => {
+    const original = Object.getOwnPropertyDescriptor(Array.prototype, '0')
+    const marker = 123456
+    let captured: unknown[] | undefined
+    let reads = 0
+    let intercepted = 0
+    const source = mode === 'drop' ? [marker] : [marker, {
+      get later() { reads++; if (captured) captured[0] = Number.POSITIVE_INFINITY; return true },
+    }]
+    let failure: unknown
+    let digest: string | undefined
+    try {
+      Object.defineProperty(Array.prototype, '0', {
+        configurable: true,
+        set(this: unknown[], value: unknown) {
+          if (value === marker) intercepted++
+          if (value === marker && mode === 'drop') return
+          if (value === marker) captured = this
+          Object.defineProperty(this, '0', { value, writable: true, enumerable: true, configurable: true })
+        },
+      })
+      try { digest = renderContractDigest(source) } catch (error) { failure = error }
+    } finally {
+      if (original) Object.defineProperty(Array.prototype, '0', original)
+      else Reflect.deleteProperty(Array.prototype, '0')
+    }
+    expect(failure).toBeUndefined()
+    expect(intercepted).toBe(0)
+    expect(digest).toBe(renderContractDigest(mode === 'drop' ? [marker] : [marker, { later: true }]))
+    expect(reads).toBe(mode === 'drop' ? 0 : 1)
+  })
+
+  test('digest capture does not hand private arrays to an ambient push replacement', () => {
+    const original = Object.getOwnPropertyDescriptor(Array.prototype, 'push')!
+    const marker = 123456
+    let intercepted = 0
+    let failure: unknown
+    let digest: string | undefined
+    try {
+      Object.defineProperty(Array.prototype, 'push', { ...original,
+        value(this: unknown[], ...values: unknown[]) {
+          if (values.includes(marker)) { intercepted++; throw new Error('ambient push intercepted private data') }
+          return Reflect.apply(original.value, this, values)
+        },
+      })
+      try { digest = renderContractDigest([marker]) } catch (error) { failure = error }
+    } finally { Object.defineProperty(Array.prototype, 'push', original) }
+    expect(failure).toBeUndefined()
+    expect(intercepted).toBe(0)
+    expect(digest).toBe(renderContractDigest([marker]))
   })
 
   test('graphical digests preserve the established canonical JSON string encoding', () => {

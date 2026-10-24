@@ -28,6 +28,8 @@ import { safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
 import {
   assertJsonConfigAdmission,
+  isForbiddenJsonConfigKey,
+  JSON_CONFIG_ADMISSION_LIMITS,
   limitJsonConfigDiagnostics,
   validateJsonConfigAdmission,
 } from './shared/json-config-admission.ts'
@@ -1050,6 +1052,7 @@ interface FamilyDataNormalizationBudget {
   nodes: number
   chars: number
   opaque: boolean
+  admission?: { nodes: number; valid: boolean }
 }
 
 /** Capture compact immutable data under the bounds before schema validation.
@@ -1059,8 +1062,18 @@ function omitUndefinedObjectFields(
   path = '$',
   depth = 0,
   ancestors = new Set<object>(),
-  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0, opaque: false },
+  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0, opaque: false, admission: undefined },
 ): unknown {
+  const admission = budget.admission
+  if (admission?.valid) {
+    if (++admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) admission.valid = false
+    switch (typeof value) {
+      case 'number':
+        if (value - value !== 0) admission.valid = false
+        break
+      case 'undefined': case 'bigint': case 'symbol': case 'function': admission.valid = false
+    }
+  }
   if (typeof value === 'string') {
     budget.chars += value.length
     if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}`)
@@ -1076,11 +1089,17 @@ function omitUndefinedObjectFields(
     ancestors.add(value)
     try {
       const result: unknown[] = []
+      const slot: PropertyDescriptor = Object.create(null)
+      slot.enumerable = slot.configurable = slot.writable = true
       for (let index = 0; index < value.length; index++) {
         if (!Object.prototype.hasOwnProperty.call(value, index)) throw new TypeError(`data must not contain a sparse array at ${path}[${index}]`)
         const child = omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget)
-        result.push(child)
+        // The fresh destination must own its slots. Ambient array setters or
+        // a replaced push method cannot alter or leak this captured graph.
+        slot.value = child
+        Object.defineProperty(result, index, slot)
       }
+      if (admission && result.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) admission.valid = false
       return freezeSnapshot(result, !budget.opaque)
     } finally {
       ancestors.delete(value)
@@ -1088,16 +1107,19 @@ function omitUndefinedObjectFields(
   }
   if (!isPlainRecord(value)) {
     budget.opaque = true
+    if (admission) admission.valid = false
     return value
   }
 
   ancestors.add(value)
   try {
     const result: Record<string, unknown> = {}
+    let properties = 0
     for (const [key, child] of Object.entries(value)) {
       budget.chars += key.length
       if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
       if (child !== undefined) {
+        if (admission && (++properties > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer || isForbiddenJsonConfigKey(key))) admission.valid = false
         const captured = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
         if (key in result) Object.defineProperty(result, key, { value: captured, enumerable: true })
         else result[key] = captured
@@ -1255,14 +1277,19 @@ function admitRenderContractDigestInput(value: unknown): unknown {
   // only the immutable snapshot. Otherwise a getter can present valid data to
   // admission and a cycle to canonicalJson's later recursive read.
   let snapshot: unknown
+  // Capture already proves acyclicity, plain containers and a stricter text
+  // bound. Account for the remaining JSON rules without a second valid walk.
+  // Uncertain captures retain the original validator and diagnostic ordering.
+  const admission = { nodes: 0, valid: FAMILY_DATA_MAX_CHARS <= JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextCharacters
+    && FAMILY_DATA_MAX_CHARS * 3 <= JSON_CONFIG_ADMISSION_LIMITS.maxAggregateTextBytes }
   try {
-    snapshot = boundedImmutableJsonSnapshot(value, 'render contract digest input')
+    snapshot = boundedImmutableJsonSnapshot(value, 'render contract digest input', admission)
   } catch (error) {
     const message = (error instanceof Error ? error.message : String(error))
       .replace('data exceeds maximum depth', 'data exceeds maximum nesting depth')
     throw new TypeError(message)
   }
-  assertJsonConfigAdmission(snapshot, 'render contract digest input', {
+  if (!admission.valid) assertJsonConfigAdmission(snapshot, 'render contract digest input', {
     allowUndefinedObjectProperties: true,
   })
   return snapshot
@@ -1340,11 +1367,13 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors?: Set<object>, cop
  * recursion/aggregate guard used for family data, then freeze only that fresh
  * value. Validation must consume this snapshot: validating a live accessor
  * graph and cloning it later would permit a different value at execution. */
-function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
+function boundedImmutableJsonSnapshot<T>(value: T, context: string, admission?: NonNullable<FamilyDataNormalizationBudget['admission']>): T {
   try {
     // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
     // it, after the complete budget/accessor pass has kept its error order.
-    return immutableSnapshot(omitUndefinedObjectFields(value)) as T
+    return immutableSnapshot(admission
+      ? omitUndefinedObjectFields(value, '$', 0, new Set(), { nodes: 0, chars: 0, opaque: false, admission })
+      : omitUndefinedObjectFields(value)) as T
   } catch (error) {
     throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
   }
