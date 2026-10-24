@@ -13,7 +13,8 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, statSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { DESCRIBE_FORMATS, describeMermaid, isDescribeFormat } from '../agent/describe.ts'
+import { DESCRIBE_FORMATS, describeMermaid, describeMermaidTree, isDescribeFormat } from '../agent/describe.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
 import type { BuiltinFamilyId, FamilyConformanceReport } from '../agent/families.ts'
 import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, getFamily, getFamilyConformanceReport, isBuiltinFamilyId, knownFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidPNG, renderMermaidPNGWithReceipt, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../agent/index.ts'
@@ -831,17 +832,17 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
     else process.stderr.write(`describe: verify failed: ${verification.warnings.map(warning => warning.code).join(', ')}\n`)
     return verifyFailureExit(verification.warnings)
   }
-  const described = describeMermaid(parsed.value, { format })
   if (format === 'json') {
-    const tree = JSON.parse(described)
+    const tree = describeMermaidTree(parsed.value)
     process.stdout.write(JSON.stringify(json ? { ok: true, tree } : tree) + '\n')
     return EXIT_OK
   }
   if (format === 'facts') {
-    const facts = described.split('\n').filter(Boolean)
+    const facts = describeMermaidFacts(parsed.value)
     process.stdout.write(json ? JSON.stringify({ ok: true, facts }) + '\n' : facts.join('\n') + '\n')
     return EXIT_OK
   }
+  const described = describeMermaid(parsed.value)
   process.stdout.write(json ? JSON.stringify({ ok: true, text: described }) + '\n' : described + '\n')
   return EXIT_OK
 }
