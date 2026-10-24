@@ -7,7 +7,7 @@ Requires matplotlib and numpy. Raw evidence remains authoritative.
 from __future__ import annotations
 import argparse
 import base64
-from collections import defaultdict
+from collections import defaultdict, Counter
 from html import escape
 import json
 import math
@@ -31,7 +31,111 @@ def find(root, name):
     return next((path for path in (root / name, root / 'community' / name, root / 'suites/community' / name) if path.is_file()), None)
 
 
-def completed_cli(root):
+def canonical(value):
+    return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False)
+
+
+def verify_file_proofs(files):
+    for proof in files or []:
+        if not proof.get('path')or not proof.get('sha256')or hashlib.sha256(Path(proof['path']).read_bytes()).hexdigest()!=proof['sha256']:
+            raise ValueError('Shipped artifact file proof no longer holds: '+str(proof.get('path')))
+
+
+def verify_source_proofs(artifact):
+    """Git objects bind interpreted programs; no hashes of authored source."""
+    for proof in (artifact.get('sourceFiles')or[])+(artifact.get('dependencyPatches')or[]):
+        root=proof.get('root');revision=proof.get('revision');path=proof.get('gitPath');blob=proof.get('blob')
+        if not all((root,revision,path,blob)):raise ValueError('Incomplete interpreted-source Git proof')
+        actual=subprocess.check_output(['git','-C',root,'rev-parse',revision+':'+path],text=True).strip()
+        tree=subprocess.check_output(['git','-C',root,'ls-tree',revision,'--',path],text=True).strip()
+        clean=subprocess.run(['git','-C',root,'diff','--quiet',revision,'--',path],capture_output=True).returncode==0
+        if actual!=blob or not tree.startswith(('100644 ','100755 '))or not clean:raise ValueError('Interpreted source/helper differs from its pinned Git proof: '+path)
+
+
+def community_composition(directory,result,scores,inputs,evidence):
+    """Validate mixed-window evidence against both immutable raw ledgers."""
+    manifest=load(directory/'community-qualification-composition.json')
+    if not manifest or manifest.get('id')!='community-qualification-composition-v3'or manifest!=result.get('composition')or manifest!=scores.get('composition')or manifest!=evidence.get('qualificationComposition')or manifest.get('scope')!=['svg','react-flow']:
+        raise ValueError('Community composition has no matching explicit SVG/IR partition proof')
+    phases={}
+    for phase in ('original','repair'):
+        source=Path(manifest.get('sourceCommunity',{}).get(phase,''))
+        if source.resolve()==directory.resolve():raise ValueError('Community composition cannot reference itself')
+        raw=load(source/'community-result.json');ranks=load(source/'community-ranks.json');proof=load(source/'community-evidence.json');ledger=load(source.parent/'report.json')
+        if not raw or not ranks or not proof or not ledger or not raw.get('finishedAt')or raw.get('finishedAt')!=ranks.get('finishedAt')or raw.get('finishedAt')!=proof.get('finishedAt')or proof!=ranks.get('evidence'):
+            raise ValueError('Community composition source phase is incomplete: '+phase)
+        parents=[suite for suite in ledger.get('suites',[])if suite.get('id')=='community']
+        if len(parents)!=1 or parents[0].get('result')!=raw or not ledger.get('finishedAt')or ledger.get('profile')!='full'or ledger.get('rounds')!=3:
+            raise ValueError('Community composition source differs from its actual completed parent: '+phase)
+        if load(source/'community-inputs.json')!=inputs or proof.get('target')!=manifest.get('target')or proof.get('currentReference')!=manifest.get('currentReference')or proof.get('catalogIds')!=manifest.get('catalogIds')or proof.get('targetAdvance')!=manifest.get('targetAdvance'):
+            raise ValueError('Community composition changed literal inputs, engine target, catalog or reference: '+phase)
+        window=manifest.get(phase,{})
+        if any(window.get(key)!=raw.get(key)for key in ('startedAt','finishedAt'))or window.get('qualification')!=proof.get('svgQualification'):
+            raise ValueError('Community composition misstates source measurement windows: '+phase)
+        phases[phase]=(source,raw,ranks,proof)
+    old_source,base,old_ranks,old_proof=phases['original'];new_source,repair,new_ranks,new_proof=phases['repair']
+    if new_proof.get('outputSelection')!=['svg','react-flow']or new_proof.get('svgQualification',{}).get('protocol')!='svg-xml-namespaced-authored-text-v3':raise ValueError('Repair is not the declared namespaced authored-text SVG/IR protocol')
+    for field in ('artifacts','aliases'):
+        if old_ranks.get(field)!=new_ranks.get(field)or scores.get(field)!=old_ranks.get(field):
+            # Artifact preparation may append verification detail, never change bytes/protocol.
+            def no_detail(value):
+                if isinstance(value,dict):return {k:no_detail(v)for k,v in value.items()if k!='detail'}
+                return [no_detail(v)for v in value]if isinstance(value,list)else value
+            if no_detail(old_ranks.get(field))!=no_detail(new_ranks.get(field))or no_detail(scores.get(field))!=no_detail(old_ranks.get(field)):raise ValueError('Community composition changed frozen artifacts or alias proof')
+    selected=lambda row:row.get('metrics',{}).get('renderedOutput',row.get('format'))in ('svg','react-flow')
+    expected=[row for row in base.get('observations',[])if not selected(row)]+[row for row in repair.get('observations',[])if selected(row)]
+    if result.get('observations')!=expected:raise ValueError('Community composition does not preserve exact unaffected rows and fresh selected rows')
+    ids={row['id']for row in inputs['workloads']};base_rows=base.get('observations',[])
+    missing={index for index,row in enumerate(base_rows)if selected(row)and row.get('caseId')in ids and row.get('suite')=='community-browser'and row.get('metrics',{}).get('round')is None}
+    normalized=[row for index,row in enumerate(base_rows)if index not in missing]
+    records=load(old_source/'community-browser-rounds.json',[]);used=set();observed=set()
+    associations=manifest.get('comparisonSchemaRepair',{}).get('associations',[])
+    for association in associations:
+        indices=association.get('observationIndices',[]);candidates=association.get('candidates',[])
+        if not indices or len(indices)!=len(candidates)or len(set(indices))!=len(indices)or any(index not in missing or index in observed for index in indices):raise ValueError('Invalid committed failure association index set')
+        row=base_rows[indices[0]]
+        if any(base_rows[index]!=row for index in indices)or association.get('implementation')!=tool(row)or association.get('caseId')!=row.get('caseId'):raise ValueError('Committed failure association combines distinct original outcomes')
+        rounds={candidate.get('round')for candidate in candidates}
+        if len(rounds)>1 and ('recoveredRound'in association or association.get('association')!='ambiguous-failure-set; no individual old observation round assigned'):raise ValueError('Ambiguous identical failures cannot receive invented individual rounds')
+        if len(rounds)==1 and (association.get('recoveredRound')not in rounds or association.get('association')!='unique-committed-round'):raise ValueError('Unique-round association misstates its actual committed round')
+        for candidate in candidates:
+            ri=candidate['recordIndex'];si=candidate['sampleIndex'];record=records[ri];raw=record['samples'][si]
+            if (ri,si)in used or row!=raw or record.get('id')!=tool(row)or row.get('samplesMs')or row.get('status')not in ('failed','blocked','unsupported','not-applicable')or record.get('round')!=candidate.get('round')or record.get('round')not in (1,2,3):raise ValueError('Invalid raw-record cohort slot in failure association')
+            used.add((ri,si));normalized.append(dict(raw,metrics=dict(raw.get('metrics',{}),round=record['round'])))
+        observed.update(indices)
+    if observed!=missing:raise ValueError('Composition missing-round evidence does not cover every original missing-round outcome')
+    missing_values={canonical(base_rows[index])for index in missing}
+    expected_slots={(ri,si)for ri,record in enumerate(records)for si,row in enumerate(record.get('samples',[]))if canonical(row)in missing_values}
+    if used!=expected_slots:raise ValueError('Committed raw round candidates do not retain the complete matching failure multiset')
+    feature_ids={row['id']for row in inputs['workloads']if 'core-graph-batch'not in row.get('features',[])}
+    mode_policy=manifest.get('comparisonSchemaRepair',{}).get('workloadModeKeyPolicy')
+    if not mode_policy:raise ValueError('Composition does not explicitly declare its feature-once comparison-key mode normalization')
+    for row in repair.get('observations',[]):
+        if selected(row)and row.get('caseId')in feature_ids and row.get('status')!='not-applicable'and (row.get('metrics',{}).get('round')!=1 or row.get('samplesMs')):raise ValueError('Fresh feature qualification must be a single round-one noncalibrated attempt')
+    key=lambda row:canonical([row.get(k)for k in ('suite','surface','runtime','family','caseId','operation','format')]+['frozen-feature-once-protocol'if row.get('caseId')in feature_ids else row.get('mode'),row.get('metrics',{}).get('implementation'),row.get('metrics',{}).get('round'),row.get('metrics',{}).get('renderedOutput',row.get('format'))])
+    old_keys=[key(row)for row in normalized if selected(row)and row.get('caseId')in ids];new_keys=[key(row)for row in repair.get('observations',[])if selected(row)and row.get('caseId')in ids]
+    if len(old_keys)!=len(set(old_keys))or len(new_keys)!=len(set(new_keys))or set(old_keys)!=set(new_keys):raise ValueError('Community repair omits or duplicates selected workload/round/runtime keys')
+    for field in ('ranks','familyRanks'):
+        wanted=[row for row in old_ranks.get(field,[])if row.get('output')not in ('svg','react-flow')]+[row for row in new_ranks.get(field,[])if row.get('output')in ('svg','react-flow')]
+        if Counter(map(canonical,wanted))!=Counter(map(canonical,scores.get(field,[]))):raise ValueError('Community composed rank does not match its selected source-phase rank')
+    for helper in manifest.get('helperChanges',[]):verify_file_proofs([helper['original'],helper['repaired']])
+    if result.get('finishedAt')!=manifest.get('composedAt'):raise ValueError('Community composition timestamp differs from manifest')
+    return manifest
+
+
+def native_cli_binding(proof_file,artifact,identity,target):
+    if not proof_file:raise ValueError('Native Agentic CLI requires explicit --cli-native-proof clean-source reproduction evidence')
+    proof=load(proof_file,{})
+    if proof.get('sourceRevision')!=target.get('revision')or Path(proof.get('sourceRoot','')).resolve()!=Path(target.get('root','')).resolve()or Path(proof.get('packageRoot','')).resolve()!=Path(target.get('packageRoot','')).resolve()or proof.get('candidateSha256')!=target.get('candidateSha256'):
+        raise ValueError('Native CLI reproduction proof uses another frozen target/package/archive')
+    executable=identity.get('executable')or{}
+    if proof.get('bitIdentical')is not True or proof.get('sourceCleanBefore')is not True or proof.get('sourceCleanAfter')is not True or proof.get('beforeSha256')!=proof.get('afterSha256')or proof.get('afterSha256')!=executable.get('sha256')or proof.get('beforeBytes')!=proof.get('afterBytes')or proof.get('afterBytes')!=executable.get('bytes')or Path(proof.get('file','')).resolve()!=Path(artifact['executable']).resolve()or proof.get('command')!=['bun','run','build:binary']or not proof.get('startedAt')or not proof.get('finishedAt'):
+        raise ValueError('Native CLI lacks an identical clean-source rebuild of the actual measured compiled executable')
+    verify_file_proofs([dict(path=proof['file'],sha256=proof['afterSha256']),dict(path=proof['retainedBefore'],sha256=proof['beforeSha256'])])
+    return dict(proofFile=str(proof_file.resolve()),sourceRevision=proof['sourceRevision'],executableSha256=proof['afterSha256'],bitIdentical=True,startedAt=proof['startedAt'],finishedAt=proof['finishedAt'],policy='Post-latency clean-source rebuild reproduces exactly the earlier measured executable bytes; original raw timing/identity unchanged.')
+
+
+def completed_cli(root,native_proof=None):
     """Admit only a finished supplemental cohort, never a partial live file."""
     for directory in (root/'community-cli',root/'suites/community-cli',root,root.parent/'community-cli'):
         try:
@@ -44,8 +148,69 @@ def completed_cli(root):
             cohort=ranks.get('evidence',{}).get('cohort',[])
             identity=lambda row:(row.get('id'),row.get('family'),row.get('source'),tuple(row.get('expectedLabels',[])))
             if core and len(core)==len(cohort) and sorted(map(identity,core))==sorted(map(identity,cohort)):
+                if ranks.get('rounds')!=3 or ranks.get('ranks')!=result.get('ranks')or ranks.get('resourceRanks')!=result.get('resourceRanks')or ranks.get('evidence')!=result.get('evidence'):raise ValueError('CLI supplemental ranks differ from completed three-round raw evidence')
+                selected_source=find(root,'community-inputs.json')
+                if not selected_source or Path(result.get('evidence',{}).get('sourceRun','')).resolve()!=selected_source.parent.resolve():raise ValueError('Supplemental CLI does not bind the selected actual community source directory')
+                community=load(find(root,'community-ranks.json'),{});target=community.get('evidence',{}).get('target',{});actual=result.get('evidence',{}).get('target',{})
+                if any(actual.get(k)!=target.get(t)for k,t in (('root','root'),('packageRoot','packageRoot'),('head','revision'))):raise ValueError('CLI supplemental target differs from selected community target')
+                if result.get('composition'):validate_cli_composition(result,community)
+                artifacts={entry['node']['id']:entry for entry in community.get('artifacts',[])}
+                native_binding=None
+                for variant in result.get('evidence',{}).get('variants',[]):
+                    artifact=variant.get('prepared',{}).get('artifact')or{};identity_proof=variant.get('identity')or{};executable=identity_proof.get('executable');parent=artifacts.get(variant.get('variantOf'),{})
+                    if variant.get('error'):continue
+                    if not executable or Path(executable['path']).resolve()!=Path(artifact.get('executable','')).resolve():raise ValueError('CLI executable identity is not its actual prepared invocation')
+                    verify_file_proofs([executable]);verify_file_proofs(artifact.get('files'));verify_source_proofs(artifact)
+                    if variant.get('variant')=='public-cli':
+                        omit=lambda value:{key:item for key,item in value.items()if key!='detail'}
+                        if omit(artifact)!=omit(parent.get('artifact')or{}):raise ValueError('Supplemental public CLI changed frozen catalog artifact/protocol')
+                    elif variant.get('variant')=='node-cli':
+                        expected=target.get('compiledArtifacts',{}).get('files',[])
+                        files=lambda values:sorted((str(Path(row['path']).resolve()),row['sha256'])for row in values)
+                        if files(artifact.get('files',[]))!=files(expected):raise ValueError('Supplemental Node CLI differs from actual frozen installed archive closure')
+                    elif variant.get('variant')=='native-cli':
+                        if Path(artifact.get('executable','')).resolve()!=(Path(target.get('root',''))/'dist/am').resolve():raise ValueError('Supplemental native CLI invokes another target')
+                        native_binding=native_cli_binding(native_proof,artifact,identity_proof,target)
+                    else:raise ValueError('Unknown supplemental CLI invocation variant')
+                ranks=dict(ranks,reportingFamilyRanks=cli_family_ranks(result,core),reportingDirectory=str(directory.resolve()),reportingNativeBinding=native_binding)
                 return ranks,result
     return None,None
+
+
+def validate_cli_composition(result,community):
+    manifest=result['composition'];parent=community.get('composition',{})
+    if manifest.get('protocol')!='community-cli-qualification-composition-v1'or manifest.get('communityComposition')!=parent.get('id')or manifest.get('communityTarget')!=parent.get('target')or manifest.get('outputSelection')!=['svg']or result.get('evidence',{}).get('composition')!=manifest:
+        raise ValueError('Supplemental CLI has no matching explicit SVG-only composition proof')
+    sources={}
+    for phase in ('original','repair'):
+        window=manifest.get(phase,{});source=Path(window.get('directory',''));raw=load(source/'community-cli-result.json');ranks=load(source/'ranks.json')
+        if not raw or not ranks or raw.get('id')!='community-cli'or raw.get('rounds')!=3 or not raw.get('finishedAt')or raw.get('finishedAt')!=ranks.get('finishedAt')or any(raw.get(k)!=window.get(k)for k in ('startedAt','finishedAt')):
+            raise ValueError('Supplemental CLI composition references incomplete raw phase')
+        for field in ('cohort','target','resourceObserver'):
+            if raw.get('evidence',{}).get(field)!=result.get('evidence',{}).get(field):raise ValueError('Supplemental CLI composition changed fixed work or target identity')
+        if Path(raw.get('evidence',{}).get('sourceRun','')).resolve()!=Path(parent.get('sourceCommunity',{}).get(phase,'')).resolve():raise ValueError('Supplemental CLI phase does not bind its actual community phase')
+        sources[phase]=raw
+    selected=lambda row:row.get('metrics',{}).get('renderedOutput',row.get('format'))=='svg'
+    for field in ('observations','diagnostics'):
+        expected=[row for row in sources['original'].get(field,[])if not selected(row)]+[row for row in sources['repair'].get(field,[])if selected(row)]
+        if result.get(field)!=expected:raise ValueError('Supplemental CLI composition replaced an unselected original row or reused old SVG')
+    for field in ('ranks','resourceRanks'):
+        expected=[row for row in sources['original'].get(field,[])if row.get('output')!='svg']+[row for row in sources['repair'].get(field,[])if row.get('output')=='svg']
+        if Counter(map(canonical,expected))!=Counter(map(canonical,result.get(field,[]))):raise ValueError('Supplemental CLI composition rank differs from actual phase result')
+
+
+def cli_family_ranks(result,core):
+    """Conditional fixed-core families only; no invented feature breadth."""
+    families=sorted({row['family']for row in core});rows=[]
+    for rank in result.get('ranks',[]):
+        for family in families:
+            ids=[row['id']for row in core if row['family']==family and row['id']in rank.get('requiredCaseIds',[])]
+            if not ids:continue
+            groups=[[row for row in result.get('observations',[])if tool(row)==rank['implementation']and row.get('format')==rank['output']and row.get('caseId')==case and row.get('metrics',{}).get('round')==round]for round in (1,2,3)for case in ids]
+            admitted=not rank.get('error')and all(len(group)==1 and group[0].get('status')=='passed'and len(group[0].get('samplesMs',[]))==1 and finite(group[0]['samplesMs'][0])and group[0]['samplesMs'][0]>0 for group in groups)
+            per_round=[sum(group[0]['samplesMs'][0]for group in groups[index*len(ids):(index+1)*len(ids)])for index in range(3)]if admitted else [None]*3
+            rows.append(dict(rank,family=family,requiredCaseIds=ids,qualified=admitted,perRoundMs=per_round,medianMs=median(per_round)if admitted else None,featureCoverage=None,featureCoverageStatus='unmeasured: conditional fixed-core cases only'))
+    return rows
 
 
 def community_overlay(report, original_inputs, directory, original_directory, allow_target_change=False):
@@ -57,11 +222,12 @@ def community_overlay(report, original_inputs, directory, original_directory, al
     if result.get('id')!='community'or not result.get('finishedAt')or not ledger.get('finishedAt')or scores.get('startedAt')!=result.get('startedAt'):
         raise ValueError('Expanded community replay is incomplete or result/ranks identities differ')
     evidence=scores.get('evidence',{})
-    if scores.get('protocol')!='community-fixed-core-feature-once-v2'or evidence.get('protocol')!=scores['protocol']or load(directory/'community-evidence.json')!=evidence:
+    if scores.get('protocol')not in ('community-fixed-core-feature-once-v2','community-qualification-composition-v3')or evidence.get('protocol')!=scores['protocol']or load(directory/'community-evidence.json')!=evidence:
         raise ValueError('Expanded community replay has no matching explicit v2 evidence manifest')
+    composition=community_composition(directory,result,scores,inputs,evidence)if scores['protocol']=='community-qualification-composition-v3'else None
     svg_qualification=evidence.get('svgQualification',{})
     parser=svg_qualification.get('nodeXmlParser',{})
-    if svg_qualification.get('protocol')!='svg-xml-namespace-positive-canvas-v2'or parser.get('name')!='saxes'or not parser.get('version')or not parser.get('module')or svg_qualification.get('browserXmlParser')!='native DOMParser':
+    if svg_qualification.get('protocol')not in ('svg-xml-namespace-positive-canvas-v2','svg-xml-namespaced-authored-text-v3')or parser.get('name')!='saxes'or not parser.get('version')or not parser.get('module')or svg_qualification.get('browserXmlParser')!='native DOMParser':
         raise ValueError('Expanded community replay lacks actual strict XML/namespace/canvas qualification provenance')
     if scores.get('finishedAt')!=result['finishedAt']or evidence.get('finishedAt')!=result['finishedAt']or evidence.get('profile')!='full'or evidence.get('rounds')!=3 or evidence.get('coverageOnce')is not True:
         raise ValueError('Expanded community evidence protocol/timestamps differ from its actual result')
@@ -139,6 +305,8 @@ def community_overlay(report, original_inputs, directory, original_directory, al
         if not compiled or hashlib.sha256(compiled.read()).hexdigest()!=new_self[0]['sha256']or hashlib.sha256(module.read_bytes()).hexdigest()!=new_self[0]['sha256']:
             raise ValueError('Actual Agentic entry no longer matches admitted target tarball bytes')
     metadata=dict(directory=str(directory.resolve()),evidenceFile=str((directory/'community-evidence.json').resolve()),protocol=evidence['protocol'],svgQualification=svg_qualification,originalStatus=report.get('status'),replayStatus=ledger.get('status'),startedAt=result['startedAt'],finishedAt=result['finishedAt'],catalogNodes=84,coreCases=6,featureCases=957,rounds=3,coverageOnce=True,targetRevision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateSha256=invocation['candidateSha256'],agenticEntrySha256=new_self[0]['sha256'],targetAdvance=advance,currentReference=evidence['currentReference'],identityRechecks=rechecks,qualificationChange='Expanded population and strict SVG XML/namespace/canvas plus source-echo/diagnostic qualification safeguards; this is a separately identified community measurement, not a replacement full run or a like-for-like product speed improvement.')
+    if composition:
+        metadata.update(composition=composition,qualificationChange=composition['policy'])
     return result,scores,inputs,metadata
 
 
@@ -644,23 +812,25 @@ class Figures:
             note='Separate GNU time pass after all plain CLI latency rounds, same qualified fixed-source/label cohort. Peak RSS = maximum case high-water mark; CPU = sum across cases. Each per-case user/system field has10ms reporting grain. CPU intervals use conservative20ms × case-count allowance, not confidence intervals; reported zero is censored < upper bound, never free CPU or zero-latency. Runtime/shared code included; not PSS, allocation, leak proof or a process-tree sum. Do not pool with varying-portfolio Node worker RSS or V8 heaps.'
             self.save(figure,'cli-fixed-resource-'+str(output),'Fixed-work fresh CLI resources: '+str(output),note,rows)
         # File bytes have a delivery identity independent from resource success.
-        # Keep external Node runtime bytes separate from compiled tool binaries.
+        # Interpreters are external runtimes, never compiled tool payloads.
         footprints=[]
         for variant in supplemental.get('evidence',{}).get('variants',[]):
             identity=variant.get('identity')or{};delivery=identity.get('delivery')or{};prepared=variant.get('prepared',{});artifact=prepared.get('artifact')or{}
             runtime=artifact.get('runtime','unrecorded');value=delivery.get('executableBytes')
-            external=runtime.startswith('node:')
-            footprints.append(dict(implementation=prepared.get('node',{}).get('id','unrecorded'),variantOf=variant.get('variantOf'),variant=variant.get('variant'),runtime=runtime,scope=delivery.get('scope','unrecorded executable scope'),footprintKind='external-node-runtime'if external else 'compiled-cli-file',executableBytes=value if finite(value)and not variant.get('error')else None,recordedExecutableBytes=value,executableIdentity=identity.get('executable'),admissionError=variant.get('error')))
+            interpreted=bool(artifact.get('sourceFiles'))and any(str(arg).endswith(('.py','.ts','.js','.mjs'))for arg in artifact.get('args',[]))
+            kind='external-node-runtime'if runtime.startswith('node:')else 'external-interpreter-runtime'if interpreted or runtime.lower().startswith(('python','bun:','bun '))else 'compiled-cli-file'
+            scope='External interpreter executable only; authored program and dependency delivery are separate/unmeasured'if kind=='external-interpreter-runtime'else delivery.get('scope','unrecorded executable scope')
+            footprints.append(dict(implementation=prepared.get('node',{}).get('id','unrecorded'),variantOf=variant.get('variantOf'),variant=variant.get('variant'),runtime=runtime,scope=scope,recordedScope=delivery.get('scope'),scopeCorrection='Interpreted program invocation is not a compiled CLI payload'if kind=='external-interpreter-runtime'else None,footprintKind=kind,executableBytes=value if finite(value)and not variant.get('error')else None,recordedExecutableBytes=value,executableIdentity=identity.get('executable'),sourceFiles=artifact.get('sourceFiles',[]),dependencyPatches=artifact.get('dependencyPatches',[]),admissionError=variant.get('error')))
         if footprints:
-            figure,axes=self.plt.subplots(1,2,figsize=(12,max(4,len(footprints)*.4)))
-            for ax,kind,title in zip(axes,('compiled-cli-file','external-node-runtime'),('Compiled CLI executable file','External Node runtime executable; not npm delivery')):
+            figure,axes=self.plt.subplots(1,3,figsize=(15,max(4,len(footprints)*.4)))
+            for ax,kind,title in zip(axes,('compiled-cli-file','external-node-runtime','external-interpreter-runtime'),('Compiled CLI executable file','External Node runtime; not npm delivery','External interpreter; not tool payload')):
                 rows=sorted([row for row in footprints if row['footprintKind']==kind],key=lambda row:row['implementation'])
                 for y,row in enumerate(rows):
                     if finite(row['executableBytes']):ax.barh(y,row['executableBytes']/1024/1024,color='#718ca1')
                     else:ax.text(0,y,'N/A',va='center',fontsize=7)
                 ax.set_yticks(range(len(rows)),[row['implementation']for row in rows],fontsize=7);ax.invert_yaxis();ax.set_title(title,fontsize=9);ax.set_xlabel('MiB; admitted executable file bytes')
                 if not rows:ax.text(.5,.5,'unmeasured',ha='center',va='center',transform=ax.transAxes)
-            self.save(figure,'cli-executable-footprints','CLI file footprints; explicit delivery scopes','Compiled native/Bun executable bytes exclude dynamic libraries and other external resources. The Node panel measures an external runtime binary, not Agentic Mermaid npm package bytes or its dependency/request closure. Never sum these into browser delivery or a universal tool-size rank. variantOf preserves catalog identity.',footprints)
+            self.save(figure,'cli-executable-footprints','CLI file footprints; explicit delivery scopes','Compiled native/Bun executable bytes exclude dynamic libraries and other external resources. Node and interpreted-program panels measure external runtime binaries, not package/program/dependency delivery. Raw earlier compiled-file scope for interpreted Python is retained as recordedScope and explicitly corrected; clocks/resources are unchanged. Never sum these into browser delivery or a universal tool-size rank. variantOf preserves catalog identity.',footprints)
 
     def prs(self, campaign):
         if not campaign:
@@ -869,7 +1039,7 @@ class Figures:
         self.save(figure,'owning-test-score-time','Owning suite counts and process wall time','Groups exercise different behavior and case counts: no cross-suite speed rank. Wall time includes initialization, assertions, reference IPC and instrumentation; it is not parser API latency.',data)
 
     def html(self, report, campaign, supplemental=None, correction=None, reference_overlay=None):
-        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),additionalRun=getattr(self,'additional_run',None),figures=self.items,gaps=self.gaps)
+        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver'),'composition':supplemental.get('composition'),'nativeBinding':supplemental.get('reportingNativeBinding')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),additionalRun=getattr(self,'additional_run',None),figures=self.items,gaps=self.gaps)
         (self.out/'chart-data.json').write_text(json.dumps(reduced,indent=2,allow_nan=False)+'\n')
         cards=[]
         for item in self.items:
@@ -898,6 +1068,7 @@ def main():
     parser.add_argument('--allow-community-target-change',action='store_true',help='Admit an explicitly proven newer community-only target; all other original suites retain their original target')
     parser.add_argument('--current-run',type=Path,help='Separate completed current-target Dave and same-fixture pinned-reference supplemental run; never replaces original suite evidence')
     parser.add_argument('--additional-run',type=Path,help='Separate completed maintained target-owned suite ledger; requires the explicit current target selection and never merges ranks')
+    parser.add_argument('--cli-native-proof',type=Path,help='Explicit bit-identical clean-source reproduction proof binding supplemental Agentic native CLI bytes to the frozen target')
     args=parser.parse_args()
     if args.allow_community_target_change and not args.community_run:parser.error('--allow-community-target-change requires --community-run')
     if not args.validate_only and args.out is None:parser.error('--out is required unless --validate-only is selected')
@@ -940,13 +1111,14 @@ def main():
         replaced=('community','community-browser','community-cli')if community_metadata else ('community','community-browser')
         observations=[row for row in observations if row.get('suite')not in replaced]+community['observations']
     enrolled=[row for row in inputs.get('workloads',[])if 'core-graph-batch'not in row.get('features',[])]
-    supplemental,supplemental_result=completed_cli(args.community_run or args.run)
+    supplemental,supplemental_result=completed_cli(args.community_run or args.run,args.cli_native_proof)
     ranks=scores.get('ranks',[])
     if supplemental:
         ranks=[rank for rank in ranks if rank.get('surface')!='cli:end-to-end']+supplemental['ranks']
         observations=[row for row in observations if row.get('suite')!='community-cli']+supplemental_result.get('observations',[])+supplemental_result.get('diagnostics',[])
     if args.validate_only:
-        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata,additionalRun=additional_metadata),allow_nan=False))
+        cli_metadata=dict(directory=supplemental['reportingDirectory'],familyRanks=supplemental['reportingFamilyRanks'],composition=supplemental_result.get('composition'),target=supplemental['evidence']['target'],nativeBinding=supplemental['reportingNativeBinding'])if supplemental else None
+        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,cliSupplement=cli_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata,additionalRun=additional_metadata),allow_nan=False))
         return
     figures=Figures(args.out)
     if additional_metadata:figures.additional_run=additional_metadata
@@ -966,7 +1138,9 @@ def main():
         census=reference_metadata['evidence']
         figures.gaps.append('Explicit pinned-reference baseline protocol repair: '+str(census['eligibleInputCount'])+' eligible positives / '+str(census['rawInputCount'])+' retained raw sources; '+str(census['diagnosticInputCount'])+' independently reviewed diagnostic inputs remain available. Original aggregate '+str(report.get('status'))+' and original reference '+str(reference_metadata['originalSuiteStatus'])+' statuses are unchanged. Fresh scoped rerun '+str(reference_metadata.get('correctedStartedAt'))+' → '+str(reference_metadata.get('correctedFinishedAt'))+'; not product improvement or a new full run.')
     if not supplemental:figures.gaps.append('Completed supplemental CLI cohort unavailable; original CLI ranks remain labeled by their original evidence.')
-    figures.coverage(observations);figures.rank_bars(ranks);figures.family_ranks(scores.get('familyRanks',[]));figures.svg_scatter(ranks,observations,enrolled)
+    family_ranks=scores.get('familyRanks',[])
+    if supplemental:family_ranks=[rank for rank in family_ranks if rank.get('surface')!='cli:end-to-end']+supplemental['reportingFamilyRanks']
+    figures.coverage(observations);figures.rank_bars(ranks);figures.family_ranks(family_ranks);figures.svg_scatter(ranks,observations,enrolled)
     figures.diagnostics(observations);figures.cli_resources(supplemental,supplemental_result);figures.prs(campaign);figures.pr_payload(campaign);figures.pr_coverage(campaign);figures.pr_editor(campaign);figures.reference(observations);figures.owning_tests(report);figures.html(report,campaign,supplemental,correction_metadata,reference_metadata)
     print(json.dumps(dict(figures=len(figures.items),out=str(args.out.resolve()),gaps=figures.gaps),indent=2))
 

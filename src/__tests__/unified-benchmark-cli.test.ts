@@ -54,22 +54,38 @@ describe('unified suite execution lifecycle', () => {
     const { join } = await import('node:path')
     const { runUnified } = await import('../../eval/benchmark/unified/run.ts')
     const directory = mkdtempSync(join(tmpdir(), 'am-unified-lifecycle-'))
+    const detachedPid = join(directory, 'detached.pid')
     try {
       for (const path of ['src/__tests__', 'docs/project', 'eval/mermaid-upstream-suite-bench', 'eval/agent-usage']) mkdirSync(join(directory, path), { recursive: true })
       writeFileSync(join(directory, 'docs/project/upstream-mermaid-policy.json'), JSON.stringify({ pin: { version: 'fixture', commit: 'fixture' } }))
       writeFileSync(join(directory, 'eval/mermaid-upstream-suite-bench/manifest.json'), JSON.stringify({ upstream: { revision: 'fixture' } }))
       writeFileSync(join(directory, 'package.json'), JSON.stringify({ scripts: { 'bench:slow-fixture': 'bun run slow.ts', 'bench:after-fixture': 'bun run after.ts', 'bench:incomplete-fixture': 'bun run incomplete.ts' } }))
       writeFileSync(join(directory, 'eval/agent-usage/live.ts'), 'throw new Error("blocked provider must never launch")\n')
-      writeFileSync(join(directory, 'slow.ts'), 'setInterval(() => {}, 1000)\n')
+      writeFileSync(join(directory, 'grandchild.ts'), 'setInterval(() => {}, 1000)\n')
+      writeFileSync(
+        join(directory, 'slow.ts'),
+        process.platform === 'linux'
+          ? `import{spawn}from'node:child_process';import{writeFileSync}from'node:fs';const child=spawn(process.execPath,['run',${JSON.stringify(join(directory, 'grandchild.ts'))}],{detached:true,stdio:'ignore'});writeFileSync(${JSON.stringify(detachedPid)},String(child.pid));setInterval(()=>{},1000)\n`
+          : 'setInterval(() => {}, 1000)\n',
+      )
       writeFileSync(join(directory, 'incomplete.ts'), 'import{writeFileSync}from"node:fs";writeFileSync(process.env.AM_BENCH_SUITE_OUT+"/qualification-status.json",JSON.stringify({status:"incomplete"}))\n')
       writeFileSync(join(directory, 'after.ts'), 'console.log("later suite completed")\n')
-      const options = parseOptions(['--out', join(directory, 'evidence'), '--suites', 'slow-fixture,agent-live,incomplete-fixture,after-fixture', '--timeout-ms', '300'])
+      const options = parseOptions(['--out', join(directory, 'evidence'), '--suites', 'slow-fixture,agent-live,incomplete-fixture,after-fixture', '--timeout-ms', '800'])
       const report = await runUnified({ ...options, harnessRoot: directory, root: directory })
       const slow = report.suites.find(suite => suite.id === 'slow-fixture')!
       const after = report.suites.find(suite => suite.id === 'after-fixture')!
       expect(report.status).toBe('failed')
       expect(slow.status).toBe('failed')
       expect(slow.timedOut).toBe(true)
+      if (process.platform === 'linux') {
+        const pid = Number(readFileSync(detachedPid, 'utf8'))
+        let state: string | undefined
+        try {
+          const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
+          state = stat.slice(stat.lastIndexOf(')') + 2).split(/\s+/)[0]
+        } catch {}
+        expect(state === undefined || state === 'Z').toBe(true)
+      }
       expect(after.status).toBe('passed')
       const unavailable = report.suites.find(suite => suite.id === 'agent-live')!
       expect(unavailable.status).toBe('blocked')
@@ -89,6 +105,9 @@ describe('unified suite execution lifecycle', () => {
       expect(cancelled.suites.find(suite => suite.id === 'after-fixture')?.elapsedMs).toBeUndefined()
       expect(cancelled.suites.find(suite => suite.id === 'after-fixture')?.result?.gaps.join(' ')).toContain('SIGTERM')
     } finally {
+      try {
+        process.kill(Number(readFileSync(detachedPid, 'utf8')), 'SIGKILL')
+      } catch {}
       rmSync(directory, { recursive: true, force: true })
     }
   })

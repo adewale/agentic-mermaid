@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCatalogEligibility } from '../../eval/benchmark/unified/catalog-eligibility.ts'
-import { communityCoreWorkloads, installedNpmIntegrity, rankCommunityFamilyObservations, rankCommunityObservations, runCommunityCli, runCommunityNodeRound } from '../../eval/benchmark/unified/community.ts'
+import { communityCoreWorkloads, installedNpmIntegrity, planCommunitySourceAliases, rankCommunityFamilyObservations, rankCommunityObservations, runCommunityCli, runCommunityNodeRound } from '../../eval/benchmark/unified/community.ts'
 import { runExternalCommunity } from '../../eval/benchmark/unified/community-external.ts'
 import type { PreparedCommunity } from '../../eval/benchmark/unified/community-types.ts'
 import type { BenchmarkObservation, UnifiedWorkload } from '../../eval/benchmark/unified/types.ts'
@@ -164,10 +164,48 @@ describe('matched family evidence and artifact alias guards', () => {
         artifact = { module, sha256: createHash('sha256').update(bytes).digest('hex'), revision: 'a'.repeat(40), reviewed: true, buildRecipeId: 'reviewed-build-v1', runtimeCommandId: 'reviewed-render-v1', runtimeVersion: 'fixture-runtime1', artifactClass: 'compiled-or-shipped' as const }
       const result = createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': artifact })
       expect(result.equivalenceGroups[0]).toMatchObject({ status: 'verified-artifact-equivalence', aliases: [{ id: 'fixture/b', evidenceFrom: 'fixture/a' }] })
+      const prepared = catalog.nodes.map(n => ({ node: n, artifact: { ...artifact, kind: 'node' as const, root: directory, version: 'fixture' } }))
+      expect(planCommunitySourceAliases(prepared, catalog).aliases.has('fixture/b')).toBe(true)
+      expect(planCommunitySourceAliases([{ ...prepared[0]! }, { ...prepared[1]!, node: { ...prepared[1]!.node, benchmark: { ...prepared[1]!.node.benchmark, terminalSubpath: 'different-public-entry' } } }], catalog).aliases.has('fixture/b')).toBe(false)
+      expect(planCommunitySourceAliases([{ ...prepared[0]! }, { ...prepared[1]!, artifact: { ...prepared[1]!.artifact, global: 'differentRuntimeBinding' } }], catalog).aliases.has('fixture/b')).toBe(false)
       expect(createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': { ...artifact, sourceProgramClass: 'git-interpreted-source' } }).equivalenceGroups[0]?.status).toBe('candidate-only-no-evidence-reuse')
       expect(createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': { ...artifact, runtimeCommandId: 'other-protocol' } }).equivalenceGroups[0]?.status).toBe('candidate-only-no-evidence-reuse')
       writeFileSync(module, bytes + '// changed artifact\n')
       expect(createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': artifact }).equivalenceGroups[0]?.status).toBe('candidate-only-no-evidence-reuse')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('negative admission survives crashed workers', () => {
+  test('retains first-attempt sidecar and withholds earlier core pass after contradictory restarted admission', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'am-negative-attempts-'))
+    try {
+      const module = join(directory, 'parser.mjs'),
+        counter = join(directory, 'imports.txt')
+      writeFileSync(
+        module,
+        `import fs from 'node:fs';const file=${JSON.stringify(counter)};const attempt=Number(fs.existsSync(file)?fs.readFileSync(file,'utf8'):0)+1;fs.writeFileSync(file,String(attempt));export function initialize(){};export function parse(source){if(source.startsWith('This is deliberately')){if(attempt>1)return undefined;throw Error('unknown family')}if(source==='graph LR\\n --> -->')throw Error('invalid supported grammar');if(source==='CRASH')process.exit(42);return undefined}\n`,
+      )
+      const peer: PreparedCommunity = { node: { id: 'fixture/negative-restart', roles: ['parser'], outputs: ['ast'], benchmark: { adapter: 'mermaid', outputs: ['parse'] } }, artifact: { kind: 'node', root: directory, module, version: 'fixture', runtime: 'Node' } }
+      const rows = await runCommunityNodeRound(
+        peer,
+        'parse',
+        [
+          { ...example, id: 'core:flow5' },
+          { ...example, id: 'crash', source: 'CRASH' },
+          { ...example, id: 'core:tree50' },
+        ],
+        1,
+        { root: driver, harnessRoot: driver, out: directory, rounds: 1, profile: 'smoke' },
+      )
+      expect(rows.find(row => row.caseId === 'core:flow5')?.status).toBe('failed')
+      expect(rows.find(row => row.caseId === 'core:flow5')?.detail).toContain('negative-admission')
+      expect(rows.find(row => row.caseId === 'parser-negative-admission:parser-negative-1')?.status).toBe('failed')
+      const history = JSON.parse(readFileSync(join(directory, 'community-raw/fixture_negative-restart-parse-r1-negative-admission-attempts.json'), 'utf8'))
+      expect(history.some((entry: any) => entry.attempt === 1 && entry.file.endsWith('.parser-admission.json') && entry.controls.length === 2)).toBe(true)
+      expect(history.some((entry: any) => entry.attempt === 2 && entry.controls?.some((control: any) => control.actualAccepted === true))).toBe(true)
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }

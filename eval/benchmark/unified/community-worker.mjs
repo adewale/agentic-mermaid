@@ -155,6 +155,7 @@ try {
       catch (error) { rejection = error instanceof Error ? String(error) : JSON.stringify(error) }
       const accepted = !rejection && value !== false && value?.ok !== false && value?.success !== false
       parserAdmission.push({ id: 'parser-negative-' + (index + 1), source, expectedAccepted: false, actualAccepted: accepted, status: accepted ? 'failed' : 'passed', detail: accepted ? 'Authored invalid source was accepted' : 'Authored invalid source was rejected', rejection, returnType: typeof value, value: value === undefined ? null : value })
+      fs.writeFileSync(job.out + '.parser-admission.json', JSON.stringify({ policy: 'Both authored negative controls must reject before syntax-validation ranks; API returns remain unchanged', parserAdmission }, null, 2))
       if (accepted) parserAdmissionFailed = true
     }
     extraApi = { surface: 'node:public-parse-validation', boundary: 'actual public Mermaid parse API; native return retained, syntax validation only, no private AST projection' }

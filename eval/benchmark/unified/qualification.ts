@@ -1,11 +1,13 @@
-import { resolve } from 'node:path'
 import { createRequire } from 'node:module'
+import { resolve } from 'node:path'
 import { isRenderedSourceEcho } from './qualification-visible-source.ts'
+
 export { isRenderedSourceEcho } from './qualification-visible-source.ts'
-import { decodeHTML } from 'entities'
+
+import { inspectSvgText, SVG_NAMESPACE, type SvgInspectionElement } from './svg-text-inspection.ts'
 import type { UnifiedWorkload } from './types.ts'
 
-export const SVG_QUALIFICATION_PROTOCOL = 'svg-xml-namespace-positive-canvas-v2'
+export const SVG_QUALIFICATION_PROTOCOL = 'svg-xml-namespaced-authored-text-v3'
 
 export interface Qualification {
   ok: boolean
@@ -20,6 +22,8 @@ interface SvgXmlTag {
 }
 interface SvgXmlParser {
   on(event: 'opentag', handler: (tag: SvgXmlTag) => void): SvgXmlParser
+  on(event: 'closetag', handler: (tag: SvgXmlTag) => void): SvgXmlParser
+  on(event: 'text' | 'cdata', handler: (value: string) => void): SvgXmlParser
   on(event: 'error', handler: (error: Error) => void): SvgXmlParser
   write(source: string): SvgXmlParser
   close(): SvgXmlParser
@@ -43,7 +47,13 @@ function svgXmlParser(): SvgXmlParser {
 /** Read after performance clocks; records the real resolved lightweight parser. */
 export function svgQualificationProvenance() {
   svgXmlParser()
-  return { protocol: SVG_QUALIFICATION_PROTOCOL, nodeXmlParser: observedSvgXmlParser!, browserXmlParser: 'native DOMParser', canvasPolicy: 'SVG namespace/root and positive finite viewBox or explicit finite width/height; percentage-only dimensions need a positive viewBox' }
+  return {
+    protocol: SVG_QUALIFICATION_PROTOCOL,
+    nodeXmlParser: observedSvgXmlParser!,
+    browserXmlParser: 'native DOMParser',
+    canvasPolicy: 'SVG namespace/root and positive finite viewBox or explicit finite width/height; percentage-only dimensions need a positive viewBox',
+    textPolicy: 'namespace-aware authored text retention excluding inert containers; CSS/paint visibility, referenced use/text paths and owned-label correspondence unmeasured',
+  }
 }
 function explicitSvgLength(value: string | undefined): number {
   const text = value?.trim() ?? ''
@@ -51,13 +61,25 @@ function explicitSvgLength(value: string | undefined): number {
 }
 /** Independent XML syntax/namespace/canvas admission. The light parser loads
  * lazily here, after the caller has stopped its public API clock. */
-function svgXmlFindings(output: string): string[] {
+function svgXmlInspection(output: string): { findings: string[]; root?: SvgInspectionElement } {
   const parser = svgXmlParser(),
-    errors: string[] = []
-  let root: SvgXmlTag | undefined
+    errors: string[] = [],
+    stack: SvgInspectionElement[] = []
+  let root: SvgInspectionElement | undefined
   parser.on('opentag', tag => {
-    root ??= tag
+    const element: SvgInspectionElement = { kind: 'element', localName: tag.local, namespaceURI: tag.uri, attributes: Object.fromEntries(Object.entries(tag.attributes).map(([name, attribute]) => [name, attribute.value])), children: [] }
+    if (stack.length) stack.at(-1)!.children.push(element)
+    root ??= element
+    stack.push(element)
   })
+  parser.on('closetag', () => {
+    stack.pop()
+  })
+  const text = (value: string): void => {
+    stack.at(-1)?.children.push({ kind: 'text', value })
+  }
+  parser.on('text', text)
+  parser.on('cdata', text)
   parser.on('error', error => {
     if (errors.length < 3) errors.push(error.message)
   })
@@ -66,49 +88,26 @@ function svgXmlFindings(output: string): string[] {
   } catch (error) {
     errors.push(String(error))
   }
-  if (errors.length) return ['Malformed SVG XML: ' + errors.join('; ')]
-  if (!root || root.local !== 'svg' || root.uri !== 'http://www.w3.org/2000/svg') return ['Expected an SVG root in the SVG namespace']
-  const viewBox = root.attributes.viewBox?.value
-    .trim()
+  if (errors.length) return { findings: ['Malformed SVG XML: ' + errors.join('; ')] }
+  if (!root || root.localName !== 'svg' || root.namespaceURI !== SVG_NAMESPACE) return { findings: ['Expected an SVG root in the SVG namespace'] }
+  const viewBox = root.attributes.viewBox
+    ?.trim()
     .split(/[\s,]+/)
     .map(Number)
-  const width = explicitSvgLength(root.attributes.width?.value),
-    height = explicitSvgLength(root.attributes.height?.value)
-  if (!(viewBox?.length === 4 && viewBox.every(Number.isFinite) && viewBox[2]! > 0 && viewBox[3]! > 0) && !(width > 0 && Number.isFinite(width) && height > 0 && Number.isFinite(height))) return ['SVG has no positive finite viewBox or explicit canvas']
-  return []
+  const width = explicitSvgLength(root.attributes.width),
+    height = explicitSvgLength(root.attributes.height)
+  if (!(viewBox?.length === 4 && viewBox.every(Number.isFinite) && viewBox[2]! > 0 && viewBox[3]! > 0) && !(width > 0 && Number.isFinite(width) && height > 0 && Number.isFinite(height))) return { findings: ['SVG has no positive finite viewBox or explicit canvas'] }
+  return { findings: [], root }
 }
 
-const displayText = (markup: string): string =>
-  decodeHTML(markup.replace(/<br\s*\/?\s*>/gi, ' ').replace(/<[^>]+>/g, ''))
-    .replace(/\s+/g, ' ')
-    .trim()
 const wholeTerminalLabel = (label: string): RegExp => new RegExp(`(?<![\\p{L}\\p{N}_])${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`, 'u')
 
 /** Inspect rendered text nodes, never metadata, comments, ids or JSON sidecars.
  * Separate line positions may insert whitespace; sibling text elements are
  * never joined to invent a label that no individual reader-facing run held. */
 export function missingAuthoredSvgLabels(svg: string, expected: readonly string[] = []): string[] {
-  const seen = new Set<string>()
-  const visible = svg.replace(/<!--[\s\S]*?-->/g, '').replace(/<(metadata|defs|desc|title|style|script)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
-  for (const match of visible.matchAll(/<(text|tspan|foreignObject)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
-    const tag = match[1]!,
-      inner = match[2]!
-    seen.add(displayText(inner))
-    let previousY: number | undefined
-    const lines = inner.replace(/<tspan\b([^>]*)>/g, (token, attributes: string) => {
-      const attr = (name: string): string | undefined => new RegExp(`(?:^|\\s)${name}=["']([^"']*)["']`).exec(attributes)?.[1]
-      const absolute = Number.parseFloat(attr('y') ?? ''),
-        dy = Number.parseFloat(attr('dy') ?? '0') || 0
-      const currentY = Number.isFinite(absolute) ? absolute : previousY === undefined ? undefined : previousY + dy
-      const nextLine = attr('x') !== undefined && (dy !== 0 || (previousY !== undefined && currentY !== undefined && currentY !== previousY))
-      previousY = currentY
-      return (nextLine ? ' ' : '') + token
-    })
-    seen.add(displayText(lines))
-    for (const child of inner.matchAll(/<tspan\b[^>]*>([\s\S]*?)<\/tspan>/g)) seen.add(displayText(child[1]!))
-    if (tag === 'foreignObject') for (const run of inner.split(/<[^>]+>/)) seen.add(displayText(run))
-  }
-  return expected.filter(label => ![...seen].some(run => wholeTerminalLabel(label.replace(/\s+/g, ' ').trim()).test(run)))
+  const parsed = svgXmlInspection(svg)
+  return parsed.root ? inspectSvgText(parsed.root, expected).missingLabels : [...expected]
 }
 
 /** Outside the measured call. Expectations come from authored fixtures or the
@@ -149,11 +148,11 @@ export function qualifyOutput(workload: UnifiedWorkload, output: unknown, format
   }
   if (typeof output !== 'string' || !output.trim()) return { ok: false, findings: ['Expected a nonempty output string'], scope: 'format-only' }
   if (format === 'svg') {
-    const xml = svgXmlFindings(output)
-    if (xml.length) return { ok: false, findings: xml, scope: 'format-only' }
-    if (isRenderedSourceEcho(workload.source, output, 'svg')) findings.push('Visible output echoes Mermaid source instead of an admitted diagram')
-    const missing = missingAuthoredSvgLabels(output, workload.expectedLabels)
-    findings.push(...missing.map(label => `Missing authored label: ${label}`))
+    const xml = svgXmlInspection(output)
+    if (xml.findings.length || !xml.root) return { ok: false, findings: xml.findings, scope: 'format-only' }
+    const inspected = inspectSvgText(xml.root, workload.expectedLabels)
+    if (isRenderedSourceEcho(workload.source, output, 'svg', inspected.primaryRuns)) findings.push('Visible output echoes Mermaid source instead of an admitted diagram')
+    findings.push(...inspected.missingLabels.map(label => `Missing authored label: ${label}`))
     return { ok: !findings.length, findings, scope: workload.expectedLabels?.length ? 'format-and-authored-labels' : 'format-only' }
   }
   if (format === 'ascii' || format === 'unicode' || format === 'terminal') {
