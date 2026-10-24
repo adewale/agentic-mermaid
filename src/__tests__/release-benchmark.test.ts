@@ -370,6 +370,34 @@ test.each([false, true])('installed npm identity follows the exact module root (
     writeFileSync(lockPath, JSON.stringify({ packages: { '../peer': { version: '1.2.3', integrity } } }))
     expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('ambiguous installed npm lock path')
   }
+  const mermaidRoot = join(logical, 'node_modules/agentic-mermaid'), evidence = join(dir, 'evidence')
+  mkdirSync(mermaidRoot)
+  writeFileSync(join(mermaidRoot, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '1.0.0', dependencies: { 'example-peer': '1.2.3' } }))
+  let requestedRoot = mermaidRoot
+  if (!alias) {
+    // A direct module alias may sit below an unrelated consumer's npm lock.
+    const unrelated = join(dir, 'unrelated')
+    mkdirSync(join(unrelated, 'node_modules'), { recursive: true })
+    writeFileSync(join(unrelated, 'node_modules/.package-lock.json'), JSON.stringify({ packages: {} }))
+    requestedRoot = join(unrelated, 'module-alias')
+    symlinkSync(mermaidRoot, requestedRoot, 'dir')
+  }
+  const policy = { source: dir, roots: ['example-peer'], overrides: { 'example-peer': '1.2.3' }, packages: { 'example-peer': { version: '1.2.3', integrity } } }
+  writeFileSync(lockPath, JSON.stringify({ packages }))
+  expect(inspectAgenticRuntime(requestedRoot, policy, evidence, 'matched').graph)
+    .toEqual([{ name: 'example-peer', version: '1.2.3', integrity, dependencies: [] }])
+  for (const [label, pin] of [
+    ['missing', undefined], ['missing-integrity', { version: '1.2.3' }],
+    ['malformed-integrity', { version: '1.2.3', integrity: 'not-a-digest' }],
+    ['wrong-version', { version: '2.0.0', integrity }],
+  ] as const) {
+    const rejectedLock = JSON.stringify({ packages: { [nestedKey]: packages[nestedKey], ...(pin ? { [key]: pin } : {}) } })
+    writeFileSync(lockPath, rejectedLock)
+    expect(() => inspectAgenticRuntime(requestedRoot, policy, evidence, label)).toThrow()
+    expect(JSON.parse(readFileSync(join(evidence, `${label}.runtime.json`), 'utf8')).graph)
+      .toEqual([{ name: 'example-peer', version: '1.2.3', integrity: null, dependencies: [] }])
+    expect(readFileSync(join(evidence, `${label}.installed-package-lock.json`), 'utf8')).toBe(rejectedLock)
+  }
 })
 
 test('baseline resolution survives a changed latest tag across CLI retries', async () => {
@@ -393,7 +421,9 @@ test('baseline resolution survives a changed latest tag across CLI retries', asy
 })
 
 test('archive acquisition pins the frozen runtime closure without changing shipped bytes', async () => {
-  const dir = temp.dir(), source = join(dir, 'source'), evidence = join(dir, 'evidence'), prefix = join(dir, 'consumer')
+  const physical = temp.dir(), dir = join(temp.dir(), 'aliased-root')
+  symlinkSync(physical, dir, 'dir')
+  const source = join(dir, 'source'), evidence = join(dir, 'evidence'), prefix = join(dir, 'consumer')
   mkdirSync(source)
   const archives = new Map<string, Buffer>()
   const pack = (name: string, version: string, dependencies: Record<string, string> = {}) => {
@@ -496,7 +526,8 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       expect(rejected.stderr).not.toContain('BENCHMARK_WORKER_STARTED')
       if (['0.0.3', '0.0.4', '0.0.5'].includes(version)) {
         const rejectedOut = join(evidence, `rejected-${version}`)
-        expect(JSON.parse(readFileSync(join(rejectedOut, 'baseline.installed-package-lock.json'), 'utf8')).packages['node_modules/agentic-mermaid'].integrity).toBe(artifact.integrity)
+        expect(Object.values(JSON.parse(readFileSync(join(rejectedOut, 'baseline.installed-package-lock.json'), 'utf8')).packages))
+          .toContainEqual(expect.objectContaining({ version, integrity: artifact.integrity }))
         expect(JSON.parse(readFileSync(join(rejectedOut, 'baseline.normalization-source-policy.json'), 'utf8'))).toEqual(policy)
       }
     }
@@ -523,9 +554,12 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
       expect(rejected.stderr).not.toContain('must-not-launch-chromium')
     }
     nodeAcquisitionFiles.forEach((file, index) => expect(readFileSync(join(evidence, file))).toEqual(nodeAcquisition[index]!))
-    expect(JSON.parse(readFileSync(join(evidence, 'browser-acquisition/candidate.installed-package-lock.json'), 'utf8')).packages['node_modules/agentic-mermaid'].integrity).toBe(archive.integrity)
-    const installed = join(prefix, 'node_modules/.package-lock.json'), lock = JSON.parse(readFileSync(installed, 'utf8'))
-    lock.packages['node_modules/yaml'].integrity = elk.integrity
+    expect(Object.values(JSON.parse(readFileSync(join(evidence, 'browser-acquisition/candidate.installed-package-lock.json'), 'utf8')).packages))
+      .toContainEqual(expect.objectContaining({ version: '0.0.0', integrity: archive.integrity }))
+    const installed = join(prefix, 'node_modules/.package-lock.json')
+    const lock = JSON.parse(readFileSync(installed, 'utf8')) as { packages: Record<string, { version: string; integrity: string }> }
+    const yamlPin = Object.values(lock.packages).find(entry => entry.version === '2.9.0')!
+    yamlPin.integrity = elk.integrity
     writeFileSync(installed, JSON.stringify(lock))
     expect(() => inspectAgenticRuntime(join(prefix, 'node_modules/agentic-mermaid'), policy, evidence, 'mismatch')).toThrow('version/integrity')
     expect(JSON.parse(readFileSync(join(evidence, 'mismatch.runtime.json'), 'utf8')).graph.find((row: { name: string }) => row.name === 'yaml').integrity).toBe(elk.integrity)
@@ -575,7 +609,7 @@ test('archive acquisition pins the frozen runtime closure without changing shipp
     mkdirSync(candidateSource)
     writeFileSync(join(candidateSource, 'package.json'), JSON.stringify({ name: 'agentic-mermaid', version: '0.0.1', dependencies: badCandidate.dependencies }))
     writeFileSync(join(candidateSource, 'bun.lock'), JSON.stringify({ packages: { ...frozen.packages, 'runtime-extra': ['runtime-extra@1.0.0', '', {}, extraRuntime.integrity] } }))
-    lock.packages['node_modules/yaml'].integrity = yaml.integrity
+    yamlPin.integrity = yaml.integrity
     writeFileSync(installed, JSON.stringify(lock))
     const historical = await runChild(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), '--install', badCandidate.path,
       '--prefix', join(dir, 'historical-consumer'), '--runtime-source', candidateSource, '--out', historicalOut, '--label', 'candidate',

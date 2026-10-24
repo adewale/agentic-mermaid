@@ -108,16 +108,28 @@ export function installedNpmPackagePin(prefix: string, root: string, name: strin
  * manifest ranges. npm's installed lock must agree with frozen tarball SRI;
  * a frozen Bun source install must have the exact locked package versions. */
 export function inspectAgenticRuntime(root: string, policy: RuntimePolicy, out: string, label: string): RuntimeReceipt {
+  // Preserve a consumer's logical spelling for npm keys while finding its
+  // lock through physical ancestry, including direct module symlinks.
+  const logicalAncestors = new Map<string, string>()
+  for (let dir = resolve(root); ; dir = dirname(dir)) {
+    const physical = realpathSync(dir)
+    if (!logicalAncestors.has(physical)) logicalAncestors.set(physical, dir)
+    if (dirname(dir) === dir) break
+  }
   root = realpathSync(root)
   const locks: RuntimeReceipt['locks'] = []
   let installed: { packages?: Record<string, RuntimePin> } | undefined, prefix: string | undefined
-  for (let dir = root; ; dir = dirname(dir)) {
+  for (let physical = root; ; physical = dirname(physical)) {
+    let ancestor = physical
+    while (!logicalAncestors.has(ancestor) && dirname(ancestor) !== ancestor) ancestor = dirname(ancestor)
+    const logical = logicalAncestors.get(ancestor)
+    const dir = logical ? join(logical, relative(ancestor, physical)) : physical
     if (existsSync(join(dir, 'node_modules/.package-lock.json'))) {
       prefix = dir
       installed = JSON.parse(readFileSync(join(dir, 'node_modules/.package-lock.json'), 'utf8'))
       break
     }
-    if (dirname(dir) === dir) break
+    if (dirname(physical) === physical) break
   }
   const actualBunPolicy = !installed && existsSync(join(root, 'bun.lock')) ? frozenRuntimePolicy(root) : undefined
   if (!installed && !actualBunPolicy) throw new Error(`${label}: runtime integrity is unknown; directory needs its own frozen bun.lock or an installed npm lock`)
@@ -144,8 +156,11 @@ export function inspectAgenticRuntime(root: string, policy: RuntimePolicy, out: 
       return undefined
     }
     const pkg = manifest(path), expected = policy.packages[name]
-    const fetched = installed?.packages?.[relative(prefix!, path).split('\\').join('/')]
-    const actual = fetched ?? actualBunPolicy?.packages[name]
+    let actual: RuntimePin | undefined
+    if (installed) {
+      try { actual = installedNpmPackagePin(prefix!, path, name, pkg.version) }
+      catch (error) { problems.push(`${label}: ${error instanceof Error ? error.message : String(error)}`) }
+    } else actual = actualBunPolicy?.packages[name]
     if (pkg.name !== name || !expected || pkg.version !== expected.version || actual?.version !== pkg.version || actual.integrity !== expected.integrity) {
       problems.push(`${label}: runtime dependency ${name}@${pkg.version} differs from frozen version/integrity ${expected?.version ?? '(unlocked)'}`)
     }
