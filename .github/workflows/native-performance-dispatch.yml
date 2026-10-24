@@ -1,0 +1,29 @@
+name: Dispatch exact-head performance qualification
+on:
+  push:
+    branches: [codex/performance-dispatch-20261024]
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Cancel superseded campaigns and dispatch the pinned comparison
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for run in 40128311048 40126638230; do
+            state="$(gh api repos/adewale/agentic-mermaid/actions/runs/$run --jq .status)"
+            if [ "$state" != completed ]; then
+              gh api --method POST repos/adewale/agentic-mermaid/actions/runs/$run/cancel
+            fi
+          done
+          head="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/cold-peer-calibration --jq .object.sha)"
+          test "$head" = 299ebb4b00eef41778f09b5bdc4def6e2a11a429
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/cold-peer-calibration","inputs":{"evidence-scope":"all","baseline-ref":"094257545d5ccd33406965c428a5094f7cec78a9","fixed-baseline-sha":"a9d1551da27ddab542a1ae96329464ad65725448"}}
+          JSON
