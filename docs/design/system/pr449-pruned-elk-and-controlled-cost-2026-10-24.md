@@ -36,6 +36,29 @@ All 23 original delivery caps and 78 request comparisons pass. The new native Ar
 
 New browser bundles were actually executed. Old embedded vendor bytes did not qualify them. Canonical Node output changed six entries and renamed five chunks, so the earlier SDK proof was not carried over without another complete comparison. Failed ESM imports remain rejected in the same context; fresh contexts recover. Unverified paint observations remain unverified.
 
+### Subsequent production packaging experiment
+
+An isolated packaging candidate now ships the exact qualified payload once as a local `.cjs`, preserving Node first-use loading and downstream bundling. It removes `elkjs` from production dependencies while retaining its development types, explicit EPL attribution and license. Its six canonical builds, original 23 caps / 78 requests, package-file validator, fresh production-only install, plain-Node loading/render contract and strict public declaration consumer pass. No `elkjs` package is installed or resolvable. Full new Node/browser comparisons and public reconstruction remain required before adoption.
+
+The matching baseline uses the same public source and production dependency declarations, with an explicit consumer override to the locked ELK 0.11.0. All other installed package versions match. The new reporting file is absent from both packages.
+
+| Package/install quantity | Matched stock ELK package | Local pruned payload | Change |
+|---|---:|---:|---:|
+| Application tarball | 6,091,526 B | 6,363,898 B | +4.47% |
+| Application unpacked regular files | 18,173,848 B | 19,148,224 B | +5.36% |
+| Full production installed regular bytes | 32,884,354 B | 25,721,323 B | **−21.78%** |
+| Runtime vendor regular bytes | 8,137,099 B / 12 files | 1,388,041 B / 1 file | −82.94% |
+
+The application archive grows because it now carries the runtime directly; the complete installation shrinks because it no longer installs the full upstream package. These are separate measurements. The first ordinary baseline installation resolved its `^0.11.0` range to **0.11.1**. Installation succeeded, but the exact runtime hash guard rejected that version before runtime/declaration qualification. That attempt remains retained: 32,782,500 installed regular bytes, including 8,035,245 vendor bytes. The controlled 0.11.0 installation uses a new directory and the same immutable tarball. Neither attempt establishes CPU or peak-RSS superiority.
+
+### Construction-aware node index experiment
+
+A separate isolated candidate adds a bounded, call-local CSR broad phase for node obstacles in frozen-geometry route calls. It retains authored ordinals, duplicates and exact predicates, indexes each cross axis independently, and keeps changing labels/channels live. Borrowed placement contexts and custom measurement contexts keep linear scans. Small, sparse, excessive and unsafe numeric ranges fall back without an index.
+
+The candidate passes 182 focused tests / 9,919 assertions, types, lint, 256 complete ordinary route comparisons and 256 host-mutation comparisons. A source/Bun census matches complete outputs on all 75 inputs in each single-pass policy run. The uncached census reduces actual node-loop visits from 4,589,027 to 2,716,917 (40.8%), with 62 constructed indexes / 5,817 memberships. These are operation counts, not time or allocation gains. Removing the custom-measurement fallback fails an owning test when a callback moves a foreign obstacle into a route's clearance region.
+
+All six canonical builds and original 23 caps / 78 request checks pass. The Architecture native closure is 251,726 Brotli bytes / 35 requests, 528 bytes above accepted678. Complete built Node/browser semantics and uninstrumented cost remain outstanding. This shared route-pass optimization could affect either backend; it is not adopted or a native performance win.
+
 ## Complete controlled cost result
 
 The separately declared method uses pinned Node24.19.0, all 75 original H27+D48 inputs, both cache policies, six blocks and independent repeats of accepted native, d74 native and same-d74 stock ELK. Each process performs one complete warm pass and two timed passes: 225 calls, comprising 5,400 warm and 10,800 timed calls across the campaign. The earlier 450-call-per-process campaign remains failed; this explicit finite workload does not repair it or establish steady state.
