@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../../../src/agent/families.ts'
 import type { UnifiedRunOptions } from './types.ts'
 
@@ -141,12 +141,13 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
       if (!options.baselineLock && !(options.baselineTarball && options.baselineSha256)) prerequisites.push('Provide --baseline-lock or the baseline tarball and digest')
       prerequisites.push(...browserMissing)
     }
-    suites.push({ id, title: script, kind: 'script', smoke: id === 'samples', source: command, command: args, prerequisites, policy, ...(['release', 'release-browser'].includes(id) || (id === 'dave' && options.candidateTarball) ? { target: 'candidate' as const } : {}) })
+    suites.push({ id, title: script, kind: 'script', smoke: id === 'samples', source: command, command: args, prerequisites, policy, ...(['release', 'release:browser'].includes(id) || (id === 'dave' && options.candidateTarball) ? { target: 'candidate' as const } : {}) })
   }
-  const qualificationRoot = existsSync(join(options.root, 'eval/benchmark/qualify-peer-performance.ts')) ? options.root : root
+  const qualificationRoot = options.root
   const qualificationSource = join(qualificationRoot, 'eval/benchmark/qualify-peer-performance.ts')
-  if (existsSync(qualificationSource) && !suites.some(suite => suite.id === 'peers:qualify')) {
+  if ((existsSync(qualificationSource) || existsSync(join(root, 'eval/benchmark/qualify-peer-performance.ts'))) && !suites.some(suite => suite.id === 'peers:qualify')) {
     const prerequisites = [
+      ...(!existsSync(qualificationSource) ? ['Selected target checkout lacks eval/benchmark/qualify-peer-performance.ts; the driver protocol is not substituted'] : []),
       ...(!options.candidateTarball || !options.candidateSha256 ? ['Peer qualification needs the exact candidate tarball and digest'] : []),
       ...(!options.baselineTarball || !options.baselineSha256 ? ['Peer qualification needs the exact baseline tarball and digest'] : []),
     ]
@@ -155,7 +156,19 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     add(args, '--candidate-sha256', options.candidateSha256)
     add(args, '--baseline-tarball', options.baselineTarball)
     add(args, '--baseline-sha256', options.baselineSha256)
-    suites.push({ id: 'peers:qualify', title: 'Consumed semantic peer performance qualification', kind: 'script', smoke: false, source: qualificationSource, command: args, cwd: qualificationRoot, target: 'candidate', prerequisites, policy: 'Uses the selected checkout’s maintained semantic peer protocol: two independent A/A controls, then candidate comparison. Exact archives, actual runtime dependency policy and all semantic tracks are retained. Insufficient cold-tail rounds and unsupported endpoint contracts remain explicit qualification gaps.' })
+    suites.push({
+      id: 'peers:qualify',
+      title: 'Consumed semantic peer performance qualification',
+      kind: 'script',
+      smoke: false,
+      source: qualificationSource,
+      command: args,
+      cwd: qualificationRoot,
+      target: 'candidate',
+      prerequisites,
+      policy:
+        'Uses the selected checkout’s maintained semantic peer protocol: two independent A/A controls, then candidate comparison. Exact archives, actual runtime dependency policy and all semantic tracks are retained. Insufficient cold-tail rounds and unsupported endpoint contracts remain explicit qualification gaps.',
+    })
   }
   const standalone = (id: string, title: string, file: string, args: string[], prerequisites: string[] = [], policy = 'Diagnostic owning entry; instrumented timings are not cross-engine API latency.'): void => {
     if (existsSync(join(root, file))) suites.push({ id, title, kind: 'script', smoke: false, source: file, command: ['bun', 'run', file, ...args], prerequisites, policy })
@@ -175,13 +188,18 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     ['editor-session', 'editor-session-bench.ts', ['--cold-runs', String(options.rounds)]],
     ['editor-ownership', 'editor-ownership-bench.ts', ['--runs', String(options.rounds)]],
   ] as const) {
-    const selectedSite = id === 'editor-ownership' ? options.ownershipSite ?? site : site
-    const selectedMissing = id === 'editor-ownership'
-      ? ['original.html', 'candidate.html'].filter(file => !existsSync(join(selectedSite, file))).map(file => `Controlled ownership comparison needs frozen ${file}: ${selectedSite}; provide --ownership-site with both reviewed variants and their assets`)
-      : siteMissing
+    const selectedSite = id === 'editor-ownership' ? (options.ownershipSite ?? site) : site
+    const selectedMissing = id === 'editor-ownership' ? ['original.html', 'candidate.html'].filter(file => !existsSync(join(selectedSite, file))).map(file => `Controlled ownership comparison needs frozen ${file}: ${selectedSite}; provide --ownership-site with both reviewed variants and their assets`) : siteMissing
     const args = ['--site', selectedSite, '--out', out(id), ...extra]
     add(args, '--executable', options.executable)
-    standalone(id, id, `eval/benchmark/${file}`, args, [...selectedMissing, ...browserMissing], 'Real hosted editor/production adapter; verified DOM, request closure and ownership have separate clocks and contracts. Controlled ownership requires actual frozen original/candidate pages; no identical copies are fabricated to satisfy prerequisites.')
+    standalone(
+      id,
+      id,
+      `eval/benchmark/${file}`,
+      args,
+      [...selectedMissing, ...browserMissing],
+      'Real hosted editor/production adapter; verified DOM, request closure and ownership have separate clocks and contracts. Controlled ownership requires actual frozen original/candidate pages; no identical copies are fabricated to satisfy prerequisites.',
+    )
   }
   const renderer = ['--agentic-root', options.packageRoot ?? root, '--bezel-dir', options.bezelDir ?? '', '--out', out('renderer-profile'), '--rounds', String(options.rounds)]
   add(renderer, '--executable', options.executable)
@@ -210,7 +228,10 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     managedBrowserMissing = [
       ...(!existsSync(chromiumPath) ? [`Canonical browser contracts need managed Playwright Chromium: ${chromiumPath}`] : []),
       ...(!headlessPath || !existsSync(headlessPath) ? ['Canonical browser contracts need the installed Playwright chromium-headless-shell; run playwright install chromium'] : []),
-      ...(['firefox', 'webkit'] as const).flatMap(name => { const file = playwright[name].executablePath() as string; return existsSync(file) ? [] : [`Canonical cross-engine browser contracts need managed ${name}: ${file}; run playwright install chromium firefox webkit`] }),
+      ...(['firefox', 'webkit'] as const).flatMap(name => {
+        const file = playwright[name].executablePath() as string
+        return existsSync(file) ? [] : [`Canonical cross-engine browser contracts need managed ${name}: ${file}; run playwright install chromium firefox webkit`]
+      }),
     ]
   } catch (error) {
     managedBrowserMissing = [`Cannot resolve canonical managed Playwright prerequisites: ${String(error)}`]
@@ -283,8 +304,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
   // transport directly. Preserve all external proxy configuration and bypasses.
   const loopbackBypasses = [...new Set([process.env.NO_PROXY, process.env.no_proxy, '::1', '[::1]'].flatMap(value => (value ?? '').split(',')).filter(Boolean))].join(',')
   familySuite.environment = { NO_PROXY: loopbackBypasses, no_proxy: loopbackBypasses }
-  familySuite.policy +=
-    ' Enrollment follows existing owning filename conventions and registry family IDs; it excludes the unrelated unit suite. Passing this group is not a per-schema-operation witness map; operations without explicit benchmark witnesses remain unmeasured.'
+  familySuite.policy += ' Enrollment follows existing owning filename conventions and registry family IDs; it excludes the unrelated unit suite. Passing this group is not a per-schema-operation witness map; operations without explicit benchmark witnesses remain unmeasured.'
   const importedTests = readdirSync(join(root, 'src/__tests__'))
     .filter(file => /(?:upstream.*bench|mermaidseqbench|mindmap-gitgraph-upstream-oracle)\.test\.ts$/.test(file))
     .sort()

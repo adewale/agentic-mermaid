@@ -258,6 +258,10 @@ function reconcileCli(baseRoot, repairRoot, destination, communityManifest, cliA
   return result
 }
 
+export function validateFrozenCommunityInputs(base, repair) {
+  equal(without(base, ['source']), without(repair, ['source']), 'Frozen963 source/family/label/features/reference input changed')
+  return { originalSourcePath: base.source ?? null, repairSourcePath: repair.source ?? null, scope: 'Only top-level input-file provenance path differs; every literal workload object, expectation, feature, reference and policy remains identical' }
+}
 export async function reconcileCommunity(options) {
   const base = sourceEnvelope(resolve(options.base)),
     repair = sourceEnvelope(resolve(options.repair)),
@@ -265,7 +269,7 @@ export async function reconcileCommunity(options) {
   requireThat(!existsSync(out) || readdirSync(out).length === 0, 'Composite output already contains evidence; choose a fresh directory')
   equal(repair.evidence.outputSelection, ['svg', 'react-flow'], 'Repair output lane must be exactly svg,react-flow')
   requireThat(repair.evidence.qualificationProtocol && repair.evidence.qualificationProtocol !== base.evidence.qualificationProtocol, 'No explicit changed qualification protocol')
-  equal(base.inputs, repair.inputs, 'Frozen963 source/family/label/features/reference input changed')
+  const inputSourceProvenance = validateFrozenCommunityInputs(base.inputs, repair.inputs)
   equal(base.evidence.currentReference, repair.evidence.currentReference, 'Pinned reference changed')
   equal(base.evidence.target, repair.evidence.target, 'Target/archive/package/engine files changed')
   equal(base.evidence.targetAdvance, repair.evidence.targetAdvance, 'Target advance proof changed')
@@ -312,7 +316,7 @@ export async function reconcileCommunity(options) {
     coreCohort = base.inputs.workloads.filter(row => row.features.includes('core-graph-batch'))
   const manifest = {
     id: 'community-qualification-composition-v3',
-    sourceCommunity: { original: base.directory, repair: repair.directory },
+    sourceCommunity: { original: base.directory, repair: repair.directory }, inputSourceProvenance,
     composedAt,
     scope: ['svg', 'react-flow'],
     policy: 'Mixed-window correctness-qualification evidence. Engine bytes, sources, labels, protocols, pins and target remain frozen. SVG/IR timings are fresh under repaired admission; unaffected observations are exact original JSON. No product speed-improvement attribution.',

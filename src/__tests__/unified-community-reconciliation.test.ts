@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { comparisonRowsFromCommittedBrowserRounds, isQualificationRepairObservation, mergeRows } from '../../eval/benchmark/unified/reconcile-community.mjs'
+import { comparisonRowsFromCommittedBrowserRounds, isQualificationRepairObservation, mergeRows, validateFrozenCommunityInputs } from '../../eval/benchmark/unified/reconcile-community.mjs'
 
 const row = (changes: Record<string, unknown> = {}) => ({
   suite: 'community-browser',
@@ -17,6 +17,15 @@ const row = (changes: Record<string, unknown> = {}) => ({
 })
 
 describe('strict qualification partition reconciliation', () => {
+  test('input-file provenance paths may differ but literal sources, labels and reference cannot', () => {
+    const base = { source: '/original/frozen.json', workloads: [{ id: 'case', family: 'flowchart', source: 'flowchart LR\nA[Start]', expectedLabels: ['Start'], features: ['authored'] }], reference: { version: '12.2.0' }, policy: 'frozen' }
+    const repair = { ...base, source: '/replay/frozen.json' }
+    expect(validateFrozenCommunityInputs(base, repair)).toMatchObject({ originalSourcePath: base.source, repairSourcePath: repair.source })
+    expect(() => validateFrozenCommunityInputs(base, { ...repair, workloads: [{ ...base.workloads[0], source: 'flowchart LR\nB[Changed]' }] })).toThrow('input changed')
+    expect(() => validateFrozenCommunityInputs(base, { ...repair, workloads: [{ ...base.workloads[0], expectedLabels: ['Changed'] }] })).toThrow('input changed')
+    expect(() => validateFrozenCommunityInputs(base, { ...repair, reference: { version: 'different' } })).toThrow('input changed')
+  })
+
   test('refreshesSVG andIR plusSVG delivery/heap while preserving untouchedPNG/terminal/parser/source objects', () => {
     const svg = row(),
       ir = row({ suite: 'community', format: 'react-flow', operation: 'convert' }),
