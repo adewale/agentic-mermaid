@@ -25,6 +25,8 @@ interface Options {
   out: string
   rounds: number
   profile: 'smoke' | 'full'
+  invocationProfile: 'smoke' | 'full'
+  invocationRounds: number
   prs?: number[]
   prepareOnly: boolean
   dependencyPolicy: 'strict' | 'main-overrides'
@@ -56,6 +58,8 @@ interface Target {
   buildError?: string
 }
 interface Campaign {
+  measurementDriver?: { capturedAt: string; head: string; dirty: boolean; status: string[] }
+  measurementConfig?: { core: { profile: 'smoke' | 'full'; rounds: number }; family: { profile: 'smoke' | 'full'; rounds: number }; invocation: { profile: 'smoke' | 'full'; rounds: number }; policy: string }
   installationComplete?: boolean
   preparedAt?: string
   schemaVersion: number
@@ -82,7 +86,7 @@ const stamp = () => new Date().toISOString()
 function parse(argv: string[]): Options {
   const values = new Map<string, string>()
   const flags = new Set(['prepare-only', 'run'])
-  const allowed = new Set(['root', 'repo', 'out', 'rounds', 'profile', 'prs', 'dependency-policy'])
+  const allowed = new Set(['root', 'repo', 'out', 'rounds', 'profile', 'invocation-profile', 'invocation-rounds', 'prs', 'dependency-policy'])
   let prepareOnly = false
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -97,10 +101,24 @@ function parse(argv: string[]): Options {
   }
   const rounds = Number(values.get('rounds') ?? 3),
     profile = values.get('profile') ?? 'smoke',
+    invocationProfile = values.get('invocation-profile') ?? profile,
+    invocationRounds = Number(values.get('invocation-rounds') ?? rounds),
     dependencyPolicy = values.get('dependency-policy') ?? 'strict',
     prs = values.get('prs')?.split(',').map(Number)
-  if (!Number.isSafeInteger(rounds) || rounds < 1 || !['smoke', 'full'].includes(profile) || !['strict', 'main-overrides'].includes(dependencyPolicy) || prs?.some(n => !Number.isSafeInteger(n) || n < 1)) throw Error('Invalid rounds/profile/dependency-policy/PR selection')
-  return { root: resolve(values.get('root') ?? DRIVER), repo: values.get('repo'), out: resolve(values.get('out') ?? 'bench-report/active-prs'), rounds, profile: profile as Options['profile'], prs, prepareOnly, dependencyPolicy: dependencyPolicy as Options['dependencyPolicy'] }
+  if (!Number.isSafeInteger(rounds) || rounds < 1 || !['smoke', 'full'].includes(profile) || !['smoke', 'full'].includes(invocationProfile) || !Number.isSafeInteger(invocationRounds) || invocationRounds < 1 || !['strict', 'main-overrides'].includes(dependencyPolicy) || prs?.some(n => !Number.isSafeInteger(n) || n < 1))
+    throw Error('Invalid rounds/profile/dependency-policy/PR selection')
+  return {
+    root: resolve(values.get('root') ?? DRIVER),
+    repo: values.get('repo'),
+    out: resolve(values.get('out') ?? 'bench-report/active-prs'),
+    rounds,
+    profile: profile as Options['profile'],
+    invocationProfile: invocationProfile as Options['invocationProfile'],
+    invocationRounds,
+    prs,
+    prepareOnly,
+    dependencyPolicy: dependencyPolicy as Options['dependencyPolicy'],
+  }
 }
 async function command(command: string, args: string[], cwd: string, log: string, timeoutMs = 15 * 60_000) {
   const result = await childCommand(command, args, { cwd, timeoutMs, processGroup: true })
@@ -475,6 +493,8 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
     frozenAt: campaign.frozenAt,
     main: campaign.main,
     targets: campaign.targets,
+    measurementDriver: campaign.measurementDriver,
+    measurementConfig: campaign.measurementConfig,
     core: records,
     coverage,
     jobs,
@@ -484,6 +504,7 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
       'Source-equivalent docs/test changes reuse only core-renderer timing evidence; broad family/invocation suites execute every actual candidate, and package footprints remain separate.',
       'Conflicting old heads and own bases are exploratory, never presented as an integration benefit on current main.',
       'Family/transport broad coverage and fixed-core latency have different scopes; they are never multiplied into an invented overall score.',
+      `Resolved measurement coverage: core ${options.profile}/${options.rounds} rounds; family ${options.profile}/${options.rounds} rounds; invocation ${options.invocationProfile}/${options.invocationRounds} rounds. Invocation overrides are intentional independent coverage cost choices, never hidden downsampling.`,
       'Prepared artifacts may be reused, but every campaign invocation reruns all measurements; old timing and broad-suite results are never admitted through existence-only resume checks.',
       'Core plain APIs include output UTF8 consumption. Receipt APIs additionally include receipt JSON. Six terminal inputs differ from community three-input terminal cohort; raw cross-protocol medians cannot be mixed.',
     ],
@@ -523,7 +544,8 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
   const lines = [
     '# Active PR benchmark stack ranks',
     '',
-    `Frozen ${campaign.frozenAt}; main \`${campaign.main}\`. ${options.rounds} rounds; ${options.profile} profile.`,
+    `Frozen ${campaign.frozenAt}; main \`${campaign.main}\`. Core/family ${options.profile}, ${options.rounds} rounds; invocation ${options.invocationProfile}, ${options.invocationRounds} rounds.`,
+    `Measurement driver \`${campaign.measurementDriver?.head ?? 'unrecorded'}\`; dirty: ${campaign.measurementDriver?.dirty ?? 'unrecorded'}. Preparation driver remains separately recorded.`,
     '',
     campaign.policy,
     '',
@@ -544,8 +566,8 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
   }
   lines.push('', '## Every frozen target', '', '| Candidate | PR head | Measured source | Integration | Build | Runtime equivalence |', '|---|---|---|---|---|---|')
   for (const target of campaign.targets) lines.push(`| ${target.id} | \`${target.head}\` | \`${target.revision}\` | ${target.integration} | ${target.buildStatus ?? 'unprepared'}${target.buildError ? ': ' + target.buildError.replaceAll('|', '/') : ''} | ${target.equivalentTo ?? 'independent source'} |`)
-  lines.push('', '## Broad family and invocation results', '', '| Candidate | Suite | Status | Passed / measured observations |', '|---|---|---|---|')
-  for (const result of coverage) lines.push(`| ${result.target} | ${result.suite} | ${result.status} | ${result.passed ?? 0} / ${result.total ?? 0}${result.sharedWith ? ' (shared with ' + result.sharedWith + ')' : ''} |`)
+  lines.push('', '## Broad family and invocation results', '', '| Candidate | Suite | Profile / rounds | Status | Passed / measured observations |', '|---|---|---|---|---|')
+  for (const result of coverage) lines.push(`| ${result.target} | ${result.suite} | ${result.profile} / ${result.rounds} | ${result.status} | ${result.passed ?? 0} / ${result.total ?? 0}${result.sharedWith ? ' (shared with ' + result.sharedWith + ')' : ''} |`)
   lines.push(
     '',
     '## Exploratory conflicting heads and bases',
@@ -588,6 +610,14 @@ export function revalidatePrCampaign(options: Pick<Options, 'out'>, campaign: Ca
   writeFileSync(join(options.out, 'campaign.json'), JSON.stringify(campaign, null, 2))
 }
 export async function runPrCampaign(options: Options, campaign: Campaign) {
+  const driverStatus = git(options.root, ['status', '--porcelain=v1', '--untracked-files=all']).split('\n').filter(Boolean)
+  campaign.measurementDriver = { capturedAt: stamp(), head: git(options.root, ['rev-parse', 'HEAD']), dirty: driverStatus.length > 0, status: driverStatus }
+  campaign.measurementConfig = {
+    core: { profile: options.profile, rounds: options.rounds },
+    family: { profile: options.profile, rounds: options.rounds },
+    invocation: { profile: options.invocationProfile, rounds: options.invocationRounds },
+    policy: 'Core/family preserve campaign profile and rounds; only broad invocation uses explicit independent overrides. All admitted family representatives and actual runtimes/transports remain enrolled according to the selected invocation profile.',
+  }
   revalidatePrCampaign(options, campaign)
   const main = campaign.targets.find(target => target.id === 'main')!,
     qualified = [main, ...campaign.targets.filter(target => target.buildStatus === 'passed' && !target.equivalentTo && target.id !== 'main' && target.integration !== 'branch-base')],
@@ -624,8 +654,10 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
         attempt = join(out, `attempt-${Date.now()}`),
         resultPath = join(attempt, 'result.json')
       mkdirSync(attempt, { recursive: true })
-      const job = join(attempt, 'job.json')
-      writeFileSync(job, JSON.stringify({ root: target.root, harnessRoot: options.root, packageRoot: target.packageRoot, out: attempt, rounds: options.rounds, profile: options.profile, resultPath }))
+      const job = join(attempt, 'job.json'),
+        profile = suite === 'invocation' ? options.invocationProfile : options.profile,
+        rounds = suite === 'invocation' ? options.invocationRounds : options.rounds
+      writeFileSync(job, JSON.stringify({ root: target.root, harnessRoot: options.root, packageRoot: target.packageRoot, out: attempt, rounds, profile, resultPath }))
       try {
         await command(process.env.BUN_BIN ?? (process.versions.bun ? process.execPath : 'bun'), ['run', join(options.root, 'eval/benchmark/unified/run.ts'), '--worker-suite', suite, '--worker-job', job], options.root, join(attempt, 'run.log'), suite === 'invocation' ? 90 * 60_000 : 60 * 60_000)
       } catch (error) {
@@ -633,7 +665,7 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
       }
       writeFileSync(join(out, 'latest.json'), JSON.stringify({ resultPath, measuredAt: stamp(), policy: 'Fresh attempt; no automatic evidence reuse' }, null, 2))
       const result = read(resultPath)
-      coverage.push({ target: target.id, suite, status: result.status, passed: result.observations.filter((row: any) => row.status === 'passed').length, total: result.observations.length, gaps: result.gaps, resultPath })
+      coverage.push({ target: target.id, suite, profile, rounds, status: result.status, passed: result.observations.filter((row: any) => row.status === 'passed').length, total: result.observations.length, gaps: result.gaps, resultPath })
       reportCampaign(options, campaign, jobs, coverage)
     }
   }
@@ -662,7 +694,7 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
 export async function main(argv = process.argv.slice(2)) {
   if (argv.includes('--help')) {
     console.log(
-      'bun run eval/benchmark/unified/pr-campaign.ts --out DIR [--prepare-only|--run] [--prs N,N] [--rounds N] [--profile smoke|full] [--repo owner/name] [--root DRIVER] [--dependency-policy strict|main-overrides]\nPreparation freezes main and all selected open PR heads, builds canonical artifacts and actual npm packs. --run reuses the frozen prepared artifacts but always reruns all measurements in new attempt directories; existing timing/coverage results are never automatically reused. Package-only conflicts are resolved only under explicit main-overrides policy; source conflicts remain exploratory.',
+      'bun run eval/benchmark/unified/pr-campaign.ts --out DIR [--prepare-only|--run] [--prs N,N] [--rounds N] [--profile smoke|full] [--invocation-profile smoke|full] [--invocation-rounds N] [--repo owner/name] [--root DRIVER] [--dependency-policy strict|main-overrides]\nPreparation freezes main and all selected open PR heads, builds canonical artifacts and actual npm packs. --run reuses the frozen prepared artifacts but always reruns all measurements in new attempt directories; existing timing/coverage results are never automatically reused. Invocation profile/rounds default to the campaign settings; explicit overrides affect only broad invocation coverage and are recorded in evidence. Package-only conflicts are resolved only under explicit main-overrides policy; source conflicts remain exploratory.',
     )
     return
   }

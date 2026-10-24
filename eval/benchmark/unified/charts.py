@@ -66,22 +66,22 @@ class Figures:
         import numpy as np
         rows = [r for r in observations if r.get('suite') == 'invocation' and r.get('family') not in ('*', None)]
         families = sorted({r['family'] for r in rows})
-        surfaces = sorted({r['surface'] for r in rows})
+        surfaces = sorted({(r['surface'], r.get('runtime', 'unrecorded')) for r in rows})
         if not rows:
             self.gaps.append('Invocation heatmap: no family-scoped invocation observations.'); return
         matrix = np.full((len(families), len(surfaces)), np.nan)
         data = []
         for y, family in enumerate(families):
-            for x, surface in enumerate(surfaces):
-                passed, total = aggregate([r for r in rows if r['family'] == family and r['surface'] == surface])
+            for x, (surface, runtime) in enumerate(surfaces):
+                passed, total = aggregate([r for r in rows if r['family'] == family and r['surface'] == surface and r.get('runtime', 'unrecorded') == runtime])
                 if total: matrix[y, x] = passed / total
-                data.append(dict(family=family, surface=surface, passed=passed, observedChecks=total))
+                data.append(dict(family=family, surface=surface, runtime=runtime, passed=passed, observedChecks=total))
         figure, ax = self.plt.subplots(figsize=(max(8, len(surfaces) * .7), max(5, len(families) * .3)))
         image = ax.imshow(matrix, vmin=0, vmax=1, aspect='auto', cmap='YlGnBu')
-        ax.set_xticks(range(len(surfaces)), surfaces, rotation=45, ha='right')
+        ax.set_xticks(range(len(surfaces)), [surface+'\n'+runtime for surface,runtime in surfaces], rotation=45, ha='right')
         ax.set_yticks(range(len(families)), families)
         for cell in data:
-            x, y = surfaces.index(cell['surface']), families.index(cell['family'])
+            x, y = surfaces.index((cell['surface'],cell['runtime'])), families.index(cell['family'])
             ax.text(x, y, f"{cell['passed']}/{cell['observedChecks']}" if cell['observedChecks'] else '—', ha='center', va='center', fontsize=7, color='white' if matrix[y,x] > .7 else 'black')
         figure.colorbar(image, ax=ax, label='Qualified / observed checks')
         self.save(figure, 'invocation-coverage', 'Agentic Mermaid: observed family × invocation checks', 'Counts deduplicate repeated rounds; every observed round must pass. Missing cells are unmeasured. This is not exhaustive feature or operation coverage.', data)
@@ -103,7 +103,11 @@ class Figures:
             ax.set_xscale('log'); ax.set_xlabel('Matched fixed-core portfolio, ms (log scale; lower is faster)')
             self.save(figure, f'community-rank-{index+1}', f'Community same-core: {surface} / {output}', 'Only every-case/every-round qualified results. Whiskers are observed round ranges, not confidence intervals. API, browser, native and CLI boundaries are separate.', group)
 
-    def svg_scatter(self, ranks, observations, enrolled):
+    def svg_scatter(self, ranks, observations, enrolled_cases):
+        enrolled=len({row['family'] for row in enrolled_cases})
+        enrolled_ids={row['id'] for row in enrolled_cases}
+        if not enrolled_ids:
+            self.gaps.append('SVG breadth: enrolled feature inputs are unavailable; no breadth plot manufactured.');return
         groups = defaultdict(list)
         for rank in ranks:
             if rank.get('output') == 'svg' and rank.get('qualified') and finite(rank.get('medianMs')) and rank['medianMs'] > 0:
@@ -113,7 +117,7 @@ class Figures:
             data=[]
             for rank in group:
                 name=rank['implementation']
-                attempts=[r for r in observations if tool(r)==name and r.get('surface')==surface and r.get('format')=='svg' and r.get('mode')=='feature-corpus-attempt' and r.get('family')!='*']
+                attempts=[r for r in observations if tool(r)==name and r.get('surface')==surface and r.get('format')=='svg' and r.get('caseId') in enrolled_ids and r.get('family')!='*']
                 families={r['family'] for r in attempts if r.get('status')=='passed'}
                 deliveries=[r.get('metrics',{}).get('gzipBytes') for r in observations if tool(r)==name and r.get('operation')=='delivery' and r.get('status')=='passed'] if surface.startswith('browser:') else []
                 gzip=median([v for v in deliveries if finite(v)]) if any(finite(v) for v in deliveries) else None
@@ -126,38 +130,43 @@ class Figures:
             self.save(figure,f'svg-cost-coverage-{index+1}',f'SVG cost and observed breadth: {surface}','Breadth means at least one passing feature attempt, not complete family fidelity. Browser marker area varies with observed gzip payload; unknown payload uses a small marker. No combined score.',data)
 
     def diagnostics(self, observations):
-        groups=defaultdict(list)
-        for r in observations:
-            metrics=r.get('metrics',{})
-            if r.get('status')!='passed': continue
-            if r.get('operation')=='delivery' and finite(metrics.get('gzipBytes')):
-                groups[('Observed browser request closure (gzip)',r['surface'],'gzipBytes')].append(r)
-            if r.get('operation')=='memory' and finite(metrics.get('jsHeapUsedBytes')):
-                groups[('Post-portfolio forced-GC V8 heap',r['surface'],'jsHeapUsedBytes')].append(r)
-        for index,((title,surface,metric),rows) in enumerate(sorted(groups.items())):
-            by_tool=defaultdict(list)
-            for r in rows:by_tool[tool(r)].append(r['metrics'][metric]/1024/1024)
-            names=sorted(by_tool)
-            figure,ax=self.plt.subplots(figsize=(9,max(3.5,len(names)*.4)))
-            values=[median(by_tool[n])for n in names]
-            ax.barh(names,values,color='#718ca1');ax.invert_yaxis();ax.set_xlabel('MiB; alphabetical diagnostic view, not a speed rank')
-            data=[dict(implementation=n,medianMiB=v,observedMiB=by_tool[n])for n,v in zip(names,values)]
-            note='Observed request graph includes JS/WASM/fonts requested by this portfolio. Different accepted work can request different lazy assets; compare scope before interpreting.' if metric=='gzipBytes' else 'Fresh Chromium realms, forced GC after attempted portfolio. Excludes native/WASM/process memory. Different successful workloads prevent treating this as a memory-efficiency rank.'
-            self.save(figure,f'diagnostic-{index+1}',f'{title}: {surface}',note,data)
-        # Node RSS includes worker, parser/rendering, qualification and caches.
-        by_boundary=defaultdict(lambda:defaultdict(list))
-        for r in observations:
-            metrics=r.get('metrics',{})
-            for metric in ('peakProcessRssBytes','endRssBytes'):
-                value=metrics.get(metric)
-                if finite(value):by_boundary[(r.get('surface'),r.get('format'),metric)][(tool(r),metrics.get('round'),r.get('format'),metrics.get('workerAttempt'))].append(value)
-        for index,((surface,output,metric),rows) in enumerate(sorted(by_boundary.items())):
-            data=[dict(implementation=key[0],round=key[1],format=key[2],attempt=key[3],MiB=max(values)/1024/1024)for key,values in rows.items()]
-            if not data:continue
-            figure,ax=self.plt.subplots(figsize=(9,max(3.5,len(data)*.2)))
-            ax.scatter([d['MiB']for d in data],range(len(data)),color='#718ca1')
-            ax.set_yticks(range(len(data)),[f"{d['implementation']} / {d['format']} / r{d['round']} a{d['attempt']}"for d in data],fontsize=6);ax.invert_yaxis();ax.set_xlabel('MiB; worker diagnostic')
-            self.save(figure,f'worker-memory-{index+1}',f'{metric}: {surface} / {output}','Process scope includes runtime, qualification and caches; restarted workers and output formats remain distinct. These workloads/scopes are not an efficiency stack rank.',data)
+        # These are diagnostic views, not matched-work efficiency ranks. Name
+        # each source scope and runtime before grouping similarly named bytes.
+        groups=defaultdict(dict)
+        def admit(row, title, runtime, scope, metric, value, detail):
+            if not finite(value):return
+            metrics=row.get('metrics',{})
+            identity=(tool(row),row.get('surface'),row.get('format'),metrics.get('round'),metrics.get('workerAttempt'))
+            entry=dict(implementation=tool(row),surface=row.get('surface'),runtime=runtime,scope=scope,metric=metric,round=metrics.get('round'),workerAttempt=metrics.get('workerAttempt'),valueBytes=value,MiB=value/1024/1024,detail=detail,sourceStatus=row.get('status'),requests=metrics.get('requests')if scope!='invocation:initial-navigation'else None,completePortfolioRequests=metrics.get('requests'),driverRuntime=row.get('runtime'))
+            prior=groups[(title,runtime,scope,metric)].get(identity)
+            if prior is None or value>prior['valueBytes']:groups[(title,runtime,scope,metric)][identity]=entry
+        for row in observations:
+            metrics=row.get('metrics',{});operation=row.get('operation');suite=row.get('suite')
+            if row.get('status')=='passed':
+                if suite=='community-browser' and operation=='delivery':
+                    admit(row,'Community browser delivery','chromium','community:through-attempted-portfolio','gzipBytes',metrics.get('gzipBytes'),'Observed JS/WASM/font request closure after this attempted community portfolio. Different accepted work may trigger different lazy requests.')
+                if suite=='invocation' and operation=='download-closure':
+                    admit(row,'Invocation browser initial delivery','chromium','invocation:initial-navigation','initialGzipBytes',metrics.get('initialGzipBytes'),'Initial navigation request closure; worker/API first handshakes and later family-specific requests may occur afterwards.')
+                    admit(row,'Invocation browser portfolio delivery','chromium','invocation:through-family-portfolio','gzipBytes',metrics.get('gzipBytes'),'Observed request closure through this invocation family portfolio; includes initial assets. Request counts refer to the complete portfolio closure.')
+                if suite=='community-browser' and operation=='memory':
+                    admit(row,'Community browser V8 heap','chromium-v8','community:forced-GC-after-attempted-portfolio','jsHeapUsedBytes',metrics.get('jsHeapUsedBytes'),'Fresh realm and forced GC. V8 heap excludes native/WASM/process memory; not a matched-success memory-efficiency rank.')
+                if suite=='invocation' and operation=='heap-checkpoint':
+                    admit(row,'Invocation browser document V8 heap','chromium-v8','invocation:forced-GC-document-after-portfolio','usedSize',metrics.get('usedSize'),'Main-document V8 heap after forced GC; excludes worker/native/GPU/process memory. This is distinct from the community API portfolio.')
+                if suite=='invocation' and operation=='memory-checkpoint':
+                    for metric in ('rssBytes','heapUsedBytes','peakRssBytes'):
+                        admit(row,'Invocation process memory',row.get('runtime','unrecorded'),'invocation:after-all-enrolled-operations',metric,metrics.get(metric),str(metrics.get('scope','After all enrolled operations; includes runtime/harness/qualification; not allocation or leak proof.')))
+            if suite=='community':
+                for metric in ('peakProcessRssBytes','endRssBytes'):
+                    admit(row,'Community worker process memory',row.get('runtime','unrecorded'),'community:worker-'+str(row.get('format')),metric,metrics.get(metric),'Runtime, qualification and caches included. Every output/worker attempt stays distinct; process scope can contain failed render attempts.')
+        for index,((title,runtime,scope,metric),entries) in enumerate(sorted(groups.items())):
+            rows=sorted(entries.values(),key=lambda d:(d['implementation'],d['surface'],str(d['round']),str(d['workerAttempt'])))
+            if not rows:continue
+            figure,ax=self.plt.subplots(figsize=(10,max(3.5,min(24,len(rows)*.23))))
+            labels=[f"{d['implementation']} / {d['surface']} / r{d['round']}"+(f" a{d['workerAttempt']}"if d['workerAttempt']is not None else '')for d in rows]
+            ax.scatter([d['MiB']for d in rows],range(len(rows)),color='#718ca1')
+            ax.set_yticks(range(len(rows)),labels,fontsize=6);ax.invert_yaxis();ax.set_xlabel('MiB; alphabetical scoped diagnostic view, not an efficiency rank')
+            note=rows[0]['detail']+' Initial and portfolio payloads, V8 heaps and process RSS are separate scopes. Raw bytes and request counts are retained in evidence rows.'
+            self.save(figure,f'diagnostic-{index+1}',f'{title}: {runtime} / {metric}',note,rows)
 
     def prs(self, campaign):
         if not campaign:
@@ -211,7 +220,7 @@ class Figures:
             own=[r for r in rows if tool(r)==engine]
             passed=sum(r.get('metrics',{}).get('passed',0)for r in own);total=sum(r.get('metrics',{}).get('criteria',0)for r in own)
             portfolios=[sum(median(r['samplesMs'])for r in own if r.get('metrics',{}).get('round')==round and r['caseId']in shared)for round in rounds]if shared else []
-            data.append(dict(parser=engine,passedPortableCriteria=passed,evaluatedPortableCriteria=total,sharedCases=len(shared),sharedSuccessPortfolioMs=median(portfolios)if portfolios else None,observedPortfolioMs=portfolios,unscoredCriteria=sum(r.get('metrics',{}).get('unscoredCriteria',0)for r in own)))
+            data.append(dict(parser=engine,referenceVersions=sorted({str(r.get('metrics',{}).get('referenceVersion'))for r in own}),passedPortableCriteria=passed,evaluatedPortableCriteria=total,sharedCases=len(shared),sharedSuccessPortfolioMs=median(portfolios)if portfolios else None,observedPortfolioMs=portfolios,unscoredCriteria=sum(r.get('metrics',{}).get('unscoredCriteria',0)for r in own)))
         figure,axes=self.plt.subplots(1,2,figsize=(10,4))
         for index,d in enumerate(data):
             if d['evaluatedPortableCriteria']:
@@ -229,19 +238,21 @@ class Figures:
             score=next((r for r in (suite.get('result')or{}).get('observations',[])if r.get('operation')=='owning-tests'),None)
             if score:
                 metrics=score.get('metrics',{})
-                data.append(dict(suite=suite['id'],passed=metrics.get('passed',0),failed=metrics.get('failed',0),skipped=metrics.get('skipped',0),wallSeconds=suite.get('elapsedMs',0)/1000,status=suite.get('status')))
+                data.append(dict(suite=suite['id'],passed=metrics.get('passed'),failed=metrics.get('failed'),skipped=metrics.get('skipped'),wallSeconds=suite.get('elapsedMs',0)/1000,status=suite.get('status'),countsAvailable=any(finite(metrics.get(k))for k in ('passed','failed','skipped'))))
         if not data:
             self.gaps.append('Owning tests: no fresh test score observations.');return
         figure,axes=self.plt.subplots(1,2,figsize=(12,max(4,len(data)*.3)),sharey=True)
         names=[d['suite']for d in data];left=[0]*len(data)
         for status,color in (('passed','#147d92'),('failed','#b34742'),('skipped','#b9bec2')):
-            values=[d[status]for d in data];axes[0].barh(names,values,left=left,label=status,color=color);left=[a+b for a,b in zip(left,values)]
+            values=[d[status]if finite(d[status])else 0 for d in data];axes[0].barh(names,values,left=left,label=status,color=color);left=[a+b for a,b in zip(left,values)]
+        for y,d in enumerate(data):
+            if not d['countsAvailable']:axes[0].text(0,y,'counts unavailable',va='center',fontsize=7)
         axes[0].invert_yaxis();axes[0].set_xlabel('Fresh owning test counts');axes[0].legend(fontsize=7)
         axes[1].barh(names,[d['wallSeconds']for d in data],color='#718ca1');axes[1].set_xlabel('Complete process wall time, seconds')
         self.save(figure,'owning-test-score-time','Owning suite counts and process wall time','Groups exercise different behavior and case counts: no cross-suite speed rank. Wall time includes initialization, assertions, reference IPC and instrumentation; it is not parser API latency.',data)
 
     def html(self, report, campaign):
-        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},prFreeze=campaign.get('frozenAt')if campaign else None,figures=self.items,gaps=self.gaps)
+        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols')}if campaign else None,figures=self.items,gaps=self.gaps)
         (self.out/'chart-data.json').write_text(json.dumps(reduced,indent=2,allow_nan=False)+'\n')
         cards=[]
         for item in self.items:
@@ -270,7 +281,7 @@ def main():
     if community.get('observations'):
         observations=[row for row in observations if row.get('suite')not in ('community','community-browser')]+community['observations']
     inputs=load(find(args.run,'community-inputs.json'),{})
-    enrolled=len({row.get('family')for row in inputs.get('workloads',[])if 'core-graph-batch'not in row.get('features',[])})
+    enrolled=[row for row in inputs.get('workloads',[])if 'core-graph-batch'not in row.get('features',[])]
     figures=Figures(args.out)
     figures.coverage(observations);figures.rank_bars(scores.get('ranks',[]));figures.svg_scatter(scores.get('ranks',[]),observations,enrolled)
     figures.diagnostics(observations);figures.prs(campaign);figures.reference(observations);figures.owning_tests(report);figures.html(report,campaign)

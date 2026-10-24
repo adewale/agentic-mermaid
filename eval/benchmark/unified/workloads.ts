@@ -22,6 +22,9 @@ export interface WorkloadEvidence {
   reference?: Record<string, unknown>
   expected?: Record<string, unknown>
   diagnosticOnly?: boolean
+  parserOnly?: boolean
+  emptyDiagramExpected?: boolean
+  labelsContainScope?: 'layout'
   origins: string[]
 }
 
@@ -96,7 +99,10 @@ function collect(profile: 'smoke' | 'full', includeDiagnostics: boolean): Unifie
         const reference = object(entry.reference)
         const expected = object(entry.expect)
         const diagnosticOnly = reference.ok === false || typeof assertions?.renderError === 'string' || typeof expected.error === 'string' || expected.kind === 'error'
-        const labels = assertions?.labelsContain
+        const snapshot = object(reference.snapshot)
+        const data = object(snapshot.data)
+        const emptyDiagramExpected = (assertions?.nodeCount === 0 && assertions.edgeCount === 0 && assertions.groupCount === 0) || (Array.isArray(data.getPacket) && data.getPacket.length === 0) || (expected.kind === 'schedule' && Array.isArray(expected.tasks) && expected.tasks.length === 0)
+        const parserOnly = expected.kind === 'parse'
         const id = typeof entry.id === 'string' ? entry.id : String(index)
         add(
           {
@@ -105,9 +111,8 @@ function collect(profile: 'smoke' | 'full', includeDiagnostics: boolean): Unifie
             source: entry.source,
             features: ['harvested-family-feature', id, ...Object.keys(expected).map(field => `expected:${field}`), ...Object.keys(declared).map(field => `asserted:${field}`)],
             provenance: `eval/${name}/cases.json#${id}`,
-            ...(labels?.length ? { expectedLabels: labels } : {}),
           },
-          { ...(assertions ? { assertions } : {}), ...(Object.keys(reference).length ? { reference } : {}), ...(Object.keys(expected).length ? { expected } : {}), diagnosticOnly },
+          { ...(assertions ? { assertions } : {}), ...(Object.keys(reference).length ? { reference } : {}), ...(Object.keys(expected).length ? { expected } : {}), diagnosticOnly, parserOnly, emptyDiagramExpected, ...(assertions?.labelsContain ? { labelsContainScope: 'layout' as const } : {}) },
         )
       }
     }

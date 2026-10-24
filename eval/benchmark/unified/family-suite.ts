@@ -3,11 +3,14 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { BUILTIN_FAMILY_METADATA } from '../../../src/agent/families.ts'
 import { type AnyMutationOp, type ParsedDiagram, WARNING_SEVERITY } from '../../../src/agent/types.ts'
+import type { Block, BlockBody } from '../../../src/block/types.ts'
+import { displayText } from '../../../src/multiline-utils.ts'
 import { qualifyOutput } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 import { familyFeatureWorkloads, getWorkloadEvidence } from './workloads.ts'
 
 type AgentApi = typeof import('../../../src/agent/core.ts')
+type ProbeResult = { findings?: string[]; bytes?: number; metrics?: BenchmarkObservation['metrics']; detail?: string; status?: BenchmarkObservation['status'] }
 const DRIVER_ROOT = resolve(import.meta.dir, '../../..')
 const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
@@ -93,7 +96,41 @@ export function structuralBuildWitnessForFamily(api: Pick<AgentApi, 'hasOpSchema
   return operations.every((operation): operation is AnyMutationOp => operation !== undefined) ? operations : undefined
 }
 
+/** Anonymous gap cells have geometry/order, but no authored source identity.
+ * Preserve their exact tree position and remap any endpoint to that same path. */
+function blockRoundTripProjection(body: BlockBody): unknown {
+  const spaces = new Map<string, string>()
+  const index = (node: Block, path: string): void => {
+    if (node.type === 'space') spaces.set(node.id, path)
+    node.children?.forEach((child, position) => index(child, `${path}.${position}`))
+  }
+  index(body.root, 'root')
+  const endpoint = (id: string | undefined) => (id === undefined ? null : spaces.has(id) ? { anonymousSpacePath: spaces.get(id) } : { authoredId: id })
+  const project = (node: Block): unknown => ({
+    identity: node.type === 'space' ? { anonymousSpacePath: spaces.get(node.id) } : { authoredId: node.id },
+    type: node.type === 'na' ? 'square' : (node.type ?? 'square'),
+    ...(node.type === 'space' ? {} : { label: node.label ?? '' }),
+    span: node.widthInColumns ?? 1,
+    cells: node.width ?? 1,
+    columns: node.columns ?? -1,
+    directions: node.directions ?? [],
+    classes: node.classes ?? [],
+    styles: node.styles ?? [],
+    children: (node.children ?? []).map(project),
+  })
+  return {
+    root: project(body.root),
+    edges: body.edges.map(edge => ({ from: endpoint(edge.start), to: endpoint(edge.end), label: edge.label ?? '', startMarker: edge.arrowTypeStart, endMarker: edge.arrowTypeEnd, thickness: edge.thickness, pattern: edge.pattern })),
+    classes: body.classDefs,
+    title: body.title,
+    accessibilityTitle: body.accessibilityTitle,
+    accessibilityDescription: body.accessibilityDescription,
+  }
+}
+
 function sameFacts(api: AgentApi, before: ParsedDiagram, after: ParsedDiagram): string[] {
+  if (before.body.kind === 'block' && after.body.kind === 'block')
+    return JSON.stringify(blockRoundTripProjection(before.body)) === JSON.stringify(blockRoundTripProjection(after.body)) && JSON.stringify(before.meta.accessibility) === JSON.stringify(after.meta.accessibility) ? [] : ['Round trip changed block tree order, span, authored identity, endpoint or declared content']
   const left = api.describeMermaidFacts(before),
     right = api.describeMermaidFacts(after)
   const findings: string[] = []
@@ -126,6 +163,10 @@ function independentAssertions(workload: UnifiedWorkload, diagram: ParsedDiagram
     const expected = layout ? assertions[field] : undefined
     if (expected !== undefined && (count === undefined || count < expected)) findings.push(`Independent ${field}: expected >=${expected}, observed ${count ?? 'unavailable'}`)
   }
+  if (layout && assertions.labelsContain) {
+    const labels = [...layout.nodes.map(node => node.label ?? ''), ...layout.edges.map(edge => edge.label?.text ?? ''), ...layout.groups.map(group => group.label ?? '')].map(label => displayText(label)).join('\n')
+    for (const label of assertions.labelsContain) if (!labels.includes(label)) findings.push(`Independent layout labelsContain: ${JSON.stringify(label)}`)
+  }
   return findings
 }
 
@@ -156,7 +197,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
   const mutationCoverage = new Map<string, Set<string>>()
   const featureEvidence: Array<Record<string, unknown>> = []
   const observedFamilies = new Set<string>()
-  const record = (workload: UnifiedWorkload, operation: string, format: string, work: () => { findings?: string[]; bytes?: number; metrics?: BenchmarkObservation['metrics']; detail?: string; status?: BenchmarkObservation['status'] }): void => {
+  const record = (workload: UnifiedWorkload, operation: string, format: string, work: () => ProbeResult): void => {
     const begin = performance.now()
     try {
       const result = work()
@@ -169,9 +210,9 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
         operation,
         format,
         mode: 'functionality-probe',
-        status: result.status ?? (result.findings?.length ? 'failed' : 'passed'),
         samplesMs: [performance.now() - begin],
         ...result,
+        status: result.status ?? (result.findings?.length ? 'failed' : 'passed'),
         metrics: { modulePath: entry!, ...result.metrics },
       })
     } catch (error) {
@@ -221,13 +262,15 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
     record(workload, 'verify', 'diagnostics', () => {
       const result = api.verifyMermaid(diagram)
       return {
-        metrics: { verificationOk: result.ok, warningCount: result.warnings.length },
-        findings: result.ok
-          ? []
-          : result.warnings
-              .filter(warning => WARNING_SEVERITY[warning.code] === 'error')
-              .map(warning => JSON.stringify(warning))
-              .concat(result.warnings.some(warning => WARNING_SEVERITY[warning.code] === 'error') ? [] : ['Verifier returned ok:false without a recognized error diagnostic']),
+        metrics: { verificationOk: result.ok, warningCount: result.warnings.length, diagnostics: JSON.stringify(result.warnings), parserOnly: !!evidence?.parserOnly, declaredEmpty: !!evidence?.emptyDiagramExpected },
+        status: !result.ok && (evidence?.parserOnly || (evidence?.emptyDiagramExpected && result.warnings.every(warning => warning.code === 'EMPTY_DIAGRAM'))) ? 'not-applicable' : undefined,
+        findings:
+          result.ok || evidence?.parserOnly || (evidence?.emptyDiagramExpected && result.warnings.every(warning => warning.code === 'EMPTY_DIAGRAM'))
+            ? []
+            : result.warnings
+                .filter(warning => WARNING_SEVERITY[warning.code] === 'error')
+                .map(warning => JSON.stringify(warning))
+                .concat(result.warnings.some(warning => WARNING_SEVERITY[warning.code] === 'error') ? [] : ['Verifier returned ok:false without a recognized error diagnostic']),
         detail: 'Warnings and permissive-source diagnostics are retained; a returned verifier result is distinct from verify.ok.',
       }
     })
@@ -240,6 +283,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
       return { findings, bytes: Buffer.byteLength(source), detail: 'Metamorphic preservation of observed facts; independent source-acceptance/grammar gates run separately.' }
     })
     record(workload, 'layout-and-finite-geometry', 'layout', () => {
+      if (evidence?.parserOnly) return { status: 'not-applicable', detail: 'Owner declares a parser-only fixture; successful scheduling/layout is not its contract.' }
       const layout = api.layoutMermaid(diagram),
         findings = independentAssertions(workload, diagram, layout)
       if (layout.kind !== workload.family) findings.push(`Layout routed to ${layout.kind}`)
@@ -251,11 +295,19 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
       return { findings, metrics: { nodes: layout.nodes.length, edges: layout.edges.length, groups: layout.groups.length }, bytes: Buffer.byteLength(JSON.stringify(layout)), detail: 'Finite pixel geometry and routed family; own route/ink/containment and Scene-contract suites are separate authorities.' }
     })
     for (const format of ['svg', 'unicode'] as const)
-      record(workload, `render-${format}`, format, () => {
+      record(workload, `render-${format}`, format, (): ProbeResult => {
+        if (evidence?.parserOnly) return { status: 'not-applicable', detail: 'Owner declares a parser-only fixture; output success is unmeasured.' }
         const result = format === 'svg' ? api.renderMermaidSVG(diagram, { embedFontImport: false }) : api.renderMermaidASCII(diagram, { colorMode: 'none', useAscii: false })
+        if (format === 'unicode' && !result.trim() && evidence?.emptyDiagramExpected) return { status: 'not-applicable', bytes: 0, metrics: { emptyOutput: true, declaredEmpty: true }, detail: 'Owner declares an empty model; nonempty terminal ink is not promised.' }
         const qualification = qualifyOutput(workload, result, format)
         return { findings: qualification.findings, bytes: Buffer.byteLength(result), metrics: { qualificationScope: qualification.scope, explicitLabelExpectations: workload.expectedLabels?.length ?? 0 } }
       })
+    if (evidence?.labelsContainScope === 'layout')
+      record(workload, 'rendered-label-correspondence', 'svg/unicode', () => ({
+        status: 'not-applicable',
+        metrics: { layoutLabelAssertions: evidence.assertions?.labelsContain?.length ?? 0 },
+        detail: 'Historical labelsContain assertions were executed against their actual layout owner. Per-output decoration, wrapping and interleaved values require owned text/region correspondence; generic output-envelope success is not that proof.',
+      }))
     // Mutations use the small canonical witness, once per family. Rich corpora
     // then contribute parse/structure/round-trip/render feature evidence above.
     if (workload.id === `registry:${workload.family}`)
@@ -325,6 +377,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
   const formatOnly = observations.filter(row => row.operation.startsWith('render-') && row.metrics?.qualificationScope === 'format-only').length
   if (formatOnly) gaps.push(`${formatOnly} output probes have format/round-trip invariants but no independently declared label expectations. Community comparison should acquire pinned-reference label expectations before timing.`)
   gaps.push(
+    'Historical layout label expectations stay at their owning layout boundary; output envelopes do not certify decorated/wrapped label correspondence. Community fixed-core authored-label guards remain separate.',
     'Dedicated stored snapshots retain their owning-case identity but are compared by their existing independent owner suites, not by this generic lifecycle probe. Feature tags identify enrolled authored stimuli and assertion fields, not an exhaustive language-feature universe. Independent pinned grammar/native-operation tests, negative cases, Scene/route/ownership tests and reviewed visual evidence remain separate results.',
   )
   const artifact = resolve(out, 'family-feature-coverage.json')

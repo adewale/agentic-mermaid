@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
 import { MICRO_WORKLOADS } from '../micro-bench-cases.ts'
-import { unifiedWorkloads } from './workloads.ts'
+import { getWorkloadEvidence, unifiedWorkloads } from './workloads.ts'
 import { qualifyOutput, withReferenceLabels } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 import type { CommunityArtifact, CommunityNode, CommunityWorkerJob, PreparedCommunity } from './community-types.ts'
@@ -490,6 +490,8 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
       assertCommunityNotInterrupted()
       console.log(`community round ${round}/${options.rounds}: ${entry.node.id} ${entry.artifact!.version}`)
       for (const output of new Set((entry.node.benchmark!.outputs ?? []).map(normalizeCommunityOutput))) {
+        const selectedWorkloads = ['parse', 'diagnostics'].includes(output) ? workloads : workloads.filter(w => !getWorkloadEvidence(w.id)?.parserOnly)
+        for (const workload of workloads.filter(w => !selectedWorkloads.includes(w))) observations.push({ ...envelope(entry.node, output, workload, round), status: 'not-applicable', detail: 'Owning fixture declares a parser-only assertion scope; rendering is not a promised operation for this input.' })
         if (entry.node.benchmark!.adapter === 'mermaid' && output === 'svg') {
           if (round === 1)
             observations.push({
@@ -507,17 +509,24 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
           if (entry.artifact!.format && entry.artifact!.format !== output) {
             const detail = `Prepared CLI supports ${entry.artifact!.format}; declared ${output} output has no command binding`
             gaps.push(`${entry.node.id}: ${detail}`)
-            for (const workload of workloads) observations.push({ ...envelope(entry.node, output, workload, round), surface: 'cli:end-to-end', runtime: entry.artifact!.runtime ?? 'native', status: 'blocked', detail })
+            for (const workload of selectedWorkloads) observations.push({ ...envelope(entry.node, output, workload, round), surface: 'cli:end-to-end', runtime: entry.artifact!.runtime ?? 'native', status: 'blocked', detail })
             continue
           }
-          for (const workload of workloads) observations.push(runCli(entry, output, workload, round, options.out))
+          for (const workload of selectedWorkloads) observations.push(runCli(entry, output, workload, round, options.out))
         } else if (entry.artifact!.kind === 'jsonl-worker' || entry.artifact!.kind === 'python') {
           const { runExternalCommunity } = await import('./community-external.ts')
-          observations.push(...(await runExternalCommunity(entry, workloads, output, round, options)))
-        } else observations.push(...(await nodeRound(entry, output, workloads, round, options)))
+          observations.push(...(await runExternalCommunity(entry, selectedWorkloads, output, round, options)))
+        } else observations.push(...(await nodeRound(entry, output, selectedWorkloads, round, options)))
       }
     }
-  const browserResult = await browser.runCommunityBrowserSuite(preparedBrowsers, workloads, options)
+  const browserResult = await browser.runCommunityBrowserSuite(
+    preparedBrowsers,
+    workloads.filter(w => !getWorkloadEvidence(w.id)?.parserOnly),
+    options,
+  )
+  for (const peer of preparedBrowsers.filter(peer => peer.browserStatus === 'prepared'))
+    for (const workload of workloads.filter(w => getWorkloadEvidence(w.id)?.parserOnly))
+      observations.push({ ...envelope(peer.node, 'svg', workload, 0), surface: 'browser:public-api', runtime: 'chromium', status: 'not-applicable', detail: 'Owning fixture declares a parser-only assertion scope; browser rendering is not a promised operation for this input.' })
   observations.push(...browserResult.observations)
   gaps.push(...browserResult.gaps)
   const ranks = matchedRanks(observations, options.rounds)

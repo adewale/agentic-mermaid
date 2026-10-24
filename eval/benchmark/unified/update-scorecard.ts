@@ -91,6 +91,36 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     const [id, surface, format] = key.split('|')
     lines.push(`| ${escape(id)} | ${escape(surface)} | ${escape(format)} | ${rows.filter(r => r.status === 'passed').length} / ${rows.length} | ${new Set(rows.filter(r => r.status === 'passed').map(r => r.family)).size} |`)
   }
+  lines.push(
+    '',
+    '## Delivery and scoped memory diagnostics',
+    '',
+    'These are diagnostics after each implementation’s attempted portfolio, not an equal-work memory rank. Browser heap excludes WASM/native/GPU memory; Node RSS includes the worker and qualification. Missing delivery is unmeasured, not zero.',
+    '',
+    '| Implementation | Observed browser closure gzip, KiB | Requests | Browser retained JS heap, MiB | Node end RSS, MiB | Node peak RSS, MiB |',
+    '|---|---:|---:|---:|---:|---:|',
+  )
+  for (const artifact of scores.artifacts.filter(a => a.artifact)) {
+    const rows = results.observations.filter(r => r.metrics?.implementation === artifact.node.id)
+    const metric = (key: string, select: (r: BenchmarkObservation) => boolean = () => true) => {
+      const values = new Map<string, number>()
+      for (const r of rows.filter(select)) {
+        const value = r.metrics?.[key]
+        if (typeof value === 'number' && Number.isFinite(value)) values.set([r.metrics?.round, r.metrics?.workerAttempt, r.surface, value].join('|'), value)
+      }
+      return values.size ? median([...values.values()]) : undefined
+    }
+    const size = (v: number | undefined, divisor: number) => (v === undefined ? 'N/A' : number(v / divisor, 1))
+    lines.push(
+      `| ${escape(artifact.node.id)} | ${size(
+        metric('gzipBytes', r => r.operation === 'delivery' && r.status === 'passed'),
+        1024,
+      )} | ${number(
+        metric('requests', r => r.operation === 'delivery' && r.status === 'passed'),
+        0,
+      )} | ${size(metric('jsHeapUsedBytes'), 1024 ** 2)} | ${size(metric('endRssBytes'), 1024 ** 2)} | ${size(metric('peakProcessRssBytes'), 1024 ** 2)} |`,
+    )
+  }
   const reference = find(run, 'reference-score-result.json') ?? find(join(run, 'pinned-reference-score'), 'reference-score-result.json')
   lines.push('', '## Pinned Mermaid same-case score', '')
   if (reference) {
@@ -131,19 +161,30 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     const pr = JSON.parse(readFileSync(prFile, 'utf8')) as {
       frozenAt?: string
       main?: string
-      ranks?: Array<{ id: string; label?: string; head?: string; integration: string; draft?: boolean; sourceEvidence?: string; buildStatus?: string; browserBundleGzipBytes?: number; metrics: Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }> }>
+      ranks?: Array<{
+        id: string
+        label?: string
+        head?: string
+        integration: string
+        draft?: boolean
+        sourceEvidence?: string
+        buildStatus?: string
+        packageGzipBytes?: number
+        browserBundleGzipBytes?: number
+        metrics: Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }>
+      }>
     }
     lines.push(
       `Frozen ${escape(pr.frozenAt)} against main \`${escape(pr.main)}\`. Rows use the same six-case fully consumed artifact protocol; community plain-API timings above are a different boundary.`,
       '',
-      '| Candidate | Frozen head | State | SVG paired ratio | SVG receipt paired ratio | Unicode receipt paired ratio | Verified edit paired ratio | Shipped browser gzip, KiB |',
-      '|---|---|---|---:|---:|---:|---:|---:|',
+      '| Candidate | Frozen head | State | SVG paired ratio | SVG receipt paired ratio | Unicode receipt paired ratio | Verified edit paired ratio | npm tarball, KiB | Shipped browser gzip, KiB |',
+      '|---|---|---|---:|---:|---:|---:|---:|---:|',
     )
     const ratio = (m: { pairedRatio?: number; classification?: string } | undefined) => (typeof m?.pairedRatio !== 'number' || !Number.isFinite(m.pairedRatio) ? 'N/A' : number(m.pairedRatio, 3) + '×' + (m.classification?.includes('variation') ? ' (tie)' : ''))
     for (const r of [...(pr.ranks ?? [])].sort((a, b) => (a.metrics.svg?.pairedRatio ?? Infinity) - (b.metrics.svg?.pairedRatio ?? Infinity))) {
       const exploratory = ['conflicting-head', 'branch-base'].includes(r.integration)
       lines.push(
-        `| ${escape(r.label ?? r.id)} | \`${escape(r.head?.slice(0, 12))}\` | ${escape(r.integration)}${r.draft ? ' · draft' : ''}${r.sourceEvidence && r.sourceEvidence !== r.id ? ' · evidence ' + escape(r.sourceEvidence) : ''} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svgReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.unicodeReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.agent)} | ${r.browserBundleGzipBytes ? number(r.browserBundleGzipBytes / 1024, 1) : 'N/A'} |`,
+        `| ${escape(r.label ?? r.id)} | \`${escape(r.head?.slice(0, 12))}\` | ${escape(r.integration)}${r.draft ? ' · draft' : ''}${r.sourceEvidence && r.sourceEvidence !== r.id ? ' · evidence ' + escape(r.sourceEvidence) : ''} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svgReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.unicodeReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.agent)} | ${r.packageGzipBytes ? number(r.packageGzipBytes / 1024, 1) : 'N/A'} | ${r.browserBundleGzipBytes ? number(r.browserBundleGzipBytes / 1024, 1) : 'N/A'} |`,
       )
     }
     lines.push('', `Full per-metric rows, fresh bracketing controls, broad family/invocation results and artifact identities: [PR campaign evidence](${escape(relative(dirname(output), prFile))}). Source-conflicting heads and own bases stay exploratory; no merge readiness is implied.`)
