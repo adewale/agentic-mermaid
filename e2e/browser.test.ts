@@ -343,12 +343,29 @@ it('standalone editor stays within its single-renderer payload budget', async ()
   // relative payload gates also apply.
   expect(html.byteLength).toBeLessThanOrEqual(4_427_500)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
+  const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
+  expect(runtime).toBeDefined()
+  // These literals belong to the page catalog, not its private renderer worker.
+  expect(runtime).not.toMatch(/(?:\beditor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)|["']editor(?:DiagramType|Label|Description|ExampleId|Glyph|Example)["'])\s*:\s*["'`]/)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {
   const standalone = await browser.newPage()
   try {
     await standalone.goto(`${BASE}/editor?empty=1`, { waitUntil: 'networkidle' })
+    // The page still offers the complete public catalog while its worker omits
+    // the duplicated editor prose. Rendering and receipts below cover every hook.
+    expect(BUILTIN_FAMILY_METADATA.length).toBeGreaterThan(0)
+    const catalog = await standalone.locator('#examples-sidebar .example-dropdown-item').evaluateAll(items => items.map(item => ({
+      id: (item as HTMLElement).dataset.example,
+      diagramType: (item as HTMLElement).dataset.diagram,
+      description: item.querySelector('.example-item-description')?.textContent,
+      title: item.getAttribute('title'),
+    })))
+    for (const family of BUILTIN_FAMILY_METADATA) expect(catalog.find(item => item.id === family.editorExampleId)).toEqual({
+      id: family.editorExampleId, diagramType: family.editorDiagramType,
+      description: family.editorDescription, title: family.editorDescription,
+    })
     const started = standalone.waitForEvent('worker')
     await standalone.locator('#code-editor').fill('flowchart LR\nStandalone --> Verified')
     const worker = await started

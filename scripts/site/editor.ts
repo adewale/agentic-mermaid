@@ -199,30 +199,26 @@ async function generateEditorHtml(): Promise<string> {
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
-    plugins: [runtimeRenderContractPlugin({ conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory) })],
+    plugins: [runtimeRenderContractPlugin({ conformanceObservations: false, familyEditorMetadata: Boolean(runtimeDirectory) }),
+      ...(!runtimeDirectory ? [{
+        name: 'standalone-worker-families',
+        setup(build: Bun.PluginBuilder) {
+          build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
+            const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
+            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
+          })
+        },
+      }] : []),
+    ],
     target: 'browser',
     format: 'esm',
     minify: true,
-    ...(runtimeDirectory
-      ? {
-          define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
-          splitting: true,
-          outdir: runtimeDirectory,
-          naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-        }
-      : {
-          plugins: [
-            {
-              name: 'standalone-worker-families',
-              setup(build) {
-                build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
-                  const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
-                  return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
-                })
-              },
-            },
-          ],
-        }),
+    ...(runtimeDirectory ? {
+      define: { AM_PREVIEW_WORKER_URL: JSON.stringify(workerUrl) },
+      splitting: true,
+      outdir: runtimeDirectory,
+      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+    } : {}),
   })
   if (!buildResult.success) {
     console.error('Bundle failed:', buildResult.logs)
