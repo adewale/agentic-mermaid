@@ -295,7 +295,8 @@
         "url": "https://github.com/Dicklesworthstone/frankenmermaid/releases/tag/v0.4.0",
         "measuredArchive": "frankenmermaid-darwin-arm64.tar.xz",
         "archiveSha256": "0fadb3939fcbe1760ba7278ef03ef96251127b88181a3f2abf2af704b0311909"
-      }
+      },
+      "benchmark": {"adapter": "franken", "outputs": ["svg", "parse"]}
     },
     {
       "id": "wevm/ondine",
@@ -330,7 +331,8 @@
       "parent": "obsidianmd/pele",
       "rootCommits": [
         "d6b8e4a44e512272f925e3b370ff28439f266fd0"
-      ]
+      ],
+      "benchmark": {"adapter": "ondine", "package": "ondine", "subpath": "compiler", "outputs": ["svg"]}
     },
     {
       "id": "orestesgaolin/mermaid",
@@ -365,7 +367,8 @@
       "roles": [
         "peer"
       ],
-      "notes": "Dart port of Mermaid with its own parser, layout and SVG renderer; mermaid_flutter paints the render scene natively without JavaScript or a WebView. The comparison demo is https://roszkowski.dev/mermaid/. The CLI's PNG export requires an external rasterizer; native PNG export requires a Flutter runner. Published versions were verified through pub.dev on 2026-10-19; the repository manifests are already at 0.3.1. Port classification follows the project's explicit description and LICENSE derivation notice; shared-root lineage and published-package commit ancestry were not checked."
+      "notes": "Dart port of Mermaid with its own parser, layout and SVG renderer; mermaid_flutter paints the render scene natively without JavaScript or a WebView. The comparison demo is https://roszkowski.dev/mermaid/. The CLI's PNG export requires an external rasterizer; native PNG export requires a Flutter runner. Published versions were verified through pub.dev on 2026-10-19; the repository manifests are already at 0.3.1. Port classification follows the project's explicit description and LICENSE derivation notice; shared-root lineage and published-package commit ancestry were not checked.",
+      "benchmark": {"adapter": "dart", "outputs": ["svg"]}
     },
     {
       "id": "akashacms/mermaid-wasm-renderer",
@@ -389,7 +392,8 @@
           "publishedFromDefaultBranch": true
         }
       ],
-      "roles": ["peer"]
+      "roles": ["peer"],
+      "benchmark": {"adapter": "mermaid-rs-wasm", "package": "mermaid-wasm-renderer", "outputs": ["svg"]}
     },
     {
       "id": "ramtinJ95/pi-mermaid-tui",
@@ -504,7 +508,8 @@
         "https://github.com/adewale/agentic-mermaid/blob/d18c718d0253f45d279a9c12e60a96ee8cc9283c/README.md#L13",
         "https://github.com/adewale/agentic-mermaid/blob/d18c718d0253f45d279a9c12e60a96ee8cc9283c/README.md#L150-L167"
       ],
-      "notes": "Categories rechecked on 2026-10-24: README links the interactive browser editor and demonstrates public parsing, structured mutation, verification and serialization APIs. Existing package/head observations retain their dates."
+      "notes": "Categories rechecked on 2026-10-24: README links the interactive browser editor and demonstrates public parsing, structured mutation, verification and serialization APIs. Existing package/head observations retain their dates.",
+      "benchmark": {"adapter": "agentic", "outputs": ["svg", "terminal", "png", "parse"]}
     },
     {
       "id": "app-creative/mermaid-ascii",
@@ -650,7 +655,8 @@
         }
       ],
       "roles": ["peer", "terminal-peer"],
-      "notes": "README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md."
+      "notes": "README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md.",
+      "benchmark": {"adapter": "beautiful", "package": "zombie-mermaid", "terminalSubpath": "ascii", "outputs": ["svg", "terminal"]}
     },
     {
       "id": "drunkhacker/mermaid-ascii",
@@ -1049,7 +1055,8 @@
       "runtime": "Go",
       "outputs": ["ascii-unicode"],
       "roles": ["terminal-peer"],
-      "notes": "README: 22 diagram types. No release tags."
+      "notes": "README: 22 diagram types. No release tags.",
+      "benchmark": {"adapter": "source-cli", "outputs": ["terminal"]}
     },
     {
       "id": "rohitg00/beautiful-mermaid",
@@ -1337,7 +1344,8 @@
       "runtime": "Rust",
       "outputs": ["svg", "png"],
       "roles": ["peer"],
-      "notes": "Crate and CLI \"mmdr\"; no npm package of its own (npm \"mmdr\" is an unrelated 2024 package). See the binding nodes."
+      "notes": "Crate and CLI \"mmdr\"; no npm package of its own (npm \"mmdr\" is an unrelated 2024 package). See the binding nodes.",
+      "benchmark": {"adapter": "source-cli", "outputs": ["svg", "png"]}
     },
     {
       "id": "aj-archipelago/merval",
@@ -1377,7 +1385,8 @@
       "runtime": "Go",
       "outputs": ["ascii-unicode"],
       "roles": ["ancestor", "terminal-peer"],
-      "notes": "docs/comparison.md records 1.4.0; latest tag is newer. Ancestor of the Beautiful/Agentic ASCII engine by port."
+      "notes": "docs/comparison.md records 1.4.0; latest tag is newer. Ancestor of the Beautiful/Agentic ASCII engine by port.",
+      "benchmark": {"adapter": "source-cli", "outputs": ["terminal"]}
     },
     {
       "id": "anomalyco/opencode",
@@ -1514,7 +1523,8 @@
       "outputs": ["ascii-unicode"],
       "packages": [{ "registry": "pypi", "name": "termaid", "version": "0.9.1", "license": "MIT" }],
       "roles": ["terminal-peer"],
-      "notes": "eval/benchmark/RESULTS.md measured it without recording a version."
+      "notes": "eval/benchmark/RESULTS.md measured it without recording a version.",
+      "benchmark": {"adapter": "termaid", "outputs": ["terminal"]}
     },
     {
       "id": "inkeep/visimer",
@@ -1540,7 +1550,8 @@
       ],
       "roles": ["parser-peer"],
       "evidence": ["https://github.com/inkeep/visimer/blob/594440dad857d4b040f205047289ef60d5e0618b/README.md"],
-      "notes": "Lossless CST and edit ops in @visimer/core; @visimer/dom renders through mermaid. Categories rechecked on 2026-10-23: DOM/React WYSIWYG authoring includes inline label edits, drag-to-connect and undo, independently of the parser benchmark role. Existing package/head observations retain their dates."
+      "notes": "Lossless CST and edit ops in @visimer/core; @visimer/dom renders through mermaid. Categories rechecked on 2026-10-23: DOM/React WYSIWYG authoring includes inline label edits, drag-to-connect and undo, independently of the parser benchmark role. Existing package/head observations retain their dates.",
+      "benchmark": {"adapter": "visimer", "package": "@visimer/core", "outputs": ["parse"]}
     },
     {
       "id": "justsml/rusty-mermaid",
@@ -1580,7 +1591,8 @@
       "release": { "tag": "v0.1.6", "commit": "40e5923cfca654503212612fd0f1af8a8720dfbe" },
       "runtime": "Rust",
       "outputs": ["ascii-unicode"],
-      "roles": ["terminal-peer"]
+      "roles": ["terminal-peer"],
+      "benchmark": {"adapter": "source-cli", "outputs": ["terminal"]}
     },
     {
       "id": "kitlangton/merman",
@@ -1665,7 +1677,8 @@
         { "registry": "pypi", "name": "merman", "version": "0.9.1", "license": "MIT OR Apache-2.0" }
       ],
       "roles": ["peer", "terminal-peer"],
-      "notes": "docs/comparison.md records 0.9.0; 0.9.1 was published from branch release/0.9.1 on the check date. Cargo.toml at main head still says 0.9.0."
+      "notes": "docs/comparison.md records 0.9.0; 0.9.1 was published from branch release/0.9.1 on the check date. Cargo.toml at main head still says 0.9.0.",
+      "benchmark": {"adapter": "merman", "package": "@mermanjs/node", "outputs": ["svg", "png"]}
     },
     {
       "id": "lukilabs/beautiful-mermaid",
@@ -1690,7 +1703,8 @@
         }
       ],
       "roles": ["ancestor", "peer"],
-      "notes": "SVG renderer is its own; ASCII engine is a port of AlexanderGrooff/mermaid-ascii (see edges)."
+      "notes": "SVG renderer is its own; ASCII engine is a port of AlexanderGrooff/mermaid-ascii (see edges).",
+      "benchmark": {"adapter": "beautiful", "package": "beautiful-mermaid", "outputs": ["svg", "terminal"]}
     },
     {
       "id": "Mootikins/figurehead-rs",
@@ -1705,7 +1719,8 @@
       "release": { "tag": "v0.4.3", "commit": "34c47a93cd792f24e06b49b5196a1c876240f03a" },
       "runtime": "Rust",
       "outputs": ["ascii-unicode"],
-      "roles": ["terminal-peer"]
+      "roles": ["terminal-peer"],
+      "benchmark": {"adapter": "source-cli", "outputs": ["terminal"]}
     },
     {
       "id": "neongreen/mermaid-ast",
@@ -1730,7 +1745,8 @@
           "publishedFromDefaultBranch": true
         }
       ],
-      "roles": ["parser-peer"]
+      "roles": ["parser-peer"],
+      "benchmark": {"adapter": "mermaid-ast", "package": "mermaid-ast", "outputs": ["parse"]}
     },
     {
       "id": "obsidianmd/pele",
@@ -1755,7 +1771,8 @@
         }
       ],
       "roles": ["peer"],
-      "notes": "Main moved past the 458322a5 pin in docs/comparison.md. Targets Mermaid 12.1.0 syntax (README.md:5, :87) and vendors Mermaid's parser specs and grammar files (README.md:113) beside its own parser, layout and renderer. Packages that only wrap it (comark-pele, streamdown-pele and others) are excluded."
+      "notes": "Main moved past the 458322a5 pin in docs/comparison.md. Targets Mermaid 12.1.0 syntax (README.md:5, :87) and vendors Mermaid's parser specs and grammar files (README.md:113) beside its own parser, layout and renderer. Packages that only wrap it (comark-pele, streamdown-pele and others) are excluded.",
+      "benchmark": {"adapter": "pele", "package": "pele", "outputs": ["svg"]}
     },
     {
       "id": "probelabs/maid",
@@ -1781,7 +1798,8 @@
         }
       ],
       "roles": ["parser-peer"],
-      "notes": "package.json at head says 1.0.1; npm latest is 0.0.29."
+      "notes": "package.json at head says 1.0.1; npm latest is 0.0.29.",
+      "benchmark": {"adapter": "maid", "package": "@probelabs/maid", "outputs": ["diagnostics"]}
     },
     {
       "id": "sandyyst/dsh-plugin-mermaid-gb-svg",
@@ -2035,7 +2053,37 @@
         }
       ],
       "roles": ["language-reference"],
-      "notes": "knsv/mermaid resolves to the same head (legacy name). Default branch is develop; 12.2.0 provenance names master."
+      "notes": "knsv/mermaid resolves to the same head (legacy name). Default branch is develop; 12.2.0 provenance names master.",
+      "benchmark": {"adapter": "mermaid", "package": "mermaid", "outputs": ["svg", "parse"]}
+    },
+    {
+      "id": "crabtalk/bezel",
+      "relation": "port",
+      "repo": "https://github.com/crabtalk/bezel",
+      "homepage": "https://github.com/crabtalk/bezel",
+      "checkedAt": "2026-10-22",
+      "branch": "main",
+      "head": "25b1da54115d3253d457d6c1fb3f62c05261dd13",
+      "lastCommit": "2026-10-21T23:29:21+08:00",
+      "license": "MIT",
+      "runtime": "Rust; benchmark adapter compiled to wasm32-unknown-unknown with Rust 1.99.1 and wasm-bindgen 0.2.104",
+      "outputs": [
+        "svg"
+      ],
+      "packages": [
+        {
+          "registry": "crates.io",
+          "name": "bezel-mermaid",
+          "version": "0.2.19",
+          "license": "MIT"
+        }
+      ],
+      "roles": [
+        "peer"
+      ],
+      "benchmarkCommit": "25b1da54115d3253d457d6c1fb3f62c05261dd13",
+      "notes": "Published crate describes its Mermaid-to-SVG renderer as a port of Pele. The benchmark uses the repository adapter around unmodified render(source, Options::default(), Metrics).svg at the published crate VCS revision, with opt-level=3, LTO and embedded WASM; this is not GPUI or native Rust execution. Published archive checksum is verified; its Rust sources match the pinned Git checkout directly. The observed main head is recorded separately from the benchmark pin.",
+      "benchmark": {"adapter": "bezel", "outputs": ["svg"]}
     }
   ],
   "edges": [
@@ -2301,6 +2349,12 @@
       "to": "xai-org/grok-build",
       "relation": "port",
       "evidence": "README.md \"Origin and credits\": TypeScript port of crates/codegen/xai-grok-markdown/src/mermaid.rs"
+    },
+    {
+      "from": "crabtalk/bezel",
+      "to": "obsidianmd/pele",
+      "relation": "port",
+      "evidence": "crates.io bezel-mermaid 0.2.19 description: Mermaid source drawn as SVG, a port of Pele. Published .cargo_vcs_info.json identifies 25b1da54115d3253d457d6c1fb3f62c05261dd13; Rust source files directly match that checkout. Classification follows the explicit port description; shared Git-root ancestry was not inferred."
     }
   ],
   "rendererBenchmarkExclusions": [

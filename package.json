@@ -148,7 +148,7 @@
     "test:browser": "bun run e2e/run-browser-contracts.ts",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run website:dev",
-    "bench": "bun run eval/benchmark/suite.ts",
+    "bench": "bun run eval/benchmark/unified/run.ts",
     "bench:samples": "bun run eval/benchmark/sample-bench.ts",
     "bench:dave": "bun run eval/benchmark/dave-bench.ts",
     "bench:micro": "bun run eval/benchmark/micro-bench.ts",
@@ -214,7 +214,15 @@
     "gallery:section-b": "bun run scripts/pr-assets/section-b-brand-evidence.ts",
     "track": "bun run eval/heuristic-tracker/run.ts",
     "audit:ugly": "bun run eval/ugly-detector/audit.ts",
-    "audit:dependencies": "bun audit --audit-level=high"
+    "audit:dependencies": "bun audit --audit-level=high",
+    "bench:all": "bun run eval/benchmark/unified/run.ts --profile full",
+    "bench:families": "bun run eval/benchmark/unified/run.ts --suites family,family-contracts",
+    "bench:invocations": "bun run eval/benchmark/unified/run.ts --suites invocation",
+    "bench:community": "bun run eval/benchmark/unified/run.ts --suites community",
+    "bench:pinned-mermaid": "bun run eval/benchmark/unified/run.ts --profile full --suites pinned-reference-score,pinned-semantic-tests,pinned-operation-tests,pinned-grammar-tests,pinned-semantic-corpus,pinned-grammar-corpus,upstream-imported",
+    "bench:prs": "bun run eval/benchmark/unified/pr-campaign.ts",
+    "bench:scorecard": "bun run eval/benchmark/unified/update-scorecard.ts",
+    "bench:charts": "python3 eval/benchmark/unified/charts.py"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
