@@ -50,6 +50,7 @@ export interface CommunityArtifact {
   runtimeVersion?: string
   sourceRevision?: string
   sourceFiles?: { root: string; revision: string; gitPath: string; blob: string }[]
+  dependencyPatches?: { root: string; revision: string; gitPath: string; blob: string }[]
   sourceProgramClass?: string
   artifactClass?: string
   nativeBinding?: unknown

@@ -15,8 +15,9 @@ bun run bench -- --profile full --suites pinned-reference-score,pinned-operation
 
 Run `bun run build` before artifact-dependent suites and `bun run website` before
 editor suites. The runner never silently builds a different target for an
-invocation result. Dave retains its existing build/pack comparison entry, and
-`bench:dave` continues to work independently. Its warm-up, case denominator and
+invocation result. With `--candidate-tarball` and `--candidate-sha256`, unified
+Dave runs the shared browser scorecard on that exact artifact with 30 warm-up
+attempts. Standalone `bench:dave` retains its build/pack workflow. Its warm-up, case denominator and
 exact-artifact behavior remain owned by `dave-bench.ts` and
 `release-browser-bench.ts`.
 
@@ -298,3 +299,31 @@ existing snapshot intact. The generated snapshot retains the original complete
 suite ledger, records replay provenance, and separates diagnostic memory by
 runtime, output, round, worker attempt and portfolio scope. Its per-operation
 status tables preserve unsupported, blocked and not-applicable outcomes.
+
+If the community campaign measures a newer Agentic revision, both reporting
+commands additionally require `--allow-community-target-change`. This admits
+only an explicit `targetAdvance.from`/`to` manifest matching the original and
+new actual Git revision, package paths and admitted tarball identities. The new
+Git checkout must have no unrecorded tracked product/build changes, and the
+measured public entry must match the actual new tarball bytes. Previously
+admitted peers retain their exact versions/revisions/artifact identities and
+the same literal inputs/reference. The community-only target and measurement
+time appear in captions and Markdown; invocation, reference and owning suites
+retain their original target. A simultaneous population/protocol/product
+change is not presented as a like-for-like optimization speedup.
+
+`--current-run /path/to/current-main` adds separate current-target Dave and
+pinned-parser panels/tables. It never replaces the original full-run ledger or
+its older-target corrections. Admission verifies the actual current Git
+checkout and tarball, the Dave candidate's embedded archive identity, exact
+unchanged 1095-occurrence corpus/browser/clock policy and historical comparator
+versions, and the same reviewed 580-positive/586-raw parser fixture universe.
+Parser replay sources come from the admitted Git blob and independently expected
+criteria remain identical; actual shipped parser bytes must match the new
+tarball. Dave Pele 1.6 and community Pele 1.9 retain separate scopes. Complete
+attempt cost includes failures, while each matched Dave ratio uses its own
+explicit shared-success input set. Current parser timings use the common
+all-engine/all-round positive-success cohort.
+For this legacy-baseline comparison, also supply `--reference-correction` so
+the current positive/diagnostic assignment is checked against the independently
+reviewed original baseline rather than an outcome-selected current subset.

@@ -7,7 +7,7 @@ import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 const job = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), { prepared, workloads, output } = job, artifact = prepared.artifact, declaredConfig = prepared.node.benchmark, config = { ...declaredConfig, adapter: ['beautiful-source','beautiful-fork'].includes(declaredConfig.sourceAdapter) ? 'beautiful' : ['mermaid-source','mermaid-fork'].includes(declaredConfig.sourceAdapter) ? 'mermaid' : declaredConfig.adapter }
 const { qualifyOutput } = await import(pathToFileURL(job.harnessRoot + '/eval/benchmark/unified/qualification.ts'))
-let extraApi, diagnosticHelpers, diagnosticAdmission
+let extraApi, diagnosticHelpers, diagnosticAdmission, diagnosticAdmissionFailed = false, publicApiAvailable = false
 const start = performance.now(), rows = [], cleanups = [], jsonl = job.out + '.jsonl'
 fs.writeFileSync(jsonl, '')
 const req = createRequire((artifact.root ?? job.harnessRoot) + '/package.json')
@@ -141,18 +141,20 @@ function qualify(value, workload) {
 }
 try {
   const render = await renderer(), importMs = performance.now() - start
+  publicApiAvailable = true
   if (output === 'diagnostics') {
     diagnosticAdmission = []
-    for (const source of ['This is deliberately not a Mermaid diagram. @@@ {{{', 'flowchart LR\n --> -->']) {
+    for (const [index, source] of ['This is deliberately not a Mermaid diagram. @@@ {{{', 'flowchart LR\n --> -->'].entries()) {
       let value, rejection
       try { value = render(source); if (thenable(value)) value = await value }
       catch (error) { rejection = String(error) }
       let summary
       try { summary = rejection ? undefined : diagnosticHelpers.diagnosticSummary(value) }
-      catch (error) { diagnosticAdmission.push({ source, rejection, value, qualificationError: String(error) }); fs.writeFileSync(job.out + '.diagnostic-admission.json', JSON.stringify({ diagnosticAdmission }, null, 2)); throw error }
-      diagnosticAdmission.push({ source, rejection, value, summary })
+      catch (error) { diagnosticAdmission.push({ id: 'negative-' + (index + 1), source, expectedAccepted: false, actualAccepted: null, status: 'failed', detail: 'Diagnostic response had no valid typed findings envelope', rejection, value, qualificationError: String(error) }); fs.writeFileSync(job.out + '.diagnostic-admission.json', JSON.stringify({ diagnosticAdmission }, null, 2)); throw error }
+      const accepted = rejection ? false : summary.accepted
+      diagnosticAdmission.push({ id: 'negative-' + (index + 1), source, expectedAccepted: false, actualAccepted: accepted, status: accepted ? 'failed' : 'passed', detail: accepted ? 'Authored invalid source was accepted without error findings' : 'Authored invalid source was rejected', rejection, value, summary })
       fs.writeFileSync(job.out + '.diagnostic-admission.json', JSON.stringify({ policy: 'Authored negative controls before core API clocks; warnings do not substitute for rejection', diagnosticAdmission }, null, 2))
-      if (!rejection && summary.accepted) throw Error('Validator negative admission failed: authored invalid source was accepted without error findings')
+      if (!rejection && summary.accepted) diagnosticAdmissionFailed = true
     }
     fs.writeFileSync(job.out + '.diagnostic-admission.json', JSON.stringify({ policy: 'Authored negative controls before core API clocks; warnings do not substitute for rejection', diagnosticAdmission }, null, 2))
   }
@@ -165,9 +167,13 @@ try {
       let tick = performance.now(), sink = render(workload.source); if (thenable(sink)) sink = await sink
       firstMs = performance.now() - tick
       const qualification = qualify(sink, workload), bytes = consume(sink), core = workload.features.includes('core-graph-batch')
+      if (core && diagnosticAdmissionFailed) {
+        emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'failed', firstMs, bytes, qualification, mode: 'positive-diagnostic-with-failed-negative-admission', diagnosticAdmissionFailed: true, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: 'positive API completion; negative-control failure withholds calibrated core rank', detail: 'Public validator accepted this positive source, but accepted an authored invalid negative without error findings; no calibrated core samples or qualified rank.' })
+        continue
+      }
       if (!core && (job.coverageOnce || job.coverageOnly)) {
         globalThis.__communitySink = sink
-        emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', firstMs, bytes, qualification, mode: 'feature-corpus-qualification', coverageOnly: true, ...(output === 'diagnostics' ? { diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
+        emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', firstMs, bytes, qualification, mode: 'feature-corpus-qualification', coverageOnly: true, ...(output === 'diagnostics' ? { diagnosticAdmissionFailed, diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
         continue
       }
       let calls = 0; const warm = performance.now()
@@ -184,6 +190,6 @@ try {
   }
   const memory = { rssBytes: process.memoryUsage().rss, peakRssBytes: process.resourceUsage().maxRSS * 1024 }
   for (const close of cleanups.reverse()) await close()
-  fs.writeFileSync(job.out, JSON.stringify({ status: 'completed', importMs, runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, ...memory, diagnosticAdmission, rows }))
+  fs.writeFileSync(job.out, JSON.stringify({ status: 'completed', publicApiAvailable, importMs, runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, ...memory, diagnosticAdmission, diagnosticAdmissionFailed, rows }))
   progress({ phase: 'done' })
-} catch (error) { fs.writeFileSync(job.out, JSON.stringify({ status: 'blocked', detail: String(error), diagnosticAdmission, rows })); process.exitCode = 1 }
+} catch (error) { fs.writeFileSync(job.out, JSON.stringify({ status: 'blocked', publicApiAvailable, detail: String(error), diagnosticAdmission, diagnosticAdmissionFailed, rows })); process.exitCode = 1 }

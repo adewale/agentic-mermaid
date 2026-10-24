@@ -13,6 +13,7 @@ import { MICRO_WORKLOADS } from '../micro-bench-cases.ts'
 import { agentEditCase } from '../release-bench-fidelity.ts'
 import { childCommand, entryImport } from './invocation.ts'
 import { withReferenceLabels } from './qualification.ts'
+import { compactNativeArtifact, restoreNativeArtifact, releaseNativeArtifact, type NativeStorageProof } from './native-storage.ts'
 import type { UnifiedWorkload } from './types.ts'
 
 export const CORE_CASE_IDS = ['flow5', 'tree50', 'seq20', 'class80', 'er40', 'state80'] as const
@@ -29,6 +30,7 @@ interface Options {
   invocationRounds: number
   prs?: number[]
   prepareOnly: boolean
+  compactNative: boolean
   dependencyPolicy: 'strict' | 'main-overrides'
 }
 interface Target {
@@ -56,6 +58,7 @@ interface Target {
   dependencyVersions?: Record<string, string>
   emittedRuntimeIdentity?: { path: string; sha256: string }[]
   buildError?: string
+  nativeStorage?: NativeStorageProof
 }
 interface Campaign {
   measurementDriver?: { capturedAt: string; head: string; dirty: boolean; status: string[] }
@@ -85,14 +88,15 @@ const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b
 const stamp = () => new Date().toISOString()
 function parse(argv: string[]): Options {
   const values = new Map<string, string>()
-  const flags = new Set(['prepare-only', 'run'])
+  const flags = new Set(['prepare-only', 'run', 'compact-native'])
   const allowed = new Set(['root', 'repo', 'out', 'rounds', 'profile', 'invocation-profile', 'invocation-rounds', 'prs', 'dependency-policy'])
-  let prepareOnly = false
+  let prepareOnly = false, compactNative = false
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
     if (!argv[i]!.startsWith('--')) throw Error(`Invalid argument ${argv[i]}`)
     if (flags.has(key)) {
       if (key === 'prepare-only') prepareOnly = true
+      if (key === 'compact-native') compactNative = true
       continue
     }
     const value = argv[++i]
@@ -117,6 +121,7 @@ function parse(argv: string[]): Options {
     invocationRounds,
     prs,
     prepareOnly,
+    compactNative,
     dependencyPolicy: dependencyPolicy as Options['dependencyPolicy'],
   }
 }
@@ -591,13 +596,18 @@ export function revalidatePrCampaign(options: Pick<Options, 'out'>, campaign: Ca
     sourceIdentity(target)
     target.emittedRuntimeIdentity = []
     if (target.packageRoot && target.buildStatus === 'passed') {
-      const pkg = read(join(target.packageRoot, 'package.json'))
-      for (const [name, value] of Object.entries(pkg.exports ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
-        const path = entryImport(value)
-        if (!path || name.startsWith('./browser') || !/[cm]?js$/.test(path)) continue
-        const file = join(target.packageRoot, path)
-        if (existsSync(file)) target.emittedRuntimeIdentity.push({ path, sha256: createHash('sha256').update(readFileSync(file)).digest('hex') })
+      const dist = join(target.packageRoot, 'dist')
+      // Public entries may import shared chunks. Bind the emitted closure,
+      // including browser/WASM bytes, before sharing core observations.
+      const visit = (directory: string, prefix: string) => {
+        for (const file of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+          const path = prefix + file.name
+          if (file.isDirectory()) visit(join(directory, file.name), path + '/')
+          else if (file.isFile() && /\.(?:[cm]?js|wasm)$/.test(file.name)) target.emittedRuntimeIdentity!.push({ path, sha256: createHash('sha256').update(readFileSync(join(directory, file.name))).digest('hex') })
+        }
       }
+      if (!existsSync(dist)) throw Error(`Prepared target ${target.id} has no shipped dist directory`)
+      visit(dist, 'dist/')
     }
     target.equivalentTo = campaign.targets.find(
       prior =>
@@ -653,6 +663,8 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
   for (const target of campaign.targets) {
     if (target.buildStatus !== 'passed') continue
     for (const suite of ['family', 'invocation']) {
+      // Storage preparation is outside the fresh invocation subprocess and
+      // its clocks. The restored executable has its original path and bytes.
       const out = join(options.out, 'targets', target.id, suite),
         attempt = join(out, `attempt-${Date.now()}`),
         resultPath = join(attempt, 'result.json')
@@ -662,6 +674,7 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
         rounds = suite === 'invocation' ? options.invocationRounds : options.rounds
       writeFileSync(job, JSON.stringify({ root: target.root, harnessRoot: options.root, packageRoot: target.packageRoot, out: attempt, rounds, profile, resultPath }))
       try {
+        if (suite === 'invocation' && target.nativeStorage) restoreNativeArtifact(target.nativeStorage)
         await command(process.env.BUN_BIN ?? (process.versions.bun ? process.execPath : 'bun'), ['run', join(options.root, 'eval/benchmark/unified/run.ts'), '--worker-suite', suite, '--worker-job', job], options.root, join(attempt, 'run.log'), suite === 'invocation' ? 90 * 60_000 : 60 * 60_000)
       } catch (error) {
         if (!existsSync(resultPath)) writeFileSync(resultPath, JSON.stringify({ status: 'failed', observations: [], gaps: [String(error)] }))
@@ -671,6 +684,7 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
       coverage.push({ target: target.id, suite, profile, rounds, status: result.status, passed: result.observations.filter((row: any) => row.status === 'passed').length, total: result.observations.length, gaps: result.gaps, resultPath })
       reportCampaign(options, campaign, jobs, coverage)
     }
+    if (target.nativeStorage) releaseNativeArtifact(target.nativeStorage)
   }
   reportCampaign(options, campaign, jobs, coverage)
   try {
@@ -697,12 +711,23 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
 export async function main(argv = process.argv.slice(2)) {
   if (argv.includes('--help')) {
     console.log(
-      'bun run eval/benchmark/unified/pr-campaign.ts --out DIR [--prepare-only|--run] [--prs N,N] [--rounds N] [--profile smoke|full] [--invocation-profile smoke|full] [--invocation-rounds N] [--repo owner/name] [--root DRIVER] [--dependency-policy strict|main-overrides]\nPreparation freezes main and all selected open PR heads, builds canonical artifacts and actual npm packs. --run reuses the frozen prepared artifacts but always reruns all measurements in new attempt directories; existing timing/coverage results are never automatically reused. Invocation profile/rounds default to the campaign settings; explicit overrides affect only broad invocation coverage and are recorded in evidence. Package-only conflicts are resolved only under explicit main-overrides policy; source conflicts remain exploratory.',
+      'bun run eval/benchmark/unified/pr-campaign.ts --out DIR [--prepare-only|--run] [--compact-native] [--prs N,N] [--rounds N] [--profile smoke|full] [--invocation-profile smoke|full] [--invocation-rounds N] [--repo owner/name] [--root DRIVER] [--dependency-policy strict|main-overrides]\nPreparation freezes main and all selected open PR heads, builds canonical artifacts and actual npm packs. --compact-native stores candidate executables losslessly and verifies/restores their original bytes and paths before each invocation subprocess, outside clocks; main remains materialized. --run reuses the frozen prepared artifacts but always reruns all measurements in new attempt directories; existing timing/coverage results are never automatically reused. Invocation profile/rounds default to the campaign settings; explicit overrides affect only broad invocation coverage and are recorded in evidence. Package-only conflicts are resolved only under explicit main-overrides policy; source conflicts remain exploratory.',
     )
     return
   }
   const options = parse(argv),
     campaign = await preparePrCampaign(options)
+  if (options.compactNative) {
+    const directory = join(options.out, 'native-storage')
+    mkdirSync(directory, { recursive: true })
+    for (const target of campaign.targets) {
+      if (target.id === 'main' || target.buildStatus !== 'passed') continue
+      const file = join(target.root, 'dist/am')
+      if (target.nativeStorage) releaseNativeArtifact(target.nativeStorage)
+      else if (existsSync(file)) target.nativeStorage = compactNativeArtifact(file, join(directory, target.id + '.gz'))
+      writeFileSync(join(options.out, 'campaign.json'), JSON.stringify(campaign, null, 2))
+    }
+  }
   if (options.prepareOnly) {
     console.log(JSON.stringify({ status: 'prepared', targets: campaign.targets.map(target => ({ id: target.id, integration: target.integration, buildStatus: target.buildStatus, equivalentTo: target.equivalentTo })) }, null, 2))
     return

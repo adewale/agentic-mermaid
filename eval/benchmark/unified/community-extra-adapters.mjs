@@ -40,16 +40,24 @@ const fn = (api, name) => {
 const requireResult = (value, detail) => { if (value == null) throw Error('Unsupported diagram or no artifact: ' + detail); return value }
 const packageName = context => context.config.sourceAdapter === 'opencode-source' ? 'opencode-merman' : context.config.package ?? JSON.parse(fs.readFileSync(join(context.artifact.root, 'package.json'), 'utf8')).name
 async function companion(context, name) {
-  const file = context.require.resolve(name)
-  // Bun conditions in some packages name unpublished src/. Prefer their actual
-  // published import-condition dist entry without inventing a replacement API.
-  let entry = file
-  if (!fs.existsSync(entry)) {
-    const root = dirname(context.require.resolve(name + '/package.json'))
+  let entry
+  try { entry = context.require.resolve(name) } catch {}
+  // An import-only public export is unavailable to createRequire.resolve, and
+  // some Bun conditions point at unpublished src/. Resolve its declared ESM
+  // export from the actual installed package, never a guessed private module.
+  if (!entry || !fs.existsSync(entry)) {
+    const root = (context.require.resolve.paths(name) ?? []).map(path => join(path, name)).find(path => fs.existsSync(join(path, 'package.json')))
+    if (!root) throw Error('Installed companion package unavailable: ' + name)
     const pkg = JSON.parse(fs.readFileSync(join(root, 'package.json'), 'utf8'))
-    const exported = pkg.exports?.['.']?.import
-    if (typeof exported !== 'string') throw Error('Published companion import entry unavailable: ' + name)
+    const select = value => {
+      if (typeof value === 'string') return value
+      if (Array.isArray(value)) { for (const child of value) { const found = select(child); if (found) return found }; return }
+      if (value && typeof value === 'object') for (const [condition, child] of Object.entries(value)) if (['node', 'import', 'default'].includes(condition)) { const found = select(child); if (found) return found }
+    }
+    const exported = select(pkg.exports?.['.'] ?? pkg.exports)
+    if (!exported || !exported.startsWith('./')) throw Error('Published companion import entry unavailable: ' + name)
     entry = resolve(root, exported)
+    if (!fs.existsSync(entry)) throw Error('Declared companion import entry is not published: ' + name + ' ' + exported)
   }
   return import(pathToFileURL(entry).href)
 }
@@ -150,7 +158,7 @@ async function bindExtraCommunityApi(context) {
         host.renderer.root.add(node)
         await host.renderOnce()
         const value = typeof host.captureCharFrame === 'function' ? host.captureCharFrame() : typeof host.getTextLines === 'function' ? host.getTextLines().join('\n') : undefined
-        host.renderer.root.remove(node.id); node.destroy?.()
+        host.renderer.root.remove(node); node.destroy?.()
         if (typeof value !== 'string') throw Error('Actual OpenTUI host did not expose captured terminal text')
         return value
       }, qualification: 'actual published Markdown renderer in OpenTUI headless host; plugin install/config hooks excluded' }

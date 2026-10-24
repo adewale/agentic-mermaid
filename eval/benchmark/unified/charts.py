@@ -48,7 +48,7 @@ def completed_cli(root):
     return None,None
 
 
-def community_overlay(report, original_inputs, directory, original_directory):
+def community_overlay(report, original_inputs, directory, original_directory, allow_target_change=False):
     """Explicit completed v2 replay, retaining the original suite ledger."""
     result=load(directory/'community-result.json');scores=load(directory/'community-ranks.json');inputs=load(directory/'community-inputs.json')
     ledger=load(directory.parent/'report.json');invocation=load(directory.parent/'invocation.json')
@@ -63,8 +63,9 @@ def community_overlay(report, original_inputs, directory, original_directory):
         raise ValueError('Expanded community evidence protocol/timestamps differ from its actual result')
     if ledger.get('profile')!='full'or ledger.get('rounds')!=3 or scores.get('rounds')!=3 or invocation.get('communityCoverageOnce')is not True:
         raise ValueError('Expanded community replay must record full/three-core-round/feature-once protocol')
-    for key in ('targetRevision','packageRoot'):
-        if not report.get(key)or ledger.get(key)!=report[key]:raise ValueError('Expanded community replay differs from frozen original '+key)
+    target_changed=any(ledger.get(key)!=report.get(key)for key in ('targetRevision','packageRoot'))
+    if target_changed and not allow_target_change:raise ValueError('Expanded community target advanced; require explicit --allow-community-target-change and verified targetAdvance evidence')
+    if any(not report.get(key)or not ledger.get(key)for key in ('targetRevision','packageRoot')):raise ValueError('Community comparison is missing original/final target identity')
     if inputs.get('reference')!=original_inputs.get('reference'):
         raise ValueError('Expanded community replay uses a different pinned label/reference provenance')
     identity=lambda row:(row.get('id'),row.get('family'),row.get('source'),tuple(row.get('expectedLabels',[])),tuple(row.get('features',[])))
@@ -98,25 +99,88 @@ def community_overlay(report, original_inputs, directory, original_directory):
     # version string. The original and replay must use the same admitted tarball.
     original_invocation=load(original_directory/'invocation.json',{})
     for key in ('candidateTarball','candidateSha256'):
-        if not original_invocation.get(key)or invocation.get(key)!=original_invocation[key]:raise ValueError('Expanded replay differs from original admitted '+key)
+        if not original_invocation.get(key)or not invocation.get(key):raise ValueError('Community comparison lacks admitted '+key)
+        if not target_changed and invocation[key]!=original_invocation[key]:raise ValueError('Expanded replay differs from original admitted '+key)
         if evidence.get('target',{}).get(key)!=invocation[key]:raise ValueError('Expanded evidence differs from actual target '+key)
     if evidence.get('target',{}).get('revision')!=ledger['targetRevision']or evidence.get('target',{}).get('packageRoot')!=ledger['packageRoot']:
         raise ValueError('Expanded evidence target differs from completed run ledger')
     tarball=Path(invocation['candidateTarball'])
     if hashlib.sha256(tarball.read_bytes()).hexdigest()!=invocation['candidateSha256']:raise ValueError('Frozen target tarball bytes changed')
+    advance=None
+    if target_changed:
+        advance=evidence.get('targetAdvance',{})
+        before_target=dict(revision=report['targetRevision'],packageRoot=report['packageRoot'],candidateTarball=original_invocation['candidateTarball'],candidateSha256=original_invocation['candidateSha256'])
+        after_target=dict(revision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateTarball=invocation['candidateTarball'],candidateSha256=invocation['candidateSha256'])
+        if advance.get('from')!=before_target or advance.get('to')!=after_target:raise ValueError('Explicit community target advance does not match actual original/final target and tarball identities')
+        root=evidence.get('target',{}).get('root')
+        if not root or subprocess.check_output(['git','-C',root,'rev-parse','HEAD'],text=True).strip()!=ledger['targetRevision']:raise ValueError('Advanced community target Git HEAD differs from declared measured revision')
+        if subprocess.run(['git','-C',root,'diff','--quiet','HEAD','--','src','package.json','scripts/build.ts','scripts/build'],capture_output=True).returncode!=0:raise ValueError('Advanced community target has unrecorded tracked product/build changes')
     old_scores=load(find(original_directory,'community-ranks.json'),{})
+    for previous in old_scores.get('artifacts',[]):
+        if 'self'in previous.get('node',{}).get('roles',[])or not previous.get('artifact'):continue
+        following=next((entry for entry in artifacts if entry.get('node',{}).get('id')==previous.get('node',{}).get('id')),None)
+        if not following or not following.get('artifact'):raise ValueError('Expanded comparison loses a previously admitted peer artifact')
+        for key in ('version','revision','sha256','integrity'):
+            if previous['artifact'].get(key)is not None and previous['artifact'][key]!=following['artifact'].get(key):raise ValueError('Expanded comparison changes previously frozen peer '+previous['node']['id']+' '+key)
     old_self=[entry.get('artifact')for entry in old_scores.get('artifacts',[])if 'self'in entry.get('node',{}).get('roles',[])]
     new_self=[entry.get('artifact')for entry in artifacts if 'self'in entry.get('node',{}).get('roles',[])]
     if len(old_self)!=1 or len(new_self)!=1 or not old_self[0]or not new_self[0]:raise ValueError('Expanded replay lacks one actual original/final Agentic artifact identity')
-    for key in ('root','module','version','sha256'):
-        if old_self[0].get(key)!=new_self[0].get(key):raise ValueError('Expanded replay changes actual Agentic artifact '+key)
+    if not target_changed:
+        for key in ('root','module','version','sha256'):
+            if old_self[0].get(key)!=new_self[0].get(key):raise ValueError('Expanded replay changes actual Agentic artifact '+key)
+    elif Path(new_self[0].get('root','')).resolve()!=Path(ledger['packageRoot']).resolve():raise ValueError('Advanced community Agentic artifact is not the declared new package')
     module=Path(new_self[0]['module']);member='package/'+str(module.relative_to(Path(ledger['packageRoot'])))
     with tarfile.open(tarball,'r:*')as archive:
         compiled=archive.extractfile(member)
         if not compiled or hashlib.sha256(compiled.read()).hexdigest()!=new_self[0]['sha256']or hashlib.sha256(module.read_bytes()).hexdigest()!=new_self[0]['sha256']:
             raise ValueError('Actual Agentic entry no longer matches admitted target tarball bytes')
-    metadata=dict(directory=str(directory.resolve()),evidenceFile=str((directory/'community-evidence.json').resolve()),protocol=evidence['protocol'],originalStatus=report.get('status'),replayStatus=ledger.get('status'),startedAt=result['startedAt'],finishedAt=result['finishedAt'],catalogNodes=84,coreCases=6,featureCases=957,rounds=3,coverageOnce=True,targetRevision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateSha256=invocation['candidateSha256'],agenticEntrySha256=new_self[0]['sha256'],currentReference=evidence['currentReference'],identityRechecks=rechecks,qualificationChange='Expanded population and source-echo/diagnostic qualification safeguards; this is a protocol replay, not a product speed improvement.')
+    metadata=dict(directory=str(directory.resolve()),evidenceFile=str((directory/'community-evidence.json').resolve()),protocol=evidence['protocol'],originalStatus=report.get('status'),replayStatus=ledger.get('status'),startedAt=result['startedAt'],finishedAt=result['finishedAt'],catalogNodes=84,coreCases=6,featureCases=957,rounds=3,coverageOnce=True,targetRevision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateSha256=invocation['candidateSha256'],agenticEntrySha256=new_self[0]['sha256'],targetAdvance=advance,currentReference=evidence['currentReference'],identityRechecks=rechecks,qualificationChange='Expanded population and source-echo/diagnostic qualification safeguards; this is a separately identified community measurement, not a replacement full run or a like-for-like product speed improvement.')
     return result,scores,inputs,metadata
+
+
+def current_target_ledger(original, directory):
+    """A separate supplemental current-target run, never an old-ledger overlay."""
+    ledger=load(directory/'report.json');invocation=load(directory/'invocation.json',{})
+    if not ledger or not ledger.get('finishedAt')or ledger.get('profile')!='full'or ledger.get('rounds')!=3:
+        raise ValueError('--current-run must be a completed full/three-round supplemental run')
+    for suite_id in ('dave','pinned-reference-score'):
+        suites=[suite for suite in ledger.get('suites',[])if suite.get('id')==suite_id]
+        if len(suites)!=1 or suites[0].get('status')in ('skipped','not-applicable')or not suites[0].get('result'):
+            raise ValueError('Current supplemental run did not actually execute '+suite_id)
+    root=ledger.get('targetRoot');revision=ledger.get('targetRevision');package=ledger.get('packageRoot')
+    if not root or not revision or not package or invocation.get('packageRoot')!=package:
+        raise ValueError('Current supplemental run has no actual target/packed-package identity')
+    if subprocess.check_output(['git','-C',root,'rev-parse','HEAD'],text=True).strip()!=revision:
+        raise ValueError('Current supplemental target Git HEAD differs from its ledger')
+    if subprocess.run(['git','-C',root,'diff','--quiet','HEAD','--','src','package.json','scripts/build.ts','scripts/build'],capture_output=True).returncode!=0:
+        raise ValueError('Current supplemental checkout has unrecorded product/build changes')
+    tarball=invocation.get('candidateTarball');digest=invocation.get('candidateSha256')
+    if not tarball or not digest or hashlib.sha256(Path(tarball).read_bytes()).hexdigest()!=digest:
+        raise ValueError('Current supplemental run lacks its actual admitted target tarball')
+    return ledger,dict(directory=str(directory.resolve()),targetRevision=revision,packageRoot=package,candidateTarball=tarball,candidateSha256=digest,startedAt=ledger['startedAt'],finishedAt=ledger['finishedAt'],status=ledger.get('status'),originalTargetRevision=original.get('targetRevision'),policy='Separate current-target Dave and pinned-reference evidence. Original full ledger and scoped older-target corrections retain their own target and clocks.')
+
+
+def current_dave(original_directory, directory, target):
+    before=load(original_directory/'dave/browser-report.json');after=load(directory/'dave/browser-report.json')
+    corpus_before=load(original_directory/'dave/corpus.json');corpus_after=load(directory/'dave/corpus.json')
+    if not before or not after or not corpus_before or not corpus_after or corpus_before!=corpus_after or corpus_after.get('occurrenceCount')!=1095:
+        raise ValueError('Current Dave benchmark must retain the exact original1095-occurrence pinned corpus')
+    if after.get('status')!='completed'or not after.get('finishedAt')or after.get('policy')!=before.get('policy')or after.get('browser')!=before.get('browser'):
+        raise ValueError('Current Dave run is incomplete or changes the browser/clock/cohort policy')
+    original_identities=before.get('identities',[]);identities=after.get('identities',[])
+    candidate=[row for row in identities if row.get('name')=='agentic-mermaid']
+    if len(candidate)!=1 or candidate[0].get('identity',{}).get('tarballSha256')!=target['candidateSha256']:
+        raise ValueError('Current Dave candidate does not bind the admitted current-target tarball')
+    for previous in original_identities:
+        if previous.get('name')=='agentic-mermaid':continue
+        following=[row for row in identities if row.get('label')==previous.get('label')and row.get('name')==previous.get('name')]
+        if len(following)!=1 or following[0].get('version')!=previous.get('version'):
+            raise ValueError('Current Dave changed an original pinned comparator/version')
+        for key,value in previous.get('identity',{}).items():
+            if value is not None and following[0].get('identity',{}).get(key)!=value:raise ValueError('Current Dave changed pinned comparator identity '+str(previous.get('label'))+' '+key)
+    for engine in after.get('engines',[]):
+        if engine.get('population')!=1095 or not isinstance(engine.get('accepted'),int)or not 0<=engine['accepted']<=1095:raise ValueError('Current Dave engine has inconsistent acceptance census')
+    return after,dict(corpusInputs=1095,distinctInputs=corpus_after.get('distinctCount'),policy=after['policy'],browser=after['browser'],identities=identities,startedAt=after.get('startedAt'),finishedAt=after['finishedAt'],scope='Pinned Dave SVG artifact boundary. Its historical Pele1.6 comparator is separate from the expanded community Pele1.9 API benchmark.')
 
 
 def invocation_correction(report, path):
@@ -179,7 +243,7 @@ def invocation_correction(report, path):
     return normalized,metadata
 
 
-def reference_correction(report, path, run, campaign=None):
+def reference_correction(report, path, run, campaign=None, target_run=None):
     """Admit reviewed eligibility repair without outcome-dependent filtering."""
     result=load(path)
     suites=[suite for suite in report.get('suites',[])if suite.get('id')=='pinned-reference-score'and suite.get('result')]
@@ -221,7 +285,9 @@ def reference_correction(report, path, run, campaign=None):
     except (OSError,subprocess.SubprocessError)as error:raise ValueError('Cannot verify corrected fixture Git object: '+str(error))from error
     if original_blob!=fixture['gitBlob']or corrected_blob!=fixture['gitBlob']:
         raise ValueError('Eligibility repair changes the frozen source fixture Git object')
-    config=load(run/'invocation.json',{})
+    fixture_cases=json.loads(subprocess.check_output(['git','-C',driver,'cat-file','blob',fixture['gitBlob']],text=True))
+    literal_cases={row['id']:row for row in fixture_cases}
+    config=load((target_run or run)/'invocation.json',{})
     tarball=config.get('candidateTarball');archive_digest=config.get('candidateSha256')
     if (not tarball or not archive_digest)and campaign:
         candidates=[rank for rank in campaign.get('ranks',[])if rank.get('id')=='main']
@@ -238,6 +304,8 @@ def reference_correction(report, path, run, campaign=None):
             member=archive.extractfile('package/'+relative.as_posix())
             if member is None or hashlib.sha256(member.read()).hexdigest()!=artifact.get('sha256'):
                 raise ValueError('Corrected parser artifact differs from original admitted npm bytes')
+            if hashlib.sha256(Path(artifact['path']).read_bytes()).hexdigest()!=artifact.get('sha256'):
+                raise ValueError('Measured parser artifact no longer matches its recorded shipped bytes')
     old_rows=original.get('observations',[]);rows=result.get('observations',[])
     old_ids={row.get('caseId')for row in old_rows};eligible=evidence.get('eligibleCaseIds')or[];diagnostics=eligibility.get('diagnostics')or[];diagnostic_ids=[row.get('caseId')for row in diagnostics]
     if not eligible or len(set(eligible))!=len(eligible)or len(set(diagnostic_ids))!=len(diagnostic_ids)or set(eligible)&set(diagnostic_ids)or set(eligible)|set(diagnostic_ids)!=old_ids:
@@ -261,6 +329,13 @@ def reference_correction(report, path, run, campaign=None):
     raw_keys=[(row.get('round'),row.get('caseId'))for row in raw_rows]
     if len(raw_keys)!=len(set(raw_keys))or set(raw_keys)!={(round,case)for round in (1,2,3)for case in old_ids}or set(corrected_raw.get('selectedInputs',[]))!=old_ids:
         raise ValueError('Corrected raw evidence drops retained source attempts')
+    original_cases={(row.get('round'),row.get('caseId')):row for row in old_raw.get('raw',[])}
+    for row in raw_rows:
+        previous=original_cases.get((row.get('round'),row.get('caseId')), {})
+        frozen=literal_cases.get(row.get('caseId'),{})
+        fields=('criteria','unscoredCriteria')if row.get('caseId')in eligible else ()
+        if any(row.get(key)!=frozen.get(key)for key in ('source','family'))or any(row.get(key)!=previous.get(key)for key in fields):
+            raise ValueError('Parser replay changes literal frozen sources or independently expected assertions')
     expected={(engine,round,case)for engine in engines for round in (1,2,3)for case in eligible};actual=keys(rows)
     if len(actual)!=len(set(actual))or set(actual)!=expected:
         raise ValueError('Eligible score needs exactly every frozen positive case × both engines × three fresh rounds')
@@ -279,6 +354,26 @@ def reference_correction(report, path, run, campaign=None):
     if result.get('status')!=expected_status:raise ValueError('Corrected reference status disagrees with its eligible observations')
     metadata=dict(protocol=result['protocol'],explicitCorrectionFile=str(path.resolve()),originalRawFile=str(raw_path),originalAggregateStatus=report.get('status'),originalSuiteStatus=original.get('status'),originalStartedAt=original.get('startedAt'),originalFinishedAt=original.get('finishedAt'),correctedSuiteStatus=result.get('status'),correctedStartedAt=result.get('startedAt'),correctedFinishedAt=result.get('finishedAt'),evidence=evidence,eligibilityArtifact=str(eligibility_path),diagnosticArtifact=str(diagnostic_path),correctedRawArtifact=str(corrected_raw_path),diagnosticObservations=diagnostic_rows,policy='Reviewed source-eligibility repair before either parser; retained original raw attempts and classified diagnostics. This is a fresh scoped baseline-protocol correction, not product improvement or a replacement full run.')
     return result,metadata
+
+
+def current_supplement(original, original_directory, directory, baseline_reference=None):
+    if baseline_reference is None:raise ValueError('--current-run requires --reference-correction to admit the independently reviewed original580-positive baseline')
+    ledger,metadata=current_target_ledger(original,directory)
+    dave,dave_metadata=current_dave(original_directory,directory,metadata)
+    # Reuse the same fixture/eligibility/pin and shipped-byte admission, selecting
+    # the explicitly separate current target rather than rewriting the old run.
+    proxy=dict(original,targetRevision=ledger['targetRevision'],targetRoot=ledger['targetRoot'],packageRoot=ledger['packageRoot'])
+    reference_path=directory/'pinned-reference-score/reference-score-result.json'
+    reference,reference_metadata=reference_correction(proxy,reference_path,original_directory,target_run=directory)
+    if (reference['evidence'].get('rawInputCount'),reference['evidence'].get('eligibleInputCount'),reference['evidence'].get('diagnosticInputCount'))!=(586,580,6):raise ValueError('Current parser supplement changes the frozen586-raw/580-positive/6-diagnostic census')
+    if baseline_reference:
+        before=baseline_reference['evidence'];after=reference['evidence']
+        for key in ('rawInputCount','eligibleInputCount','diagnosticInputCount','eligibleCaseIds','diagnosticCaseIds','rounds','currentReference','historicalFixtureProvenance','reviewedEligibility','assignments'):
+            if before.get(key)!=after.get(key):raise ValueError('Current parser supplement differs from reviewed baseline eligibility/cohort: '+key)
+    current_suite=next(suite for suite in ledger['suites']if suite['id']=='pinned-reference-score')
+    if current_suite.get('result')!=reference:raise ValueError('Current parser result differs from completed supplemental ledger')
+    metadata.update(dave=dave_metadata,reference=dict(resultFile=str(reference_path.resolve()),protocol=reference['protocol'],status=reference['status'],rawInputCount=reference['evidence']['rawInputCount'],eligibleInputCount=reference['evidence']['eligibleInputCount'],diagnosticInputCount=reference['evidence']['diagnosticInputCount'],currentReference=reference['evidence']['currentReference'],frozenFixture=reference['evidence']['frozenFixture'],eligibilityArtifact=reference_metadata['eligibilityArtifact'],diagnosticArtifact=reference_metadata['diagnosticArtifact'],compiledArtifacts=reference['evidence']['target']['compiledArtifacts']))
+    return ledger,dave,reference,metadata
 
 
 def tool(row):
@@ -307,9 +402,12 @@ class Figures:
         out.mkdir(parents=True, exist_ok=True)
 
     def save(self, figure, name, title, note, rows):
+        current=getattr(self,'current_run',None)
+        if current and name.startswith('current-'):note+=' Separate current-target evidence '+str(current.get('targetRevision'))[:12]+'; '+str(current.get('startedAt'))+' → '+str(current.get('finishedAt'))+'. Original suite ledger and older-target corrections retain their original identities.'
         replay=getattr(self,'community_replay',None)
         if replay and (name.startswith(('community-','svg-cost-coverage-','cli-'))or any(str(row.get('scope','')).startswith('community:')for row in rows)):
             note+=' Explicit expanded community replay '+str(replay.get('finishedAt'))+'; changed population/qualification protocol, not a product improvement or a replacement full run.'
+            if replay.get('targetAdvance'):note+=' Community-only Agentic target '+str(replay.get('targetRevision'))[:12]+'. Original invocation/reference/owning suites retain their original target.'
         correction=getattr(self,'invocation_correction',None)
         if correction and (name=='invocation-coverage'or any(row.get('surface')==correction.get('scope')for row in rows)):
             note+=' Explicit style-oracle correction: '+str(correction.get('correction',{}).get('finishedAt'))+'. Original invocation status remains '+str(correction.get('originalInvocationStatus'))+'; mixed-run reporting, not a new full run.'
@@ -379,6 +477,35 @@ class Figures:
             ax.set_yticks(range(len(valid)),[row['implementation']+(' [shared evidence]'if row.get('independentMeasurement')is False else '')for row in valid],fontsize=7)
             ax.invert_yaxis();ax.set_xscale('log');ax.set_xlabel('Existing family-scoped core portfolio, ms; log scale')
             self.save(figure,f'community-family-{index+1}',f'Community conditional rank: {family} / {surface} / {output}','Only this family\'s existing fixed inputs: flowchart has two, other SVG/parser families one; terminal has flowchart two or sequence one. Every case must qualify across all rounds. This admits narrow tools without claiming complete family functionality or overall superiority. Search the HTML by family to select a scope.',group)
+
+    def current_dave(self, result):
+        if not result:return
+        rows=[]
+        for engine in sorted(result.get('engines',[]),key=lambda row:row['label']):
+            attempts=engine['attemptMs']
+            identity=next((row for row in result.get('identities',[])if row.get('label')==engine['label']),{})
+            measured=len(attempts)==3 and all(finite(value)and value>0 for value in attempts)
+            rows.append(dict(implementation=engine['label'],version=identity.get('version'),accepted=engine.get('accepted'),population=engine.get('population'),attemptPortfolioMs=median(attempts)if measured else None,perRoundMs=attempts,complete=engine.get('complete'),failures=engine.get('failures')))
+        figure,axes=self.plt.subplots(1,2,figsize=(12,max(4,len(rows)*.45)),sharey=True)
+        labels=[row['implementation']+' '+str(row.get('version',''))for row in rows]
+        for index,row in enumerate(rows):
+            axes[0].barh(index,100*row['accepted']/row['population'],color='#147d92');axes[0].text(1,index,f"{row['accepted']}/{row['population']}",va='center',fontsize=7)
+            if row['attemptPortfolioMs']is not None:axes[1].barh(index,row['attemptPortfolioMs']/1000,color='#718ca1')
+            else:axes[1].text(0,index,'N/A: incomplete clocks',va='center',fontsize=7)
+        axes[0].set_yticks(range(len(rows)),labels);axes[0].invert_yaxis();axes[0].set_xlim(0,100);axes[0].set_xlabel('Dave artifact acceptance, %; lower is not better')
+        axes[1].set_xlabel('All1095 attempts, seconds; includes failures, not an efficiency rank')
+        self.save(figure,'current-dave-score-attempt-cost','Current-target Dave benchmark: acceptance and complete attempt cost','Exact unchanged pinned1095-occurrence corpus and browser policy; three rounds. Attempt cost includes rejected/failed inputs, so fast rejection is not a speed win. Matched-success comparisons use each comparator\'s own explicitly recorded common input IDs. Dave Pele1.6 and community Pele1.9 are separate versions and boundaries.',rows)
+        matched=[]
+        for row in result.get('matched',[]):
+            own=row.get('candidateMs',[]);peer=row.get('comparatorMs',[])
+            ratio=median([a/b for a,b in zip(own,peer)])if len(own)==len(peer)==3 and all(finite(value)and value>0 for value in own+peer)else None
+            matched.append(dict(comparator=row.get('comparator'),sharedInputCount=len(row.get('inputIds',[])),inputIds=row.get('inputIds'),candidateMs=own,comparatorMs=peer,ratios=row.get('ratios'),medianRatio=row.get('medianRatio'),candidateOverComparator=ratio))
+        if matched:
+            figure,ax=self.plt.subplots(figsize=(9,max(3,len(matched)*.5)))
+            for index,row in enumerate(matched):
+                if finite(row['candidateOverComparator']):ax.scatter(row['candidateOverComparator'],index,color='#147d92')
+            ax.axvline(1,color='#718ca1',linestyle='--');ax.set_xscale('log');ax.set_yticks(range(len(matched)),[str(row['comparator'])+' ('+str(row['sharedInputCount'])+' shared)'for row in matched]);ax.invert_yaxis();ax.set_xlabel('Agentic / comparator cost; <1 faster, >1 slower (log scale)')
+            self.save(figure,'current-dave-matched','Current-target Dave: comparator-specific shared-success work','Each row has its own frozen shared input IDs, never a single common cross-tool rank. Plotted ratio is derived from the recorded three candidate/comparator cost pairs; original owning ratios remain in reduced data. Historical Pele1.6 remains distinct from community Pele1.9.',matched)
 
     def svg_scatter(self, ranks, observations, enrolled_cases):
         enrolled=len({row['family'] for row in enrolled_cases})
@@ -673,7 +800,7 @@ class Figures:
         axes[0].invert_yaxis()
         self.save(figure,'pr-editor-delivery-and-dom','PR editor delivery and observed matched interactions','Actual target website assets, not static IIFE/package size. Closure includes initial assets and all attempted representative-family edits; exact observed bytes remain useful when preview qualification is incomplete. DOM latency requires every identical ordered case, matching actual browser and explicit smoke/1 changed-input protocol; it includes current SVG/authority and two animation frames, not pixel/geometry fidelity. Unpaired single observations, no calibrated ratios/CIs; never mixed with full-main eight-edit bursts. Core source aliases do not reuse editor measurements. Orange heads/own bases remain exploratory.',data)
 
-    def reference(self, observations):
+    def reference(self, observations, name='pinned-parser-score', title='Pinned Mermaid same-case portable parser comparison'):
         rows=[r for r in observations if r.get('suite')=='pinned-reference-score' and r.get('operation')=='parse-and-score']
         engines=sorted({tool(r)for r in rows});rounds=sorted({r.get('metrics',{}).get('round')for r in rows})
         if not rows:
@@ -695,7 +822,7 @@ class Figures:
         for ax in axes:ax.set_xticks(range(len(engines)),engines)
         axes[0].set_ylim(0,100);axes[0].set_ylabel('Passed / evaluated portable criteria, %')
         axes[1].set_ylabel(f'Public parse portfolio, ms; {len(shared)} shared-qualified cases')
-        self.save(figure,'pinned-parser-score','Pinned Mermaid same-case portable parser comparison','Same independently expected criteria; displayed criterion counts sum recorded rounds, not unique criteria. Generated layout counts and other nonportable criteria are explicitly unscored. Shared-success cost requires every parser and every round to pass. Historical imported tests and native-operation suites remain separate.',data)
+        self.save(figure,name,title,'Same independently expected criteria; displayed criterion counts sum recorded rounds, not unique criteria. Generated layout counts and other nonportable criteria are explicitly unscored. Shared-success cost requires every parser and every round to pass. Historical imported tests and native-operation suites remain separate.',data)
 
     def owning_tests(self, report):
         data=[]
@@ -717,7 +844,7 @@ class Figures:
         self.save(figure,'owning-test-score-time','Owning suite counts and process wall time','Groups exercise different behavior and case counts: no cross-suite speed rank. Wall time includes initialization, assertions, reference IPC and instrumentation; it is not parser API latency.',data)
 
     def html(self, report, campaign, supplemental=None, correction=None, reference_overlay=None):
-        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),figures=self.items,gaps=self.gaps)
+        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),figures=self.items,gaps=self.gaps)
         (self.out/'chart-data.json').write_text(json.dumps(reduced,indent=2,allow_nan=False)+'\n')
         cards=[]
         for item in self.items:
@@ -726,7 +853,7 @@ class Figures:
             rows=item['rows'];keys=list(dict.fromkeys(key for row in rows for key in row))
             table='<table><thead><tr>'+''.join('<th>'+escape(str(key))+'</th>'for key in keys)+'</tr></thead><tbody>'+''.join('<tr>'+''.join('<td>'+escape(json.dumps(row.get(key),ensure_ascii=False) if isinstance(row.get(key),(dict,list))else str(row.get(key,'')))+'</td>'for key in keys)+'</tr>'for row in rows)+'</tbody></table>'
             cards.append('<section><h2>'+escape(item['title'])+'</h2><p>'+escape(item['note'])+'</p><img alt="'+escape(item['title'])+'" src="'+src+'"><p>'+ ' · '.join('<a href="'+item['name']+'.'+extension+'">'+extension.upper()+'</a>'for extension in ('svg','png','pdf'))+'</p><details><summary>Reduced evidence rows</summary>'+table+'</details></section>')
-        metadata=escape(json.dumps(dict(run=reduced['run'],invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=reduced['communityReplay']),indent=2))
+        metadata=escape(json.dumps(dict(run=reduced['run'],invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=reduced['communityReplay'],currentRun=reduced['currentRun']),indent=2))
         gaps=''.join('<li>'+escape(gap)+'</li>'for gap in self.gaps)
         embedded=json.dumps(reduced,allow_nan=False).replace('<','\\u003c')
         html='''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Agentic Mermaid benchmark evidence</title><style>body{font:15px system-ui;max-width:1200px;margin:auto;padding:24px;color:#20313e;background:#f4f7f8}section{background:white;padding:20px;margin:24px 0;border-radius:10px}img{max-width:100%;height:auto}table{border-collapse:collapse;font-size:12px;display:block;overflow:auto}td,th{padding:7px;border:1px solid #ddd;text-align:left;max-width:400px;overflow-wrap:anywhere}input{padding:9px;width:90%}pre{white-space:pre-wrap}a{color:#126c85}</style><h1>Benchmark evidence</h1><p>Separate work, clocks and qualification scopes. Missing and failed capabilities are never free wins. No weighted overall score or radar ranking is invented.</p><details><summary>Run identity</summary><pre>'''+metadata+'''</pre></details><label>Filter charts and evidence <input id="filter" type="search" placeholder="e.g. browser, parser, PR, memory"></label>'''+''.join(cards)+'<h2>Missing evidence</h2><ul>'+gaps+'</ul><script type="application/json" id="benchmark-data">'+embedded+'''</script><script>document.querySelector('#filter').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('section').forEach(s=>s.hidden=!s.textContent.toLowerCase().includes(q))});</script></html>'''
@@ -740,7 +867,10 @@ def main():
     parser.add_argument('--invocation-correction',type=Path,help='Explicit invocation-corrected.json with sibling reconciliation.json; reporting overlay for main invocation only')
     parser.add_argument('--reference-correction',type=Path,help='Explicit public-positive-eligibility-v2 reference-score-result.json with reviewed eligibility/raw/diagnostic companions')
     parser.add_argument('--community-run',type=Path,help='Explicit completed all84 community directory; replaces only community evidence, preserving original run ledger')
+    parser.add_argument('--allow-community-target-change',action='store_true',help='Admit an explicitly proven newer community-only target; all other original suites retain their original target')
+    parser.add_argument('--current-run',type=Path,help='Separate completed current-target Dave and same-fixture pinned-reference supplemental run; never replaces original suite evidence')
     args=parser.parse_args()
+    if args.allow_community_target_change and not args.community_run:parser.error('--allow-community-target-change requires --community-run')
     if not args.validate_only and args.out is None:parser.error('--out is required unless --validate-only is selected')
     report=load(args.run/'report.json')
     if not report:parser.error('--run must contain report.json')
@@ -749,8 +879,8 @@ def main():
     inputs=load(find(args.run,'community-inputs.json'),{})
     community_metadata=None
     if args.community_run:
-        try:community,scores,inputs,community_metadata=community_overlay(report,inputs,args.community_run,args.run)
-        except (ValueError,OSError,TypeError,KeyError,tarfile.TarError)as error:parser.error(str(error))
+        try:community,scores,inputs,community_metadata=community_overlay(report,inputs,args.community_run,args.run,args.allow_community_target_change)
+        except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
     campaign=load(args.prs/'pr-ranks.json')if args.prs else None
     correction_result=None;correction_metadata=None
     if args.invocation_correction:
@@ -760,6 +890,12 @@ def main():
     if args.reference_correction:
         try:reference_result,reference_metadata=reference_correction(report,args.reference_correction,args.run,campaign)
         except (ValueError,OSError,TypeError,KeyError,tarfile.TarError)as error:parser.error(str(error))
+    current_ledger=None;current_dave_result=None;current_reference_result=None;current_metadata=None
+    if args.current_run:
+        try:
+            current_ledger,current_dave_result,current_reference_result,current_metadata=current_supplement(report,args.run,args.current_run,reference_metadata)
+            if community_metadata and any(current_metadata[key]!=community_metadata[key]for key in ('targetRevision','packageRoot','candidateSha256')):raise ValueError('Explicit current and expanded-community measurements use different current targets')
+        except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
     observations=[]
     for suite in report.get('suites',[]):
         result=correction_result if suite.get('id')=='invocation'and correction_result else reference_result if suite.get('id')=='pinned-reference-score'and reference_result else suite.get('result')
@@ -774,9 +910,14 @@ def main():
         ranks=[rank for rank in ranks if rank.get('surface')!='cli:end-to-end']+supplemental['ranks']
         observations=[row for row in observations if row.get('suite')!='community-cli']+supplemental_result.get('observations',[])+supplemental_result.get('diagnostics',[])
     if args.validate_only:
-        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata),allow_nan=False))
+        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata),allow_nan=False))
         return
     figures=Figures(args.out)
+    if current_metadata:
+        figures.current_run=current_metadata
+        figures.gaps.append('Separate current-target supplemental run '+current_metadata['targetRevision']+' measured '+current_metadata['startedAt']+' → '+current_metadata['finishedAt']+'. Dave and parser panels are separate; original full-ledger and old-target corrections are not relabeled current.')
+        figures.current_dave(current_dave_result)
+        figures.reference(current_reference_result['observations'],'current-pinned-parser-score','Current target: pinned Mermaid same-case portable parser comparison')
     if community_metadata:
         figures.community_replay=community_metadata
         figures.gaps.append('Explicit all84 community replay '+str(community_metadata['startedAt'])+' → '+str(community_metadata['finishedAt'])+': '+community_metadata['qualificationChange']+' Original full-run aggregate status '+str(report.get('status'))+' and raw community ledger remain unchanged; only community plots use the replay.')

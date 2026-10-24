@@ -28,7 +28,7 @@ export interface CommunityBrowserEngine {
   apiBoundary?: string
   surface?: string
   files?: { path: string; sha256: string }[]
-  additionalOutputs?: ('png')[]
+  additionalOutputs?: 'png'[]
 }
 export interface PreparedCommunityBrowser extends PreparedCommunity {
   browser?: CommunityBrowserEngine
@@ -111,7 +111,18 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
     results: PreparedCommunityBrowser[] = []
   mkdirSync(cache, { recursive: true })
   const qualificationHelper = join(cache, 'qualification.js')
-  await build({ stdin: { contents: `export{isRenderedSourceEcho}from ${JSON.stringify(join(harness, 'eval/benchmark/unified/qualification-visible-source.ts'))}`, resolveDir: harness, sourcefile: 'community-visible-output-qualification.mjs' }, outfile: qualificationHelper, bundle: true, platform: 'browser', format: 'iife', globalName: 'unifiedCommunityQualification', external: ['node:*'], target: 'es2022', minify: true, logLevel: 'silent' })
+  await build({
+    stdin: { contents: `export{isRenderedSourceEcho}from ${JSON.stringify(join(harness, 'eval/benchmark/unified/qualification-visible-source.ts'))}`, resolveDir: harness, sourcefile: 'community-visible-output-qualification.mjs' },
+    outfile: qualificationHelper,
+    bundle: true,
+    platform: 'browser',
+    format: 'iife',
+    globalName: 'unifiedCommunityQualification',
+    external: ['node:*'],
+    target: 'es2022',
+    minify: true,
+    logLevel: 'silent',
+  })
   for (const peer of prepared) {
     let result: PreparedCommunityBrowser = { ...peer, browserStatus: 'blocked' }
     try {
@@ -183,8 +194,7 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
             engine = make(output, 'bundle.js', 'mermaid', 'unifiedMermaid')
           }
           engine.legacyMermaid = Number.parseInt(pkg.version, 10) < 10
-        }
-        else if (adapter === 'pele' && existsSync(join(root, 'dist/pele.global.js'))) engine = make(root, 'dist/pele.global.js', 'pele', 'pele')
+        } else if (adapter === 'pele' && existsSync(join(root, 'dist/pele.global.js'))) engine = make(root, 'dist/pele.global.js', 'pele', 'pele')
         else if (adapter === 'published-extra') {
           const spec = extraBrowserEntry(pkg.name, artifact) as { source: string; assets?: { source: string; name: string }[]; outputs?: string[]; qualification: string; surface?: string } | null
           if (!spec) {
@@ -204,8 +214,7 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
           engine.apiBoundary = spec.qualification
           engine.surface = spec.surface
           if (spec.outputs?.includes('png') && supported.includes('png')) engine.additionalOutputs = ['png']
-        }
-        else if (['beautiful', 'zombie', 'pele', 'ondine'].includes(adapter ?? '')) {
+        } else if (['beautiful', 'zombie', 'pele', 'ondine'].includes(adapter ?? '')) {
           const output = join(cache, safe(peer.node.id), artifact.version)
           mkdirSync(output, { recursive: true })
           const entry = join(output, 'entry.mjs'),
@@ -361,13 +370,16 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
               const owner = typeof api.render === 'function' ? api : api.mermaidAPI
               if (!owner || typeof owner.render !== 'function') throw new Error('Published Mermaid render API unavailable')
               ;(globalThis as any).__communityRender = legacyMermaid
-                ? (source: string, id: string) => new Promise((resolve, reject) => {
-                    try {
-                      const returned = owner.render(id, source, (svg: string) => resolve(svg))
-                      if (typeof returned === 'string') resolve(returned)
-                      else if (returned && typeof returned.then === 'function') returned.then(resolve, reject)
-                    } catch (error) { reject(error) }
-                  })
+                ? (source: string, id: string) =>
+                    new Promise((resolve, reject) => {
+                      try {
+                        const returned = owner.render(id, source, (svg: string) => resolve(svg))
+                        if (typeof returned === 'string') resolve(returned)
+                        else if (returned && typeof returned.then === 'function') returned.then(resolve, reject)
+                      } catch (error) {
+                        reject(error)
+                      }
+                    })
                 : (source: string, id: string) => owner.render(id, source)
             } else if (kind === 'extra') {
               const render = await api.createRenderer()
@@ -411,32 +423,31 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
                     error = String(cause)
                   }
                   const ms = performance.now() - start
-                  const svg = output === 'png'
-                    ? value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : value instanceof Uint8Array ? value : undefined
-                    : typeof value === 'string' ? value : value?.svg
+                  const svg = output === 'png' ? (value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : value instanceof Uint8Array ? value : undefined) : typeof value === 'string' ? value : value?.svg
                   ;(globalThis as any).__communityAfterCall?.()
                   for (const node of document.querySelectorAll('body > div:not([data-community-host])')) node.remove()
                   return { ms, svg, error }
                 }
                 const validate = (svg: unknown): string[] => {
                   if (output === 'png') {
-                    if (!(svg instanceof Uint8Array) || svg.length < 33 || [137,80,78,71,13,10,26,10].some((byte,index) => svg[index] !== byte)) return ['Invalid PNG signature or truncated PNG']
+                    if (!(svg instanceof Uint8Array) || svg.length < 33 || [137, 80, 78, 71, 13, 10, 26, 10].some((byte, index) => svg[index] !== byte)) return ['Invalid PNG signature or truncated PNG']
                     const header = new DataView(svg.buffer, svg.byteOffset, svg.byteLength)
                     return String.fromCharCode(...svg.subarray(12, 16)) === 'IHDR' && header.getUint32(16) > 0 && header.getUint32(20) > 0 ? [] : ['PNG has invalid IHDR or empty dimensions']
                   }
                   if (typeof svg !== 'string') return ['No SVG string returned']
-                  if ((globalThis as any).unifiedCommunityQualification.isRenderedSourceEcho(source, svg, 'svg')) return ['Visible SVG source-echo fallback is not diagram ink']
                   const doc = new DOMParser().parseFromString(svg, 'image/svg+xml'),
                     element = doc.documentElement
-                  if (doc.querySelector('parsererror') || element.localName !== 'svg') return ['Malformed SVG document']
+                  if (doc.querySelector('parsererror') || element.localName !== 'svg' || element.namespaceURI !== 'http://www.w3.org/2000/svg') return ['Malformed SVG document or missing SVG namespace']
+                  const length = (value: string | null): number => (/^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?:px|pt|pc|cm|mm|in|q)?$/i.test(value?.trim() ?? '') ? Number.parseFloat(value!) : NaN)
                   const viewBox = element
                       .getAttribute('viewBox')
                       ?.trim()
                       .split(/[\s,]+/)
                       .map(Number),
-                    width = Number.parseFloat(element.getAttribute('width') ?? ''),
-                    height = Number.parseFloat(element.getAttribute('height') ?? '')
+                    width = length(element.getAttribute('width')),
+                    height = length(element.getAttribute('height'))
                   if (!(viewBox && viewBox.length === 4 && viewBox.every(Number.isFinite) && viewBox[2]! > 0 && viewBox[3]! > 0) && !(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return ['SVG has no positive finite canvas']
+                  if ((globalThis as any).unifiedCommunityQualification.isRenderedSourceEcho(source, svg, 'svg')) return ['Visible SVG source-echo fallback is not diagram ink']
                   const normalize = (text: string) => text.replace(/\s+/g, ' ').trim(),
                     seen = new Set<string>([...doc.querySelectorAll('text,tspan,foreignObject')].map(node => normalize(node.textContent ?? '')))
                   for (const node of doc.querySelectorAll('foreignObject')) {
@@ -512,7 +523,15 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
               ...(measured.bytes === undefined ? {} : { bytes: measured.bytes }),
               findings: measured.findings,
               detail: measured.error,
-              metrics: { round, firstMs: measured.firstMs ?? null, iterations: measured.iterations ?? null, version: engine.version, qualification: engine.output === 'png' ? 'PNG-signature-and-positive-dimensions; no pixel-text/fidelity assertion' : measured.hasLabelOracle ? 'XML-canvas-and-authored-labels' : 'XML-and-canvas', apiBoundary: engine.apiBoundary ?? 'public browser API', cache: 'public-default-repeats' },
+              metrics: {
+                round,
+                firstMs: measured.firstMs ?? null,
+                iterations: measured.iterations ?? null,
+                version: engine.version,
+                qualification: engine.output === 'png' ? 'PNG-signature-and-positive-dimensions; no pixel-text/fidelity assertion' : measured.hasLabelOracle ? 'XML-canvas-and-authored-labels' : 'XML-and-canvas',
+                apiBoundary: engine.apiBoundary ?? 'public browser API',
+                cache: 'public-default-repeats',
+              },
             })
             record.samples.push(observation)
           } catch (error) {
@@ -535,7 +554,14 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
             format: engine.output ?? 'svg',
             mode: `after-round-${round}`,
             status: 'passed',
-            metrics: { implementation: peer.node.id, round, jsHeapUsedBytes: heap.usedSize, portfolioCaseCount: roundWorkloads.length, featureCases: roundWorkloads.filter(workload => !workload.features.includes('core-graph-batch')).length, note: 'Fresh realm, forced GC after this round portfolio; not native/WASM/process memory' },
+            metrics: {
+              implementation: peer.node.id,
+              round,
+              jsHeapUsedBytes: heap.usedSize,
+              portfolioCaseCount: roundWorkloads.length,
+              featureCases: roundWorkloads.filter(workload => !workload.features.includes('core-graph-batch')).length,
+              note: 'Fresh realm, forced GC after this round portfolio; not native/WASM/process memory',
+            },
           })
         } catch (error) {
           gaps.push(`${peer.node.id}: browser JS heap unavailable: ${String(error)}`)
@@ -558,7 +584,8 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
             detail: String(error),
           })
         const observed = new Set(record.samples.map(sample => sample.caseId))
-        for (const workload of roundWorkloads.filter(workload => !observed.has(workload.id))) record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'blocked', { detail: `Browser realm unavailable after error: ${String(error)}` }))
+        for (const workload of roundWorkloads.filter(workload => !observed.has(workload.id)))
+          record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'blocked', { detail: `Browser realm unavailable after error: ${String(error)}` }))
         gaps.push(`${peer.node.id} round ${round}: ${String(error)}`)
       } finally {
         await browser?.close()
@@ -582,7 +609,17 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
         mode: `round-${round}`,
         status: record.error ? 'blocked' : files.some(file => file.error) ? 'failed' : files.length ? 'passed' : 'blocked',
         bytes: files.reduce((sum, file) => sum + (file.bytes ?? 0), 0),
-        metrics: { implementation: peer.node.id, round, gzipBytes: files.reduce((sum, file) => sum + (file.gzip ?? 0), 0), requests: files.length, remoteRequestsBlocked: remote.size, version: engine.version, renderedOutput: engine.output ?? 'svg', portfolioCaseCount: roundWorkloads.length, featureCases: roundWorkloads.filter(workload => !workload.features.includes('core-graph-batch')).length },
+        metrics: {
+          implementation: peer.node.id,
+          round,
+          gzipBytes: files.reduce((sum, file) => sum + (file.gzip ?? 0), 0),
+          requests: files.length,
+          remoteRequestsBlocked: remote.size,
+          version: engine.version,
+          renderedOutput: engine.output ?? 'svg',
+          portfolioCaseCount: roundWorkloads.length,
+          featureCases: roundWorkloads.filter(workload => !workload.features.includes('core-graph-batch')).length,
+        },
       })
       raw.push(record)
       mkdirSync(options.out, { recursive: true })

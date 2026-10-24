@@ -273,6 +273,7 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "upng-js": "^2.1.0",
-    "wrangler": "4.149.0"
+    "wrangler": "4.149.0",
+    "saxes": "6.0.0"
   }
 }

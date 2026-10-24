@@ -1,6 +1,6 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -8,7 +8,7 @@ import { MICRO_WORKLOADS } from '../micro-bench-cases.ts'
 import { type CatalogArtifactAdmission, createCatalogEligibility } from './catalog-eligibility.ts'
 import { assertCommunityNotInterrupted, trackCommunityProcess } from './community-process.ts'
 import type { CommunityArtifact, CommunityNode, CommunityWorkerJob, PreparedCommunity } from './community-types.ts'
-import { qualifyOutput, withReferenceLabels } from './qualification.ts'
+import { qualifyOutput, svgQualificationProvenance, withReferenceLabels } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 import { getWorkloadEvidence, unifiedWorkloads } from './workloads.ts'
 
@@ -19,6 +19,16 @@ const median = (xs: number[]) => {
 }
 export const normalizeCommunityOutput = (output: string): string => (({ 'ascii-unicode': 'terminal', ascii: 'terminal', unicode: 'terminal', ast: 'parse', 'mermaid-text': 'source' }) as Record<string, string>)[output] ?? output
 const safe = (id: string) => id.replace(/[^a-z0-9._-]+/gi, '_')
+function writePreparationCheckpoint(path: string, value: unknown) {
+  const temporary = path + `.pending-${process.pid}`
+  try {
+    writeFileSync(temporary, JSON.stringify(value, null, 2))
+    renameSync(temporary, path)
+  } catch (error) {
+    if (existsSync(temporary)) unlinkSync(temporary)
+    throw error
+  }
+}
 const artifactDigest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
 export function communityCoreWorkloads(): UnifiedWorkload[] {
   const range = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => prefix + i)
@@ -130,14 +140,15 @@ export function verifyProvidedCommunityArtifact(artifact: CommunityArtifact): vo
   const entry = artifact.kind === 'cli' || artifact.kind === 'jsonl-worker' ? artifact.executable : artifact.kind === 'python' ? (artifact.python ?? artifact.executable) : (artifact.module ?? artifact.executable)
   if (!entry || !existsSync(entry)) throw new Error('Provided artifact entry does not exist')
   const sourceFiles = artifact.sourceFiles as { root: string; revision: string; gitPath: string; blob: string }[] | undefined
+  const dependencyPatches = artifact.dependencyPatches as { root: string; revision: string; gitPath: string; blob: string }[] | undefined
   if (!artifact.sha256 && !artifact.files?.length && !sourceFiles?.length) throw new Error('Provided artifacts require compiled/shipped byte identity or a clean pinned Git source proof')
   const verified = new Set<string>()
-  for (const proof of sourceFiles ?? []) {
+  for (const proof of [...(sourceFiles ?? []), ...(dependencyPatches ?? [])]) {
     if (!/^[a-f0-9]{40}$/.test(proof.revision) || !/^[a-f0-9]{40}$/.test(proof.blob)) throw new Error('Invalid Git source identity')
     const tree = execFileSync('git', ['ls-tree', proof.revision, '--', proof.gitPath], { cwd: proof.root, encoding: 'utf8' }).trim()
     if (!/^100(?:644|755) /.test(tree) || tree.split(/\s+/)[2] !== proof.blob) throw new Error('Interpreted source Git blob differs from its admitted revision')
     execFileSync('git', ['diff', '--quiet', proof.revision, '--', proof.gitPath], { cwd: proof.root })
-    verified.add(realpathSync(resolve(proof.root, proof.gitPath)))
+    if (sourceFiles?.includes(proof)) verified.add(realpathSync(resolve(proof.root, proof.gitPath)))
   }
   for (const file of artifact.files ?? []) {
     if (!/^[a-f0-9]{64}$/.test(file.sha256) || !existsSync(file.path) || artifactDigest(file.path) !== file.sha256) throw new Error(`Artifact digest mismatch: ${file.path}`)
@@ -213,25 +224,19 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
   const prepared: PreparedCommunity[] = []
   mkdirSync(options.out, { recursive: true })
   const checkpoint = (complete: boolean) => {
-    writeFileSync(join(options.out, 'community-prepared.json'), JSON.stringify(prepared, null, 2))
-    writeFileSync(
-      join(options.out, 'community-preparation-status.json'),
-      JSON.stringify(
-        {
-          complete,
-          updatedAt: new Date().toISOString(),
-          expectedIds: catalog.nodes.map(node => node.id),
-          attempted: prepared.length,
-          ready: prepared.filter(entry => entry.artifact).length,
-          failures: prepared.filter(entry => !entry.artifact).map(entry => ({ id: entry.node.id, error: entry.error ?? 'No applicable adapter configured' })),
-        },
-        null,
-        2,
-      ),
-    )
+    writePreparationCheckpoint(join(options.out, 'community-prepared.json'), prepared)
+    writePreparationCheckpoint(join(options.out, 'community-preparation-status.json'), {
+      complete,
+      updatedAt: new Date().toISOString(),
+      expectedIds: catalog.nodes.map(node => node.id),
+      attempted: prepared.length,
+      ready: prepared.filter(entry => entry.artifact).length,
+      failures: prepared.filter(entry => !entry.artifact).map(entry => ({ id: entry.node.id, error: entry.error ?? 'No applicable adapter configured' })),
+    })
   }
   checkpoint(false)
-  const preparationOrder = process.env.AM_COMMUNITY_SOURCE_PREPARATION_GATE ? [...catalog.nodes].sort((left, right) => Number(left.benchmark?.adapter === 'extra-source') - Number(right.benchmark?.adapter === 'extra-source')) : catalog.nodes
+  const preparationPriority = (node: CommunityNode) => (node.benchmark?.adapter !== 'extra-source' ? 0 : ['fork-go-cli', 'mermaidtext-go'].includes(node.benchmark.sourceAdapter ?? '') ? 1 : node.benchmark.sourceAdapter === 'grok-source' ? 3 : 2)
+  const preparationOrder = process.env.AM_COMMUNITY_SOURCE_PREPARATION_GATE ? [...catalog.nodes].sort((left, right) => preparationPriority(left) - preparationPriority(right)) : catalog.nodes
   for (const node of preparationOrder) {
     console.log(`community preparation ${prepared.length + 1}/${catalog.nodes.length}: ${node.id}`)
     if (!node.benchmark) {
@@ -277,7 +282,8 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
           }
         }
       } else if (node.benchmark.adapter === 'extra-source') {
-        const gate = process.env.AM_COMMUNITY_SOURCE_PREPARATION_GATE
+        const goRecipe = ['fork-go-cli', 'mermaidtext-go'].includes(node.benchmark.sourceAdapter ?? '')
+        const gate = !goRecipe ? (process.env.AM_COMMUNITY_NON_GO_PREPARATION_GATE ?? process.env.AM_COMMUNITY_SOURCE_PREPARATION_GATE) : process.env.AM_COMMUNITY_SOURCE_PREPARATION_GATE
         if (gate && existsSync(gate)) {
           console.log(`community source-build scheduler waiting for ${gate} to be removed before ${node.id}`)
           while (existsSync(gate)) {
@@ -398,6 +404,7 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     mode?: string
     diagnosticAccepted?: boolean
     diagnosticStatusScope?: string
+    diagnosticAdmissionFailed?: boolean
     surface?: string
     runtime?: string
     apiBoundary?: string
@@ -411,7 +418,9 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     qualification?: string
     diagnosticsCount?: number
   }
-  type Raw = { status: string; detail?: string; importMs?: number; rssBytes?: number; peakRssBytes?: number; runtime?: string; rows: RawRow[] }
+  type DiagnosticControl = { id: string; source: string; expectedAccepted: false; actualAccepted: boolean | null; status: 'passed' | 'failed'; detail?: string; qualificationError?: string }
+  type Raw = { status: string; detail?: string; importMs?: number; rssBytes?: number; peakRssBytes?: number; runtime?: string; publicApiAvailable?: boolean; diagnosticAdmissionFailed?: boolean; diagnosticAdmission?: DiagnosticControl[]; rows: RawRow[] }
+  const controls = new Map<string, { control: DiagnosticControl; attempt: number; runtime?: string; publicApiAvailable?: boolean; file: string }>()
   const collected = new Map<string, { row: RawRow; raw?: Raw; attempt: number }>(),
     attempts: { attempt: number; exitCode: number | null; timedOut: boolean; activeCase?: string; detail?: string }[] = []
   let remaining = [...workloads],
@@ -508,6 +517,12 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     } catch (error) {
       detail = `Malformed partial worker report: ${String(error)}`
     }
+    for (const control of raw?.diagnosticAdmission ?? []) {
+      const key = JSON.stringify([control.id, control.source]),
+        previous = controls.get(key)
+      const actual = previous && (previous.control.status !== control.status || previous.control.actualAccepted !== control.actualAccepted) ? { ...control, status: 'failed' as const, detail: 'Negative-control outcome changed across fresh worker attempts: ' + (control.detail ?? '') } : control
+      controls.set(key, { control: actual, attempt, runtime: raw?.runtime, publicApiAvailable: raw?.publicApiAvailable, file })
+    }
     if (!rows.length && raw?.rows) rows = raw.rows
     for (const row of rows) if (remaining.some(workload => workload.id === row.id)) collected.set(row.id, { row, raw, attempt })
     attempts.push({ attempt, exitCode, timedOut, activeCase, detail: detail ?? raw?.detail })
@@ -550,6 +565,7 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
       qualification: result.qualification ?? 'unavailable',
       diagnosticsCount: result.diagnosticsCount ?? null,
       accepted: result.diagnosticAccepted ?? null,
+      diagnosticAdmissionFailed: result.diagnosticAdmissionFailed ?? raw?.diagnosticAdmissionFailed ?? null,
       statusScope: result.diagnosticStatusScope ?? null,
       workerPortfolioCases: raw?.rows?.length ?? null,
       workerAttempt: attempt,
@@ -558,6 +574,41 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     }
     return row
   })
+  for (const { control, attempt, runtime, publicApiAvailable, file } of controls.values())
+    observations.push({
+      ...envelope(prepared.node, 'diagnostics', { id: `validator-negative-admission:${control.id}`, family: 'invalid-source', source: control.source, features: ['validator-negative-admission'], provenance: 'independently authored negative source controls; actual public validator API' }, round),
+      surface: /bun/i.test(prepared.artifact?.runtime ?? '') ? 'bun:public-api' : 'node:public-api',
+      runtime: runtime ?? prepared.artifact?.runtime ?? 'unmeasured',
+      operation: 'validator-negative-admission',
+      mode: 'independent-negative-control',
+      status: control.status,
+      detail: [control.detail, control.qualificationError].filter(Boolean).join('; '),
+      metrics: {
+        implementation: prepared.node.id,
+        version: prepared.artifact!.version,
+        round,
+        expectedAccepted: false,
+        actualAccepted: control.actualAccepted,
+        publicApiAvailable: publicApiAvailable ?? null,
+        controlSource: control.source,
+        workerAttempt: attempt,
+        evidenceFile: file,
+        clock: 'functional admission only; no speed sample',
+      },
+    })
+  if (output === 'diagnostics' && controls.size !== 2) {
+    for (const row of observations.filter(row => row.caseId.startsWith('core:'))) {
+      row.status = 'blocked'
+      row.detail = 'Complete independent negative-admission control evidence is unavailable; core speed rank withheld'
+    }
+    observations.push({
+      ...envelope(prepared.node, 'diagnostics', { id: 'validator-negative-admission:incomplete-evidence', family: 'invalid-source', source: '', features: [], provenance: 'validator protocol evidence guard' }, round),
+      operation: 'validator-negative-admission',
+      mode: 'independent-negative-control',
+      status: 'blocked',
+      detail: `Expected2 independent negative controls; observed${controls.size}. No acceptance or timing inferred.`,
+    })
+  }
   if (lifecycleIssue) observations.push({ ...envelope(prepared.node, output, { id: 'worker-lifecycle', family: '*', source: '', features: [], provenance: 'worker lifecycle' }, round), operation: 'worker-lifecycle', status: 'blocked', detail: lifecycleIssue })
   return observations
 }
@@ -871,6 +922,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
   const candidateArtifact = prepared.find(entry => entry.node.benchmark?.adapter === 'agentic')?.artifact
   const evidence = {
     protocol: 'community-fixed-core-feature-once-v2',
+    svgQualification: svgQualificationProvenance(),
     profile: options.profile,
     rounds: options.rounds,
     coverageOnce: options.communityCoverageOnce ?? true,
@@ -882,6 +934,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
       candidateSha256: candidate.candidateSha256 ?? null,
       compiledArtifacts: candidateArtifact ? { entry: candidateArtifact.module ?? null, sha256: candidateArtifact.sha256 ?? null, files: candidateArtifact.files ?? [] } : null,
     },
+    targetAdvance: (candidateArtifact as (CommunityArtifact & { targetAdvance?: unknown }) | undefined)?.targetAdvance ?? null,
     currentReference: frozenInputs?.reference ?? enriched?.provenance ?? null,
     coreCaseIds: workloads.filter(workload => workload.features.includes('core-graph-batch')).map(workload => workload.id),
     featureCaseIds: workloads.filter(workload => !workload.features.includes('core-graph-batch')).map(workload => workload.id),

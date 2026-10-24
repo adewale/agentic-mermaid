@@ -3,9 +3,10 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statfsSync, symlinkSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { runCommunityAcquisitionCommand as run } from './community-source-prepare.ts'
+import { runCommunityAcquisitionCommand } from './community-source-prepare.ts'
 import type { CommunityArtifact, CommunityNode } from './community-types.ts'
 import { qualifyOutput } from './qualification.ts'
 
@@ -29,6 +30,9 @@ export interface ExtraSourceArtifact extends CommunityArtifact {
   sourceFallback?: 'framed-source'
   acquisitionOrigin?: string
   sourceFiles?: GitSourceFile[]
+  dependencyPatches?: GitSourceFile[]
+  runtimeDependencyRoots?: string[]
+  buildDependencyPrefix?: string
   artifactClass: 'compiled-or-shipped' | 'git-interpreted-source'
   apiAdmission: 'public-protocol' | 'deferred-browser'
 }
@@ -37,16 +41,25 @@ const digest = (path: string) => createHash('sha256').update(readFileSync(path))
 const executable = (name: string) => (name.includes('/') ? resolve(name) : execFileSync('which', [name], { encoding: 'utf8' }).trim())
 const version = (command: string, args = ['--version'], env: NodeJS.ProcessEnv = process.env) => execFileSync(command, args, { env, encoding: 'utf8', timeout: 15_000, stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 const select = (value: any): string | undefined => (typeof value === 'string' ? value : value && typeof value === 'object' ? select(value.import ?? value.node ?? value.default ?? value.require) : undefined)
+const run = (command: readonly string[], cwd: string, env: NodeJS.ProcessEnv, log: string): Promise<void> => runCommunityAcquisitionCommand(command, cwd, env, log, 20 * 60_000, { minFreeBytes: 200 * 1024 * 1024 })
 function runtimeEntry(root: string): string | undefined {
   const pkg = json(join(root, 'package.json')),
     path = select(pkg.exports?.['.']) ?? pkg.module ?? pkg.main
   return typeof path === 'string' ? resolve(root, path) : undefined
 }
-function filesUnder(directory: string): { path: string; sha256: string }[] {
+function trackedEntry(source: string, entry: string): boolean {
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', relative(source, entry)], { cwd: source, stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+function filesUnder(directory: string, include: (path: string) => boolean = () => true): { path: string; sha256: string }[] {
   if (!existsSync(directory)) return []
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const path = join(directory, entry.name)
-    return entry.isDirectory() ? filesUnder(path) : entry.isFile() ? [{ path, sha256: digest(path) }] : []
+    return entry.isDirectory() ? filesUnder(path, include) : entry.isFile() && include(path) ? [{ path, sha256: digest(path) }] : []
   })
 }
 function gitSourceFiles(root: string, revision: string, gitPaths: string[]): GitSourceFile[] {
@@ -133,18 +146,183 @@ async function checkout(node: ExtraSourceNode, pin: string, source: string, env:
 }
 async function tsupBuild(root: string, cache: string, env: NodeJS.ProcessEnv, log: string): Promise<void> {
   const pkg = json(join(root, 'package.json')),
-    declared = { ...(pkg.dependencies ?? {}), tsup: pkg.devDependencies?.tsup ?? '^8.0.0', typescript: pkg.devDependencies?.typescript ?? '^5.0.0' },
+    declared = { ...(pkg.dependencies ?? {}), ...Object.fromEntries(Object.entries(pkg.devDependencies ?? {}).filter(([name]) => name.startsWith('@types/') || name === 'bun-types')), tsup: pkg.devDependencies?.tsup ?? '^8.0.0', typescript: pkg.devDependencies?.typescript ?? '^5.0.0' },
     gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: root, encoding: 'utf8' }).trim(),
     relative = root === gitRoot ? 'package.json' : root.slice(gitRoot.length + 1) + '/package.json',
     object = execFileSync('git', ['rev-parse', `HEAD:${relative}`], { cwd: root, encoding: 'utf8' }).trim(),
     tools = join(cache, 'node-dependencies', object)
   mkdirSync(tools, { recursive: true })
-  if (!existsSync(join(tools, 'node_modules/tsup/package.json'))) {
+  if (Object.keys(declared).some(name => !existsSync(join(tools, 'node_modules', name, 'package.json')))) {
     writeFileSync(join(tools, 'package.json'), JSON.stringify({ private: true, dependencies: declared }, null, 2))
     await run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', tools], tools, env, log)
   }
   if (!existsSync(join(root, 'node_modules'))) symlinkSync(join(tools, 'node_modules'), join(root, 'node_modules'), 'dir')
   await run([join(tools, 'node_modules/.bin/tsup')], root, env, log)
+}
+
+interface SourceRuntimeClosure {
+  files: { path: string; sha256: string }[]
+  packageRoots: string[]
+  dependencyPrefix: string
+}
+function runtimeClosure(prefix: string, seeds: string[], localPackages: string[]): SourceRuntimeClosure {
+  const roots = new Set<string>(),
+    queue = seeds.map(name => ({ name, from: prefix }))
+  while (queue.length) {
+    const { name, from } = queue.shift()!
+    if (name.startsWith('@types/')) continue
+    const search = createRequire(join(from, 'package.json')).resolve.paths(name) ?? [],
+      root = search.map(path => join(path, name)).find(path => existsSync(join(path, 'package.json')))
+    if (!root) throw Error('Installed Mermaid runtime dependency is unavailable: ' + name)
+    if (roots.has(root)) continue
+    roots.add(root)
+    const pkg = json(join(root, 'package.json')),
+      required = Object.keys(pkg.dependencies ?? {}),
+      optional = Object.keys({ ...(pkg.optionalDependencies ?? {}), ...(pkg.peerDependencies ?? {}) })
+    for (const name of required) if (!(name in (pkg.optionalDependencies ?? {}))) queue.push({ name, from: root })
+    for (const name of optional) {
+      const search = createRequire(join(root, 'package.json')).resolve.paths(name) ?? []
+      if (search.some(path => existsSync(join(path, name, 'package.json')))) queue.push({ name, from: root })
+    }
+  }
+  const shipped = [...roots].flatMap(root => filesUnder(root, path => !path.endsWith('/.package-lock.json') && !path.endsWith('.d.ts')))
+  return { files: [...shipped, ...localPackages.flatMap(directory => filesUnder(join(directory, 'dist')))], packageRoots: [...roots], dependencyPrefix: prefix }
+}
+
+async function legacyMermaidBuild(source: string, root: string, cache: string, env: NodeJS.ProcessEnv, log: string): Promise<SourceRuntimeClosure> {
+  const vite = existsSync(join(source, '.vite/build.ts')),
+    webpack = existsSync(join(source, '.webpack/webpack.config.babel.js')),
+    manifest = json(join(source, 'package.json')),
+    pkg = json(join(root, 'package.json')),
+    dependencies: Record<string, string> = { ...pkg.dependencies },
+    tools = vite
+      ? ['vite', 'jison', 'rollup-plugin-visualizer', ...(existsSync(join(source, '.vite/jsonSchemaPlugin.ts')) ? ['ajv', 'js-yaml', '@rollup/plugin-typescript', 'typescript', 'vite-plugin-istanbul', 'tslib'] : [])]
+      : ['webpack', 'webpack-cli', 'webpack-merge', 'webpack-node-externals', '@babel/core', '@babel/register', '@babel/preset-env', 'babel-loader', 'terser-webpack-plugin', 'path-browserify', 'jison', 'css-to-string-loader']
+  if (!vite && !webpack) throw Error('Pinned Mermaid source has no reviewed esbuild, Vite, or webpack public build entry')
+  for (const name of tools) {
+    const declared = manifest.devDependencies?.[name] ?? pkg.devDependencies?.[name]
+    // tslib is the declared peer of upstream @rollup/plugin-typescript; accept
+    // its installed peer binding without guessing a new manifest version.
+    if (name === 'tslib' && typeof declared !== 'string') continue
+    if (typeof declared !== 'string') throw Error('Pinned legacy Mermaid build lacks a declared tool version: ' + name)
+    dependencies[name] = declared
+  }
+  for (const [name, declared] of Object.entries(pkg.devDependencies ?? {})) if (name.startsWith('@types/') && typeof declared === 'string') dependencies[name] = declared
+  if (Object.values(dependencies).some(value => typeof value !== 'string' || value.startsWith('workspace:'))) throw Error('Legacy Mermaid source needs an additional reviewed workspace binding')
+  const rootObject = execFileSync('git', ['rev-parse', 'HEAD:package.json'], { cwd: source, encoding: 'utf8' }).trim(),
+    packageObject = execFileSync('git', ['rev-parse', `HEAD:${relative(source, join(root, 'package.json'))}`], { cwd: source, encoding: 'utf8' }).trim(),
+    prefix = join(cache, 'node-dependencies', `mermaid-legacy-${rootObject}-${packageObject}`)
+  mkdirSync(prefix, { recursive: true })
+  if (Object.keys(dependencies).some(name => !existsSync(join(prefix, 'node_modules', name, 'package.json')))) {
+    writeFileSync(join(prefix, 'package.json'), JSON.stringify({ private: true, dependencies }, null, 2))
+    await run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', prefix], prefix, env, log)
+  }
+  for (const directory of new Set([source, root])) {
+    const destination = join(directory, 'node_modules')
+    rmSync(destination, { recursive: true, force: true })
+    symlinkSync(join(prefix, 'node_modules'), destination, 'dir')
+  }
+  if (vite) {
+    const bun = executable(process.env.AM_BENCH_BUN ?? process.env.BUN_BIN ?? (process.versions.bun ? process.execPath : 'bun'))
+    await run([bun, '--version'], source, env, log)
+    await run([bun, '.vite/build.ts', '--mermaid'], source, env, log)
+  } else await run([join(prefix, 'node_modules/.bin/webpack'), '--config', '.webpack/webpack.config.babel.js', '--mode', 'production'], source, env, log)
+  return runtimeClosure(prefix, Object.keys(pkg.dependencies ?? {}), [root])
+}
+
+async function mermaidBuild(source: string, root: string, cache: string, env: NodeJS.ProcessEnv, log: string): Promise<SourceRuntimeClosure> {
+  const buildPaths = ['.build/common.ts', '.build/generateLangium.ts', '.esbuild/util.ts']
+  if (buildPaths.some(path => !existsSync(join(source, path)))) return await legacyMermaidBuild(source, root, cache, env, log)
+  const manifest = json(join(source, 'package.json')),
+    packageRoots = new Map<string, string>(),
+    dependencies: Record<string, string> = {},
+    local = new Map<string, string>()
+  for (const name of readdirSync(join(source, 'packages'))) {
+    const directory = join(source, 'packages', name)
+    if (existsSync(join(directory, 'package.json'))) packageRoots.set(json(join(directory, 'package.json')).name, directory)
+  }
+  const visit = (directory: string): void => {
+    const pkg = json(join(directory, 'package.json'))
+    if (local.has(pkg.name)) return
+    local.set(pkg.name, directory)
+    for (const [name, version] of Object.entries(pkg.dependencies ?? {})) {
+      if (typeof version !== 'string') throw Error('Pinned Mermaid runtime dependency lacks a declared version: ' + name)
+      if (version.startsWith('workspace:')) {
+        const target = packageRoots.get(name)
+        if (!target) throw Error('Pinned Mermaid workspace dependency has no exact local source: ' + name)
+        visit(target)
+      } else dependencies[name] = version
+    }
+  }
+  visit(root)
+  const parser = packageRoots.get('@mermaid-js/parser')
+  if (!parser) throw Error('Pinned Mermaid public build requires its exact local parser package')
+  visit(parser)
+  const runtimeSeeds = Object.keys(dependencies)
+  for (const name of ['esbuild', 'tsx', 'langium-cli', 'jison', 'js-yaml', 'ajv']) {
+    const version = manifest.devDependencies?.[name] ?? json(join(root, 'package.json')).devDependencies?.[name]
+    if (typeof version !== 'string') throw Error('Pinned Mermaid build lacks a declared build-tool version: ' + name)
+    dependencies[name] = version
+  }
+  for (const key of Object.keys(manifest.pnpm?.patchedDependencies ?? {})) {
+    const pin = /^(.+)@(\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?)$/.exec(key)
+    if (pin) dependencies[pin[1]!] = pin[2]!
+  }
+  const manifests = [...new Set([source, ...local.values()])].map(directory => relative(source, join(directory, 'package.json')) || 'package.json'),
+    patchPaths = Object.values(manifest.pnpm?.patchedDependencies ?? {}) as string[],
+    objects = [...manifests, ...patchPaths].map(path => execFileSync('git', ['rev-parse', `HEAD:${path}`], { cwd: source, encoding: 'utf8' }).trim()),
+    prefix = join(cache, 'node-dependencies', 'mermaid-public-build-' + objects.join('-'))
+  mkdirSync(prefix, { recursive: true })
+  if (Object.keys(dependencies).some(name => !existsSync(join(prefix, 'node_modules', name, 'package.json')))) {
+    writeFileSync(join(prefix, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies }, null, 2))
+    await run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefix', prefix], prefix, env, log)
+  }
+  // Share external registry bytes, but never mutable workspace bindings across
+  // source revisions whose unchanged manifests may describe different parsers.
+  const bindings = join(source, '..', 'runtime-node-modules')
+  mkdirSync(bindings, { recursive: true })
+  for (const entry of readdirSync(join(prefix, 'node_modules'), { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue
+    const names = entry.name.startsWith('@') ? readdirSync(join(prefix, 'node_modules', entry.name)).map(name => join(entry.name, name)) : [entry.name]
+    for (const name of names) {
+      const destination = join(bindings, name)
+      mkdirSync(join(destination, '..'), { recursive: true })
+      rmSync(destination, { recursive: true, force: true })
+      symlinkSync(join(prefix, 'node_modules', name), destination, 'dir')
+    }
+  }
+  for (const [name, directory] of local) {
+    const destination = join(bindings, name)
+    mkdirSync(join(destination, '..'), { recursive: true })
+    rmSync(destination, { recursive: true, force: true })
+    symlinkSync(directory, destination, 'dir')
+  }
+  for (const directory of [source, ...local.values()]) {
+    const destination = join(directory, 'node_modules')
+    rmSync(destination, { recursive: true, force: true })
+    symlinkSync(bindings, destination, 'dir')
+  }
+  // Preserve upstream dependency patches as part of the actual declared build.
+  for (const [key, value] of Object.entries(manifest.pnpm?.patchedDependencies ?? {})) {
+    if (typeof value !== 'string') throw Error('Pinned Mermaid dependency patch has no concrete source path')
+    const name = key.replace(/@[^/]*$/, ''),
+      patch = resolve(source, value),
+      directory = `node_modules/${name}`
+    try {
+      execFileSync('git', ['apply', '--reverse', '--check', '--unsafe-paths', `--directory=${directory}`, patch], { cwd: prefix, stdio: 'ignore' })
+    } catch {
+      await run(['git', 'apply', '--unsafe-paths', `--directory=${directory}`, patch], prefix, env, log)
+    }
+  }
+  const driver = join(prefix, 'build-public-entries.ts')
+  writeFileSync(
+    driver,
+    `import{build}from'esbuild';import{generateLangium}from${JSON.stringify(pathToFileURL(join(source, buildPaths[1]!)).href)};import{packageOptions}from${JSON.stringify(pathToFileURL(join(source, buildPaths[0]!)).href)};import{defaultOptions,getBuildConfig}from${JSON.stringify(pathToFileURL(join(source, buildPaths[2]!)).href)};await generateLangium();for(const name of ['parser','mermaid']){if(!packageOptions[name])throw Error('Upstream public build entry absent: '+name);await build(getBuildConfig({...defaultOptions,options:packageOptions[name],core:true}));}`,
+  )
+  await run([join(prefix, 'node_modules/.bin/tsx'), driver], source, env, log)
+  // Public core entries retain external dependencies. Admit their shipped bytes
+  // and the compiled exact local parser, as well as Mermaid's distribution.
+  return runtimeClosure(prefix, runtimeSeeds, [...local.values()])
 }
 
 /** Source pins are distinct population cells. Equal Git HEAD is only a cache
@@ -165,11 +343,13 @@ export async function prepareExtraCommunitySource(node: ExtraSourceNode, cacheRo
   mkdirSync(directory, { recursive: true })
   if (existsSync(manifest)) {
     const previous = json(manifest) as ExtraSourceArtifact
-    if (previous.revision === pin && previous.buildRecipeId.startsWith(`extra-source-v1:${variant}:`) && admitted(previous)) return { ...previous, detail: `${previous.detail ?? ''}; exact physical admitted artifact reused for ${node.id} at identical Git revision/build/runtime protocol` }
+    if (previous.revision === pin && previous.buildRecipeId.startsWith(`extra-source-v1:${variant}:`) && (adapter !== 'mermaid-source' || previous.buildRecipeId.endsWith(':immutable-runtime-bindings:v3')) && admitted(previous))
+      return { ...previous, detail: `${previous.detail ?? ''}; exact physical admitted artifact reused for ${node.id} at identical Git revision/build/runtime protocol` }
   }
   storageAvailable(directory)
   await checkout(node, pin, source, env, log)
   let artifact: CommunityArtifact & { sourceFiles?: GitSourceFile[] },
+    dependencyRuntime: SourceRuntimeClosure | undefined,
     buildRecipeId = `extra-source-v1:${variant}:`,
     runtimeCommandId: string,
     runtimeVersion: string
@@ -232,6 +412,9 @@ export async function prepareExtraCommunitySource(node: ExtraSourceNode, cacheRo
       output = join(binary, 'grok-markdown-mermaid')
     if (existsSync('/workspace/tooling/cargo')) env.CARGO_HOME ??= '/workspace/tooling/cargo'
     if (existsSync('/workspace/tooling/rustup')) env.RUSTUP_HOME ??= '/workspace/tooling/rustup'
+    // Bind the installed default toolchain rather than letting a source-tree
+    // rust-toolchain file download another compiler into this bounded cache.
+    env.RUSTUP_TOOLCHAIN ??= 'stable'
     runtimeVersion = version(rustc, ['--version'], env)
     env.CARGO_TARGET_DIR = target
     mkdirSync(join(scratch, 'src'), { recursive: true })
@@ -266,22 +449,17 @@ export async function prepareExtraCommunitySource(node: ExtraSourceNode, cacheRo
     const root = adapter === 'ascii-mermaid-source' ? join(source, 'ts') : adapter === 'mermaid-source' && existsSync(join(source, 'packages/mermaid/package.json')) ? join(source, 'packages/mermaid') : source
     if (!existsSync(join(root, 'package.json'))) throw Error('Pinned source lacks the reviewed public package manifest')
     runtimeVersion = version(executable(process.env.AM_BENCH_NODE ?? 'node'))
-    let module = runtimeEntry(root)
-    if (!module || !existsSync(module)) {
+    let module = runtimeEntry(root),
+      runtimeFiles: { path: string; sha256: string }[] | undefined
+    // A failed build may leave usable-looking JS before a later declaration
+    // phase fails. Only tracked distributions or completed artifact manifests
+    // may bypass the reviewed build on a fresh preparation attempt.
+    if (!module || !existsSync(module) || !trackedEntry(source, module)) {
       if (adapter === 'mermaid-source') {
-        const pkg = json(join(source, 'package.json')),
-          pnpmVersion = /^pnpm@([^+]+)/.exec(String(pkg.packageManager ?? ''))?.[1]
-        if (pnpmVersion && existsSync(join(source, '.esbuild/build.ts'))) {
-          const pnpm = ['npm', 'exec', '--yes', `--package=pnpm@${pnpmVersion}`, '--', 'pnpm']
-          await run([...pnpm, 'install', '--ignore-scripts', '--filter', 'mermaid...', '--filter', '@mermaid-js/parser...', '--store-dir', join(resolve(cacheRoot), '.extra-pnpm-store')], source, env, log)
-          if (existsSync(join(source, 'packages/parser/package.json'))) await run([...pnpm, '--filter', '@mermaid-js/parser', 'build'], source, env, log)
-          await run([...pnpm, 'exec', 'tsx', '.esbuild/build.ts', '--mermaid'], source, env, log)
-          buildRecipeId += `pinned-monorepo-public-esbuild:pnpm${pnpmVersion}`
-        } else {
-          await run(['npm', 'install', '--ignore-scripts', '--no-audit', '--no-fund'], source, env, log)
-          await run(['npm', 'run', 'build'], source, env, log)
-          buildRecipeId += 'declared-npm-build'
-        }
+        dependencyRuntime = await mermaidBuild(source, root, resolve(cacheRoot), env, log)
+        runtimeFiles = dependencyRuntime.files
+        const compiler = existsSync(join(source, '.esbuild/util.ts')) ? 'upstream-langium-and-public-core-esbuild' : existsSync(join(source, '.vite/build.ts')) ? 'upstream-vite-mermaid-flag' : 'upstream-webpack-production'
+        buildRecipeId += `bounded-declared-dependencies:${compiler}:immutable-runtime-bindings:v3`
       } else {
         await tsupBuild(root, resolve(cacheRoot), env, log)
         buildRecipeId += 'declared-tsup-config'
@@ -299,7 +477,7 @@ export async function prepareExtraCommunitySource(node: ExtraSourceNode, cacheRo
       version: String(json(join(root, 'package.json')).version ?? `git-${pin.slice(0, 12)}`),
       revision: pin,
       runtime: interpreted ? `Bun ${runtimeVersion}` : runtimeVersion,
-      ...(interpreted ? { sourceFiles: gitSourceFiles(source, pin, [relative(source, module), relative(source, join(root, 'src'))]) } : { sha256: digest(module), files: filesUnder(join(root, 'dist')) }),
+      ...(interpreted ? { sourceFiles: gitSourceFiles(source, pin, [relative(source, module), relative(source, join(root, 'src'))]) } : { sha256: digest(module), files: runtimeFiles ?? filesUnder(join(root, 'dist')) }),
       detail: 'Unmodified catalog-pinned source or its tracked public distribution; acquisition.log retains the concrete public build commands. This is a source artifact, not an npm registry release.',
     }
   }
@@ -332,19 +510,22 @@ export async function prepareExtraCommunitySource(node: ExtraSourceNode, cacheRo
     join(directory, 'protocol-admission.json'),
     JSON.stringify({ node: node.id, revision: pin, apiAdmission: adapter === 'mermaid-source' ? 'deferred-browser' : 'public-protocol', buildRecipeId, runtimeCommandId, runtimeVersion, stimulus: sourceWitness, stdout: admission.stdout, stderr: admission.stderr }, null, 2),
   )
-  const result: ExtraSourceArtifact = {
-    ...artifact,
-    sourceRevision: pin,
-    acquisitionOrigin: execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: source, encoding: 'utf8' }).trim(),
-    buildRecipeId,
-    runtimeCommandId,
-    runtimeVersion,
-    reviewed: true,
-    artifactClass: artifact.sourceFiles?.length ? 'git-interpreted-source' : 'compiled-or-shipped',
-    apiAdmission: adapter === 'mermaid-source' ? 'deferred-browser' : 'public-protocol',
-    ...(adapter === 'mermaidtext-go' || adapter === 'grok-source' ? { supportedFamilies: ['flowchart', 'state', 'class', 'er', 'sequence'], sourceFallback: 'framed-source' as const } : {}),
-    detail: `${artifact.detail ?? ''}${artifact.detail ? '; ' : ''}${adapter === 'mermaid-source' ? 'Build-byte and public browser export binding admitted; functional SVG admission remains deferred-browser.' : 'Public protocol admission completed outside clocks.'} Exact source revision ${pin}.`,
-  }
+  const dependencyPatchPaths = adapter === 'mermaid-source' ? (Object.values(json(join(source, 'package.json')).pnpm?.patchedDependencies ?? {}) as string[]) : [],
+    result: ExtraSourceArtifact = {
+      ...artifact,
+      sourceRevision: pin,
+      acquisitionOrigin: execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: source, encoding: 'utf8' }).trim(),
+      buildRecipeId,
+      runtimeCommandId,
+      runtimeVersion,
+      reviewed: true,
+      artifactClass: artifact.sourceFiles?.length ? 'git-interpreted-source' : 'compiled-or-shipped',
+      apiAdmission: adapter === 'mermaid-source' ? 'deferred-browser' : 'public-protocol',
+      ...(dependencyRuntime ? { runtimeDependencyRoots: dependencyRuntime.packageRoots, buildDependencyPrefix: dependencyRuntime.dependencyPrefix } : {}),
+      ...(dependencyPatchPaths.length ? { dependencyPatches: gitSourceFiles(source, pin, dependencyPatchPaths) } : {}),
+      ...(adapter === 'mermaidtext-go' || adapter === 'grok-source' ? { supportedFamilies: ['flowchart', 'state', 'class', 'er', 'sequence'], sourceFallback: 'framed-source' as const } : {}),
+      detail: `${artifact.detail ?? ''}${artifact.detail ? '; ' : ''}${adapter === 'mermaid-source' ? 'Build-byte and public browser export binding admitted; functional SVG admission remains deferred-browser.' : 'Public protocol admission completed outside clocks.'} Exact source revision ${pin}.`,
+    }
   writeFileSync(manifest, JSON.stringify(result, null, 2))
   // Only our isolated Cargo target above is removed. Shared stores, published
   // artifacts, sources and toolchains are never cleaned by this adapter.

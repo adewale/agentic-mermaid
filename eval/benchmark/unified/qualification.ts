@@ -1,13 +1,81 @@
 import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { isRenderedSourceEcho } from './qualification-visible-source.ts'
 export { isRenderedSourceEcho } from './qualification-visible-source.ts'
 import { decodeHTML } from 'entities'
 import type { UnifiedWorkload } from './types.ts'
 
+export const SVG_QUALIFICATION_PROTOCOL = 'svg-xml-namespace-positive-canvas-v2'
+
 export interface Qualification {
   ok: boolean
   findings: string[]
   scope: 'format-and-authored-labels' | 'format-only' | 'binary-envelope' | 'source-envelope' | 'structured-envelope'
+}
+
+interface SvgXmlTag {
+  local: string
+  uri: string
+  attributes: Record<string, { value: string }>
+}
+interface SvgXmlParser {
+  on(event: 'opentag', handler: (tag: SvgXmlTag) => void): SvgXmlParser
+  on(event: 'error', handler: (error: Error) => void): SvgXmlParser
+  write(source: string): SvgXmlParser
+  close(): SvgXmlParser
+}
+let SvgXmlParserConstructor: (new (options: { xmlns: true }) => SvgXmlParser) | undefined
+let observedSvgXmlParser: { name: string; version: string; module: string; packageJson: string } | undefined
+function svgXmlParser(): SvgXmlParser {
+  if (!SvgXmlParserConstructor) {
+    const require = createRequire(import.meta.url)
+    let module: { SaxesParser: new (options: { xmlns: true }) => SvgXmlParser }
+    try {
+      module = require('saxes')
+    } catch {
+      throw new Error('Strict SVG XML qualification requires the saxes benchmark dependency; install development dependencies before benchmarking')
+    }
+    SvgXmlParserConstructor = module.SaxesParser
+    observedSvgXmlParser = { name: 'saxes', version: String(require('saxes/package.json').version), module: require.resolve('saxes'), packageJson: require.resolve('saxes/package.json') }
+  }
+  return new SvgXmlParserConstructor({ xmlns: true })
+}
+/** Read after performance clocks; records the real resolved lightweight parser. */
+export function svgQualificationProvenance() {
+  svgXmlParser()
+  return { protocol: SVG_QUALIFICATION_PROTOCOL, nodeXmlParser: observedSvgXmlParser!, browserXmlParser: 'native DOMParser', canvasPolicy: 'SVG namespace/root and positive finite viewBox or explicit finite width/height; percentage-only dimensions need a positive viewBox' }
+}
+function explicitSvgLength(value: string | undefined): number {
+  const text = value?.trim() ?? ''
+  return /^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?:px|pt|pc|cm|mm|in|q)?$/i.test(text) ? Number.parseFloat(text) : NaN
+}
+/** Independent XML syntax/namespace/canvas admission. The light parser loads
+ * lazily here, after the caller has stopped its public API clock. */
+function svgXmlFindings(output: string): string[] {
+  const parser = svgXmlParser(),
+    errors: string[] = []
+  let root: SvgXmlTag | undefined
+  parser.on('opentag', tag => {
+    root ??= tag
+  })
+  parser.on('error', error => {
+    if (errors.length < 3) errors.push(error.message)
+  })
+  try {
+    parser.write(output).close()
+  } catch (error) {
+    errors.push(String(error))
+  }
+  if (errors.length) return ['Malformed SVG XML: ' + errors.join('; ')]
+  if (!root || root.local !== 'svg' || root.uri !== 'http://www.w3.org/2000/svg') return ['Expected an SVG root in the SVG namespace']
+  const viewBox = root.attributes.viewBox?.value
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number)
+  const width = explicitSvgLength(root.attributes.width?.value),
+    height = explicitSvgLength(root.attributes.height?.value)
+  if (!(viewBox?.length === 4 && viewBox.every(Number.isFinite) && viewBox[2]! > 0 && viewBox[3]! > 0) && !(width > 0 && Number.isFinite(width) && height > 0 && Number.isFinite(height))) return ['SVG has no positive finite viewBox or explicit canvas']
+  return []
 }
 
 const displayText = (markup: string): string =>
@@ -81,8 +149,9 @@ export function qualifyOutput(workload: UnifiedWorkload, output: unknown, format
   }
   if (typeof output !== 'string' || !output.trim()) return { ok: false, findings: ['Expected a nonempty output string'], scope: 'format-only' }
   if (format === 'svg') {
+    const xml = svgXmlFindings(output)
+    if (xml.length) return { ok: false, findings: xml, scope: 'format-only' }
     if (isRenderedSourceEcho(workload.source, output, 'svg')) findings.push('Visible output echoes Mermaid source instead of an admitted diagram')
-    if (!/^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b/i.test(output) || !/(?:<\/svg>|<svg\b[^>]*\/>)\s*$/.test(output)) findings.push('Invalid SVG root envelope')
     const missing = missingAuthoredSvgLabels(output, workload.expectedLabels)
     findings.push(...missing.map(label => `Missing authored label: ${label}`))
     return { ok: !findings.length, findings, scope: workload.expectedLabels?.length ? 'format-and-authored-labels' : 'format-only' }
