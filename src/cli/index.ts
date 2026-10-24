@@ -103,13 +103,13 @@ function replacer(_k: string, v: unknown): unknown {
   return v instanceof Map ? Object.fromEntries(v) : v
 }
 
-export function runCli(argv: string[]): number {
+export function runCli(argv: string[]): number | Promise<number> {
   const prepared = preflightCli(argv)
   return 'exitCode' in prepared ? prepared.exitCode : runPreparedCli(prepared)
 }
 
-/** Internal dispatch after the shared synchronous argument/help preflight. */
-export function runPreparedCli({ args, json }: PreparedCli): number {
+/** Argument/help preflight and ordinary commands stay synchronous; batch streams. */
+export function runPreparedCli({ args, json }: PreparedCli): number | Promise<number> {
   // Opt-in invocation logging: when AM_TRACE_LOG names a file, append one JSON
   // line per real command run. Shares the sink with the library and hosted MCP
   // (src/agent/trace-log.ts) so the agent-usage eval can grade traceOk from
@@ -143,7 +143,7 @@ export function runPreparedCli({ args, json }: PreparedCli): number {
       case 'init-agent':
         return cmdInitAgent(args, json)
       case 'batch':
-        return cmdBatch()
+        return cmdBatch().catch(e => reportCliFailure(args, json, e))
       case 'render-markdown':
         return cmdRenderMarkdown(args)
       default:
@@ -151,25 +151,28 @@ export function runPreparedCli({ args, json }: PreparedCli): number {
         return EXIT_ARG_ERROR
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    // Argument and file-shape failures are not renderer failures even when
-    // they occur under the render command.
-    const isArgError = /^needs a file argument|^File not found:/.test(msg)
-    const structured = isArgError ? undefined : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e) ? cliStructuredRenderFailure(e) : undefined
-    if (structured) {
-      if (json) process.stdout.write(JSON.stringify(structured) + '\n')
-      else process.stderr.write(`Error: ${structured.error.code}: ${structured.error.message}\n`)
-      return EXIT_ARG_ERROR
-    }
-    // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
-    // exit 2 per the documented contract. Heuristic: messages thrown from
-    // readSourceArg / arg parsing are advisory rather than internal bugs.
-    if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: isArgError ? 'ARG' : 'INTERNAL', message: msg } }) + '\n')
-    else process.stderr.write(`Error: ${msg}\n`)
-    return isArgError ? EXIT_ARG_ERROR : EXIT_INTERNAL
+    return reportCliFailure(args, json, e)
   }
 }
 
+function reportCliFailure(args: ParsedArgs, json: boolean, e: unknown): number {
+  const msg = e instanceof Error ? e.message : String(e)
+  // Argument and file-shape failures are not renderer failures even when
+  // they occur under the render command.
+  const isArgError = /^needs a file argument|^File not found:/.test(msg)
+  const structured = isArgError ? undefined : args.command === 'render' || args.command === 'preview' || isCliStructuredFailure(e) ? cliStructuredRenderFailure(e) : undefined
+  if (structured) {
+    if (json) process.stdout.write(JSON.stringify(structured) + '\n')
+    else process.stderr.write(`Error: ${structured.error.code}: ${structured.error.message}\n`)
+    return EXIT_ARG_ERROR
+  }
+  // Loop 9 M5: argument-shape errors (missing file, TTY stdin, etc.) get
+  // exit 2 per the documented contract. Heuristic: messages thrown from
+  // readSourceArg / arg parsing are advisory rather than internal bugs.
+  if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: isArgError ? 'ARG' : 'INTERNAL', message: msg } }) + '\n')
+  else process.stderr.write(`Error: ${msg}\n`)
+  return isArgError ? EXIT_ARG_ERROR : EXIT_INTERNAL
+}
 function cmdRender(args: ParsedArgs, json: boolean): number {
   const numeric = (name: ValueFlagName): number | undefined => {
     const value = flagValue(args, name)
@@ -1427,17 +1430,11 @@ export function runBatchLine(rawLine: string, lineIndex = 0): BatchOutput {
   }
 }
 
-function cmdBatch(): number {
-  const stdin = readSourceArg('-')
-  const lines = stdin.split('\n').filter(l => l.trim() !== '')
-  // Loop 9 M8: shared per-item iteration via collectBatched. Same scaffold
-  // as runWithJudge — see src/shared/batched.ts.
-  const results = collectBatched(lines, (line, i) => runBatchLine(line, i), 'BATCH_HANDLER_ERROR')
-  for (const r of results) {
-    if (r.ok) process.stdout.write(JSON.stringify(r.value) + '\n')
-    else process.stdout.write(JSON.stringify({ ok: false, error: r.error }) + '\n')
-  }
-  // Per-line errors don't abort the batch; the process always exits OK.
+async function cmdBatch(): Promise<number> {
+  if (process.stdin.isTTY) throw new Error('needs a file argument or piped stdin')
+  const { streamJsonlBatch } = await import('./jsonl.ts')
+  await streamJsonlBatch(process.stdin, process.stdout, runBatchLine)
+  // Per-line failures don't abort; input/output transport failures do.
   return EXIT_OK
 }
 

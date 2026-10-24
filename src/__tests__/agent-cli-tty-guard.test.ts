@@ -8,6 +8,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { runCli } from '../cli/index.ts'
+import { captureCliAsync } from './helpers/cli-capture.ts'
 
 describe('TTY-stdin guard', () => {
   function withTty<T>(isTTY: boolean, fn: () => T): T {
@@ -18,13 +19,17 @@ describe('TTY-stdin guard', () => {
     }
   }
 
-  function captureErr(fn: () => number): { code: number; err: string } {
+  function captureErr(fn: () => number | Promise<number>): { code: number; err: string } {
     const chunks: string[] = []
     const orig = process.stderr.write.bind(process.stderr)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(process.stderr as any).write = (s: string) => { chunks.push(s); return true }
     let code: number
-    try { code = fn() } finally { (process.stderr as any).write = orig }
+    try {
+      const result = fn()
+      if (typeof result !== 'number') throw new Error('Expected a synchronous command')
+      code = result
+    } finally { (process.stderr as any).write = orig }
     return { code, err: chunks.join('') }
   }
 
@@ -38,6 +43,13 @@ describe('TTY-stdin guard', () => {
     const r = withTty(true, () => captureErr(() => runCli(['render', '-'])))
     expect(r.code).toBe(2)
     expect(r.err).toContain('needs a file argument or piped stdin')
+  })
+
+  test('streaming batch + TTY stdin → exit 2 with hint', async () => {
+    const r = await withTty(true, () => captureCliAsync(async () => await runCli(['batch', '--jsonl'])))
+    expect(r.code).toBe(2)
+    expect(r.err).toContain('needs a file argument or piped stdin')
+    expect(r.out).toBe('')
   })
 
   test('non-TTY stdin (pipe) is consumed end-to-end', async () => {

@@ -161,7 +161,11 @@ function captureCli(argv: string[]): { code: number; out: string; err: string } 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(process.stderr as any).write = (s: unknown) => { errChunks.push(String(s)); return true }
   let code: number
-  try { code = runCli(argv) } finally {
+  try {
+    const result = runCli(argv)
+    if (typeof result !== 'number') throw new Error('Expected a synchronous command')
+    code = result
+  } finally {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(process.stdout as any).write = origOut
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

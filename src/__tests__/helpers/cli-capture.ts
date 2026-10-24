@@ -25,10 +25,12 @@ function intercept(): { result: (code: number) => CapturedCli; restore: () => vo
   }
 }
 
-export function captureCli(run: () => number): CapturedCli {
+export function captureCli(run: () => number | Promise<number>): CapturedCli {
   const capture = intercept()
   try {
-    return capture.result(run())
+    const code = run()
+    if (typeof code !== 'number') throw new Error('Use captureCliAsync for streaming commands')
+    return capture.result(code)
   } finally {
     capture.restore()
   }

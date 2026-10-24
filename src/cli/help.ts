@@ -152,8 +152,10 @@ introspect what the CLI can do without running every command.`,
   batch: `am batch [--jsonl]  (reads JSONL from stdin; --jsonl names that mode)
 Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
 options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON
-envelope per line: { ok, op, data?, error? }. Malformed JSON or unknown ops
-surface as ok:false; the batch continues and exits 0 even if lines errored.`,
+envelope per nonblank line, in order, without waiting for EOF:
+{ ok, op, data?, error? }. Malformed JSON or unknown ops surface as ok:false;
+the batch continues and exits 0 even if lines errored. Input/output failures
+exit nonzero. Slow output consumers apply backpressure.`,
   'render-markdown': `am render-markdown <file.md> [--ascii]
 Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
 not abort the rest of the Markdown file.`,
