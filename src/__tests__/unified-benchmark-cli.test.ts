@@ -20,10 +20,11 @@ describe('unified benchmark CLI preflight', () => {
     expect(() => parseOptions(['--baseline-lock', '/tmp/lock.json', '--baseline-tarball', '/tmp/base.tgz'])).toThrow('not both')
   })
   test('retains different target, installed artifact and output roots', () => {
-    const options = parseOptions(['--target', '/tmp/source candidate', '--package-root', '/tmp/installed package', '--out', '/tmp/evidence', '--profile', 'full', '--suites', 'family,invocation'])
+    const options = parseOptions(['--target', '/tmp/source candidate', '--package-root', '/tmp/installed package', '--out', '/tmp/evidence', '--ownership-site', '/tmp/frozen ownership pair', '--profile', 'full', '--suites', 'family,invocation'])
     expect(options.root).toBe(resolve('/tmp/source candidate'))
     expect(options.packageRoot).toBe(resolve('/tmp/installed package'))
     expect(options.out).toBe(resolve('/tmp/evidence'))
+    expect(options.ownershipSite).toBe(resolve('/tmp/frozen ownership pair'))
     expect(options.harnessRoot).not.toBe(options.root)
     expect(options.rounds).toBe(3)
     expect(options.selected).toEqual(['family', 'invocation'])

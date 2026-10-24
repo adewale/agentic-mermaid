@@ -30,6 +30,7 @@ export function parseOptions(argv: string[]): RunnerOptions {
     'target',
     'package-root',
     'site',
+    'ownership-site',
     'executable',
     'candidate-tarball',
     'candidate-sha256',
@@ -45,6 +46,11 @@ export function parseOptions(argv: string[]): RunnerOptions {
     'live-provider',
     'live-model',
     'community-artifacts',
+    'community-prepared',
+    'community-inputs',
+    'community-browser-prepared',
+    'community-artifact-policy',
+    'community-coverage',
   ])
   const options = new Map<string, string>()
   const seen = new Set<string>()
@@ -78,6 +84,9 @@ export function parseOptions(argv: string[]): RunnerOptions {
   }
   if (options.has('baseline') && options.has('baseline-npm')) throw new Error('Use --baseline directory or --baseline-npm selector, not both')
   if (options.has('baseline-lock') && options.has('baseline-tarball')) throw new Error('Use --baseline-lock or --baseline-tarball, not both')
+  const communityPolicy = options.get('community-artifact-policy') ?? 'latest',
+    communityCoverage = options.get('community-coverage') ?? 'once'
+  if (!['frozen', 'latest'].includes(communityPolicy) || !['once', 'repeated'].includes(communityCoverage)) throw Error('Invalid community artifact or coverage policy')
   const liveProvider = options.get('live-provider')
   if (liveProvider && !['anthropic', 'openai-compatible'].includes(liveProvider)) throw new Error('--live-provider must be anthropic or openai-compatible')
   return {
@@ -87,12 +96,13 @@ export function parseOptions(argv: string[]): RunnerOptions {
     out: path('out') ?? resolve('bench-report/unified'),
     profile,
     rounds: positive('rounds', profile === 'smoke' ? 1 : 3),
-    timeoutMs: positive('timeout-ms', 30 * 60_000),
+    timeoutMs: positive('timeout-ms', profile === 'full' ? 4 * 60 * 60_000 : 30 * 60_000),
     selected,
     list: options.has('list'),
     allowIncomplete: options.has('allow-incomplete'),
     executable: path('executable'),
     site: path('site'),
+    ownershipSite: path('ownership-site'),
     candidateTarball: path('candidate-tarball'),
     candidateSha256: options.get('candidate-sha256'),
     baseline: path('baseline'),
@@ -107,6 +117,11 @@ export function parseOptions(argv: string[]): RunnerOptions {
     liveProvider,
     liveModel: options.get('live-model'),
     communityArtifacts: path('community-artifacts'),
+    communityPreparedFile: path('community-prepared'),
+    communityInputsFile: path('community-inputs'),
+    communityBrowserPreparedFile: path('community-browser-prepared'),
+    communityArtifactPolicy: communityPolicy as 'frozen' | 'latest',
+    communityCoverageOnce: communityCoverage === 'once',
   }
 }
 function git(root: string, args: string[]): string | undefined {
@@ -211,7 +226,13 @@ async function subprocess(command: string[], cwd: string, env: NodeJS.ProcessEnv
   return { ...result, elapsedMs: performance.now() - started, tail, timedOut, launchError, cancelledSignal }
 }
 async function runInternal(id: string, options: SuiteOptions): Promise<UnifiedSuiteResult> {
-  const entry: Record<string, readonly [string, string]> = { family: ['family-suite.ts', 'runFamilySuite'], invocation: ['invocation.ts', 'runInvocationSuite'], community: ['community.ts', 'runCommunitySuite'], 'pinned-reference-score': ['reference-score.ts', 'runReferenceScoreSuite'] }
+  const entry: Record<string, readonly [string, string]> = {
+    family: ['family-suite.ts', 'runFamilySuite'],
+    invocation: ['invocation.ts', 'runInvocationSuite'],
+    community: ['community.ts', 'runCommunitySuite'],
+    'pinned-reference-score': ['reference-score.ts', 'runReferenceScoreSuite'],
+    'community-cli': ['community-cli.ts', 'runCommunityCliSuite'],
+  }
   const [file, name] = entry[id] ?? []
   if (!file || !name) throw new Error(`No internal suite ${id}`)
   const module = await import(pathToFileURL(join(options.harnessRoot, 'eval/benchmark/unified', file)).href)
@@ -364,7 +385,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }
   if (argv.includes('--help')) {
     console.log(
-      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --community-artifacts PEER_ADAPTER_MANIFEST\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
+      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --ownership-site FROZEN_ORIGINAL_CANDIDATE_DIR --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --community-artifacts PEER_ADAPTER_MANIFEST\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
     )
     return
   }

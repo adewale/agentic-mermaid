@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline'
@@ -6,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { censusDisplayText } from '../../mermaid-modern-compat/label-census.ts'
 import { admitCurrentReference, type ReferenceReply, wireLine } from '../../mermaid-modern-compat/reference.ts'
 import { type ReviewedUpstreamCase, reviewedUpstreamCases } from '../../mermaid-upstream-suite-bench/cases.ts'
+import { REFERENCE_ELIGIBILITY_PROTOCOL, REVIEWED_DIAGNOSTIC_FIXTURES, REVIEWED_REFERENCE, type ReferenceEligibility, referenceEligibilityFor } from './reference-eligibility.ts'
 import { semanticLabelValues } from './reference-portable.mjs'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 
@@ -121,6 +123,7 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
     referenceDir = process.env.MERMAID_REFERENCE_DIR ?? resolve(driver, '../mermaid-reference'),
     upstream = process.env.MERMAID_UPSTREAM_DIR ?? resolve(driver, '../mermaid'),
     observations: BenchmarkObservation[] = [],
+    diagnosticObservations: BenchmarkObservation[] = [],
     gaps: string[] = []
   mkdirSync(options.out, { recursive: true })
   let provenance
@@ -131,13 +134,58 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
   }
   const target = options.packageRoot ?? options.root
   if (!existsSync(join(target, 'dist/agent-core.js'))) return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: ['Missing actual target dist/agent-core.js'] }
+  const fixturePath = 'eval/mermaid-upstream-suite-bench/cases.json'
+  let frozenFixture: { path: string; gitBlob: string; driverRevision: string }, targetRevision: string
+  try {
+    if (provenance.commit !== REVIEWED_REFERENCE.commit || provenance.version !== REVIEWED_REFERENCE.version) throw new Error('Reviewed reference eligibility pin changed; re-review the exact upstream scope before scoring')
+    execFileSync('git', ['diff', '--quiet', 'HEAD', '--', fixturePath], { cwd: driver, stdio: 'ignore' })
+    const git = (root: string, args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+    frozenFixture = { path: fixturePath, gitBlob: git(driver, ['rev-parse', `HEAD:${fixturePath}`]), driverRevision: git(driver, ['rev-parse', 'HEAD']) }
+    targetRevision = git(options.root, ['rev-parse', 'HEAD'])
+  } catch (error) {
+    return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: [`Reference eligibility identity unavailable: ${String(error)}`] }
+  }
   const historical = JSON.parse(readFileSync(join(driver, 'eval/mermaid-upstream-suite-bench/manifest.json'), 'utf8')) as unknown
   const corpus = reviewedUpstreamCases(driver),
     firstByFamily = new Map<string, ReviewedUpstreamCase>()
   for (const input of corpus) if (!firstByFamily.has(input.family)) firstByFamily.set(input.family, input)
   const selected = options.profile === 'smoke' ? [...firstByFamily.values()] : corpus
-  const universes = new Map(selected.map(input => [input.id, criteriaFor(input)])),
-    raw: unknown[] = []
+  let assignments: Map<string, ReferenceEligibility>
+  try {
+    assignments = new Map(selected.map(input => [input.id, referenceEligibilityFor(input)]))
+  } catch (error) {
+    return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: [`Reference fixture scope requires review: ${String(error)}`] }
+  }
+  const eligible = selected.filter(input => assignments.get(input.id)!.eligible),
+    universes = new Map(eligible.map(input => [input.id, criteriaFor(input)])),
+    raw: unknown[] = [],
+    evidence = {
+      rawInputCount: selected.length,
+      eligibleInputCount: eligible.length,
+      diagnosticInputCount: selected.length - eligible.length,
+      eligibleCaseIds: eligible.map(input => input.id),
+      diagnosticCaseIds: selected.filter(input => !assignments.get(input.id)!.eligible).map(input => input.id),
+      rounds: options.rounds,
+      currentReference: provenance,
+      historicalFixtureProvenance: historical,
+      frozenFixture,
+      target: {
+        root: options.root,
+        packageRoot: target,
+        revision: targetRevision,
+        compiledArtifacts: [
+          {
+            path: join(target, 'dist/agent-core.js'),
+            sha256: createHash('sha256')
+              .update(readFileSync(join(target, 'dist/agent-core.js')))
+              .digest('hex'),
+          },
+        ],
+      },
+      reviewedEligibility: { reviewedReference: REVIEWED_REFERENCE, diagnostics: REVIEWED_DIAGNOSTIC_FIXTURES },
+      assignments: selected.map(input => ({ caseId: input.id, family: input.family, ...assignments.get(input.id)! })),
+    }
+  writeFileSync(join(options.out, 'reference-score-eligibility.json'), JSON.stringify({ protocol: REFERENCE_ELIGIBILITY_PROTOCOL, evidence }, null, 2))
   for (let round = 1; round <= options.rounds; round++) {
     const engines = round % 2 ? (['agentic', 'mermaid'] as const) : (['mermaid', 'agentic'] as const),
       replies = new Map<'agentic' | 'mermaid', Map<string, Reply>>()
@@ -161,7 +209,29 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
     for (const input of selected) {
       const reference = replies.get('mermaid')!.get(input.id)!,
         local = replies.get('agentic')!.get(input.id)!,
-        universe = universes.get(input.id)!
+        eligibility = assignments.get(input.id)!
+      if (!eligibility.eligible) {
+        for (const engine of ['agentic', 'mermaid'] as const) {
+          const reply = engine === 'agentic' ? local : reference
+          diagnosticObservations.push({
+            suite: 'pinned-reference-diagnostics',
+            surface: `${engine}:public-parser`,
+            runtime: 'Node',
+            family: input.family,
+            caseId: input.id,
+            operation: 'diagnostic-parse-attempt',
+            format: 'structured',
+            mode: eligibility.scope,
+            status: 'not-applicable',
+            ...(reply.timing ? { samplesMs: reply.timing.samplesMs } : {}),
+            metrics: { implementation: engine, round, positiveScoringEligible: false, observedParserAccepted: reply.parseOk ?? reply.ok, firstMs: reply.timing?.firstMs ?? null, scope: eligibility.scope },
+            detail: `${eligibility.reason} Actual public parser ${(reply.parseOk ?? reply.ok) ? 'accepted' : 'rejected'} this retained source; no positive score or positive portfolio cost is assigned.`,
+          })
+        }
+        raw.push({ round, caseId: input.id, family: input.family, source: input.source, eligibility, reference, local })
+        continue
+      }
+      const universe = universes.get(input.id)!
       for (const engine of ['agentic', 'mermaid'] as const) {
         const reply = engine === 'agentic' ? local : reference,
           evaluated = score(reply, engine, universe.criteria)
@@ -193,10 +263,11 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
           },
         })
       }
-      raw.push({ round, caseId: input.id, criteria: universe.criteria, unscoredCriteria: universe.unscored, reference, local })
+      raw.push({ round, caseId: input.id, family: input.family, source: input.source, eligibility, criteria: universe.criteria, unscoredCriteria: universe.unscored, reference, local })
     }
   }
   gaps.push(
+    'Reviewed diagnostic-only fixtures still execute and retain raw replies/API timings in separate artifacts. Positive scores and positive all-attempt portfolios exclude them by upstream scope fixed before either engine ran; this is a protocol correction, not a product improvement.',
     'Historical layout-count/render-error criteria remain explicitly unscored in this paired parser score. The actual target owning tests execute their layout contracts separately; no Mermaid geometry equivalence is asserted.',
     'This portable score is not the full upstream repository test suite. Current pinned independent grammar/native-operation suites and retained historical imported suites execute separately.',
     'Semantic text matches are existential field/identifier retention, not identity, multiplicity, rendered visibility or complete parser equivalence. An unmatched text cue can require projection review; raw source/replies remain available.',
@@ -204,9 +275,20 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
   )
   writeFileSync(
     join(options.out, 'reference-score-raw.json'),
-    JSON.stringify({ currentReference: provenance, historicalFixtureProvenance: historical, selectedInputs: selected.map(input => input.id), reviewedAssertionView: 'eval/mermaid-upstream-suite-bench/cases.ts; historical source JSON remains unchanged', raw }, null, 2),
+    JSON.stringify({ protocol: REFERENCE_ELIGIBILITY_PROTOCOL, evidence, currentReference: provenance, historicalFixtureProvenance: historical, selectedInputs: selected.map(input => input.id), reviewedAssertionView: 'eval/mermaid-upstream-suite-bench/cases.ts; historical source JSON remains unchanged', raw }, null, 2),
   )
-  const result: UnifiedSuiteResult = { id: 'pinned-reference-score', status: observations.some(row => row.status === 'failed') ? 'failed' : 'passed', startedAt, finishedAt: new Date().toISOString(), observations, gaps, artifacts: ['reference-score-raw.json'] }
+  writeFileSync(join(options.out, 'reference-score-diagnostics.json'), JSON.stringify({ protocol: REFERENCE_ELIGIBILITY_PROTOCOL, evidence, diagnosticObservations }, null, 2))
+  const result: UnifiedSuiteResult & { protocol: typeof REFERENCE_ELIGIBILITY_PROTOCOL; evidence: typeof evidence } = {
+    id: 'pinned-reference-score',
+    protocol: REFERENCE_ELIGIBILITY_PROTOCOL,
+    evidence,
+    status: observations.some(row => row.status === 'failed') ? 'failed' : 'passed',
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    observations,
+    gaps,
+    artifacts: ['reference-score-raw.json', 'reference-score-eligibility.json', 'reference-score-diagnostics.json'],
+  }
   writeFileSync(join(options.out, 'reference-score-result.json'), JSON.stringify(result, null, 2))
   return result
 }

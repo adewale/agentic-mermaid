@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { assertInvocationReceipt } from './invocation-receipt.ts'
+import { qualifyStyleOutput, type StyleDisplayPlan, styleDisplayTransforms } from './style-qualification.ts'
 import type { BenchmarkObservation, UnifiedWorkload } from './types.ts'
 
 interface Job {
@@ -25,6 +26,7 @@ interface Call {
   sourceOnly?: boolean
   meta?: boolean
   actions?: boolean
+  displayTransforms?: StyleDisplayPlan
 }
 const job = JSON.parse(readFileSync(process.argv[2]!, 'utf8')) as Job,
   rows: BenchmarkObservation[] = [],
@@ -60,9 +62,9 @@ function consumed(value: any, call?: Call) {
 function jsonSafe(_key: string, value: any) {
   return value instanceof Map ? [...value.entries()] : value instanceof Set ? [...value] : value
 }
-function qualify(w: UnifiedWorkload, artifact: unknown, format: string) {
+function qualify(w: UnifiedWorkload, artifact: unknown, format: string, call?: Call) {
   if (!outputQualifier) throw Error('Independent qualifier unavailable')
-  return outputQualifier(w, artifact, format).findings
+  return call?.displayTransforms ? qualifyStyleOutput(w, artifact, format, call.displayTransforms, outputQualifier).findings : outputQualifier(w, artifact, format).findings
 }
 function changedSource(source: string, n: number) {
   const title = `accTitle: Invocation metadata ${n}`
@@ -124,14 +126,22 @@ try {
       svg = entry ? await import(pathToFileURL(entry).href) : undefined,
       looks = styles.filter((d: any) => d.kind === 'look'),
       selected = job.full ? looks : looks.filter((d: any) => !d.isDefault).slice(0, 1)
-    for (const style of selected) if (svg) add(`registered-style:${style.inputName}`, 'svg', s => svg.renderMermaidSVG(s, { style: style.inputName, seed: 3 }), { sourceOnly: true })
+    for (const style of selected) if (svg) add(`registered-style:${style.inputName}`, 'svg', s => svg.renderMermaidSVG(s, { style: style.inputName, seed: 3 }), { sourceOnly: true, displayTransforms: styleDisplayTransforms([style.spec ?? api.getStyle?.(style.inputName)]) })
     const palette = styles.find((d: any) => d.kind === 'palette'),
       look = looks.find((d: any) => !d.isDefault)
-    if (svg && palette && look) add('registered-style:look-palette-stack', 'svg', s => svg.renderMermaidSVG(s, { style: [look.inputName, palette.inputName], seed: 3 }), { sourceOnly: true })
+    if (svg && palette && look)
+      add('registered-style:look-palette-stack', 'svg', s => svg.renderMermaidSVG(s, { style: [look.inputName, palette.inputName], seed: 3 }), { sourceOnly: true, displayTransforms: styleDisplayTransforms([look.spec ?? api.getStyle?.(look.inputName), palette.spec ?? api.getStyle?.(palette.inputName)]) })
   }
   let firstArtifact = true
   const runCall = async (w: UnifiedWorkload, call: Call, inputKind: 'source' | 'parsed', mode: string) => {
     const row = base(w, call.name, call.format, `${mode}:${inputKind}`)
+    if (call.displayTransforms) {
+      row.metrics = { ...row.metrics, qualificationScope: call.displayTransforms.scope, displayTransforms: call.displayTransforms.transforms.join(','), expectedDisplaySource: 'public descriptor.spec.roles; declared transforms projected before timing', roleCorrespondence: 'unmeasured; owning style tests are separate' }
+      if (call.displayTransforms.blockedReason) {
+        rows.push({ ...row, status: 'blocked', detail: call.displayTransforms.blockedReason })
+        return
+      }
+    }
     try {
       const parse = (source: string) => {
         const parsed = api.parseRegisteredMermaid(source)
@@ -142,7 +152,7 @@ try {
         start = performance.now(),
         initial = consumed(await call.run(input), call),
         initialMs = performance.now() - start,
-        findings = qualify(w, initial.artifact, call.format)
+        findings = qualify(w, initial.artifact, call.format, call)
       if (firstArtifact) {
         row.metrics = { ...row.metrics, workerStartupThroughHelperAndFirstArtifactMs: performance.now(), startupScope: 'worker uptime includes job decoding, qualifier import and adapter discovery; not a pristine package-only cold metric' }
         firstArtifact = false
@@ -164,7 +174,7 @@ try {
           let last: any
           for (let i = 0; i < iterations; i++) last = consumed(await call.run(changed?.[sample * iterations + i] ?? input), call)
           row.samplesMs.push((performance.now() - begin) / iterations)
-          findings.push(...qualify(w, last.artifact, call.format))
+          findings.push(...qualify(w, last.artifact, call.format, call))
         }
         row.metrics = { ...row.metrics, iterations, sampleKind: 'per-call means; output validation after sample', changedInputScope: changed ? 'accessibility-title metadata; structural mutation is measured by family suite' : null }
       }

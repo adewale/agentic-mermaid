@@ -129,7 +129,10 @@ async function command(command: string, args: string[], cwd: string, log: string
 function metadata(root: string, repo?: string) {
   const args = repo ? ['--repo', repo] : []
   const repository = repo ?? readJsonCommand('gh', ['repo', 'view', '--json', 'nameWithOwner'], root).nameWithOwner
-  return { repo: repository, main: readJsonCommand('gh', ['api', `repos/${repository}/commits/main`], root).sha, prs: readJsonCommand('gh', ['pr', 'list', ...args, '--state', 'open', '--limit', '1000', '--json', 'number,title,headRefOid,baseRefName,isDraft,url,updatedAt'], root) }
+  const remote = execFileSync('git', ['ls-remote', `https://github.com/${repository}.git`, 'refs/heads/main'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  const main = remote.split(/\s+/)[0]
+  if (!main || !/^[a-f0-9]{40}$/.test(main)) throw Error('Cannot resolve exact remote main revision')
+  return { repo: repository, main, prs: readJsonCommand('gh', ['pr', 'list', ...args, '--state', 'open', '--limit', '1000', '--json', 'number,title,headRefOid,baseRefName,isDraft,url,updatedAt'], root) }
 }
 function readJsonCommand(command: string, args: string[], cwd: string) {
   return JSON.parse(execFileSync(command, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))

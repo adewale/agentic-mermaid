@@ -218,7 +218,7 @@
     "bench:all": "bun run eval/benchmark/unified/run.ts --profile full",
     "bench:families": "bun run eval/benchmark/unified/run.ts --suites family,family-contracts",
     "bench:invocations": "bun run eval/benchmark/unified/run.ts --suites invocation",
-    "bench:community": "bun run eval/benchmark/unified/run.ts --suites community",
+    "bench:community": "bun run eval/benchmark/unified/run.ts --suites community,community-cli",
     "bench:pinned-mermaid": "bun run eval/benchmark/unified/run.ts --profile full --suites pinned-reference-score,pinned-semantic-tests,pinned-operation-tests,pinned-grammar-tests,pinned-semantic-corpus,pinned-grammar-corpus,upstream-imported",
     "bench:prs": "bun run eval/benchmark/unified/pr-campaign.ts",
     "bench:scorecard": "bun run eval/benchmark/unified/update-scorecard.ts",

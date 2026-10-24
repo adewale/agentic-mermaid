@@ -16,6 +16,7 @@ export interface InvocationOptions extends UnifiedRunOptions {
   packageRoot?: string
   harnessRoot?: string
   workloads?: readonly UnifiedWorkload[]
+  libraryExports?: readonly string[]
   surfaces?: readonly ('library' | 'cli' | 'mcp' | 'browser')[]
 }
 let invocationRuntime = process.versions.bun ? `bun:${process.versions.bun}` : `node:${process.versions.node}`
@@ -30,6 +31,17 @@ export function entryImport(value: unknown): string | undefined {
     return entryImport(v.import ?? v.default)
   }
   return undefined
+}
+function selectedLibraryEntries(pkg: { exports?: Record<string, unknown> }, selection?: readonly string[]) {
+  const eligible = Object.entries(pkg.exports ?? {}).filter(([name, spec]) => {
+    const path = entryImport(spec)
+    return path && !path.endsWith('.json') && !name.startsWith('./browser')
+  })
+  if (selection) {
+    const unknown = selection.filter(name => !eligible.some(([key]) => key === name))
+    if (unknown.length || selection.length === 0) throw Error(`Unknown or non-library package exports: ${unknown.join(', ') || '(empty selection)'}`)
+  }
+  return eligible.filter(([name]) => !selection || selection.includes(name))
 }
 export function decodeToolPayload(result: any): any {
   if (result?.isError) throw Error(JSON.stringify(result.content))
@@ -107,6 +119,7 @@ async function library(options: InvocationOptions, workloads: UnifiedWorkload[])
     gaps: string[] = [],
     artifacts: string[] = [],
     pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+  const eligible = selectedLibraryEntries(pkg, options.libraryExports)
   const require = createRequire(join(options.harnessRoot ?? invocationHarnessRoot, 'package.json')),
     esbuild = require('esbuild'),
     worker = join(out, 'installed-library-worker.mjs'),
@@ -119,7 +132,7 @@ async function library(options: InvocationOptions, workloads: UnifiedWorkload[])
   ]
   if (process.env.NODE22_EXECUTABLE) runtimes.push({ name: 'node22', command: process.env.NODE22_EXECUTABLE, args: ['--expose-gc'] })
   else gaps.push('Minimum supported Node22 is not configured; set NODE22_EXECUTABLE to enroll a separate real Node22 installed-artifact run. Node24 and Bun are distinct observed runtimes.')
-  for (const [name, spec] of Object.entries(pkg.exports ?? {})) {
+  for (const [name, spec] of eligible) {
     const path = entryImport(spec)
     if (!path || path.endsWith('.json') || name.startsWith('./browser')) continue
     const entry = join(root, path)
@@ -450,6 +463,7 @@ async function cli(options: InvocationOptions, workloads: UnifiedWorkload[]): Pr
 }
 export async function runInvocationSuite(options: InvocationOptions): Promise<UnifiedSuiteResult> {
   const startedAt = new Date().toISOString()
+  if (options.libraryExports) selectedLibraryEntries(JSON.parse(readFileSync(join(options.packageRoot ?? options.root, 'package.json'), 'utf8')), options.libraryExports)
   mkdirSync(options.out, { recursive: true })
   const nodeProbe = await childCommand('node', ['-p', 'process.versions.node'], { cwd: options.root })
   invocationRuntime = nodeProbe.code === 0 ? `node:${nodeProbe.stdout.toString().trim()}` : 'node:unavailable'
@@ -494,6 +508,7 @@ if (import.meta.main) {
     profile: values.get('profile') === 'full' ? 'full' : 'smoke',
     executable: values.get('executable'),
     surfaces: values.get('surfaces')?.split(',') as InvocationOptions['surfaces'],
+    libraryExports: values.get('library-exports')?.split(','),
   })
   console.log(JSON.stringify({ status: result.status, observations: result.observations.length, gaps: result.gaps }))
   if (result.status === 'failed') process.exitCode = 1

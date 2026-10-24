@@ -5,6 +5,13 @@ export interface CommunityBenchmarkConfig {
   subpath?: string
   terminalSubpath?: string
   outputs?: string[]
+  version?: string
+  versionPolicy?: string
+  sourceAdapter?: string
+  sourcePin?: string
+  entry?: string
+  runtime?: string
+  [key: string]: unknown
 }
 export interface CommunityNode {
   id: string
@@ -25,6 +32,7 @@ export interface CommunityArtifact {
   args?: string[]
   input?: 'stdin' | 'file'
   format?: string
+  outputBindings?: Record<string, { args: string[]; input?: 'stdin' | 'file' }>
   global?: string
   version: string
   revision?: string
@@ -35,6 +43,21 @@ export interface CommunityArtifact {
   wasm?: string
   files?: { path: string; sha256: string }[]
   detail?: string
+  apiBoundary?: string
+  reviewed?: boolean
+  buildRecipeId?: string
+  runtimeCommandId?: string
+  runtimeVersion?: string
+  sourceRevision?: string
+  sourceFiles?: { root: string; revision: string; gitPath: string; blob: string }[]
+  sourceProgramClass?: string
+  artifactClass?: string
+  nativeBinding?: unknown
+  dependencies?: unknown
+  apiAdmission?: string
+  acquisitionOrigin?: string
+  supportedFamilies?: readonly string[]
+  sourceFallback?: 'framed-source'
 }
 export interface PreparedCommunity {
   node: CommunityNode
@@ -51,4 +74,5 @@ export interface CommunityWorkerJob {
   minSampleMs: number
   harnessRoot: string
   packageRoot?: string
+  coverageOnce?: boolean
 }
