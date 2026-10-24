@@ -207,6 +207,17 @@ function connectorGeometryEndpoints(geometry: ConnectorGeometry, closed: boolean
   }
 }
 
+/** Geometry endpoints are fresh constructor data. Adopt them when there is no
+ * caller override; otherwise merge while copying the caller's owner/point. */
+function ownConnectorEndpoint(geometry: ConnectorEndpointAnchor | undefined, endpoint: ConnectorEndpointAnchor | undefined): ConnectorEndpointAnchor {
+  return endpoint ? {
+    ...geometry,
+    ...endpoint,
+    ...(endpoint.owner ? { owner: { ...endpoint.owner } } : {}),
+    ...(endpoint.point ? { point: { ...endpoint.point } } : {}),
+  } : geometry ?? {}
+}
+
 function numericStrokeWidth(width: string | number): number {
   const parsed = typeof width === 'number' ? width : parseFloat(width)
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 1
@@ -301,18 +312,10 @@ export function connector(fields: ConnectorFields): ConnectorMark {
       throw new TypeError(`Connector "${fields.id}" endpoints.${position}.point disagrees with typed route geometry`)
     }
   }
-  // Copy the caller's endpoint owner and point, as the terminal projection
-  // does: admission freezes a built-in Scene in place, and must not freeze an
-  // object its caller still holds.
-  const ownEndpoint = (endpoint: ConnectorEndpointAnchor | undefined) => endpoint && {
-    ...endpoint,
-    ...(endpoint.owner ? { owner: { ...endpoint.owner } } : {}),
-    ...(endpoint.point ? { point: { ...endpoint.point } } : {}),
-  }
   const endpoints: ConnectorEndpoints = {
     ...(fields.endpoints ?? {}),
-    start: { ...geometryEndpoints.start, ...ownEndpoint(fields.endpoints?.start) },
-    end: { ...geometryEndpoints.end, ...ownEndpoint(fields.endpoints?.end) },
+    start: ownConnectorEndpoint(geometryEndpoints.start, fields.endpoints?.start),
+    end: ownConnectorEndpoint(geometryEndpoints.end, fields.endpoints?.end),
   }
   const relationship: ConnectorRelationship = {
     kind: fields.relationship?.kind ?? fields.role,
@@ -449,7 +452,6 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     strokeWidth: fields.hit?.strokeWidth ?? Math.max(6, numericStrokeWidth(width)),
     pointerEvents: fields.hit?.pointerEvents ?? (fields.lineStyle === 'invisible' ? 'none' : 'stroke'),
   }
-  const markers = { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) }
   const terminalInput = {
     geometry: fields.geometry,
     lineStyle: fields.lineStyle,
@@ -457,7 +459,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     relationship,
     route,
     stroke,
-    markers: { ...markers },
+    markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
     labels,
     hit,
     ...(fields.transform ? { transform: fields.transform } : {}),
@@ -473,7 +475,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     relationship,
     route,
     stroke,
-    markers,
+    markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
     labels,
     hit,
     terminalProjection: undefined as unknown as ConnectorTerminalProjection,

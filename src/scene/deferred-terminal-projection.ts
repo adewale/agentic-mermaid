@@ -3,9 +3,10 @@
 import type { ConnectorMark } from './ir.ts'
 import { deriveConnectorTerminalProjection, type ConnectorTerminalProjectionInput } from './connector-terminal.ts'
 
-// Both variants have an own relationship: structured in constructor input,
-// textual in its derived projection. Only this module writes registry values.
-const deferred = new WeakMap<object, ConnectorTerminalProjectionInput | ConnectorMark['terminalProjection']>()
+// Pending entries are the owned input itself. Wrap only a materialized value:
+// caller edits to that public projection must not change the private state tag.
+interface MaterializedProjection { readonly projection: ConnectorMark['terminalProjection'] }
+const deferred = new WeakMap<object, ConnectorTerminalProjectionInput | MaterializedProjection>()
 let loweringDepth = 0
 
 /** Only built-in lowering enters this scope; caller-owned marks and external
@@ -15,21 +16,19 @@ export function withDeferredTerminalProjections<T>(lower: () => T): T {
   try { return lower() } finally { loweringDepth-- }
 }
 
-function projectionOf(node: object): ConnectorMark['terminalProjection'] {
-  const state = deferred.get(node)
-  if (!state) throw new TypeError('Unregistered terminal projection receiver')
-  if (typeof state.relationship === 'string') return state as ConnectorMark['terminalProjection']
-  const projection = deriveConnectorTerminalProjection(state as ConnectorTerminalProjectionInput, true)
-  deferred.set(node, projection)
-  return projection
-}
-
 // The receiver's private entry owns the captured input. Sharing accessors does
 // not authorize a copied descriptor on an unregistered object.
 const property: PropertyDescriptor = {
   enumerable: true,
   configurable: true,
-  get(this: ConnectorMark) { return projectionOf(this) },
+  get(this: ConnectorMark) {
+    // A borrowed getter has no private state and fails on the first read.
+    const state = deferred.get(this)!
+    if (Object.hasOwn(state, 'projection')) return (state as MaterializedProjection).projection
+    const projection = deriveConnectorTerminalProjection(state as ConnectorTerminalProjectionInput, true)
+    deferred.set(this, { projection })
+    return projection
+  },
   set(this: ConnectorMark, value: ConnectorMark['terminalProjection']) {
     if (Object.isFrozen(this)) throw new TypeError('Cannot assign to readonly terminalProjection')
     Object.defineProperty(this, 'terminalProjection', { value, enumerable: true, configurable: true, writable: true })
@@ -63,7 +62,7 @@ export function setConnectorTerminalProjection(node: ConnectorMark, input: Conne
 /** A getter borrowed by a forged object is not registered and is never trusted. */
 export function deferredTerminalProjectionInput(node: object): ConnectorTerminalProjectionInput | undefined {
   const state = deferred.get(node)
-  if (!state || typeof state.relationship === 'string') return undefined
+  if (!state || Object.hasOwn(state, 'projection')) return undefined
   const descriptor = Object.getOwnPropertyDescriptor(node, 'terminalProjection')
   return descriptor?.get === property.get ? state as ConnectorTerminalProjectionInput : undefined
 }
@@ -73,7 +72,7 @@ export function deferredTerminalProjectionInput(node: object): ConnectorTerminal
 export function materializeOwnTerminalProjection(node: object, key: string, descriptor: PropertyDescriptor): unknown {
   const state = deferred.get(node)
   return key === 'terminalProjection' && state && descriptor.get === property.get
-    ? projectionOf(node)
+    ? property.get!.call(node)
     : undefined
 }
 

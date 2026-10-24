@@ -171,6 +171,14 @@ describe('deferred terminal projection', () => {
     expect(node.terminalProjection).toEqual(expected)
   })
 
+  test('public projection edits do not change its materialized cache state', () => {
+    const node = withDeferredTerminalProjections(edge)
+    const projection = node.terminalProjection
+    Reflect.deleteProperty(projection, 'relationship')
+    expect(node.terminalProjection).toBe(projection)
+    expect(deferredTerminalProjectionInput(node)).toBeUndefined()
+  })
+
   test('retained snapshots apply identical resource caps to eager and deferred construction', () => {
     const limits = EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS
     const unicodeEdge = (): ConnectorMark => marks.connector({
