@@ -1,8 +1,8 @@
 import type { Point, PortSide, PositionedEdge, PositionedNode, RouteClass, RouteInvariant } from '../types.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
-import { EPS, CLEARANCE, shapePorts, invalidEndpointApproaches, isStraightenable, type Axis, axisPoint, simplifyPolyline, attachSpan, anchorMain, type LaneContext, facingSide } from './route-geometry.ts'
-import { directLaneBlockers, findLabelSlot, countRouteCrossings, sharedTrunkConflict } from './route-lanes.ts'
+import { EPS, CLEARANCE, shapePorts, invalidEndpointApproaches, isStraightenable, type Axis, axisPoint, simplifyPolyline, attachSpan, anchorMain, type LaneContext, setRoutePoints, facingSide } from './route-geometry.ts'
+import { directLaneBlockers, findLabelSlot, countRouteCrossings, routeAddsCrossings, sharedTrunkConflict } from './route-lanes.ts'
 
 /**
  * ELK's feedbackEdges routing can wrap a loop around the source's forward
@@ -170,9 +170,9 @@ export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext): bo
     const target = nodeMap.get(edge.target)
     if (invalidEndpointApproaches({ ...edge, points: normalized }, source, target) > 0) return false
     // Same rule as straightening: tightening may never increase crossings.
-    if (countRouteCrossings(normalized, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
+    if (routeAddsCrossings(normalized, edge, ctx)) return false
     const before = edge.points
-    edge.points = normalized
+    setRoutePoints(ctx, edge, normalized)
     // Re-place the label if its pill sat on a removed segment.
     if (edge.label && edge.labelPosition) {
       const lp = edge.labelPosition
@@ -196,7 +196,7 @@ export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext): bo
         if (slot) {
           edge.labelPosition = slot
         } else {
-          edge.points = before // no honest label slot on the tightened loop: keep ELK's
+          setRoutePoints(ctx, edge, before) // no honest label slot on the tightened loop: keep ELK's
           return false
         }
       }

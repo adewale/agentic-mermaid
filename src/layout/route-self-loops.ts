@@ -3,7 +3,7 @@ import type { Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode }
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { LABEL_PILL_PADDING, labelRect } from '../shared/edge-label-geometry.ts'
-import { type LaneContext, opposite } from './route-geometry.ts'
+import { type LaneContext, setRoutePoints, opposite } from './route-geometry.ts'
 export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style'>): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
@@ -160,7 +160,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
     // Clip both endpoints onto non-rectangular outlines (diamond facets,
     // circles, …) — the clip slides the endpoint along its own orthogonal
     // segment, so orthogonality is preserved.
-    edge.points = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
+    setRoutePoints(ctx, edge, clipEdgeToShape(clipEdgeToShape(points, node, true), node, false))
     if (edge.label && pill) {
       // Center the pill normally just beyond its outer segment. If a blocker
       // capped two same-side depths close together, shift the later pill only

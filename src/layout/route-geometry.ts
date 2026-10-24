@@ -1,3 +1,6 @@
+import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
+import { RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
 import type { AnyPort, DiamondFacet, Direction, MermaidGraph, Point, PortSemanticRole, PortSide, PositionedEdge, PositionedNode, RouteClass, RoutePortAssignment } from '../types.ts'
 import { isOutwardShapeApproach } from '../shape-clipping.ts'
 import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
@@ -389,6 +392,12 @@ export interface LaneContext {
   finalLabelClearance?: boolean
   /** A direct producer already reserved label bodies during placement. */
   fixedLabels?: boolean
+  /** Private frozen-geometry calls only. Exported placement contexts stay live. */
+  nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
+  /** Owner invalidation follows every route write; labels remain live. */
+  routeChannelGeometry?: RouteChannelGeometry
+  /** Only the private producer/auditor owns the route mutation boundaries. */
+  ownsRouteGeometry?: true
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -454,9 +463,83 @@ export function sideOrderCoordinate(side: PortSide, node: PositionedNode, point:
  * the exact V1 port vocabulary; this side/slot/role layer is additive and can
  * be fed into pre-layout placement without reinterpreting those exact ports.
  */
-export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] }, graph: MermaidGraph, classes: RouteClass[] = classifyRoutes(graph)): RoutePortAllocation {
+export function allocateRoutePorts(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  classes: RouteClass[] = classifyRoutes(graph),
+): RoutePortAllocation {
+  return allocateRoutePortsImpl(positioned, graph, classes, true)
+}
+
+/** Build the proof context shared by route production and final hitch auditing.
+ * Bundle-owned routes do not compete for the independent flow-side slots used
+ * by the diamond vertex policy, so both callers must remove the same endpoints
+ * from the allocator's semantic-side occupancy. */
+export function buildRouteLaneContext(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+  classes: RouteClass[],
+  isBundleOwned: (edge: PositionedEdge) => boolean,
+  finalLabelClearance = false,
+): { ctx: LaneContext; axis: Axis } {
   const axis = axisFor(graph.direction)
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const sideUse = allocateRoutePortsImpl(positioned, graph, classes, false).sideUse
+
+  for (const edge of positioned.edges) {
+    if (!isBundleOwned(edge) || edge.edgeIndex === undefined) continue
+    const routeClass = classes[edge.edgeIndex]
+    if (routeClass !== 'primary-forward' && !(routeClass === 'feedback' && !edge.label)) continue
+
+    for (const endpoint of ['source', 'target'] as const) {
+      const nodeId = endpoint === 'source' ? edge.source : edge.target
+      const { side } = roleAndSide(routeClass, endpoint, axis)
+      const key = `${nodeId}:${side}`
+      const remaining = (sideUse.get(key) ?? 0) - 1
+      if (remaining > 0) sideUse.set(key, remaining)
+      else sideUse.delete(key)
+    }
+  }
+
+  return {
+    axis,
+    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance, ownsRouteGeometry: true,
+      nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
+      routeChannelGeometry: customTextMeasurementActive() ? undefined : new RouteChannelGeometry() },
+  }
+}
+
+export function axisPoint(axis: Pick<Axis, 'main'>, main: number, cross: number): Point {
+  return axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
+}
+
+export function perpendicularAxis(axis: Axis, from: number, to: number): Axis {
+  return { main: axis.cross, cross: axis.main, sign: from < to ? 1 : -1 }
+}
+
+export function invalidateRouteGeometry(ctx: LaneContext, edge: PositionedEdge): void {
+  ctx.routeChannelGeometry?.invalidate(edge)
+}
+
+export function setRoutePoints(ctx: LaneContext, edge: PositionedEdge, points: Point[]): void {
+  invalidateRouteGeometry(ctx, edge)
+  edge.points = points
+}
+
+export function indexRouteNodes(nodes: readonly PositionedNode[]): Map<string, PositionedNode> {
+  const index = new Map<string, PositionedNode>()
+  nodes.forEach(node => index.set(node.id, node))
+  return index
+}
+
+function allocateRoutePortsImpl(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  classes: RouteClass[],
+  fullPlan: boolean,
+): RoutePortAllocation {
+  const axis = axisFor(graph.direction)
+  const nodeMap = indexRouteNodes(positioned.nodes)
   const drafts: RoutePortEndpointDraft[] = []
   const sideUse = new Map<string, number>()
   const bumpSideUse = (nodeId: string, side: PortSide) => {
@@ -477,6 +560,10 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
       const side = sideForPort(port, semanticSide)
       const competes = routeClass === 'primary-forward' || (routeClass === 'feedback' && !edge.label)
       if (competes) bumpSideUse(nodeId, semanticSide)
+      if (!fullPlan) {
+        sideOrderCoordinate(side, node, point)
+        continue
+      }
       drafts.push({
         edge,
         endpoint,
@@ -490,6 +577,8 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
     }
   }
 
+  if (!fullPlan) return { byEdge: new Map(), sideUse }
+
   const groups = new Map<string, RoutePortEndpointDraft[]>()
   for (const draft of drafts) {
     const key = `${draft.nodeId}:${draft.side}`
@@ -498,9 +587,10 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
   }
 
   const byEdge = new Map<PositionedEdge, { source?: RoutePortAssignment; target?: RoutePortAssignment }>()
-  const endpointRank = (endpoint: 'source' | 'target') => (endpoint === 'source' ? 0 : 1)
+  const endpointRank = (endpoint: 'source' | 'target') => endpoint === 'source' ? 0 : 1
   for (const group of groups.values()) {
-    group.sort((a, b) => a.coord - b.coord || a.edgeIndex - b.edgeIndex || endpointRank(a.endpoint) - endpointRank(b.endpoint))
+    group.sort((a, b) =>
+      a.coord - b.coord || a.edgeIndex - b.edgeIndex || endpointRank(a.endpoint) - endpointRank(b.endpoint))
     const slotCount = group.length
     group.forEach((draft, slotIndex) => {
       const assignment: RoutePortAssignment = {
@@ -517,41 +607,4 @@ export function allocateRoutePorts(positioned: { nodes: PositionedNode[]; edges:
   }
 
   return { byEdge, sideUse }
-}
-
-/** Build the proof context shared by route production and final hitch auditing.
- * Bundle-owned routes do not compete for the independent flow-side slots used
- * by the diamond vertex policy, so both callers must remove the same endpoints
- * from the allocator's semantic-side occupancy. */
-export function buildRouteLaneContext(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, classes: RouteClass[], isBundleOwned: (edge: PositionedEdge) => boolean, finalLabelClearance = false): { ctx: LaneContext; axis: Axis } {
-  const axis = axisFor(graph.direction)
-  const sideUse = allocateRoutePorts(positioned, graph, classes).sideUse
-
-  for (const edge of positioned.edges) {
-    if (!isBundleOwned(edge) || edge.edgeIndex === undefined) continue
-    const routeClass = classes[edge.edgeIndex]
-    if (routeClass !== 'primary-forward' && !(routeClass === 'feedback' && !edge.label)) continue
-
-    for (const endpoint of ['source', 'target'] as const) {
-      const nodeId = endpoint === 'source' ? edge.source : edge.target
-      const { side } = roleAndSide(routeClass, endpoint, axis)
-      const key = `${nodeId}:${side}`
-      const remaining = (sideUse.get(key) ?? 0) - 1
-      if (remaining > 0) sideUse.set(key, remaining)
-      else sideUse.delete(key)
-    }
-  }
-
-  return {
-    axis,
-    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance },
-  }
-}
-
-export function axisPoint(axis: Pick<Axis, 'main'>, main: number, cross: number): Point {
-  return axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
-}
-
-export function perpendicularAxis(axis: Axis, from: number, to: number): Axis {
-  return { main: axis.cross, cross: axis.main, sign: from < to ? 1 : -1 }
 }

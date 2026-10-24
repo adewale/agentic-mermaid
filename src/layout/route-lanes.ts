@@ -1,3 +1,5 @@
+import { nodeLaneIndexForQuery, nodeLaneCell } from '../shared/node-lane-index.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import type { DiamondFacet, Direction, Point, PortSide, PositionedEdge, PositionedNode, RouteBlocker } from '../types.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
@@ -26,6 +28,9 @@ import {
   attachSpan,
   anchorMain,
   type LaneContext,
+  invalidateRouteGeometry,
+  setRoutePoints,
+  indexRouteNodes,
   facingSide,
 } from './route-geometry.ts'
 
@@ -41,7 +46,7 @@ export function portPoint(node: PositionedNode, side: PortSide | DiamondFacet): 
   return shapePorts(node)[side as PortSide]
 }
 
-export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNode, isStart: boolean): void {
+export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNode, isStart: boolean, ctx: LaneContext): void {
   const boundary = shapeRoutingProfile(node).boundary
   if (boundary.kind !== 'rect' || edge.points.length < 2) return
   const idx = isStart ? 0 : edge.points.length - 1
@@ -52,6 +57,7 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
   const y1 = boundary.y + boundary.height
   const near = (a: number, b: number) => Math.abs(a - b) <= PORT_TOLERANCE
   const pushStub = (outline: Point, stub: Point) => {
+    invalidateRouteGeometry(ctx, edge)
     edge.points[idx] = outline
     if (Math.abs(outline.x - stub.x) <= EPS && Math.abs(outline.y - stub.y) <= EPS) return
     if (isStart) {
@@ -99,7 +105,7 @@ export function diamondSpreadAssignment(
   if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
     return null
   }
-  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
+  const nodeMap = indexRouteNodes(ctx.nodes)
   const siblings = ctx.edges
     .filter(candidate => candidate.source === edge.source &&
       candidate.edgeIndex !== undefined &&
@@ -208,19 +214,28 @@ function collectLaneBlockers(
 ): RouteBlocker[] | boolean {
   const blockers: RouteBlocker[] | undefined = firstOnly ? undefined : []
 
-  for (let nodeIndex = 0; nodeIndex < ctx.nodes.length; nodeIndex++) {
-    const node = ctx.nodes[nodeIndex]!
+  const indexes = ctx.nodeLaneIndexes
+  const index = nodeLaneIndexForQuery(indexes, ctx.nodes, axis.cross, CLEARANCE)
+  const cell = index ? nodeLaneCell(index, c) : null
+  const indexed = index && cell !== null
+  const from = indexed ? index.offsets[cell] ?? 0 : 0
+  const to = indexed ? index.offsets[cell + 1] ?? 0 : ctx.nodes.length
+  for (let candidate = from; candidate < to; candidate++) {
+    const node = ctx.nodes[indexed ? index.ordinals[candidate]! : candidate]!
     if (node.id === edge.source || node.id === edge.target) continue
-    const nMainLo = (axis.main === 'x' ? node.x : node.y) - CLEARANCE
-    const nMainHi = (axis.main === 'x' ? node.x : node.y) + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
     const nCrossLo = (axis.cross === 'x' ? node.x : node.y) - CLEARANCE
     const nCrossHi = (axis.cross === 'x' ? node.x : node.y) + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
-    if (c > nCrossLo && c < nCrossHi && Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
-      if (firstOnly) return true
-      blockers!.push({ kind: 'node', id: node.id })
+    if (c > nCrossLo && c < nCrossHi) {
+      const nMainLo = (axis.main === 'x' ? node.x : node.y) - CLEARANCE
+      const nMainHi = (axis.main === 'x' ? node.x : node.y) + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
+      if (Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
+        if (firstOnly) return true
+        blockers!.push({ kind: 'node', id: node.id })
+      }
     }
   }
 
+  const channels = ctx.routeChannelGeometry
   for (let edgeIndex = 0; edgeIndex < ctx.edges.length; edgeIndex++) {
     const other = ctx.edges[edgeIndex]!
     // Compare by edgeIndex as well as identity: validation proves lanes on a
@@ -245,6 +260,7 @@ function collectLaneBlockers(
     // fine. Exception: two edges into the SAME target may converge exactly
     // collinearly at the shared target port — the classic flowchart fan-in
     // merge, where the final approaches draw as one line into one arrowhead.
+    if (channels && !channels.mayBlock(other, axis.cross, c, mainLo, mainHi, CLEARANCE, EPS)) continue
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
       if (Math.abs((axis.cross === 'x' ? a.x : a.y) - (axis.cross === 'x' ? b.x : b.y)) > EPS) continue
@@ -338,7 +354,7 @@ export function findLabelSlot(edge: PositionedEdge, start: Point, end: Point, ct
 }
 
 /** Use the same visible proper crossings for proposals and final scoring. */
-export function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): number {
+export function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext, stopAfter = Infinity): number {
   if (edge.style === 'invisible') return 0
   let count = 0
   for (const other of ctx.edges) {
@@ -346,6 +362,9 @@ export function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: 
     // The exact pair query includes the allocation-free broad phase; do not
     // traverse both routes once to reject, then again to count crossings.
     count += countPointPairCrossings(points, other.points)
+    // Pair counts are already deduplicated and nonnegative. Once the total
+    // exceeds the allowed count, later peers cannot change the rejection.
+    if (count > stopAfter) return count
   }
   return count
 }
@@ -422,6 +441,8 @@ export interface LaneSearch {
   candidates: number[]
   isPortLane: (c: number) => boolean
   emptyRelaxed: boolean
+  /** This search ends before accepting a mutation; peer routes stay fixed. */
+  priorCrossings?: number
 }
 
 export function laneSearch(edge: PositionedEdge, source: PositionedNode, target: PositionedNode, ctx: LaneContext, axis: Axis, restrictToLane?: number): LaneSearch | null {
@@ -551,7 +572,11 @@ export function proveLane(
   // A repair may never increase edge crossings: a perpendicular crossing is
   // legal when the router chose it, but the straightener must not create
   // one that the original route avoided.
-  if (countRouteCrossings([start, end], edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) {
+  const priorCrossings = ctx.ownsRouteGeometry && !customTextMeasurementActive()
+    ? search.priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
+    : countRouteCrossings(edge.points, edge, ctx)
+  const nextCrossings = countRouteCrossings([start, end], edge, ctx, priorCrossings)
+  if (nextCrossings > priorCrossings) {
     return { blockers: [{ kind: 'crossing', id: edgeId(edge) }] }
   }
   const slot = findLabelSlot(edge, start, end, ctx)
@@ -559,7 +584,14 @@ export function proveLane(
   return { start, end, slot }
 }
 
-export function tryStraighten(edge: PositionedEdge, source: PositionedNode, target: PositionedNode, ctx: LaneContext, axis: Axis = ctx.axis, restrictToLane?: number): StraightenAttempt {
+export function tryStraighten(
+  edge: PositionedEdge,
+  source: PositionedNode,
+  target: PositionedNode,
+  ctx: LaneContext,
+  axis: Axis = ctx.axis,
+  restrictToLane?: number,
+): StraightenAttempt {
   const search = laneSearch(edge, source, target, ctx, axis, restrictToLane)
   if (!search) return { applied: false, blockers: [] }
   if (search.emptyRelaxed) return { applied: false, blockers: [{ kind: 'span', id: edgeId(edge) }] }
@@ -579,7 +611,8 @@ export function tryStraighten(edge: PositionedEdge, source: PositionedNode, targ
       const losesContacts = nextContacts < priorContacts
       const reducesOpposingInk = () => {
         const others = ctx.edges.filter(other => other !== edge)
-        return countOpposingRouteOverlaps([{ ...edge, points: [proven.start, proven.end] }, ...others]) < countOpposingRouteOverlaps([{ ...edge, points: current }, ...others])
+        return countOpposingRouteOverlaps([{ ...edge, points: [proven.start, proven.end] }, ...others]) <
+          countOpposingRouteOverlaps([{ ...edge, points: current }, ...others])
       }
       if (losesContacts && countRouteCrossings([proven.start, proven.end], edge, ctx) >= countRouteCrossings(current, edge, ctx) && !reducesOpposingInk()) {
         const lane = current[0]![axis.cross]
@@ -588,14 +621,14 @@ export function tryStraighten(edge: PositionedEdge, source: PositionedNode, targ
         // replacing a canonical contact solely to satisfy that inset.
         const priorProof = proveLane(edge, source, target, lane, ctx, axis, {
           ...search,
-          overlapLo: Math.min(search.overlapLo, lane),
-          overlapHi: Math.max(search.overlapHi, lane),
-          relaxedLo: Math.min(search.relaxedLo, lane),
-          relaxedHi: Math.max(search.relaxedHi, lane),
+          overlapLo: Math.min(search.overlapLo, lane), overlapHi: Math.max(search.overlapHi, lane),
+          relaxedLo: Math.min(search.relaxedLo, lane), relaxedHi: Math.max(search.relaxedHi, lane),
         })
         // Symmetric reciprocal spacing cannot outrank already-clear canonical
         // contacts. Retain the current lane only when it independently proves.
-        if (!('blockers' in priorProof) && Math.hypot(priorProof.start.x - current[0]!.x, priorProof.start.y - current[0]!.y) <= EPS && Math.hypot(priorProof.end.x - current[1]!.x, priorProof.end.y - current[1]!.y) <= EPS) {
+        if (!('blockers' in priorProof) &&
+          Math.hypot(priorProof.start.x - current[0]!.x, priorProof.start.y - current[0]!.y) <= EPS &&
+          Math.hypot(priorProof.end.x - current[1]!.x, priorProof.end.y - current[1]!.y) <= EPS) {
           if (edge.label) edge.labelPosition = priorProof.slot ?? undefined
           return { applied: true, blockers: [] }
         }
@@ -606,7 +639,7 @@ export function tryStraighten(edge: PositionedEdge, source: PositionedNode, targ
         continue
       }
     }
-    edge.points = [proven.start, proven.end]
+    setRoutePoints(ctx, edge, [proven.start, proven.end])
     if (edge.label) edge.labelPosition = proven.slot ?? undefined
     return { applied: true, blockers: [], usedCandidateIndex: candidateIndex }
   }
@@ -687,4 +720,9 @@ export function sharedTrunkConflict(edge: PositionedEdge, edges: PositionedEdge[
     }
   }
   return null
+}
+
+export function routeAddsCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): boolean {
+  const prior = countRouteCrossings(edge.points, edge, ctx)
+  return countRouteCrossings(points, edge, ctx, prior) > prior
 }
