@@ -12,11 +12,12 @@ jobs:
       contents: read
       actions: write
     steps:
-      - name: Retain and cancel invalidated warmup-source campaign
+      - name: Dispatch repaired exact-head performance campaign
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          state="$(gh api repos/adewale/agentic-mermaid/actions/runs/40129917354 --jq .status)"
-          if [ "$state" != completed ]; then
-            gh api --method POST repos/adewale/agentic-mermaid/actions/runs/40129917354/cancel
-          fi
+          head="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/cold-peer-calibration --jq .object.sha)"
+          test "$head" = 3f4f8e7fcdba795c0012c106e4b4a842b0563921
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/cold-peer-calibration","inputs":{"evidence-scope":"all","baseline-ref":"094257545d5ccd33406965c428a5094f7cec78a9","fixed-baseline-sha":"a9d1551da27ddab542a1ae96329464ad65725448"}}
+          JSON
