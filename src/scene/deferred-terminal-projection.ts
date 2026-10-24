@@ -3,12 +3,9 @@
 import type { ConnectorMark } from './ir.ts'
 import { deriveConnectorTerminalProjection, type ConnectorTerminalProjectionInput } from './connector-terminal.ts'
 
-interface DeferredProjection {
-  readonly input: ConnectorTerminalProjectionInput
-  projection: ConnectorMark['terminalProjection'] | undefined
-}
-
-const deferred = new WeakMap<object, DeferredProjection>()
+// Both variants have an own relationship: structured in constructor input,
+// textual in its derived projection. Only this module writes registry values.
+const deferred = new WeakMap<object, ConnectorTerminalProjectionInput | ConnectorMark['terminalProjection']>()
 let loweringDepth = 0
 
 /** Only built-in lowering enters this scope; caller-owned marks and external
@@ -21,7 +18,10 @@ export function withDeferredTerminalProjections<T>(lower: () => T): T {
 function projectionOf(node: object): ConnectorMark['terminalProjection'] {
   const state = deferred.get(node)
   if (!state) throw new TypeError('Unregistered terminal projection receiver')
-  return state.projection ??= deriveConnectorTerminalProjection(state.input, true)
+  if (typeof state.relationship === 'string') return state as ConnectorMark['terminalProjection']
+  const projection = deriveConnectorTerminalProjection(state as ConnectorTerminalProjectionInput, true)
+  deferred.set(node, projection)
+  return projection
 }
 
 // The receiver's private entry owns the captured input. Sharing accessors does
@@ -38,7 +38,7 @@ const property: PropertyDescriptor = {
 }
 
 function install(node: ConnectorMark, input: ConnectorTerminalProjectionInput): void {
-  deferred.set(node, { input, projection: undefined })
+  deferred.set(node, input)
   Object.defineProperty(node, 'terminalProjection', property)
 }
 
@@ -55,7 +55,7 @@ export function setConnectorTerminalProjection(node: ConnectorMark, input: Conne
     return
   }
   if (input.additionalDiagnostics) Object.defineProperty(input, 'additionalDiagnostics', {
-    value: Object.freeze([...input.additionalDiagnostics]), enumerable: true, configurable: true, writable: true,
+    value: Object.freeze([...input.additionalDiagnostics]),
   })
   install(node, Object.freeze(input))
 }
@@ -63,9 +63,9 @@ export function setConnectorTerminalProjection(node: ConnectorMark, input: Conne
 /** A getter borrowed by a forged object is not registered and is never trusted. */
 export function deferredTerminalProjectionInput(node: object): ConnectorTerminalProjectionInput | undefined {
   const state = deferred.get(node)
-  if (!state || state.projection !== undefined) return undefined
+  if (!state || typeof state.relationship === 'string') return undefined
   const descriptor = Object.getOwnPropertyDescriptor(node, 'terminalProjection')
-  return descriptor?.get === property.get ? state.input : undefined
+  return descriptor?.get === property.get ? state as ConnectorTerminalProjectionInput : undefined
 }
 
 /** Snapshot only our registered getter. External caller accessors still fail

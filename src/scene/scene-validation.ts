@@ -741,7 +741,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     return
   }
   const kind = value.kind
-  for (const reference of localPaintResourceReferences(value, path)) state.paintReferences.push(reference)
+  localPaintResourceReferences(value, path, state.paintReferences)
   if (!['shape', 'connector', 'text', 'group', 'document'].includes(kind)) {
     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.kind`, `unknown Scene node kind "${kind}"`)
     return
@@ -1446,16 +1446,16 @@ function boundedExternalSvg(
   return chunks.join('\n')
 }
 
-function localPaintResourceReferences(node: unknown, path: string): Array<{ id: string; path: string }> {
-  if (!record(node)) return []
-  const references: Array<{ id: string; path: string }> = []
-  const inspectPaint = (paint: unknown, paintPath: string): void => {
-    if (!record(paint)) return
-    for (const key of ['fill', 'stroke'] as const) {
-      const id = localPaintResourceId(paint[key])
-      if (id) references.push({ id, path: `${paintPath}.${key}` })
-    }
+function collectPaintResourceReferences(paint: unknown, path: string, references: Array<{ id: string; path: string }>): void {
+  if (!record(paint)) return
+  for (const key of ['fill', 'stroke'] as const) {
+    const id = localPaintResourceId(paint[key])
+    if (id) references.push({ id, path: `${path}.${key}` })
   }
+}
+
+function localPaintResourceReferences(node: unknown, path: string, references: Array<{ id: string; path: string }>): void {
+  if (!record(node)) return
   if (node.kind === 'connector') {
     if (record(node.stroke)) {
       const id = localPaintResourceId(node.stroke.color)
@@ -1464,13 +1464,12 @@ function localPaintResourceReferences(node: unknown, path: string): Array<{ id: 
     if (Array.isArray(node.labels)) {
       for (let index = 0; index < Math.min(node.labels.length, MAX_SCENE_NODES); index++) {
         const label = node.labels[index]
-        if (record(label)) inspectPaint(label.paint, `${path}.labels[${index}].paint`)
+        if (record(label)) collectPaintResourceReferences(label.paint, `${path}.labels[${index}].paint`, references)
       }
     }
   } else {
-    inspectPaint(node.paint, `${path}.paint`)
+    collectPaintResourceReferences(node.paint, `${path}.paint`, references)
   }
-  return references
 }
 
 /** The rule set `validateSceneDoc` applies to a document under `options`. */

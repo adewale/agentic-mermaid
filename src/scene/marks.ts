@@ -449,6 +449,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     strokeWidth: fields.hit?.strokeWidth ?? Math.max(6, numericStrokeWidth(width)),
     pointerEvents: fields.hit?.pointerEvents ?? (fields.lineStyle === 'invisible' ? 'none' : 'stroke'),
   }
+  const markers = { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) }
   const terminalInput = {
     geometry: fields.geometry,
     lineStyle: fields.lineStyle,
@@ -456,7 +457,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     relationship,
     route,
     stroke,
-    markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
+    markers: { ...markers },
     labels,
     hit,
     ...(fields.transform ? { transform: fields.transform } : {}),
@@ -472,7 +473,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     relationship,
     route,
     stroke,
-    markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
+    markers,
     labels,
     hit,
     terminalProjection: undefined as unknown as ConnectorTerminalProjection,
