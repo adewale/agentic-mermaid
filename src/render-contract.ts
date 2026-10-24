@@ -1057,6 +1057,7 @@ interface FamilyDataNormalizationBudget {
  * snapshot, so a buggy extension cannot trigger an unbounded stack walk first. */
 function omitUndefinedObjectFields(
   value: unknown,
+  snapshot = false,
   path = '$',
   depth = 0,
   ancestors = new Set<object>(),
@@ -1077,11 +1078,14 @@ function omitUndefinedObjectFields(
     ancestors.add(value)
     try {
       const result: unknown[] = []
+      let reusable = snapshot
       for (let index = 0; index < value.length; index++) {
         if (!Object.prototype.hasOwnProperty.call(value, index)) throw new TypeError(`data must not contain a sparse array at ${path}[${index}]`)
-        result.push(omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget))
+        const child = omitUndefinedObjectFields(value[index], snapshot, `${path}[${index}]`, depth + 1, ancestors, budget)
+        if (child !== null && typeof child === 'object' && !IMMUTABLE_SNAPSHOTS.has(child)) reusable = false
+        result.push(child)
       }
-      return result
+      return snapshot ? freezeSnapshot(result, reusable) : result
     } finally {
       ancestors.delete(value)
     }
@@ -1094,13 +1098,19 @@ function omitUndefinedObjectFields(
     // Using `{}` here can either mutate the clone's prototype or silently
     // discard a `__proto__: null` field before the admission validator names
     // and rejects it.
-    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>
+    const result: Record<string, unknown> = snapshot ? {} : Object.create(null) as Record<string, unknown>
+    let reusable = snapshot
     for (const [key, child] of Object.entries(value)) {
       budget.chars += key.length
       if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
-      if (child !== undefined) result[key] = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
+      if (child !== undefined) {
+        const captured = omitUndefinedObjectFields(child, snapshot, `${path}.${key}`, depth + 1, ancestors, budget)
+        if (captured !== null && typeof captured === 'object' && !IMMUTABLE_SNAPSHOTS.has(captured)) reusable = false
+        if (snapshot && key === '__proto__') Object.defineProperty(result, key, { value: captured, enumerable: true })
+        else result[key] = captured
+      }
     }
-    return result
+    return snapshot ? freezeSnapshot(result, reusable) : result
   } finally {
     ancestors.delete(value)
   }
@@ -1282,6 +1292,11 @@ export function canonicalTextDigest(text: string): string {
  */
 const IMMUTABLE_SNAPSHOTS = new WeakSet<object>()
 
+function freezeSnapshot<T extends object>(value: T, reusable = true): T {
+  if (reusable) IMMUTABLE_SNAPSHOTS.add(value)
+  return Object.freeze(value)
+}
+
 function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(), copies = new WeakMap<object, object>()): T {
   if (value === null || typeof value !== 'object') return value
   // Object.isFrozen is insufficient: an externally frozen object may retain
@@ -1316,8 +1331,7 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
   }
   ancestors.delete(value)
   copies.set(value, clone as object)
-  IMMUTABLE_SNAPSHOTS.add(clone as object)
-  return Object.freeze(clone) as T
+  return freezeSnapshot(clone as object) as T
 }
 
 /** Materialize a caller-owned JSON-like graph once under the same finite
@@ -1326,7 +1340,11 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
  * graph and cloning it later would permit a different value at execution. */
 function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
   try {
-    return immutableSnapshot(omitUndefinedObjectFields(value) as T)
+    const captured = omitUndefinedObjectFields(value, true) as T
+    // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
+    // it, after the complete budget/accessor pass has kept its error order.
+    return captured !== null && typeof captured === 'object' && !IMMUTABLE_SNAPSHOTS.has(captured)
+      ? immutableSnapshot(captured) : captured
   } catch (error) {
     throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
   }
