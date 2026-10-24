@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { resolve } from 'node:path'
 import { parseOptions, testCounts } from '../../eval/benchmark/unified/run.ts'
+import { benchmarkSuites } from '../../eval/benchmark/unified/suites.ts'
 
 describe('unified benchmark CLI preflight', () => {
   test('sums independent owning-process summaries while retaining ordinary single summaries', () => {
@@ -35,6 +36,14 @@ describe('unified benchmark CLI preflight', () => {
     const options = parseOptions(['--candidate-tarball', '/tmp/package.tgz', '--candidate-sha256', 'a'.repeat(64)])
     expect(options.candidateTarball).toBe('/tmp/package.tgz')
     expect(options.candidateSha256).toBe('a'.repeat(64))
+  })
+  test('Dave measures the supplied artifact without rebuilding the driver checkout', () => {
+    const options = parseOptions(['--candidate-tarball', '/tmp/candidate.tgz', '--candidate-sha256', 'a'.repeat(64)])
+    const dave = benchmarkSuites(options).find(suite => suite.id === 'dave')!
+    expect(dave.command?.slice(0, 3)).toEqual(['bun', 'run', 'eval/benchmark/release-browser-bench.ts'])
+    expect(dave.command).toContain('/tmp/candidate.tgz')
+    expect(dave.command).toContain('a'.repeat(64))
+    expect(dave.command?.slice(dave.command.indexOf('--warmup'), dave.command.indexOf('--warmup') + 2)).toEqual(['--warmup', '30'])
   })
 })
 

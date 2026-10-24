@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createWriteStream, existsSync, mkdirSync, readFileSync, statfsSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 export interface CommunitySourceNode {
@@ -62,31 +62,67 @@ export function reviewedCommunitySourcePresentation(node: CommunitySourceNode): 
   return { args: [...adapter.args], input: 'stdin', format: adapter.format, defaults: adapter.defaults }
 }
 
-function run(command: readonly string[], cwd: string, env: NodeJS.ProcessEnv, log: string, timeoutMs = 20 * 60_000): Promise<void> {
+export interface CommunityAcquisitionResources {
+  minFreeBytes?: number
+}
+function run(command: readonly string[], cwd: string, env: NodeJS.ProcessEnv, log: string, timeoutMs = 20 * 60_000, resources: CommunityAcquisitionResources = {}): Promise<void> {
   return new Promise((resolveRun, reject) => {
+    const available = (): number => {
+      const space = statfsSync(cwd)
+      return space.bavail * space.bsize
+    }
+    if (resources.minFreeBytes && available() < resources.minFreeBytes) {
+      reject(new Error(`Resource guard: acquisition requires ${resources.minFreeBytes} free bytes before spawning ${command[0]}`))
+      return
+    }
     const file = createWriteStream(log, { flags: 'a' })
     file.write(`\n$ ${command.join(' ')}\n`)
-    const child = spawn(command[0]!, command.slice(1), { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
-    let tail = ''
+    const group = process.platform !== 'win32',
+      child = spawn(command[0]!, command.slice(1), { cwd, env, detached: group, stdio: ['ignore', 'pipe', 'pipe'] })
+    let tail = '',
+      aborted: string | undefined
+    const kill = (signal: NodeJS.Signals): void => {
+      try {
+        if (group && child.pid) process.kill(-child.pid, signal)
+        else child.kill(signal)
+      } catch {}
+    }
+    const abort = (reason: string): void => {
+      if (aborted) return
+      aborted = reason
+      file.write(`\n${reason}\n`)
+      kill('SIGTERM')
+      setTimeout(() => kill('SIGKILL'), 250).unref()
+    }
     const append = (chunk: Buffer): void => {
       file.write(chunk)
       tail = (tail + String(chunk)).slice(-6000)
     }
     child.stdout.on('data', append)
     child.stderr.on('data', append)
-    const timer = setTimeout(() => {
-      child.kill('SIGTERM')
-      setTimeout(() => child.kill('SIGKILL'), 1000).unref()
-    }, timeoutMs)
+    const timer = setTimeout(() => abort(`Acquisition timeout after ${timeoutMs} ms`), timeoutMs),
+      storage = resources.minFreeBytes
+        ? setInterval(() => {
+            try {
+              const bytes = available()
+              if (bytes < resources.minFreeBytes!) abort(`Resource guard: available storage ${bytes} bytes fell below ${resources.minFreeBytes} bytes during ${command[0]}`)
+            } catch (error) {
+              abort(`Resource guard could not inspect acquisition storage: ${String(error)}`)
+            }
+          }, 500)
+        : undefined
     child.on('error', error => {
       clearTimeout(timer)
+      if (storage) clearInterval(storage)
       file.end()
       reject(error)
     })
     child.on('close', (code, signal) => {
       clearTimeout(timer)
+      if (storage) clearInterval(storage)
       file.end()
-      if (code === 0) resolveRun()
+      if (code === 0 && !aborted) resolveRun()
+      else if (aborted) reject(new Error(`${aborted}; ${log}\n${tail}`))
       else reject(new Error(`${command[0]} failed (${code ?? signal}); ${log}\n${tail}`))
     })
   })

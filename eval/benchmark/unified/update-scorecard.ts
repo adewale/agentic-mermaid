@@ -30,16 +30,24 @@ export interface ScorecardSelection {
   communityRun?: string
   invocationCorrection?: string
   referenceCorrection?: string
+  allowCommunityTargetChange?: boolean
+  currentRun?: string
 }
 function args() {
   const m = new Map<string, string>()
-  for (let i = 2; i < process.argv.length; i += 2) {
-    const k = process.argv[i]!,
-      v = process.argv[i + 1]
-    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction'].includes(k) || !v) throw Error('Use --run DIRECTORY [--prs DIRECTORY] [--output FILE] [--community-run DIRECTORY] [--invocation-correction FILE] [--reference-correction FILE]')
+  for (let i = 2; i < process.argv.length; i++) {
+    const k = process.argv[i]!
+    if (k === '--allow-community-target-change') {
+      m.set(k, 'true')
+      continue
+    }
+    const v = process.argv[++i]
+    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run'].includes(k) || !v)
+      throw Error('Use --run DIRECTORY [--prs DIRECTORY] [--output FILE] [--community-run DIRECTORY] [--invocation-correction FILE] [--reference-correction FILE] [--current-run DIRECTORY]')
     m.set(k, resolve(v))
   }
   if (!m.has('--run')) throw Error('--run is required')
+  if (m.has('--allow-community-target-change') && !m.has('--community-run')) throw Error('--allow-community-target-change requires --community-run')
   return m
 }
 function find(root: string, name: string): string | undefined {
@@ -48,11 +56,13 @@ function find(root: string, name: string): string | undefined {
 }
 export function updateCommunityScorecard(run: string, output: string, prs?: string, selection: ScorecardSelection = {}): void {
   const validationArgs = [join(import.meta.dir, 'charts.py'), '--run', run, '--validate-only']
+  if (selection.allowCommunityTargetChange) validationArgs.push('--allow-community-target-change')
   for (const [flag, value] of [
     ['--prs', prs],
     ['--community-run', selection.communityRun],
     ['--invocation-correction', selection.invocationCorrection],
     ['--reference-correction', selection.referenceCorrection],
+    ['--current-run', selection.currentRun],
   ])
     if (value) validationArgs.push(flag!, value)
   const admission = JSON.parse(execFileSync(process.env.PYTHON_BINARY ?? 'python3', validationArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024 }))
@@ -94,7 +104,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     'This is a maintained snapshot requested by the project owner. Refresh it with:',
     '',
     '```sh',
-    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}`,
+    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.allowCommunityTargetChange ? ' --allow-community-target-change' : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}${selection.currentRun ? ` --current-run ${selection.currentRun}` : ''}`,
     '```',
     '',
     `The JSON community catalog enrolls **${scores.catalogNodes} nodes**, with **${scores.comparatorNodes} configured candidates**. Configuration is not a working-API claim. Actual acquisition, unsupported operations, host failures and source-evidence aliases remain visible; none become passing renderer results by enrollment alone.`,
@@ -104,7 +114,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     '- Every API/CLI/browser boundary has its own rank; there is no invented weighted overall winner.',
     '- SVG/PNG/parser core: six identical inputs across five families. Terminal core: three identical inputs across two families.',
     '- Every required input must qualify in every round. Rejected, missing-label, unsupported and blocked results are retained; none become zero-cost wins.',
-    '- API validation, assertions and encoding are outside plain API clocks. Fully consumed receipts and transport/CLI costs are distinct invocation benchmarks.',
+    '- Harness validation/assertions and transport are outside plain API clocks; engine-owned layout, serialization and encoding remain included when part of the public operation. Fully consumed receipts and transport/CLI costs are distinct invocation benchmarks.',
     '- Feature-corpus attempts, family-balanced coverage, and pinned-Mermaid same-case scores accompany speed; existential text presence is not complete semantic/visual fidelity.',
     '',
     '## Stack ranks',
@@ -121,6 +131,13 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
         `**${kind}:** ${escape(evidence.qualificationChange ?? evidence.protocolChange ?? 'Reviewed positive-eligibility protocol repair; diagnostic inputs remain retained separately.')} Evidence: ${escape(evidence.explicitCorrectionFile ?? evidence.directory)}; completed ${escape(evidence.finishedAt ?? evidence.correctedFinishedAt ?? evidence.correction?.finishedAt)}. Original ledger remains unchanged; this is not a product improvement or a new full run.`,
         '',
       )
+  }
+  if (admission.communityReplay?.targetAdvance) {
+    const advance = admission.communityReplay.targetAdvance
+    lines.push(
+      `**Community-only target advance:** \`${escape(advance.from.revision)}\` → \`${escape(advance.to.revision)}\`, measured ${escape(admission.communityReplay.startedAt)} → ${escape(admission.communityReplay.finishedAt)}. New actual target tarball SHA256: \`${escape(advance.to.candidateSha256)}\`. Every original invocation, pinned-reference correction and owning suite keeps its separately recorded older target. The expanded population/protocol and changed product prevent attributing the difference to a single optimization.`,
+      '',
+    )
   }
   const groups = new Map<string, Rank[]>()
   for (const rank of scores.ranks) {
@@ -356,19 +373,22 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
         browserBundleGzipBytes?: number
         coverage?: { suite: string; profile?: string; rounds?: number; status: string; resultPath: string }[]
         metrics: Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }>
+        metricsByCache?: Record<string, Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }>>
       }>
     }
     lines.push(
       `Frozen ${escape(pr.frozenAt)} against main \`${escape(pr.main)}\`. Rows use the same six-case fully consumed artifact protocol; community plain-API timings above are a different boundary.`,
       '',
-      '| Candidate | Frozen head | State | SVG paired ratio | SVG receipt paired ratio | Unicode receipt paired ratio | Verified edit paired ratio | npm tarball, KiB | Shipped browser gzip, KiB |',
-      '|---|---|---|---:|---:|---:|---:|---:|---:|',
+      'The result-cache flag is explicit: **0 = result reuse off**, **1 = result reuse enabled**; other artifact/cache defaults remain unchanged. Flag 0 is not a cold process, cold OS cache or fully uncached renderer. Receipt/edit columns use flag 1.',
+      '',
+      '| Candidate | Frozen head | State | SVG ratio: reuse off (0) | SVG ratio: reuse enabled (1) | SVG receipt ratio (1) | Unicode receipt ratio (1) | Verified edit ratio (1) | npm tarball, KiB | Shipped browser gzip, KiB |',
+      '|---|---|---|---:|---:|---:|---:|---:|---:|---:|',
     )
     const ratio = (m: { pairedRatio?: number; classification?: string } | undefined) => (typeof m?.pairedRatio !== 'number' || !Number.isFinite(m.pairedRatio) ? 'N/A' : number(m.pairedRatio, 3) + '×' + (m.classification?.includes('variation') ? ' (tie)' : ''))
     for (const r of [...(pr.ranks ?? [])].sort((a, b) => (a.metrics.svg?.pairedRatio ?? Infinity) - (b.metrics.svg?.pairedRatio ?? Infinity))) {
       const exploratory = ['conflicting-head', 'branch-base'].includes(r.integration)
       lines.push(
-        `| ${escape(r.label ?? r.id)} | \`${escape(r.head?.slice(0, 12))}\` | ${escape(r.integration)}${r.draft ? ' · draft' : ''}${r.sourceEvidence && r.sourceEvidence !== r.id ? ' · evidence ' + escape(r.sourceEvidence) : ''} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svgReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.unicodeReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.agent)} | ${r.packageGzipBytes ? number(r.packageGzipBytes / 1024, 1) : 'N/A'} | ${r.browserBundleGzipBytes ? number(r.browserBundleGzipBytes / 1024, 1) : 'N/A'} |`,
+        `| ${escape(r.label ?? r.id)} | \`${escape(r.head?.slice(0, 12))}\` | ${escape(r.integration)}${r.draft ? ' · draft' : ''}${r.sourceEvidence && r.sourceEvidence !== r.id ? ' · evidence ' + escape(r.sourceEvidence) : ''} | ${exploratory ? 'Exploratory' : ratio(r.metricsByCache?.['0']?.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metricsByCache?.['1']?.svg ?? r.metrics.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svgReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.unicodeReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.agent)} | ${r.packageGzipBytes ? number(r.packageGzipBytes / 1024, 1) : 'N/A'} | ${r.browserBundleGzipBytes ? number(r.browserBundleGzipBytes / 1024, 1) : 'N/A'} |`,
       )
     }
     lines.push(
@@ -415,6 +435,64 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     const score = suite.result?.observations?.find((row: BenchmarkObservation) => row.operation === 'owning-tests')?.metrics
     lines.push(`| ${escape(suite.id)} | ${escape(suite.status)} | ${typeof suite.elapsedMs === 'number' ? number(suite.elapsedMs / 1000, 1) : 'N/A'} | ${score ? `${escape(score.passed)} / ${escape(score.failed)} / ${escape(score.skipped)}` : 'N/A'} |`)
   }
+  if (admission.currentRun && selection.currentRun) {
+    const current = admission.currentRun
+    const dave = JSON.parse(readFileSync(join(selection.currentRun, 'dave/browser-report.json'), 'utf8'))
+    const reference = JSON.parse(readFileSync(current.reference.resultFile, 'utf8')) as { observations: BenchmarkObservation[] }
+    lines.push(
+      '',
+      '## Separate current-main Dave and parser evidence',
+      '',
+      `Target \`${escape(current.targetRevision)}\`, measured **${escape(current.startedAt)} → ${escape(current.finishedAt)}**. Actual candidate tarball SHA256: \`${escape(current.candidateSha256)}\`. This supplemental run does not relabel the original full suite ledger or its older-target corrections.`,
+      '',
+      '### Dave exact pinned corpus',
+      '',
+      'All 1095 original source occurrences, unchanged browser and clock policy, three rounds. Complete attempt costs include failures and cannot reward fast rejection. Dave uses historical Pele 1.6.0; expanded community Pele 1.9.0 is a separate version/boundary.',
+      '',
+      '| Implementation | Version | Accepted / 1095 | Median complete attempt portfolio, ms |',
+      '|---|---|---:|---:|',
+    )
+    for (const engine of dave.engines) {
+      const identity = dave.identities.find((row: any) => row.label === engine.label)
+      const values = engine.attemptMs as number[]
+      lines.push(`| ${escape(engine.label)} | ${escape(identity?.version)} | ${engine.accepted} / ${engine.population} | ${values.length === 3 && values.every(v => Number.isFinite(v) && v > 0) ? number(median(values)) : 'N/A'} |`)
+    }
+    lines.push('', '| Comparator | Shared-success inputs | Agentic / comparator cost |', '|---|---:|---:|')
+    for (const row of dave.matched) lines.push(`| ${escape(row.comparator)} | ${row.inputIds.length} | ${number(median(row.candidateMs.map((value: number, i: number) => value / row.comparatorMs[i])), 3)}× |`)
+    lines.push(
+      '',
+      'Each comparator has its own exact shared-success cohort; ratios below 1 favor Agentic. No common overall cross-tool rank is inferred.',
+      '',
+      '### Current target on the same pinned parser positives',
+      '',
+      `${current.reference.eligibleInputCount} eligible positives; all ${current.reference.rawInputCount} raw sources retained, including ${current.reference.diagnosticInputCount} diagnostic-only cases. Identical literal sources, independently expected criteria, reviewed eligibility and Mermaid/parser/DOM pins are verified against original frozen evidence.`,
+      '',
+      '| Parser | Portable criteria passed / evaluated per round | Shared-qualified cases | Shared-qualified parse portfolio, ms |',
+      '|---|---:|---:|---:|',
+    )
+    const rows = reference.observations
+    const engines = [...new Set(rows.map(row => String(row.metrics?.implementation)))]
+    const rounds = [...new Set(rows.map(row => Number(row.metrics?.round)))].sort()
+    const ids = [...new Set(rows.map(row => row.caseId))]
+    const shared = ids.filter(id =>
+      engines.every(engine =>
+        rounds.every(round => {
+          const values = rows.filter(row => row.caseId === id && row.metrics?.implementation === engine && row.metrics?.round === round)
+          return values.length === 1 && values[0]!.status === 'passed' && timed(values[0]!)
+        }),
+      ),
+    )
+    for (const engine of engines) {
+      const own = rows.filter(row => row.metrics?.implementation === engine)
+      const scores = rounds.map(round => {
+        const selected = own.filter(row => row.metrics?.round === round)
+        return `${selected.reduce((sum, row) => sum + Number(row.metrics?.passed ?? 0), 0)} / ${selected.reduce((sum, row) => sum + Number(row.metrics?.criteria ?? 0), 0)}`
+      })
+      const costs = rounds.map(round => own.filter(row => row.metrics?.round === round && shared.includes(row.caseId)).reduce((sum, row) => sum + median(row.samplesMs!), 0))
+      lines.push(`| ${escape(engine)} | ${new Set(scores).size === 1 ? `${scores[0]} (each of ${rounds.length} rounds)` : scores.join('; ')} | ${shared.length} | ${shared.length ? number(median(costs)) : 'N/A'} |`)
+    }
+    lines.push('', 'Parser clocks exclude semantic projections, assertions and transport. Shared-success cost requires both engines in every round; unscored historical layout counts and diagnostic-only cases are excluded. The old-target baseline repair and the actual current product are separate measurements.')
+  }
   const actualGaps = [...new Set([...scores.gaps, ...results.gaps])]
   lines.push(
     '',
@@ -435,5 +513,11 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
 }
 if (import.meta.main) {
   const a = args()
-  updateCommunityScorecard(a.get('--run')!, a.get('--output') ?? resolve('docs/community-benchmark-ranking.md'), a.get('--prs'), { communityRun: a.get('--community-run'), invocationCorrection: a.get('--invocation-correction'), referenceCorrection: a.get('--reference-correction') })
+  updateCommunityScorecard(a.get('--run')!, a.get('--output') ?? resolve('docs/community-benchmark-ranking.md'), a.get('--prs'), {
+    communityRun: a.get('--community-run'),
+    invocationCorrection: a.get('--invocation-correction'),
+    referenceCorrection: a.get('--reference-correction'),
+    allowCommunityTargetChange: a.get('--allow-community-target-change') === 'true',
+    currentRun: a.get('--current-run'),
+  })
 }

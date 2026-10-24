@@ -101,6 +101,11 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     else if (id === 'pipeline') args.push('--out', out(id), '--rounds', String(options.rounds))
     else if (id === 'peers') args.push('--rounds', String(options.rounds), '--corpus', '--json', join(out(id), 'report.json'), '--markdown', join(out(id), 'report.md'))
     else if (id === 'dave') {
+      if (options.candidateTarball) {
+        args.splice(0, args.length, 'bun', 'run', 'eval/benchmark/release-browser-bench.ts', '--candidate-tarball', options.candidateTarball, '--warmup', '30')
+        add(args, '--candidate-sha256', options.candidateSha256)
+        if (!options.candidateSha256) prerequisites.push('Dave exact-artifact mode requires --candidate-sha256')
+      }
       args.push('--out', out(id), '--rounds', String(options.rounds))
       add(args, '--executable', options.executable)
       add(args, '--bezel-dir', options.bezelDir)
