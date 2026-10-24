@@ -20,6 +20,7 @@ import {
   normalizeTimelineBreaks,
   parseTimelineHeader,
   splitTimelineEvents,
+  assertUnambiguousTimelineSections,
 } from '../timeline/parse-core.ts'
 import { indexedIdAllocator, resolveInsertIndex, setOptionalField } from './body-utils.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
@@ -45,6 +46,10 @@ function serializeTimelineText(value: string): string {
   return value.replace(/\n/g, '<br>')
 }
 
+function periodWritesSection(value: string): boolean {
+  return /^section\s/i.test(serializeTimelineText(value).trim())
+}
+
 function validTimelineText(value: string, opts: { allowColon: boolean }): boolean {
   return value.length > 0 && (opts.allowColon || !value.includes(':'))
 }
@@ -60,6 +65,7 @@ function parseTimelineEventSegments(raw: string): string[] | null {
 }
 
 export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
+  try { assertUnambiguousTimelineSections(lines) } catch { return null }
   const scanned = scanAccessibilityDirectives(lines)
   if (scanned.unclosedIndex !== undefined) return null
   lines = scanned.familyLines
@@ -201,8 +207,10 @@ export function renderTimeline(body: TimelineBody): string {
     }
   }
   for (const section of body.sections) {
+    if (section.label?.includes(':')) throw new Error('Timeline section labels must not contain :; put the period and events on a separate line')
     if (section.label !== undefined) lines.push(`  section ${serializeTimelineText(section.label)}`)
     for (const period of section.periods) {
+      if (periodWritesSection(period.label)) throw new Error('Timeline period labels must not start with "section ", which begins a section declaration')
       // First event on the same line as the period label; extra events on
       // continuation lines (`: text`). Matches Mermaid timeline syntax.
       if (period.events.length === 0) {
@@ -262,6 +270,9 @@ function normalizeTimelineOpText(value: string, opts: { field: string; allowColo
   const normalized = normalizeTimelineText(value)
   if (!validTimelineText(normalized, { allowColon: opts.allowColon ?? true })) {
     return err({ code: 'INVALID_OP', message: `Timeline ${opts.field} must be non-empty${opts.allowColon === false ? ' and must not contain :' : ''}` })
+  }
+  if (opts.field === 'period label' && periodWritesSection(normalized)) {
+    return err({ code: 'INVALID_OP', message: 'Timeline period labels must not start with "section ", which begins a section declaration' })
   }
   return ok(normalized)
 }
@@ -359,7 +370,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       break
     }
     case 'add_section': {
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      const label = normalizeTimelineOpText(op.label, { field: 'section label', allowColon: false })
       if (!label.ok) return label
       const index = resolveInsertIndex(op.index, body.sections.length, 'Timeline')
       if (!index.ok) return index
@@ -374,7 +385,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_section_label': {
       const s = getSection(op.index)
       if (!s) return sectionNotFound(op.index)
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      const label = normalizeTimelineOpText(op.label, { field: 'section label', allowColon: false })
       if (!label.ok) return label
       s.label = label.value
       break

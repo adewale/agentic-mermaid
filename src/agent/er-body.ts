@@ -92,6 +92,10 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
       for (const reference of references) {
         if (!reference.quoted && isErKeywordName(reference.id)) warn(header + entry.line + 1, 'er_keyword_name', `ER name ${reference.id} is read as a name, where Mermaid reads a keyword`, `quote it ("${reference.id}")`)
       }
+      if (syntax.kind === 'entity' && syntax.reference.id === '1' && !syntax.reference.quoted) {
+        const remaining = [grammar[entry.line]!.slice(entry.column), ...grammar.slice(entry.line + 1)].join('\n').trimStart()
+        if (/^1\s+[A-Za-z_"'0-9]/.test(remaining)) warn(header + entry.line + 1, 'er_numeric_name', 'ER name 1 before another name is read as an entity, where Mermaid reads a cardinality', 'quote it ("1")')
+      }
       if (syntax.kind === 'attribute' && syntax.generous) warn(header + entry.line + 1, 'er_attribute_form', 'An attribute with keys apart or after its comment is read as its type, name, keys and comment', 'write its keys comma-separated before the comment (`int id PK, FK "c"`)')
       if (syntax.kind === 'relation' && syntax.relation.unreadLabel) {
         const { label } = syntax.relation

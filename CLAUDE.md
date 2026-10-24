@@ -50,7 +50,7 @@ Write strictly, read generously, warn.
 1. What we **write** (serializers, `createMermaid`) must be valid Mermaid 12.2.0.
 2. What we **read** may be more generous than Mermaid. If the author's meaning
    is clear, parse and draw it, and have `verify` report `UNSUPPORTED_SYNTAX`
-   saying Mermaid rejects it (see `journeySemicolonExtensionWarnings`). Reject
+   saying Mermaid rejects it (see `journeyUnsupportedSyntaxWarnings`). Reject
    only when we cannot tell what was meant.
 3. For source Mermaid accepts, keep the author's meaning. Where Mermaid's
    behaviour is a quirk (it drops information, or orders things by accident),

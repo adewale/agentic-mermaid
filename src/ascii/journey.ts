@@ -8,8 +8,9 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import type { JourneyDiagram } from '../journey/types.ts'
-import { preprocessMermaidLines } from '../mermaid-source.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { displayText } from '../multiline-utils.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
 import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
@@ -67,8 +68,8 @@ export function renderJourneyTerminal(
   styleFace?: InternalStyleFace,
 ): TerminalArtifact {
   maxWidth ??= config.maxWidth
-  const lines = preprocessMermaidLines(text)
-  const diagram = parseJourneyDiagram(lines)
+  const source = normalizeMermaidSource(text)
+  const diagram = parseJourneyDiagram(source.familyLines, source.accessibility)
   const useAscii = config.useAscii
   const document = new TerminalDocument()
   if (diagram.sections.some(section => section.tasks.length)) document.report({
@@ -82,7 +83,7 @@ export function renderJourneyTerminal(
 
   if (diagram.title) {
     owner = { id: 'title', kind: 'label' }
-    for (const line of wrapText(displayText(diagram.title), maxWidth)) {
+    for (const line of wrapText(displayText(resolveLabelContent(diagram.title, diagram.titleContent)), maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
     pushLine()
@@ -120,7 +121,7 @@ export function renderJourneyTerminal(
         : cue === 'double-line' ? (useAscii ? '= ' : '║ ')
         : cue === 'pattern' ? (useAscii ? '# ' : '░ ')
         : ''
-      const labelLines = wrapText(displayText(section.label).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2 - cueMarker.length) : undefined)
+      const labelLines = wrapText(displayText(resolveLabelContent(section.label, section.labelContent)).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2 - cueMarker.length) : undefined)
       labelLines.forEach((line, index) => {
         const segments: StyledSegment[] = [
           { text: index === 0 ? cueMarker : ' '.repeat(cueMarker.length), role: cueMarker ? 'arrow' : null },
@@ -141,7 +142,7 @@ export function renderJourneyTerminal(
       const scoreWidth = 5
       const taskPrefixWidth = scoreWidth + 1
       const exactScore = Number.isInteger(task.score) ? '' : ` (score ${task.score})`
-      const taskLines = wrapText(displayText(task.text) + exactScore, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
+      const taskLines = wrapText(displayText(resolveLabelContent(task.text, task.textContent)) + exactScore, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
 
       pushLine([
         ...scoreSegments,
@@ -158,7 +159,7 @@ export function renderJourneyTerminal(
       if (task.actors.length > 0) {
         owner = { id: `${task.id}:actors`, kind: 'label', parent: { id: task.id, kind: 'node' } }
         const actorPrefix = '  by '
-        const actorLines = wrapText(task.actors.map(label => displayText(label)).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
+        const actorLines = wrapText(task.actors.map((label, index) => displayText(resolveLabelContent(label, task.actorContents?.[index]))).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
         actorLines.forEach((line, index) => {
           pushLine([
             { text: index === 0 ? '  ' : ' '.repeat(visualWidth(actorPrefix)), role: null },

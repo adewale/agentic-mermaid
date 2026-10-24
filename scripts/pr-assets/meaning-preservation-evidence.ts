@@ -200,6 +200,14 @@ const fixtures: Fixture[] = [
     cue: 'Inspect the six actor dots and their matching keys. Only noncompliant legacy category colors are repaired. The independent raster census measures effective category ink; this image is not an accessibility certificate for all diagram text.',
   },
   {
+    id: 'journey-literal-formatted-identity',
+    title: 'Journey keeps encoded tag text distinct from formatted text',
+    source: 'journey\n  title Literal text and formatting\n  section Same spelling, different meaning\n  &lt;b&gt;Alice&lt;/b&gt;: 3: &lt;b&gt;Alice&lt;/b&gt;\n  <b>Alice</b>: 4: <b>Alice</b>\n  Ordinary task: 5: Bob',
+    captureLayout: true,
+    pngScale: 2,
+    cue: 'Before, the literal tag characters disappear from the first task and its actor merges with the formatted actor. After, inspect the literal tag spelling beside bold Alice, their distinct legend keys and matching task dots. Ordinary task and Bob retain their text and score; Bob changes palette color because the distinct actor increases the actor count. Owning Journey tests separately check roundtrip text and Scene identity; this one default-font fixture does not prove every layout or style.',
+  },
+  {
     id: 'agent-gitgraph-rails',
     title: 'GitGraph rails retain their category ink',
     source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/gitgraph-basic.mmd'), 'utf8'),

@@ -106,9 +106,12 @@ Known remaining syntax/parity gaps and caveats:
   not pinned Mermaid syntax. We retain the existing two-task interpretation of
   `A: 5: Me; B: 3: Me` for local compatibility, but verification emits
   `journey_semicolon_statement_extension` with the authored line number. Use
-  one statement per line for Mermaid portability. HTML entities such as
-  `&amp;` keep their semicolons as literal label text locally. Semicolons in
-  inline accessibility directives are literal text, not this extension.
+  one statement per line for Mermaid portability. Entity references are
+  protected from statement and field splitting, then decoded once for display:
+  `&amp;` becomes `&`, while `A&#44;B` remains one actor. Unknown references and
+  encoded markup remain literal text. The writer escapes label punctuation;
+  semicolons in inline accessibility directives are literal text, not this
+  extension.
 - Journey ASCII remains a compact semantic list, not a visual clone of
   Mermaid's SVG Journey chart. It now wraps to `maxWidth` using terminal display
   width, including CJK/emoji text, but it is intentionally not a miniature SVG

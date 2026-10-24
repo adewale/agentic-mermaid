@@ -6,7 +6,7 @@ import type { C4Body, C4MutationOp } from '../c4/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import { layoutMermaid, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { c4ShapeOverride, effectiveC4Shape } from '../c4/config.ts'
 
@@ -340,6 +340,69 @@ UpdateElementStyle(g,$borderColor="navy")`
       expect(projectEntityMarkers(result.value.elements[3].label)).toBe('\u3000 Padded label ')
       expect(result.value.relationships.map((record: { from: string; to: string; label: string }) => ({ from: projectEntityMarkers(record.from), to: projectEntityMarkers(record.to), label: projectEntityMarkers(record.label) }))).toEqual([{ from: '資料 é 👩‍💻', to: 'A\nB', label: 'Quoted "edge"' }])
     } finally { upstream.close() }
+  })
+
+  test.each([
+    ['C4Context\nSystem(s,b)', 'C4Context\nSystem(s, "b")', 'b'],
+    ['C4Context\nPerson(c,$)', 'C4Context\nPerson(c, "$")', '$'],
+    ['C4Context\nSystem(s,"B",description)', 'C4Context\nSystem(s, "B", $descr="description")', 'B'],
+    ['C4Context\nSystem(s,"B",$descr=description)', 'C4Context\nSystem(s, "B", $descr="description")', 'B'],
+    ['C4Context\nSystem(s,$,"description")', 'C4Context\nSystem(s, "$", $descr="description")', '$'],
+  ] as const)('unquoted arguments with a clear value are written as quoted Mermaid: %s', (source, written, label) => {
+    const body = parseC4Diagram(source)
+    expect(body.elements[0]!.label).toBe(label)
+    expect(body.diagnostics).toContainEqual(expect.objectContaining({ syntax: 'c4_unquoted_argument' }))
+    expect(renderC4(body)).toBe(written)
+    const reparsed = parseC4Diagram(written)
+    expect(reparsed.elements[0]).toMatchObject({ id: body.elements[0]!.id, label, description: body.elements[0]!.description })
+    expect(reparsed.diagnostics).not.toContainEqual(expect.objectContaining({ syntax: 'c4_unquoted_argument' }))
+    expect(renderC4(reparsed)).toBe(written)
+  })
+
+  test.each(['C4Context\nSystem(s,b,"description")', 'C4Context\nSystem(s,"$",$descr="description")'])('accepted argument spellings retain their exact source: %s', source => {
+    const body = parseC4Diagram(source)
+    expect(body.diagnostics).not.toContainEqual(expect.objectContaining({ syntax: 'c4_unquoted_argument' }))
+    expect(renderC4(body)).toBe(source)
+  })
+
+  test.each([
+    ['System(s,cost $currency=GBP,"description")', { id: 's', label: 'cost $currency=GBP', description: 'description' }],
+    ['System(s,cost $currency="GBP","description")', { id: 's', label: 'cost $currency="GBP"', description: 'description' }],
+    ['Container(s,"Label",runtime $version=12,"description")', { id: 's', label: 'Label', technology: 'runtime $version=12', description: 'description' }],
+    ['System(s,"Label",cost $currency=GBP,$link="https://example.com")', { id: 's', label: 'Label', description: 'cost $currency=GBP', link: 'https://example.com' }],
+    ['System(system$x=1,"Label")', { id: 'system$x=1', label: 'Label' }],
+    ['System(s,"cost $currency=GBP","description")', { id: 's', label: 'cost $currency=GBP', description: 'description' }],
+  ] as const)('comma-delimited positional dollar text survives parsing and typed edits: %s', (call, expected) => {
+    const source = `C4Context\n${call}`
+    const body = parseC4Diagram(source)
+    expect(body.elements[0]).toMatchObject(expected)
+    expect(body.diagnostics).toEqual([])
+    expect(verifyMermaid(source).ok).toBe(true)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    const updated = edit(body, { kind: 'update_element', id: expected.id, changes: { link: 'https://example.com/updated' } })
+    expect(updated.elements[0]).toMatchObject({ ...expected, link: 'https://example.com/updated' })
+    expect(parseC4Diagram(renderC4(updated)).elements[0]).toMatchObject({ ...expected, link: 'https://example.com/updated' })
+  })
+
+  test.each([
+    'System(s, "S", $tadb"cyl&inder")',
+    'Person_Ext(customerA,b2 $link="https://github.com/mermaidjs")',
+    'System(s, "S", $descr=text $link="https://example.com")',
+    'System(s, "S", $descr=text $link="https://example.com", $tags="tag")',
+    'System(s, "Label" $link="https://example.com")',
+  ])('damaged named arguments are refused instead of converted to literal metadata: %s', call => {
+    const source = `C4Context\n${call}`
+    expect(() => readC4Source(source)).toThrow('C4 argument is ambiguous')
+    expect(() => parseC4Diagram(source)).toThrow('C4 argument is ambiguous')
+  })
+
+  test('quoted text resembling named arguments remains literal display text', () => {
+    const source = 'C4Context\nPerson_Ext(customerA,"b2 $link=#quot;https://github.com/mermaidjs#quot;")'
+    const body = parseC4Diagram(source)
+    expect(body.elements[0]).toMatchObject({ id: 'customerA', label: 'b2 $link="https://github.com/mermaidjs"', link: undefined })
+    expect(renderC4(body)).toBe(source)
   })
 
   // Pinned Mermaid C4 needs a line break after each statement and after `{`

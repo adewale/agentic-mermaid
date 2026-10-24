@@ -23,9 +23,11 @@ import type {
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex, setOptionalField } from './body-utils.ts'
+import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { prepareDisplayText, resolveLabelContent, writeDisplayText, type LabelContent } from '../shared/display-text.ts'
 import {
   walkJourneyLines, normalizeJourneyText, normalizeJourneyActor,
-  isValidJourneyScore, hasJourneyStatementDelimiter, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
+  isValidJourneyScore, hasJourneyStatementDelimiter, journeyActorKey, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
 } from '../journey/parse-core.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -36,6 +38,15 @@ export type JourneyBodyParse =
 
 function formatJourneyInline(value: string): string {
   return value.split(/\r?\n/).map(part => part.trim()).join('<br>')
+}
+
+function serializeJourneyLabel(value: string, content?: LabelContent): string {
+  const prepared = prepareDisplayText(resolveLabelContent(value, content))
+  const source = writeDisplayText(prepared, text => encodeMermaidEntities(text, ';&#:,%<*~').replace(/\\(?=n)/g, '#92;')
+    .replace(/^\s+|\s+$/g, spaces => encodeMermaidEntities(spaces, spaces)))
+  // A task label can otherwise be read as a title/section/accessibility line.
+  return /^(?:title|section|accTitle|accDescr)\b/i.test(source)
+    ? `#${source.codePointAt(0)!};${source.slice(1)}` : source
 }
 
 /**
@@ -64,15 +75,19 @@ export function parseJourneyBody(lines: string[], accessibility: import('./types
   }
 
   walkJourneyLines(lines, 0, {
-    title: text => { body.title = text },
+    title: (text, _line, content) => {
+      body.title = text
+      if (content) body.titleContent = content
+      else delete body.titleContent
+    },
     accTitle: text => { body.accessibilityTitle = text },
     accDescr: text => { body.accessibilityDescription = text },
-    section: label => {
-      currentSection = { id: `section-${sIdx++}`, label, tasks: [] }
+    section: (label, _line, content) => {
+      currentSection = { id: `section-${sIdx++}`, label, ...(content ? { labelContent: content } : {}), tasks: [] }
       body.sections.push(currentSection)
     },
-    task: (text, score, actors) => {
-      implicitSection().tasks.push({ id: `task-${tIdx++}`, text, score, actors })
+    task: (text, score, actors, _line, content, actorContents) => {
+      implicitSection().tasks.push({ id: `task-${tIdx++}`, text, ...(content ? { textContent: content } : {}), score, actors, ...(actorContents ? { actorContents } : {}) })
     },
     issue: issue => {
       firstIssue = issue
@@ -89,7 +104,7 @@ export function parseJourneyBody(lines: string[], accessibility: import('./types
 
 export function renderJourney(body: JourneyBody): string {
   const lines: string[] = ['journey']
-  if (body.title) lines.push(`  title ${formatJourneyInline(body.title)}`)
+  if (body.title) lines.push(`  title ${serializeJourneyLabel(body.title, body.titleContent)}`)
   if (body.accessibilityTitle) lines.push(`  accTitle: ${formatJourneyInline(body.accessibilityTitle)}`)
   if (body.accessibilityDescription) {
     if (body.accessibilityDescription.includes('\n')) {
@@ -103,10 +118,10 @@ export function renderJourney(body: JourneyBody): string {
     }
   }
   for (const section of body.sections) {
-    if (section.label !== undefined) lines.push(`  section ${formatJourneyInline(section.label)}`)
+    if (section.label !== undefined) lines.push(`  section ${serializeJourneyLabel(section.label, section.labelContent)}`)
     for (const task of section.tasks) {
-      const actors = task.actors.length > 0 ? `: ${task.actors.join(', ')}` : ''
-      lines.push(`    ${formatJourneyInline(task.text)}: ${task.score}${actors}`)
+      const actors = task.actors.length > 0 ? `: ${task.actors.map((actor, index) => serializeJourneyLabel(actor, task.actorContents?.[index])).join(', ')}` : ''
+      lines.push(`    ${serializeJourneyLabel(task.text, task.textContent)}: ${task.score}${actors}`)
     }
   }
   return lines.join('\n') + '\n'
@@ -116,13 +131,10 @@ export function renderJourney(body: JourneyBody): string {
 
 function cloneJourney(b: JourneyBody): JourneyBody {
   return {
-    kind: 'journey',
-    title: b.title,
-    accessibilityTitle: b.accessibilityTitle,
-    accessibilityDescription: b.accessibilityDescription,
+    ...b,
     sections: b.sections.map(s => ({
-      id: s.id, label: s.label,
-      tasks: s.tasks.map(t => ({ id: t.id, text: t.text, score: t.score, actors: [...t.actors] })),
+      ...s,
+      tasks: s.tasks.map(t => ({ ...t, actors: [...t.actors] })),
     })),
   }
 }
@@ -134,13 +146,13 @@ function makeIdAllocator(body: JourneyBody): (prefix: 'section' | 'task') => str
   return prefix => prefix === 'section' ? section() : task()
 }
 
-function normalizeOpText(value: string, field: string, opts: { allowColon?: boolean } = {}): Result<string, MutationError> {
+function normalizeOpText(value: string, field: string, previous?: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string` })
-  const normalized = normalizeJourneyText(value)
-  if (!normalized || (!opts.allowColon && normalized.includes(':')) || hasJourneyStatementDelimiter(normalized)) {
+  const normalized = value === previous ? value : normalizeJourneyText(value)
+  if (!normalized) {
     return err({
       code: 'INVALID_OP',
-      message: `Journey ${field} must be non-empty${opts.allowColon ? '' : ', must not contain :'}, and must not contain statement-delimiter semicolons`,
+      message: `Journey ${field} must be non-empty`,
     })
   }
   return ok(normalized)
@@ -162,13 +174,13 @@ function normalizeAccessibilityOpText(
   return ok(normalized)
 }
 
-function normalizeActors(actors: string[] | undefined): Result<string[], MutationError> {
+function normalizeActors(actors: string[] | undefined, previous: readonly string[] = []): Result<string[], MutationError> {
   const out: string[] = []
   for (const raw of actors ?? []) {
     if (typeof raw !== 'string') return err({ code: 'INVALID_OP', message: 'Journey actor must be a string' })
-    const normalized = normalizeJourneyActor(raw)
-    if (!normalized || normalized.includes(',') || hasJourneyStatementDelimiter(normalized)) {
-      return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty and must not contain commas or statement-delimiter semicolons' })
+    const normalized = previous.includes(raw) ? raw : normalizeJourneyActor(raw)
+    if (!normalized) {
+      return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty' })
     }
     out.push(normalized)
   }
@@ -184,8 +196,10 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
 
   switch (op.kind) {
     case 'set_title': {
-      const title = setOptionalField(next, 'title', op.title, value => normalizeOpText(value, 'title', { allowColon: true }))
+      const previous = next.title
+      const title = setOptionalField(next, 'title', op.title, value => normalizeOpText(value, 'title', previous))
       if (!title.ok) return title
+      if (next.title !== previous) delete next.titleContent
       break
     }
     case 'add_section': {
@@ -204,8 +218,9 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'set_section_label': {
       const s = getSection(op.index)
       if (!s) return err({ code: 'SECTION_NOT_FOUND', message: `No section at index ${op.index}` })
-      const label = normalizeOpText(op.label, 'section label')
+      const label = normalizeOpText(op.label, 'section label', s.label)
       if (!label.ok) return label
+      if (s.label !== label.value) delete s.labelContent
       s.label = label.value
       break
     }
@@ -233,8 +248,9 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'set_task_text': {
       const t = getTask(op.sectionIndex, op.taskIndex)
       if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
-      const text = normalizeOpText(op.text, 'task text')
+      const text = normalizeOpText(op.text, 'task text', t.text)
       if (!text.ok) return text
+      if (t.text !== text.value) delete t.textContent
       t.text = text.value
       break
     }
@@ -248,8 +264,36 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     case 'set_task_actors': {
       const t = getTask(op.sectionIndex, op.taskIndex)
       if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
-      const actors = normalizeActors(op.actors)
+      const actors = normalizeActors(op.actors, t.actors)
       if (!actors.ok) return actors
+      if (t.actorContents) {
+        // A string-only replacement cannot identify reordered equal strings
+        // with different formatting. Keep unchanged positions first, then
+        // retain unmatched occurrences in their original order.
+        const unchanged = new Set(actors.value.flatMap((actor, index) => actor === t.actors[index] ? [index] : []))
+        const previous = new Map<string, Array<LabelContent | undefined>>()
+        const meanings = new Map<string, { key: string; content?: LabelContent; ambiguous: boolean }>()
+        t.actors.forEach((actor, index) => {
+          const content = t.actorContents?.[index]
+          const key = journeyActorKey(actor, content)
+          const meaning = meanings.get(actor)
+          meanings.set(actor, { key, content, ambiguous: meaning !== undefined && (meaning.ambiguous || meaning.key !== key) })
+          if (unchanged.has(index)) return
+          const contents = previous.get(actor) ?? []
+          contents.push(content)
+          previous.set(actor, contents)
+        })
+        let ambiguous = false
+        t.actorContents = actors.value.map((actor, index) => {
+          if (unchanged.has(index)) return t.actorContents?.[index]
+          const contents = previous.get(actor)
+          if (contents?.length) return contents.shift()
+          const meaning = meanings.get(actor)
+          if (meaning?.ambiguous) ambiguous = true
+          return meaning?.content
+        })
+        if (ambiguous) return err({ code: 'INVALID_OP', message: 'Journey actor has multiple existing text interpretations; a new copy needs a distinct label' })
+      }
       t.actors = actors.value
       break
     }
@@ -294,17 +338,22 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
       break
     }
     case 'rename_actor': {
-      const fromActors = normalizeActors([op.from])
+      const existing = next.sections.flatMap(section => section.tasks.flatMap(task => task.actors))
+      const fromActors = normalizeActors([op.from], existing)
       if (!fromActors.ok) return fromActors
-      const toActors = normalizeActors([op.to])
+      const toActors = normalizeActors([op.to], existing)
       if (!toActors.ok) return toActors
       const from = fromActors.value[0]!
       const to = toActors.value[0]!
       let found = false
       for (const s of next.sections) {
         for (const t of s.tasks) {
-          t.actors = t.actors.map(a => {
-            if (a === from) { found = true; return to }
+          t.actors = t.actors.map((a, index) => {
+            if (a === from) {
+              found = true
+              if (t.actorContents && from !== to) t.actorContents = t.actorContents.map((content, contentIndex) => contentIndex === index ? undefined : content)
+              return to
+            }
             return a
           })
         }
@@ -346,6 +395,25 @@ function journeySemantics(body: JourneyBody): unknown {
 
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
+export function journeyUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*journey\b/i.test(line))
+  if (header < 0) return []
+  const affectedLines = new Set<number>()
+  const statementLines = new Set<number>()
+  walkJourneyLines(lines, header + 1, {
+    entitySemicolon: index => affectedLines.add(index + 1),
+    statementDelimiter: index => statementLines.add(index + 1),
+  })
+  const warnings = (indices: Set<number>, syntax: string, message: string): LayoutWarning[] => [...indices].map(line => ({
+    code: 'UNSUPPORTED_SYNTAX', syntax, line, message,
+  }))
+  return [
+    ...warnings(statementLines, 'journey_semicolon_statement_extension', 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.'),
+    ...warnings(affectedLines, 'journey_entity_semicolon', 'Pinned Mermaid does not read these as HTML references in Journey labels or actors: it rejects named-reference semicolons and reads numeric references differently. The writer preserves their text with Mermaid entity escapes.'),
+  ]
+}
+
 export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWarning[] {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
@@ -357,9 +425,9 @@ export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWar
     || body.sections.length > 0
   if (!hasTask && !hasHeaderFurniture) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) {
-    labelOverflowCollector(warnings, opts, Math.max(cap, 80))('title', body.title)
+    labelOverflowCollector(warnings, opts, Math.max(cap, 80))('title', resolveLabelContent(body.title, body.titleContent))
   }
-  const actors = new Set(body.sections.flatMap(section => section.tasks.flatMap(task => task.actors)))
+  const actors = new Set(body.sections.flatMap(section => section.tasks.flatMap(task => task.actors.map((actor, index) => journeyActorKey(actor, task.actorContents?.[index])))))
   if (actors.size > JOURNEY_ACTOR_COLOR_LIMIT) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
@@ -368,10 +436,10 @@ export function verifyJourney(body: JourneyBody, opts: VerifyOptions): LayoutWar
     })
   }
   for (const s of body.sections) {
-    if (s.label !== undefined) overflow(s.id, s.label)
+    if (s.label !== undefined) overflow(s.id, resolveLabelContent(s.label, s.labelContent))
     for (const t of s.tasks) {
-      overflow(t.id, t.text)
-      for (const a of t.actors) overflow(t.id, a)
+      overflow(t.id, resolveLabelContent(t.text, t.textContent))
+      t.actors.forEach((actor, index) => overflow(t.id, resolveLabelContent(actor, t.actorContents?.[index])))
     }
   }
   return warnings

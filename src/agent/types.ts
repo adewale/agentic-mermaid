@@ -204,21 +204,25 @@ export interface JourneyTask {
   /** Stable within one parse; recomputed each parse. Not a durable identifier. */
   id: string
   text: string
+  textContent?: LabelContent
   /** Satisfaction score, finite number 1..5 (Mermaid journey convention). */
   score: number
   actors: string[]
+  actorContents?: Array<LabelContent | undefined>
 }
 
 export interface JourneySection {
   id: string
   /** Undefined = implicit/ungrouped section. */
   label?: string
+  labelContent?: LabelContent
   tasks: JourneyTask[]
 }
 
 export interface JourneyBody {
   kind: 'journey'
   title?: string
+  titleContent?: LabelContent
   /** Optional accessibility title from Mermaid accTitle. */
   accessibilityTitle?: string
   /** Optional accessibility description from Mermaid accDescr. */

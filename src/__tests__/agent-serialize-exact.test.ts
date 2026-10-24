@@ -4,6 +4,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
+import { verifyMermaid } from '../agent/core.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 
 function ser(src: string): string {
@@ -12,6 +13,21 @@ function ser(src: string): string {
 }
 
 describe('frontmatter emission', () => {
+  test.each(['---\n---\n', '---\r\n---\r\n', '---\r---\r'])('frontmatter without a content line writes valid default and canonical wrappers: %j', wrapper => {
+    const parsed = parseMermaid(wrapper + '%% keep\n%%{init: {"theme":"forest"}}%%\ntreemap-beta\naccTitle: Sizes\n"":5')
+    if (!parsed.ok) throw new Error('parse failed')
+    expect(serializeMermaid(parsed.value)).toBe('%% keep\n%%{init: {"theme":"forest"}}%%\ntreemap\n  accTitle: Sizes\n"": 5\n')
+    expect(serializeMermaid(parsed.value, { wrapper: 'canonical' })).toBe('---\nconfig:\n  theme: forest\n---\ntreemap\n  accTitle: Sizes\n"": 5\n')
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'empty_frontmatter', line: 1 }))
+  })
+  test.each(['---\n\n---\n', '---\n \t\n---\n', '---\r\n\r\n---\r\n', '---\r \t\r---\r'])('preserves supported blank frontmatter verbatim without a portability warning: %j', wrapper => {
+    const suffix = '%% keep\n%%{init: {"theme":"forest"}}%%\ntreemap-beta\naccTitle: Sizes\n"":5'
+    const parsed = parseMermaid(wrapper + suffix)
+    if (!parsed.ok) throw new Error('parse failed')
+    expect(serializeMermaid(parsed.value)).toBe(wrapper + '%% keep\n%%{init: {"theme":"forest"}}%%\ntreemap\n  accTitle: Sizes\n"": 5\n')
+    expect(serializeMermaid(parsed.value, { wrapper: 'canonical' })).toBe('---\nconfig:\n  theme: forest\n---\ntreemap\n  accTitle: Sizes\n"": 5\n')
+    expect(verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
   test('omits frontmatter when meta.frontmatter is empty', () => {
     const out = ser('flowchart TD\n  A --> B')
     expect(out.startsWith('---')).toBe(false)

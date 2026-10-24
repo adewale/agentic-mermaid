@@ -86,9 +86,9 @@ describe('parseJourneyDiagram', () => {
       accDescr: Literal #2: keep &amp; entity text
       Read: 3: Editor`)
 
-    expect(diagram.title).toBe('Book #2: subtitle &amp; notes')
+    expect(diagram.title).toBe('Book #2: subtitle & notes')
     expect(diagram.accessibilityTitle).toBe('Book #2: accessible subtitle')
-    expect(diagram.accessibilityDescription).toBe('Literal #2: keep &amp; entity text')
+    expect(diagram.accessibilityDescription).toBe('Literal #2: keep & entity text')
   })
 
   it('parses multiline accDescr blocks', () => {

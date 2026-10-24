@@ -306,7 +306,7 @@ describe('typed ER attributes are written as Mermaid reads them', () => {
 describe('typed ER names are written as Mermaid reads them', () => {
   // Mermaid's lexer reads these bare names as a keyword, a cardinality, a
   // link marker or a number first; written quoted, each is one name.
-  test.each(['end', 'one', 'u-turn', '2px', '1.2.3', '1.x'])('%j', async id => {
+  test.each(['end', 'one', 'u-turn', '2px', '1.2.3', '1.x', '1', '10', '1.5'])('%j', async id => {
     const parsed = parseRegisteredMermaid('erDiagram\n  A')
     if (!parsed.ok) throw new Error('fixture rejected')
     const added = mutate(parsed.value, { kind: 'add_entity', id })
@@ -315,6 +315,18 @@ describe('typed ER names are written as Mermaid reads them', () => {
     const expected: ErReading = { entities: [['A'], [id]], relations: [] }
     expect({ source, mermaid: await mermaidReads(source) }).toEqual({ source, mermaid: expected })
     expect({ source, ours: oursReads(source) }).toEqual({ source, ours: expected })
+  })
+
+  test('a numeric entity before another declaration stays an identity, including after an empty block', async () => {
+    const source = 'erDiagram\nu{}1\nR'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const written = serializeMermaid(parsed.value)
+    const expected: ErReading = { entities: [['u'], ['1'], ['R']], relations: [] }
+    expect(oursReads(source)).toEqual(expected)
+    expect(written).toBe('erDiagram\n  u\n  "1"\n  R\n')
+    expect(await mermaidReads(written)).toEqual(expected)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'er_numeric_name', line: 2 }))
   })
 
   // A `style` line reads its id as style text, where a keyword or number is

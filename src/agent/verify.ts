@@ -20,7 +20,6 @@ import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import type { OutputSecurityDiagnostic } from '../output-security.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
-import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 import { isSequenceCommentLine } from '../sequence/statements.ts'
@@ -39,12 +38,14 @@ import { renderErrorOrigin } from './error-origin.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
 import { classUnsupportedSyntaxWarnings } from './class-body.ts'
 import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
+import { journeyUnsupportedSyntaxWarnings } from './journey-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { detectsFlowchartFamily } from './family-router.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact, positionResolvedFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
+import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
@@ -432,30 +433,6 @@ function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
-/** Agentic Mermaid retains semicolon-separated Journey statements for
- * backwards compatibility, but pinned Mermaid rejects that spelling. Diagnose
- * the authored boundary rather than claiming its rendered tasks are native. */
-function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
-  const source = d.canonicalSource
-  const lines = source.split(/\r?\n/)
-  const headerIndex = lines.findIndex(line => /^\s*journey\b/i.test(line))
-  if (headerIndex < 0) return []
-  const lineNumbers = new Set<number>()
-  walkJourneyLines(lines, headerIndex + 1, {
-    statementDelimiter: lineIndex => {
-      lineNumbers.add(lineIndex + 1)
-    },
-  })
-  return [...lineNumbers]
-    .sort((a, b) => a - b)
-    .map(canonicalLine => ({
-      code: 'UNSUPPORTED_SYNTAX',
-      syntax: 'journey_semicolon_statement_extension',
-      line: authoredLineForCanonical(d.source, canonicalLine),
-      message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.',
-    }))
-}
-
 function treemapNumericExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
   if (d.body.kind !== 'treemap') return []
   return d.canonicalSource.split(/\r?\n/).flatMap((line, index) =>
@@ -474,7 +451,7 @@ function treemapNumericExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
 
 /** Source this repo reads generously where pinned Mermaid rejects it: each
  * family's rule reports UNSUPPORTED_SYNTAX on canonical lines, and verify
- * names the authored line, as journeySemicolonExtensionWarnings does. Given
+ * names the authored line. Given
  * the authored source, a rule may read a canonical line as authored. */
 const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined) => LayoutWarning[]>> = {
   architecture: architectureUnsupportedSyntaxWarnings,
@@ -482,6 +459,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   er: erUnsupportedSyntaxWarnings,
   flowchart: flowchartUpstreamRejectedSyntaxWarnings,
   gantt: ganttUnsupportedSyntaxWarnings,
+  journey: journeyUnsupportedSyntaxWarnings,
   mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   radar: radarUnsupportedSyntaxWarnings,
@@ -509,11 +487,19 @@ function atAuthoredLines(warnings: LayoutWarning[], authoredLine: (line: number)
 }
 
 function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
+  const wrapper = d.meta.wrapperSource ?? ''
+  const frontmatter = matchMermaidFrontmatter(wrapper)
+  const wrapperWarnings: LayoutWarning[] = frontmatter && frontmatter.yaml === '' ? [{
+    code: 'UNSUPPORTED_SYNTAX', syntax: 'empty_frontmatter',
+    line: wrapper.slice(0, wrapper.indexOf('---')).split(/\r\n?|\n/).length,
+    message: 'Frontmatter without a content line is read as no configuration. Pinned Mermaid rejects adjacent delimiters; serialization omits them.',
+  }] : []
   const cleanup = sourceCleanup(d.source)
-  if (cleanup) return mermaidCleanupWarnings(cleanup)
-  if (authored !== undefined) return mermaidCleanupWarnings(authored)
-  return mermaidCleanupWarnings(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+  if (cleanup) return [...wrapperWarnings, ...mermaidCleanupWarnings(cleanup)]
+  if (authored !== undefined) return [...wrapperWarnings, ...mermaidCleanupWarnings(authored)]
+  return [...wrapperWarnings, ...mermaidCleanupWarnings(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
     ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) } : warning)
+  ]
 }
 
 /** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
@@ -697,7 +683,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
 
   const d = parsed as ValidDiagram
   const familySourceWarnings =
-    d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
+    d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
   const bareHeader = hasOnlyHeader(d)
   // The header starts the body, on the line after the authored wrapper.

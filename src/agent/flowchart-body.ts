@@ -30,6 +30,7 @@ import {
   flowchartStatementSpans,
   flowchartTextArrowLabelRanges,
   scanFlowchart,
+  checkedFlowchartStyleProps,
 } from '../flowchart-lexer.ts'
 import { parseFlowchartLabel, writeFlowchartLabelText } from '../flowchart-labels.ts'
 import type { LabelContent } from '../shared/display-text.ts'
@@ -667,7 +668,7 @@ function markerChar(marker: 'arrow' | 'circle' | 'cross', isStart: boolean): str
 }
 
 function styleProps(props: Record<string, string>): string {
-  return Object.entries(props).map(([k, v]) => `${k}:${v}`).join(',')
+  return Object.entries(checkedFlowchartStyleProps(props)).map(([k, v]) => `${k}:${v}`).join(',')
 }
 
 // ---- Mutator ----------------------------------------------------------------
@@ -909,7 +910,10 @@ function resolveShapeValue(shape: string): ResolvedShapeValue | null {
  *  writing a directive the renderer would refuse. */
 function parseStylePropsForOp(style: string, subject: string, example: string): { value: Record<string, string> } | { message: string } {
   const parsed = parseMutableStyleProps(style)
-  if (parsed.ok) return { value: parsed.value }
+  if (parsed.ok) {
+    try { return { value: checkedFlowchartStyleProps(parsed.value) } }
+    catch (error) { return { message: error instanceof Error ? error.message : String(error) } }
+  }
   if (parsed.reason === 'UNSAFE_PAINT') return { message: unsafeStylePaintError(subject, parsed.paint).message }
   return { message: `Style "${style}" parses to no properties — expected CSS-like pairs such as "${example}"` }
 }

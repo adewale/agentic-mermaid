@@ -40,6 +40,20 @@ describe('parseTimelineDiagram', () => {
     expect(diagram.sections[1]!.periods[0]!.label).toBe('2022')
   })
 
+  it.each([
+    'timeline\nsection a: v',
+    'timeline\n      title ;my;title;\n      section ;a;bc-123;\n     section abc-456 ;ta;sk1;: ;ev;ent1; : ;ev;ent2; : ;ev;e3;',
+  ])('rejects ambiguous section/event boundaries without inventing a period: %s', source => {
+    expect(() => parse(source)).toThrow('Ambiguous timeline section')
+  })
+
+  it('keeps semicolons in unambiguous titles, sections, periods and events', () => {
+    const diagram = parse('timeline\n title ;my;title;\n section ;a;bc-123;\n ;ta;sk1; : ;ev;ent1; : ;ev;ent2;')
+    expect({ title: diagram.title, section: diagram.sections[0]!.label, periods: diagram.sections[0]!.periods.map(period => ({ label: period.label, events: period.events.map(event => event.text) })) }).toEqual({
+      title: ';my;title;', section: ';a;bc-123;', periods: [{ label: ';ta;sk1;', events: [';ev;ent1;', ';ev;ent2;'] }],
+    })
+  })
+
   it('creates an implicit section for periods before the first section', () => {
     const diagram = parse(`timeline
       2021 : Quiet alpha

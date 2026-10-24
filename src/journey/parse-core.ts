@@ -1,6 +1,10 @@
 // ============================================================================
 
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { ENTITY_MARKER_RE, toEntityMarkers } from '../shared/mermaid-entities.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
+import { prepareDisplayText, replaceDisplayTextTokens, type LabelContent, type PreparedDisplayText } from '../shared/display-text.ts'
+import { journeyGrammarText } from './family-source.ts'
 // Journey parse core — the single grammar shared by the renderer parser
 // (src/journey/parser.ts), the structured agent parser
 // (src/agent/journey-body.ts), and the opaque-verify scan
@@ -59,6 +63,35 @@ export function normalizeJourneyActor(value: string): string {
   return normalizeJourneyText(value).split('\n').filter(Boolean).join(' / ')
 }
 
+/** Decode only after grammar decisions, so entity punctuation stays text. */
+function normalizeJourneySourceText(value: string): string {
+  return projectEntityMarkers(normalizeJourneyText(value))
+}
+
+/** Retain display provenance only when a bare string would reinterpret it. */
+function journeyText(value: string, actor = false): { value: string; content?: LabelContent } {
+  const normalized = actor ? normalizeJourneyActor(value) : normalizeJourneyText(value)
+  const text = projectEntityMarkers(normalized)
+  if (text === normalized) return { value: text }
+  const prepared = replaceDisplayTextTokens(prepareDisplayText(normalized), ENTITY_MARKER_RE, token => projectEntityMarkers(token))
+  return JSON.stringify(journeyTextRuns(prepared)) === JSON.stringify(journeyTextRuns(prepareDisplayText(text)))
+    ? { value: text }
+    : { value: text, content: { value: text, prepared } }
+}
+
+function journeyTextRuns(plan: PreparedDisplayText): unknown {
+  return plan.lines.map(line => line.map(({ text, bold, italic, underline, strikethrough }) => ({ text, bold, italic, underline, strikethrough })))
+}
+
+/** The same string can name literal tag text or a formatted actor. */
+export function journeyActorKey(value: string, content?: LabelContent): string {
+  return JSON.stringify([value, content?.value === value ? journeyTextRuns(content.prepared) : null])
+}
+
+function journeyEntityMarkers(value: string): string {
+  return toEntityMarkers(value)
+}
+
 export function isJourneyComment(line: string): boolean {
   return line.startsWith('%%') || line.startsWith('#') || line.startsWith('%')
 }
@@ -86,13 +119,15 @@ export interface JourneyParseIssue {
 }
 
 export interface JourneyWalkEvents {
-  title?(text: string, lineIndex: number): void
+  title?(text: string, lineIndex: number, content?: LabelContent): void
   accTitle?(text: string, lineIndex: number): void
   accDescr?(text: string, lineIndex: number): void
-  section?(label: string, lineIndex: number): void
-  task?(text: string, score: number, actors: string[], lineIndex: number): void
+  section?(label: string, lineIndex: number, content?: LabelContent): void
+  task?(text: string, score: number, actors: string[], lineIndex: number, content?: LabelContent, actorContents?: Array<LabelContent | undefined>): void
   /** A real `;` statement boundary, not an HTML-entity terminator. */
   statementDelimiter?(lineIndex: number): void
+  /** A raw HTML-like entity semicolon that Mermaid's Journey lexer rejects. */
+  entitySemicolon?(lineIndex: number): void
   /** Return 'stop' to abort the walk (first-issue mode); return void to keep scanning. */
   issue?(issue: JourneyParseIssue): void | 'stop'
 }
@@ -104,7 +139,7 @@ export interface JourneyWalkEvents {
  */
 export function walkJourneyLines(lines: string[], startIndex: number, events: JourneyWalkEvents): void {
   for (let i = startIndex; i < lines.length; i++) {
-    const line = lines[i]!.trim()
+    const line = journeyEntityMarkers(journeyGrammarText(lines[i]!.trim()))
     if (!line) continue
     if (isJourneyComment(line)) continue
 
@@ -122,17 +157,18 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
         return // the unterminated block consumes the rest of the source
     }
     if (accessibility?.form === 'block') {
-      events.accDescr?.(normalizeJourneyText(accessibility.value), i)
+      events.accDescr?.(normalizeJourneySourceText(journeyEntityMarkers(journeyGrammarText(accessibility.value))), i)
       i = accessibility.endIndex
-      const suffix = accessibility.suffixLine ?? ''
+      const suffix = journeyEntityMarkers(journeyGrammarText(accessibility.suffixLine ?? ''))
       const inlineSuffix = parseAccessibilityDirective([suffix], 0)
       if (inlineSuffix?.form === 'inline') {
-        const text = normalizeJourneyText(inlineSuffix.value)
+        const text = normalizeJourneySourceText(inlineSuffix.value)
         if (inlineSuffix.title) events.accTitle?.(text, i)
         else events.accDescr?.(text, i)
         continue
       }
       if (hasJourneyStatementDelimiter(suffix)) events.statementDelimiter?.(i)
+      if (events.entitySemicolon) splitJourneyStatements(accessibility.suffixLine ?? '', () => events.entitySemicolon!(i))
       for (const statement of splitJourneyStatements(suffix)) {
         const outcome = classifyStatement(statement, accessibility.endIndex, events)
         if (outcome === 'stop') return
@@ -140,13 +176,14 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
       continue
     }
     if (accessibility?.form === 'inline') {
-      const text = normalizeJourneyText(accessibility.value)
+      const text = normalizeJourneySourceText(journeyEntityMarkers(journeyGrammarText(accessibility.value)))
       if (accessibility.title) events.accTitle?.(text, i)
       else events.accDescr?.(text, i)
       continue
     }
 
     if (hasJourneyStatementDelimiter(line)) events.statementDelimiter?.(i)
+    if (events.entitySemicolon) splitJourneyStatements(lines[i]!.trim(), () => events.entitySemicolon!(i))
     for (const statement of splitJourneyStatements(line)) {
       const outcome = classifyStatement(statement, i, events)
       if (outcome === 'stop') return
@@ -160,7 +197,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 
   const accessibility = parseAccessibilityDirective([statement], 0)
   if (accessibility) {
-    const text = normalizeJourneyText(accessibility.value)
+    const text = normalizeJourneySourceText(accessibility.value)
     if (accessibility.title) events.accTitle?.(text, lineIndex)
     else events.accDescr?.(text, lineIndex)
     return
@@ -168,34 +205,35 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 
   const titleMatch = statement.match(JOURNEY_TITLE_RE)
   if (titleMatch) {
-    const text = normalizeJourneyText(titleMatch[1]!)
-    if (!text) return issue('empty_title', `Journey title is empty: "${statement}"`)
-    events.title?.(text, lineIndex)
+    const text = journeyText(titleMatch[1]!)
+    if (!text.value) return issue('empty_title', `Journey title is empty: "${statement}"`)
+    events.title?.(text.value, lineIndex, text.content)
     return
   }
 
   const sectionMatch = statement.match(JOURNEY_SECTION_RE)
   if (sectionMatch) {
-    const label = normalizeJourneyText(sectionMatch[1]!)
-    if (!label || label.includes(':')) {
+    const label = journeyText(sectionMatch[1]!)
+    if (!label.value || sectionMatch[1]!.includes(':')) {
       return issue('section_colon', `Journey section labels must not contain ':': "${statement}"`)
     }
-    events.section?.(label, lineIndex)
+    events.section?.(label.value, lineIndex, label.content)
     return
   }
 
   const taskMatch = statement.match(JOURNEY_TASK_RE)
   if (taskMatch) {
-    const text = normalizeJourneyText(taskMatch[1]!)
-    if (!text) return issue('empty_task_text', `Journey task text is empty: "${statement}"`)
+    const text = journeyText(taskMatch[1]!)
+    if (!text.value) return issue('empty_task_text', `Journey task text is empty: "${statement}"`)
     const rawScore = taskMatch[2]!
     const score = Number(rawScore)
-    if (!isValidJourneyScore(score)) return issue('invalid_score', invalidScoreDetail(text, rawScore))
+    if (!isValidJourneyScore(score)) return issue('invalid_score', invalidScoreDetail(text.value, rawScore))
     const actors = (taskMatch[3] ?? '')
       .split(',')
-      .map(normalizeJourneyActor)
-      .filter(Boolean)
-    events.task?.(text, score, actors, lineIndex)
+      .map(value => journeyText(value, true))
+      .filter(actor => actor.value)
+    events.task?.(text.value, score, actors.map(actor => actor.value), lineIndex, text.content,
+      actors.some(actor => actor.content) ? actors.map(actor => actor.content) : undefined)
     return
   }
 
@@ -243,7 +281,7 @@ export function hasJourneyStatementDelimiter(value: string): boolean {
 /** Split a line into `;`-terminated statements (lexer parity). A ';' that
  * closes an HTML entity (&amp; &#59; &#x3B;) is literal label text, and a
  * statement that starts like a comment after the split is a comment tail. */
-function splitJourneyStatements(line: string): string[] {
+function splitJourneyStatements(line: string, entitySemicolon?: () => void): string[] {
   if (!line.trim()) return []
   if (!line.includes(';')) return [line.trim()]
   const parts: string[] = []
@@ -252,7 +290,10 @@ function splitJourneyStatements(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     if (line[i] === '&') lastAmp = i
     if (line[i] !== ';') continue
-    if (closesHtmlEntity(line, lastAmp, i, start)) continue
+    if (closesHtmlEntity(line, lastAmp, i, start)) {
+      entitySemicolon?.()
+      continue
+    }
     parts.push(line.slice(start, i))
     start = i + 1
     lastAmp = -1

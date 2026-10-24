@@ -1,4 +1,5 @@
 import { syntaxError } from '../shared/syntax-error.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 /** Shared Timeline line grammar consumed by the renderer and agent parsers. */
 export function normalizeTimelineBreaks(value: string): string {
@@ -38,6 +39,19 @@ export function unsupportedTimelineHeaderError(suffix: string): Error {
 export const TIMELINE_TITLE_RE = /^title\s+(.+)$/i
 export const TIMELINE_SECTION_RE = /^section\s+([^:]+)$/i
 export const TIMELINE_CONTINUATION_RE = /^:\s+(.+)$/
+
+/** A section prefix cannot also supply a period/event boundary on that line. */
+export function assertUnambiguousTimelineSections(lines: readonly string[]): void {
+  for (const line of scanAccessibilityDirectives([...lines]).familyLines) {
+    if (/^section\s+.*:/i.test(line.trim())) {
+      throw syntaxError({
+        what: `Ambiguous timeline section: "${line.trim()}"`,
+        expectedForm: 'section Section name on its own line, then Period : Event on a separate line',
+        example: 'section Planning\n2025 : Launch',
+      })
+    }
+  }
+}
 
 /** Mermaid Timeline ignores full-line `%`/`%%` and `#` comments, not inline text.
  * `%{` is reserved for a directive-like token and is not a Timeline comment. */

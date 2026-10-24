@@ -31,7 +31,7 @@ import type {
   SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, type SequenceSourceStatement } from '../sequence/parser.ts'
+import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, SequenceParticipantIdError, type SequenceSourceStatement } from '../sequence/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
 import { isCharacterReference, sequenceGrammarText } from '../sequence/family-source.ts'
@@ -66,6 +66,8 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   // logical content but keeps indentation/blank lines; we walk it in lockstep
   // by skipping its blank/comment lines, which `trimmedLines` already drops.
   const source = readSequenceStatements(rawLines ?? trimmedLines)
+  const invalidParticipant = source.issues.find(issue => issue.syntax === 'sequence_participant_id')
+  if (invalidParticipant) throw new SequenceParticipantIdError(invalidParticipant.message)
   if (source.issues.some(issue => issue.syntax === 'sequence_block_boundary')) return null
   const raw = source.statements
 
@@ -364,6 +366,7 @@ export function renderSequence(body: SequenceBody): string {
     const mentioned = new Set<string>()
     for (const st of body.statements) {
       if (st.kind === 'opaque-block') {
+        assertParticipantDeclarations(st.lines)
         for (const l of st.lines) lines.push(l)
       } else if (st.kind === 'participant') {
         const p = body.participants[st.ref]
@@ -385,7 +388,10 @@ export function renderSequence(body: SequenceBody): string {
 }
 
 function renderFragment(fragment: SequenceFragment): string[] {
-  if (fragment.rawLines) return [...fragment.rawLines]
+  if (fragment.rawLines) {
+    assertParticipantDeclarations(fragment.rawLines)
+    return [...fragment.rawLines]
+  }
   const prefix = `  ${fragment.fragmentKind} `
   const lines = [fragment.label ? prefix + writeSequenceText(fragment.label, fragment.labelContent, prefix) : prefix.trimEnd()]
   fragment.branches.forEach((branch, index) => {
@@ -400,6 +406,8 @@ function renderFragment(fragment: SequenceFragment): string[] {
 }
 
 function renderParticipant(p: SequenceParticipant, redeclared: boolean): string {
+  const problem = sequenceParticipantIdProblem(p.id)
+  if (problem) throw new Error(problem)
   const tag = p.declaration ?? (p.kind === 'actor' ? 'actor' : 'participant')
   // The keyword gives its own type; any other type (`actor A@{ "type":
   // "participant" }` included) needs the metadata to survive a re-parse.
@@ -407,6 +415,11 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
   const prefix = `  ${tag} ${p.id}${metadata}`
   const label = writeSequenceText(p.label, p.labelContent, `${prefix} as `)
   return `${prefix}${label !== p.id || redeclared ? ` as ${label}` : ''}`
+}
+
+function assertParticipantDeclarations(lines: readonly string[]): void {
+  const problem = readSequenceStatements(lines).issues.find(issue => issue.syntax === 'sequence_participant_id')
+  if (problem) throw new Error(problem.message)
 }
 
 /** The participant ids a statement names, in the order Mermaid meets them. */
@@ -472,6 +485,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
 
   switch (op.kind) {
     case 'add_participant': {
+      const problem = sequenceParticipantIdProblem(op.id)
+      if (problem) return err({ code: 'INVALID_OP', message: problem })
       if (participants.some(p => p.id === op.id)) return err({ code: 'DUPLICATE_PARTICIPANT', message: `Participant "${op.id}" already exists` })
       if (op.label !== undefined && (!op.label.trim() || /[\r\n]/.test(op.label))) {
         return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
@@ -529,6 +544,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
     case 'set_participant_label': {
       const p = participants.find(x => x.id === op.id)
       if (!p) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${op.id}" not found` })
+      const problem = sequenceParticipantIdProblem(p.id)
+      if (problem) return err({ code: 'INVALID_OP', message: problem })
       const label = typeof op.label === 'string' ? op.label.trim() : ''
       if (!label || /[\r\n]/.test(label)) {
         return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })

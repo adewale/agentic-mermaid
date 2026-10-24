@@ -4,7 +4,8 @@ import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
-import { syntaxError } from '../shared/syntax-error.ts'
+import { MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
+import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
 import { readSequenceLabel } from './text.ts'
@@ -166,8 +167,11 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   // arrow tokens follow it where Mermaid expects text, so it rejects the
   // line, and what was meant is unclear: leave the statement unread. Where
   // Mermaid's sender runs on past our arrow, it reads another message.
-  const sender = mermaidSequenceActorAt(line, 0)
-  if (sender.length <= match[1]!.length && (sender !== match[1] || mermaidSequenceActorAt(line, line.length - tail.length) !== to)) return null
+  const grammar = toEntityMarkers(line)
+  const fromToken = toEntityMarkers(match[1]!), toToken = toEntityMarkers(to)
+  const receiverAt = toEntityMarkers(line.slice(0, line.length - tail.length)).length
+  const sender = mermaidSequenceActorAt(grammar, 0)
+  if (sender.length <= fromToken.length && (sender !== fromToken || mermaidSequenceActorAt(grammar, receiverAt) !== toToken)) return null
   const arrow = match[3]!
   return {
     from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark,
@@ -601,7 +605,8 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     const { syntax } = entry
     if (stack.length) entry.parent = stack.at(-1)!
     if (!syntax) {
-      if (entry.raw.trim() && !isSequenceCommentLine(entry.raw)) issue(entry, 'sequence_statement', `Sequence statement is preserved in source but not drawn: ${entry.raw.trim()}`)
+      if (entry.error instanceof SequenceParticipantIdError) issue(entry, 'sequence_participant_id', entry.error.message)
+      else if (entry.raw.trim() && !isSequenceCommentLine(entry.raw)) issue(entry, 'sequence_statement', `Sequence statement is preserved in source but not drawn: ${entry.raw.trim()}`)
       continue
     }
     if (syntax.kind === 'block' || syntax.kind === 'box') {
@@ -719,11 +724,30 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
  *  change an actor that already exists. */
 export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
 
+/** The declaration ID token differs from message endpoints: punctuation such
+ * as +, / and parentheses is legal here, but @ starts metadata and the other
+ * delimiters cannot name a participant. Do not repair them into a new ID. */
+export function sequenceParticipantIdProblem(id: string): string | null {
+  // Mermaid protects entity tokens before lexing. Their terminator is not
+  // a declaration delimiter; keep the authored spelling for endpoint IDs.
+  return typeof id !== 'string' || !id || /[<>:,;@#\s]/.test(toEntityMarkers(id))
+    ? `Sequence participant ID ${JSON.stringify(id)} cannot contain declaration delimiters or whitespace; use an explicit ID and put display punctuation in its alias, e.g. participant A as Label :@`
+    : null
+}
+
+export class SequenceParticipantIdError extends MermaidSyntaxError {}
+
+function assertSequenceParticipantId(id: string): void {
+  const problem = sequenceParticipantIdProblem(id)
+  if (problem) throw new SequenceParticipantIdError(problem)
+}
+
 export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {
   const metadata = line.match(/^(participant|actor)\s+([^\s@]+)\s*@\{/i)
   if (metadata) {
     const baseType = metadata[1]!.toLowerCase() as 'participant' | 'actor'
     const id = metadata[2]!
+    assertSequenceParticipantId(id)
     // Upstream's CONFIG lexer and YAML reader (shared/metadata-yaml.ts): the
     // first `}` ends the block, and a block YAML rejects rejects the diagram.
     const block = readMetadataBlock(line, metadata[0].length - 1, 'sequence')
@@ -758,6 +782,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
   const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as(\s*)(.+))?$/i)
   if (!ordinary) return null
   const id = ordinary[2]!
+  assertSequenceParticipantId(id)
   const keyword = ordinary[1]!.toLowerCase() as 'participant' | 'actor'
   return {
     id, label: ordinary[4]?.trim() ?? id, type: keyword, keyword, aliased: ordinary[4] !== undefined,
@@ -771,6 +796,7 @@ export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null
   const id = match[2]!
+  assertSequenceParticipantId(id)
   return { id, label: match[3]?.trim() ?? id, type: match[1]!.toLowerCase() as 'participant' | 'actor' }
 }
 

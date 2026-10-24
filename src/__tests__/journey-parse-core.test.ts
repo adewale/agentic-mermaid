@@ -71,9 +71,9 @@ describe('semicolon statement separation (diagnosed Agentic extension)', () => {
     expect(serializeMermaid(d)).toBe('journey\n  section S\n    Make tea: 5: Me\n    Go upstairs: 3: Me\n')
   })
 
-  test('HTML entities keep their semicolons through statement splitting', () => {
+  test('XML entities decode as text while real semicolons split statements', () => {
     const diagram = rendererParse('journey\n  Task A &amp; B: 3: Me; Task C: 4: Me')
-    expect(diagram.sections[0]!.tasks.map(t => t.text)).toEqual(['Task A &amp; B', 'Task C'])
+    expect(diagram.sections[0]!.tasks.map(t => t.text)).toEqual(['Task A & B', 'Task C'])
   })
 
   test('trailing semicolon is a statement terminator, not part of the actor', () => {
@@ -100,7 +100,7 @@ describe('semicolon statement separation (diagnosed Agentic extension)', () => {
     expect(hasJourneyStatementDelimiter(`Review &${'a'.repeat(33)};`)).toBe(true)
     const parsed = rendererParse('journey\n  A &amp; B &#59; C &#x3B; D: 3: Me; Next: 4: You')
     expect(parsed.sections[0]!.tasks.map(task => task.text)).toEqual([
-      'A &amp; B &#59; C &#x3B; D',
+      'A & B ; C ; D',
       'Next',
     ])
     const agent = asJourney(agentBody('journey\n  A &amp; B &#59; C &#x3B; D: 3: Me; Next: 4: You'))

@@ -7,12 +7,16 @@ import { breakLineTags } from '../multiline-utils.ts'
 import { decodeXML } from 'entities'
 import { mermaidLineEnd } from '../shared/mermaid-cleanup.ts'
 import { c4ShapeOverride } from './config.ts'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import type {
   C4Argument, C4Body, C4Boundary, C4Diagnostic, C4Directive, C4Direction,
   C4Element, C4Relationship, C4Statement, C4Style, C4Variant,
 } from './types.ts'
 
 export const C4_VARIANTS: readonly C4Variant[] = ['C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment']
+
+export class C4AmbiguousArgumentError extends MermaidSyntaxError {}
+
 const ELEMENT = /^(Person|System|Container|Component)(Db|Queue)?(_Ext)?$/
 const BOUNDARIES: Readonly<Record<string, C4Boundary['kind']>> = {
   Boundary: 'boundary', Enterprise_Boundary: 'enterprise', System_Boundary: 'system',
@@ -170,6 +174,19 @@ export function parseC4Arguments(text: string): C4Argument[] {
     const named = /^\s*\$([A-Za-z_][A-Za-z_0-9]*)\s*=([\s\S]*)$/.exec(raw)
     return { ...(named ? { name: named[1]! } : {}), value: argumentValue(named ? named[2]! : raw), raw }
   })
+}
+
+function ambiguousNamedArgument(arg: C4Argument, index: number, args: readonly C4Argument[]): boolean {
+  // Mermaid's bare attribute token consumes everything through the next comma:
+  // embedded dollar text cannot start metadata inside that positional token.
+  // A quoted comma is still a delimiter to that lexer, unlike our reader's.
+  if (!arg.name && index < args.length - 1 && !/^["'$)]/.test(arg.raw.trim()) && !arg.raw.includes(',')) return false
+  const value = arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw
+  // Quoted text can literally describe `$link=...`. Outside quotes that
+  // spelling may be a missing comma or `=`, so choosing prose would lose
+  // the author's intended metadata.
+  for (const match of value.matchAll(/"[^"]*"|'[^']*'|(\$[A-Za-z_][A-Za-z_0-9]*\s*(?:=|["']))/g)) if (match[1]) return true
+  return false
 }
 
 export function c4ArgumentFields(args: readonly C4Argument[], names: readonly string[]): Record<string, string> {
@@ -427,6 +444,15 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'c4_empty_named_argument', 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
     const mermaidMacro = Boolean(element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro)
+    if (mermaidMacro && args.some(ambiguousNamedArgument)) throw new C4AmbiguousArgumentError(`C4 argument is ambiguous in ${text}: separate named arguments with commas and use $name="value", or quote the entire value when it is literal text`)
+    // A bare positional value consumes through the next comma in Mermaid's
+    // attribute lexer, including a closing `)` when it is the last argument.
+    // `$` instead enters named-argument syntax, whose value must be quoted.
+    if (mermaidMacro && args.some((arg, index) => {
+      const raw = arg.raw.trim()
+      if (arg.name) return !/^\$[A-Za-z_][A-Za-z_0-9]*\s*=\s*"/.test(raw) && arg.value !== ''
+      return raw.startsWith('$') || index === args.length - 1 && raw !== '' && !/^["']/.test(raw)
+    })) diagnostic(body, statement.id, 'c4_unquoted_argument', 'Unquoted C4 argument text is read literally here, but pinned Mermaid requires a quoted final argument and quoted named values; serialization writes those values in double quotes')
     // Mermaid's lexer enters a macro's state at its name and reads only `(` there.
     if (mermaidMacro && text[macro.length] !== '(') diagnostic(body, statement.id, 'c4_space_before_arguments', `Pinned Mermaid reads "(" only straight after ${macro} and rejects whitespace between them; ours reads the call. Write ${macro}( with no space`)
     if (element && !(element[1] === 'Person' && element[2])) {

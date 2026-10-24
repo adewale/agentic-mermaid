@@ -294,7 +294,9 @@ export function isErKeywordName(id: string): boolean {
  * name: a keyword name, or one that starts with a number, which Mermaid's
  * lexer takes first (`2px` reads as `2` and `px`). */
 export function erNameNeedsQuotes(id: string): boolean {
-  return isErKeywordName(id) || (/^\d/.test(id) && !/^\d+(?:\.\d+)?$/.test(id))
+  // `1` becomes ONLY_ONE when whitespace (including a newline) separates it
+  // from another name. Quote it independently of the next emitted statement.
+  return id === '1' || isErKeywordName(id) || (/^\d/.test(id) && !/^\d+(?:\.\d+)?$/.test(id))
 }
 
 /** Offset of the `}` that ends an attribute block in `text`, or -1: the
