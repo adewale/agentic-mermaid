@@ -53,6 +53,7 @@
     "dist/index-[hash].d.ts",
     "dist/index.d.ts",
     "dist/index.js",
+    "dist/jsonl-[hash].js",
     "dist/mcp-cli-[hash].js",
     "dist/server-[hash].js",
     "dist/svg-styles-[hash].d.ts",

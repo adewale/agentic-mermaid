@@ -11,7 +11,7 @@ import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs()
 
-function capture(fn: () => number): { code: number; out: string; err: string } {
+function capture(fn: () => number | Promise<number>): { code: number; out: string; err: string } {
   const outChunks: string[] = []
   const errChunks: string[] = []
   const origOut = process.stdout.write.bind(process.stdout)
@@ -21,7 +21,11 @@ function capture(fn: () => number): { code: number; out: string; err: string } {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(process.stderr as any).write = (s: string) => { errChunks.push(s); return true }
   let code: number
-  try { code = fn() } finally {
+  try {
+    const result = fn()
+    if (typeof result !== 'number') throw new Error('Expected a synchronous command')
+    code = result
+  } finally {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(process.stdout as any).write = origOut
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
