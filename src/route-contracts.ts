@@ -1004,6 +1004,38 @@ function centerOutLabelSamples(tMargin: number): number[] {
   return ts.sort((a, b) => Math.abs(a - 0.5) - Math.abs(b - 0.5))
 }
 
+type LabelPaintRect = { x: number; y: number; w: number; h: number }
+
+/** Match renderEdgeLabel's opaque halo, including thick-edge paint. */
+function labelHaloPadding(edge: PositionedEdge, style: LabelMetricsStyle): number {
+  return labelHaloExtension(edge, style.lineWidth ?? 1)
+}
+
+/** Owned label-only passes leave routes fixed. Reentrant host measurement
+ * can replace peer geometry, so only the owned path reuses marker footprints. */
+function labelPaintClearance(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] }, style: LabelMetricsStyle) {
+  let markers: ReturnType<typeof graphEdgeMarkerPaintRegions> | undefined
+  const overlapsMarker = (pill: LabelPaintRect): boolean => {
+    const current = customTextMeasurementActive()
+      ? positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+      : markers ??= positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+    for (const marker of current) {
+      const box = marker.bounds
+      if (box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0) return true
+    }
+    return false
+  }
+  const clearPaintRect = (inner: LabelPaintRect, halo: number): LabelPaintRect | undefined => {
+    const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
+    // Own endpoint cards are obstacles too: a repair must not exchange a
+    // route-label ambiguity for hidden authored text or terminal symbols.
+    if (positioned.nodes.some(node => pill.x < node.x + node.width && pill.x + pill.w > node.x
+      && pill.y < node.y + node.height && pill.y + pill.h > node.y) || overlapsMarker(pill)) return undefined
+    return pill
+  }
+  return { overlapsMarker, clearPaintRect }
+}
+
 /**
  * Post-freeze label repair for ROUTE_LABEL_ON_SHARED_TRUNK. A labeled edge whose
  * pill sits on a trunk shared with another edge is illegible — the reader cannot
@@ -1019,19 +1051,21 @@ function centerOutLabelSamples(tMargin: number): number[] {
  * — e.g. an exactly-overlapping duplicate edge shares the whole trunk — the label
  * is left untouched, since there is nowhere unambiguous to put it.
  */
-export function repairLabelsOnSharedTrunks(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, style: LabelMetricsStyle): void {
-  // The repair only needs to clear the AUDIT condition (a collinear shared
-  // trunk) plus avoid drawing the pill over a node — NOT the stricter
-  // full-clearance findLabelSlot uses, which also rejects harmless
-  // perpendicular crossings and so leaves no slot in dense fan-in/out regions.
-  const pillOverNode = (pill: { x: number; y: number; w: number; h: number }, edge: PositionedEdge): boolean => positioned.nodes.some(n => n.id !== edge.source && n.id !== edge.target && pill.x < n.x + n.width && pill.x + pill.w > n.x && pill.y < n.y + n.height && pill.y + pill.h > n.y)
-
+export function repairLabelsOnSharedTrunks(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  style: LabelMetricsStyle,
+): void {
+  // Clear the shared-trunk ambiguity without covering a card or endpoint
+  // marker. Perpendicular shaft crossings retain their established policy.
+  let clearance: ReturnType<typeof labelPaintClearance> | undefined
   for (const edge of positioned.edges) {
     if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
     if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
-    const m = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style)
-    const pw = m.width + 2 * LABEL_PILL_PADDING,
-      ph = m.height + 2 * LABEL_PILL_PADDING
+    const paint = clearance ??= labelPaintClearance(positioned, style)
+    const halo = labelHaloPadding(edge, style)
+    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
+    const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
 
     const segs = orderedLabelSegments(edge)
 
@@ -1054,10 +1088,7 @@ export function repairLabelsOnSharedTrunks(positioned: { nodes: PositionedNode[]
           const cx = seg.a.x + (seg.b.x - seg.a.x) * t + (seg.vertical ? offset : 0)
           const cy = seg.a.y + (seg.b.y - seg.a.y) * t + (seg.vertical ? 0 : offset)
           edge.labelPosition = { x: cx, y: cy }
-          if (!pillOverNode(pillRect(cx, cy, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style)) {
-            fixed = true
-            break
-          }
+          if (paint.clearPaintRect(pillRect(cx, cy, m), halo) && !sharedTrunkConflict(edge, positioned.edges, style)) { fixed = true; break }
         }
       }
     }
@@ -1095,8 +1126,7 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
     const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
     return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
   }
-  const pillOverNode = (pill: { x: number; y: number; w: number; h: number }, edge: PositionedEdge): boolean => positioned.nodes.some(n => n.id !== edge.source && n.id !== edge.target && pill.x < n.x + n.width && pill.x + pill.w > n.x && pill.y < n.y + n.height && pill.y + pill.h > n.y)
-
+  let clearance: ReturnType<typeof labelPaintClearance> | undefined
   for (const edge of positioned.edges) {
     if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
     if (edge.source === edge.target) continue // self-loop label sits beside the stub — correct, not off-route
@@ -1110,7 +1140,11 @@ export function repairLabelsOffOwnRoute(positioned: { nodes: PositionedNode[]; e
       return d
     }
     if (routeDist(edge.labelPosition) <= allow) continue // already on its own route — no-op (the corpus case)
-    const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow && !pillOverNode(pillRect(x, y, m), edge) && !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
+    const paint = clearance ??= labelPaintClearance(positioned, style)
+    const halo = labelHaloPadding(edge, style)
+    const clearAt = (x: number, y: number): boolean => routeDist({ x, y }) <= allow &&
+      !!paint.clearPaintRect(pillRect(x, y, m), halo) &&
+      !sharedTrunkConflict(edge, positioned.edges, style, { x, y })
 
     const segs = orderedLabelSegments(edge)
 
@@ -1195,41 +1229,23 @@ export function separateEdgeLabelPills(
   let routeWork = 1_000_000
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
   if (labeled.length === 0) return
-  // Match renderEdgeLabel's halo beyond each measured pill, including thick
-  // edges. Separating inner pills alone can leave opaque painted halos touching.
-  const haloOf = (edge: PositionedEdge): number => labelHaloExtension(edge, style.lineWidth ?? 1)
   const rectOf = (e: PositionedEdge): { x: number; y: number; w: number; h: number } | null => {
     const r = labelRect(e, style)
-    const halo = haloOf(e)
+    const halo = labelHaloPadding(e, style)
     return r && { x: r.x - halo, y: r.y - halo, w: r.w + 2 * halo, h: r.h + 2 * halo }
   }
   const intersects = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 0.5
 
-  // Unlike the other label repairs, do NOT exempt the edge's own endpoints: a
-  // slid label that clears its sibling pill by parking its halo on the target
-  // node has traded one occlusion for another (the audit's state-corpus case).
-  const haloOverAnyNode = (inner: { x: number; y: number; w: number; h: number }, halo: number): boolean => positioned.nodes.some(n => inner.x - halo < n.x + n.width && inner.x + inner.w + halo > n.x && inner.y - halo < n.y + n.height && inner.y + inner.h + halo > n.y)
-
-  // Labels paint after every connector. Protect their own terminal symbols
-  // and all neighboring symbols with the same resource geometry and units.
-  const markers = positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
-  const overlapsMarker = (pill: { x: number; y: number; w: number; h: number }): boolean =>
-    markers.some(marker => {
-      const box = marker.bounds
-      return !!box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0
-    })
+  const { overlapsMarker, clearPaintRect } = labelPaintClearance(positioned, style)
 
   const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false): Generator<Point> {
-    const m = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style)
-    const pw = m.width + 2 * LABEL_PILL_PADDING,
-      ph = m.height + 2 * LABEL_PILL_PADDING
-    const halo = haloOf(edge)
+    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
+    const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
+    const halo = labelHaloPadding(edge, style)
     const clearAt = (x: number, y: number): boolean => {
       if (options?.preserveRouteClearance && routeWork <= 0) return false
-      const inner = pillRect(x, y, m)
-      if (haloOverAnyNode(inner, halo)) return false
-      const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
-      if (overlapsMarker(pill)) return false
+      const pill = clearPaintRect(pillRect(x, y, m), halo)
+      if (!pill) return false
       for (const o of others) {
         const r = rectOf(o)
         if (r && intersects(pill, r)) return false
