@@ -11,6 +11,7 @@ import { resolveRenderStyle } from '../styles.ts'
 import { buildShadowDefs, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { SankeyVisualConfig } from './config.ts'
+import { authoredSankeyNodeColor } from './config.ts'
 import { SANKEY_STYLE_DEFAULTS } from './layout.ts'
 import type { PositionedSankeyChart } from './types.ts'
 
@@ -78,7 +79,7 @@ export function lowerSankeyDrawing<T>(marks: DrawingFactory<T>, ctx: RenderConte
       { category: node.label, value: node.value },
       { includeFallback: false },
     )
-    const authored = visual.nodeColors[node.label]
+    const authored = authoredSankeyNodeColor(visual, node.label)
     const roleFill = nodeRole?.fillColor
     nodeColor.set(node.label, {
       color: authored ?? roleFill ?? fills[index]!,

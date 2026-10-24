@@ -23,7 +23,7 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 import { getFrontmatterMap, type MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import type { SankeyVisualConfig } from '../sankey/config.ts'
-import { resolveSankeyVisualConfig } from '../sankey/config.ts'
+import { authoredSankeyNodeColor, resolveSankeyVisualConfig } from '../sankey/config.ts'
 import { formatSankeyValue, sankeyIdentities } from '../sankey/semantics.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
 import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
@@ -55,7 +55,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
   })
   const colorOf = new Map<string, string>()
   diagram.nodes.forEach((label, index) => {
-    colorOf.set(label, visual.nodeColors[label] ?? palette[index]!)
+    colorOf.set(label, authoredSankeyNodeColor(visual, label) ?? palette[index]!)
   })
 
   const outgoing = new Map<string, typeof diagram.links>()
@@ -128,6 +128,9 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
       const bar = barChar.repeat(barLen)
       const color = visual.linkColor.mode === 'static' ? visual.linkColor.color
         : colorOf.get(visual.linkColor.mode === 'source' ? link.source : link.target)!
+      // SVG's absent fill/stroke is transparent ink when the ribbon becomes
+      // a text bar; `none` is not a valid CSS foreground color.
+      const foreground = color.trim().toLowerCase() === 'none' ? 'transparent' : color
       const identity = linkIdentities.get(link)!
       const id = identity.id
       const edgeOwner: TerminalOwner = { id, kind: 'edge', from: identity.source, to: identity.target }
@@ -138,7 +141,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
             : `sankey.nodeColors.${visual.linkColor.mode === 'source' ? link.source : link.target}`
           document.report({
             code: 'TERMINAL_COLOR_UNREPRESENTABLE', feature,
-            message: `${feature}=${JSON.stringify(color)} cannot be encoded as an opaque terminal foreground; ANSI bars retain their owned cells without that paint. HTML retains the safe CSS color.`,
+            message: `${feature}=${JSON.stringify(color)} cannot be encoded as an opaque terminal foreground; ANSI bars retain their owned cells without that paint. ${foreground === color ? 'HTML retains the safe CSS color.' : 'HTML projects absent paint to transparent ink.'}`,
           })
         }
       }
@@ -160,7 +163,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
             { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
             { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(line)) + 2), kind: 'surface' },
             { text: valuePart, role: 'text', owner: { id: generated(`${id}:value`, ['link-value', id]), kind: 'label', parent: { id, kind: 'edge' } } },
-            { text: bar, role: 'arrow', kind: 'mark', color, owner: edgeOwner },
+            { text: bar, role: 'arrow', kind: 'mark', color: foreground, owner: edgeOwner },
           ])
         }
       })

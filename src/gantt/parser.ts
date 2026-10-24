@@ -22,6 +22,7 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
 import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
+import { parseTodayMarkerStyle } from './today-marker.ts'
 
 export const GANTT_TASK_TAGS: readonly GanttTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert']
 
@@ -375,6 +376,8 @@ export function parseGanttModel(lines: string[]): GanttModel {
     }
   }
 
+  // Admit authored marker paint before output or clock selection can skip it.
+  if (model.todayMarker?.style !== undefined) parseTodayMarkerStyle(model.todayMarker.style)
   return model
 }
 

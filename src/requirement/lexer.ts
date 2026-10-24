@@ -34,6 +34,7 @@ export function tokenize(src: string, onComment?: (start: number, end: number) =
   const starts: number[] = []
   const stack: number[] = []
   let state: number = S.INITIAL
+  let styleValue = false
   let p = 0
   // Where each kind of direction statement starts and where its keyword ends, found in one pass.
   const dirStarts: number[][] = [[], [], [], []]
@@ -150,7 +151,10 @@ export function tokenize(src: string, onComment?: (start: number, end: number) =
       if (q - p <= LONGEST_KEYWORD) {
         const keyword = KEYWORDS.get(src.slice(p, q).toLowerCase())
         if (keyword !== undefined) {
-          if (keyword === T.STYLE || keyword === T.CLASSDEF || keyword === T.CLASS) push(S.style)
+          if (keyword === T.STYLE || keyword === T.CLASSDEF || keyword === T.CLASS) {
+            styleValue = false
+            push(S.style)
+          }
           emit(keyword, p, q)
           return true
         }
@@ -199,14 +203,32 @@ export function tokenize(src: string, onComment?: (start: number, end: number) =
     if (isWord(c)) {
       let q = p + 1
       while (q < n && isWord(src.charCodeAt(q))) q++
+      // Preserve a functional style value up to its next declaration. The
+      // color grammar owns malformed spacing or parentheses; the target-id
+      // grammar before a property's colon remains unchanged.
+      let functionStart = q
+      while (functionStart < n && isSpace(src.charCodeAt(functionStart)) && !isLineEnd(src.charCodeAt(functionStart))) functionStart++
+      if (styleValue && src.charCodeAt(functionStart) === 40) {
+        q = functionStart
+        let depth = 0
+        while (q < n) {
+          const next = src.charCodeAt(q)
+          if (isLineEnd(next) || (depth === 0 && (next === 44 || next === 59))) break
+          if (next === 40) depth++
+          else if (next === 41) depth = Math.max(0, depth - 1)
+          q++
+        }
+      }
       emit(T.ALPHA, p, q)
       return true
     }
     switch (c) {
       case 58:
+        styleValue = true
         emit(T.COLON, p, p + 1)
         return true
       case 59:
+        styleValue = false
         emit(T.SEMICOLON, p, p + 1)
         return true
       case 37:
@@ -234,6 +256,7 @@ export function tokenize(src: string, onComment?: (start: number, end: number) =
         p += src.charCodeAt(p + 1) === 10 ? 2 : 1
         return true
       case 44:
+        styleValue = false
         emit(T.COMMA, p, p + 1)
         return true
     }
