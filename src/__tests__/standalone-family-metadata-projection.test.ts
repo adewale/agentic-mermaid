@@ -14,7 +14,10 @@ const printer = ts.createPrinter({ removeComments: true })
 
 function project(path: string, options: Parameters<typeof runtimeRenderContractPlugin>[0] = {}): string {
   const loaders: Array<{ filter: RegExp; load: (args: { path: string }) => { contents: string } | undefined }> = []
-  runtimeRenderContractPlugin(options).setup({ onLoad({ filter }, load) { loaders.push({ filter, load }) } })
+  runtimeRenderContractPlugin(options).setup({
+    onLoad({ filter }, load) { loaders.push({ filter, load }) },
+    onResolve() { throw new Error('Source-only projections must not register module resolvers') },
+  })
   return loaders.find(loader => loader.filter.test(path))?.load({ path })?.contents ?? readFileSync(path, 'utf8')
 }
 
