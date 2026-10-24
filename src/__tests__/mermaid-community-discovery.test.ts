@@ -36,6 +36,22 @@ test('recognises a curated npm package without repository search metadata and me
   expect(candidates[0]).toMatchObject({ id: 'example/editor', knownMember: true, categories: ['editor'], classification: 'catalogued', packages: ['known-editor'], sources })
 })
 
+test.each([
+  'https://github.com:443/Example/Editor.git',
+  'ssh://git@github.com:22/Example/Editor.git',
+  'git+ssh://git@github.com:22/Example/Editor.git',
+  'git://github.com:9418/Example/Editor.git',
+  'git@github.com:Example/Editor.git',
+])('matches the curated repository from npm URL %s', repo => {
+  const members = [{ id: 'example/editor', categories: ['editor'], packages: [{ registry: 'npm', name: 'known-editor' }] }]
+  const identity = repositoryIdentity(repo, 'npm:known-editor')!
+  const candidates = mergeCandidates(members, [{ ...identity, packages: ['known-editor'],
+    sources: [{ service: 'npm', query: 'mermaid editor', page: 1, url: 'https://registry.npmjs.org/-/v1/search' }] }])
+  expect(candidates).toHaveLength(1)
+  expect(candidates[0]).toMatchObject({ id: 'example/editor', repo: 'https://github.com/Example/Editor', knownMember: true, categories: ['editor'], classification: 'catalogued' })
+  expect(candidates[0]).not.toHaveProperty('identityConflict')
+})
+
 test.each(['conflicting repository', 'known repository with conflicting ownership', 'ambiguous package ownership'])('retains %s for source review', scenario => {
   const members = [{ id: 'example/editor', categories: ['editor'], packages: [{ registry: 'npm', name: 'known-editor' }] }]
   if (scenario === 'ambiguous package ownership') members.push({ ...members[0]!, id: 'other/editor' })
@@ -48,7 +64,14 @@ test.each(['conflicting repository', 'known repository with conflicting ownershi
   expect(candidates[0]).toMatchObject({ id: hit.id, classification: 'needs-source-review', identityConflict: true, sources: hit.sources })
 })
 
-test.each(['https://gitlab.com/other/editor', 'https://bitbucket.org/other/editor', 'git+ssh://git@example.org/other/editor.git'])('preserves explicit npm repository metadata from %s before matching a curated package', repo => {
+test.each([
+  'https://gitlab.com/other/editor',
+  'https://bitbucket.org/other/editor',
+  'git+ssh://git@example.org/other/editor.git',
+  'https://github.com:invalid/example/editor.git',
+  'ssh://git@github.com:70000/example/editor.git',
+  'https://github.com.example.org/example/editor.git',
+])('preserves explicit npm repository metadata from %s before matching a curated package', repo => {
   const members = [{ id: 'example/editor', categories: ['editor'], packages: [{ registry: 'npm', name: 'known-editor' }] }]
   const identity = repositoryIdentity(repo, 'npm:known-editor')
   const candidates = mergeCandidates(members, [{ ...(identity ?? { id: 'npm:known-editor' }), packages: ['known-editor'],

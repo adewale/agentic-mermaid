@@ -20,9 +20,18 @@ interface Member {
 }
 
 export function repositoryIdentity(value: string, fallbackId?: string): { id: string; repo: string } | undefined {
-  const match = /^(?:git\+)?(?:https?:\/\/|git:\/\/|ssh:\/\/(?:git@)?|git@)github\.com[:/]([\w.-]+)\/([\w.-]+)/i.exec(value)
-  // Unknown hosts are explicit metadata, not an absent repository. Keep the
-  // original URL under the package identity so owner matching can flag it.
+  const address = value.replace(/^git\+/i, '')
+  const scp = /^git@github\.com[:/](.*)$/i.exec(address)
+  let pathname = scp ? `/${scp[1]}` : undefined
+  if (!scp) {
+    try {
+      const url = new URL(address)
+      if (['http:', 'https:', 'git:', 'ssh:'].includes(url.protocol) && url.hostname.toLowerCase() === 'github.com') pathname = url.pathname
+    } catch { /* Preserve malformed repository metadata for source review. */ }
+  }
+  const match = pathname && /^\/([\w.-]+)\/([\w.-]+)(?:\/|$)/.exec(pathname)
+  // Unknown hosts and malformed URLs are explicit metadata, not an absent
+  // repository. Keep them under the package identity so owner matching can flag them.
   if (!match) return value && fallbackId ? { id: fallbackId, repo: value } : undefined
   const id = `${match[1]}/${match[2]!.replace(/\.git$/, '')}`
   return { id, repo: `https://github.com/${id}` }
