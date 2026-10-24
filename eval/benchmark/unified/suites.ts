@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { BUILTIN_FAMILY_METADATA } from '../../../src/agent/families.ts'
 import type { UnifiedRunOptions } from './types.ts'
 
@@ -29,6 +30,8 @@ export interface SuiteDefinition {
   automatic?: boolean
   source: string
   command?: string[]
+  cwd?: string
+  environment?: Record<string, string>
   prerequisites: string[]
   policy: string
   pin?: unknown
@@ -163,6 +166,64 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
       ...(pin ? { pin } : {}),
     })
   }
+  let managedBrowserMissing: string[] = []
+  try {
+    const require = createRequire(join(root, 'package.json')),
+      chromiumPath = require('playwright').chromium.executablePath() as string,
+      registry = require(join(dirname(require.resolve('playwright-core/package.json')), 'lib/server/registry/index.js')).registry,
+      headlessPath = registry.findExecutable('chromium-headless-shell')?.executablePath('javascript') as string | undefined
+    managedBrowserMissing = [
+      ...(!existsSync(chromiumPath) ? [`Canonical browser contracts need managed Playwright Chromium: ${chromiumPath}`] : []),
+      ...(!headlessPath || !existsSync(headlessPath) ? ['Canonical browser contracts need the installed Playwright chromium-headless-shell; run playwright install chromium'] : []),
+    ]
+  } catch (error) {
+    managedBrowserMissing = [`Cannot resolve canonical managed Playwright prerequisites: ${String(error)}`]
+  }
+  if (existsSync(join(root, 'e2e/run-browser-contracts.ts')))
+    suites.push({
+      id: 'browser-contracts',
+      title: 'Canonical public browser/editor/security contracts',
+      kind: 'test',
+      smoke: false,
+      source: 'e2e/run-browser-contracts.ts',
+      command: ['bun', 'run', 'e2e/run-browser-contracts.ts'],
+      environment: { UPDATE_BASELINES: '' },
+      prerequisites: managedBrowserMissing,
+      policy:
+        'Driver-owned canonical runner rebuilds the driver website and executes its enrolled browser contracts one file per process. It accepts no --site/--executable override; managed Playwright Chromium and its headless shell are required. Fresh counts sum independent process summaries; wall time includes build/setup. No baseline screenshots are rewritten.',
+    })
+  const distributionPolicy =
+    'Existing CI public-distribution correctness boundary in the driver checkout. Owning tests build/pack their own driver artifacts into isolated temporary consumer projects; --target and --package-root do not rebind this source/consumer parity gate. Process wall time is not public API latency.'
+  for (const [id, title, files, timeout] of [
+    ['distribution-cli', 'CLI and offline fresh-checkout contracts', ['cli-smoke.e2e.test.ts', 'cli.e2e.test.ts', 'fresh-checkout.e2e.test.ts'], 120000],
+    ['distribution-native', 'Compiled single-binary distribution contracts', ['single-binary.e2e.test.ts'], 180000],
+    ['distribution-dist-fuzz', 'Built artifact differential fuzz under plain Node', ['dist-artifact-fuzz.e2e.test.ts'], 400000],
+    ['distribution-tarball', 'Installed tarball library, CLI, MCP and getting-started contracts', ['tarball-consumer-fuzz.e2e.test.ts'], 600000],
+  ] as const)
+    if (files.every(file => existsSync(join(root, 'e2e', file)))) suites.push({ id, title, kind: 'test', smoke: false, source: files.map(file => 'e2e/' + file).join(', '), cwd: join(root, 'e2e'), command: ['bun', 'test', ...files, '--timeout', String(timeout)], prerequisites: [], policy: distributionPolicy })
+  if (existsSync(join(root, 'e2e/tarball-consumer-fuzz.e2e.test.ts'))) {
+    const node22 = process.env.NODE22_EXECUTABLE
+    suites.push({
+      id: 'distribution-tarball-node22',
+      title: 'Installed tarball contracts under independent Node22',
+      kind: 'test',
+      smoke: false,
+      source: 'e2e/tarball-consumer-fuzz.e2e.test.ts',
+      cwd: join(root, 'e2e'),
+      command: ['bun', 'test', 'tarball-consumer-fuzz.e2e.test.ts', '--timeout', '600000'],
+      ...(node22 ? { environment: { NODE_BINARY: node22, PATH: dirname(node22) + (process.platform === 'win32' ? ';' : ':') + (process.env.PATH ?? '') } } : {}),
+      prerequisites: node22 && existsSync(node22) ? [] : ['Independent Node22 executable required: set NODE22_EXECUTABLE; another Node runtime is not substituted'],
+      policy: distributionPolicy + ' NODE_BINARY selects the real Node22 consumer process; its directory leads PATH for npm and documented shell entrypoints.',
+    })
+  }
+  standalone(
+    'browser-lazy-delivery',
+    'Shipped lazy-browser closure and transfer budgets',
+    'scripts/build/browser-lazy-report.ts',
+    ['--root', root, '--json'],
+    existsSync(join(root, 'dist/metafile-esm.json')) ? [] : ['Driver lazy-browser metafile missing; run bun run build before this shipped-output closure gate'],
+    'Actual driver-built request closures, gzip/Brotli sizes, family decoding and placement-demanded ELK checks. Static initial/family closures and budgeted possible ELK are named separately; this is delivery/owning correctness, not plain API latency.',
+  )
   test(
     'family-contracts',
     'Fresh all-family capability, Scene and mutation contracts',

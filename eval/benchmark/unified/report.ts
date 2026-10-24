@@ -15,6 +15,8 @@ export interface SuiteExecution {
   signal?: string | null
   timedOut?: boolean
   command?: string[]
+  workingDirectory?: string
+  environment?: Record<string, string>
   log?: string
   prerequisites: string[]
   pin?: unknown
@@ -33,6 +35,7 @@ export interface UnifiedReport {
   targetRevision?: string
   driverDirty: boolean | null
   targetDirty: boolean | null
+  machine?: Record<string, string | number | null>
   status: 'running' | 'passed' | 'failed' | 'incomplete'
   policy: string
   suites: SuiteExecution[]
@@ -45,11 +48,11 @@ const number = (value: number | undefined): string => (value === undefined ? 'â€
 
 /** Rows are enrollment/execution evidence, not a guessed feature percentage. */
 export function coverageRows(observations: readonly BenchmarkObservation[]) {
-  const groups = new Map<string, { suite: string; implementation: string; surface: string; family: string; operation: string; format: string; mode: string; statuses: Partial<Record<BenchmarkStatus, number>>; cases: Set<string> }>()
+  const groups = new Map<string, { suite: string; implementation: string; surface: string; runtime: string; family: string; operation: string; format: string; mode: string; statuses: Partial<Record<BenchmarkStatus, number>>; cases: Set<string> }>()
   for (const row of observations) {
     const implementation = typeof row.metrics?.implementation === 'string' ? row.metrics.implementation : 'agentic-mermaid'
-    const key = JSON.stringify([row.suite, implementation, row.surface, row.family, row.operation, row.format, row.mode])
-    const group = groups.get(key) ?? { suite: row.suite, implementation, surface: row.surface, family: row.family, operation: row.operation, format: row.format, mode: row.mode, statuses: {}, cases: new Set<string>() }
+    const key = JSON.stringify([row.suite, implementation, row.surface, row.runtime, row.family, row.operation, row.format, row.mode])
+    const group = groups.get(key) ?? { suite: row.suite, implementation, surface: row.surface, runtime: row.runtime, family: row.family, operation: row.operation, format: row.format, mode: row.mode, statuses: {}, cases: new Set<string>() }
     group.statuses[row.status] = (group.statuses[row.status] ?? 0) + 1
     group.cases.add(row.caseId)
     groups.set(key, group)
@@ -63,8 +66,8 @@ export function writeUnifiedReport(out: string, report: UnifiedReport): void {
   writeFileSync(join(out, 'coverage.json'), JSON.stringify({ scope: 'Executed observations only; a missing cell is unmeasured, never an inferred pass.', rows: coverage }, null, 2) + '\n')
   const csv = (values: unknown[]) => values.map(value => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')
   const coverageCsv = [
-    ['suite', 'implementation', 'surface', 'family', 'operation', 'format', 'mode', 'cases', 'passed', 'failed', 'unsupported', 'blocked', 'not_applicable', 'skipped'],
-    ...coverage.map(row => [row.suite, row.implementation, row.surface, row.family, row.operation, row.format, row.mode, row.cases, row.statuses.passed ?? 0, row.statuses.failed ?? 0, row.statuses.unsupported ?? 0, row.statuses.blocked ?? 0, row.statuses['not-applicable'] ?? 0, row.statuses.skipped ?? 0]),
+    ['suite', 'implementation', 'surface', 'runtime', 'family', 'operation', 'format', 'mode', 'cases', 'passed', 'failed', 'unsupported', 'blocked', 'not_applicable', 'skipped'],
+    ...coverage.map(row => [row.suite, row.implementation, row.surface, row.runtime, row.family, row.operation, row.format, row.mode, row.cases, row.statuses.passed ?? 0, row.statuses.failed ?? 0, row.statuses.unsupported ?? 0, row.statuses.blocked ?? 0, row.statuses['not-applicable'] ?? 0, row.statuses.skipped ?? 0]),
   ]
   writeFileSync(join(out, 'coverage.csv'), coverageCsv.map(csv).join('\n') + '\n')
   const observationCsv = [

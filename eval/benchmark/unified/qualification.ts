@@ -19,7 +19,8 @@ const wholeTerminalLabel = (label: string): RegExp => new RegExp(`(?<![\\p{L}\\p
  * never joined to invent a label that no individual reader-facing run held. */
 export function missingAuthoredSvgLabels(svg: string, expected: readonly string[] = []): string[] {
   const seen = new Set<string>()
-  for (const match of svg.matchAll(/<(text|tspan|foreignObject)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
+  const visible = svg.replace(/<!--[\s\S]*?-->/g, '').replace(/<(metadata|defs|desc|title|style|script)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+  for (const match of visible.matchAll(/<(text|tspan|foreignObject)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
     const tag = match[1]!,
       inner = match[2]!
     seen.add(displayText(inner))
@@ -37,7 +38,7 @@ export function missingAuthoredSvgLabels(svg: string, expected: readonly string[
     for (const child of inner.matchAll(/<tspan\b[^>]*>([\s\S]*?)<\/tspan>/g)) seen.add(displayText(child[1]!))
     if (tag === 'foreignObject') for (const run of inner.split(/<[^>]+>/)) seen.add(displayText(run))
   }
-  return expected.filter(label => !seen.has(label.replace(/\s+/g, ' ').trim()))
+  return expected.filter(label => ![...seen].some(run => wholeTerminalLabel(label.replace(/\s+/g, ' ').trim()).test(run)))
 }
 
 /** Outside the measured call. Expectations come from authored fixtures or the

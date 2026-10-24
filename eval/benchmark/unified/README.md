@@ -68,6 +68,22 @@ existing scoped family/agent mutation, query, serializer and route tests,
 enrolled by owning conventions and canonical registry family IDs. Passing them
 does not establish a dedicated witness for every advertised schema operation;
 the family report retains that distinction.
+Full also enrolls the canonical `test:browser` runner and CI's public
+distribution gates: CLI/offline checkout, compiled executable, built-artifact
+fuzz and installed-tarball consumers under the available default Node and an
+independent configured Node22. These are driver-owned correctness suites, with
+their existing per-test timeouts and build/install setup; passing `--target`
+does not credit them to a different artifact. Set `NODE22_EXECUTABLE` to the real
+Node22 binary. Its directory leads PATH for that consumer gate.
+
+Canonical browser contracts rebuild the driver website and use managed
+Playwright Chromium plus its headless shell. They accept no benchmark `--site`
+or `--executable` override. Install them with `playwright install chromium`,
+optionally setting `PLAYWRIGHT_BROWSERS_PATH` consistently for preparation and
+execution. Missing executables are blocked prerequisites. Screenshot baseline
+updates are disabled. Counts sum the separate fresh test-process summaries.
+The lazy-browser delivery gate separately checks actual built closures and
+gzip/Brotli budgets without rebuilding during its evaluation.
 Profiles and `--suites` make expensive work explicit. The default per-suite
 outer budget is 30 minutes (`--timeout-ms` changes it); timeout terminates the
 entire subprocess group, including browser/reference children.
@@ -119,7 +135,11 @@ bun run bench:charts -- --run /tmp/am-complete --prs /tmp/am-prs --out /tmp/am-c
 The charts keep API/CLI/browser boundaries separate, show qualified fixed-core
 ranks alongside observed family breadth, and retain PR source equivalence,
 conflicts and observed control bands. Browser delivery and memory are diagnostic
-views with explicit scopes. Owning-test wall times and pinned same-case portable
+views with explicit scopes: initial navigation and complete portfolio request
+closures, main-document V8 heap and process RSS are separate. The invocation
+heatmap keeps recorded runtimes separate, and broader community coverage follows
+the enrolled non-core input IDs so CLI paths retain their actual process clocks.
+Owning-test wall times and pinned same-case portable
 parser scores have separate panels. Missing evidence is listed rather than
 invented. The helper never executes benchmarks and is excluded from suite
 discovery. Keep generated charts outside the checkout or under an ignored

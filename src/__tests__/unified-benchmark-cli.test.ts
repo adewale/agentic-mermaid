@@ -1,8 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 import { resolve } from 'node:path'
-import { parseOptions } from '../../eval/benchmark/unified/run.ts'
+import { parseOptions, testCounts } from '../../eval/benchmark/unified/run.ts'
 
 describe('unified benchmark CLI preflight', () => {
+  test('sums independent owning-process summaries while retaining ordinary single summaries', () => {
+    expect(testCounts('\n 8 pass\n 0 fail\n 12 expect() calls\n')).toEqual({ passed: 8, failed: 0, skipped: 0, assertions: 12 })
+    expect(testCounts('\u001b[32m\n 8 pass\n 0 fail\n 12 expect() calls\n\u001b[0m\n 3 pass\n 1 fail\n 2 skip\n 9 expect() calls\n')).toEqual({ passed: 11, failed: 1, skipped: 2, assertions: 21 })
+    expect(testCounts('A process started without reporting any completed tests')).toBeUndefined()
+  })
   test('rejects invalid execution requests before any suite can launch', () => {
     expect(() => parseOptions(['--profile', 'quick'])).toThrow('--profile')
     expect(() => parseOptions(['--rounds', '0'])).toThrow('--rounds')

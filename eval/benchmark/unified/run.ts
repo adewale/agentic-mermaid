@@ -1,3 +1,4 @@
+import { availableParallelism, cpus, totalmem } from 'node:os'
 import { spawn, execFileSync } from 'node:child_process'
 import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -119,13 +120,16 @@ const synthetic = (suite: SuiteDefinition, status: UnifiedSuiteResult['status'],
 
 export function testCounts(text: string): Record<string, number | string | boolean | null> | undefined {
   const plain = cleanText(text),
-    number = (word: string) => [...plain.matchAll(new RegExp(`(?:^|\\n)\\s*(\\d+) ${word}\\b`, 'g'))].at(-1)?.[1]
+    number = (word: string) => {
+      const values = [...plain.matchAll(new RegExp(`(?:^|\\n)\\s*(\\d+) ${word}\\b`, 'g'))].map(match => Number(match[1]))
+      return values.length ? values.reduce((sum, value) => sum + value, 0) : undefined
+    }
   const passed = number('pass'),
     failed = number('fail'),
     skipped = number('skip'),
-    expect = [...plain.matchAll(/(?:^|\n)\s*(\d+) expect\(\) calls/g)].at(-1)?.[1]
+    expect = [...plain.matchAll(/(?:^|\n)\s*(\d+) expect\(\) calls/g)].map(match => Number(match[1]))
   if (passed === undefined && failed === undefined && skipped === undefined) return undefined
-  return { passed: Number(passed ?? 0), failed: Number(failed ?? 0), skipped: Number(skipped ?? 0), ...(expect ? { assertions: Number(expect) } : {}) }
+  return { passed: passed ?? 0, failed: failed ?? 0, skipped: skipped ?? 0, ...(expect.length ? { assertions: expect.reduce((sum, value) => sum + value, 0) } : {}) }
 }
 function declaredReports(directory: string, notBefore: number) {
   const gaps: string[] = [],
@@ -226,6 +230,17 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
   const selected = new Set(options.selected ?? catalog.filter(suite => suite.automatic !== false && (options.profile === 'full' || suite.smoke)).map(suite => suite.id))
   const report: UnifiedReport = {
     schemaVersion: 1,
+    machine: {
+      platform: process.platform,
+      arch: process.arch,
+      driverNode: process.versions.node,
+      driverBun: process.versions.bun ?? null,
+      availableParallelism: availableParallelism(),
+      cpuModel: cpus()[0]?.model ?? null,
+      hostMemoryBytes: totalmem(),
+      cgroupCpuMax: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : null,
+      cgroupMemoryMax: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : null,
+    },
     startedAt: now(),
     profile: options.profile,
     rounds: options.rounds,
@@ -270,14 +285,16 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     if (suite.kind === 'internal' && existsSync(internalResult)) renameSync(internalResult, internalResult + `.previous-${Date.now()}`)
     if (suite.kind === 'internal') writeFileSync(jobPath, JSON.stringify({ ...options, out: suiteOut, resultPath: internalResult }, null, 2) + '\n')
     execution.command = command
+    execution.workingDirectory = suite.cwd ?? options.harnessRoot
+    execution.environment = suite.environment
     execution.log = `${suite.id.replaceAll(':', '-')}/run.log`
     console.log(`unified: ${suite.id} (${suite.kind === 'internal' ? options.root : options.harnessRoot})`)
-    const env: NodeJS.ProcessEnv = { ...process.env, AM_BENCH_SUITE_OUT: suiteOut, AM_FC_SEED: process.env.AM_FC_SEED ?? '7' }
+    const env: NodeJS.ProcessEnv = { ...process.env, AM_BENCH_SUITE_OUT: suiteOut, AM_FC_SEED: process.env.AM_FC_SEED ?? '7', ...suite.environment }
     if (options.mermaidDir) env.MERMAID_UPSTREAM_DIR = options.mermaidDir
     if (options.referenceDir) env.MERMAID_REFERENCE_DIR = options.referenceDir
     const startedAt = now(),
       evidenceNotBefore = Date.now(),
-      run = await subprocess(command, options.harnessRoot, env, join(options.out, execution.log), options.timeoutMs)
+      run = await subprocess(command, suite.cwd ?? options.harnessRoot, env, join(options.out, execution.log), options.timeoutMs)
     cancelledSignal = run.cancelledSignal
     Object.assign(execution, { elapsedMs: run.elapsedMs, exitCode: run.code, signal: run.signal, timedOut: run.timedOut })
     execution.status = run.code === 0 && !run.timedOut && !run.launchError && !run.cancelledSignal ? 'passed' : 'failed'
@@ -289,7 +306,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     } else {
       const owning = declaredReports(suiteOut, evidenceNotBefore)
       if (execution.status === 'passed' && owning.status) execution.status = owning.status
-      const counts = suite.kind === 'test' ? testCounts(run.tail) : undefined
+      const counts = suite.kind === 'test' ? testCounts(readFileSync(join(options.out, execution.log), 'utf8')) : undefined
       const observation: BenchmarkObservation = {
         suite: suite.id,
         surface: suite.kind === 'test' ? 'owning-tests' : 'owning-suite',
