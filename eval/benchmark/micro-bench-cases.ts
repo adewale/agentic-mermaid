@@ -306,6 +306,19 @@ function asciiCase(workload: Workload): MicroCase {
 /** Include final string consumption and receipt hashing in the timed call.
  * These supplement text-only calls so lazy materialization is never mistaken
  * for a reduction in the cost of a fully consumed artifact. */
+function consumedSvgCase(workload: Workload): MicroCase {
+  return {
+    id: `render:svg-utf8-${workload}`,
+    description: `Public SVG fully UTF-8 consumed, without consuming the receipt, ${workload}`,
+    async setup() {
+      const { renderMermaidSVG } = await src.index()
+      const encoder = new TextEncoder()
+      return { call: () => encoder.encode(renderMermaidSVG(MICRO_WORKLOADS[workload])), input: MICRO_WORKLOADS[workload] }
+    },
+    check: result => result instanceof Uint8Array && result.length > 0,
+  }
+}
+
 function consumedCase(workload: Workload, output: 'svg' | 'ascii'): MicroCase {
   return {
     id: `render:${output}-consumed-${workload}`,
@@ -597,6 +610,7 @@ export function microCases(): readonly MicroCase[] {
     ...sceneCases('class80'),
     ...svgPassCases('class80'),
     ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(renderCase),
+    ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(consumedSvgCase),
     ...(Object.keys(MICRO_WORKLOADS) as Workload[]).flatMap(workload => [receiptCase(workload, false), receiptCase(workload, true)]),
     ...(['hand-drawn', 'watercolor'] as const).map((style): MicroCase => ({
       id: `render:svg-flow5-${style}`,
