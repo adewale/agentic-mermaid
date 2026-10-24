@@ -9,7 +9,7 @@ export function extraPackagePreparation(name) {
   switch (name) {
     case '@ramtinj95/pi-mermaid-tui': return { entry: 'src/grok-renderer.ts', runtime: 'Bun (published Pi renderer component)', boundary: 'published WASM renderer component; Pi host hooks excluded' }
     case '@yassimba/pi-loom-mermaid': return { entry: 'src/loom-mermaid/index.ts', runtime: 'Bun (published Loom renderer component)', boundary: 'published terminal renderer component; Pi host hooks excluded' }
-    case 'opencode-merman': return { entry: 'src/markdown.ts', runtime: 'Bun (OpenTUI headless integration)', companions: ['@opentui/core@0.5.14'], boundary: 'published Markdown renderer in real OpenTUI headless host' }
+    case 'opencode-merman': return { entry: 'src/markdown.ts', runtime: 'Bun (OpenTUI headless integration)', companions: ['@opentui/core@0.5.14', '@opentui/solid@0.5.14', 'solid-js@1.9.12', '@opencode/plugin@2.0.22', '@opencode/theme@2.0.22'], boundary: 'published Markdown renderer in real OpenTUI headless host' }
     case '@kitlangton/merman': return { runtime: 'Bun (published terminal renderer)', boundary: 'public render(content,{color:false})' }
     case '@crafter/mermaid-renderer': return { companions: ['@crafter/mermaid-parser@0.0.4', '@crafter/mermaid-layout@0.0.3', '@crafter/mermaid-themes@0.0.3'], boundary: 'public parse → layout → renderToString pipeline' }
     case '@toeverything/mermaid-wasm': return { wasmRelativePath: 'pkg/affine_mermaid_renderer_wasm_bg.wasm', boundary: 'public Rust/WASM renderer' }

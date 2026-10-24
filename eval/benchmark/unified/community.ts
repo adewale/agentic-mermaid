@@ -127,7 +127,7 @@ async function npmArtifact(node: CommunityNode, cache: string, pinned = false): 
 }
 
 export function verifyProvidedCommunityArtifact(artifact: CommunityArtifact): void {
-  const entry = artifact.module ?? artifact.executable ?? artifact.python
+  const entry = artifact.kind === 'cli' || artifact.kind === 'jsonl-worker' ? artifact.executable : artifact.kind === 'python' ? (artifact.python ?? artifact.executable) : (artifact.module ?? artifact.executable)
   if (!entry || !existsSync(entry)) throw new Error('Provided artifact entry does not exist')
   const sourceFiles = artifact.sourceFiles as { root: string; revision: string; gitPath: string; blob: string }[] | undefined
   if (!artifact.sha256 && !artifact.files?.length && !sourceFiles?.length) throw new Error('Provided artifacts require compiled/shipped byte identity or a clean pinned Git source proof')
@@ -171,7 +171,7 @@ function validateFrozenCommunityEntry(entry: PreparedCommunity, node: CommunityN
     if (node.benchmark?.adapter === 'extra-source' && (artifact.reviewed !== true || artifact.sourceRevision !== node.benchmark.sourcePin || !artifact.buildRecipeId || !artifact.runtimeCommandId)) throw Error('Source artifact has no exact reviewed Git/protocol binding')
     if (node.benchmark?.adapter === 'source-cli' && artifact.revision !== (node.release?.commit ?? node.head)) throw Error('Native artifact revision differs from recorded source pin')
     if (node.benchmark?.adapter === 'franken' && artifact.revision !== node.distribution?.revision) throw Error('WASM artifact revision differs from frozen distribution')
-    if (node.benchmark?.package && artifact.kind === 'node') {
+    if (node.benchmark?.package) {
       if (!artifact.root) throw Error('Frozen npm artifact has no installed package root')
       const pkg = JSON.parse(readFileSync(join(artifact.root, 'package.json'), 'utf8'))
       if (pkg.name !== node.benchmark.package || pkg.version !== artifact.version || (node.benchmark.version && pkg.version !== node.benchmark.version)) throw Error('Frozen installed npm package identity differs')
@@ -231,7 +231,8 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
     )
   }
   checkpoint(false)
-  for (const node of catalog.nodes) {
+  const preparationOrder = process.env.AM_COMMUNITY_SOURCE_PREPARATION_GATE ? [...catalog.nodes].sort((left, right) => Number(left.benchmark?.adapter === 'extra-source') - Number(right.benchmark?.adapter === 'extra-source')) : catalog.nodes
+  for (const node of preparationOrder) {
     console.log(`community preparation ${prepared.length + 1}/${catalog.nodes.length}: ${node.id}`)
     if (!node.benchmark) {
       prepared.push({ node, error: 'Applicable catalog operations have no admitted adapter; explicitly unmeasured' })
@@ -249,7 +250,7 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
           if (node.benchmark.adapter === 'franken' && artifact.revision !== node.distribution?.revision) throw new Error('Provided Franken distribution revision differs from its recorded immutable pin')
         } else if (node.benchmark.adapter === 'extra-source') {
           if (artifact.reviewed !== true || artifact.sourceRevision !== node.benchmark.sourcePin || !artifact.buildRecipeId || !artifact.runtimeCommandId) throw new Error('Provided source artifact lacks exact reviewed source/protocol identity')
-        } else if (artifact.kind === 'node') {
+        } else if (node.benchmark.package || artifact.kind === 'node') {
           if (!artifact.root) throw new Error('Provided Node artifact requires an actual package root')
           const pkg = JSON.parse(readFileSync(join(artifact.root, 'package.json'), 'utf8')) as { name: string; version: string },
             expectedName = node.benchmark.package ?? (node.benchmark.adapter === 'agentic' ? 'agentic-mermaid' : undefined)
@@ -258,7 +259,7 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
             const recorded = node.benchmark.version ?? node.packages?.find(pkg => pkg.registry === 'npm' && pkg.name === expectedName)?.version
             const pinned = node.id === 'mermaid-js/mermaid' || node.benchmark.versionPolicy === 'recorded' || !!node.benchmark.version || process.env.AM_COMMUNITY_VERSION_POLICY === 'recorded'
             let expectedVersion = recorded
-            if (options.communityArtifactPolicy === 'frozen') expectedVersion = artifact.version
+            if (options.communityArtifactPolicy === 'frozen' && !node.benchmark.version) expectedVersion = artifact.version
             else if (!pinned) {
               const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(expectedName)}/latest`)
               if (!response.ok) throw new Error(`Cannot resolve provided package version: HTTP ${response.status}`)
@@ -276,6 +277,14 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
           }
         }
       } else if (node.benchmark.adapter === 'extra-source') {
+        const gate = process.env.AM_COMMUNITY_SOURCE_PREPARATION_GATE
+        if (gate && existsSync(gate)) {
+          console.log(`community source-build scheduler waiting for ${gate} to be removed before ${node.id}`)
+          while (existsSync(gate)) {
+            assertCommunityNotInterrupted()
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        }
         const { prepareExtraCommunitySource } = await import('./community-extra-source.ts')
         artifact = await prepareExtraCommunitySource(node, process.env.AM_COMMUNITY_SOURCE_CACHE ?? cache)
       } else if (node.benchmark.adapter === 'agentic') {
@@ -294,13 +303,14 @@ export async function prepareCommunity(options: UnifiedRunOptions): Promise<Prep
       }
       if (!artifact) throw new Error('Preparation returned no actual artifact')
       if (node.id === '1jehuang/mermaid-rs-renderer' && artifact.kind === 'cli') artifact.outputBindings = { ...(artifact.outputBindings ?? {}), png: { args: ['-i', '-', '-e', 'png', '-o', '{output}'], input: 'stdin' } }
-      artifact.detail = `${artifact.detail ?? ''}${artifact.detail ? '; ' : ''}Version policy: ${node.benchmark.adapter === 'agentic' ? 'local candidate source/package' : node.id === 'mermaid-js/mermaid' ? 'pinned current Mermaid' : node.benchmark.adapter === 'source-cli' || node.benchmark.adapter === 'extra-source' || node.benchmark.adapter === 'franken' ? 'recorded immutable source/distribution' : process.env.AM_COMMUNITY_VERSION_POLICY === 'recorded' ? 'recorded registry release' : 'resolved latest registry release'}. Recorded catalog versions remain separately available on the node.`
+      artifact.detail = `${artifact.detail ?? ''}${artifact.detail ? '; ' : ''}Version policy: ${provided[node.id] && options.communityArtifactPolicy === 'frozen' ? 'provided actual artifact version/bytes frozen; no latest lookup' : node.benchmark.adapter === 'agentic' ? 'local candidate source/package' : node.id === 'mermaid-js/mermaid' ? 'pinned current Mermaid' : node.benchmark.adapter === 'source-cli' || node.benchmark.adapter === 'extra-source' || node.benchmark.adapter === 'franken' ? 'recorded immutable source/distribution' : node.benchmark.version || node.benchmark.versionPolicy === 'recorded' || process.env.AM_COMMUNITY_VERSION_POLICY === 'recorded' ? 'recorded registry release' : 'resolved latest registry release'}. Recorded catalog versions remain separately available on the node.`
       prepared.push({ node, artifact })
     } catch (error) {
       prepared.push({ node, error: String(error) })
     }
     checkpoint(false)
   }
+  prepared.sort((left, right) => catalog.nodes.findIndex(node => node.id === left.node.id) - catalog.nodes.findIndex(node => node.id === right.node.id))
   checkpoint(true)
   mkdirSync(options.out, { recursive: true })
   writeFileSync(join(options.out, 'community-prepared.json'), JSON.stringify(prepared, null, 2))

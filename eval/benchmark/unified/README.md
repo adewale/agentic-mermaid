@@ -111,13 +111,15 @@ unmeasured work. A process that exits successfully can still contain rejected
 or unqualified corpus inputs; inspect the owning suite artifact.
 
 Community ranks use only the fixed, matched core graph inputs and qualified
-rounds. Broader family feature attempts have one warm call and three single-call
-samples, rather than calibrated repetition. Node and external JSONL workers
+rounds. By default, broader family feature attempts execute and qualify once in
+the first round, without warm-up or speed samples. `--community-coverage repeated`
+retains the earlier repeated-feature protocol as an explicit alternative. Node and external JSONL workers
 preserve completed cases, enforce progress deadlines and restart untouched
 inputs after crashes, with bounded retries recorded in raw evidence. Browser
 realm failures retain earlier rows and explicitly block the remaining cases.
 Declared catalog outputs without adapter bindings remain unmeasured capability
-rows. Catalog-only nodes and unavailable runtime capabilities are not multiplied
+rows. Every catalog node receives an acquisition attempt and an eligibility
+record. Missing artifacts and unavailable runtime capabilities are not multiplied
 into artificial per-input failures or performance wins.
 
 Exit status is `0` when selected suites complete, `1` when any suite fails, and
