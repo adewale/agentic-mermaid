@@ -7,7 +7,7 @@ import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 const job = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), { prepared, workloads, output } = job, artifact = prepared.artifact, declaredConfig = prepared.node.benchmark, config = { ...declaredConfig, adapter: ['beautiful-source','beautiful-fork'].includes(declaredConfig.sourceAdapter) ? 'beautiful' : ['mermaid-source','mermaid-fork'].includes(declaredConfig.sourceAdapter) ? 'mermaid' : declaredConfig.adapter }
 const { qualifyOutput } = await import(pathToFileURL(job.harnessRoot + '/eval/benchmark/unified/qualification.ts'))
-let extraApi, diagnosticHelpers, diagnosticAdmission, diagnosticAdmissionFailed = false, publicApiAvailable = false
+let extraApi, diagnosticHelpers, diagnosticAdmission, diagnosticAdmissionFailed = false, publicApiAvailable = false, parserAdmission, parserAdmissionFailed = false
 const start = performance.now(), rows = [], cleanups = [], jsonl = job.out + '.jsonl'
 fs.writeFileSync(jsonl, '')
 const req = createRequire((artifact.root ?? job.harnessRoot) + '/package.json')
@@ -86,6 +86,7 @@ function consume(value) {
 }
 function invalid(detail) { const error = new Error(detail); error.qualification = true; throw error }
 function structured(value) { return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0 }
+function parserReturn(value) { return config.adapter === 'mermaid' && output === 'parse' ? { publicParserReturn: { type: typeof value, value: value === undefined ? null : value }, parserAdmissionFailed } : {} }
 function labelStrings(value) {
   const found = new Set(), visited = new Set(), omitted = new Set(['source', 'code', 'lines', 'canonicalSource', 'originalSource', 'rawSource', 'raw', 'sourceText'])
   const walk = item => {
@@ -104,7 +105,11 @@ function qualify(value, workload) {
   if (typeof extraQualification === 'string') return extraQualification
   if (output === 'parse') {
     if (value === false || value?.ok === false || value?.success === false) invalid('Parser rejected source: ' + JSON.stringify(value))
-    if (config.adapter === 'mermaid') { if (value !== true && !(structured(value) && typeof value.diagramType === 'string' && value.diagramType)) invalid('Public parser returned no syntax acceptance'); return 'public-parser-acceptance' }
+    if (config.adapter === 'mermaid') {
+      if (parserAdmissionFailed || !parserAdmission?.length) invalid('Public parser failed authored negative admission; no qualified syntax-validation rank')
+      if (value !== true && value !== undefined && !(structured(value) && typeof value.diagramType === 'string' && value.diagramType)) invalid('Public parser returned no documented syntax acceptance')
+      return value === undefined ? 'public-void-success-syntax-validation; both authored negatives rejected; no native-model or label-fidelity claim' : 'public-parser-syntax-acceptance; both authored negatives rejected; no native-model or label-fidelity claim'
+    }
     if (!structured(value)) invalid('Parser returned no structured result')
     let model = value
     if (config.adapter === 'agentic') {
@@ -142,6 +147,19 @@ function qualify(value, workload) {
 try {
   const render = await renderer(), importMs = performance.now() - start
   publicApiAvailable = true
+  if (config.adapter === 'mermaid' && output === 'parse') {
+    parserAdmission = []
+    for (const [index, source] of ['This is deliberately not a Mermaid diagram. @@@ {{{', 'graph LR\n --> -->'].entries()) {
+      let value, rejection
+      try { value = render(source); if (thenable(value)) value = await value }
+      catch (error) { rejection = error instanceof Error ? String(error) : JSON.stringify(error) }
+      const accepted = !rejection && value !== false && value?.ok !== false && value?.success !== false
+      parserAdmission.push({ id: 'parser-negative-' + (index + 1), source, expectedAccepted: false, actualAccepted: accepted, status: accepted ? 'failed' : 'passed', detail: accepted ? 'Authored invalid source was accepted' : 'Authored invalid source was rejected', rejection, returnType: typeof value, value: value === undefined ? null : value })
+      if (accepted) parserAdmissionFailed = true
+    }
+    extraApi = { surface: 'node:public-parse-validation', boundary: 'actual public Mermaid parse API; native return retained, syntax validation only, no private AST projection' }
+    fs.writeFileSync(job.out + '.parser-admission.json', JSON.stringify({ policy: 'Both authored negative controls must reject before syntax-validation ranks; API returns remain unchanged', parserAdmission }, null, 2))
+  }
   if (output === 'diagnostics') {
     diagnosticAdmission = []
     for (const [index, source] of ['This is deliberately not a Mermaid diagram. @@@ {{{', 'flowchart LR\n --> -->'].entries()) {
@@ -173,7 +191,7 @@ try {
       }
       if (!core && (job.coverageOnce || job.coverageOnly)) {
         globalThis.__communitySink = sink
-        emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', firstMs, bytes, qualification, mode: 'feature-corpus-qualification', coverageOnly: true, ...(output === 'diagnostics' ? { diagnosticAdmissionFailed, diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
+        emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', firstMs, bytes, qualification, mode: 'feature-corpus-qualification', coverageOnly: true, ...parserReturn(sink), ...(output === 'diagnostics' ? { diagnosticAdmissionFailed, diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
         continue
       }
       let calls = 0; const warm = performance.now()
@@ -185,11 +203,11 @@ try {
         samples.push((performance.now() - tick) / iterations)
       }
       qualify(sink, workload); globalThis.__communitySink = sink
-      emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', samplesMs: samples, medianMs: median(samples), firstMs, bytes, iterations, qualification, ...(output === 'diagnostics' ? { diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
+      emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', samplesMs: samples, medianMs: median(samples), firstMs, bytes, iterations, qualification, ...parserReturn(sink), ...(output === 'diagnostics' ? { diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
     } catch (error) { emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: !error.qualification && /unsupported|unknown.*diagram|invalid.*header|not.*supported|MERMAN_UNSUPPORTED/i.test(String(error)) ? 'unsupported' : 'failed', firstMs: firstMs ?? performance.now() - firstStart, detail: String(error) }) }
   }
   const memory = { rssBytes: process.memoryUsage().rss, peakRssBytes: process.resourceUsage().maxRSS * 1024 }
   for (const close of cleanups.reverse()) await close()
-  fs.writeFileSync(job.out, JSON.stringify({ status: 'completed', publicApiAvailable, importMs, runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, ...memory, diagnosticAdmission, diagnosticAdmissionFailed, rows }))
+  fs.writeFileSync(job.out, JSON.stringify({ status: 'completed', publicApiAvailable, importMs, runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, ...memory, diagnosticAdmission, diagnosticAdmissionFailed, parserAdmission, parserAdmissionFailed, rows }))
   progress({ phase: 'done' })
-} catch (error) { fs.writeFileSync(job.out, JSON.stringify({ status: 'blocked', publicApiAvailable, detail: String(error), diagnosticAdmission, diagnosticAdmissionFailed, rows })); process.exitCode = 1 }
+} catch (error) { fs.writeFileSync(job.out, JSON.stringify({ status: 'blocked', publicApiAvailable, detail: String(error), diagnosticAdmission, diagnosticAdmissionFailed, parserAdmission, parserAdmissionFailed, rows })); process.exitCode = 1 }

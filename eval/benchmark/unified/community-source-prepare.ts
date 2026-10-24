@@ -64,15 +64,22 @@ export function reviewedCommunitySourcePresentation(node: CommunitySourceNode): 
 
 export interface CommunityAcquisitionResources {
   minFreeBytes?: number
+  storageRoots?: readonly string[]
 }
 function run(command: readonly string[], cwd: string, env: NodeJS.ProcessEnv, log: string, timeoutMs = 20 * 60_000, resources: CommunityAcquisitionResources = {}): Promise<void> {
   return new Promise((resolveRun, reject) => {
-    const available = (): number => {
-      const space = statfsSync(cwd)
-      return space.bavail * space.bsize
+    const available = (): { path: string; bytes: number } => {
+      const roots = [...new Set([cwd, ...(resources.storageRoots ?? [])])]
+      return roots
+        .map(path => {
+          const space = statfsSync(path)
+          return { path, bytes: space.bavail * space.bsize }
+        })
+        .reduce((least, next) => (next.bytes < least.bytes ? next : least))
     }
-    if (resources.minFreeBytes && available() < resources.minFreeBytes) {
-      reject(new Error(`Resource guard: acquisition requires ${resources.minFreeBytes} free bytes before spawning ${command[0]}`))
+    const initial = available()
+    if (resources.minFreeBytes && initial.bytes < resources.minFreeBytes) {
+      reject(new Error(`Resource guard: acquisition requires ${resources.minFreeBytes} free bytes at ${initial.path} before spawning ${command[0]}`))
       return
     }
     const file = createWriteStream(log, { flags: 'a' })
@@ -104,8 +111,8 @@ function run(command: readonly string[], cwd: string, env: NodeJS.ProcessEnv, lo
       storage = resources.minFreeBytes
         ? setInterval(() => {
             try {
-              const bytes = available()
-              if (bytes < resources.minFreeBytes!) abort(`Resource guard: available storage ${bytes} bytes fell below ${resources.minFreeBytes} bytes during ${command[0]}`)
+              const space = available()
+              if (space.bytes < resources.minFreeBytes!) abort(`Resource guard: available storage ${space.bytes} bytes at ${space.path} fell below ${resources.minFreeBytes} bytes during ${command[0]}`)
             } catch (error) {
               abort(`Resource guard could not inspect acquisition storage: ${String(error)}`)
             }

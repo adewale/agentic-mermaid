@@ -59,6 +59,10 @@ def community_overlay(report, original_inputs, directory, original_directory, al
     evidence=scores.get('evidence',{})
     if scores.get('protocol')!='community-fixed-core-feature-once-v2'or evidence.get('protocol')!=scores['protocol']or load(directory/'community-evidence.json')!=evidence:
         raise ValueError('Expanded community replay has no matching explicit v2 evidence manifest')
+    svg_qualification=evidence.get('svgQualification',{})
+    parser=svg_qualification.get('nodeXmlParser',{})
+    if svg_qualification.get('protocol')!='svg-xml-namespace-positive-canvas-v2'or parser.get('name')!='saxes'or not parser.get('version')or not parser.get('module')or svg_qualification.get('browserXmlParser')!='native DOMParser':
+        raise ValueError('Expanded community replay lacks actual strict XML/namespace/canvas qualification provenance')
     if scores.get('finishedAt')!=result['finishedAt']or evidence.get('finishedAt')!=result['finishedAt']or evidence.get('profile')!='full'or evidence.get('rounds')!=3 or evidence.get('coverageOnce')is not True:
         raise ValueError('Expanded community evidence protocol/timestamps differ from its actual result')
     if ledger.get('profile')!='full'or ledger.get('rounds')!=3 or scores.get('rounds')!=3 or invocation.get('communityCoverageOnce')is not True:
@@ -134,16 +138,16 @@ def community_overlay(report, original_inputs, directory, original_directory, al
         compiled=archive.extractfile(member)
         if not compiled or hashlib.sha256(compiled.read()).hexdigest()!=new_self[0]['sha256']or hashlib.sha256(module.read_bytes()).hexdigest()!=new_self[0]['sha256']:
             raise ValueError('Actual Agentic entry no longer matches admitted target tarball bytes')
-    metadata=dict(directory=str(directory.resolve()),evidenceFile=str((directory/'community-evidence.json').resolve()),protocol=evidence['protocol'],originalStatus=report.get('status'),replayStatus=ledger.get('status'),startedAt=result['startedAt'],finishedAt=result['finishedAt'],catalogNodes=84,coreCases=6,featureCases=957,rounds=3,coverageOnce=True,targetRevision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateSha256=invocation['candidateSha256'],agenticEntrySha256=new_self[0]['sha256'],targetAdvance=advance,currentReference=evidence['currentReference'],identityRechecks=rechecks,qualificationChange='Expanded population and source-echo/diagnostic qualification safeguards; this is a separately identified community measurement, not a replacement full run or a like-for-like product speed improvement.')
+    metadata=dict(directory=str(directory.resolve()),evidenceFile=str((directory/'community-evidence.json').resolve()),protocol=evidence['protocol'],svgQualification=svg_qualification,originalStatus=report.get('status'),replayStatus=ledger.get('status'),startedAt=result['startedAt'],finishedAt=result['finishedAt'],catalogNodes=84,coreCases=6,featureCases=957,rounds=3,coverageOnce=True,targetRevision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateSha256=invocation['candidateSha256'],agenticEntrySha256=new_self[0]['sha256'],targetAdvance=advance,currentReference=evidence['currentReference'],identityRechecks=rechecks,qualificationChange='Expanded population and strict SVG XML/namespace/canvas plus source-echo/diagnostic qualification safeguards; this is a separately identified community measurement, not a replacement full run or a like-for-like product speed improvement.')
     return result,scores,inputs,metadata
 
 
-def current_target_ledger(original, directory):
+def current_target_ledger(original, directory, required_suites=('dave','pinned-reference-score')):
     """A separate supplemental current-target run, never an old-ledger overlay."""
     ledger=load(directory/'report.json');invocation=load(directory/'invocation.json',{})
     if not ledger or not ledger.get('finishedAt')or ledger.get('profile')!='full'or ledger.get('rounds')!=3:
         raise ValueError('--current-run must be a completed full/three-round supplemental run')
-    for suite_id in ('dave','pinned-reference-score'):
+    for suite_id in required_suites:
         suites=[suite for suite in ledger.get('suites',[])if suite.get('id')==suite_id]
         if len(suites)!=1 or suites[0].get('status')in ('skipped','not-applicable')or not suites[0].get('result'):
             raise ValueError('Current supplemental run did not actually execute '+suite_id)
@@ -158,6 +162,26 @@ def current_target_ledger(original, directory):
     if not tarball or not digest or hashlib.sha256(Path(tarball).read_bytes()).hexdigest()!=digest:
         raise ValueError('Current supplemental run lacks its actual admitted target tarball')
     return ledger,dict(directory=str(directory.resolve()),targetRevision=revision,packageRoot=package,candidateTarball=tarball,candidateSha256=digest,startedAt=ledger['startedAt'],finishedAt=ledger['finishedAt'],status=ledger.get('status'),originalTargetRevision=original.get('targetRevision'),policy='Separate current-target Dave and pinned-reference evidence. Original full ledger and scoped older-target corrections retain their own target and clocks.')
+
+
+def additional_supplement(original, directory, expected_target):
+    ledger,metadata=current_target_ledger(original,directory,required_suites=())
+    if any(metadata.get(key)!=expected_target.get(key)for key in ('targetRevision','packageRoot','candidateSha256')):raise ValueError('Additional suite ledger differs from the explicitly selected current target/archive')
+    selected=[suite for suite in ledger.get('suites',[])if suite.get('selected')and suite.get('status')!='skipped']
+    if not selected:raise ValueError('Additional suite ledger has no selected attempted suite')
+    root=Path(ledger['targetRoot']).resolve();rows=[]
+    for suite in selected:
+        source=Path(suite.get('source',''))
+        if not source.is_absolute()or Path(suite.get('workingDirectory','')).resolve()!=root:raise ValueError('Additional target-owned suite must name its actual absolute source and target working directory')
+        try:relative=source.resolve().relative_to(root).as_posix()
+        except ValueError as error:raise ValueError('Additional owning source is outside the admitted target checkout')from error
+        blob=subprocess.check_output(['git','-C',str(root),'rev-parse',metadata['targetRevision']+':'+relative],text=True).strip()
+        if subprocess.run(['git','-C',str(root),'diff','--quiet',metadata['targetRevision'],'--',relative],capture_output=True).returncode!=0:raise ValueError('Additional owning benchmark source changed after its admitted Git revision')
+        result=suite.get('result')or{}
+        evidence=[{key:row.get(key)for key in ('caseId','operation','format','mode','status','metrics','detail')}for row in result.get('observations',[])]
+        rows.append(dict(id=suite['id'],status=suite.get('status'),elapsedMs=suite.get('elapsedMs'),source=str(source),sourceRevision=metadata['targetRevision'],sourceGitBlob=blob,log=str(directory/suite['log'])if suite.get('log')else None,artifacts=result.get('artifacts',[]),prerequisites=suite.get('prerequisites',[]),gaps=result.get('gaps',[]),observations=evidence))
+    metadata.update(policy='Additional maintained target-owned suite ledger; source Git objects and actual target archive verified. No community/PR ranks or original suite statuses are replaced.',suites=rows)
+    return metadata
 
 
 def current_dave(original_directory, directory, target):
@@ -384,7 +408,7 @@ def aggregate(rows):
     """Repeated rounds are one observed check, passed only when every row passes."""
     checks = defaultdict(list)
     for row in rows:
-        if row.get('status') == 'not-applicable':
+        if row.get('status') in ('not-applicable','skipped'):
             continue
         key = tuple(row.get(k) for k in ('caseId', 'operation', 'format', 'mode'))
         checks[key].append(row)
@@ -434,9 +458,10 @@ class Figures:
         data = []
         for y, family in enumerate(families):
             for x, (surface, runtime) in enumerate(surfaces):
-                passed, total = aggregate([r for r in rows if r['family'] == family and r['surface'] == surface and r.get('runtime', 'unrecorded') == runtime])
+                selected=[r for r in rows if r['family'] == family and r['surface'] == surface and r.get('runtime', 'unrecorded') == runtime]
+                passed, total = aggregate(selected)
                 if total: matrix[y, x] = passed / total
-                data.append(dict(family=family, surface=surface, runtime=runtime, passed=passed, observedChecks=total))
+                data.append(dict(family=family, surface=surface, runtime=runtime, passed=passed, observedChecks=total,statusObservations={status:sum(row.get('status')==status for row in selected)for status in ('passed','failed','blocked','unsupported','not-applicable','skipped')}))
         figure, ax = self.plt.subplots(figsize=(max(8, len(surfaces) * .7), max(5, len(families) * .3)))
         image = ax.imshow(matrix, vmin=0, vmax=1, aspect='auto', cmap='YlGnBu')
         ax.set_xticks(range(len(surfaces)), [surface+'\n'+runtime for surface,runtime in surfaces], rotation=45, ha='right')
@@ -445,7 +470,7 @@ class Figures:
             x, y = surfaces.index((cell['surface'],cell['runtime'])), families.index(cell['family'])
             ax.text(x, y, f"{cell['passed']}/{cell['observedChecks']}" if cell['observedChecks'] else '—', ha='center', va='center', fontsize=7, color='white' if matrix[y,x] > .7 else 'black')
         figure.colorbar(image, ax=ax, label='Qualified / observed checks')
-        self.save(figure, 'invocation-coverage', 'Agentic Mermaid: observed family × invocation checks', 'Counts deduplicate repeated rounds; every observed round must pass. Missing cells are unmeasured. This is not exhaustive feature or operation coverage.', data)
+        self.save(figure, 'invocation-coverage', 'Agentic Mermaid: observed family × invocation checks', 'Counts deduplicate repeated rounds; every observed round must pass. N/A/skipped checks are excluded, missing cells are unmeasured. Blocked/unsupported/failed statuses remain distinct in reduced rows; a low qualified fraction is not a failure count. This is not exhaustive feature or operation coverage.', data)
 
     def rank_bars(self, ranks):
         groups = defaultdict(list)
@@ -844,7 +869,7 @@ class Figures:
         self.save(figure,'owning-test-score-time','Owning suite counts and process wall time','Groups exercise different behavior and case counts: no cross-suite speed rank. Wall time includes initialization, assertions, reference IPC and instrumentation; it is not parser API latency.',data)
 
     def html(self, report, campaign, supplemental=None, correction=None, reference_overlay=None):
-        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),figures=self.items,gaps=self.gaps)
+        reduced=dict(run={k:report.get(k)for k in ('status','startedAt','finishedAt','profile','rounds','driverRevision','targetRevision')},suitePins={suite['id']:suite['pin']for suite in report.get('suites',[])if suite.get('pin')},prCampaign={k:campaign.get(k)for k in ('frozenAt','main','units','protocols','measurementConfig','measurementDriver')}if campaign else None,communityCli={**{k:supplemental.get(k)for k in ('startedAt','latencyFinishedAt','finishedAt','rounds','policy','resourcePolicy','executionOrder')},'resourceObserver':supplemental.get('evidence',{}).get('resourceObserver')}if supplemental else None,invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=getattr(self,'community_replay',None),currentRun=getattr(self,'current_run',None),additionalRun=getattr(self,'additional_run',None),figures=self.items,gaps=self.gaps)
         (self.out/'chart-data.json').write_text(json.dumps(reduced,indent=2,allow_nan=False)+'\n')
         cards=[]
         for item in self.items:
@@ -853,7 +878,10 @@ class Figures:
             rows=item['rows'];keys=list(dict.fromkeys(key for row in rows for key in row))
             table='<table><thead><tr>'+''.join('<th>'+escape(str(key))+'</th>'for key in keys)+'</tr></thead><tbody>'+''.join('<tr>'+''.join('<td>'+escape(json.dumps(row.get(key),ensure_ascii=False) if isinstance(row.get(key),(dict,list))else str(row.get(key,'')))+'</td>'for key in keys)+'</tr>'for row in rows)+'</tbody></table>'
             cards.append('<section><h2>'+escape(item['title'])+'</h2><p>'+escape(item['note'])+'</p><img alt="'+escape(item['title'])+'" src="'+src+'"><p>'+ ' · '.join('<a href="'+item['name']+'.'+extension+'">'+extension.upper()+'</a>'for extension in ('svg','png','pdf'))+'</p><details><summary>Reduced evidence rows</summary>'+table+'</details></section>')
-        metadata=escape(json.dumps(dict(run=reduced['run'],invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=reduced['communityReplay'],currentRun=reduced['currentRun']),indent=2))
+        if reduced['additionalRun']:
+            evidence=reduced['additionalRun']
+            cards.append('<section><h2>Additional maintained suite ledger</h2><p>'+escape(evidence['policy'])+'</p><p>Target '+escape(evidence['targetRevision'])+'; '+escape(evidence['startedAt'])+' → '+escape(evidence['finishedAt'])+'</p>'+''.join('<h3>'+escape(row['id'])+' — '+escape(row['status'])+'</h3><details><summary>Actual gates, completion, source and artifacts</summary><pre>'+escape(json.dumps(row,indent=2))+'</pre></details>'for row in evidence['suites'])+'</section>')
+        metadata=escape(json.dumps(dict(run=reduced['run'],invocationCorrection=correction,referenceCorrection=reference_overlay,communityReplay=reduced['communityReplay'],currentRun=reduced['currentRun'],additionalRun=reduced['additionalRun']),indent=2))
         gaps=''.join('<li>'+escape(gap)+'</li>'for gap in self.gaps)
         embedded=json.dumps(reduced,allow_nan=False).replace('<','\\u003c')
         html='''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Agentic Mermaid benchmark evidence</title><style>body{font:15px system-ui;max-width:1200px;margin:auto;padding:24px;color:#20313e;background:#f4f7f8}section{background:white;padding:20px;margin:24px 0;border-radius:10px}img{max-width:100%;height:auto}table{border-collapse:collapse;font-size:12px;display:block;overflow:auto}td,th{padding:7px;border:1px solid #ddd;text-align:left;max-width:400px;overflow-wrap:anywhere}input{padding:9px;width:90%}pre{white-space:pre-wrap}a{color:#126c85}</style><h1>Benchmark evidence</h1><p>Separate work, clocks and qualification scopes. Missing and failed capabilities are never free wins. No weighted overall score or radar ranking is invented.</p><details><summary>Run identity</summary><pre>'''+metadata+'''</pre></details><label>Filter charts and evidence <input id="filter" type="search" placeholder="e.g. browser, parser, PR, memory"></label>'''+''.join(cards)+'<h2>Missing evidence</h2><ul>'+gaps+'</ul><script type="application/json" id="benchmark-data">'+embedded+'''</script><script>document.querySelector('#filter').addEventListener('input',e=>{const q=e.target.value.toLowerCase();document.querySelectorAll('section').forEach(s=>s.hidden=!s.textContent.toLowerCase().includes(q))});</script></html>'''
@@ -869,6 +897,7 @@ def main():
     parser.add_argument('--community-run',type=Path,help='Explicit completed all84 community directory; replaces only community evidence, preserving original run ledger')
     parser.add_argument('--allow-community-target-change',action='store_true',help='Admit an explicitly proven newer community-only target; all other original suites retain their original target')
     parser.add_argument('--current-run',type=Path,help='Separate completed current-target Dave and same-fixture pinned-reference supplemental run; never replaces original suite evidence')
+    parser.add_argument('--additional-run',type=Path,help='Separate completed maintained target-owned suite ledger; requires the explicit current target selection and never merges ranks')
     args=parser.parse_args()
     if args.allow_community_target_change and not args.community_run:parser.error('--allow-community-target-change requires --community-run')
     if not args.validate_only and args.out is None:parser.error('--out is required unless --validate-only is selected')
@@ -896,6 +925,13 @@ def main():
             current_ledger,current_dave_result,current_reference_result,current_metadata=current_supplement(report,args.run,args.current_run,reference_metadata)
             if community_metadata and any(current_metadata[key]!=community_metadata[key]for key in ('targetRevision','packageRoot','candidateSha256')):raise ValueError('Explicit current and expanded-community measurements use different current targets')
         except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
+    additional_metadata=None
+    if args.additional_run:
+        try:
+            expected_target=current_metadata or community_metadata
+            if not expected_target:raise ValueError('--additional-run requires --current-run or an explicit --community-run current-target selection')
+            additional_metadata=additional_supplement(report,args.additional_run,expected_target)
+        except (ValueError,OSError,TypeError,KeyError,tarfile.TarError,subprocess.SubprocessError)as error:parser.error(str(error))
     observations=[]
     for suite in report.get('suites',[]):
         result=correction_result if suite.get('id')=='invocation'and correction_result else reference_result if suite.get('id')=='pinned-reference-score'and reference_result else suite.get('result')
@@ -910,9 +946,10 @@ def main():
         ranks=[rank for rank in ranks if rank.get('surface')!='cli:end-to-end']+supplemental['ranks']
         observations=[row for row in observations if row.get('suite')!='community-cli']+supplemental_result.get('observations',[])+supplemental_result.get('diagnostics',[])
     if args.validate_only:
-        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata),allow_nan=False))
+        print(json.dumps(dict(protocol='unified-report-selection-v1',communityDirectory=str((args.community_run or (find(args.run,'community-result.json')or args.run).parent).resolve()),communityReplay=community_metadata,invocationCorrection=correction_metadata,referenceCorrection=reference_metadata,currentRun=current_metadata,additionalRun=additional_metadata),allow_nan=False))
         return
     figures=Figures(args.out)
+    if additional_metadata:figures.additional_run=additional_metadata
     if current_metadata:
         figures.current_run=current_metadata
         figures.gaps.append('Separate current-target supplemental run '+current_metadata['targetRevision']+' measured '+current_metadata['startedAt']+' → '+current_metadata['finishedAt']+'. Dave and parser panels are separate; original full-ledger and old-target corrections are not relabeled current.')

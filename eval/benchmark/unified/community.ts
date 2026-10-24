@@ -397,6 +397,13 @@ function runCli(prepared: PreparedCommunity, output: string, workload: UnifiedWo
   return row
 }
 
+function workerPreparedEntry(prepared: PreparedCommunity): PreparedCommunity {
+  if (!prepared.artifact) return prepared
+  const artifact = { ...prepared.artifact }
+  // Proof manifests stay in the canonical ledger; they are not renderer state.
+  Object.assign(artifact, { files: undefined, sourceFiles: undefined, dependencyPatches: undefined, runtimeDependencyRoots: undefined })
+  return { node: prepared.node, artifact }
+}
 async function nodeRound(prepared: PreparedCommunity, output: string, workloads: UnifiedWorkload[], round: number, options: UnifiedRunOptions): Promise<BenchmarkObservation[]> {
   const directory = join(options.out, 'community-raw')
   mkdirSync(directory, { recursive: true })
@@ -405,6 +412,8 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     diagnosticAccepted?: boolean
     diagnosticStatusScope?: string
     diagnosticAdmissionFailed?: boolean
+    parserAdmissionFailed?: boolean
+    publicParserReturn?: { type: string; value?: unknown }
     surface?: string
     runtime?: string
     apiBoundary?: string
@@ -419,8 +428,21 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     diagnosticsCount?: number
   }
   type DiagnosticControl = { id: string; source: string; expectedAccepted: false; actualAccepted: boolean | null; status: 'passed' | 'failed'; detail?: string; qualificationError?: string }
-  type Raw = { status: string; detail?: string; importMs?: number; rssBytes?: number; peakRssBytes?: number; runtime?: string; publicApiAvailable?: boolean; diagnosticAdmissionFailed?: boolean; diagnosticAdmission?: DiagnosticControl[]; rows: RawRow[] }
-  const controls = new Map<string, { control: DiagnosticControl; attempt: number; runtime?: string; publicApiAvailable?: boolean; file: string }>()
+  type Raw = {
+    status: string
+    detail?: string
+    importMs?: number
+    rssBytes?: number
+    peakRssBytes?: number
+    runtime?: string
+    publicApiAvailable?: boolean
+    diagnosticAdmissionFailed?: boolean
+    diagnosticAdmission?: DiagnosticControl[]
+    parserAdmission?: DiagnosticControl[]
+    parserAdmissionFailed?: boolean
+    rows: RawRow[]
+  }
+  const controls = new Map<string, { kind: 'validator' | 'parser'; control: DiagnosticControl; attempt: number; runtime?: string; publicApiAvailable?: boolean; file: string }>()
   const collected = new Map<string, { row: RawRow; raw?: Raw; attempt: number }>(),
     attempts: { attempt: number; exitCode: number | null; timedOut: boolean; activeCase?: string; detail?: string }[] = []
   let remaining = [...workloads],
@@ -431,7 +453,20 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
       jobPath = join(directory, stem + '.job.json'),
       progressFile = file + '.jsonl'
     for (const previous of [file, progressFile]) if (existsSync(previous)) unlinkSync(previous)
-    const job: CommunityWorkerJob & { progressFd: number } = { prepared, workloads: remaining, output, out: file, samples: 5, warmupMs: 50, minSampleMs: 10, harnessRoot: options.harnessRoot ?? options.root, packageRoot: options.packageRoot, coverageOnce: options.communityCoverageOnce ?? true, progressFd: 3 }
+    const job: CommunityWorkerJob & { progressFd: number; artifactProofFile: string } = {
+      prepared: workerPreparedEntry(prepared),
+      artifactProofFile: join(options.out, 'community-prepared.json'),
+      workloads: remaining,
+      output,
+      out: file,
+      samples: 5,
+      warmupMs: 50,
+      minSampleMs: 10,
+      harnessRoot: options.harnessRoot ?? options.root,
+      packageRoot: options.packageRoot,
+      coverageOnce: options.communityCoverageOnce ?? true,
+      progressFd: 3,
+    }
     writeFileSync(jobPath, JSON.stringify(job))
     let stdout = '',
       stderr = '',
@@ -517,12 +552,17 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     } catch (error) {
       detail = `Malformed partial worker report: ${String(error)}`
     }
-    for (const control of raw?.diagnosticAdmission ?? []) {
-      const key = JSON.stringify([control.id, control.source]),
-        previous = controls.get(key)
-      const actual = previous && (previous.control.status !== control.status || previous.control.actualAccepted !== control.actualAccepted) ? { ...control, status: 'failed' as const, detail: 'Negative-control outcome changed across fresh worker attempts: ' + (control.detail ?? '') } : control
-      controls.set(key, { control: actual, attempt, runtime: raw?.runtime, publicApiAvailable: raw?.publicApiAvailable, file })
-    }
+    const admissionGroups: { kind: 'validator' | 'parser'; controls: DiagnosticControl[] }[] = [
+      { kind: 'validator', controls: raw?.diagnosticAdmission ?? [] },
+      { kind: 'parser', controls: raw?.parserAdmission ?? [] },
+    ]
+    for (const group of admissionGroups)
+      for (const control of group.controls) {
+        const key = JSON.stringify([group.kind, control.id, control.source]),
+          previous = controls.get(key)
+        const actual = previous && (previous.control.status !== control.status || previous.control.actualAccepted !== control.actualAccepted) ? { ...control, status: 'failed' as const, detail: 'Negative-control outcome changed across fresh worker attempts: ' + (control.detail ?? '') } : control
+        controls.set(key, { kind: group.kind, control: actual, attempt, runtime: raw?.runtime, publicApiAvailable: raw?.publicApiAvailable, file })
+      }
     if (!rows.length && raw?.rows) rows = raw.rows
     for (const row of rows) if (remaining.some(workload => workload.id === row.id)) collected.set(row.id, { row, raw, attempt })
     attempts.push({ attempt, exitCode, timedOut, activeCase, detail: detail ?? raw?.detail })
@@ -566,6 +606,10 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
       diagnosticsCount: result.diagnosticsCount ?? null,
       accepted: result.diagnosticAccepted ?? null,
       diagnosticAdmissionFailed: result.diagnosticAdmissionFailed ?? raw?.diagnosticAdmissionFailed ?? null,
+      parserAdmissionFailed: result.parserAdmissionFailed ?? raw?.parserAdmissionFailed ?? null,
+      publicParserReturnType: result.publicParserReturn?.type ?? null,
+      publicParserReturnValue: result.publicParserReturn ? JSON.stringify(result.publicParserReturn.value ?? null) : null,
+      firstCallScope: output === 'diagnostics' || (output === 'parse' && controls.size > 0) ? 'first positive workload call after independent negative-admission calls; not first-ever API call' : 'first workload call after public adapter initialization',
       statusScope: result.diagnosticStatusScope ?? null,
       workerPortfolioCases: raw?.rows?.length ?? null,
       workerAttempt: attempt,
@@ -574,12 +618,17 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     }
     return row
   })
-  for (const { control, attempt, runtime, publicApiAvailable, file } of controls.values())
+  for (const { kind, control, attempt, runtime, publicApiAvailable, file } of controls.values())
     observations.push({
-      ...envelope(prepared.node, 'diagnostics', { id: `validator-negative-admission:${control.id}`, family: 'invalid-source', source: control.source, features: ['validator-negative-admission'], provenance: 'independently authored negative source controls; actual public validator API' }, round),
-      surface: /bun/i.test(prepared.artifact?.runtime ?? '') ? 'bun:public-api' : 'node:public-api',
+      ...envelope(
+        prepared.node,
+        kind === 'parser' ? 'parse' : 'diagnostics',
+        { id: `${kind}-negative-admission:${control.id}`, family: 'invalid-source', source: control.source, features: [`${kind}-negative-admission`], provenance: 'independently authored negative source controls; actual public syntax/validator API' },
+        round,
+      ),
+      surface: kind === 'parser' ? 'node:public-parse-validation' : /bun/i.test(prepared.artifact?.runtime ?? '') ? 'bun:public-api' : 'node:public-api',
       runtime: runtime ?? prepared.artifact?.runtime ?? 'unmeasured',
-      operation: 'validator-negative-admission',
+      operation: `${kind}-negative-admission`,
       mode: 'independent-negative-control',
       status: control.status,
       detail: [control.detail, control.qualificationError].filter(Boolean).join('; '),
@@ -596,17 +645,26 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
         clock: 'functional admission only; no speed sample',
       },
     })
-  if (output === 'diagnostics' && controls.size !== 2) {
+  const requiresParserControls = output === 'parse' && (prepared.node.benchmark?.adapter === 'mermaid' || prepared.node.benchmark?.sourceAdapter === 'mermaid-source')
+  const admissionKind = requiresParserControls ? 'parser' : 'validator',
+    admissionControls = [...controls.values()].filter(entry => entry.kind === admissionKind),
+    controlCount = admissionControls.length
+  if ((output === 'diagnostics' || requiresParserControls) && admissionControls.some(entry => entry.control.status !== 'passed' || entry.control.actualAccepted !== false))
+    for (const row of observations.filter(row => row.caseId.startsWith('core:') && row.status === 'passed')) {
+      row.status = 'failed'
+      row.detail = 'Independent negative-admission controls failed or changed across worker attempts; core speed rank withheld'
+    }
+  if ((output === 'diagnostics' || requiresParserControls) && controlCount !== 2) {
     for (const row of observations.filter(row => row.caseId.startsWith('core:'))) {
       row.status = 'blocked'
       row.detail = 'Complete independent negative-admission control evidence is unavailable; core speed rank withheld'
     }
     observations.push({
-      ...envelope(prepared.node, 'diagnostics', { id: 'validator-negative-admission:incomplete-evidence', family: 'invalid-source', source: '', features: [], provenance: 'validator protocol evidence guard' }, round),
-      operation: 'validator-negative-admission',
+      ...envelope(prepared.node, admissionKind === 'parser' ? 'parse' : 'diagnostics', { id: `${admissionKind}-negative-admission:incomplete-evidence`, family: 'invalid-source', source: '', features: [], provenance: 'validator protocol evidence guard' }, round),
+      operation: `${admissionKind}-negative-admission`,
       mode: 'independent-negative-control',
       status: 'blocked',
-      detail: `Expected2 independent negative controls; observed${controls.size}. No acceptance or timing inferred.`,
+      detail: `Expected2 independent negative controls; observed${controlCount}. No acceptance or timing inferred.`,
     })
   }
   if (lifecycleIssue) observations.push({ ...envelope(prepared.node, output, { id: 'worker-lifecycle', family: '*', source: '', features: [], provenance: 'worker lifecycle' }, round), operation: 'worker-lifecycle', status: 'blocked', detail: lifecycleIssue })
