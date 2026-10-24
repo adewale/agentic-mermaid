@@ -18,6 +18,13 @@ import {
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 
 describe('preprocessMermaidSource', () => {
+  it('applies base, YAML and init config in order when a scalar replaces a map', () => {
+    const source = '---\nconfig:\n  xyChart: false\n---\n%%{init: {"xyChart":{"height":200}}}%%\nxychart\nbar [1]'
+    const normalized = normalizeMermaidSource(source, { xyChart: { width: 100 } })
+    // The YAML scalar erases the base map before init creates a new map.
+    expect(normalized.config.xyChart).toEqual({ height: 200 })
+  })
+
   it('parses real YAML frontmatter, including anchors, lists, and block scalars', () => {
     const processed = preprocessMermaidSource(`---
 theme: base

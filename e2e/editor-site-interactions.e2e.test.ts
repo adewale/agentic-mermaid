@@ -205,6 +205,25 @@ describe('editor and site interactions in a real browser', () => {
     } finally { await page.close() }
   }, 30_000)
 
+  test('invalid source config wins over an unavailable cold family download', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/editor/?empty=1`)
+      await page.waitForFunction(() => !!(window as any).__mermaid)
+      await page.evaluate(() => (window as any).__mermaid.renderMermaidSVGWithReceipt('flowchart TD\nA --> B'))
+      let blocked = 0
+      await page.route('**/editor/runtime/**', route => { blocked++; return route.abort() })
+      const renderError = (source: string) => page.evaluate(async source => {
+        try { await (window as any).__mermaid.renderMermaidSVGWithReceipt(source); return null }
+        catch (error) { return (error as Error).message }
+      }, source)
+      expect(await renderError('---\nconfig: [\n---\nsequenceDiagram\nAlice->>Bob: Message')).toStartWith('Mermaid frontmatter is not valid YAML:')
+      expect(blocked).toBe(0)
+      expect(await renderError('sequenceDiagram\nAlice->>Bob: Message')).toContain('Diagram code could not load')
+      expect(blocked).toBeGreaterThan(0)
+    } finally { await page.close() }
+  }, 30_000)
+
   test('cached-family editing works without new modules and a failed family download retries on the next edit', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     try {
