@@ -7,13 +7,6 @@ interface Envelope {
   maxY: number
 }
 
-interface RouteRevision {
-  revision: number
-  builtRevision: number
-  points: readonly Point[]
-  envelope: Envelope | null
-}
-
 function envelope(points: readonly Point[]): Envelope | null {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
   for (const point of points) {
@@ -30,30 +23,24 @@ function envelope(points: readonly Point[]): Envelope | null {
 }
 
 /** Owned by one route-contract invocation, never a borrowed placement context.
- * Every owner write invalidates its edge revision, including in-place edits
- * and rollback. Array identity is an additional guard, not the lifetime proof.
+ * Every owner write deletes its cached revision, including in-place edits
+ * and rollback. The cache entry itself belongs to the current revision.
  * Label geometry remains live and is never read or retained here. */
 export class RouteChannelGeometry {
-  private readonly routes = new WeakMap<PositionedEdge, RouteRevision>()
+  private readonly routes = new WeakMap<PositionedEdge, Envelope | null>()
 
   invalidate(edge: PositionedEdge): void {
-    const record = this.routes.get(edge)
-    if (record) record.revision++
+    this.routes.delete(edge)
   }
 
   mayBlock(edge: PositionedEdge, cross: 'x' | 'y', coordinate: number, mainLo: number, mainHi: number, clearance: number, epsilon: number): boolean {
     if (!Number.isFinite(coordinate) || !Number.isFinite(mainLo) || !Number.isFinite(mainHi)) return true
     if (edge.points.length < 2) return false
-    let record = this.routes.get(edge)
-    if (!record) {
-      record = { revision: 0, builtRevision: 0, points: edge.points, envelope: envelope(edge.points) }
-      this.routes.set(edge, record)
-    } else if (record.builtRevision !== record.revision || record.points !== edge.points) {
-      record.points = edge.points
-      record.envelope = envelope(edge.points)
-      record.builtRevision = record.revision
+    let bounds = this.routes.get(edge)
+    if (bounds === undefined) {
+      bounds = envelope(edge.points)
+      this.routes.set(edge, bounds)
     }
-    const bounds = record.envelope
     if (!bounds) return true
     const crossLo = cross === 'x' ? bounds.minX : bounds.minY
     const crossHi = cross === 'x' ? bounds.maxX : bounds.maxY
