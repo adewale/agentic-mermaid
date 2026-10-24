@@ -26,32 +26,26 @@ function envelope(points: readonly Point[]): Envelope | null {
  * Every owner write deletes its cached revision, including in-place edits
  * and rollback. The cache entry itself belongs to the current revision.
  * Label geometry remains live and is never read or retained here. */
-export class RouteChannelGeometry {
-  private readonly routes = new WeakMap<PositionedEdge, Envelope | null>()
+export type RouteChannelGeometry = WeakMap<PositionedEdge, Envelope | null>
 
-  invalidate(edge: PositionedEdge): void {
-    this.routes.delete(edge)
+export function routeChannelMayBlock(routes: RouteChannelGeometry, edge: PositionedEdge, cross: 'x' | 'y', coordinate: number, mainLo: number, mainHi: number, clearance: number, epsilon: number): boolean {
+  if (!Number.isFinite(coordinate) || !Number.isFinite(mainLo) || !Number.isFinite(mainHi)) return true
+  if (edge.points.length < 2) return false
+  let bounds = routes.get(edge)
+  if (bounds === undefined) {
+    bounds = envelope(edge.points)
+    routes.set(edge, bounds)
   }
-
-  mayBlock(edge: PositionedEdge, cross: 'x' | 'y', coordinate: number, mainLo: number, mainHi: number, clearance: number, epsilon: number): boolean {
-    if (!Number.isFinite(coordinate) || !Number.isFinite(mainLo) || !Number.isFinite(mainHi)) return true
-    if (edge.points.length < 2) return false
-    let bounds = this.routes.get(edge)
-    if (bounds === undefined) {
-      bounds = envelope(edge.points)
-      this.routes.set(edge, bounds)
-    }
-    if (!bounds) return true
-    const crossLo = cross === 'x' ? bounds.minX : bounds.minY
-    const crossHi = cross === 'x' ? bounds.maxX : bounds.maxY
-    // Subtract the query from the interval endpoint, as the exact distance
-    // predicate does. Inflating bounds first can lose a near-boundary hit to
-    // floating-point rounding (for example abs(0.1 - 4.1) < 4).
-    if (coordinate < crossLo && crossLo - coordinate >= clearance) return false
-    if (coordinate > crossHi && coordinate - crossHi >= clearance) return false
-    const routeLo = cross === 'x' ? bounds.minY : bounds.minX
-    const routeHi = cross === 'x' ? bounds.maxY : bounds.maxX
-    return Math.min(mainHi, routeHi) - Math.max(mainLo, routeLo) > epsilon
-  }
+  if (!bounds) return true
+  const crossLo = cross === 'x' ? bounds.minX : bounds.minY
+  const crossHi = cross === 'x' ? bounds.maxX : bounds.maxY
+  // Subtract the query from the interval endpoint, as the exact distance
+  // predicate does. Inflating bounds first can lose a near-boundary hit to
+  // floating-point rounding (for example abs(0.1 - 4.1) < 4).
+  if (coordinate < crossLo && crossLo - coordinate >= clearance) return false
+  if (coordinate > crossHi && coordinate - crossHi >= clearance) return false
+  const routeLo = cross === 'x' ? bounds.minY : bounds.minX
+  const routeHi = cross === 'x' ? bounds.maxY : bounds.maxX
+  return Math.min(mainHi, routeHi) - Math.max(mainLo, routeLo) > epsilon
 }
 

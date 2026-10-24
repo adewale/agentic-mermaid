@@ -41,7 +41,7 @@ import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
 import { LABEL_PILL_PADDING, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
 import { nodeLaneIndexForQuery, nodeLaneCell, type NodeLaneIndex } from './shared/node-lane-index.ts'
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
-import { RouteChannelGeometry } from './shared/route-channel-geometry.ts'
+import { routeChannelMayBlock, type RouteChannelGeometry } from './shared/route-channel-geometry.ts'
 
 export { labelRect } from './shared/edge-label-geometry.ts'
 
@@ -416,7 +416,7 @@ interface LaneContext {
 }
 
 function invalidateRouteGeometry(ctx: LaneContext, edge: PositionedEdge): void {
-  ctx.routeChannelGeometry?.invalidate(edge)
+  ctx.routeChannelGeometry?.delete(edge)
 }
 
 function setRoutePoints(ctx: LaneContext, edge: PositionedEdge, points: Point[]): void {
@@ -606,7 +606,7 @@ function buildRouteLaneContext(
     axis,
     ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance,
       nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
-      routeChannelGeometry: customTextMeasurementActive() ? undefined : new RouteChannelGeometry() },
+      routeChannelGeometry: customTextMeasurementActive() ? undefined : new WeakMap() },
   }
 }
 
@@ -850,7 +850,7 @@ function collectLaneBlockers(
     // fine. Exception: two edges into the SAME target may converge exactly
     // collinearly at the shared target port — the classic flowchart fan-in
     // merge, where the final approaches draw as one line into one arrowhead.
-    if (channels && !channels.mayBlock(other, axis.cross, c, mainLo, mainHi, CLEARANCE, EPS)) continue
+    if (channels && !routeChannelMayBlock(channels, other, axis.cross, c, mainLo, mainHi, CLEARANCE, EPS)) continue
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
       if (Math.abs((axis.cross === 'x' ? a.x : a.y) - (axis.cross === 'x' ? b.x : b.y)) > EPS) continue
