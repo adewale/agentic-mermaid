@@ -108,6 +108,27 @@ and files production code imports at runtime.
   commit.
 - Parallel agents only on disjoint files, at most 2–3 at a time.
 
+### Contracts before implementation and review
+
+- Before a cross-surface change, state the observable contract, its owning
+  producer and consumers, the distinctions it must preserve, and evidence that
+  would disprove it. Use the PR description; a separate plan is unnecessary.
+  Keep independently shippable research, tooling and runtime work separate.
+  If scope expands, state the added contracts and verification cost before
+  implementing them; do not silently inherit a broader readiness claim.
+- When fixing a finding, review the failed assumption through the whole path
+  before choosing the regression case. Record whether the defect was already
+  present or introduced by a fix. Resolve the demonstrated failure class or
+  state the remaining gap; passing the reported example alone does not close it.
+- Follow [contract review and completion](docs/testing-strategy.md#contract-review-and-completion).
+  When multiple reviewers are requested, assign hypotheses and interacting
+  boundaries explicitly. A reviewer may report no finding. Audit count and
+  passing-test count are not completion criteria.
+- Before reporting a PR ready, follow CI for the exact final head through
+  completion, investigate failures, and recheck that the PR head has not moved.
+  A new push invalidates the previous readiness result; requalify affected
+  evidence after code or dependency changes.
+
 ### Shared meaning and output-specific geometry
 
 - Share authored identities, typed parent/endpoint references and display

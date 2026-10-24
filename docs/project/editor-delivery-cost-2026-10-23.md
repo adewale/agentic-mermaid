@@ -349,6 +349,59 @@ the result of a later registry check. The qs override moves to 6.16.1 to satisfy
 body-parser's declared range. The updated graph passes the audit at the
 existing threshold and 78 MCP client/protocol/security contracts locally.
 
+## Review of the combined change — 24 October
+
+Four adversarial audits confirmed ten findings: three runtime lifecycle defects,
+two benchmark-evidence defects, three repository-identity defects and two
+incomplete category assignments. The non-GitHub misclassification was introduced
+by the package-owner fallback repair. Other later findings exposed unreviewed
+paths or further examples of an existing gap. The fourth audit found no new
+runtime or benchmark-evidence defect within its recorded scope.
+
+The common failure was substituting a convenient check for the contract being
+claimed: an obsolete response for irrelevant worker state, an SVG for the
+requested theme, equal counts for identical measured input, missing normalized
+identity for missing raw metadata, or valid labels for complete categorisation.
+Earlier repository guidance already called for boundary tests. The correction
+is to apply it before implementation and reconcile each finding across the
+whole affected path. The [review procedure](../testing-strategy.md#contract-review-and-completion)
+and PR template now make that work part of the description and handoff.
+
+This review applies the procedure to production code and dependencies at
+`39bf6eb9118fd0d61482c59eae1a19f573dafcd9`, with base
+`861375d33807a668a0dd3674257840d027ea299e`. Its
+[CI run](https://github.com/adewale/agentic-mermaid/actions/runs/40076003187)
+and separate Ruff run finished with all 19 PR checks successful. The follow-up
+changes guidance, the template, hygiene messages and classification wording;
+it does not alter renderer, worker, benchmark or matching behavior. The PR
+description records the final follow-up head and its own CI result.
+
+| Observable contract and owning boundary | Evidence | Remaining limit |
+| --- | --- | --- |
+| Eager library/standalone consumers and cold hosted families retain rendering, verification and receipt meaning | `verified-preview`, family conformance and browser contracts; 87 captured artifacts and 1,095 official results agree with base. The fourth runtime review compared 400 cold/warm operations with no difference. | Purposeful fixtures and corpus inputs, not every diagram/option combination. |
+| Cancellation discards obsolete results while retaining worker-health information; deferred providers suspend and retry | [Worker queue tests](../../src/__tests__/verified-preview.test.ts) exercise superseded ASCII/PNG failures, queued work, crashes and timeouts. [Terminal projection tests](../../src/__tests__/terminal-projection-security.test.ts) cover deferred receipt/style/diagnostic paths and eager diagnostics. New regressions were checked red → green. | The browser reproduction covers local Chromium; this is not an exhaustive browser-engine interleaving proof. |
+| An old document can recover from removed unseen assets without losing the latest draft/settings; unavailable encoding does not navigate | [Browser interaction contracts](../../e2e/editor-site-interactions.e2e.test.ts) cover retired assets at 1280/390 px, blocked storage and failed encoding. A retained local probe switched actual candidate/base builds. Recovery screenshots are attached to CI. | Explicit reload is required. Historical graphs are not retained; no live Cloudflare rollout was measured. |
+| Sharing codecs remain usable without DOM initialization; keyboard, dropdown, persistence and export each have their own contract | [Editor link consumer](../../src/__tests__/editor-link-contract.test.ts) catches the former `document` coupling. Packet cases in the browser interaction suite independently exercise SVG keys, committed dropdown selection, pane changes and canonical exports. | Native OS popup behavior is not asserted through a synthetic ArrowUp gesture. |
+| Benchmark reuse binds measurements to exact source, module/config bytes and input identities; theme selection and sharing preserve requested identity independently | [Evidence tests](../../src/__tests__/modern-mermaid-evidence.test.ts), actual invalid-resume/summary CLI probes and revalidation of the retained 9,855 engine attempts. Theme results are 24/24 UI selections and 18/24 share restorations. | Retained runs keep their dates/revisions. Application identity checks do not certify every theme's aesthetics or accessibility. |
+| Raw repository metadata survives normalization into matching; only absent metadata permits an unambiguous package fallback | [Discovery tests](../../src/__tests__/mermaid-community-discovery.test.ts) compose normalization and matching across valid URI ports/scp, malformed and non-GitHub URLs, missing metadata, conflicts and ambiguous ownership. Real CLI transport fixtures verify HTTPS/SSH port classification and partial-search behavior. | Bounded GitHub/npm searches cannot establish exhaustive discovery. Transport fixtures do not claim that a real package moved hosts. |
+| Categories state observed responsibilities independently of ancestry and benchmark eligibility | New/revisited assignments cite pinned public package/API and authoring evidence in [the inventory](../mermaid-community.json). Its policy and discovery documentation now define `catalogued` as identity matching and missing categories as unverified. | Complete responsibility review of all 87 members remains unestablished. Category filters provide known examples, not exhaustive lists. |
+| The delivery saving concerns fetched bytes; startup, first use and fully consumed cost remain separate | Retained production measurement at `78ff713b52eafacfb512e29d3d82eea2e184b3ea` gives 44.9% first-flowchart saving, 2.4% fully consumed growth and 9 → 139 fully consumed assets. CI enforces current payload budgets. | Local gzip estimates and timing diagnostics do not establish deployed-network latency. |
+
+The reviewed source fixes and their behavioral evidence close the ten confirmed
+findings. The incomplete whole-community source review and unmeasured deployment
+conditions above remain limits on the claims, not passing results. This review
+does not relabel them as completed audits. Dependency advisory results are also
+time-dependent: the next CI run flagged the existing Undici 7.29.1 override,
+which was patched to 7.30.1. The high/critical audit and an actual local
+Wrangler/Miniflare editor response passed afterward.
+
+For this candidate, completion requires final-head CI success and no unresolved
+confirmed defect in these contracts. Another audit needs a named unresolved
+question, a new counterexample or a material change to a contract. A clean
+review count is not a gate. Future scope additions should have their own stated
+contract and change; this follow-up does not rewrite the already-reviewed
+production implementation or split its history.
+
 ## Reproduction
 
 Build the unchanged baseline into one retained directory and the candidate into

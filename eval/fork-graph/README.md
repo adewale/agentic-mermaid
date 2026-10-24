@@ -35,6 +35,14 @@ excluded package groups remain in `rendererBenchmarkExclusions`, retaining the
 reason they were omitted from that particular benchmark rather than treating
 them as absent from the ecosystem.
 
+Categories record positive observations from the evidence cited for a member.
+An omitted category is unverified, not proof that the project lacks that
+responsibility. `catalogued` in discovery output means that the identity matches
+the inventory; it does not certify complete category review. The 87 members
+have labels, but their full public responsibilities have not all received a
+fresh source review. Category filters therefore return known examples, not
+exhaustive lists. New assignments cite pinned public APIs or authoring flows.
+
 Run broad discovery with the authenticated GitHub CLI and Bun:
 
 ```sh

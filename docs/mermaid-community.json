@@ -10,7 +10,7 @@
       "plugin": "Extends another engine's layout or rendering pipeline.",
       "distribution": "Repackages an existing implementation. A package may also have another responsibility."
     },
-    "classification": "categories describe responsibility and may overlap; relation describes verified ancestry; roles select benchmark populations. None substitutes for the others. Existing categories use the source evidence recorded with each member; they do not claim a fresh runtime audit.",
+    "classification": "categories record observed responsibilities and may overlap; an omitted category is not a verified absence. relation describes verified ancestry; roles select benchmark populations. None substitutes for the others. A catalogued discovery hit matches an inventory identity, not an exhaustive responsibility review. Existing categories use the source evidence recorded with each member; they do not claim a fresh runtime audit or complete source review of every responsibility.",
     "discovery": {
       "checkedAt": "2026-10-23",
       "command": "bun scripts/research/discover-mermaid-community.ts --out /tmp/mermaid-community-candidates.json",
