@@ -379,17 +379,7 @@ export function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: 
 export function routeThroughNodeBBox(edge: PositionedEdge, ctx: LaneContext): boolean {
   for (const node of ctx.nodes) {
     if (node.id === edge.source || node.id === edge.target) continue
-    for (let i = 1; i < edge.points.length; i++) {
-      const a = edge.points[i - 1]!,
-        b = edge.points[i]!
-      const xLo = Math.min(a.x, b.x),
-        xHi = Math.max(a.x, b.x)
-      const yLo = Math.min(a.y, b.y),
-        yHi = Math.max(a.y, b.y)
-      if (xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 && yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5) {
-        return true
-      }
-    }
+    if (routeEntersNodeBox(edge.points, node)) return true
   }
   return false
 }
@@ -727,4 +717,18 @@ export function sharedTrunkConflict(edge: PositionedEdge, edges: PositionedEdge[
 export function routeAddsCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): boolean {
   const prior = countRouteCrossings(edge.points, edge, ctx)
   return countRouteCrossings(points, edge, ctx, prior) > prior
+}
+
+export function routeEntersNodeBox(points: readonly Point[], node: PositionedNode): boolean {
+  // A plain rectangle fills its whole interior. The half-pixel contact
+  // tolerance must not hide real shaft ink inside an unrelated card.
+  const inset = node.shape === 'rectangle' && (node.semanticShape === undefined || node.semanticShape === 'rect') ? 0 : 0.5
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!, b = points[i]!
+    const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
+    const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
+    if (xHi > node.x + inset && xLo < node.x + node.width - inset &&
+      yHi > node.y + inset && yLo < node.y + node.height - inset) return true
+  }
+  return false
 }

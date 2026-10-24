@@ -163,7 +163,8 @@ function slantedPolygonVertices(node: PositionedNode): Point[] {
 /**
  * Whether an axis-aligned segment passes through a node's rendered footprint
  * (not merely its bbox — a route grazing the empty corner outside a circle's
- * disk or a diamond's facet is legal). Half-pixel tolerance throughout.
+ * disk or a diamond's facet is legal). Plain rectangles use their open
+ * interior; curved and decorated shapes retain the half-pixel tolerance.
  */
 export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
@@ -172,8 +173,9 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
   const hh = node.height / 2
   const xLo = Math.min(a.x, b.x), xHi = Math.max(a.x, b.x)
   const yLo = Math.min(a.y, b.y), yHi = Math.max(a.y, b.y)
-  const inBbox = xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 &&
-    yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5
+  const inset = node.shape === 'rectangle' && (node.semanticShape === undefined || node.semanticShape === 'rect') ? 0 : 0.5
+  const inBbox = xHi > node.x + inset && xLo < node.x + node.width - inset &&
+    yHi > node.y + inset && yLo < node.y + node.height - inset
   if (!inBbox) return false
 
   // For curved/pointed shapes, occlusion means penetrating DEEPER than the

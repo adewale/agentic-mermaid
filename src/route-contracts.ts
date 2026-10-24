@@ -55,6 +55,7 @@ import {
   countRouteCrossings,
   routeAddsCrossings,
   routeThroughNodeBBox,
+  routeEntersNodeBox,
   dedupeBlockers,
   tryStraighten,
   sharedTrunkConflict,
@@ -1454,18 +1455,7 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     // obstacles in the middle of a route.
     for (const node of positioned.nodes) {
       if (node.id === edge.source || node.id === edge.target) continue
-      for (let i = 1; i < edge.points.length; i++) {
-        const a = edge.points[i - 1]!,
-          b = edge.points[i]!
-        const xLo = Math.min(a.x, b.x),
-          xHi = Math.max(a.x, b.x)
-        const yLo = Math.min(a.y, b.y),
-          yHi = Math.max(a.y, b.y)
-        if (xHi > node.x + 0.5 && xLo < node.x + node.width - 0.5 && yHi > node.y + 0.5 && yLo < node.y + node.height - 0.5) {
-          findings.push({ code: 'ROUTE_STALE_AFTER_NODE_MOVE', edge: id, node: node.id })
-          break
-        }
-      }
+      if (routeEntersNodeBox(edge.points, node)) findings.push({ code: 'ROUTE_STALE_AFTER_NODE_MOVE', edge: id, node: node.id })
     }
 
     // ROUTE_LABEL_ON_SHARED_TRUNK: a label pill sitting on a piece of line

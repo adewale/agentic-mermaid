@@ -16,6 +16,9 @@ import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { connector, shape } from '../scene/marks.ts'
+import { certifyScenePaint } from '../scene/paint-certification.ts'
+import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
@@ -179,6 +182,38 @@ it('keeps later fan-out repairs clear of a peer route moved earlier in the same 
 })
 
 describe('route proposal crossing consistency', () => {
+  it.each([0.02425, 0.035, 0.3].flatMap(intrusion => ['route proposal', 'final safety net'].map(phase => ({ intrusion, phase }))))('repairs an unrelated rectangle intrusion in $phase at $intrusion pixels', ({ intrusion, phase }) => {
+    const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode =>
+      ({ id, label: id, shape: 'rectangle', x, y, width, height })
+    const nodes = [node('A', 0, 0, 20, 20), node('B', 400, 100, 20, 20),
+      node('C', 200 - intrusion, 40, 20, 20), node('D', -20, 60, 20, 20),
+      node('E', 198, 60, 1, 20), node('F', 201, 60, 1, 20), node('G', 500, 60, 20, 20)]
+    const graph = parseMermaid('flowchart LR\nA-->B\nD-->E\nF-->G\nC')
+    // The two neighboring shafts leave a narrow clear channel. The existing
+    // route uses it but enters C's real fill; a safe Z adds one legal crossing.
+    const paths = [
+      [[20, 10], [200, 10], [200, 110], [400, 110]],
+      [[0, 70], [198, 70]], [[202, 70], [500, 70]],
+    ]
+    const edges: PositionedEdge[] = graph.edges.map((edge, index) => ({ ...edge, edgeIndex: index,
+      points: paths[index]!.map(([x, y]) => ({ x: x!, y: y! })) }))
+    const edge = edges[0]!, card = nodes[2]!, contacts = [edge.points[0], edge.points.at(-1)]
+    const finalPaint = () => certifyScenePaint({ family: 'flowchart', width: 550, height: 150,
+      transparent: false, colors: { bg: '#fff', fg: '#111' }, parts: [
+        connector({ id: 'A->B', role: 'edge', lineStyle: 'solid', endpoints: { from: 'A', to: 'B' },
+          geometry: { kind: 'polyline', points: edge.points }, paint: { stroke: '#111', strokeWidth: '1' } }),
+        shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: card.x, y: card.y, width: card.width, height: card.height }, paint: { fill: '#fff' } }),
+      ] })
+    expect(finalPaint().issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'A->B', by: 'C' }))
+    expect(countEdgeCrossings(edges)).toBe(0)
+    if (phase === 'route proposal') applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set(), resolveRenderStyle())
+    else rerouteEdgesThroughNodes(nodes, edges, graph)
+    expect(finalPaint().status).toBe('passed')
+    expect([edge.points[0], edge.points.at(-1)]).toEqual(contacts)
+    expect(edges.map(value => [value.source, value.target])).toEqual([['A', 'B'], ['D', 'E'], ['F', 'G']])
+    expect(countEdgeCrossings(edges)).toBeGreaterThan(0)
+  })
+
   it('keeps settled reciprocal labels as obstacles in the final closure and its auditor', () => {
     const graph = parseMermaid('flowchart RL\nA --> B\nB -->|feedback| A')
     const nodes: PositionedNode[] = [
