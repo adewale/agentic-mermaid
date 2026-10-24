@@ -32,6 +32,7 @@ export interface ScorecardSelection {
   referenceCorrection?: string
   allowCommunityTargetChange?: boolean
   currentRun?: string
+  additionalRun?: string
 }
 function args() {
   const m = new Map<string, string>()
@@ -42,8 +43,8 @@ function args() {
       continue
     }
     const v = process.argv[++i]
-    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run'].includes(k) || !v)
-      throw Error('Use --run DIRECTORY [--prs DIRECTORY] [--output FILE] [--community-run DIRECTORY] [--invocation-correction FILE] [--reference-correction FILE] [--current-run DIRECTORY]')
+    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run', '--additional-run'].includes(k) || !v)
+      throw Error('Use --run DIRECTORY [--prs DIRECTORY] [--output FILE] [--community-run DIRECTORY] [--invocation-correction FILE] [--reference-correction FILE] [--current-run DIRECTORY] [--additional-run DIRECTORY]')
     m.set(k, resolve(v))
   }
   if (!m.has('--run')) throw Error('--run is required')
@@ -63,6 +64,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     ['--invocation-correction', selection.invocationCorrection],
     ['--reference-correction', selection.referenceCorrection],
     ['--current-run', selection.currentRun],
+    ['--additional-run', selection.additionalRun],
   ])
     if (value) validationArgs.push(flag!, value)
   const admission = JSON.parse(execFileSync(process.env.PYTHON_BINARY ?? 'python3', validationArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024 }))
@@ -104,7 +106,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     'This is a maintained snapshot requested by the project owner. Refresh it with:',
     '',
     '```sh',
-    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.allowCommunityTargetChange ? ' --allow-community-target-change' : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}${selection.currentRun ? ` --current-run ${selection.currentRun}` : ''}`,
+    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.allowCommunityTargetChange ? ' --allow-community-target-change' : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}${selection.currentRun ? ` --current-run ${selection.currentRun}` : ''}${selection.additionalRun ? ` --additional-run ${selection.additionalRun}` : ''}`,
     '```',
     '',
     `The JSON community catalog enrolls **${scores.catalogNodes} nodes**, with **${scores.comparatorNodes} configured candidates**. Configuration is not a working-API claim. Actual acquisition, unsupported operations, host failures and source-evidence aliases remain visible; none become passing renderer results by enrollment alone.`,
@@ -493,6 +495,28 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     }
     lines.push('', 'Parser clocks exclude semantic projections, assertions and transport. Shared-success cost requires both engines in every round; unscored historical layout counts and diagnostic-only cases are excluded. The old-target baseline repair and the actual current product are separate measurements.')
   }
+  if (admission.additionalRun && selection.additionalRun) {
+    const extra = admission.additionalRun
+    lines.push(
+      '',
+      '## Additional maintained target-owned suites',
+      '',
+      `Completed ${escape(extra.startedAt)} → ${escape(extra.finishedAt)} against \`${escape(extra.targetRevision)}\`, archive SHA256 \`${escape(extra.candidateSha256)}\`. Actual owning source Git objects are verified. This separate ledger does not merge ranks, overwrite original statuses or relabel other suites as current.`,
+      '',
+      '| Suite | Status | Complete wall time, s | Owning source Git blob | Observations passed / failed / blocked / N/A |',
+      '|---|---|---:|---|---|',
+    )
+    for (const suite of extra.suites)
+      lines.push(
+        `| ${escape(suite.id)} | ${escape(suite.status)} | ${typeof suite.elapsedMs === 'number' ? number(suite.elapsedMs / 1000, 1) : 'N/A'} | \`${escape(suite.sourceGitBlob)}\` | ${['passed', 'failed', 'blocked', 'not-applicable'].map(status => suite.observations.filter((row: any) => row.status === status).length).join(' / ')} |`,
+      )
+    for (const suite of extra.suites) {
+      const gates = suite.observations.filter((row: any) => row.operation === 'qualification-status')
+      if (gates.length) lines.push('', `Actual qualification/completion evidence for **${escape(suite.id)}**:`, '', '```json', JSON.stringify(gates, null, 2), '```')
+      if (suite.prerequisites?.length || suite.gaps?.length) lines.push('', ...[...(suite.prerequisites ?? []), ...(suite.gaps ?? [])].map((gap: unknown) => `- ${escape(gap)}`))
+    }
+    lines.push('', `Full owning reports, gates and artifacts: [additional suite ledger](${escape(relative(dirname(output), join(selection.additionalRun, 'report.md')))}). Missing or insufficient qualification stays explicit; process completion alone is not a passing gate.`)
+  }
   const actualGaps = [...new Set([...scores.gaps, ...results.gaps])]
   lines.push(
     '',
@@ -519,5 +543,6 @@ if (import.meta.main) {
     referenceCorrection: a.get('--reference-correction'),
     allowCommunityTargetChange: a.get('--allow-community-target-change') === 'true',
     currentRun: a.get('--current-run'),
+    additionalRun: a.get('--additional-run'),
   })
 }

@@ -28,6 +28,8 @@ export interface CommunityBrowserEngine {
   apiBoundary?: string
   surface?: string
   files?: { path: string; sha256: string }[]
+  scriptType?: 'module'
+  synchronousLegacyRender?: boolean
   additionalOutputs?: 'png'[]
 }
 export interface PreparedCommunityBrowser extends PreparedCommunity {
@@ -181,8 +183,24 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
         if (!root) throw new Error('Cannot resolve prepared published package root')
         const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')),
           zombie = pkg.name === 'zombie-mermaid'
+        const browserRecipe = typeof pkg.scripts?.['build:browser'] === 'string' ? (pkg.scripts['build:browser'] as string) : ''
+        const declaredBrowser = browserRecipe.match(/--outfile(?:=|\s+)([^\s]+)/)?.[1]?.replace(/^['"]|['"]$/g, '')
+        const publicBeautifulBundle =
+          adapter === 'beautiful' &&
+          sourceAdapter &&
+          declaredBrowser?.startsWith('dist/') &&
+          existsSync(join(root, declaredBrowser)) &&
+          existsSync(join(root, 'README.md')) &&
+          readFileSync(join(root, 'README.md'), 'utf8').includes(declaredBrowser) &&
+          readFileSync(join(root, declaredBrowser), 'utf8').includes('window.__mermaid')
+            ? declaredBrowser
+            : undefined
         if (peer.node.id === 'adewale/agentic-mermaid' || adapter === 'agentic') engine = make(root, 'dist/browser.global.js', 'beautiful', 'agenticMermaid')
-        else if (adapter === 'mermaid') {
+        else if (publicBeautifulBundle) {
+          engine = make(root, publicBeautifulBundle, 'beautiful', '__mermaid')
+          engine.scriptType = 'module'
+          engine.apiBoundary = 'Documented tracked public browser distribution window.__mermaid; source package entry remains a separate Bun invocation'
+        } else if (adapter === 'mermaid') {
           const publicBundle = ['dist/mermaid.min.js', 'dist/mermaid.js'].find(path => existsSync(join(root, path)))
           if (publicBundle) engine = make(root, publicBundle, 'mermaid', 'mermaid')
           else {
@@ -194,6 +212,7 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
             engine = make(output, 'bundle.js', 'mermaid', 'unifiedMermaid')
           }
           engine.legacyMermaid = Number.parseInt(pkg.version, 10) < 10
+          engine.synchronousLegacyRender = Number.parseInt(pkg.version, 10) < 1
         } else if (adapter === 'pele' && existsSync(join(root, 'dist/pele.global.js'))) engine = make(root, 'dist/pele.global.js', 'pele', 'pele')
         else if (adapter === 'published-extra') {
           const spec = extraBrowserEntry(pkg.name, artifact) as { source: string; assets?: { source: string; name: string }[]; outputs?: string[]; qualification: string; surface?: string } | null
@@ -274,7 +293,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
     mode,
     status,
     ...extra,
-    metrics: { implementation: peer.node.id, ...extra.metrics },
+    metrics: { implementation: peer.node.id, apiBoundary: peer.browser?.apiBoundary ?? 'prepared public browser API', ...extra.metrics },
   })
   for (const peer of prepared.filter(peer => peer.browserStatus !== 'prepared')) {
     const unavailable: UnifiedWorkload = { id: 'browser-capability', family: '*', source: '', features: [], provenance: 'community browser capability admission' }
@@ -362,8 +381,8 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
             { kind: engine.kind, url: origin + '/' + engine.entry, wasm: engine.wasm ? origin + '/' + engine.wasm : undefined },
           )
         else {
-          await page.addScriptTag({ url: origin + '/' + engine.entry })
-          await page.evaluate(async ({ kind, global, legacyMermaid, output }) => {
+          await page.addScriptTag({ url: origin + '/' + engine.entry, ...(engine.scriptType ? { type: engine.scriptType } : {}) })
+          await page.evaluate(async ({ kind, global, legacyMermaid, output, synchronousLegacyRender }) => {
             const api = (globalThis as any)[global!]
             if (kind === 'mermaid') {
               api.initialize({ startOnLoad: false })
@@ -373,9 +392,14 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
                 ? (source: string, id: string) =>
                     new Promise((resolve, reject) => {
                       try {
-                        const returned = owner.render(id, source, (svg: string) => resolve(svg))
+                        let callbackInvoked = false
+                        const returned = owner.render(id, source, (svg: string) => {
+                          callbackInvoked = true
+                          resolve(svg)
+                        })
                         if (typeof returned === 'string') resolve(returned)
                         else if (returned && typeof returned.then === 'function') returned.then(resolve, reject)
+                        else if (synchronousLegacyRender && returned === undefined && !callbackInvoked) reject(new Error('Synchronous public Mermaid render returned no SVG and did not invoke its SVG callback'))
                       } catch (error) {
                         reject(error)
                       }
@@ -390,7 +414,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
             } else if (kind === 'function') (globalThis as any).__communityRender = (source: string) => api(source)
             else if (kind === 'pele') (globalThis as any).__communityRender = (source: string) => api.render(source).svg
             else {
-              const render = api.renderMermaidSVG ?? api.renderMermaidSync ?? api.renderMermaid
+              const render = api.renderMermaidSVG ?? api.renderMermaidSVGAsync ?? api.renderMermaidSync ?? api.renderMermaid
               if (typeof render !== 'function') throw new Error('Published Beautiful SVG API unavailable')
               ;(globalThis as any).__communityRender = (source: string) => render.call(api, source)
             }

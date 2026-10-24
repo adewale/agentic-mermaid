@@ -150,7 +150,7 @@ function declaredReports(directory: string, notBefore: number) {
   const gaps: string[] = [],
     artifacts: string[] = []
   let status: 'failed' | 'blocked' | undefined
-  for (const name of readdirSync(directory).filter(name => /(?:report|summary|editor-preview|editor-session|ownership|renderer-profile)\.json$/.test(name))) {
+  for (const name of readdirSync(directory).filter(name => /(?:report|summary|editor-preview|editor-session|ownership|renderer-profile|qualification-status|gates)\.json$/.test(name))) {
     const file = join(directory, name)
     if (!statSync(file).isFile() || statSync(file).mtimeMs < notBefore - 1) continue
     artifacts.push(file)
@@ -256,6 +256,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
       arch: process.arch,
       driverNode: process.versions.node,
       driverBun: process.versions.bun ?? null,
+      xdgCacheHome: process.env.XDG_CACHE_HOME ?? null,
       availableParallelism: availableParallelism(),
       cpuModel: cpus()[0]?.model ?? null,
       hostMemoryBytes: totalmem(),
@@ -274,7 +275,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     targetDirty: git(options.root, ['status', '--porcelain']) === undefined ? null : Boolean(git(options.root, ['status', '--porcelain'])),
     status: 'running',
     policy:
-      'All selected suites execute sequentially. External owning suites run in the driver checkout and retain their original protocols; only target-aware internal adapters receive --target/--package-root. Blocked and unselected suites stay in this ledger. A successful process exit is not assumed to prove every corpus row qualified. Default smoke is a bounded profile; full selects every suite. Current independent reference and historical harvested fixtures retain distinct pins.',
+      'All selected suites execute sequentially. Each suite records its actual source, working directory and measured target. Driver-owned tests retain driver imports; target-aware internal adapters, exact-artifact comparisons and explicitly selected target-owned protocols receive their recorded candidate. Blocked and unselected suites stay in this ledger. A successful process exit does not establish qualification for every corpus row. Smoke is bounded; full selects automatic suites, with explicit orchestration entries available separately. Current independent reference and historical harvested fixtures retain distinct pins.',
     suites: [],
   }
   writeFileSync(join(options.out, 'invocation.json'), JSON.stringify({ ...options, selected: [...selected] }, null, 2) + '\n')
@@ -282,7 +283,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
   for (const suite of catalog) {
     const suiteOut = join(options.out, suite.id.replaceAll(':', '-'))
     mkdirSync(suiteOut, { recursive: true })
-    const execution: SuiteExecution = { id: suite.id, title: suite.title, source: suite.source, policy: suite.policy, target: suite.kind === 'internal' ? 'candidate' : 'driver', status: 'skipped', selected: selected.has(suite.id), prerequisites: suite.prerequisites, ...(suite.pin ? { pin: suite.pin } : {}) }
+    const execution: SuiteExecution = { id: suite.id, title: suite.title, source: suite.source, policy: suite.policy, target: suite.target ?? (suite.kind === 'internal' ? 'candidate' : 'driver'), status: 'skipped', selected: selected.has(suite.id), prerequisites: suite.prerequisites, ...(suite.pin ? { pin: suite.pin } : {}) }
     report.suites.push(execution)
     if (!execution.selected) {
       writeUnifiedReport(options.out, report)
@@ -309,7 +310,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     execution.workingDirectory = suite.cwd ?? options.harnessRoot
     execution.environment = suite.environment
     execution.log = `${suite.id.replaceAll(':', '-')}/run.log`
-    console.log(`unified: ${suite.id} (${suite.kind === 'internal' ? options.root : options.harnessRoot})`)
+    console.log(`unified: ${suite.id} (${suite.kind === 'internal' ? options.root : suite.cwd ?? options.harnessRoot})`)
     const env: NodeJS.ProcessEnv = { ...process.env, AM_BENCH_SUITE_OUT: suiteOut, AM_FC_SEED: process.env.AM_FC_SEED ?? '7', ...suite.environment }
     if (options.mermaidDir) env.MERMAID_UPSTREAM_DIR = options.mermaidDir
     if (options.referenceDir) env.MERMAID_REFERENCE_DIR = options.referenceDir

@@ -35,6 +35,7 @@ export interface SuiteDefinition {
   environment?: Record<string, string>
   prerequisites: string[]
   policy: string
+  target?: 'candidate' | 'driver'
   pin?: unknown
 }
 const json = (file: string): any => JSON.parse(readFileSync(file, 'utf8'))
@@ -89,7 +90,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     policy: 'Requires the completed sibling community artifacts; fresh-process CLI variants use matched fixed inputs. Child RSS/CPU are a separate post-latency diagnostic pass; source aliases are not additional independent engines.',
   })
   for (const [script, command] of Object.entries(pkg.scripts)) {
-    if (!script.startsWith('bench:') || script === 'bench:charts' || /eval\/benchmark\/(?:unified\/(?:run|pr-campaign|update-scorecard)|suite)\.ts/.test(command)) continue
+    if (!script.startsWith('bench:') || script === 'bench:charts' || script === 'bench:peers:qualify' || /eval\/benchmark\/(?:unified\/(?:run|pr-campaign|update-scorecard)|suite)\.ts/.test(command)) continue
     const id = script.slice('bench:'.length),
       args = ['bun', 'run', script],
       prerequisites: string[] = []
@@ -116,7 +117,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
         add(args, '--candidate-tarball', options.candidateTarball)
         add(args, '--candidate-sha256', options.candidateSha256)
       } else {
-        add(args, '--candidate', options.packageRoot ?? root)
+        add(args, '--candidate', options.packageRoot ?? options.root)
         if (!built) prerequisites.push('Built candidate missing; provide --candidate-tarball or build the package')
       }
       if (options.baseline) {
@@ -140,7 +141,21 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
       if (!options.baselineLock && !(options.baselineTarball && options.baselineSha256)) prerequisites.push('Provide --baseline-lock or the baseline tarball and digest')
       prerequisites.push(...browserMissing)
     }
-    suites.push({ id, title: script, kind: 'script', smoke: id === 'samples', source: command, command: args, prerequisites, policy })
+    suites.push({ id, title: script, kind: 'script', smoke: id === 'samples', source: command, command: args, prerequisites, policy, ...(['release', 'release-browser'].includes(id) || (id === 'dave' && options.candidateTarball) ? { target: 'candidate' as const } : {}) })
+  }
+  const qualificationRoot = existsSync(join(options.root, 'eval/benchmark/qualify-peer-performance.ts')) ? options.root : root
+  const qualificationSource = join(qualificationRoot, 'eval/benchmark/qualify-peer-performance.ts')
+  if (existsSync(qualificationSource) && !suites.some(suite => suite.id === 'peers:qualify')) {
+    const prerequisites = [
+      ...(!options.candidateTarball || !options.candidateSha256 ? ['Peer qualification needs the exact candidate tarball and digest'] : []),
+      ...(!options.baselineTarball || !options.baselineSha256 ? ['Peer qualification needs the exact baseline tarball and digest'] : []),
+    ]
+    const args = ['bun', 'run', qualificationSource, '--out', out('peers:qualify'), '--rounds', String(options.rounds), '--runtime-source', qualificationRoot, '--elk-cache', 'off']
+    add(args, '--candidate-tarball', options.candidateTarball)
+    add(args, '--candidate-sha256', options.candidateSha256)
+    add(args, '--baseline-tarball', options.baselineTarball)
+    add(args, '--baseline-sha256', options.baselineSha256)
+    suites.push({ id: 'peers:qualify', title: 'Consumed semantic peer performance qualification', kind: 'script', smoke: false, source: qualificationSource, command: args, cwd: qualificationRoot, target: 'candidate', prerequisites, policy: 'Uses the selected checkout’s maintained semantic peer protocol: two independent A/A controls, then candidate comparison. Exact archives, actual runtime dependency policy and all semantic tracks are retained. Insufficient cold-tail rounds and unsupported endpoint contracts remain explicit qualification gaps.' })
   }
   const standalone = (id: string, title: string, file: string, args: string[], prerequisites: string[] = [], policy = 'Diagnostic owning entry; instrumented timings are not cross-engine API latency.'): void => {
     if (existsSync(join(root, file))) suites.push({ id, title, kind: 'script', smoke: false, source: file, command: ['bun', 'run', file, ...args], prerequisites, policy })

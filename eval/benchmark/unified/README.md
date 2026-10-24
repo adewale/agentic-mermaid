@@ -327,3 +327,22 @@ all-engine/all-round positive-success cohort.
 For this legacy-baseline comparison, also supply `--reference-correction` so
 the current positive/diagnostic assignment is checked against the independently
 reviewed original baseline rather than an outcome-selected current subset.
+
+SVG qualification uses lazy `saxes` XML parsing in Node and native `DOMParser`
+in browsers, after API clocks stop. Both require the SVG namespace/root and a
+positive finite viewBox or explicit dimensions; malformed CSS entity references
+are rejected without repairing tool output. The actual Node parser identity is
+recorded in community evidence. Public Mermaid syntax validators occupy a
+separate `node:public-parse-validation` lane. Known legacy void-success returns
+are admitted only after two authored negatives reject, including malformed
+classic `graph` syntax; raw return type/value remain recorded. This does not
+credit native-model or label fidelity, and the first measured positive follows
+negative admission rather than being a pristine first-ever parser call.
+
+`--additional-run /path/to/late-maintained` adds a separate completed ledger for
+maintained suites introduced on the selected newer target. It requires explicit
+current/community target selection, the same actual archive, target-owned
+working directory and tracked owning-source Git objects. Status, complete wall
+time, observed qualification gates, prerequisites and artifact links are kept
+separate from original suites and comparative ranks. A completed process never
+substitutes for passing qualification gates.

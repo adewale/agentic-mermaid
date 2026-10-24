@@ -61,7 +61,7 @@ interface Target {
   nativeStorage?: NativeStorageProof
 }
 interface Campaign {
-  measurementDriver?: { capturedAt: string; head: string; dirty: boolean; status: string[] }
+  measurementDriver?: { capturedAt: string; head: string; dirty: boolean; status: string[]; xdgCacheHome?: string | null }
   measurementConfig?: { core: { profile: 'smoke' | 'full'; rounds: number }; family: { profile: 'smoke' | 'full'; rounds: number }; invocation: { profile: 'smoke' | 'full'; rounds: number }; policy: string }
   installationComplete?: boolean
   preparedAt?: string
@@ -624,7 +624,7 @@ export function revalidatePrCampaign(options: Pick<Options, 'out'>, campaign: Ca
 }
 export async function runPrCampaign(options: Options, campaign: Campaign) {
   const driverStatus = git(options.root, ['status', '--porcelain=v1', '--untracked-files=all']).split('\n').filter(Boolean)
-  campaign.measurementDriver = { capturedAt: stamp(), head: git(options.root, ['rev-parse', 'HEAD']), dirty: driverStatus.length > 0, status: driverStatus }
+  campaign.measurementDriver = { capturedAt: stamp(), head: git(options.root, ['rev-parse', 'HEAD']), dirty: driverStatus.length > 0, status: driverStatus, xdgCacheHome: process.env.XDG_CACHE_HOME ?? null }
   campaign.measurementConfig = {
     core: { profile: options.profile, rounds: options.rounds },
     family: { profile: options.profile, rounds: options.rounds },

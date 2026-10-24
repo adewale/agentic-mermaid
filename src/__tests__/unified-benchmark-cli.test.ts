@@ -61,7 +61,7 @@ describe('unified suite execution lifecycle', () => {
       writeFileSync(join(directory, 'package.json'), JSON.stringify({ scripts: { 'bench:slow-fixture': 'bun run slow.ts', 'bench:after-fixture': 'bun run after.ts', 'bench:incomplete-fixture': 'bun run incomplete.ts' } }))
       writeFileSync(join(directory, 'eval/agent-usage/live.ts'), 'throw new Error("blocked provider must never launch")\n')
       writeFileSync(join(directory, 'slow.ts'), 'setInterval(() => {}, 1000)\n')
-      writeFileSync(join(directory, 'incomplete.ts'), 'import{writeFileSync}from"node:fs";writeFileSync(process.env.AM_BENCH_SUITE_OUT+"/report.json",JSON.stringify({status:"incomplete"}))\n')
+      writeFileSync(join(directory, 'incomplete.ts'), 'import{writeFileSync}from"node:fs";writeFileSync(process.env.AM_BENCH_SUITE_OUT+"/qualification-status.json",JSON.stringify({status:"incomplete"}))\n')
       writeFileSync(join(directory, 'after.ts'), 'console.log("later suite completed")\n')
       const options = parseOptions(['--out', join(directory, 'evidence'), '--suites', 'slow-fixture,agent-live,incomplete-fixture,after-fixture', '--timeout-ms', '300'])
       const report = await runUnified({ ...options, harnessRoot: directory, root: directory })
