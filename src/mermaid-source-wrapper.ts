@@ -86,6 +86,18 @@ export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init(?:ialize)?\s*:\s*
  *  closed one as a directive. */
 export const MERMAID_DIRECTIVE_REGEX = /%%\{\s*\w+(?:(?!\}%%)[\s\S])*\}%%/g
 
+/** Header discovery and full preprocessing consume the same directive-free
+ * body. Only full preprocessing interprets init payloads as configuration. */
+export function stripMermaidDirectives(text: string, onInit?: (payload: string | undefined) => void): string {
+  const body = onInit
+    ? text.replace(INIT_DIRECTIVE_REGEX, (_match, onItsLine: string | undefined, inStatement: string | undefined) => {
+      onInit(onItsLine ?? inStatement)
+      return ''
+    })
+    : text.replace(INIT_DIRECTIVE_REGEX, '')
+  return body.replace(MERMAID_DIRECTIVE_REGEX, '')
+}
+
 export function toMermaidLines(text: string): string[] {
   return text
     .split(/\r\n?|\n/)
@@ -127,10 +139,16 @@ export function splitHeaderStatement(body: string): string {
   return lines.join('\n')
 }
 
+/** Comments on a family declaration are inert. Authored bytes stay in source
+ * receipts; executable and not-yet-loaded families share this header view. */
+export function normalizeFamilyDetectionLine(firstLine: string): string {
+  return firstLine.replace(/%%.*$/, '').split(';', 1)[0]!.trim().toLowerCase()
+}
+
 /** The first family line, lowercased: the line `normalizeMermaidSource`
  * reports as `firstLine`, found without parsing frontmatter or directives. */
 export function mermaidFirstLine(text: string): string {
   return toMermaidLines(splitHeaderStatement(
-    text.slice(matchMermaidFrontmatter(text)?.source.length ?? 0).replace(INIT_DIRECTIVE_REGEX, ''),
+    stripMermaidDirectives(text.slice(matchMermaidFrontmatter(text)?.source.length ?? 0)),
   ))[0]?.toLowerCase() ?? ''
 }

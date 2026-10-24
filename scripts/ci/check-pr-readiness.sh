@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check-pr-readiness.sh
 #
-# Quick automated checks for common PR issues.
+# Heuristic hygiene checks; contract review and exact-head CI decide readiness.
 # Run from the root of the repo you're contributing to.
 #
 # Usage: bash check-pr-readiness.sh [base-branch]
@@ -14,7 +14,7 @@ WARN="⚠"
 FAIL="✗"
 FAILURES=0
 
-echo "PR Readiness Check (comparing against $BASE)"
+echo "PR hygiene signals (comparing against $BASE)"
 echo "============================================="
 echo ""
 
@@ -78,7 +78,8 @@ else
 fi
 
 echo ""
-echo "Done. Address any $WARN warnings and $FAIL failures before submitting."
+echo "Review these heuristic matches; they do not establish correctness or CI completion."
+echo "Use docs/testing-strategy.md#contract-review-and-completion before reporting readiness."
 if [ "$FAILURES" -gt 0 ]; then
     exit 1
 fi

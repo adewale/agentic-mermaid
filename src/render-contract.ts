@@ -11,7 +11,7 @@ import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } fro
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
-import { normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
+import { normalizeMermaidRenderSource } from './mermaid-source.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
 import {
@@ -1774,7 +1774,7 @@ export function resolveRenderRequestForExecution(
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
-  const normalizedSource = normalizeMermaidSourceWithOverrides(text, admittedOptions.mermaidConfig ?? {}, 'render')
+  const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {})
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.

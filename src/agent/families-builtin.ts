@@ -138,10 +138,10 @@ function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMa
   }
 }
 
-const FLOWCHART_AGENT_HOOKS = {
+export const FLOWCHART_AGENT_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractFlowchartLabels,
-  ...flowchartFamilyHooks(),
+  .../* @__PURE__ */ flowchartFamilyHooks(),
 } satisfies FamilyOperations
 
 // ---- State ----------------------------------------------------------------
@@ -170,13 +170,13 @@ function extractStateLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-const STATE_AGENT_HOOKS = {
+export const STATE_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
   verify: (body, opts) => (body.kind === 'state' ? verifyState(body, opts) : body.kind === 'opaque' ? verifyOpaqueState(body.source) : []),
-  ...structuredFamilyHooks('state', {
+  .../* @__PURE__ */ structuredFamilyHooks('state', {
     headerOk: h => /^statediagram(?:-v2)?\s*$/i.test(h),
     parseBody: parseStateBody,
     serialize: renderState,
@@ -215,7 +215,7 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
 // opaque-block segments round-trip verbatim. `opaqueSource` is the normalized
 // body INCLUDING the header line, with original indentation/blank lines/
 // comments intact — drop its header and pass alongside the trimmed lines.
-const SEQUENCE_AGENT_HOOKS = {
+export const SEQUENCE_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractSequenceLabels,
   parse: ({ source: authored, lines: authoredLines, opaqueSource }) => {
@@ -294,7 +294,7 @@ function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
   ]
 }
 
-const TIMELINE_AGENT_HOOKS = {
+export const TIMELINE_AGENT_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractTimelineLabels,
   verify: body => verifyOpaqueTimeline(body),
@@ -753,7 +753,7 @@ function extractClassLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-const CLASS_AGENT_HOOKS = {
+export const CLASS_AGENT_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractClassLabels,
   // Loop 8 A1: the structured class verifier IS the verify path — verifyMermaid
@@ -761,7 +761,7 @@ const CLASS_AGENT_HOOKS = {
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => (body.kind === 'class' ? verifyClass(body, opts) : []),
   buildSourceMap: buildClassSourceMap,
-  ...structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, mutate: mutateClass }),
+  .../* @__PURE__ */ structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass, mutate: mutateClass }),
 } satisfies FamilyOperations
 
 // ---- ER -------------------------------------------------------------------
@@ -784,14 +784,14 @@ function extractErLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-const ER_AGENT_HOOKS = {
+export const ER_AGENT_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractErLabels,
   // Loop 8 A1: same as class — this hook is the verify path for ER (Loop 9 M2
   // removed the duplicate per-body branch in verify.ts).
   verify: (body, opts) => (body.kind === 'er' ? verifyErBody(body, opts) : []),
   buildSourceMap: buildErSourceMap,
-  ...structuredFamilyHooks('er', {
+  .../* @__PURE__ */ structuredFamilyHooks('er', {
     // Source normalization moves a statement written on the header line
     // (`erDiagram subgraph X`, repo #103) onto a line of its own
     // (splitHeaderStatement), so a structured header is bare.
@@ -865,13 +865,13 @@ function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
   return warnings
 }
 
-const JOURNEY_AGENT_HOOKS = {
+export const JOURNEY_AGENT_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractJourneyLabels,
   // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks keep the universal label-extraction path.
   verify: (body, opts) => (body.kind === 'journey' ? verifyJourney(body, opts) : body.kind === 'opaque' ? verifyOpaqueJourney(body) : []),
-  ...structuredFamilyHooks('journey', {
+  .../* @__PURE__ */ structuredFamilyHooks('journey', {
     headerOk: h => /^journey\s*$/i.test(h),
     parseBody: (lines, accessibility) => {
       const outcome = parseJourneyBody(lines, accessibility)
@@ -980,7 +980,7 @@ function splitXyLabelStatements(line: string): string[] {
   return statements
 }
 
-const XYCHART_AGENT_HOOKS = {
+export const XYCHART_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractXyChartLabels,
   // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
@@ -1065,7 +1065,7 @@ function parsePieHeader(header: string): { showData: boolean; title?: string } |
   return { showData }
 }
 
-const PIE_AGENT_HOOKS = {
+export const PIE_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractPieLabels,
   // Pie is structured-when-narrowed. The verify hook covers the structured
@@ -1178,7 +1178,7 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
   return warnings
 }
 
-const QUADRANT_AGENT_HOOKS = {
+export const QUADRANT_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
@@ -1186,7 +1186,7 @@ const QUADRANT_AGENT_HOOKS = {
   // when style-looking metadata is preserved on an opaque body.
   verify: (body, opts) => (body.kind === 'quadrant' ? verifyQuadrant(body, opts) : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : []),
   buildSourceMap: buildChartSourceMap,
-  ...structuredFamilyHooks('quadrant', {
+  .../* @__PURE__ */ structuredFamilyHooks('quadrant', {
     headerOk: h => /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(h)),
     parseBody: parseQuadrantBody,
     serialize: renderQuadrant,
@@ -1220,7 +1220,7 @@ function ganttRawBodyLines(opaqueSource: string): string[] {
   return headerAt >= 0 ? raw.slice(headerAt + 1) : raw.slice(1)
 }
 
-const GANTT_AGENT_HOOKS = {
+export const GANTT_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractGanttLabels,
   // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
@@ -1255,14 +1255,14 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-const ARCHITECTURE_AGENT_HOOKS = {
+export const ARCHITECTURE_AGENT_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractArchitectureLabels,
   // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
   // the structured body; opaque fallbacks (accTitle/accDescr, {group} boundary
   // edges, unmodeled syntax) keep the universal label-extraction path.
   verify: (body, opts) => (body.kind === 'architecture' ? verifyArchitecture(body, opts) : body.kind === 'opaque' ? verifyOpaqueArchitectureIcons(body.source) : []),
-  ...structuredFamilyHooks('architecture', {
+  .../* @__PURE__ */ structuredFamilyHooks('architecture', {
     headerOk: h => /^architecture(?:-beta)?\s*$/i.test(stripTrailingComment(h)),
     parseBody: parseArchitectureBody,
     serialize: renderArchitecture,
@@ -1271,7 +1271,7 @@ const ARCHITECTURE_AGENT_HOOKS = {
 } satisfies FamilyOperations
 
 // ---- Mindmap ---------------------------------------------------------------
-const MINDMAP_AGENT_HOOKS = {
+export const MINDMAP_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractLabelsGeneric,
   parse: ({ source, opaqueSource }) => {
@@ -1291,7 +1291,7 @@ const MINDMAP_AGENT_HOOKS = {
 } satisfies FamilyOperations
 
 // ---- GitGraph --------------------------------------------------------------
-const GITGRAPH_AGENT_HOOKS = {
+export const GITGRAPH_AGENT_HOOKS = {
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
   parse: ({ source, meta }) => {
@@ -1347,7 +1347,7 @@ function extractRadarLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-const RADAR_AGENT_HOOKS = {
+export const RADAR_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractRadarLabels,
   // Radar is structured-when-narrowed. The verify hook covers the structured
@@ -1394,14 +1394,14 @@ function extractSankeyLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-const SANKEY_AGENT_HOOKS = {
+export const SANKEY_AGENT_HOOKS = {
   renderSource: () => 'serialized',
   extractLabels: extractSankeyLabels,
   // Sankey is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path.
   verify: (body, opts) => (body.kind === 'sankey' ? verifySankey(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
-  ...structuredFamilyHooks('sankey', {
+  .../* @__PURE__ */ structuredFamilyHooks('sankey', {
     headerOk: h => /^sankey(?:-beta)?\s*$/i.test(h),
     parseBody: parseSankeyBody,
     serialize: renderSankey,
@@ -1409,7 +1409,7 @@ const SANKEY_AGENT_HOOKS = {
   }),
 } satisfies FamilyOperations
 
-const C4_AGENT_HOOKS = {
+export const C4_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   parse: ctx => ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }),
   serialize: body => {
@@ -1434,7 +1434,7 @@ const C4_AGENT_HOOKS = {
   },
 } satisfies FamilyOperations
 
-export const BUILTIN_AGENT_HOOKS = Object.freeze({
+export const BUILTIN_AGENT_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_AGENT_HOOKS,
   state: STATE_AGENT_HOOKS,
   sequence: SEQUENCE_AGENT_HOOKS,

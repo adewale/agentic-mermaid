@@ -19,7 +19,7 @@ export type PreviewWorkerRequest = { id: number } & EditorWorkerOperation
 export type EditorWorkerArtifact = PreviewArtifact | RenderedAscii | RenderedBrowserPng
 export type PreviewWorkerResponse =
   | { id: number; ok: true; artifact: EditorWorkerArtifact }
-  | { id: number; ok: false; error: string }
+  | { id: number; ok: false; error: string; dependencyLoadFailed?: true }
   | { id: number; kind: 'rasterize'; svg: string; context: BrowserPngRasterContext }
 export type EditorRasterResponse =
   | { id: number; kind: 'rasterized'; ok: true; png: Uint8Array }

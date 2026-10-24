@@ -12,6 +12,32 @@ import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
+  test.each([
+    ['state', 'stateDiagram-v2\n  state "x\naccTitle: y" as A\n  A --> B'],
+    ['flowchart', 'flowchart TD\n  A["x\naccTitle: y"] --> B'],
+  ])('%s preserves quoted accessibility-shaped text on the first family load and when warm', async (family, source) => {
+    const child = Bun.spawn([process.execPath, '-e', `
+      import { getInstalledFamilyDescriptor } from ${JSON.stringify(new URL('../agent/family-router.ts', import.meta.url).pathname)};
+      import { normalizeMermaidSource } from ${JSON.stringify(new URL('../mermaid-source.ts', import.meta.url).pathname)};
+      import { renderMermaidSVGWithReceiptAsync } from ${JSON.stringify(new URL('../browser-lazy.ts', import.meta.url).pathname)};
+      const unloaded = getInstalledFamilyDescriptor(${JSON.stringify(family)}) === undefined;
+      const source = ${JSON.stringify(source)};
+      const options = { security: 'strict', embedFontImport: false };
+      const cold = await renderMermaidSVGWithReceiptAsync(source, options);
+      const warm = await renderMermaidSVGWithReceiptAsync(source, options);
+      const normalized = normalizeMermaidSource(source, {}, 'render');
+      console.log(JSON.stringify({ unloaded, accessibility: normalized.accessibility, body: normalized.familyBody, cold, warm }));
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+    expect(exitCode, stderr).toBe(0)
+    const actual = JSON.parse(stdout)
+    expect(actual.unloaded).toBe(true)
+    expect(actual.accessibility).toEqual({})
+    expect(actual.body).toContain('accTitle: y')
+    expect(actual.cold.svg).toContain('accTitle: y')
+    expect(actual.warm).toEqual(actual.cold)
+  })
+
   test('retains the admitted named style and its receipt through an async registry replacement', async () => {
     const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
     const style = 'look:test/async-registry-snapshot'
@@ -142,6 +168,7 @@ describe('async browser SVG entry', () => {
         candidates.add(header)
         candidates.add(`  ${header.toUpperCase()}  `)
         candidates.add(`${header}; ignored suffix`)
+        candidates.add(`${header} %% Header comment`)
         candidates.add(`${header} unexpected`)
         candidates.add(`${header}V2`)
       }
@@ -153,8 +180,8 @@ describe('async browser SVG entry', () => {
     }
   })
 
-  test('normalizes BOM, frontmatter, init directives, and comments before loading', async () => {
-    const source = `\uFEFF---
+  test.each([
+    ['wrapper', `\uFEFF---
 config:
   theme: base
 ---
@@ -162,8 +189,15 @@ config:
 %% wrapper comment
 timeline
   title Wrapped
-  2026 : Ship`
-    expect(await renderMermaidSVGAsync(source, { security: 'strict' }))
+  2026 : Ship`, 'Ship'],
+    ['header comment', 'packet %% Header comment\n0-7: "Header"', 'Header'],
+    ['encoded header and comment', 'sequence&#68;iagram %% Header comment\nAlice->>Bob: Decoded once', 'Decoded once'],
+    ['ignored directive before header', '%%{config: {}}%%packet\n0-7: "Header"', 'Header'],
+    ['ignored directive within header', 'pa%%{config: {}}%%cket\n0-7: "Header"', 'Header'],
+  ])('normalizes %s before loading', async (_name, source, label) => {
+    const svg = await renderMermaidSVGAsync(source, { security: 'strict' })
+    expect(svg).toContain(label)
+    expect(svg)
       .toBe(renderMermaidSVG(source, { security: 'strict' }))
   })
 

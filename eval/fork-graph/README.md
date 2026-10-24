@@ -4,10 +4,83 @@ The projects that keep 0.5 honest: browserless renderers to compare on speed and
 
 ## How the population was chosen
 
+This file describes the dated renderer benchmark population in `population.json`.
+The broader [community inventory](../../docs/mermaid-community.json) also includes
+editors and integrations. Its discovery rules were widened on 23 October 2026;
+the renderer-only inclusion rule below is historical benchmark selection, not
+the current community membership rule.
+
 - **Seeds:** everything named in [`docs/comparison.md`](../../docs/comparison.md), every fork in the July star-ranked [`fork-snapshot.json`](../mindmap-gitgraph-content-corpus/fork-snapshot.json), Agentic itself and `mermaid-ast`.
 - **Discovery:** npm registry search (the queries are in `method.npmQueries`, including the parents' verbatim descriptions to catch republished forks), PyPI names, and one hop along provenance files (`UPSTREAM.md`, `THIRD_PARTY.md`, README credits).
 - **Kept:** projects that parse or render Mermaid themselves. Integrations whose dependencies name `mermaid`, `beautiful-mermaid`, `zombie-mermaid`, `pele` or Merman are in `excluded`, with the reason. Of mermaid-js/mermaid's GitHub forks, only snapshot forks and forks that publish their own npm package are listed.
 - **Lineage without the GitHub API:** a fork shares its parent's root commit. Port, binding and vendors claims cite the file that makes them. Repos that could not be reached are in `unresolved`.
+
+## Community discovery and categories
+
+Community members have one or more responsibility categories:
+
+| Category | Responsibility |
+| --- | --- |
+| `renderer` | Owns or inherits a Mermaid drawing implementation |
+| `parser` | Syntax analysis, validation, formatting or structured editing |
+| `editor` | Interactive authoring in a browser, desktop app or IDE |
+| `integration` | Connects an existing engine to a host, workflow or representation |
+| `plugin` | Extends another engine's layout or rendering pipeline |
+| `distribution` | Repackages an existing implementation |
+
+Categories can overlap. They do not establish Git ancestry (`relation`) or
+select renderer benchmarks (`roles`). Modern Mermaid is an editor/integration;
+using Mermaid internally does not disqualify it from the community. The old
+excluded package groups remain in `rendererBenchmarkExclusions`, retaining the
+reason they were omitted from that particular benchmark rather than treating
+them as absent from the ecosystem.
+
+Categories record positive observations from the evidence cited for a member.
+An omitted category is unverified, not proof that the project lacks that
+responsibility. `catalogued` in discovery output means that the identity matches
+the inventory; it does not certify complete category review. The 87 members
+have labels, but their full public responsibilities have not all received a
+fresh source review. Category filters therefore return known examples, not
+exhaustive lists. New assignments cite pinned public APIs or authoring flows.
+
+Run broad discovery with the authenticated GitHub CLI and Bun:
+
+```sh
+bun scripts/research/discover-mermaid-community.ts --out /tmp/mermaid-community-candidates.json
+```
+
+Queries live in the community inventory's `method.discovery`, covering GitHub
+editor/export/annotation/topic searches and npm editor/export/plugin/renderer
+searches. The report preserves every hit and query, merges repository/package
+identities, marks known members and leaves new candidates for source review.
+When npm search omits a repository URL, an unambiguous curated package owner
+supplies the member identity. Conflicting repositories or package ownership
+remain visible for review. Different repository identities remain separate
+candidates; observations sharing an identity retain their repository URLs in
+`sources[].repo`, alongside each query/page. These are the original observed
+URLs, before GitHub identity normalisation, or `null` when metadata was absent.
+The candidate's top-level `repo` is a convenience URL and may come from the
+inventory fallback; that inferred URL is not written into missing observations.
+Explicit URLs on GitLab, Bitbucket or other hosts remain observed metadata;
+failure to normalise them as GitHub identities never permits the missing-URL
+fallback. Responsibility reviews use public packages and authoring flows,
+independently of a member's benchmark role.
+No npm publication, popularity, ancestry or independent-renderer requirement
+is applied. The command does not rewrite the curated inventory or benchmark
+population. Review source responsibilities and dependencies before promotion;
+record unverified ancestry explicitly.
+
+The default bound is one page of 50 results per query; `--pages` (up to 3) and
+`--per-page` (up to 100) expose that bound. API ranking and incomplete searches
+still limit recall. The original 23 October pass returned 264 candidates and found
+Modern Mermaid through editor, export and topic queries. This is a reproducible
+discovery sample, not a claim that every community member has been found.
+After correcting package identity matching, a fresh pass still returned 264
+candidates, with 247 needing source review. It recognises
+`@crafter/mermaid-renderer` as the existing `crafter-station/mermaid` member even
+though npm search omits its repository URL.
+Failed searches are recorded alongside successful hits in a partial report;
+the command exits with a failure status so an incomplete run cannot look complete.
 
 ## Peers
 
@@ -52,8 +125,8 @@ curl -s https://registry.npmjs.org/-/npm/v1/attestations/pele@1.6.0             
 
 ## Limits
 
-- Star counts were not refreshed: the GitHub API was not used. July ranks stay in `fork-snapshot.json`; this file does not replace it.
-- The archived flag and GitHub's fork-of metadata were not observable. Lineage here is commit evidence only, so a repo copied without fork history counts as `independent` unless it says otherwise.
+- The original 18 October survey did not refresh star counts or use the GitHub API. July ranks stay in `fork-snapshot.json`; the later community discovery does not replace that snapshot.
+- The original survey did not inspect the archived flag or GitHub's fork-of metadata. Its lineage is commit evidence only, so a repo copied without fork history counts as `independent` unless it says otherwise. Later source-checked community additions use `unverified` until ancestry is checked.
 - crates.io and the Go proxy were not queried. Rust and Go versions are git tags; Mermaider 0.15.1, Sebastian 0.8.0 and the C4 `rusty-mermaid` cited in `docs/comparison.md` remain unresolved.
 - Outputs and runtimes in the original survey are as each README states them; nothing was installed or executed for that survey. `bench:peers` separately executes pinned adapters and produces its own dated reports. Roles say what is worth comparing, not who wins.
 - This is a dated observation. Rerun `check.ts` before citing a head or version.

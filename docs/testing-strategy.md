@@ -560,7 +560,9 @@ table here, which would drift. In broad strokes:
   delta against the base branch built on the same runner), and the
   red → green changed-test check. Each unit shard runs its files with
   `--parallel=2` (isolated worker processes), so a test file cannot depend on
-  another file's imports. A final `CI complete` job waits for the required
+  another file's imports. CI prepares the shared website fixture in a separate
+  two-minute step before starting those workers, so parallel consumers reuse
+  a completed build instead of competing to generate it. A final `CI complete` job waits for the required
   test aggregate, every E2E matrix job and red → green, providing one
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
@@ -713,7 +715,66 @@ table here, which would drift. In broad strokes:
   ran; this proves deploys are still reaching production. **Does not prove:**
   that the served build works (the deploy's candidate probes do that).
 
-## Boundary-contract matrix — lessons applied from the 2026-07 agent audit
+## Contract review and completion
+
+Before implementing a cross-surface change, put a short contract/evidence table
+in the PR description. For a small change, use a sentence. Each contract states
+observable behavior, its owning producer and consumers, and what could falsify
+it. Choose expectations from public behavior or independent source evidence
+before examining existing assertions. Reuse existing tests and probes; this is
+a review method, not another generated manifest or test-presence gate.
+
+Preserve distinctions until the component that owns the decision can resolve
+them. Examples from PR #470 show why this matters:
+
+| Contract | Distinction to preserve | Evidence at the owning boundary |
+| --- | --- | --- |
+| Worker recovery | An obsolete operation can still report a broken worker; deferred loading differs from an optional rendering failure | Cancel an export while its import fails, then exercise the queued preview and first retry; compare cold and warm receipts. |
+| Deployment recovery | A temporary network failure differs from an old document requesting retired asset URLs | Serve two actual asset generations and preserve the latest draft/settings across explicit reload, including storage/encoding failure. |
+| Benchmark identity | A rendered SVG or equal input count does not establish the requested theme or measured source | Assert active/restored theme identity and exact input/module/config identity; reject invalid resume before overwriting evidence. |
+| Repository matching | Missing metadata differs from explicit unsupported, malformed or conflicting metadata | Enter through raw repository normalization and matching together; include URI ports and scp-style addresses. |
+| Responsibility categories | A known member and valid labels do not establish complete source review | Cite pinned public APIs/authoring flows for assigned roles; leave unreviewed responsibilities explicit. |
+
+Review purposeful transitions and interacting boundaries, rather than every
+combination. Where the change applies, consider cold/warm state, cancellation
+and failure ordering, representation changes, multiple consumers/platforms and
+deployment generations. State exclusions instead of treating untested cases as
+passed. Tests should still protect one contract at its owning boundary; do not
+combine unrelated UI, persistence and export contracts into one test.
+
+For each confirmed finding, identify the failed assumption and trace it from
+raw input through all affected consumers. Distinguish a pre-existing defect
+from one introduced by a repair. Review adjacent paths that share that
+assumption, extend an existing behavioral test where possible, and demonstrate
+red → green for the bug. If only the example is fixed, keep the broader gap
+open. If exhaustive review is infeasible, narrow the claim and state the gap.
+
+When multiple reviewers are requested, assign independently falsifiable
+hypotheses and explicit ownership of interactions, not just folders. One review
+must connect the changed producers to their consumers. Ask reviewers to derive
+expected behavior before reading existing tests; permit no finding and require
+a reproduction for actionable defects. The change author reconciles findings
+against the combined candidate. A severity label or number of agents does not
+replace that reconciliation.
+
+Completion requires resolved confirmed in-scope defects, evidence for the
+declared contracts, disclosed remaining limitations, and successful required CI
+for the exact final head. Record the base/head and dependency revision, link
+the CI run, wait for terminal results, then recheck the current base and PR head.
+After a push, follow the new run. A base update requires a fresh check of the
+combined candidate; after code/dependency changes, requalify affected contracts.
+Retained measurements may apply when their shipped/input bytes are unchanged;
+keep their original revision, date and limits. Never report a pending run as
+ready. The hygiene script reports heuristics, not this completion decision.
+
+Repeat an audit to answer a named unresolved question or examine a material
+change to a contract. Repeating the same prompt until no reviewer finds
+anything is not a stopping rule. New discoveries can reopen an affected
+contract; a clean audit alone neither proves completeness nor invalidates
+sound evidence for other contracts. Do not create more gates or approval
+artifacts merely to certify that the review procedure was followed.
+
+### Boundary-contract matrix — lessons applied from the 2026-07 agent audit
 
 The PR #162 audit exposed a blind spot that family/layout coverage did not
 address: a contract could be correct in one helper and false at another public

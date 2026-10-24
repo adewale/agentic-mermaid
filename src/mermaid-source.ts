@@ -28,7 +28,7 @@ import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 import { authoredMermaidSlice, cleanedMermaidOffset, cleanupMermaidSource, originalMermaidOffset, type MermaidCleanup } from './shared/mermaid-cleanup.ts'
-import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, stripMermaidDirectives, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
 
@@ -475,7 +475,7 @@ const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
  * the same directive boundary automatically.
  */
 export function stripMermaidInitDirectives(text: string): string {
-  return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), '')
+  return text.replace(INIT_DIRECTIVE_REGEX, '')
 }
 
 /** Read the shared post-wrapper source without normalizing payload line endings.
@@ -631,6 +631,12 @@ export function normalizeMermaidSourceWithOverrides(
     frontmatter,
     config: normalizeMermaidRuntimeConfig(frontmatter),
   }
+}
+
+/** Semantic input for render admission and hosts that load its family first.
+ * Decode transport spelling once while retaining original bytes for receipts. */
+export function normalizeMermaidRenderSource(text: string, overrides?: MermaidRuntimeConfig): NormalizedMermaidSource {
+  return normalizeMermaidSourceWithOverrides(text, overrides, 'render')
 }
 
 function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccessibility): {
@@ -966,11 +972,10 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
 function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {
   let merged: MermaidFrontmatterMap = {}
 
-  const body = text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, onItsLine: string | undefined, inStatement: string | undefined) => {
-    const parsed = directiveConfig(onItsLine ?? inStatement)
+  const body = stripMermaidDirectives(text, payload => {
+    const parsed = directiveConfig(payload)
     if (parsed) merged = mergeFrontmatterMaps(merged, canonicalizeFrontmatterMap(parsed))
-    return ''
-  }).replace(MERMAID_DIRECTIVE_REGEX, '')
+  })
 
   return { body, frontmatter: merged }
 }

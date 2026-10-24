@@ -1,5 +1,12 @@
 # Mermaid renderers and Agentic Mermaid
 
+The [Modern Mermaid application benchmark](./comparisons/modern-mermaid.md)
+(23 October 2026) covers its editor, themes, exports, sharing and dependency
+engine. Modern Mermaid wraps upstream Mermaid; it is recorded in the community
+inventory as an application, outside the browserless renderer peer ranking.
+The [community discovery and categories](../eval/fork-graph/README.md#community-discovery-and-categories)
+include editors and integrations independently of renderer benchmark eligibility.
+
 ## Pele comparison — checked 18 October 2026
 
 [Pele](https://github.com/obsidianmd/pele) is an independently maintained,

@@ -13,7 +13,7 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
-import { matchMermaidFrontmatter, splitHeaderStatement } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, normalizeFamilyDetectionLine, splitHeaderStatement } from './mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective, statementEndAt } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =
@@ -32,9 +32,7 @@ export function classifyMermaidFamilyDescriptorFromFirstLine(
   firstLine: string,
   mode: 'strict' | 'loose' = 'strict',
 ): MermaidFamilyDescriptorClassification {
-  // Mermaid comments are inert even when appended to a family declaration.
-  // Keep authored bytes separately for provenance and diagnostics.
-  const semanticFirstLine = firstLine.replace(/%%.*$/, '').trim()
+  const semanticFirstLine = normalizeFamilyDetectionLine(firstLine)
   const family = detectInstalledFamilyDescriptorFromFirstLine(semanticFirstLine, mode)
   if (family) return { kind: 'registered', family }
   const upstream = findUpstreamFamilyByHeader(semanticFirstLine)

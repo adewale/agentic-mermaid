@@ -49,13 +49,15 @@ const descriptors = ids.map(id => {
 const catalogRows = descriptors.map(descriptor =>
   `  Object.freeze({ id: ${JSON.stringify(descriptor.id)}, detect: ${functionSource(descriptor.detect)} }),`)
 const catalog = `${generatedHeader()}
+import { normalizeFamilyDetectionLine } from '../../mermaid-source-wrapper.ts'
+
 export const BROWSER_BUILTIN_FAMILY_IDS = Object.freeze(${JSON.stringify(ids)} as const)
 export type BrowserBuiltinFamilyId = (typeof BROWSER_BUILTIN_FAMILY_IDS)[number]
 
 const CATALOG = Object.freeze([\n${catalogRows.join('\n')}\n])
 
 export function detectBrowserBuiltinFamilyFromFirstLine(firstLine: string): BrowserBuiltinFamilyId | null {
-  const line = (firstLine.split(';')[0] ?? '').trim().toLowerCase()
+  const line = normalizeFamilyDetectionLine(firstLine)
   for (const entry of CATALOG) {
     if (entry.detect(line)) return entry.id
   }
@@ -99,7 +101,35 @@ const descriptorData = Object.freeze({
 export default descriptorData
 `
   writeGenerated(join(GENERATED, 'descriptors', `${descriptor.id}.ts`), source)
+  const symbol = descriptor.id.toUpperCase()
+  const agentModule = ['packet', 'kanban', 'requirement', 'block', 'treemap', 'ishikawa'].includes(descriptor.id) ? 'stable-family-adapters' : 'families-builtin'
+  writeGenerated(join(GENERATED, 'verified', `${descriptor.id}.ts`), `${generatedHeader()}
+import { ${symbol}_AGENT_HOOKS } from '../../../agent/${agentModule}.ts'
+import { ${symbol}_SVG_HOOKS } from '../../../svg-family-hooks/${descriptor.id}.ts'
+import { installBuiltinFamily } from '../../../agent/family-registry.ts'
+import { deferredTerminalRenderer } from '../../verified-family.ts'
+
+export default function install() {
+  return installBuiltinFamily('${descriptor.id}', {
+    ...${symbol}_AGENT_HOOKS,
+    ...${symbol}_SVG_HOOKS,
+    renderAscii: deferredTerminalRenderer(() => import('../terminal/${descriptor.id}.ts')),
+  })
 }
+`)
+  writeGenerated(join(GENERATED, 'terminal', `${descriptor.id}.ts`), `${generatedHeader()}
+export { ${symbol}_RENDER_HOOKS as default } from '../../../render-family-hooks.ts'
+`)
+}
+
+writeGenerated(join(GENERATED, 'verified-loaders.ts'), `${generatedHeader()}
+import type { BrowserBuiltinFamilyId } from './catalog.ts'
+import type { FamilyDescriptor } from '../../agent/families.ts'
+
+export const VERIFIED_FAMILY_LOADERS = Object.freeze({
+${ids.map(id => `  ${id}: () => import('./verified/${id}.ts').then(module => module.default()),`).join('\n')}
+} satisfies Record<BrowserBuiltinFamilyId, () => Promise<FamilyDescriptor>>)
+`)
 
 process.stdout.write(CHECK
   ? `browser family catalog is current (${ids.length} families)\n`

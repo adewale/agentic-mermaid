@@ -11,9 +11,12 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
-import { deflateRawSync } from 'node:zlib'
+import { deflateRawSync, inflateRawSync } from 'node:zlib'
 import { chromium, type Browser, type Page } from 'playwright'
 import { PNG_DEFAULT_SCALE } from '../src/png-contract.ts'
+import { getFamily, knownBuiltinFamilies } from '../src/agent/families.ts'
+import { renderAndVerifyMermaid } from '../src/agent/verify.ts'
+import { renderMermaidASCIIWithReceipt } from '../src/ascii/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const SITE = join(import.meta.dir, '..', 'website', 'public')
@@ -102,6 +105,217 @@ describe('editor and site interactions in a real browser', () => {
     server?.stop(true)
     await browser?.close()
   })
+
+  test('every built-in can be the first deferred family, retaining verified SVG and native terminal output', async () => {
+    for (const id of knownBuiltinFamilies()) {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await page.goto(`${base}/editor/?empty=1`)
+        await page.waitForFunction(() => !!(window as any).__mermaid)
+        const source = getFamily(id)!.example
+        const options = { security: 'strict' as const, embedFontImport: false, style: ['crisp', 'paper'], seed: 4 }
+        const expected = renderAndVerifyMermaid(source, options)
+        const actual = await page.evaluate(async ({ source, options }) => (window as any).__mermaid.renderMermaidSVGWithReceipt(source, options), { source, options })
+        expect(actual.svg, id).toBe(expected.svg)
+        expect(actual.receipt, id).toEqual(expected.receipt)
+        expect(actual.verification, id).toEqual({ ok: expected.verification.ok, warnings: expected.verification.warnings, checks: expected.verification.checks })
+        for (const useAscii of [false, true]) {
+          const terminalOptions = { colorMode: 'none' as const, useAscii }
+          const expectedTerminal = renderMermaidASCIIWithReceipt(source, terminalOptions)
+          const terminal = await page.evaluate(async ({ source, terminalOptions }) => (window as any).__mermaid[terminalOptions.useAscii ? 'renderMermaidASCIIWithReceipt' : 'renderMermaidUnicodeWithReceipt'](source, terminalOptions), { source, terminalOptions })
+          expect(terminal.text, id).toBe(expectedTerminal.text)
+          expect(terminal.receipt, id).toEqual(expectedTerminal.receipt)
+          expect(terminal.outputPolicy, id).toEqual(expectedTerminal.outputPolicy)
+        }
+        expect(page.workers()).toHaveLength(1)
+      } finally { await page.close() }
+    }
+  }, 120_000)
+
+  describe.each([
+    ['Packet comment', 'packet', 'packet %% Header comment\n0-7: "Header"', 'Header'],
+    ['Kanban comment', 'kanban', 'kanban %% Header comment\n  todo[To do]\n    parser[Build parser]', 'Build parser'],
+    ['Requirement comment', 'requirement', 'requirementDiagram %% Header comment\n  requirement latency {\n    id: 1\n    text: Respond promptly\n    risk: high\n    verifymethod: test\n  }', 'Respond promptly'],
+    ['Treemap comment', 'treemap', 'treemap %% Header comment\n"Product"\n  "Engineering": 60\n  "Design": 40', 'Engineering'],
+    ['Block comment', 'block', 'block %% Header comment\n  columns 2\n  A["API"] B["Database"]\n  A --> B', 'Database'],
+    ['Sequence entity', 'sequence', 'sequence&#68;iagram\nAlice->>Bob: Encoded header', 'Encoded header'],
+    ['entity and comment', 'sequence', 'sequence&#68;iagram %% Header comment\nAlice->>Bob: Combined header', 'Combined header'],
+    ['BOM, CRLF, frontmatter and init', 'packet', '\uFEFF---\r\ntitle: Packet wrapper\r\nconfig:\r\n  packet:\r\n    bitsPerRow: 16\r\n---\r\n%%{init: {"theme": "default"}}%%\r\nPACKET %% Header comment\r\n0-7: "Wrapped field"', 'Wrapped field'],
+  ])('%s admission', (_name, family, source, label) => {
+    test.each(['svg', 'unicode'] as const)('%s first, then warm, retains accepted source meaning and receipts', async first => {
+      const page = await browser.newPage()
+      try {
+        await page.goto(`${base}/editor/?empty=1`)
+        await page.waitForFunction(() => !!(window as any).__mermaid)
+        const options = { security: 'strict' as const, embedFontImport: false, mermaidConfig: { packet: { bitsPerRow: 8 } } }
+        const expectedSvg = renderAndVerifyMermaid(source, options)
+        const expectedText = renderMermaidASCIIWithReceipt(source, { ...options, colorMode: 'none' })
+        expect(expectedSvg.svg).toContain(label)
+        expect(expectedText.text).toContain(label)
+        expect(expectedSvg.receipt.capabilityDecision.resolutions).toContainEqual(expect.objectContaining({ id: `family:${family}`, status: 'selected' }))
+        const actual = await page.evaluate(async ({ source, options, first }) => {
+          const api = (window as any).__mermaid
+          const svg = () => api.renderMermaidSVGWithReceipt(source, options)
+          const unicode = () => api.renderMermaidUnicodeWithReceipt(source, { ...options, colorMode: 'none' })
+          // No ordinary example or successful render may warm this page first.
+          const cold = await (first === 'svg' ? svg() : unicode())
+          return { cold, svg: await svg(), unicode: await unicode(), warm: await (first === 'svg' ? svg() : unicode()) }
+        }, { source, options, first })
+        const checkSvg = (artifact: typeof actual.svg) => {
+          expect(artifact.svg).toBe(expectedSvg.svg)
+          expect(artifact.receipt).toEqual(expectedSvg.receipt)
+          expect(artifact.verification).toEqual({ ok: expectedSvg.verification.ok, warnings: expectedSvg.verification.warnings, checks: expectedSvg.verification.checks })
+        }
+        const checkText = (artifact: typeof actual.unicode) => {
+          expect(artifact.text).toBe(expectedText.text)
+          expect(artifact.receipt).toEqual(expectedText.receipt)
+          expect(artifact.outputPolicy).toEqual(expectedText.outputPolicy)
+        }
+        checkSvg(actual.svg)
+        checkText(actual.unicode)
+        if (first === 'svg') { checkSvg(actual.cold); checkSvg(actual.warm) }
+        else { checkText(actual.cold); checkText(actual.warm) }
+        expect(page.workers()).toHaveLength(1)
+      } finally { await page.close() }
+    }, 30_000)
+  })
+
+  test.each([
+    ['Markdown fence', '```mermaid\nsequenceDiagram\nAlice->>Bob: Unsupported wrapper\n```', '```mermaid'],
+    ['double-encoded header', 'sequence&amp;#68;iagram\nAlice->>Bob: Decode once', 'sequence&#68;iagram'],
+    ['unowned header suffix', 'sequenceDiagramV2\nAlice->>Bob: Unknown dialect', 'sequenceDiagramV2'],
+  ])('%s remains rejected cold and warm', async (_name, source, header) => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/editor/?empty=1`)
+      await page.waitForFunction(() => !!(window as any).__mermaid)
+      expect(() => renderAndVerifyMermaid(source)).toThrow(`Unrecognized Mermaid header: "${header}"`)
+      const actual = await page.evaluate(async source => {
+        const api = (window as any).__mermaid
+        const rejected = async () => {
+          try { await api.renderMermaidSVGWithReceipt(source); return null }
+          catch (error) { return (error as Error).message }
+        }
+        const cold = await rejected()
+        await api.renderMermaidSVGWithReceipt('sequenceDiagram\nAlice->>Bob: Warm family')
+        return { cold, warm: await rejected() }
+      }, source)
+      expect(actual.cold).toBe(`Unrecognized Mermaid header: "${header}"`)
+      expect(actual.warm).toBe(actual.cold)
+    } finally { await page.close() }
+  }, 30_000)
+
+  test('invalid source config wins over an unavailable cold family download', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/editor/?empty=1`)
+      await page.waitForFunction(() => !!(window as any).__mermaid)
+      await page.evaluate(() => (window as any).__mermaid.renderMermaidSVGWithReceipt('flowchart TD\nA --> B'))
+      let blocked = 0
+      await page.route('**/editor/runtime/**', route => { blocked++; return route.abort() })
+      const renderError = (source: string) => page.evaluate(async source => {
+        try { await (window as any).__mermaid.renderMermaidSVGWithReceipt(source); return null }
+        catch (error) { return (error as Error).message }
+      }, source)
+      expect(await renderError('---\nconfig: [\n---\nsequenceDiagram\nAlice->>Bob: Message')).toStartWith('Mermaid frontmatter is not valid YAML:')
+      expect(blocked).toBe(0)
+      expect(await renderError('sequenceDiagram\nAlice->>Bob: Message')).toContain('Diagram code could not load')
+      expect(blocked).toBeGreaterThan(0)
+    } finally { await page.close() }
+  }, 30_000)
+
+  test('cached-family editing works without new modules and a failed family download retries on the next edit', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    try {
+      await page.goto(`${base}/editor/?empty=1`)
+      await page.locator('#code-editor').fill('flowchart LR\n A[First] --> B[Cached]')
+      await waitForVerifiedRender(page)
+      let blocked = 0
+      await page.route('**/editor/runtime/**', route => { blocked++; return route.abort() })
+      await page.locator('#code-editor').fill('flowchart LR\n A[Offline edit] --> B[Cached]')
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Offline edit'))
+      expect(blocked).toBe(0)
+      await page.locator('#code-editor').fill('sequenceDiagram\n Alice->>Bob: First download')
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
+      expect(blocked).toBeGreaterThan(0)
+      expect(await page.locator('.preview-error-detail').textContent()).toContain('Check your connection')
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(true)
+      await page.unroute('**/editor/runtime/**')
+      await page.locator('#code-editor').fill('sequenceDiagram\n Alice->>Bob: Recovered download')
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK' && document.getElementById('preview-inner')?.textContent?.includes('Recovered download'))
+      expect(page.workers()).toHaveLength(1)
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(false)
+    } finally { await page.close() }
+  }, 60_000)
+
+  test.each([1280, 390])('reload recovery at %i px preserves unverified edits and settings without browser storage', async width => {
+    let retired = false, documents = 0
+    const served = serveWithAvailablePort({ preferredPort: 4801, fetch(request) {
+      const pathname = new URL(request.url).pathname
+      if (pathname === '/editor/') { documents++; retired = false }
+      if (retired && pathname.startsWith('/editor/runtime/')) return new Response('Retired asset', { status: 404, headers: { 'cache-control': 'no-store' } })
+      const file = fileForPath(pathname)
+      return file ? new Response(Bun.file(file), { headers: { 'content-type': MIME[extname(file)] ?? 'application/octet-stream',
+        'cache-control': extname(file) === '.js' ? 'public, max-age=31536000, immutable' : 'no-cache' } }) : new Response('Not found', { status: 404 })
+    } })
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const initial = { source: 'flowchart LR\nA-->B', palette: 'nord', style: 'hand-drawn', seed: 17, config: { padding: 64 } }
+    const source = 'sequenceDiagram\nAlice->>Bob: Keep latest β\n  '
+    try {
+      await page.addInitScript(() => {
+        for (const key of ['localStorage', 'sessionStorage']) Object.defineProperty(window, key, { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError') } })
+      })
+      await page.goto(served.base + '/editor/?example=sequence&empty=1#' + shareHash(initial))
+      await waitForVerifiedRender(page)
+      if (width < 768) await page.locator('#mode-source').click()
+      retired = true
+      await page.locator('#code-editor').fill(source)
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
+      if (width < 768) await page.locator('#mode-preview').click()
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(true)
+      expect(documents).toBe(1)
+      expect(await page.locator('#verify-structural').textContent()).toBe('Not run')
+      const errorBounds = await page.locator('.preview-runtime-error').boundingBox()
+      expect(errorBounds!.x + errorBounds!.width).toBeLessThanOrEqual(width)
+      mkdirSync(SCREENSHOTS, { recursive: true })
+      await page.screenshot({ path: join(SCREENSHOTS, `current-runtime-recovery-${width}.png`), animations: 'disabled' })
+      const loaded = page.waitForEvent('load')
+      await page.locator('#reload-editor').click()
+      await loaded
+      await waitForVerifiedRender(page)
+      expect(documents).toBe(2)
+      expect(await page.locator('#code-editor').inputValue()).toBe(source)
+      expect(await page.locator('#preview-inner svg').textContent()).toContain('Keep latest β')
+      const encoded = new URL(page.url()).hash.slice('#deflate:'.length)
+      const restored = JSON.parse(inflateRawSync(Buffer.from(encoded, 'base64url')).toString())
+      expect(restored).toEqual({ ...initial, source })
+      expect(await page.locator('.theme-dropdown-item[data-theme="nord"]').getAttribute('aria-selected')).toBe('true')
+      expect(await page.locator('.theme-dropdown-item[data-style="hand-drawn"]').getAttribute('aria-selected')).toBe('true')
+      expect(JSON.parse(await page.locator('#cfg-advanced-options').inputValue()).padding).toBe(64)
+      expect(await page.locator('#runtime-recovery').isVisible()).toBe(false)
+      await page.screenshot({ path: join(SCREENSHOTS, `current-runtime-restored-${width}.png`), animations: 'disabled' })
+    } finally { await page.close(); served.server.stop(true) }
+  }, 60_000)
+
+  test('reload recovery stays on the current diagram when state encoding is unavailable', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const source = 'sequenceDiagram\nAlice->>Bob: Keep this draft'
+    try {
+      await page.goto(base + '/editor/?empty=1')
+      await page.locator('#code-editor').fill('flowchart LR\nA-->B')
+      await waitForVerifiedRender(page)
+      await page.route('**/editor/runtime/**', route => route.abort())
+      await page.locator('#code-editor').fill(source)
+      await page.waitForFunction(() => document.getElementById('status-text')?.textContent === 'Error')
+      const url = page.url()
+      await page.evaluate(() => { Object.defineProperty(window, 'CompressionStream', { value: undefined, configurable: true }) })
+      await page.locator('#reload-editor').click()
+      await page.waitForFunction(() => document.getElementById('toast')?.textContent?.includes('Copy or export the source first'))
+      expect(page.url()).toBe(url)
+      expect(await page.locator('#code-editor').inputValue()).toBe(source)
+      expect(await page.locator('#reload-editor').isEnabled()).toBe(true)
+    } finally { await page.close() }
+  }, 60_000)
 
   test('preview rendering uses one persistent worker and a late result cannot replace the newest verified source', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
@@ -443,49 +657,113 @@ Rel_Back(user,api,"Replies")`
     await page.close()
   }, 60_000)
 
-  test('Packet inspection is keyboard accessible across row fragments and leaves canonical exports intact', async () => {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
-    await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
-      return async function(source, options) {
-        var artifact = await original(source, options);
-        window.__inspectedPacket = artifact;
-        return artifact;
-      };
-    }`)
+  describe('Packet inspection', () => {
     const source = '---\nconfig:\n  packet:\n    bitsPerRow: 8\n    bitOrder: descending\n    showBits: false\n---\npacket\n+3: "Mode"\n+12: "Authentication tag"'
-    await page.goto(`${base}/editor/#${shareHash({ source, palette: 'paper', style: 'crisp' })}`, { waitUntil: 'networkidle' })
-    await waitForVerifiedRender(page)
-    const snapshot = () => page.evaluate(() => ({
-      artifact: (window as any).__inspectedPacket,
-      source: (document.getElementById('code-editor') as HTMLTextAreaElement).value,
-    }))
-    const before = await snapshot()
-    const select = page.getByLabel('Packet field', { exact: true })
-    expect(await select.locator('option').allTextContents()).toEqual(['Choose a field', 'Mode (0–2)', 'Authentication tag (3–14)'])
-    expect(await page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]').count()).toBe(1)
-    await page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]').focus()
-    await page.keyboard.press('Enter')
-    expect(await page.locator('#packet-field-details').textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
-    expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(2)
-    mkdirSync(SCREENSHOTS, { recursive: true })
-    await page.screenshot({ path: join(SCREENSHOTS, 'current-packet-inspection.png'), animations: 'disabled' })
-    await select.focus()
-    await page.keyboard.press('ArrowUp')
-    expect(await page.locator('#packet-field-details').textContent()).toContain('Mode: bits 0–2 (3 bits)')
-    expect(await snapshot()).toEqual(before)
-    await page.locator('#export-chevron-btn').click()
-    const download = page.waitForEvent('download', { timeout: 30_000 })
-    await page.locator('#export-svg-btn').click()
-    const exported = readFileSync((await (await download).path())!, 'utf8')
-    expect(exported).toContain('data-field-label="Authentication tag"')
-    expect(exported).not.toContain('data-packet-inspected')
-    expect(exported).not.toContain('tabindex=')
-    await page.locator('#format-unicode').click()
-    expect(await select.isVisible()).toBe(false)
-    await page.locator('#format-diagram').click()
-    expect(await select.inputValue()).toBe('field-0')
-    await page.close()
-  }, 60_000)
+
+    async function openPacket(page: Page) {
+      await page.goto(`${base}/editor/#${shareHash({ source, palette: 'paper', style: 'crisp' })}`, { waitUntil: 'networkidle' })
+      await waitForVerifiedRender(page)
+    }
+
+    test('SVG fields have one tab stop per authored field and support Enter and Space', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await openPacket(page)
+        const mode = page.locator('#preview-inner g[data-field-id="field-0"][tabindex="0"]')
+        const authentication = page.locator('#preview-inner g[data-field-id="field-1"][tabindex="0"]')
+        const select = page.getByLabel('Packet field', { exact: true })
+        const details = page.locator('#packet-field-details')
+        expect(await mode.count()).toBe(1)
+        expect(await authentication.count()).toBe(1)
+        await mode.focus()
+        expect(await details.textContent()).toContain('Mode: bits 0–2 (3 bits)')
+        await page.keyboard.press('Tab')
+        expect(await authentication.evaluate(element => element === document.activeElement)).toBe(true)
+        expect(await details.textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
+        for (const key of ['Enter', 'Space']) {
+          // Focus already inspects the field. Clear it without moving focus
+          // so each activation key must restore the inspection itself.
+          await select.selectOption('')
+          expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(0)
+          expect(await authentication.evaluate(element => element === document.activeElement)).toBe(true)
+          await page.keyboard.press(key)
+          expect(await details.textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
+          expect(await page.locator('#preview-inner g[data-field-id="field-1"][data-packet-inspected]').count()).toBe(2)
+        }
+        mkdirSync(SCREENSHOTS, { recursive: true })
+        await page.screenshot({ path: join(SCREENSHOTS, 'current-packet-inspection.png'), animations: 'disabled' })
+        await page.keyboard.press('Shift+Tab')
+        expect(await mode.evaluate(element => element === document.activeElement)).toBe(true)
+        expect(await details.textContent()).toContain('Mode: bits 0–2 (3 bits)')
+      } finally { await page.close() }
+    }, 60_000)
+
+    test('dropdown selection updates field details and every row fragment', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await openPacket(page)
+        const select = page.getByLabel('Packet field', { exact: true })
+        const details = page.locator('#packet-field-details')
+        expect(await select.locator('option').allTextContents()).toEqual(['Choose a field', 'Mode (0–2)', 'Authentication tag (3–14)'])
+        // Native dropdown keyboard gestures differ by OS; commit the choice
+        // through Playwright's select API to exercise our change handler.
+        await select.selectOption('field-1')
+        expect(await details.textContent()).toContain('bits 3–14 (12 bits); byte offsets 0–1, starting at bit 3')
+        expect(await page.locator('#preview-inner g[data-field-id="field-1"][data-packet-inspected]').count()).toBe(2)
+        await select.selectOption('field-0')
+        expect(await details.textContent()).toContain('Mode: bits 0–2 (3 bits)')
+        expect(await page.locator('#preview-inner g[data-field-id="field-0"][data-packet-inspected]').count()).toBe(1)
+        expect(await page.locator('#preview-inner g[data-field-id="field-1"][data-packet-inspected]').count()).toBe(0)
+        await select.selectOption('')
+        expect(await details.textContent()).toBe('Select a field to inspect its bit range and byte offsets.')
+        expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(0)
+      } finally { await page.close() }
+    }, 60_000)
+
+    test('selection survives switching between diagram and text panes', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      try {
+        await openPacket(page)
+        const select = page.getByLabel('Packet field', { exact: true })
+        await select.selectOption('field-0')
+        await page.locator('#format-unicode').click()
+        expect(await select.isVisible()).toBe(false)
+        await page.locator('#format-diagram').click()
+        expect(await select.isVisible()).toBe(true)
+        expect(await select.inputValue()).toBe('field-0')
+        expect(await page.locator('#packet-field-details').textContent()).toContain('Mode: bits 0–2 (3 bits)')
+      } finally { await page.close() }
+    }, 60_000)
+
+    test('inspection leaves the canonical artifact, source and SVG export intact', async () => {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
+      try {
+        await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
+          return async function(source, options) {
+            var artifact = await original(source, options);
+            window.__inspectedPacket = artifact;
+            return artifact;
+          };
+        }`)
+        await openPacket(page)
+        const snapshot = () => page.evaluate(() => ({
+          artifact: (window as any).__inspectedPacket,
+          source: (document.getElementById('code-editor') as HTMLTextAreaElement).value,
+        }))
+        const before = await snapshot()
+        await page.getByLabel('Packet field', { exact: true }).selectOption('field-1')
+        expect(await page.locator('#preview-inner g[data-packet-inspected]').count()).toBe(2)
+        expect(await snapshot()).toEqual(before)
+        await page.locator('#export-chevron-btn').click()
+        const download = page.waitForEvent('download', { timeout: 30_000 })
+        await page.locator('#export-svg-btn').click()
+        const exported = readFileSync((await (await download).path())!, 'utf8')
+        expect(exported).toContain('data-field-label="Authentication tag"')
+        expect(exported).not.toContain('data-packet-inspected')
+        expect(exported).not.toContain('tabindex=')
+      } finally { await page.close() }
+    }, 60_000)
+  })
 
   test('Kanban preview wrapping is explicit, follows scheduled viewport changes and preserves receipt parity', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })

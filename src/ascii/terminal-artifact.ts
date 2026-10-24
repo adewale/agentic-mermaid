@@ -30,6 +30,6 @@ export function nativeTerminalRenderer(draw: (context: AsciiContext, model?: Ter
   return Object.freeze(renderer)
 }
 
-export function nativeTerminalArtifact(renderer: (context: AsciiContext) => string, context: AsciiContext, model: TerminalInputModel): TerminalArtifact | undefined {
+export function nativeTerminalArtifact(renderer: (context: AsciiContext) => string, context: AsciiContext, model?: TerminalInputModel): TerminalArtifact | undefined {
   return (renderer as NativeRenderer)[nativeDrawing]?.(context, model)
 }

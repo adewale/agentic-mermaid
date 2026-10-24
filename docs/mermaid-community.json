@@ -2,7 +2,41 @@
   "schemaVersion": 1,
   "checkedAt": "2026-10-18",
   "method": {
+    "memberCategories": {
+      "renderer": "Owns or inherits an implementation that draws Mermaid diagrams; wrapping another project's renderer alone does not qualify.",
+      "parser": "Provides Mermaid syntax analysis, validation, formatting or structured editing APIs.",
+      "editor": "Provides interactive diagram authoring, including browser and IDE applications.",
+      "integration": "Connects an existing engine to a host, runtime, document workflow or output representation.",
+      "plugin": "Extends another engine's layout or rendering pipeline.",
+      "distribution": "Repackages an existing implementation. A package may also have another responsibility."
+    },
+    "classification": "categories record observed responsibilities and may overlap; an omitted category is not a verified absence. relation describes verified ancestry; roles select benchmark populations. None substitutes for the others. A catalogued discovery hit matches an inventory identity, not an exhaustive responsibility review. Existing categories use the source evidence recorded with each member; they do not claim a fresh runtime audit or complete source review of every responsibility.",
+    "discovery": {
+      "checkedAt": "2026-10-23",
+      "command": "bun scripts/research/discover-mermaid-community.ts --out /tmp/mermaid-community-candidates.json",
+      "githubQueries": [
+        "mermaid editor in:name,description fork:true",
+        "mermaid export in:name,description fork:true",
+        "mermaid annotation in:name,description fork:true",
+        "topic:mermaid fork:true"
+      ],
+      "npmQueries": ["mermaid editor", "mermaid export", "mermaid plugin", "mermaid renderer"],
+      "review": "Retain every search hit and its query/source provenance before classification. sources[].repo records each observed repository URL before identity normalisation, or null for absent metadata; the candidate's convenience repo may instead use inventory fallback. The report merges repository/package identities, including unambiguous curated npm ownership when repository metadata is absent. Conflicting repository observations and ownership remain visible for review with matched members recorded. It marks known members and leaves new candidates for source review, without rewriting this inventory or changing benchmark populations.",
+      "limits": "Default one page of 50 hits per query; --pages and --per-page expose the bounds. Search ranking and API indexing limit recall. Record truncation and failures; the result is not an exhaustive ecosystem census. GitHub discovery requires the authenticated gh CLI. Web/topic searches and release/readme links can supplement these sources.",
+      "historicalExclusions": "rendererBenchmarkExclusions records why the 18 October renderer census excluded package groups. These are benchmark exclusions, not community membership decisions; unreviewed integrations remain discovery candidates. eval/fork-graph/population.json retains its dated renderer benchmark population."
+    },
     "supplementalSources": [
+      {
+        "checkedAt": "2026-10-23",
+        "project": "gotoailab/modern_mermaid",
+        "sources": [
+          "https://github.com/gotoailab/modern_mermaid/tree/a021cbce37fc0b07a9f4791c28e983101ea06f2d",
+          "https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/package.json",
+          "https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/pnpm-lock.yaml",
+          "https://github.com/gotoailab/modern_mermaid/blob/a021cbce37fc0b07a9f4791c28e983101ea06f2d/src/components/Preview.tsx"
+        ],
+        "notes": "Source-checked editor/integration member. The earlier renderer-only discovery rule was replaced on 2026-10-23; membership is separate from renderer benchmark eligibility. Full source checkout, locked production build, dependency-engine inventory and browser application probes; see docs/comparisons/modern-mermaid.md and eval/modern-mermaid/run.mjs. Existing observations and renderer peer rankings retain their dates and scope."
+      },
       {
         "checkedAt": "2026-10-20",
         "project": "Dicklesworthstone/frankenmermaid",
@@ -92,23 +126,134 @@
     ],
     "pypiNames": ["termaid", "merman", "mermaid-ascii", "mermaid-py", "mermaider", "sebastian", "beautiful-mermaid", "beautiful-mermaid-py", "figurehead", "mermansi", "mermaid-rs-renderer", "rusty-mermaid", "mermaid-renderer", "mermaidpy"],
     "followed": "Provenance statements in candidate READMEs, UPSTREAM.md and THIRD_PARTY.md were followed one hop (grok-build, mermaidtext, opencode, simonw/tools).",
-    "keep": "Keep a candidate that parses and/or renders the Mermaid language itself. A package whose dependencies name mermaid, beautiful-mermaid, zombie-mermaid, pele or merman and that adds no renderer is excluded.",
+    "keep": "Discover Mermaid renderers, syntax tools, editors, integrations, plugins and distributions before deciding benchmark eligibility. Depending on another engine, lacking an npm package, low stars or separate Git ancestry does not exclude a community member. Source-check responsibility and dependencies before classification; record unreviewed hits as candidates.",
     "lineage": "A GitHub fork shares its parent's root commit. Default branches were fetched commit-only (git clone/fetch --filter=tree:0); git rev-list --max-parents=0 gives rootCommits. vsParent is git rev-list --left-right --count parentHead...head.",
-    "relations": "Node relation: root = the language origin; fork = shares the parent's root; port = no shared root, and a README, NOTICE or UPSTREAM file says the code was derived; binding = packages another node's renderer for a new runtime; independent = no shared root and no derivation claim. Edges add depends-on, inspired-by and vendors (an otherwise independent implementation copies the target's grammar or spec files), each with its evidence path.",
+    "relations": "Node relation: root = the language origin; fork = shares the parent's root; port = no shared root, and a README, NOTICE or UPSTREAM file says the code was derived; binding = packages another node's renderer for a new runtime; independent = no shared root and no derivation claim. Edges add depends-on, inspired-by and vendors (an otherwise independent implementation copies the target's grammar or spec files), each with its evidence path. unverified means no ancestry classification was established; membership and responsibility do not imply a shared or separate Git root.",
     "facts": "branch = the default branch (anomalyco/opencode: v2, where its renderer lives); head = git ls-remote of that branch; lastCommit = committer date of head; license = manifest field, else LICENSE text; release = highest plain vX.Y.Z git tag, peeled; packages = npm view <pkg> version gitHead license, with provenanceCommit from the npm SLSA attestation; publishedFromDefaultBranch = provenanceCommit or gitHead is an ancestor of head.",
     "notPossible": [
-      "Star counts were not refreshed: the GitHub API was not used. July 2026 star ranks are in eval/mindmap-gitgraph-content-corpus/fork-snapshot.json.",
-      "GitHub's archived flag and fork-of metadata need the API; lineage here is commit evidence only.",
-      "mermaid-js/mermaid has thousands of forks; only snapshot forks and forks that publish their own npm package are listed.",
+      "Original 18 October snapshot: star counts were not refreshed and the GitHub API was not used. July 2026 star ranks are in eval/mindmap-gitgraph-content-corpus/fork-snapshot.json.",
+      "Original renderer lineage is commit evidence only. The 23 October discovery pass uses GitHub search, but does not infer lineage for new application members.",
+      "The original renderer census lists only snapshot forks and forks with their own npm package; the broader discovery pass has no such membership gate and retains its search bounds.",
       "crates.io and the Go module proxy were not queried; Rust and Go versions are git tags and manifest fields.",
       "outputs and runtime are as stated by each README, not executed."
     ],
-    "roles": "language-reference, ancestor, self, peer (browserless renderer worth comparing on speed, payload and output), terminal-peer, parser-peer, observed (in the graph, no comparison value).",
-    "outputs": "svg, png, jpeg, pdf, ascii-unicode (includes ANSI-coloured text), ast, diagnostics, mermaid-text, react-flow."
+    "roles": "language-reference, ancestor, self, peer (browserless renderer worth comparing on speed, payload and output), terminal-peer, parser-peer, observed (catalogued but not selected for renderer benchmarks; application or integration comparisons may still apply).",
+    "outputs": "svg, png, jpeg, pdf, ascii-unicode (includes ANSI-coloured text), ast, diagnostics, mermaid-text, react-flow, excalidraw."
   },
   "nodes": [
     {
+      "id": "mermaid-js/mermaid-live-editor",
+      "branch": "develop",
+      "head": "eb4141dd51247259e95ecd890c1bf3dabf314913",
+      "lastCommit": "2026-10-21T21:28:42Z",
+      "homepage": "https://mermaid.live",
+      "description": "Edit, preview and share mermaid charts/diagrams. New implementation of the live editor.",
+      "license": "MIT",
+      "categories": [
+        "editor",
+        "integration"
+      ],
+      "relation": "unverified",
+      "repo": "https://github.com/mermaid-js/mermaid-live-editor",
+      "checkedAt": "2026-10-23",
+      "runtime": "Browser; Svelte application with Mermaid as a dependency",
+      "outputs": [
+        "svg",
+        "png",
+        "mermaid-text"
+      ],
+      "roles": [
+        "observed"
+      ],
+      "evidence": [
+        "https://github.com/mermaid-js/mermaid-live-editor/blob/eb4141dd51247259e95ecd890c1bf3dabf314913/package.json"
+      ],
+      "notes": "Source-checked community member, not an independent renderer benchmark peer. Dependency and manifest inspection only; no local runtime benchmark or Git root ancestry check. Categories describe responsibility; relation remains unverified."
+    },
+    {
+      "id": "tomoyukim/vscode-mermaid-editor",
+      "branch": "master",
+      "head": "594128149e0146c4221c3720356a300436e6144f",
+      "lastCommit": "2023-08-31T13:32:44Z",
+      "homepage": "https://marketplace.visualstudio.com/items?itemName=tomoyukim.vscode-mermaid-editor",
+      "description": "Live editor and image creator for mermaid.js in Visual Studio Code",
+      "license": "MIT",
+      "categories": [
+        "editor",
+        "integration"
+      ],
+      "relation": "unverified",
+      "repo": "https://github.com/tomoyukim/vscode-mermaid-editor",
+      "checkedAt": "2026-10-23",
+      "runtime": "Visual Studio Code extension; Mermaid preview and image export",
+      "outputs": [
+        "svg",
+        "png",
+        "jpeg"
+      ],
+      "roles": [
+        "observed"
+      ],
+      "evidence": [
+        "https://github.com/tomoyukim/vscode-mermaid-editor/blob/594128149e0146c4221c3720356a300436e6144f/package.json"
+      ],
+      "notes": "Source-checked community member, not an independent renderer benchmark peer. Dependency and manifest inspection only; no local runtime benchmark or Git root ancestry check. Categories describe responsibility; relation remains unverified."
+    },
+    {
+      "id": "excalidraw/mermaid-to-excalidraw",
+      "branch": "master",
+      "head": "a3c40ca952d56f1d192611dc67c6c224c71f752f",
+      "lastCommit": "2026-10-21T10:30:18Z",
+      "homepage": "https://mermaid-to-excalidraw.vercel.app",
+      "description": "Generate Excalidraw diagrams from Mermaid",
+      "license": "MIT",
+      "categories": [
+        "integration"
+      ],
+      "relation": "unverified",
+      "repo": "https://github.com/excalidraw/mermaid-to-excalidraw",
+      "checkedAt": "2026-10-23",
+      "runtime": "TypeScript library and browser playground; Mermaid to Excalidraw conversion",
+      "outputs": [
+        "excalidraw"
+      ],
+      "roles": [
+        "observed"
+      ],
+      "evidence": [
+        "https://github.com/excalidraw/mermaid-to-excalidraw/blob/a3c40ca952d56f1d192611dc67c6c224c71f752f/package.json"
+      ],
+      "notes": "Source-checked community member, not an independent renderer benchmark peer. Dependency and manifest inspection only; no local runtime benchmark or Git root ancestry check. Categories describe responsibility; relation remains unverified."
+    },
+    {
+      "id": "gotoailab/modern_mermaid",
+      "categories": ["editor", "integration"],
+      "relation": "independent",
+      "repo": "https://github.com/gotoailab/modern_mermaid",
+      "homepage": "https://modern-mermaid.live/",
+      "checkedAt": "2026-10-23",
+      "branch": "main",
+      "head": "a021cbce37fc0b07a9f4791c28e983101ea06f2d",
+      "lastCommit": "2026-06-07T00:12:23+08:00",
+      "rootCommits": ["821bb7dfe8efb4349f97bcfa33bee5d815ca277a"],
+      "license": "MIT",
+      "runtime": "Browser; React 19.2.0, Mermaid 11.12.1; Vite web/PWA and Chrome extension builds",
+      "outputs": ["svg", "png", "jpeg"],
+      "roles": ["observed"],
+      "distribution": {
+        "kind": "source-build",
+        "name": "mermaid_advanced",
+        "version": "0.0.0",
+        "private": true,
+        "revision": "a021cbce37fc0b07a9f4791c28e983101ea06f2d",
+        "lockfile": "pnpm-lock.yaml",
+        "renderer": "mermaid@11.12.1"
+      },
+      "notes": "Independent application repository, not an independent parser/layout/renderer. Categorised as editor and integration: it uses Mermaid as its engine and is eligible for application workflow comparisons. SVG is the preview surface; downloads are transparent PNG or background JPEG, clipboard images are PNG, and share URLs contain compressed source plus theme/background/font. Annotation state is not serialized into share URLs. Benchmark uses a local locked source build, not the live deployment; dependency SVG-return measurements and complete-editor measurements are reported separately. See docs/comparisons/modern-mermaid.md."
+    },
+    {
       "id": "Dicklesworthstone/frankenmermaid",
+      "categories": ["renderer", "parser"],
       "relation": "independent",
       "repo": "https://github.com/Dicklesworthstone/frankenmermaid",
       "homepage": "https://frankenmermaid.com/",
@@ -154,6 +299,7 @@
     },
     {
       "id": "wevm/ondine",
+      "categories": ["renderer"],
       "relation": "port",
       "repo": "https://github.com/wevm/ondine",
       "homepage": "https://ondine.sh/",
@@ -188,6 +334,7 @@
     },
     {
       "id": "orestesgaolin/mermaid",
+      "categories": ["renderer"],
       "relation": "port",
       "repo": "https://github.com/orestesgaolin/mermaid",
       "homepage": "https://roszkowski.dev/mermaid/",
@@ -222,6 +369,7 @@
     },
     {
       "id": "akashacms/mermaid-wasm-renderer",
+      "categories": ["integration"],
       "relation": "binding",
       "repo": "https://github.com/akashacms/mermaid-wasm-renderer",
       "branch": "main",
@@ -245,6 +393,7 @@
     },
     {
       "id": "ramtinJ95/pi-mermaid-tui",
+      "categories": ["integration"],
       "relation": "binding",
       "repo": "https://github.com/ramtinJ95/pi-mermaid-tui",
       "branch": "main",
@@ -268,6 +417,7 @@
     },
     {
       "id": "woxQAQ/mermaid-rs-render-js",
+      "categories": ["integration"],
       "relation": "binding",
       "repo": "https://github.com/woxQAQ/mermaid-rs-render-js",
       "branch": "main",
@@ -292,6 +442,7 @@
     },
     {
       "id": "01colyncelestine-stack/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/01colyncelestine-stack/beautiful-mermaid",
@@ -308,6 +459,7 @@
     },
     {
       "id": "2233admin/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/2233admin/beautiful-mermaid",
@@ -324,6 +476,7 @@
     },
     {
       "id": "adewale/agentic-mermaid",
+      "categories": ["renderer", "parser", "editor"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/adewale/agentic-mermaid",
@@ -346,10 +499,16 @@
         }
       ],
       "roles": ["self"],
-      "inForkSnapshot": true
+      "inForkSnapshot": true,
+      "evidence": [
+        "https://github.com/adewale/agentic-mermaid/blob/d18c718d0253f45d279a9c12e60a96ee8cc9283c/README.md#L13",
+        "https://github.com/adewale/agentic-mermaid/blob/d18c718d0253f45d279a9c12e60a96ee8cc9283c/README.md#L150-L167"
+      ],
+      "notes": "Categories rechecked on 2026-10-24: README links the interactive browser editor and demonstrates public parsing, structured mutation, verification and serialization APIs. Existing package/head observations retain their dates."
     },
     {
       "id": "app-creative/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/app-creative/mermaid-ascii",
@@ -366,6 +525,7 @@
     },
     {
       "id": "Aurelian-Shuttleworth/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/Aurelian-Shuttleworth/mermaid-ascii",
@@ -382,6 +542,7 @@
     },
     {
       "id": "blackst0ne/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/blackst0ne/mermaid",
@@ -399,6 +560,7 @@
     },
     {
       "id": "CaptainCrouton89/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/CaptainCrouton89/mermaid-ascii",
@@ -414,6 +576,7 @@
     },
     {
       "id": "catdevman/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/catdevman/mermaid-ascii",
@@ -430,6 +593,7 @@
     },
     {
       "id": "Chronostasys/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "pgavlin/mermaid-ascii",
       "repo": "https://github.com/Chronostasys/mermaid-ascii",
@@ -446,6 +610,7 @@
     },
     {
       "id": "ColtWindy/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/ColtWindy/mermaid-ascii",
@@ -462,6 +627,7 @@
     },
     {
       "id": "dfadler/zombie-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/dfadler/zombie-mermaid",
@@ -488,6 +654,7 @@
     },
     {
       "id": "drunkhacker/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/drunkhacker/mermaid-ascii",
@@ -504,6 +671,7 @@
     },
     {
       "id": "dydoc/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/dydoc/mermaid-ascii",
@@ -520,6 +688,7 @@
     },
     {
       "id": "enrimr/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/enrimr/mermaid",
@@ -546,6 +715,7 @@
     },
     {
       "id": "fdotu/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/fdotu/beautiful-mermaid",
@@ -562,6 +732,7 @@
     },
     {
       "id": "gmh5225/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/gmh5225/beautiful-mermaid",
@@ -578,6 +749,7 @@
     },
     {
       "id": "HealthSamurai/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/HealthSamurai/beautiful-mermaid",
@@ -594,6 +766,7 @@
     },
     {
       "id": "ioggstream/d3fend-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/ioggstream/d3fend-mermaid",
@@ -611,6 +784,7 @@
     },
     {
       "id": "jacob-lcs/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/jacob-lcs/mermaid",
@@ -627,6 +801,7 @@
     },
     {
       "id": "jeis4wpi/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/jeis4wpi/mermaid-ascii",
@@ -643,6 +818,7 @@
     },
     {
       "id": "jgraph/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/jgraph/mermaid",
@@ -659,6 +835,7 @@
     },
     {
       "id": "ktrysmt/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/ktrysmt/beautiful-mermaid",
@@ -685,6 +862,7 @@
     },
     {
       "id": "ktrysmt/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/ktrysmt/mermaid-ascii",
@@ -701,6 +879,7 @@
     },
     {
       "id": "leonj1/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/leonj1/mermaid-ascii",
@@ -717,6 +896,7 @@
     },
     {
       "id": "lishid/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/lishid/mermaid",
@@ -733,6 +913,7 @@
     },
     {
       "id": "lyngai/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/lyngai/mermaid",
@@ -759,6 +940,7 @@
     },
     {
       "id": "mbostock/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/mbostock/mermaid",
@@ -775,6 +957,7 @@
     },
     {
       "id": "Mermaid-Chart/mermaid-develop",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/Mermaid-Chart/mermaid-develop",
@@ -791,6 +974,7 @@
     },
     {
       "id": "mopi1402/termaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "fasouto/termaid",
       "repo": "https://github.com/mopi1402/termaid",
@@ -817,6 +1001,7 @@
     },
     {
       "id": "NicolasNewman/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/NicolasNewman/mermaid",
@@ -833,6 +1018,7 @@
     },
     {
       "id": "Orbiter/beautiful-mermaid-py",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/Orbiter/beautiful-mermaid-py",
@@ -850,6 +1036,7 @@
     },
     {
       "id": "pgavlin/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/pgavlin/mermaid-ascii",
@@ -866,6 +1053,7 @@
     },
     {
       "id": "rohitg00/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/rohitg00/beautiful-mermaid",
@@ -882,6 +1070,7 @@
     },
     {
       "id": "sgryjp/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "AlexanderGrooff/mermaid-ascii",
       "repo": "https://github.com/sgryjp/mermaid-ascii",
@@ -898,6 +1087,7 @@
     },
     {
       "id": "songshaodong/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/songshaodong/mermaid",
@@ -914,6 +1104,7 @@
     },
     {
       "id": "Stars1233/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/Stars1233/beautiful-mermaid",
@@ -930,6 +1121,7 @@
     },
     {
       "id": "theletterf/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/theletterf/beautiful-mermaid",
@@ -956,6 +1148,7 @@
     },
     {
       "id": "thepanax/beautiful-mermaid",
+      "categories": ["renderer", "distribution"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/thepanax/beautiful-mermaid",
@@ -982,6 +1175,7 @@
     },
     {
       "id": "toeverything/mermaid-rs-renderer",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "1jehuang/mermaid-rs-renderer",
       "repo": "https://github.com/toeverything/mermaid-rs-renderer",
@@ -1007,6 +1201,7 @@
     },
     {
       "id": "vercel-labs/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/vercel-labs/beautiful-mermaid",
@@ -1034,6 +1229,7 @@
     },
     {
       "id": "xen3r0/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/xen3r0/mermaid",
@@ -1051,6 +1247,7 @@
     },
     {
       "id": "xeolabs/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/xeolabs/mermaid",
@@ -1067,6 +1264,7 @@
     },
     {
       "id": "ysknsid25/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/ysknsid25/beautiful-mermaid",
@@ -1083,6 +1281,7 @@
     },
     {
       "id": "zakaria-forks/mermaid",
+      "categories": ["renderer"],
       "relation": "fork",
       "parent": "mermaid-js/mermaid",
       "repo": "https://github.com/zakaria-forks/mermaid",
@@ -1099,6 +1298,7 @@
     },
     {
       "id": "zhenhuaa/mdv",
+      "categories": ["renderer", "integration"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/zhenhuaa/mdv",
@@ -1125,6 +1325,7 @@
     },
     {
       "id": "1jehuang/mermaid-rs-renderer",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/1jehuang/mermaid-rs-renderer",
       "branch": "master",
@@ -1140,6 +1341,7 @@
     },
     {
       "id": "aj-archipelago/merval",
+      "categories": ["parser"],
       "relation": "independent",
       "repo": "https://github.com/aj-archipelago/merval",
       "branch": "main",
@@ -1163,6 +1365,7 @@
     },
     {
       "id": "AlexanderGrooff/mermaid-ascii",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/AlexanderGrooff/mermaid-ascii",
       "branch": "master",
@@ -1178,6 +1381,7 @@
     },
     {
       "id": "anomalyco/opencode",
+      "categories": ["renderer", "integration"],
       "relation": "independent",
       "repo": "https://github.com/anomalyco/opencode",
       "branch": "v2",
@@ -1191,6 +1395,7 @@
     },
     {
       "id": "chenyanchen/mermaid-formatter",
+      "categories": ["parser"],
       "relation": "independent",
       "repo": "https://github.com/chenyanchen/mermaid-formatter",
       "branch": "main",
@@ -1214,6 +1419,7 @@
     },
     {
       "id": "crafter-station/mermaid",
+      "categories": ["renderer", "parser"],
       "relation": "independent",
       "repo": "https://github.com/crafter-station/mermaid",
       "branch": "main",
@@ -1242,10 +1448,12 @@
         }
       ],
       "roles": ["observed"],
-      "notes": "README claims 30.5KB min+gzip. No LICENSE file and no npm license field."
+      "evidence": ["https://github.com/crafter-station/mermaid/blob/1bac24116826233c3b0ad8da589d7223d77a451a/README.md"],
+      "notes": "README claims 30.5KB min+gzip. No LICENSE file and no npm license field. Categories rechecked on 2026-10-23: independently published parser maps text to an AST with source spans; renderer maps positioned graphs to SVG. Existing package/head observations retain their dates."
     },
     {
       "id": "emtyty/merslim",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/emtyty/merslim",
       "branch": "main",
@@ -1269,6 +1477,7 @@
     },
     {
       "id": "evangwt/xmermaid",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/evangwt/xmermaid",
       "branch": "main",
@@ -1293,6 +1502,7 @@
     },
     {
       "id": "fasouto/termaid",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/fasouto/termaid",
       "branch": "main",
@@ -1308,6 +1518,7 @@
     },
     {
       "id": "inkeep/visimer",
+      "categories": ["parser", "integration", "editor"],
       "relation": "independent",
       "repo": "https://github.com/inkeep/visimer",
       "branch": "main",
@@ -1328,10 +1539,12 @@
         }
       ],
       "roles": ["parser-peer"],
-      "notes": "Lossless CST and edit ops in @visimer/core; @visimer/dom renders through mermaid."
+      "evidence": ["https://github.com/inkeep/visimer/blob/594440dad857d4b040f205047289ef60d5e0618b/README.md"],
+      "notes": "Lossless CST and edit ops in @visimer/core; @visimer/dom renders through mermaid. Categories rechecked on 2026-10-23: DOM/React WYSIWYG authoring includes inline label edits, drag-to-connect and undo, independently of the parser benchmark role. Existing package/head observations retain their dates."
     },
     {
       "id": "justsml/rusty-mermaid",
+      "categories": ["parser"],
       "relation": "independent",
       "repo": "https://github.com/justsml/rusty-mermaid",
       "branch": "main",
@@ -1356,6 +1569,7 @@
     },
     {
       "id": "kingsword09/mermansi",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/kingsword09/mermansi",
       "branch": "main",
@@ -1370,6 +1584,7 @@
     },
     {
       "id": "kitlangton/merman",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/kitlangton/merman",
       "branch": "main",
@@ -1395,6 +1610,7 @@
     },
     {
       "id": "KlangHaus/vitepress-plugin-diagram",
+      "categories": ["renderer", "integration"],
       "relation": "independent",
       "repo": "https://github.com/KlangHaus/vitepress-plugin-diagram",
       "branch": "main",
@@ -1418,6 +1634,7 @@
     },
     {
       "id": "Latias94/merman",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/Latias94/merman",
       "branch": "main",
@@ -1452,6 +1669,7 @@
     },
     {
       "id": "lukilabs/beautiful-mermaid",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/lukilabs/beautiful-mermaid",
       "branch": "main",
@@ -1476,6 +1694,7 @@
     },
     {
       "id": "Mootikins/figurehead-rs",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/Mootikins/figurehead-rs",
       "branch": "master",
@@ -1490,6 +1709,7 @@
     },
     {
       "id": "neongreen/mermaid-ast",
+      "categories": ["parser"],
       "relation": "independent",
       "repo": "https://github.com/neongreen/mermaid-ast",
       "branch": "main",
@@ -1514,6 +1734,7 @@
     },
     {
       "id": "obsidianmd/pele",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/obsidianmd/pele",
       "branch": "main",
@@ -1538,6 +1759,7 @@
     },
     {
       "id": "probelabs/maid",
+      "categories": ["parser"],
       "relation": "independent",
       "repo": "https://github.com/probelabs/maid",
       "branch": "main",
@@ -1563,6 +1785,7 @@
     },
     {
       "id": "sandyyst/dsh-plugin-mermaid-gb-svg",
+      "categories": ["renderer", "integration"],
       "relation": "independent",
       "repo": "https://github.com/sandyyst/dsh-plugin-mermaid-gb-svg",
       "branch": "main",
@@ -1587,6 +1810,7 @@
     },
     {
       "id": "taoche/mermaid-reactflow-render",
+      "categories": ["renderer", "integration"],
       "relation": "independent",
       "repo": "https://github.com/taoche/mermaid-reactflow-render",
       "branch": "main",
@@ -1611,6 +1835,7 @@
     },
     {
       "id": "tariqshams/mermaidtui",
+      "categories": ["renderer"],
       "relation": "independent",
       "repo": "https://github.com/tariqshams/mermaidtui",
       "branch": "main",
@@ -1634,6 +1859,7 @@
     },
     {
       "id": "xai-org/grok-build",
+      "categories": ["renderer", "integration"],
       "relation": "independent",
       "repo": "https://github.com/xai-org/grok-build",
       "branch": "main",
@@ -1647,6 +1873,7 @@
     },
     {
       "id": "Yassimba/loom",
+      "categories": ["renderer", "integration"],
       "relation": "independent",
       "repo": "https://github.com/Yassimba/loom",
       "branch": "main",
@@ -1672,6 +1899,7 @@
     },
     {
       "id": "4nkitd/opencode-merman",
+      "categories": ["renderer"],
       "relation": "port",
       "repo": "https://github.com/4nkitd/opencode-merman",
       "branch": "main",
@@ -1686,6 +1914,7 @@
     },
     {
       "id": "kais-radwan/ascii-mermaid",
+      "categories": ["renderer"],
       "relation": "port",
       "repo": "https://github.com/kais-radwan/ascii-mermaid",
       "branch": "master",
@@ -1700,6 +1929,7 @@
     },
     {
       "id": "mopi1402/termaid-ts",
+      "categories": ["renderer"],
       "relation": "port",
       "repo": "https://github.com/mopi1402/termaid-ts",
       "branch": "main",
@@ -1724,6 +1954,7 @@
     },
     {
       "id": "npm:tui-mermaid",
+      "categories": ["renderer"],
       "relation": "port",
       "license": "Apache-2.0",
       "runtime": "TypeScript",
@@ -1734,6 +1965,7 @@
     },
     {
       "id": "spacedock-dev/mermaidtext",
+      "categories": ["renderer"],
       "relation": "port",
       "repo": "https://github.com/spacedock-dev/mermaidtext",
       "branch": "main",
@@ -1747,6 +1979,7 @@
     },
     {
       "id": "xl0/lovely-mermaid",
+      "categories": ["renderer"],
       "relation": "port",
       "repo": "https://github.com/xl0/lovely-mermaid",
       "branch": "master",
@@ -1781,6 +2014,7 @@
     },
     {
       "id": "mermaid-js/mermaid",
+      "categories": ["renderer", "parser"],
       "relation": "root",
       "repo": "https://github.com/mermaid-js/mermaid",
       "branch": "develop",
@@ -1805,6 +2039,30 @@
     }
   ],
   "edges": [
+    {
+      "from": "mermaid-js/mermaid-live-editor",
+      "to": "mermaid-js/mermaid",
+      "relation": "depends-on",
+      "evidence": "https://github.com/mermaid-js/mermaid-live-editor/blob/eb4141dd51247259e95ecd890c1bf3dabf314913/package.json (dependencies.mermaid)"
+    },
+    {
+      "from": "tomoyukim/vscode-mermaid-editor",
+      "to": "mermaid-js/mermaid",
+      "relation": "depends-on",
+      "evidence": "https://github.com/tomoyukim/vscode-mermaid-editor/blob/594128149e0146c4221c3720356a300436e6144f/package.json (dependencies.mermaid)"
+    },
+    {
+      "from": "excalidraw/mermaid-to-excalidraw",
+      "to": "mermaid-js/mermaid",
+      "relation": "depends-on",
+      "evidence": "https://github.com/excalidraw/mermaid-to-excalidraw/blob/a3c40ca952d56f1d192611dc67c6c224c71f752f/package.json (dependencies.mermaid)"
+    },
+    {
+      "from": "gotoailab/modern_mermaid",
+      "to": "mermaid-js/mermaid",
+      "relation": "depends-on",
+      "evidence": "At a021cbce37fc0b07a9f4791c28e983101ea06f2d, package.json declares mermaid ^11.12.1 and pnpm-lock.yaml resolves 11.12.1. src/components/Preview.tsx imports mermaid, calls initialize/render and postprocesses the resulting SVG."
+    },
     {
       "from": "wevm/ondine",
       "to": "obsidianmd/pele",
@@ -2045,7 +2303,7 @@
       "evidence": "README.md \"Origin and credits\": TypeScript port of crates/codegen/xai-grok-markdown/src/mermaid.rs"
     }
   ],
-  "excluded": [
+  "rendererBenchmarkExclusions": [
     {
       "packages": ["@mermaid-js/mermaid-cli@12.0.0"],
       "reason": "Drives mermaid in headless Chromium (dependencies: mermaid, puppeteer). Measured as mmdc in eval/benchmark/RESULTS.md."

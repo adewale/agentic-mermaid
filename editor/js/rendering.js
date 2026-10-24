@@ -452,6 +452,7 @@ async function doRender(version) {
   clearRenderSpinner();
   var source = currentEditorSource();
   if (!source) {
+    if (runtimeRecovery) runtimeRecovery.hidden = true;
     if (!isCurrentRender(version, source)) return;
     previewInner.innerHTML = emptyPreviewHtml();
     markTextOutputsDirty();
@@ -536,9 +537,14 @@ async function doRender(version) {
     statusDot.className = "status-dot err";
     renderTime.textContent = "Failed in " + ms + "ms";
     markTextOutputsDirty();
-    resetVerifyPanel("Parse or render failed");
-    setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
-    setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
+    if (err && err.name === 'PreviewRuntimeLoadError') {
+      resetVerifyPanel("Editor code unavailable; verification not run");
+      setTextOutputs("Retry or reload the editor to see Unicode output.", "Retry or reload the editor to see ASCII output.");
+    } else {
+      resetVerifyPanel("Parse or render failed");
+      setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
+      setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
+    }
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     if (typeof refreshC4Navigation === "function") refreshC4Navigation();
   if (typeof refreshDiagramTools === "function") refreshDiagramTools();

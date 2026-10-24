@@ -218,19 +218,24 @@ function getQueryExampleId() {
 
 var hashUpdateToken = 0;
 
+function currentEditorShareState() {
+  var obj = {
+    source: editor.value,
+    palette: state.palette || '',
+    style: state.style || 'crisp',
+    seed: typeof state.seed === 'number' && Number.isFinite(state.seed) ? state.seed : 0,
+  };
+  if (hasOwnConfig(state.config)) obj.config = state.config;
+  return obj;
+}
+
 function updateHash() {
   if (typeof hasCurrentVerifiedSvgArtifact !== 'function' || !hasCurrentVerifiedSvgArtifact()) {
     if (typeof showToast === 'function') showToast('Render and verify this diagram before copying a share link.');
     return Promise.resolve(false);
   }
   var source = editor.value;
-  var obj = {
-    source: source,
-    palette: state.palette || '',
-    style: state.style || 'crisp',
-    seed: typeof state.seed === 'number' && Number.isFinite(state.seed) ? state.seed : 0,
-  };
-  if (hasOwnConfig(state.config)) obj.config = state.config;
+  var obj = currentEditorShareState();
   // Compression is async; the token drops stale writes when edits overlap.
   var token = ++hashUpdateToken;
   return encodeSourceCompressed(JSON.stringify(obj)).then(function(encoded) {

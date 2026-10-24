@@ -8,6 +8,8 @@
 import type { FamilyDescriptor } from './families.ts'
 import type { FamilyId } from './types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
+export { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 
 export type RegisteredFamilyResolver = (
   firstLine: string,
@@ -20,10 +22,6 @@ let registeredFamilyByIdResolver: RegisteredFamilyByIdResolver | undefined
 const loadedFamilyDescriptors = new Map<FamilyId, FamilyDescriptor>()
 
 export type CompatibilityGraphFamilyId = 'flowchart' | 'state'
-
-export function normalizeFamilyDetectionLine(firstLine: string): string {
-  return (firstLine.split(';')[0] ?? '').trim().toLowerCase()
-}
 
 /** Lightweight compatibility-parser ownership, deliberately independent of
  * the complete family registry so direct graph-parser imports remain usable. */

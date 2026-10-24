@@ -38,13 +38,14 @@ async function readSharedBrowserFile(relativePath: string): Promise<string> {
   return Bun.file(new URL(`../../shared/browser/${relativePath}`, import.meta.url)).text()
 }
 
-async function readCssFiles(fontPrefix: string): Promise<string> {
+async function readCssFiles(fontPrefix: string, hosted: boolean): Promise<string> {
   const order = [
     'css/variables.css',
     'css/topbar.css',
     'css/panels.css',
     'css/code-editor.css',
     'css/preview.css',
+    ...(hosted ? ['css/runtime-recovery.css'] : []),
     'css/config-panel.css',
     'css/color-picker.css',
     'css/font-picker.css',
@@ -91,12 +92,13 @@ function editorFontDataJs(): string {
   return `var EDITOR_PRESET_FONTS = ${JSON.stringify([...hosted, ...system])};`
 }
 
-async function readJsFiles(): Promise<string> {
+async function readJsFiles(hosted: boolean): Promise<string> {
   const order = [
     'js/helpers.js',
     'js/state.js',
     'js/elements.js',
     'js/sharing.js',
+    ...(hosted ? ['js/runtime-recovery.js'] : []),
     'js/rendering.js',
     'js/motion.js',
     'js/zoom.js',
@@ -185,7 +187,7 @@ function pngScaleItemsHtml(): string {
   }).join('\n          ')
 }
 
-async function readHtmlPartials(themeItems: string): Promise<{
+async function readHtmlPartials(themeItems: string, hosted: boolean): Promise<{
   topbar: string
   leftPanel: string
   rightPanel: string
@@ -202,7 +204,7 @@ async function readHtmlPartials(themeItems: string): Promise<{
       .replace('{{PNG_DEFAULT_SCALE}}', String(PNG_DEFAULT_SCALE))
       .replace('{{PNG_SCALE_ITEMS}}', pngScaleItemsHtml()),
     leftPanel,
-    rightPanel,
+    rightPanel: rightPanel.replace('{{RUNTIME_RECOVERY}}', hosted ? await readFile('html/runtime-recovery.html') : ''),
   }
 }
 
@@ -215,11 +217,22 @@ async function generateEditorHtml(): Promise<string> {
   if (runtimeDirectory) {
     const workerBuild = await Bun.build({
       entrypoints: [fileURLToPath(new URL('../../src/browser-preview-worker.ts', import.meta.url))],
-      target: 'browser', format: 'esm', minify: true,
-      outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js' },
+      target: 'browser', format: 'esm', minify: true, splitting: true,
+      outdir: runtimeDirectory, naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+      plugins: [{
+        name: 'hosted-worker-dependencies',
+        setup(build) {
+          build.onResolve({ filter: /(?:^|\/)families\.ts$/ }, args => {
+            const original = fileURLToPath(new URL('../../src/agent/families.ts', import.meta.url))
+            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
+          })
+          build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
+        },
+      }],
     })
-    if (!workerBuild.success || workerBuild.outputs.length !== 1) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
-    workerUrl = `/editor/runtime/${basename(workerBuild.outputs[0]!.path)}`
+    const workerEntry = workerBuild.outputs.find(output => output.kind === 'entry-point')
+    if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
+    workerUrl = `/editor/runtime/${basename(workerEntry.path)}`
   }
   const buildResult = await Bun.build({
     entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser-standalone.ts', import.meta.url))],
@@ -252,9 +265,9 @@ async function generateEditorHtml(): Promise<string> {
   const themeItems = themeItemsHtml()
 
   const [css, appJs, html] = await Promise.all([
-    readCssFiles(fontPrefix),
-    readJsFiles(),
-    readHtmlPartials(themeItems),
+    readCssFiles(fontPrefix, Boolean(runtimeDirectory)),
+    readJsFiles(Boolean(runtimeDirectory)),
+    readHtmlPartials(themeItems, Boolean(runtimeDirectory)),
   ])
 
   return `<!DOCTYPE html>

@@ -21,15 +21,15 @@ import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
 import {
-  NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
   renderContractDigest,
-  SHARED_RENDER_OPTION_FIELDS,
   receiptOf,
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
   type RenderRequestReceipt,
 } from '../render-contract.ts'
+import { sharedRenderOptionsOf } from '../shared-render-options.ts'
+import { deferredDependency } from '../layout/certification-error.ts'
 import { projectTerminalStyle, withTerminalConnectorScene, type ResolvedTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { visualWidth } from './width.ts'
@@ -204,11 +204,7 @@ export function executeTerminalRender(
   // The terminal adapter owns its cell-grid controls. Only the canonical
   // RenderOptions projection enters the shared waist; this keeps validation
   // strict without misclassifying terminal-only fields as unknown options.
-  const sharedOptions = Object.fromEntries(
-    [...SHARED_RENDER_OPTION_FIELDS, ...NON_SERIALIZABLE_RENDER_OPTION_FIELDS]
-      .filter(field => options[field] !== undefined)
-      .map(field => [field, options[field]]),
-  ) as RenderOptions
+  const sharedOptions = sharedRenderOptionsOf(options)
   const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, {
     expectedFamilyId: preparedInput.expectedFamilyId,
   })
@@ -254,7 +250,9 @@ export function executeTerminalRender(
           colors: connectorSceneColors(request.appearance.colors),
           resolved: familyContext,
         }), true)
-      } catch {
+      } catch (error) {
+        const deferred = deferredDependency(error)
+        if (deferred) throw deferred
         // Optional pixel evidence must not become a native layout dependency.
         failed = true
       }

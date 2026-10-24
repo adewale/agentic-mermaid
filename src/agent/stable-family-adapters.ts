@@ -423,11 +423,23 @@ function hooks<K extends StableBody['kind']>(
   }
 }
 
+export const PACKET_AGENT_HOOKS = /* @__PURE__ */ hooks('packet', parsePacketBody, renderPacket, mutatePacket, verifyPacket)
+
+export const KANBAN_AGENT_HOOKS = /* @__PURE__ */ hooks('kanban', parseKanbanBody, renderKanban, mutateKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text)))
+
+export const REQUIREMENT_AGENT_HOOKS = /* @__PURE__ */ hooks('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, mutateRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility))
+
+export const BLOCK_AGENT_HOOKS = /* @__PURE__ */ hooks('block', lines => parseBlockBody(lines.slice(1)), renderBlock, mutateBlock, verifyBlock)
+
+export const TREEMAP_AGENT_HOOKS = /* @__PURE__ */ hooks('treemap', lines => parseTreemapBody(lines.slice(1)), renderTreemap, mutateTreemap, verifyTreemap)
+
+export const ISHIKAWA_AGENT_HOOKS = /* @__PURE__ */ hooks('ishikawa', lines => parseIshikawaBody(lines.slice(1)), renderIshikawa, mutateIshikawa, verifyIshikawa)
+
 export const STABLE_FAMILY_AGENT_HOOKS = {
-  packet: hooks('packet', parsePacketBody, renderPacket, mutatePacket, verifyPacket),
-  kanban: hooks('kanban', parseKanbanBody, renderKanban, mutateKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text))),
-  requirement: hooks('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, mutateRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility)),
-  block: hooks('block', lines => parseBlockBody(lines.slice(1)), renderBlock, mutateBlock, verifyBlock),
-  treemap: hooks('treemap', lines => parseTreemapBody(lines.slice(1)), renderTreemap, mutateTreemap, verifyTreemap),
-  ishikawa: hooks('ishikawa', lines => parseIshikawaBody(lines.slice(1)), renderIshikawa, mutateIshikawa, verifyIshikawa),
+  packet: PACKET_AGENT_HOOKS,
+  kanban: KANBAN_AGENT_HOOKS,
+  requirement: REQUIREMENT_AGENT_HOOKS,
+  block: BLOCK_AGENT_HOOKS,
+  treemap: TREEMAP_AGENT_HOOKS,
+  ishikawa: ISHIKAWA_AGENT_HOOKS,
 }

@@ -7,8 +7,21 @@ import { PreviewWorkerClient, PreviewSupersededError } from '../browser-preview-
 import { buildDocsEditDemo } from '../../website/docs-edit-demo.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { asFlowchart } from '../agent/types.ts'
+import { DeferredDependencyError } from '../layout/certification-error.ts'
+import { createBrowserEditorAdapter } from '../browser-editor-adapter.ts'
 
 describe('one positioned artifact for preview and verification', () => {
+  test('verification preserves a suspended provider through a family layout wrapper', () => {
+    const descriptor = getFamily('flowchart')!
+    const deferred = new DeferredDependencyError('Layout provider', async () => {})
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout: () => { throw deferred } })
+    try {
+      let failure: unknown
+      try { verifyMermaid(descriptor.example) } catch (error) { failure = error }
+      expect(failure).toBe(deferred)
+    }
+    finally { restore() }
+  })
   test('positions once while keeping canonical SVG, receipt and verification for every built-in example', () => {
     for (const id of knownBuiltinFamilies()) {
       const descriptor = getFamily(id)!, source = descriptor.example
@@ -70,6 +83,67 @@ function workerHarness(timeout = 30_000) {
 }
 
 describe('persistent preview worker queue', () => {
+  test.each(['dependency import', 'worker error'])('reports runtime availability across a failed %s and successful retry', async failure => {
+    const h = workerHarness(), availability: boolean[] = []
+    const adapter = createBrowserEditorAdapter(() => h.client, available => availability.push(available))
+    try {
+      const failed = adapter.renderMermaidSVGWithReceipt('first', {}).catch(error => error)
+      await Promise.resolve()
+      if (failure === 'dependency import') h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'Module download failed', dependencyLoadFailed: true } })
+      else h.workers[0]!.onerror?.({ preventDefault() {} })
+      expect((await failed).name).toBe('PreviewRuntimeLoadError')
+      expect(availability).toEqual([false])
+      const recovered = adapter.renderMermaidSVGWithReceipt('second', {})
+      await Promise.resolve()
+      h.reply(2)
+      await recovered
+      expect(availability).toEqual([false, true])
+    } finally { h.client.dispose() }
+  })
+
+  test('does not show runtime recovery for a superseded preview failure', async () => {
+    const h = workerHarness(), availability: boolean[] = []
+    const adapter = createBrowserEditorAdapter(() => h.client, available => availability.push(available))
+    try {
+      const stale = adapter.renderMermaidSVGWithReceipt('old', {}).catch(error => error)
+      await Promise.resolve()
+      adapter.cancelPendingRender()
+      const current = adapter.renderMermaidSVGWithReceipt('new', {})
+      await Promise.resolve()
+      h.workers[0]!.onmessage?.({ data: { id: 1, ok: false, error: 'Module download failed', dependencyLoadFailed: true } })
+      await stale
+      expect(availability).toEqual([])
+      h.reply(2)
+      await current
+      expect(availability).toEqual([true])
+    } finally { h.client.dispose() }
+  })
+
+  test.each(['ascii', 'png'] as const)('replaces a failed dependency worker even when its %s request was superseded', async operation => {
+    const h = workerHarness()
+    try {
+      const cancelled = (operation === 'ascii'
+        ? h.client.renderText('old', {}, true)
+        : h.client.renderPng('old', {}, 1, async () => ({ png: new Uint8Array([137, 80]) }))).catch(error => error)
+      h.client.invalidate()
+      const preview = h.client.render('new', {}).catch(error => error)
+      const exported = h.client.renderText('new', {}, false).catch(error => error)
+      const failedWorker = h.workers[0]!
+      failedWorker.onmessage?.({ data: { id: 1, ok: false, error: 'Module download failed', dependencyLoadFailed: true } })
+      expect(await cancelled).toBeInstanceOf(PreviewSupersededError)
+      expect(failedWorker.terminated).toBe(true)
+      expect(h.workers).toHaveLength(2)
+      expect(h.sent.map(request => request.operation)).toEqual([operation, 'preview'])
+      h.reply(2)
+      expect((await preview).svg).toBe('<svg/>')
+      expect(h.sent.map(request => request.operation)).toEqual([operation, 'preview', 'unicode'])
+      // Replies from the discarded worker cannot finish the new worker's job.
+      failedWorker.onmessage?.({ data: { id: 3, ok: true, artifact: { text: 'stale', receipt: { output: 'unicode' } } } })
+      h.replyArtifact(3, { text: 'recovered', receipt: { output: 'unicode' } })
+      expect((await exported).text).toBe('recovered')
+    } finally { h.client.dispose() }
+  })
+
   test('orders text exports with the newest preview and bounds pending exports', async () => {
     const h = workerHarness()
     try {
