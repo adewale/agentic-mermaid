@@ -11,7 +11,7 @@
       "requests": 36,
       "raw": 2304000,
       "gzip": 713000,
-      "brotli": 577500
+      "brotli": 578000
     },
     "state": {
       "requests": 35,
