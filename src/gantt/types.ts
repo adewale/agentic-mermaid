@@ -299,8 +299,7 @@ export interface GanttLayoutResult extends PositionedDiagram {
   excludedBands: GanttExcludedBand[]
   topAxis: boolean
   todayX?: number
-  /** Raw `todayMarker` style payload (sanitized at render time by
-   *  src/gantt/today-marker.ts; applied only when the marker draws). */
+  /** Admitted `todayMarker` style payload; applied only when the marker draws. */
   todayMarkerStyle?: string
   timeMin: EpochMs
   timeMax: EpochMs

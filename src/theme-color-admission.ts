@@ -35,7 +35,7 @@ const ARCHITECTURE_COLOR_KEYS = new Set(['clusterBkg', 'clusterBorder'])
 const XYCHART_COLOR_KEYS = [
   'backgroundColor', 'titleColor', 'xAxisLabelColor', 'xAxisTickColor', 'xAxisLineColor',
   'xAxisTitleColor', 'yAxisLabelColor', 'yAxisTickColor', 'yAxisLineColor',
-  'yAxisTitleColor', 'legendTextColor',
+  'yAxisTitleColor', 'legendTextColor', 'dataLabelColor',
 ] as const
 const XYCHART_STROKE_KEYS = new Set<string>([
   'xAxisTickColor', 'xAxisLineColor', 'yAxisTickColor', 'yAxisLineColor',
@@ -124,18 +124,19 @@ export class FamilyConfigColorError extends Error {
   readonly path: string
   readonly value: string
 
-  constructor(path: string, value: unknown, allowNone: boolean, expectedArray = false) {
+  constructor(path: string, value: unknown, allowNone: boolean, collection?: 'array' | 'map') {
     const serialized = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value)
     const reportedValue = serialized.length > 256 ? `${serialized.slice(0, 256)}…` : serialized
+    const reportedPath = path.length > 256 ? `${path.slice(0, 256)}…` : path
     super(syntaxError({
-      what: `${path}: ${JSON.stringify(reportedValue)} is not ${expectedArray ? 'an array of CSS colors' : 'a CSS color'}`,
-      expectedForm: expectedArray
-        ? 'an array of drawable CSS colors'
+      what: `${reportedPath}: ${JSON.stringify(reportedValue)} is not ${collection === 'array' ? 'an array of CSS colors' : collection === 'map' ? 'a map of CSS colors' : 'a CSS color'}`,
+      expectedForm: collection
+        ? collection === 'array' ? 'an array of drawable CSS colors' : 'an object mapping node labels to drawable CSS colors'
         : `a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor${allowNone ? ', none' : ''}, or var(--name)`,
-      example: `${path}${expectedArray ? ': ["#f96"]' : ': #f96'}`,
+      example: `${reportedPath}${collection === 'array' ? ': ["#f96"]' : collection === 'map' ? ': {"A":"#f96"}' : ': #f96'}`,
     }).message)
     this.name = 'FamilyConfigColorError'
-    this.path = path
+    this.path = reportedPath
     this.value = reportedValue
   }
 }
@@ -163,7 +164,7 @@ function checkConfigColor(config: Record<string, unknown>, path: string, key: st
 function checkConfigColorList(config: Record<string, unknown>, path: string, key: string, allowNone: boolean): void {
   const value = config[key]
   if (value === undefined) return
-  if (!Array.isArray(value)) throw new FamilyConfigColorError(`${path}.${key}`, value, allowNone, true)
+  if (!Array.isArray(value)) throw new FamilyConfigColorError(`${path}.${key}`, value, allowNone, 'array')
   for (let index = 0; index < value.length; index++) {
     const color = value[index]
     if (typeof color !== 'string' || drawableAuthoredCssPaint(color, allowNone) === undefined) {
@@ -192,6 +193,31 @@ export function checkFamilyConfigColors(frontmatter: MermaidFrontmatterMap, fami
     checkConfigColorList(config, 'journey', 'sectionFills', false)
     checkConfigColorList(config, 'journey', 'sectionColours', false)
     checkConfigColor(config, 'journey', 'titleColor', false)
+  } else if (familyId === 'requirement') {
+    const config = configMap(frontmatter.requirement)
+    if (!config) return
+    checkConfigColor(config, 'requirement', 'rect_fill', true)
+    checkConfigColor(config, 'requirement', 'rect_border_color', true)
+    checkConfigColor(config, 'requirement', 'text_color', false)
+  } else if (familyId === 'sankey') {
+    const config = configMap(frontmatter.sankey)
+    if (!config) return
+    const linkColor = config.linkColor
+    if (linkColor !== 'source' && linkColor !== 'target' && linkColor !== 'gradient') {
+      checkConfigColor(config, 'sankey', 'linkColor', true)
+    }
+    if (config.nodeColors === undefined) return
+    const nodeColors = configMap(config.nodeColors)
+    if (!nodeColors) throw new FamilyConfigColorError('sankey.nodeColors', config.nodeColors, false, 'map')
+    // The default gradient reuses node fills as stop-color; `none` is a
+    // direct SVG paint, but is not a color for gradient stops.
+    const allowNone = linkColor !== undefined && linkColor !== 'gradient'
+    for (const [label, value] of Object.entries(nodeColors)) {
+      if (typeof value !== 'string' || drawableAuthoredCssPaint(value, allowNone) === undefined) {
+        const path = /^[\w-]+$/.test(label) ? `sankey.nodeColors.${label}` : `sankey.nodeColors[${JSON.stringify(label)}]`
+        throw new FamilyConfigColorError(path, value, allowNone)
+      }
+    }
   }
 }
 

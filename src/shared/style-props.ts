@@ -22,13 +22,14 @@ function splitStylePairs(value: string): string[] {
 }
 
 /** Parse Mermaid's `key:value,key:value` paint grammar. */
-export function parseStyleProps(source: string): Record<string, string> {
+export function parseStyleProps(source: string, options: { caseInsensitive?: boolean } = {}): Record<string, string> {
   const cleaned = source.replace(/;\s*$/, '')
   const props: Record<string, string> = {}
   for (const pair of splitStylePairs(cleaned)) {
     const colon = pair.indexOf(':')
     if (colon <= 0) continue
-    const key = pair.slice(0, colon).trim()
+    const rawKey = pair.slice(0, colon).trim()
+    const key = options.caseInsensitive ? rawKey.toLowerCase() : rawKey
     const value = pair.slice(colon + 1).trim()
     if (key && value) props[key] = value
   }

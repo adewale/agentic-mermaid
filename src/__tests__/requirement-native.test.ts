@@ -233,6 +233,49 @@ describe('native requirement', () => {
     expect(renderMermaidSVG(canonical)).not.toContain('stroke-dasharray="5 5"')
     expect(verifyMermaid(canonical).ok).toBe(true)
   })
+  test('all retained class and inline paints are admitted before output projection', () => {
+    const body = 'requirementDiagram\nrequirement A {\ntext: "Card"\n}'
+    for (const value of ['notacolor', 'rgb(x)', '#12345', 'rgb(1,2,3))', 'rgb (1,2,3)', 'rgb(1,2,3)(4)', 'rgb(1,2,3']) {
+      for (const [directive, subject] of [
+        ['classDef unused', 'classDef unused'], ['classDef hot', 'classDef hot'], ['style A', 'style A'],
+        ['style missing', 'style missing'], ['style missing,A', 'style missing'], ['style A,missing', 'style A'],
+      ]) {
+        const source = `${body}\n${directive} fill:${value}${directive === 'classDef hot' ? '\nclass A hot' : ''}`
+        const named = `${subject}: fill ${JSON.stringify(value)} is not a CSS color`
+        expect(() => renderMermaidSVG(source)).toThrow(named)
+        for (const useAscii of [true, false]) expect(() => renderMermaidASCII(source, { useAscii })).toThrow(named)
+        expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named), origin: 'source' })
+      }
+    }
+    for (const value of ['rgb(1,2,3)', 'hsl(120 100% 50%)', 'var(--brand)']) {
+      const source = `${body}\nclassDef hot fill:notacolor,fill:${value}\nclass A hot\nstyle A stroke:notacolor\nstyle A stroke:#f96\nstyle missing fill:notacolor\nstyle missing fill:${value}`
+      expect(renderMermaidSVG(source)).toContain(`fill="${value}"`)
+      expect(() => renderMermaidASCII(source)).not.toThrow()
+    }
+    for (const [directives, subject] of [
+      ['style A fill:notacolor\nstyle missing,A fill:red', 'style A'],
+      ['style missing,A fill:notacolor\nstyle A fill:red', 'style missing'],
+      ['style A fill:red\nstyle missing,A fill:notacolor', 'style A'],
+      ['style A fill:notacolor\nstyle missing,A fill:red\nclassDef hot fill:blue\nclass A hot', 'style A'],
+    ]) {
+      const source = `${body}\n${directives}`
+      const named = `${subject}: fill "notacolor" is not a CSS color`
+      expect(() => parseRequirementDiagram(source)).toThrow(named)
+      expect(() => renderMermaidSVG(source)).toThrow(named)
+      for (const useAscii of [true, false]) expect(() => renderMermaidASCII(source, { useAscii })).toThrow(named)
+      expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named), origin: 'source' })
+    }
+    for (const directives of [
+      'style A fill:notacolor\nstyle A,missing fill:red',
+      'style A fill:notacolor\nstyle missing,A fill:red\nstyle A fill:red',
+      'classDef hot fill:notacolor\nclass A hot\nclassDef hot fill:red',
+      'classDef hot fill:notacolor\nclassDef hot fill:red\nclass A hot',
+    ]) {
+      const source = `${body}\n${directives}`
+      expect(renderMermaidSVG(source)).toContain('fill="red"')
+      expect(() => renderMermaidASCII(source)).not.toThrow()
+    }
+  })
   test('authored class font weights remain identical in measurement and rendered compartments', () => {
     for (const [css, expected] of [
       ['normal', 400],

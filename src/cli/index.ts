@@ -538,6 +538,8 @@ function renderPngSync(source: string, opts: PngOptions, outFile: string, json: 
     if (json) process.stdout.write(JSON.stringify({ ok: true, path: outFile, bytes: png.length, receipt: rendered.receipt, runtime: rendered.runtime, warnings }) + '\n')
     return EXIT_OK
   } catch (e) {
+    // Named render refusals use the common CLI JSON/plain-text envelope.
+    if (projectRenderErrorDiagnostic(e).code !== 'RENDER_FAILED') throw e
     const msg = e instanceof Error ? e.message : String(e)
     process.stderr.write(`am render --format png: ${msg}\n`)
     return EXIT_INTERNAL

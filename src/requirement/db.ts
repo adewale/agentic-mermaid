@@ -38,6 +38,8 @@ export class RequirementDb implements RequirementModel {
   elements = new Map<string, RequirementElement>()
   relations: Relation[] = []
   classes = new Map<string, RequirementClass>()
+  /** Authored inline declarations, including targets that drawing skips. */
+  authoredStyles = new Map<string, string[]>()
   title: string | undefined
   accTitle: string | undefined
   accDescr: string | undefined
@@ -124,6 +126,11 @@ export class RequirementDb implements RequirementModel {
     return this.requirements.get(id) ?? this.elements.get(id)
   }
   setCssStyle(ids: string[], styles: string[]): void {
+    for (const id of ids) {
+      const authored = this.authoredStyles.get(id) ?? []
+      this.copy(authored, styles)
+      this.authoredStyles.set(id, authored)
+    }
     for (const id of ids) {
       const node = this.node(id)
       // Mermaid stops at the first unknown id, leaving the rest of the list unstyled.

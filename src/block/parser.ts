@@ -8,6 +8,7 @@ import type { BlockBody } from './types.ts'
 import { tokenize } from './lexer.ts'
 import { T, TOKEN_NAMES } from './tokens.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
+import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import type { Block, Statement } from './types.ts'
 export type BlockBuilder = Pick<BlockDb, 'typeStr2Type' | 'edgeStrToEdgeData' | 'edgeStrToEdgeStartData' | 'edgeStrToThickness' | 'edgeStrToPattern' | 'generateId' | 'setHierarchy'>
 interface NodeInfo {
@@ -23,6 +24,13 @@ export function parseBlockDiagram(input: string | string[]): BlockBody {
   db.reservedIds = new Set(tokens.texts.filter((_, i) => tokens.types[i] === T.NODE_ID))
   parseBlock(source.endsWith('\n') ? source : source + '\n', db)
   if (db.unresolvedStyleTargets().length) throw new Error('Block style/class references undeclared targets: ' + db.unresolvedStyleTargets().join(', '))
+  for (const definition of db.classes.values()) checkedAuthoredStyle(parseStyleProps(definition.styles.join(',')), `classDef ${definition.id}`)
+  const blocks = [db.root]
+  for (let index = 0; index < blocks.length; index++) {
+    const block = blocks[index]!
+    checkedAuthoredStyle(parseStyleProps((block.styles ?? []).join(',')), `style ${block.id}`)
+    blocks.push(...block.children ?? [])
+  }
   return { kind: 'block', root: db.root, edges: db.edges, classDefs: [...db.classes.values()], title: db.title }
 }
 interface Frame {
