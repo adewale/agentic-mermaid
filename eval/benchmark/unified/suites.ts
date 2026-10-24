@@ -1,0 +1,282 @@
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { BUILTIN_FAMILY_METADATA } from '../../../src/agent/families.ts'
+import type { UnifiedRunOptions } from './types.ts'
+
+export interface SuiteOptions extends UnifiedRunOptions {
+  harnessRoot: string
+  packageRoot?: string
+  site?: string
+  candidateTarball?: string
+  candidateSha256?: string
+  baseline?: string
+  baselineRef?: string
+  baselineNpm?: string
+  baselineTarball?: string
+  baselineSha256?: string
+  baselineLock?: string
+  bezelDir?: string
+  mermaidDir?: string
+  referenceDir?: string
+  liveProvider?: string
+  liveModel?: string
+}
+export interface SuiteDefinition {
+  id: string
+  title: string
+  kind: 'internal' | 'script' | 'test'
+  smoke: boolean
+  automatic?: boolean
+  source: string
+  command?: string[]
+  prerequisites: string[]
+  policy: string
+  pin?: unknown
+}
+const json = (file: string): any => JSON.parse(readFileSync(file, 'utf8'))
+const add = (args: string[], flag: string, value: string | undefined): void => {
+  if (value) args.push(flag, value)
+}
+
+/** Command discovery follows declared package benchmark entries. Standalone
+ * adapters describe real executable boundaries; worker/helper modules are never
+ * inferred to be executables from their filenames. */
+export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
+  const root = options.harnessRoot,
+    out = (id: string) => join(options.out, id.replaceAll(':', '-'))
+  const pkg = json(join(root, 'package.json')) as { scripts: Record<string, string> }
+  const built = existsSync(join(options.packageRoot ?? options.root, 'dist/index.js'))
+  const upstream = options.mermaidDir ?? process.env.MERMAID_UPSTREAM_DIR ?? resolve(root, '../mermaid')
+  const reference = options.referenceDir ?? process.env.MERMAID_REFERENCE_DIR ?? resolve(root, '../mermaid-reference')
+  const referenceMissing = [!existsSync(join(upstream, 'packages/mermaid/package.json')) && `Pinned Mermaid source missing: ${upstream}`, !existsSync(join(reference, 'node_modules/mermaid/package.json')) && `Independent Mermaid installation missing: ${reference}`].filter((x): x is string => Boolean(x))
+  const site = options.site ?? join(root, 'website/public')
+  const siteMissing = existsSync(join(site, 'editor/index.html')) ? [] : [`Built editor missing: ${site}; run bun run website`]
+  const browserMissing = options.executable && !existsSync(options.executable) ? [`Browser executable missing: ${options.executable}`] : []
+  const suites: SuiteDefinition[] = [
+    { id: 'family', title: 'All-family functionality and feature evidence', kind: 'internal', smoke: true, source: 'eval/benchmark/unified/family-suite.ts', prerequisites: [], policy: 'Fresh executable evidence; stored descriptor witness declarations are not new passes.' },
+    {
+      id: 'invocation',
+      title: 'Public invocation matrix',
+      kind: 'internal',
+      smoke: true,
+      source: 'eval/benchmark/unified/invocation.ts',
+      prerequisites: built ? [] : ['Built target package missing; run bun run build or provide --package-root'],
+      policy: 'Target source and installed artifact identities are separate from the driver. Every unsupported or unavailable path remains visible.',
+    },
+    {
+      id: 'pinned-reference-score',
+      title: 'Paired pinned Mermaid same-case score and public parse timings',
+      kind: 'internal',
+      smoke: false,
+      source: 'eval/benchmark/unified/reference-score.ts',
+      prerequisites: referenceMissing,
+      pin: json(join(root, 'docs/project/upstream-mermaid-policy.json')).pin,
+      policy: 'Same independently expected source fixtures and assertion scopes; parser timing is separate from oracle/serialization and transport.',
+    },
+    { id: 'community', title: 'Community JSON population comparison', kind: 'internal', smoke: true, source: 'eval/benchmark/unified/community.ts', prerequisites: [], policy: 'Population is docs/mermaid-community.json; no missing peer is a zero-cost success.' },
+  ]
+  for (const [script, command] of Object.entries(pkg.scripts)) {
+    if (!script.startsWith('bench:') || script === 'bench:charts' || /eval\/benchmark\/(?:unified\/(?:run|pr-campaign|update-scorecard)|suite)\.ts/.test(command)) continue
+    const id = script.slice('bench:'.length),
+      args = ['bun', 'run', script],
+      prerequisites: string[] = []
+    const policy = 'Owning maintained suite, executed in the driver checkout. Its own protocol and qualification remain authoritative.'
+    if (id === 'samples') {
+      /* The source sample runner has no argv protocol. */
+    } else if (id === 'micro') args.push('--runtime', 'node', '--rounds', String(options.rounds), '--json', join(out(id), 'report.json'))
+    else if (id === 'experiments') args.push('--out', out(id), '--rounds', String(options.rounds), '--paired', '1', '--broad', '1', '--png', '1')
+    else if (id === 'pipeline') args.push('--out', out(id), '--rounds', String(options.rounds))
+    else if (id === 'peers') args.push('--rounds', String(options.rounds), '--corpus', '--json', join(out(id), 'report.json'), '--markdown', join(out(id), 'report.md'))
+    else if (id === 'dave') {
+      args.push('--out', out(id), '--rounds', String(options.rounds))
+      add(args, '--executable', options.executable)
+      add(args, '--bezel-dir', options.bezelDir)
+      prerequisites.push(...browserMissing)
+    } else if (id === 'release') {
+      args.push('--out', out(id), '--rounds', String(options.rounds))
+      if (options.candidateTarball) {
+        add(args, '--candidate-tarball', options.candidateTarball)
+        add(args, '--candidate-sha256', options.candidateSha256)
+      } else {
+        add(args, '--candidate', options.packageRoot ?? root)
+        if (!built) prerequisites.push('Built candidate missing; provide --candidate-tarball or build the package')
+      }
+      if (options.baseline) {
+        add(args, '--baseline', options.baseline)
+        if (!existsSync(join(options.baseline, 'package.json'))) prerequisites.push('--baseline must name a built package directory; use --baseline-ref for output identity or --baseline-npm for a published release')
+      } else {
+        const selector = options.baselineNpm ?? (options.baselineLock && existsSync(options.baselineLock) ? json(options.baselineLock).requested : 'latest')
+        args.push('--baseline-npm', selector)
+        add(args, '--baseline-lock', options.baselineLock ?? join(out(id), 'baseline.json'))
+      }
+    } else if (id === 'release:browser') {
+      args.push('--out', out(id), '--rounds', String(options.rounds))
+      add(args, '--candidate-tarball', options.candidateTarball)
+      add(args, '--candidate-sha256', options.candidateSha256)
+      add(args, '--baseline-tarball', options.baselineTarball)
+      add(args, '--baseline-sha256', options.baselineSha256)
+      add(args, '--baseline-lock', options.baselineLock)
+      add(args, '--executable', options.executable)
+      add(args, '--bezel-dir', options.bezelDir)
+      if (!options.candidateTarball || !options.candidateSha256) prerequisites.push('Provide --candidate-tarball and --candidate-sha256 for exact-artifact browser release measurements')
+      if (!options.baselineLock && !(options.baselineTarball && options.baselineSha256)) prerequisites.push('Provide --baseline-lock or the baseline tarball and digest')
+      prerequisites.push(...browserMissing)
+    }
+    suites.push({ id, title: script, kind: 'script', smoke: id === 'samples', source: command, command: args, prerequisites, policy })
+  }
+  const standalone = (id: string, title: string, file: string, args: string[], prerequisites: string[] = [], policy = 'Diagnostic owning entry; instrumented timings are not cross-engine API latency.'): void => {
+    if (existsSync(join(root, file))) suites.push({ id, title, kind: 'script', smoke: false, source: file, command: ['bun', 'run', file, ...args], prerequisites, policy })
+  }
+  standalone('render-stages', 'Official-corpus SVG receipt stage costs', 'eval/benchmark/render-stage-bench.ts', [String(options.rounds), join(out('render-stages'), 'report.json')])
+  standalone('performance-profile', 'Experimental profile correctness qualification', 'eval/benchmark/qualify-performance-profile.ts', ['--out', join(out('performance-profile'), 'report.json')])
+  standalone(
+    'output-identity',
+    'Cross-revision output identity across styles and formats',
+    'eval/benchmark/output-identity.ts',
+    ['--baseline', options.baselineRef ?? 'origin/main', '--jobs', '1'],
+    [],
+    'Output identity is correctness evidence, not time or semantic identity proof. Output hashes are shipped/rendered bytes; source inputs are not custom-hashed.',
+  )
+  for (const [id, file, extra] of [
+    ['editor-preview', 'editor-preview-bench.ts', []],
+    ['editor-session', 'editor-session-bench.ts', ['--cold-runs', String(options.rounds)]],
+    ['editor-ownership', 'editor-ownership-bench.ts', ['--runs', String(options.rounds)]],
+  ] as const) {
+    const args = ['--site', site, '--out', out(id), ...extra]
+    add(args, '--executable', options.executable)
+    standalone(id, id, `eval/benchmark/${file}`, args, [...siteMissing, ...browserMissing], 'Real hosted editor/production adapter; verified DOM, request closure and ownership have separate clocks and contracts.')
+  }
+  const renderer = ['--agentic-root', options.packageRoot ?? root, '--bezel-dir', options.bezelDir ?? '', '--out', out('renderer-profile'), '--rounds', String(options.rounds)]
+  add(renderer, '--executable', options.executable)
+  standalone('renderer-profile', 'Packaged/browser attribution and CPU profile', 'eval/benchmark/renderer-profile.ts', renderer, [...browserMissing, ...(!options.bezelDir ? ['Verified Bezel wrapper directory required: --bezel-dir'] : [])])
+  const currentPin = json(join(root, 'docs/project/upstream-mermaid-policy.json')).pin
+  const test = (id: string, title: string, files: string[], prerequisites: string[] = [], pin?: unknown, smoke = false): void => {
+    suites.push({
+      id,
+      title,
+      kind: 'test',
+      smoke,
+      source: files.join(', '),
+      command: ['bun', 'test', '--timeout', '30000', ...files],
+      prerequisites,
+      policy: 'Fresh owning tests. Pass/fail/skip counts and complete wall time come from this run, not stored witness metadata. Joint reference assertions are not separate parser latency ratios.',
+      ...(pin ? { pin } : {}),
+    })
+  }
+  test(
+    'family-contracts',
+    'Fresh all-family capability, Scene and mutation contracts',
+    ['src/__tests__/section-a-family-descriptor-conformance.test.ts', 'src/__tests__/family-registration-conformance.test.ts', 'src/__tests__/stable-family-edit-artifact.test.ts', 'src/__tests__/stable-family-source-maps.test.ts'],
+    [],
+    undefined,
+    true,
+  )
+  const nativeFamilies = BUILTIN_FAMILY_METADATA.map(family => family.id)
+  const canonicalContracts = new Set(suites.find(suite => suite.id === 'family-contracts')!.command!.filter(arg => arg.endsWith('.test.ts')))
+  const familyFunctionality = readdirSync(join(root, 'src/__tests__'))
+    .filter(file => {
+      if (!file.endsWith('.test.ts') || /upstream|mermaidseqbench/.test(file) || canonicalContracts.has('src/__tests__/' + file)) return false
+      return /^agent-|^stable-family-|^(?:extension-family|external-scene|family-)|^(?:style-|styled-output)|^property-(?:route|paint|scene|family|layout|svg|ascii|terminal|mcp)/.test(file) || nativeFamilies.some(family => new RegExp(`(?:^|[-_.])${family}(?:[-_.]|$)`).test(file))
+    })
+    .sort()
+    .map(file => 'src/__tests__/' + file)
+  test('family-functionality', 'Scoped public family/agent mutation, query, serializer and route behavior', familyFunctionality)
+  suites.find(suite => suite.id === 'family-functionality')!.policy +=
+    ' Enrollment follows existing owning filename conventions and registry family IDs; it excludes the unrelated unit suite. Passing this group is not a per-schema-operation witness map; operations without explicit benchmark witnesses remain unmeasured.'
+  const importedTests = readdirSync(join(root, 'src/__tests__'))
+    .filter(file => /(?:upstream.*bench|mermaidseqbench|mindmap-gitgraph-upstream-oracle)\.test\.ts$/.test(file))
+    .sort()
+    .map(file => `src/__tests__/${file}`)
+  const historicalPin = json(join(root, 'eval/mermaid-upstream-suite-bench/manifest.json')).upstream
+  test('upstream-imported', 'Pinned imported Mermaid parser/DB tests and family companions', importedTests, [], { mainHarvest: historicalPin, note: 'Each companion fixture retains its own historical pin. This is not the current Mermaid 12.2.0 source checkout.' })
+  for (const [id, file, title] of [
+    ['pinned-semantic-tests', 'semantic.test.ts', 'Pinned current Mermaid semantic and label assertions'],
+    ['pinned-operation-tests', 'native-operations.test.ts', 'Pinned current Mermaid actual ordered native writes'],
+    ['pinned-grammar-tests', 'grammar-regressions.test.ts', 'Pinned current Mermaid grammar regressions'],
+  ])
+    test(id!, title!, [`eval/mermaid-modern-compat/${file}`], referenceMissing, currentPin)
+  standalone(
+    'pinned-semantic-corpus',
+    'Independent current-reference corpus and authored label census',
+    'eval/mermaid-modern-compat/run.ts',
+    ['--mermaid-dir', upstream, '--reference-dir', reference, '--specs', '--labels', '--fuzz', '100', '--seed', '7', '--output', out('pinned-semantic-corpus')],
+    referenceMissing,
+    'Same sources retained, including reference rejection and native/preserved/unsupported cases. Semantic label presence is not complete visual or identity fidelity.',
+  )
+  standalone(
+    'pinned-grammar-corpus',
+    'Independent current-reference grammar and native observations',
+    'eval/mermaid-modern-compat/grammar-run.ts',
+    ['--mermaid-dir', upstream, '--reference-dir', reference, '--native-only', '--fuzz', '100', '--seed', '7', '--workers', '1', '--output', out('pinned-grammar-corpus')],
+    referenceMissing,
+  )
+  for (const definition of suites) if (definition.id.startsWith('pinned-')) definition.pin = currentPin
+  standalone(
+    'family-portfolio',
+    'Balanced registry-derived family corpus',
+    'eval/benchmark/unified/portfolio.ts',
+    ['--out', out('family-portfolio')],
+    [],
+    'Execute the maintained portfolio builder and record inventory/provenance outside the checkout; no tracked generated corpus is rewritten. This is preparation evidence, not a renderer speed score.',
+  )
+  test('agent-replay', 'Stored real-agent/scripted usage and safe mutation paths', ['src/__tests__/agent-usage.test.ts'])
+  const live = ['--provider', options.liveProvider ?? 'anthropic', '--model', options.liveModel ?? '']
+  const provider = options.liveProvider ?? 'anthropic',
+    hasKey = provider === 'anthropic' ? Boolean(process.env.ANTHROPIC_API_KEY) : Boolean(process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY)
+  standalone(
+    'agent-live',
+    'Observed API-backed agent usage and token costs',
+    'eval/agent-usage/live.ts',
+    live,
+    [...(!options.liveModel ? ['An explicit --live-model is required; stored replay is not a live-provider measurement'] : []), ...(!hasKey ? [`No configured ${provider} provider credential`] : [])],
+    'Provider/model, discovery availability, usage tokens and task correctness are separate. A blocked live run does not score zero cost.',
+  )
+  standalone('mcp-conformance', 'Official pinned MCP transport conformance', 'scripts/ci/mcp-conformance.ts', [], [], 'Official MCP conformance may acquire its declared npm runner; tests wire behavior, not family fidelity or renderer speed.')
+  if (pkg.scripts['style:audit'])
+    suites.push({
+      id: 'style-audit',
+      title: 'Public style option and styled-output behavior',
+      kind: 'test',
+      smoke: false,
+      source: pkg.scripts['style:audit'],
+      command: ['bun', 'run', 'style:audit'],
+      prerequisites: [],
+      policy: 'Existing owning style behavior checks; scoped correctness evidence, not a renderer speed rank.',
+    })
+  if (pkg.scripts['sketch:check'])
+    suites.push({ id: 'sketch-check', title: 'Sketch style behavior and contrast audit', kind: 'test', smoke: false, source: pkg.scripts['sketch:check'], command: ['bun', 'run', 'sketch:check'], prerequisites: [], policy: 'Existing sketch behavior and contrast evaluator. Contrast is our own quality contract.' })
+  standalone(
+    'agent-subagent',
+    'Observed external-agent transcript capture/evaluation',
+    'eval/agent-usage/capture-subagent-prompt-eval.ts',
+    [],
+    ['An external agent transcript dispatch/capture directory is required; generating request templates is not a completed model evaluation'],
+    'No model/provider transcript is fabricated or replaced by stored script replay.',
+  )
+  if (existsSync(join(root, 'eval/layout-compare/run.ts')))
+    standalone(
+      'layout-compare',
+      'Maintained layout comparison evaluator',
+      'eval/layout-compare/run.ts',
+      ['snapshot', '--out', join(out('layout-compare'), 'snapshot.json'), '--label', 'unified-driver'],
+      [],
+      'Current own-quality snapshot. A before/after comparison requires a separately admitted baseline snapshot; independent Mermaid geometry is not our pixel specification.',
+    )
+  standalone('route-enumeration', 'Degenerate-route structural/certificate enumeration', 'eval/degenerate-etn/enumerate.ts', [])
+  standalone('visual-rubric', 'Own rendering-quality invariants', 'eval/visual-rubric/run.ts', ['--out', out('visual-rubric')], [], 'Our own layout and visual rules; Mermaid rendering is not a pixel specification.')
+  standalone('heuristic-tracker', 'Per-fixture layout-quality tracker', 'eval/heuristic-tracker/run.ts', [], [], 'Read-only tracker run. No baseline reset or generated baseline rewrite is requested.')
+  standalone('ugly-audit', 'Own layout aesthetic diagnostics', 'eval/ugly-detector/audit.ts', [])
+  if (existsSync(join(root, 'eval/benchmark/unified/pr-campaign.ts')))
+    suites.push({
+      id: 'prs',
+      title: 'Active-PR campaign orchestration',
+      kind: 'script',
+      smoke: false,
+      automatic: false,
+      source: 'eval/benchmark/unified/pr-campaign.ts',
+      command: ['bun', 'run', 'eval/benchmark/unified/pr-campaign.ts', '--run', '--out', out('prs'), '--rounds', String(options.rounds), '--profile', options.profile, '--root', options.harnessRoot],
+      prerequisites: [],
+      policy: 'Explicit campaign selection only; nesting this orchestrator inside the full suite would repeat the entire workload campaign. Use bench:prs for frozen-head target comparisons.',
+    })
+  return suites
+}

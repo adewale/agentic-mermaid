@@ -1,0 +1,495 @@
+import { createHash } from 'node:crypto'
+import { spawn } from 'node:child_process'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
+import { createRequire } from 'node:module'
+import { dirname, extname, join, relative, resolve, sep } from 'node:path'
+import { gzipSync } from 'node:zlib'
+import { build } from 'esbuild'
+import { chromium } from 'playwright'
+import type { CommunityArtifact, PreparedCommunity } from './community-types.ts'
+import type { BenchmarkObservation, BenchmarkStatus, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
+
+type BrowserKind = 'beautiful' | 'pele' | 'mermaid' | 'function' | 'ondine' | 'franken' | 'merman'
+export interface CommunityBrowserEngine {
+  root: string
+  entry: string
+  kind: BrowserKind
+  global?: string
+  wasm?: string
+  version: string
+  revision?: string
+  artifactSha256: string
+  integrity?: string
+}
+export interface PreparedCommunityBrowser extends PreparedCommunity {
+  browser?: CommunityBrowserEngine
+  browserStatus: 'prepared' | 'blocked' | 'not-applicable'
+  browserDetail?: string
+}
+const digest = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
+const safe = (id: string): string => encodeURIComponent(id)
+const unsupported = /unsupported (?:diagram|family)|diagram (?:type|family).*(?:not supported|unsupported)|unknown diagram|unrecognized mermaid header|no diagram type detected|invalid mermaid header|not implemented.*(?:family|diagram)/i
+function packageRoot(artifact: CommunityArtifact): string | undefined {
+  if (artifact.root && existsSync(join(artifact.root, 'package.json'))) return artifact.root
+  if (!artifact.module) return undefined
+  let directory = dirname(resolve(artifact.module))
+  for (;;) {
+    if (existsSync(join(directory, 'package.json'))) return directory
+    const parent = dirname(directory)
+    if (parent === directory) return undefined
+    directory = parent
+  }
+}
+async function installWebMerman(prepared: PreparedCommunity, cache: string): Promise<string> {
+  const declared = prepared.node.packages?.find(pkg => pkg.registry === 'npm' && pkg.name === '@mermanjs/web')
+  if (!declared) throw new Error('The community node declares no @mermanjs/web browser package')
+  const version = prepared.artifact?.version ?? declared.version,
+    prefix = join(cache, 'merman-web', version),
+    root = join(prefix, 'node_modules/@mermanjs/web')
+  if (!existsSync(join(root, 'package.json'))) {
+    mkdirSync(prefix, { recursive: true })
+    await new Promise<void>((done, reject) => {
+      const child = spawn('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', `@mermanjs/web@${version}`], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, npm_config_cache: process.env.npm_config_cache ?? join(cache, 'npm-cache') } })
+      let error = ''
+      child.stdout.on('data', chunk => {
+        error = (error + String(chunk)).slice(-5000)
+      })
+      child.stderr.on('data', chunk => {
+        error = (error + String(chunk)).slice(-5000)
+      })
+      const timer = setTimeout(() => child.kill('SIGKILL'), 120_000)
+      child.once('error', cause => {
+        clearTimeout(timer)
+        reject(cause)
+      })
+      child.once('close', code => {
+        clearTimeout(timer)
+        code === 0 ? done() : reject(new Error(`@mermanjs/web acquisition exited ${code}: ${error}`))
+      })
+    })
+  }
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+  if (pkg.version !== version) throw new Error('Merman web installed version differs from the pinned candidate')
+  return root
+}
+
+/** Preparation is deliberately separate from all API clocks. It may bundle
+ * actual published JS entries or acquire the separately published browser SDK. */
+export async function prepareCommunityBrowsers(prepared: readonly PreparedCommunity[], options: UnifiedRunOptions): Promise<PreparedCommunityBrowser[]> {
+  const harness = options.harnessRoot ?? options.root,
+    cache = join(harness, 'node_modules/.cache/unified-community-browser'),
+    results: PreparedCommunityBrowser[] = []
+  mkdirSync(cache, { recursive: true })
+  for (const peer of prepared) {
+    let result: PreparedCommunityBrowser = { ...peer, browserStatus: 'blocked' }
+    try {
+      if (!peer.node.benchmark) {
+        results.push({ ...peer, browserStatus: 'not-applicable', browserDetail: 'Metadata/lineage/wrapper node: no independent browser renderer adapter is declared.' })
+        continue
+      }
+      const adapter = peer.node.benchmark?.adapter,
+        artifact = peer.artifact
+      const supported = peer.node.benchmark?.outputs ?? peer.node.outputs
+      if (!supported.includes('svg')) {
+        results.push({ ...peer, browserStatus: 'not-applicable', browserDetail: 'This community capability does not expose SVG rendering.' })
+        continue
+      }
+      const make = (root: string, entry: string, kind: BrowserKind, global?: string, wasm?: string): CommunityBrowserEngine => {
+        const file = resolve(root, entry)
+        if (!file.startsWith(resolve(root) + sep) || !existsSync(file)) throw new Error(`Browser entry is missing or outside artifact root: ${file}`)
+        return {
+          root: resolve(root),
+          entry,
+          kind,
+          ...(global ? { global } : {}),
+          ...(wasm ? { wasm } : {}),
+          version: artifact?.version ?? peer.node.packages?.find(pkg => pkg.registry === 'npm')?.version ?? peer.node.distribution?.version ?? peer.node.release?.tag ?? 'unavailable',
+          ...(artifact?.revision ? { revision: artifact.revision } : {}),
+          artifactSha256: digest(readFileSync(file)),
+          ...(artifact?.integrity ? { integrity: artifact.integrity } : {}),
+        }
+      }
+      let engine: CommunityBrowserEngine | undefined
+      if (adapter === 'merman') {
+        const root = await installWebMerman(peer, cache),
+          pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+        engine = make(root, pkg.main, 'merman')
+        engine.version = pkg.version
+        const lock = JSON.parse(readFileSync(join(root, '../../..', 'package-lock.json'), 'utf8'))
+        engine.integrity = lock.packages?.['node_modules/@mermanjs/web']?.integrity
+      } else if (!artifact) throw new Error(peer.error ?? 'No prepared browser artifact or published package')
+      else if (artifact.kind === 'global') {
+        if (!artifact.module) throw new Error('Global artifact has no module path')
+        const root = artifact.root ?? dirname(artifact.module),
+          entry = relative(root, artifact.module),
+          global = artifact.global ?? (adapter === 'dart' ? 'mermaidDartRender' : adapter === 'bezel' ? 'bezelRender' : undefined)
+        if (!global) throw new Error('Global artifact must declare its public global symbol')
+        engine = make(root, entry, adapter === 'dart' || adapter === 'bezel' ? 'function' : 'beautiful', global)
+      } else if (artifact.kind === 'franken') {
+        if (!artifact.module) throw new Error('Franken artifact has no JS module')
+        const root = artifact.root ?? dirname(artifact.module),
+          wasm = artifact.wasm ?? join(dirname(artifact.module), 'frankenmermaid_bg.wasm')
+        if (!existsSync(wasm)) throw new Error(`Franken WASM missing: ${wasm}`)
+        engine = make(root, relative(root, artifact.module), 'franken', undefined, relative(root, wasm))
+      } else if (artifact.kind === 'node') {
+        const root = packageRoot(artifact)
+        if (!root) throw new Error('Cannot resolve prepared published package root')
+        const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')),
+          zombie = pkg.name === 'zombie-mermaid'
+        if (peer.node.id === 'adewale/agentic-mermaid' || adapter === 'agentic') engine = make(root, 'dist/browser.global.js', 'beautiful', 'agenticMermaid')
+        else if (adapter === 'mermaid') engine = make(root, 'dist/mermaid.min.js', 'mermaid', 'mermaid')
+        else if (adapter === 'pele' && existsSync(join(root, 'dist/pele.global.js'))) engine = make(root, 'dist/pele.global.js', 'pele', 'pele')
+        else if (['beautiful', 'zombie', 'pele', 'ondine'].includes(adapter ?? '')) {
+          const output = join(cache, safe(peer.node.id), artifact.version)
+          mkdirSync(output, { recursive: true })
+          const entry = join(output, 'entry.mjs'),
+            source = artifact.module && existsSync(artifact.module) ? artifact.module : join(root, typeof pkg.main === 'string' ? pkg.main : 'dist/index.js')
+          if (adapter === 'ondine') {
+            const renderer = join(root, 'dist/Render.js'),
+              wasm = join(root, 'dist/internal/all.generated.wasm')
+            if (!existsSync(renderer) || !existsSync(wasm)) throw new Error('Ondine published Render.js/WASM assets unavailable')
+            copyFileSync(wasm, join(output, 'all.wasm'))
+            writeFileSync(entry, `import{create}from ${JSON.stringify(renderer)};globalThis.unifiedLoadOndine=async()=>create({modules:{all:new WebAssembly.Module(await(await fetch('/all.wasm')).arrayBuffer())}});`)
+          } else if (zombie || adapter === 'zombie') {
+            const require = createRequire(join(root, 'package.json')),
+              elk = require.resolve('elkjs/lib/elk.bundled.js')
+            writeFileSync(entry, `import{registerElk}from ${JSON.stringify(source)};import ELK from ${JSON.stringify(elk)};registerElk(ELK);export*from ${JSON.stringify(source)};`)
+          } else writeFileSync(entry, `export*from ${JSON.stringify(source)};`)
+          await build({ entryPoints: [entry], outfile: join(output, 'bundle.js'), bundle: true, platform: 'browser', format: 'iife', globalName: 'unifiedPeer', minify: true, target: 'es2022', logLevel: 'silent' })
+          engine = make(output, 'bundle.js', adapter === 'ondine' ? 'ondine' : adapter === 'pele' ? 'pele' : 'beautiful', adapter === 'ondine' ? 'unifiedLoadOndine' : 'unifiedPeer')
+        } else {
+          results.push({ ...peer, browserStatus: 'not-applicable', browserDetail: 'Prepared package exposes a native/Node transport; no declared browser rendering API adapter.' })
+          continue
+        }
+      } else {
+        results.push({ ...peer, browserStatus: 'not-applicable', browserDetail: 'Prepared native CLI/Python/worker has no browser rendering distribution.' })
+        continue
+      }
+      result = { ...result, browser: engine, browserStatus: 'prepared' }
+    } catch (error) {
+      result.browserDetail = String(error)
+    }
+    results.push(result)
+  }
+  mkdirSync(options.out, { recursive: true })
+  writeFileSync(join(options.out, 'community-browser-prepared.json'), JSON.stringify(results, null, 2) + '\n')
+  return results
+}
+
+/** Public API calls are timed inside the page, excluding qualification and
+ * output encoding. Returned SVG is independently checked outside API clocks. */
+export async function runCommunityBrowserSuite(prepared: readonly PreparedCommunityBrowser[], workloads: readonly UnifiedWorkload[], options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {
+  const startedAt = new Date().toISOString(),
+    observations: BenchmarkObservation[] = [],
+    gaps = [
+      'SVG XML/canvas and authored-label checks do not establish complete semantic identity, multiplicity, route geometry or visual fidelity. Dedicated family feature assertions remain separate.',
+      'Core repeat cases calibrate to20ms/256iterations; other feature-corpus cases have one warm call and three single-call samples. These protocols never share a speed aggregate. API clocks exclude host insertion/paint and validation; internal DOM measurement is part of the API. JS heap excludes native/WASM/process memory.',
+    ],
+    raw: unknown[] = []
+  const row = (peer: PreparedCommunityBrowser, workload: UnifiedWorkload, mode: string, status: BenchmarkStatus, extra: Partial<BenchmarkObservation> = {}): BenchmarkObservation => ({
+    suite: 'community-browser',
+    surface: 'browser:public-api',
+    runtime: 'chromium',
+    family: workload.family,
+    caseId: workload.id,
+    operation: 'render',
+    format: 'svg',
+    mode,
+    status,
+    ...extra,
+    metrics: { implementation: peer.node.id, ...extra.metrics },
+  })
+  for (const peer of prepared.filter(peer => peer.browserStatus !== 'prepared')) {
+    const unavailable: UnifiedWorkload = { id: 'browser-capability', family: '*', source: '', features: [], provenance: 'community browser capability admission' }
+    observations.push({
+      ...row(peer, unavailable, 'capability', peer.browserStatus === 'not-applicable' ? 'not-applicable' : 'blocked', { detail: peer.browserDetail ?? 'Browser preparation was not run', metrics: { unmeasuredCases: workloads.length, reason: peer.browserDetail ?? 'Browser preparation required' } }),
+      operation: 'capability',
+    })
+    if (peer.browserStatus === 'blocked') gaps.push(`${peer.node.id}: ${peer.browserDetail ?? 'Browser preparation required'} (${workloads.length} corpus cases unmeasured)`)
+  }
+  const engines = prepared.filter(peer => peer.browserStatus === 'prepared' && peer.browser)
+  for (let round = 1; round <= options.rounds; round++)
+    for (const peer of round % 2 ? engines : [...engines].reverse()) {
+      const engine = peer.browser!,
+        fetched = new Set<string>(),
+        remote = new Set<string>()
+      const server = createServer((request, response) => {
+        const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        if (pathname === '/blank') {
+          response.setHeader('content-type', 'text/html')
+          response.end('<!doctype html><meta charset="utf-8"><body>')
+          return
+        }
+        let file: string
+        try {
+          file = resolve(engine.root, '.' + decodeURIComponent(pathname))
+        } catch {
+          response.writeHead(400).end()
+          return
+        }
+        if (!file.startsWith(engine.root + sep) || !existsSync(file)) {
+          response.writeHead(404).end()
+          return
+        }
+        response.setHeader('content-type', ({ '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.json': 'application/json', '.woff2': 'font/woff2', '.ttf': 'font/ttf' } as Record<string, string>)[extname(file)] ?? 'application/octet-stream')
+        response.setHeader('cache-control', 'no-store')
+        try {
+          response.end(readFileSync(file))
+        } catch {
+          response.writeHead(404).end()
+        }
+      })
+      await new Promise<void>(done => server.listen(0, '127.0.0.1', done))
+      const address = server.address()
+      if (!address || typeof address === 'string') throw new Error('Browser benchmark server has no TCP address')
+      const origin = `http://127.0.0.1:${address.port}`
+      let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined, loadStarted: number | undefined
+      const record: { id: string; round: number; engine: CommunityBrowserEngine; browser?: string; samples: BenchmarkObservation[]; payload?: unknown; error?: string } = { id: peer.node.id, round, engine, samples: [] }
+      try {
+        browser = await chromium.launch({ headless: true, executablePath: options.executable })
+        record.browser = browser.version()
+        const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'block' })
+        context.on('request', request => {
+          const u = new URL(request.url())
+          if (u.origin === origin && u.pathname !== '/blank') fetched.add(u.pathname)
+          else if (!['data:', 'blob:'].includes(u.protocol) && u.origin !== origin) remote.add(request.url())
+        })
+        await context.route('**/*', route => {
+          const u = new URL(route.request().url())
+          return u.origin === origin || ['data:', 'blob:'].includes(u.protocol) ? route.continue() : route.abort()
+        })
+        const page = await context.newPage()
+        page.setDefaultTimeout(30_000)
+        await page.goto(origin + '/blank')
+        await page.evaluate(() => {
+          ;(globalThis as any).AGENTIC_MERMAID_ELK_CACHE = '1'
+          ;(globalThis as any).AGENTIC_MERMAID_SCENE_ASSERTIONS = '0'
+        })
+        const importStart = performance.now()
+        loadStarted = importStart
+        if (engine.kind === 'franken' || engine.kind === 'merman')
+          await page.evaluate(
+            async ({ kind, url, wasm }) => {
+              const api = await import(url)
+              if (kind === 'franken') {
+                await api.default({ module_or_path: await (await fetch(wasm!)).arrayBuffer() })
+                ;(globalThis as any).__communityRender = (source: string) => api.renderSvg(source)
+              } else {
+                await api.initMerman()
+                ;(globalThis as any).__communityRender = (source: string) => api.renderSvg(source)
+              }
+            },
+            { kind: engine.kind, url: origin + '/' + engine.entry, wasm: engine.wasm ? origin + '/' + engine.wasm : undefined },
+          )
+        else {
+          await page.addScriptTag({ url: origin + '/' + engine.entry })
+          await page.evaluate(async ({ kind, global }) => {
+            const api = (globalThis as any)[global!]
+            if (kind === 'mermaid') {
+              api.initialize({ startOnLoad: false })
+              ;(globalThis as any).__communityRender = (source: string, id: string) => api.render(id, source)
+            } else if (kind === 'ondine') {
+              const compiler = await api()
+              ;(globalThis as any).__communityRender = (source: string) => compiler.render(source).svg
+            } else if (kind === 'function') (globalThis as any).__communityRender = (source: string) => api(source)
+            else if (kind === 'pele') (globalThis as any).__communityRender = (source: string) => api.render(source).svg
+            else (globalThis as any).__communityRender = (source: string) => api.renderMermaidSVG(source)
+          }, engine)
+        }
+        record.samples.push({
+          suite: 'community-browser',
+          surface: 'browser:public-api',
+          runtime: 'chromium',
+          family: '*',
+          caseId: 'loader',
+          operation: 'load-and-initialize',
+          format: 'svg',
+          mode: `cold-round-${round}`,
+          status: 'passed',
+          samplesMs: [performance.now() - importStart],
+          metrics: { implementation: peer.node.id, browser: browser.version(), version: engine.version, artifactSha256: engine.artifactSha256, cache: 'public-default-repeats' },
+        })
+        for (const workload of workloads) {
+          try {
+            const pending = page.evaluate(
+              async ({ source, expected, id, core }) => {
+                const call = async (suffix: string) => {
+                  const start = performance.now()
+                  let value: any, error: string | undefined
+                  try {
+                    value = (globalThis as any).__communityRender(source, id + suffix)
+                    if (value && typeof value.then === 'function') value = await value
+                  } catch (cause) {
+                    error = String(cause)
+                  }
+                  const ms = performance.now() - start,
+                    svg = typeof value === 'string' ? value : value?.svg
+                  for (const node of document.querySelectorAll('body > div')) node.remove()
+                  return { ms, svg, error }
+                }
+                const validate = (svg: unknown): string[] => {
+                  if (typeof svg !== 'string') return ['No SVG string returned']
+                  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml'),
+                    element = doc.documentElement
+                  if (doc.querySelector('parsererror') || element.localName !== 'svg') return ['Malformed SVG document']
+                  const viewBox = element
+                      .getAttribute('viewBox')
+                      ?.trim()
+                      .split(/[\s,]+/)
+                      .map(Number),
+                    width = Number.parseFloat(element.getAttribute('width') ?? ''),
+                    height = Number.parseFloat(element.getAttribute('height') ?? '')
+                  if (!(viewBox && viewBox.length === 4 && viewBox.every(Number.isFinite) && viewBox[2]! > 0 && viewBox[3]! > 0) && !(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return ['SVG has no positive finite canvas']
+                  const normalize = (text: string) => text.replace(/\s+/g, ' ').trim(),
+                    seen = new Set<string>([...doc.querySelectorAll('text,tspan,foreignObject')].map(node => normalize(node.textContent ?? '')))
+                  for (const node of doc.querySelectorAll('foreignObject')) {
+                    const walker = doc.createTreeWalker(node, NodeFilter.SHOW_TEXT)
+                    while (walker.nextNode()) seen.add(normalize(walker.currentNode.textContent ?? ''))
+                  }
+                  for (const text of doc.querySelectorAll('text')) {
+                    let previousY: number | undefined
+                    const joined = [...text.childNodes]
+                      .map(child => {
+                        if (!(child instanceof Element) || child.localName !== 'tspan') return child.textContent ?? ''
+                        const y = child.hasAttribute('y') ? Number(child.getAttribute('y')) : NaN,
+                          parsedDy = Number.parseFloat(child.getAttribute('dy') ?? '0'),
+                          dy = Number.isFinite(parsedDy) ? parsedDy : 0,
+                          currentY = Number.isFinite(y) ? y : previousY === undefined ? undefined : previousY + dy
+                        const newline = child.hasAttribute('x') && (dy !== 0 || (previousY !== undefined && currentY !== undefined && currentY !== previousY))
+                        previousY = currentY
+                        return (newline ? ' ' : '') + (child.textContent ?? '')
+                      })
+                      .join('')
+                    seen.add(normalize(joined))
+                  }
+                  return expected.filter(label => !seen.has(normalize(label))).map(label => `Missing authored label: ${label}`)
+                }
+                const first = await call('_first')
+                if (first.error) return { status: 'error', error: first.error, firstMs: first.ms }
+                const firstFindings = validate(first.svg)
+                if (firstFindings.length) return { status: 'qualification-failed', findings: firstFindings, firstMs: first.ms }
+                let iterations = 1
+                if (!core) {
+                  const warm = await call('_warm')
+                  if (warm.error) return { status: 'error', error: warm.error }
+                }
+                if (core)
+                  for (;;) {
+                    let total = 0
+                    for (let i = 0; i < iterations; i++) {
+                      const sample = await call('_warm_' + i)
+                      if (sample.error) return { status: 'error', error: sample.error }
+                      total += sample.ms
+                    }
+                    if (total >= 20 || iterations >= 256) break
+                    iterations *= 2
+                  }
+                const samples: number[] = []
+                let last = first
+                for (let n = 0; n < 3; n++) {
+                  let elapsed = 0
+                  for (let i = 0; i < iterations; i++) {
+                    last = await call(`_sample_${n}_${i}`)
+                    if (last.error) return { status: 'error', error: last.error }
+                    elapsed += last.ms
+                  }
+                  samples.push(elapsed / iterations)
+                }
+                const findings = validate(last.svg)
+                return { status: findings.length ? 'qualification-failed' : 'ok', samples, iterations, firstMs: first.ms, bytes: new TextEncoder().encode(first.svg).length, findings, hasLabelOracle: expected.length > 0 }
+              },
+              { source: workload.source, expected: [...(workload.expectedLabels ?? [])], id: `unified_${round}_${record.samples.length}`, core: workload.features.includes('core-graph-batch') },
+            )
+            let timer: ReturnType<typeof setTimeout> | undefined
+            const measured = await Promise.race([
+              pending,
+              new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error('Browser API workload exceeded 30s')), 30_000)
+              }),
+            ]).finally(() => clearTimeout(timer))
+            const status = measured.status === 'ok' ? 'passed' : measured.status === 'error' && unsupported.test(measured.error ?? '') ? 'unsupported' : 'failed'
+            const observation = row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : 'feature-corpus-attempt', status, {
+              ...(measured.samples ? { samplesMs: measured.samples } : {}),
+              ...(measured.bytes === undefined ? {} : { bytes: measured.bytes }),
+              findings: measured.findings,
+              detail: measured.error,
+              metrics: { round, firstMs: measured.firstMs ?? null, iterations: measured.iterations ?? null, version: engine.version, qualification: measured.hasLabelOracle ? 'XML-canvas-and-authored-labels' : 'XML-and-canvas', cache: 'public-default-repeats' },
+            })
+            record.samples.push(observation)
+          } catch (error) {
+            record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : 'feature-corpus-attempt', 'failed', { detail: String(error) }))
+            throw error
+          }
+        }
+        try {
+          const cdp = await context.newCDPSession(page)
+          await cdp.send('HeapProfiler.collectGarbage')
+          const heap = await cdp.send('Runtime.getHeapUsage')
+          await cdp.detach()
+          record.samples.push({
+            suite: 'community-browser',
+            surface: 'browser:public-api',
+            runtime: 'chromium-v8',
+            family: '*',
+            caseId: 'post-portfolio-heap',
+            operation: 'memory',
+            format: 'svg',
+            mode: `after-round-${round}`,
+            status: 'passed',
+            metrics: { implementation: peer.node.id, round, jsHeapUsedBytes: heap.usedSize, note: 'Fresh realm, forced GC; not native/WASM/process memory' },
+          })
+        } catch (error) {
+          gaps.push(`${peer.node.id}: browser JS heap unavailable: ${String(error)}`)
+        }
+      } catch (error) {
+        record.error = String(error)
+        if (!record.samples.some(sample => sample.operation === 'load-and-initialize'))
+          record.samples.push({
+            suite: 'community-browser',
+            surface: 'browser:public-api',
+            runtime: 'chromium',
+            family: '*',
+            caseId: 'loader',
+            operation: 'load-and-initialize',
+            format: 'svg',
+            mode: `cold-round-${round}`,
+            status: 'blocked',
+            ...(loadStarted === undefined ? {} : { samplesMs: [performance.now() - loadStarted] }),
+            metrics: { implementation: peer.node.id, round },
+            detail: String(error),
+          })
+        const observed = new Set(record.samples.map(sample => sample.caseId))
+        for (const workload of workloads.filter(workload => !observed.has(workload.id))) record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : 'feature-corpus-attempt', 'blocked', { detail: `Browser realm unavailable after error: ${String(error)}` }))
+        gaps.push(`${peer.node.id} round ${round}: ${String(error)}`)
+      } finally {
+        await browser?.close()
+        await new Promise<void>(done => server.close(() => done()))
+      }
+      const files = [...fetched].map(url => {
+        const file = resolve(engine.root, '.' + decodeURIComponent(url))
+        if (!file.startsWith(engine.root + sep) || !existsSync(file)) return { url, error: 'Fetched file unavailable after timing' }
+        const bytes = readFileSync(file)
+        return { url, bytes: bytes.length, gzip: gzipSync(bytes, { level: 9 }).length, sha256: digest(bytes) }
+      })
+      record.payload = { files, gzip: files.reduce((sum, file) => sum + (file.gzip ?? 0), 0), remoteRequestsBlocked: [...remote] }
+      observations.push(...record.samples, {
+        suite: 'community-browser',
+        surface: 'browser:public-api',
+        runtime: 'chromium',
+        family: '*',
+        caseId: 'observed-request-closure',
+        operation: 'delivery',
+        format: 'js-wasm-fonts',
+        mode: `round-${round}`,
+        status: record.error ? 'blocked' : files.some(file => file.error) ? 'failed' : files.length ? 'passed' : 'blocked',
+        bytes: files.reduce((sum, file) => sum + (file.bytes ?? 0), 0),
+        metrics: { implementation: peer.node.id, round, gzipBytes: files.reduce((sum, file) => sum + (file.gzip ?? 0), 0), requests: files.length, remoteRequestsBlocked: remote.size, version: engine.version },
+      })
+      raw.push(record)
+      mkdirSync(options.out, { recursive: true })
+      writeFileSync(join(options.out, 'community-browser-rounds.json'), JSON.stringify(raw, null, 2) + '\n')
+    }
+  const status = observations.some(row => row.status === 'failed') ? 'failed' : observations.some(row => row.status === 'blocked') ? 'blocked' : 'passed'
+  return { id: 'community-browser', status, startedAt, finishedAt: new Date().toISOString(), observations, gaps, artifacts: [join(options.out, 'community-browser-prepared.json'), join(options.out, 'community-browser-rounds.json')] }
+}
