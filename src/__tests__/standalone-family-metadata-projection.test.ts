@@ -29,13 +29,13 @@ function fixture(table = 'BUILTIN_FAMILY_DESCRIPTOR_SEEDS', extra = '', fields =
 }
 
 function writeFixture(source: string, stable = false): string {
-  const path = join(temporary, 'src/agent', stable ? 'stable-family-metadata.ts' : 'families.ts')
+  const path = join(temporary, 'src/agent', stable ? 'stable-family-metadata.ts' : 'family-registry.ts')
   mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, source)
   return path
 }
 
 function tableStructure(source: string, name: string) {
-  const file = ts.createSourceFile('families.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const file = ts.createSourceFile('family-registry.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const print = (node: ts.Node) => printer.printNode(ts.EmitHint.Unspecified, node, file)
   const declarations = file.statements.flatMap(statement => ts.isVariableStatement(statement) ? [...statement.declarationList.declarations] : [])
   const declaration = declarations.find(value => ts.isIdentifier(value.name) && value.name.text === name)!
@@ -50,7 +50,7 @@ function tableStructure(source: string, name: string) {
 }
 
 test('public Node/IIFE/lazy and default build metadata projection remain untouched', () => {
-  for (const relative of ['src/agent/families.ts', 'src/agent/stable-family-metadata.ts']) {
+  for (const relative of ['src/agent/family-registry.ts', 'src/agent/stable-family-metadata.ts']) {
     const path = join(root, relative), before = readFileSync(path, 'utf8')
     expect(project(path)).toBe(before)
     expect(project(path, { familyEditorMetadata: true })).toBe(before)
@@ -59,7 +59,7 @@ test('public Node/IIFE/lazy and default build metadata projection remain untouch
 
 test('both real exact seed tables preserve every runtime field, witness and known spread', () => {
   let seedCount = 0
-  for (const [relative, name] of [['src/agent/families.ts', 'BUILTIN_FAMILY_DESCRIPTOR_SEEDS'], ['src/agent/stable-family-metadata.ts', 'STABLE_FAMILY_DESCRIPTOR_SEEDS']]) {
+  for (const [relative, name] of [['src/agent/family-registry.ts', 'BUILTIN_FAMILY_DESCRIPTOR_SEEDS'], ['src/agent/stable-family-metadata.ts', 'STABLE_FAMILY_DESCRIPTOR_SEEDS']]) {
     const path = join(root, relative!)
     const before = tableStructure(readFileSync(path, 'utf8'), name!)
     const after = tableStructure(project(path, { familyEditorMetadata: false }), name!)

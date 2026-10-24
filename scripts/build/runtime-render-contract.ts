@@ -236,7 +236,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         loader: 'ts',
         resolveDir: dirname(path),
       }))
-      if (!familyEditorMetadata) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/](?:families|stable-family-metadata)\.ts$/ }, ({ path }) => ({
+      if (!familyEditorMetadata) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/](?:family-registry|stable-family-metadata)\.ts$/ }, ({ path }) => ({
         contents: runtimeFamilyEditorSource(readFileSync(path, 'utf8'), path),
         loader: 'ts',
         resolveDir: dirname(path),
