@@ -3,6 +3,50 @@ import { snapshotSample, compareSample, buildReportHtml, buildSnapshot, summariz
 import { generatedFlowchartSamples } from './generated.ts'
 import { parseRegisteredMermaid } from '../../src/agent/index.ts'
 import { withRenderStageObserver } from '../../src/render-stages.ts'
+import { getFamily, replaceFamilyForTest } from '../../src/agent/families.ts'
+import { apiFailure } from './outcomes.ts'
+
+test.each([true, false])('quality capture attempts both public APIs when debug-only failure=%s', failDebug => {
+  const family = getFamily('flowchart'), calls: boolean[] = []
+  if (!family?.projectPositioned) throw new Error('Flowchart projector is required')
+  const projectPositioned = family.projectPositioned
+  const message = `distinct hook failure ${'界'.repeat(600)}`
+  const restore = replaceFamilyForTest('flowchart', { ...family, projectPositioned(context) {
+    calls.push(Boolean(context.options?.debug))
+    if (Boolean(context.options?.debug) === failDebug) throw new Error(message)
+    return projectPositioned(context)
+  } })
+  try {
+    const sample = snapshotSample({ id: 'independent-api', family: 'flowchart', source: 'flowchart TD\nA-->B' }, 'independent-', {}, { includeAscii: false })
+    expect(sample.ok).toBe(false)
+    expect(calls).toContain(true)
+    expect(calls).toContain(false)
+    expect(sample.failures?.[failDebug ? 'layout' : 'svg']?.message).toContain(message)
+    expect(sample.failures?.[failDebug ? 'svg' : 'layout']).toBeUndefined()
+    if (failDebug) expect(sample.svg).toContain('<svg')
+    else {
+      expect(sample.layout?.nodes.map(node => node.id)).toEqual(['A', 'B'])
+      expect(sample.metrics?.nodeCount).toBe(2)
+    }
+  } finally { restore() }
+})
+
+test('typed failure transport preserves complete causes and certification without stacks', () => {
+  const certification = { status: 'failed', issues: [{ message: 'label body overlaps shaft', ids: ['A', 'A#2'] }] }
+  const cause = Object.assign(new Error('full cause'), { code: 'PAINT_LAYOUT_CERTIFICATION_FAILED', certification })
+  const error = new Error('outer family context', { cause })
+  const retained = JSON.parse(JSON.stringify(apiFailure(error)))
+  expect(retained).toMatchObject({ name: 'Error', message: 'outer family context', cause: {
+    name: 'Error', message: 'full cause', code: cause.code, properties: { certification },
+  } })
+  expect(retained.stack).toBeUndefined()
+  expect(retained.cause.stack).toBeUndefined()
+  const before = { id: 'refused', family: 'flowchart', source: 'flowchart TD\nA-->B', ok: false,
+    error: 'outer family context', failures: { layout: retained } }
+  const changed = structuredClone(before)
+  changed.failures.layout.cause.properties.certification.issues[0].ids.push('A#3')
+  expect(compareSample(before, changed).verdict).toBe('changed')
+})
 
 test('newly supported diagrams improve coverage while lost or missing inputs remain adverse', () => {
   const rendered = snapshotSample({ id: 'support', family: 'flowchart', source: 'flowchart TD\nA --> B' }, 'support-')

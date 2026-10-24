@@ -27,7 +27,7 @@ import type { RenderOptions } from '../../src/types.ts'
 import { validateSerializableRenderOptions, type RenderRequestReceipt } from '../../src/render-contract.ts'
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import { namespaceSvgIds } from '../../src/renderer.ts'
-import { FamilyLayoutError } from '../../src/agent/family-layouts.ts'
+import { attemptApi, failureCode, type ApiFailure } from './outcomes.ts'
 import { generatedFlowchartSamples, type GeneratedFlowchartRange, type GeneratedFlowchartKind } from './generated.ts'
 import { releaseBenchCases } from '../benchmark/release-bench-cases.ts'
 
@@ -42,6 +42,9 @@ export interface SampleResult {
   ok: boolean
   error?: string
   errorCode?: string
+  failures?: { layout?: ApiFailure; svg?: ApiFailure; ascii?: ApiFailure; metrics?: ApiFailure }
+  /** JSON report projection; object aliases, Maps and descriptors are not preserved. */
+  layout?: ReturnType<typeof layoutMermaidWithReceipt>['layout']
   metrics?: QualityMetrics
   svg?: string
   ascii?: string
@@ -75,29 +78,20 @@ export function collectSamples(): SampleInput[] {
 }
 
 export function snapshotSample(input: SampleInput, idPrefix: string, options: RenderOptions = {}, projection: { includeAscii?: boolean } = {}): SampleResult {
-  try {
-    const parsed = parseMermaid(input.source)
-    if (!parsed.ok) {
-      return { id: input.id, family: input.family, source: input.source, ok: false, error: `parse: ${JSON.stringify(parsed.error).slice(0, 200)}` }
-    }
-    const layout = layoutMermaidWithReceipt(parsed.value, { ...options, debug: true })
-    const metrics = measureQuality(layout.layout)
-    const rendered = renderMermaidSVGWithReceipt(input.source, { ...options, idPrefix })
-    let ascii: string | undefined
-    try {
-      if (projection.includeAscii !== false) {
-        ascii = renderMermaidASCII(input.source, options)
-      }
-    } catch {
-      ascii = undefined // some families render SVG-only; that is not a failure
-    }
-    return { id: input.id, family: input.family, source: input.source, ok: true, metrics, svg: rendered.svg, ascii,
-      svgReceipt: JSON.parse(JSON.stringify(rendered.receipt)), layoutReceipt: JSON.parse(JSON.stringify(layout.receipt)) }
-  } catch (e) {
-    const cause = e instanceof FamilyLayoutError ? e.cause : e
-    return { id: input.id, family: input.family, source: input.source, ok: false, error: String(e).slice(0, 300),
-      ...(cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string' ? { errorCode: cause.code } : {}) }
-  }
+  const layout = attemptApi(() => layoutMermaidWithReceipt(input.source, { ...options, debug: true }))
+  const rendered = attemptApi(() => renderMermaidSVGWithReceipt(input.source, { ...options, idPrefix }))
+  const ascii = projection.includeAscii === false ? undefined : attemptApi(() => renderMermaidASCII(input.source, options))
+  const metrics = layout.ok ? attemptApi(() => measureQuality(layout.value.layout)) : undefined
+  const failures = { ...(!layout.ok ? { layout: layout.error } : {}), ...(!rendered.ok ? { svg: rendered.error } : {}),
+    ...(ascii && !ascii.ok ? { ascii: ascii.error } : {}), ...(metrics && !metrics.ok ? { metrics: metrics.error } : {}) }
+  const failure = !layout.ok ? layout.error : !rendered.ok ? rendered.error : metrics && !metrics.ok ? metrics.error : undefined
+  return { id: input.id, family: input.family, source: input.source, ok: layout.ok && rendered.ok && metrics?.ok === true,
+    ...(failure ? { error: `${failure.name}: ${failure.message}`, errorCode: failureCode(failure) } : {}),
+    ...(Object.keys(failures).length ? { failures } : {}),
+    ...(layout.ok ? { layout: layout.value.layout, layoutReceipt: JSON.parse(JSON.stringify(layout.value.receipt)) } : {}),
+    ...(metrics?.ok ? { metrics: metrics.value } : {}),
+    ...(rendered.ok ? { svg: rendered.value.svg, svgReceipt: JSON.parse(JSON.stringify(rendered.value.receipt)) } : {}),
+    ...(ascii?.ok ? { ascii: ascii.value } : {}) }
 }
 
 export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[]; generated?: GeneratedFlowchartRange; generatedKind?: GeneratedFlowchartKind; includeWorkloads?: boolean } = {}): Snapshot {
@@ -164,6 +158,8 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
   }
   if (!before.ok) {
     const sameFailure = before.errorCode === after.errorCode && before.error === after.error
+      && JSON.stringify(before.failures) === JSON.stringify(after.failures)
+      && before.svg === after.svg && JSON.stringify(before.layout) === JSON.stringify(after.layout)
     return { id, family, verdict: sameFailure ? 'unchanged' : 'changed', notes: [sameFailure ? 'both error' : 'failure changed; inspect retained outcomes'], before, after }
   }
 
