@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
-import { inspectScenePrimitives, inspectScenePaintGeometry, inspectNativePaintGeometry, nativePaintAncestors, scenePrimitiveMatrix } from '../scene/inspection.ts'
+import { inspectScenePrimitives, inspectScenePaintGeometry, inspectNativePaintGeometry, createOwnedNativePaintRecorder, nativePaintAncestors, scenePrimitiveMatrix } from '../scene/inspection.ts'
 import { drawNative } from '../scene/native-drawing.ts'
 import type { DrawingProducer } from '../scene/drawing.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
@@ -20,6 +20,13 @@ test.each(['ordinary', 'overridden-map'])('native occurrence snapshots %s caller
   const node = marks.shape({ id: 'surface', role: 'node', geometry: { kind: 'rect', x: 1, y: 2, width: 3, height: 4 }, paint: { fill: '#111' } })
   const inspect = () => inspectNativePaintGeometry({ family: 'flowchart', width: 20, height: 20 }, [{ node, ancestors, owner: parent }, { node, ancestors: parents, owner: parent }, { node }])
   const first = inspect()
+  const recorder = createOwnedNativePaintRecorder({ family: 'flowchart', width: 20, height: 20 })
+  const forged = Object.freeze([Object.freeze({ ...parent })])
+  expect(() => recorder.leaf(node, 'forged', undefined, forged)).toThrow(/owned snapshots/)
+  recorder.leaf(node, 'native.0', undefined, ancestors, false, 1, parent)
+  recorder.leaf(node, 'native.1', undefined, nativePaintAncestors(undefined, parent), false, 1, parent)
+  recorder.leaf(node, 'native.2')
+  expect(recorder.finish()).toEqual(first)
   parent.id = 'changed'
   expect(first.primitives[0]!.ancestors).toEqual([{ id: 'parent', role: 'group' }, { id: 'child', role: 'group' }])
   expect(first.primitives[1]!.ancestors).toEqual([{ id: 'parent', role: 'group' }])
