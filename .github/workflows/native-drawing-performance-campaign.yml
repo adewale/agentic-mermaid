@@ -1,0 +1,14 @@
+name: Native drawing performance campaign
+on:
+  push:
+    branches: [codex/warm-semantic-campaign-20261024]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  qualification:
+    uses: ./.github/workflows/release-benchmark.yml
+    with:
+      evidence-scope: all
+      baseline: latest
+      fixed-baseline-sha: a9d1551da27ddab542a1ae96329464ad65725448
