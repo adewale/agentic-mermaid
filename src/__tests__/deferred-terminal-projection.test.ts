@@ -163,12 +163,14 @@ describe('deferred terminal projection', () => {
     expect(Object.isFrozen(snapshot.terminalProjection)).toBe(true)
   })
 
-  test('a rejected write to a sealed deferred mark leaves its projection readable', () => {
+  test('a rejected write to a sealed deferred mark preserves retained snapshot admission', () => {
     const node = withDeferredTerminalProjections(edge)
-    const expected = deriveConnectorTerminalProjection(deferredTerminalProjectionInput(node)!)
+    const replacement = edge('replacement').terminalProjection
     Object.seal(node)
-    expect(() => { node.terminalProjection = expected }).toThrow()
-    expect(node.terminalProjection).toEqual(expected)
+    expect(() => { node.terminalProjection = replacement }).toThrow()
+    const snapshot = snapshotBoundedExternalData(node, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS) as ConnectorMark
+    expect(snapshot.terminalProjection.lineStyle).toBe('dashed')
+    expect(snapshot.terminalProjection.diagnostics.at(-1)).toBe('Preserved diagnostic')
   })
 
   test('public projection edits do not change its materialized cache state', () => {
