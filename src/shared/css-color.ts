@@ -112,6 +112,11 @@ export function drawableAuthoredCssPaint(value: unknown, allowNone = false): str
   return tryParseCssColor(paint) !== null ? paint : undefined
 }
 
+/** The vocabulary reported when authored color admission fails. */
+export function authoredCssPaintDescription(allowNone: boolean): string {
+  return `a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor${allowNone ? ', none' : ''}, or var(--name)`
+}
+
 /**
  * RenderOptions additionally permits a non-fetching CSS custom-property
  * reference such as `var(--diagram-bg, #fff)`. The same character, balance,

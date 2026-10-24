@@ -176,6 +176,22 @@ describe('native block', () => {
       }
     }
   })
+  test('all retained class and inline paints are admitted before output projection', () => {
+    for (const value of ['notacolor', 'rgb(x)', '#12345']) {
+      for (const directive of ['classDef unused', 'classDef hot', 'style A']) {
+        const source = `block\nA\n${directive} fill:${value}${directive === 'classDef hot' ? '\nclass A hot' : ''}`
+        const named = `${directive}: fill ${JSON.stringify(value)} is not a CSS color`
+        expect(() => renderMermaidSVG(source)).toThrow(named)
+        for (const useAscii of [true, false]) expect(() => renderMermaidASCII(source, { useAscii })).toThrow(named)
+        expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named), origin: 'source' })
+      }
+    }
+    for (const value of ['rgb(1,2,3)', 'hsl(120 100% 50%)', 'var(--brand)']) {
+      const source = `block\nA\nclassDef hot fill:notacolor,fill:${value}\nclass A hot\nstyle A stroke:notacolor,stroke:#f96`
+      expect(renderMermaidSVG(source)).toContain(`fill="${value}"`)
+      expect(() => renderMermaidASCII(source)).not.toThrow()
+    }
+  })
   test('unknown statements remain opaque and missing endpoints block partial rendering', () => {
     const unknown = parse('block\nA\nunknown syntax {')
     expect(unknown.ok).toBe(true)
