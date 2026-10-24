@@ -476,7 +476,7 @@
     },
     {
       "id": "adewale/agentic-mermaid",
-      "categories": ["renderer"],
+      "categories": ["renderer", "parser", "editor"],
       "relation": "fork",
       "parent": "lukilabs/beautiful-mermaid",
       "repo": "https://github.com/adewale/agentic-mermaid",
@@ -499,7 +499,12 @@
         }
       ],
       "roles": ["self"],
-      "inForkSnapshot": true
+      "inForkSnapshot": true,
+      "evidence": [
+        "https://github.com/adewale/agentic-mermaid/blob/d18c718d0253f45d279a9c12e60a96ee8cc9283c/README.md#L13",
+        "https://github.com/adewale/agentic-mermaid/blob/d18c718d0253f45d279a9c12e60a96ee8cc9283c/README.md#L150-L167"
+      ],
+      "notes": "Categories rechecked on 2026-10-24: README links the interactive browser editor and demonstrates public parsing, structured mutation, verification and serialization APIs. Existing package/head observations retain their dates."
     },
     {
       "id": "app-creative/mermaid-ascii",
