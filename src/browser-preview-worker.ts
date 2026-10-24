@@ -1,7 +1,7 @@
 import type { EditorRasterResponse, EditorWorkerArtifact, PreviewWorkerRequest, PreviewWorkerResponse } from './browser-editor-protocol.ts'
 import type { BrowserPngRasterResult } from './browser-png.ts'
 import { detectBuiltinFamilyFromFirstLine } from './agent/family-registry.ts'
-import { normalizeMermaidSource } from './mermaid-source.ts'
+import { normalizeMermaidRenderSource } from './mermaid-source.ts'
 import { captureRenderOptions, capturedRenderBackend } from './render-contract.ts'
 import { sharedRenderOptionsOf } from './shared-render-options.ts'
 import { deferredDependency } from './layout/certification-error.ts'
@@ -24,7 +24,7 @@ async function loadDependency<T>(load: () => Promise<T>): Promise<T> {
 
 async function execute(request: PreviewWorkerRequest): Promise<EditorWorkerArtifact> {
   const { source, options } = request
-  const family = detectBuiltinFamilyFromFirstLine(normalizeMermaidSource(source).firstLine)
+  const family = detectBuiltinFamilyFromFirstLine(normalizeMermaidRenderSource(source, options.mermaidConfig ?? {}).firstLine)
   if (family) await loadDependency(VERIFIED_FAMILY_LOADERS[family])
   const graphicalOptions = request.operation === 'ascii' || request.operation === 'unicode' ? sharedRenderOptionsOf(options) : options
   if (capturedRenderBackend(captureRenderOptions(graphicalOptions)) !== 'default') await loadDependency(() => import('./scene/builtin-backends.ts'))

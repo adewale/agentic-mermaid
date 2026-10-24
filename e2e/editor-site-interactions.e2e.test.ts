@@ -132,6 +132,79 @@ describe('editor and site interactions in a real browser', () => {
     }
   }, 120_000)
 
+  describe.each([
+    ['Packet comment', 'packet', 'packet %% Header comment\n0-7: "Header"', 'Header'],
+    ['Kanban comment', 'kanban', 'kanban %% Header comment\n  todo[To do]\n    parser[Build parser]', 'Build parser'],
+    ['Requirement comment', 'requirement', 'requirementDiagram %% Header comment\n  requirement latency {\n    id: 1\n    text: Respond promptly\n    risk: high\n    verifymethod: test\n  }', 'Respond promptly'],
+    ['Treemap comment', 'treemap', 'treemap %% Header comment\n"Product"\n  "Engineering": 60\n  "Design": 40', 'Engineering'],
+    ['Block comment', 'block', 'block %% Header comment\n  columns 2\n  A["API"] B["Database"]\n  A --> B', 'Database'],
+    ['Sequence entity', 'sequence', 'sequence&#68;iagram\nAlice->>Bob: Encoded header', 'Encoded header'],
+    ['entity and comment', 'sequence', 'sequence&#68;iagram %% Header comment\nAlice->>Bob: Combined header', 'Combined header'],
+    ['BOM, CRLF, frontmatter and init', 'packet', '\uFEFF---\r\ntitle: Packet wrapper\r\nconfig:\r\n  packet:\r\n    bitsPerRow: 16\r\n---\r\n%%{init: {"theme": "default"}}%%\r\nPACKET %% Header comment\r\n0-7: "Wrapped field"', 'Wrapped field'],
+  ])('%s admission', (_name, family, source, label) => {
+    test.each(['svg', 'unicode'] as const)('%s first, then warm, retains accepted source meaning and receipts', async first => {
+      const page = await browser.newPage()
+      try {
+        await page.goto(`${base}/editor/?empty=1`)
+        await page.waitForFunction(() => !!(window as any).__mermaid)
+        const options = { security: 'strict' as const, embedFontImport: false, mermaidConfig: { packet: { bitsPerRow: 8 } } }
+        const expectedSvg = renderAndVerifyMermaid(source, options)
+        const expectedText = renderMermaidASCIIWithReceipt(source, { ...options, colorMode: 'none' })
+        expect(expectedSvg.svg).toContain(label)
+        expect(expectedText.text).toContain(label)
+        expect(expectedSvg.receipt.capabilityDecision.resolutions).toContainEqual(expect.objectContaining({ id: `family:${family}`, status: 'selected' }))
+        const actual = await page.evaluate(async ({ source, options, first }) => {
+          const api = (window as any).__mermaid
+          const svg = () => api.renderMermaidSVGWithReceipt(source, options)
+          const unicode = () => api.renderMermaidUnicodeWithReceipt(source, { ...options, colorMode: 'none' })
+          // No ordinary example or successful render may warm this page first.
+          const cold = await (first === 'svg' ? svg() : unicode())
+          return { cold, svg: await svg(), unicode: await unicode(), warm: await (first === 'svg' ? svg() : unicode()) }
+        }, { source, options, first })
+        const checkSvg = (artifact: typeof actual.svg) => {
+          expect(artifact.svg).toBe(expectedSvg.svg)
+          expect(artifact.receipt).toEqual(expectedSvg.receipt)
+          expect(artifact.verification).toEqual({ ok: expectedSvg.verification.ok, warnings: expectedSvg.verification.warnings, checks: expectedSvg.verification.checks })
+        }
+        const checkText = (artifact: typeof actual.unicode) => {
+          expect(artifact.text).toBe(expectedText.text)
+          expect(artifact.receipt).toEqual(expectedText.receipt)
+          expect(artifact.outputPolicy).toEqual(expectedText.outputPolicy)
+        }
+        checkSvg(actual.svg)
+        checkText(actual.unicode)
+        if (first === 'svg') { checkSvg(actual.cold); checkSvg(actual.warm) }
+        else { checkText(actual.cold); checkText(actual.warm) }
+        expect(page.workers()).toHaveLength(1)
+      } finally { await page.close() }
+    }, 30_000)
+  })
+
+  test.each([
+    ['Markdown fence', '```mermaid\nsequenceDiagram\nAlice->>Bob: Unsupported wrapper\n```', '```mermaid'],
+    ['double-encoded header', 'sequence&amp;#68;iagram\nAlice->>Bob: Decode once', 'sequence&#68;iagram'],
+    ['unowned header suffix', 'sequenceDiagramV2\nAlice->>Bob: Unknown dialect', 'sequenceDiagramV2'],
+  ])('%s remains rejected cold and warm', async (_name, source, header) => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/editor/?empty=1`)
+      await page.waitForFunction(() => !!(window as any).__mermaid)
+      expect(() => renderAndVerifyMermaid(source)).toThrow(`Unrecognized Mermaid header: "${header}"`)
+      const actual = await page.evaluate(async source => {
+        const api = (window as any).__mermaid
+        const rejected = async () => {
+          try { await api.renderMermaidSVGWithReceipt(source); return null }
+          catch (error) { return (error as Error).message }
+        }
+        const cold = await rejected()
+        await api.renderMermaidSVGWithReceipt('sequenceDiagram\nAlice->>Bob: Warm family')
+        return { cold, warm: await rejected() }
+      }, source)
+      expect(actual.cold).toBe(`Unrecognized Mermaid header: "${header}"`)
+      expect(actual.warm).toBe(actual.cold)
+    } finally { await page.close() }
+  }, 30_000)
+
   test('cached-family editing works without new modules and a failed family download retries on the next edit', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     try {

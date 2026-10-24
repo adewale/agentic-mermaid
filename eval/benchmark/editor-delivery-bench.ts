@@ -119,6 +119,8 @@ try {
         await api.renderMermaidUnicodeWithReceipt(source, { colorMode: 'none' })
       }, source)
       snapshot('all-families-and-features', 0)
+      // This is warm output parity: the session above installed every family.
+      // Cold source admission is exercised in fresh pages by browser contracts.
       if (round === 1 && options.get('--corpus') === 'official') {
         const inputs = officialCorpusInventory().occurrences
         for (let start = 0; start < inputs.length; start += 40) {
@@ -141,5 +143,5 @@ try {
     } finally { await context.close(); await host.close() }
   }
   if (errors.length) throw new Error(errors.join('\n'))
-  writeFileSync(reportPath, JSON.stringify({ status: 'completed', advisory: true, site, browser: browser.version(), rounds, policy: 'Fresh contexts, local uncompressed HTTP, remote assets blocked; compression estimates of distinct fetched assets, with cumulative stage counts/bytes rather than repeated wire transfers; three warm edits after a warmup per tree size.', stages, samples, artifacts, official, errors }, null, 2) + '\n')
+  writeFileSync(reportPath, JSON.stringify({ status: 'completed', advisory: true, site, browser: browser.version(), rounds, policy: 'Fresh contexts per delivery round, local uncompressed HTTP, remote assets blocked; compression estimates of distinct fetched assets, with cumulative stage counts/bytes rather than repeated wire transfers; three warm edits after a warmup per tree size. Official corpus output parity runs after all families/features are loaded; it does not test cold source admission.', stages, samples, artifacts, official, errors }, null, 2) + '\n')
 } finally { await browser.close() }

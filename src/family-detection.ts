@@ -1,5 +1,5 @@
 import type { FamilyDescriptor } from './agent/families.ts'
-import { detectInstalledFamilyDescriptorFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
+import { detectInstalledFamilyDescriptorFromFirstLine, installedFamilyStatementEnds, normalizeFamilyDetectionLine } from './agent/family-router.ts'
 import type {
   FamilyId,
   PreservedDiagramBody,
@@ -32,9 +32,7 @@ export function classifyMermaidFamilyDescriptorFromFirstLine(
   firstLine: string,
   mode: 'strict' | 'loose' = 'strict',
 ): MermaidFamilyDescriptorClassification {
-  // Mermaid comments are inert even when appended to a family declaration.
-  // Keep authored bytes separately for provenance and diagnostics.
-  const semanticFirstLine = firstLine.replace(/%%.*$/, '').trim()
+  const semanticFirstLine = normalizeFamilyDetectionLine(firstLine)
   const family = detectInstalledFamilyDescriptorFromFirstLine(semanticFirstLine, mode)
   if (family) return { kind: 'registered', family }
   const upstream = findUpstreamFamilyByHeader(semanticFirstLine)

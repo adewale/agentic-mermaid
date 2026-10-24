@@ -408,6 +408,39 @@ review count is not a gate. Future scope additions should have their own stated
 contract and change; this follow-up does not rewrite the already-reviewed
 production implementation or split its history.
 
+## Cold source admission — 24 October
+
+The final Astra review found another original loading regression: a cold worker
+rejected `packet %% Comment` and entity-spelled Sequence headers even though
+the eager renderer accepted them. Rendering a plain header first made the
+identical failing source work. The preloader had introduced a second input
+interpretation before canonical rendering: authored rather than decoded source,
+and seed detection without the canonical classifier's comment stripping.
+
+Loading and render admission now use `normalizeMermaidRenderSource`, which
+retains authored bytes while selecting the once-decoded render view. Executable,
+unloaded and generated browser-family routing share `normalizeFamilyDetectionLine`.
+The public async browser catalog had the same header-comment omission and now
+uses that rule too. No family detector or loading path owns a separate comment
+stripping rule.
+
+The browser admission cases use explicit source and label expectations, then
+compare complete SVG/verification and terminal receipts against eager execution.
+Each accepted input starts in a new empty page, with SVG and Unicode separately
+tested as the first operation, followed by warm requests for the same source.
+Sixteen cases fail against the pinned broken build and pass with the fix.
+Three negative controls keep fenced source, double-encoded headers and unknown
+header suffixes rejected both cold and warm. A proposed fenced positive fixture
+was rejected by the eager baseline and corrected before final red/green checking;
+the fix does not broaden that language boundary. Public async detection/render
+coverage also fails before its catalog fix and passes afterward.
+
+The earlier 1,095-input delivery comparison ran after every family had loaded.
+It remains useful warm output-parity evidence; it never established cold source
+admission. The benchmark's report policy now states that limitation explicitly.
+The missing proof was agreement between accepted source representations and
+first-load selection, not a larger count of ordinary example renders.
+
 ## Reproduction
 
 Build the unchanged baseline into one retained directory and the candidate into

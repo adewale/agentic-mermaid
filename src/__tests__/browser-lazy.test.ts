@@ -142,6 +142,7 @@ describe('async browser SVG entry', () => {
         candidates.add(header)
         candidates.add(`  ${header.toUpperCase()}  `)
         candidates.add(`${header}; ignored suffix`)
+        candidates.add(`${header} %% Header comment`)
         candidates.add(`${header} unexpected`)
         candidates.add(`${header}V2`)
       }
@@ -153,8 +154,8 @@ describe('async browser SVG entry', () => {
     }
   })
 
-  test('normalizes BOM, frontmatter, init directives, and comments before loading', async () => {
-    const source = `\uFEFF---
+  test.each([
+    ['wrapper', `\uFEFF---
 config:
   theme: base
 ---
@@ -162,8 +163,13 @@ config:
 %% wrapper comment
 timeline
   title Wrapped
-  2026 : Ship`
-    expect(await renderMermaidSVGAsync(source, { security: 'strict' }))
+  2026 : Ship`, 'Ship'],
+    ['header comment', 'packet %% Header comment\n0-7: "Header"', 'Header'],
+    ['encoded header and comment', 'sequence&#68;iagram %% Header comment\nAlice->>Bob: Decoded once', 'Decoded once'],
+  ])('normalizes %s before loading', async (_name, source, label) => {
+    const svg = await renderMermaidSVGAsync(source, { security: 'strict' })
+    expect(svg).toContain(label)
+    expect(svg)
       .toBe(renderMermaidSVG(source, { security: 'strict' }))
   })
 

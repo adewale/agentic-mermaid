@@ -633,6 +633,12 @@ export function normalizeMermaidSourceWithOverrides(
   }
 }
 
+/** Semantic input for render admission and hosts that load its family first.
+ * Decode transport spelling once while retaining original bytes for receipts. */
+export function normalizeMermaidRenderSource(text: string, overrides: MermaidRuntimeConfig = {}): NormalizedMermaidSource {
+  return normalizeMermaidSourceWithOverrides(text, overrides, 'render')
+}
+
 function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccessibility): {
   wrapperSource?: string
   initDirectives: MermaidSourceInitDirective[]

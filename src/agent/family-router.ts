@@ -22,7 +22,9 @@ const loadedFamilyDescriptors = new Map<FamilyId, FamilyDescriptor>()
 export type CompatibilityGraphFamilyId = 'flowchart' | 'state'
 
 export function normalizeFamilyDetectionLine(firstLine: string): string {
-  return (firstLine.split(';')[0] ?? '').trim().toLowerCase()
+  // Comments on a family declaration are inert. Keep their authored bytes in
+  // the source receipt; executable and not-yet-loaded families share this view.
+  return (firstLine.replace(/%%.*$/, '').split(';')[0] ?? '').trim().toLowerCase()
 }
 
 /** Lightweight compatibility-parser ownership, deliberately independent of
