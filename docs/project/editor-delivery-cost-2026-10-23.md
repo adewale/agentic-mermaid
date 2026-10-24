@@ -376,6 +376,12 @@ changes guidance, the template, hygiene messages and classification wording;
 it does not alter renderer, worker, benchmark or matching behavior. The PR
 description records the final follow-up head and its own CI result.
 
+Main subsequently advanced to `2cff725d219c75b75593b1d3e9bacd74cba7a08e`
+with the same patched dependency versions. Integrating it retains this PR's
+exact package/lock bytes, including explicit body-parser and Zod overrides.
+The review procedure therefore also rechecks the current base; the original
+measurement baseline above remains a dated comparison, not the current PR base.
+
 | Observable contract and owning boundary | Evidence | Remaining limit |
 | --- | --- | --- |
 | Eager library/standalone consumers and cold hosted families retain rendering, verification and receipt meaning | `verified-preview`, family conformance and browser contracts; 87 captured artifacts and 1,095 official results agree with base. The fourth runtime review compared 400 cold/warm operations with no difference. | Purposeful fixtures and corpus inputs, not every diagram/option combination. |

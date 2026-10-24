@@ -125,9 +125,10 @@ and files production code imports at runtime.
   boundaries explicitly. A reviewer may report no finding. Audit count and
   passing-test count are not completion criteria.
 - Before reporting a PR ready, follow CI for the exact final head through
-  completion, investigate failures, and recheck that the PR head has not moved.
-  A new push invalidates the previous readiness result; requalify affected
-  evidence after code or dependency changes.
+  completion, investigate failures, and recheck the current base and PR head.
+  A new push invalidates the previous readiness result. A base update requires
+  checking the combined candidate again; requalify affected evidence after
+  code or dependency changes.
 
 ### Shared meaning and output-specific geometry
 

@@ -760,8 +760,9 @@ replace that reconciliation.
 Completion requires resolved confirmed in-scope defects, evidence for the
 declared contracts, disclosed remaining limitations, and successful required CI
 for the exact final head. Record the base/head and dependency revision, link
-the CI run, wait for terminal results, then recheck the PR head. After a push,
-follow the new run; after code/dependency changes, requalify affected contracts.
+the CI run, wait for terminal results, then recheck the current base and PR head.
+After a push, follow the new run. A base update requires a fresh check of the
+combined candidate; after code/dependency changes, requalify affected contracts.
 Retained measurements may apply when their shipped/input bytes are unchanged;
 keep their original revision, date and limits. Never report a pending run as
 ready. The hygiene script reports heuristics, not this completion decision.
