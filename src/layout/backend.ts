@@ -1,15 +1,9 @@
 import type { RenderOptions } from '../types.ts'
+import { LayoutCertificationError } from './certification-error.ts'
+export { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
+export { withRenderStageObserver, measureRenderStage, type RenderStage, type RenderStageSample } from '../render-stages.ts'
 
 export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@26'
-
-/** A synchronous producer can suspend for a dependency in the async entry.
- * Loading is neither geometric infeasibility nor a solver failure. */
-export class DeferredDependencyError extends Error {
-  constructor(name: string, readonly load: () => Promise<void>) {
-    super(`${name} must load before this operation can complete`)
-    this.name = 'DeferredDependencyError'
-  }
-}
 
 export interface GraphLayoutDecision {
   readonly requested: 'elk' | 'agentic'
@@ -114,36 +108,4 @@ export function runMeasuredGraphBackend<T>(
   retainDecision?.(result, decision)
   emitGraphLayoutDecision(decision)
   return result
-}
-
-export interface LayoutCertificationAttempt {
-  strategy: string
-  violations: string[]
-}
-
-/** Shared by graph certification and the family-neutral final geometry veto. */
-export class LayoutCertificationError extends Error {
-  readonly code = 'LAYOUT_CERTIFICATION_FAILED'
-  constructor(readonly attempts: readonly LayoutCertificationAttempt[]) {
-    super(`No certified layout after ${attempts.length} bounded attempts: ${attempts.map(attempt => `${attempt.strategy}: ${attempt.violations.join('; ')}`).join(' | ')}`)
-    this.name = 'LayoutCertificationError'
-  }
-}
-
-/** Internal diagnostic observation. No clock reads occur in normal renders. */
-export type RenderStage = 'request' | 'layout' | 'graph-preparation' | 'agentic' | 'elk' | 'scene' | 'drawing' | 'paint-certification' | 'backend' | 'svg-security'
-export interface RenderStageSample { readonly stage: RenderStage; readonly ms: number }
-let stageObserver: ((sample: RenderStageSample) => void) | undefined
-
-export function withRenderStageObserver<T>(observe: (sample: RenderStageSample) => void, run: () => T): T {
-  const previous = stageObserver
-  stageObserver = observe
-  try { return run() } finally { stageObserver = previous }
-}
-
-export function measureRenderStage<T>(stage: RenderStage, run: () => T): T {
-  const observe = stageObserver
-  if (!observe) return run()
-  const start = performance.now()
-  try { return run() } finally { observe(Object.freeze({ stage, ms: performance.now() - start })) }
 }

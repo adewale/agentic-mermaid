@@ -185,7 +185,7 @@ test('family ownership follows constructed identities and backend ownership foll
 })
 
 for (const family of ['flowchart', 'state'] as const) {
-  test(`native ${family} geometry stays isolated across private/public/PNG order and replacement hooks`, async () => {
+  for (const backend of ['elk', 'agentic', ...(family === 'flowchart' ? ['fallback'] : [])]) test(`${backend} ${family} geometry stays isolated across private/public/PNG order and replacement hooks`, async () => {
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
       import { renderMermaidSVGWithReceipt } from './src/index.ts'
@@ -195,15 +195,20 @@ for (const family of ['flowchart', 'state'] as const) {
       import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
       import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
       const family = ${JSON.stringify(family)}
-      const source = family === 'flowchart'
+      const source = ${JSON.stringify(backend)} === 'fallback'
+        ? 'flowchart TD\\nsubgraph CacheOwnerOuter\\nsubgraph CacheOwnerGroup\\nCacheOwnerA[Source] --> CacheOwnerB[Target]\\nend\\nend\\nCacheOwnerOuter --> CacheOwnerA'
+        : family === 'flowchart'
         ? 'flowchart LR\\nsubgraph CacheOwnerGroup["Group"]\\nCacheOwnerA["wide 界 #35; text"] -->|first| CacheOwnerB["Tail"]\\nCacheOwnerA -->|second| CacheOwnerB\\nCacheOwnerB -->|return| CacheOwnerA\\nend'
         : 'stateDiagram-v2\\nstate CacheOwnerGroup {\\nstate "wide 界 #35; text" as CacheOwnerA\\nstate "Tail" as CacheOwnerB\\nCacheOwnerA --> CacheOwnerB: first\\nCacheOwnerA --> CacheOwnerB: second\\nCacheOwnerB --> CacheOwnerA: return\\n}\\n[*] --> CacheOwnerGroup'
-      const options = { embedFontImport: false, seed: 7 }
+      const options = { embedFontImport: false, seed: 7,
+        graphLayout: ${backend === 'fallback' ? "{ backend: 'agentic', fallback: 'elk' }" : `{ backend: ${JSON.stringify(backend)} }`},
+        onConfigDiagnostic: () => {} }
       const withoutPositionCache = callback => withPerformanceExperiments(
         PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), callback)
       const reference = withoutPositionCache(() => renderMermaidSVGWithReceipt(source, options))
       const first = renderMermaidSVGWithReceipt(source, options)
       assert.deepEqual(first, reference)
+      assert.equal(first.receipt.layoutDecisions[0].selected, ${JSON.stringify(backend === 'fallback' ? 'elk' : backend)})
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
       const poison = result => {
         result.positioned.width = NaN

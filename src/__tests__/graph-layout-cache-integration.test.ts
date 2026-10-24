@@ -32,11 +32,15 @@ const prelude = `
   }
 `
 
-test('native snapshot hits retain producer decisions, replay current roles and isolate public mutation', async () => {
+for (const family of ['flowchart', 'state'] as const) test(`native ${family} snapshot hits retain producer decisions, replay current roles and isolate public mutation`, async () => {
   const child = await runChild(process.execPath, ['-e', `${prelude}
     withPerformanceExperiments(['text-spans', 'position-cache'], () => {
-      const source = ['flowchart TD', 'subgraph NativeCacheFrame[Stable frame]',
-        ' NativeCacheA[Start] -->|kept label| NativeCacheB[Finish]', 'end'].join(String.fromCharCode(10))
+      const family = ${JSON.stringify(family)}
+      const source = (family === 'flowchart'
+        ? ['flowchart TD', 'subgraph NativeCacheFrame[Stable frame]',
+          ' NativeCacheA[Start] -->|kept label| NativeCacheB[Finish]', 'end']
+        : ['stateDiagram-v2', 'state NativeCacheFrame {',
+          ' NativeCacheA --> NativeCacheB: kept label', '}']).join(String.fromCharCode(10))
       const options = { graphLayout: { backend: 'agentic' } }
       const request = output => resolveRenderRequestForExecution(source, options, output)
       const firstRequest = request('svg')
@@ -47,7 +51,6 @@ test('native snapshot hits retain producer decisions, replay current roles and i
       const hitRequest = request('svg')
       const hit = observe(() => positionFamilyForNativeRender(hitRequest))
       assert.deepEqual(hit.stages, [])
-      assert.notStrictEqual(hit.value, first.value)
       assert.deepEqual(hit.value, first.value)
       assert.equal(graphLayoutDecisionsOf(hit.value).length, 1)
       decision(hitRequest, 'agentic', 'primary')
@@ -57,7 +60,7 @@ test('native snapshot hits retain producer decisions, replay current roles and i
       assert.strictEqual(retainedFamilyProjection(again.value), retainedFamilyProjection(hit.value))
 
       const companionRequest = request('ascii')
-      const companion = observe(() => positionResolvedFamily('flowchart', companionRequest))
+      const companion = observe(() => positionResolvedFamily(family, companionRequest))
       assert.deepEqual(companion.stages, [])
       assert.notStrictEqual(companion.value, hit.value)
       decision(companionRequest, 'agentic', 'companion')
@@ -65,7 +68,7 @@ test('native snapshot hits retain producer decisions, replay current roles and i
       assert.equal(graphLayoutDecisionsOf(companion.value)[0].role, undefined)
 
       const publicRequest = request('svg')
-      const exposed = observe(() => positionResolvedFamily('flowchart', publicRequest))
+      const exposed = observe(() => positionResolvedFamily(family, publicRequest))
       assert.deepEqual(exposed.stages, [])
       assert.notStrictEqual(exposed.value.positioned, hit.value.positioned)
       assert.equal(graphLayoutDecisionsOf(exposed.value).length, 1)

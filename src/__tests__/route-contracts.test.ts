@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, recertifyReroutedEdge, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -149,6 +149,33 @@ it('keeps route clearance live when trusted label measurement moves an obstacle'
       Math.min(Math.max(a.x, b.x), obstacle.x + obstacle.width + 4) > Math.max(Math.min(a.x, b.x), obstacle.x - 4)
     expect(verticalConflict || horizontalConflict).toBe(false)
   }
+})
+
+it('keeps later fan-out repairs clear of a peer route moved earlier in the same pass', () => {
+  // Reduced from actual post-solver mesh geometry. The unrelated first repair
+  // probes the fan-out routes before either sibling changes its channel.
+  const graph = parseMermaid('flowchart TD\nU-->V\nA-->B\nA-->C')
+  const node = (id: string, x: number, y: number, width = 60): PositionedNode =>
+    ({ id, label: id, shape: 'rectangle', x, y, width, height: 37 })
+  const nodes = [node('A', 743, 851), node('U', 195, 476), node('V', 367, 712),
+    node('B', 809, 1032, 64), node('C', 901, 1032, 64)]
+  const routes = [
+    [[247, 513], [247, 537], [375, 537], [375, 712]],
+    [[787, 888], [787, 912], [841, 912], [841, 1032]],
+    [[795, 888], [795, 906], [933, 906], [933, 1032]],
+  ]
+  const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex,
+    points: routes[edgeIndex]!.map(([x, y]) => ({ x: x!, y: y! })) }))
+  const style = resolveRenderStyle()
+  applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set(), style,
+    { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true })
+  const later = edges[2]!, start = later.points[0]!, turn = later.points[1]!
+  expect(turn.y - start.y).toBeGreaterThan(16)
+  // Re-prove the returned first leg in a fresh borrowed context: it must not
+  // share a channel with the earlier sibling's newly settled vertical leg.
+  const { ctx } = laneContextFor(nodes, edges, 'TD', style)
+  expect(directLaneBlockers(later, start.x, start.y + 8, turn.y - 8, ctx)).toEqual([])
+  expect(edges.map(edge => [edge.source, edge.target])).toEqual([['U', 'V'], ['A', 'B'], ['A', 'C']])
 })
 
 describe('route proposal crossing consistency', () => {

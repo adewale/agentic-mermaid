@@ -593,7 +593,7 @@ describe('async family-loaded browser renderer', () => {
     const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
       : mode === 'large-cross-scope' ? releaseBenchCases().find(input => input.id === 'flowchart:subgraphs-12x8')!.source
       : mode === 'frame-endpoint' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOutside --> Inner'
-      : mode === 'compound' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOuter --> A'
+      : mode === 'compound' ? '---\ntitle: Deferred providers\n---\nflowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOuter --> A'
       : `flowchart TD\n${mode === 'cross-scope' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'cross-scope' ? '\nend' : ''}`
     const options = {
       graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
@@ -614,7 +614,41 @@ describe('async family-loaded browser renderer', () => {
       expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
       expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(fallback ? 1 : 0)
       expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(1)
+      if (mode === 'compound') for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(1)
       expect(result.receipt.layoutDecisions[0].selected).toBe(fallback ? 'elk' : 'agentic')
+    } finally { await page.close() }
+  })
+
+  test('a failed native chunk rejects without ELK fallback and a fresh document can recover', async () => {
+    const page = await browser.newPage()
+    const requests: string[] = []
+    const implementation = lazyImplementationChunk('/layout/agentic-layered-core.ts')
+    const source = 'flowchart TD\n A[Source] --> B[Target]'
+    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'elk' as const }, security: 'strict' as const }
+    let attempts = 0
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    await page.route(`**/dist/${implementation}`, route => ++attempts === 1 ? route.abort('failed') : route.continue())
+    try {
+      await page.goto(`${base}/blank.html`)
+      const failure = await page.evaluate(async ({ entry, source, options }) => {
+        const api = await import(entry)
+        try { await api.renderMermaidSVGWithReceiptAsync(source, options); return null }
+        catch (error) { return { name: error instanceof Error ? error.name : '', message: String(error) } }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+      expect(failure).not.toBeNull()
+      expect(failure!.name).toBe('TypeError')
+      expect(attempts).toBe(1)
+      expect(requests).not.toContain(lazyImplementationChunk())
+      await page.reload()
+      const recovered = await page.evaluate(async ({ entry, source, options }) => {
+        const api = await import(entry)
+        const result = await api.renderMermaidSVGWithReceiptAsync(source, options)
+        return { svg: result.svg, receipt: result.receipt }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+      const expected = renderMermaidSVGWithReceipt(source, options)
+      expect(recovered).toEqual({ svg: expected.svg, receipt: expected.receipt })
+      expect(attempts).toBe(2)
+      expect(requests).not.toContain(lazyImplementationChunk())
     } finally { await page.close() }
   })
 

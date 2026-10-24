@@ -10,7 +10,7 @@ import { asFlowchart } from '../agent/types.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { createBrowserEditorAdapter } from '../browser-editor-adapter.ts'
 
-import { withRenderStageObserver } from '../render-stages.ts'
+import { withRenderStageObserver } from '../layout/backend.ts'
 
 describe('one positioned artifact for preview and verification', () => {
   test('verification preserves a suspended provider through a family layout wrapper', () => {

@@ -186,6 +186,9 @@ async function generateEditorHtml(): Promise<string> {
               return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/agent/family-registry.ts', import.meta.url)) } : undefined
             })
             build.onResolve({ filter: /(?:^|\/)elk-constructor\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/elk-constructor.lazy.ts', import.meta.url)) }))
+          build.onResolve({ filter: /(?:^|\/)indexed-forest\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/experimental/indexed-forest.lazy.ts', import.meta.url)) }))
+          build.onResolve({ filter: /(?:^|\/)agentic-layered\.ts$/ }, args => args.kind === 'dynamic-import' ? undefined
+            : { path: fileURLToPath(new URL('../../src/layout/agentic-layered.lazy.ts', import.meta.url)) })
           },
         },
       ],
