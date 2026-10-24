@@ -76,6 +76,23 @@ dependencies. Layout, paint and source-correspondence proofs retain their
 independent meanings. Security checks observe final bytes after relevant
 transformations. MCP laziness preserves hardening and collection semantics.
 
+## North-star measures
+
+The goal is lower cost for complete, correct public renders. Beating Beautiful and approaching Pele are competitive targets, not forecasts of what a particular redesign can achieve. There is no composite score that can hide a speed loss with a smaller download or treat lower allocation as lower retained memory. Compare the same sources, supported semantics, output consumers and runtime settings; keep the cohort fixed.
+
+| Measure | Goal | Measurement boundary |
+|---|---|---|
+| Fresh-render p50 and p95 | Beat Beautiful on the fixed shared cohort, then approach Pele. The current architectural investment milestone is at least 2× fresh Sequence speed. | A public render through complete UTF-8 SVG consumption; complete serialized receipts form a separate Agentic track. Preserve per-case results as well as the fixed-cohort geometric mean. Peer receipts and unobservable semantics remain unavailable rather than equivalent. |
+| Allocation per complete render | Beat Beautiful on comparable cases; halve fresh Sequence allocation for the architectural milestone. | Independent sampled V8 allocation probes, both SVG and full receipts, with same-artifact controls. This excludes native/WASM memory and does not establish retention. |
+| Retained and peak memory under churn | Lower steady post-GC retained heap without unbounded growth; reduce valid worker-memory measurements while keeping cache/output lifetimes explicit. | Separate warmed, output-held and released checkpoints, plus cache-cleared checkpoints where supported; fixed unique-source/edit/churn sequences. Process-lifetime maxRSS with a possible inherited floor cannot qualify renderer footprint. Report worker current-RSS/current-mm peaks and startup context when available; no invented subtraction of high-water marks. |
+| Delivered code and requests | Lower compressed bytes for actual consumers and first diagrams, and reduce the complete supported-feature closure. | gzip/Brotli for the shipped consumer, lazy initial closure, actual first-family requests, and all YAML/entity/ELK demand transfers. Compare matched feature scopes; broader packages with different APIs/families are descriptive comparisons. Retain unchanged worst-case caps. |
+
+Record which stages actually compute or reuse work: a new source variant may retain reusable topology or geometry, and cache-on public latency remains distinct from newly computed engine throughput. Required checks cover first use, warm new sources, exact repeats and real edits under cache off/on, plus scaling and the full supported corpus. First-call render latency is separate from module acquisition/import/startup. One first-use call per round does not qualify p95, and missing cold allocation probes remain unavailable. Layout size/crossings/bends and routing failures remain owner-specific quality checks; faster rendering cannot be purchased by losing authored meaning, coverage, public mutation/getter behavior, security, limits or failure ordering.
+
+The competitive goal is a candidate/peer ratio below 1 on observable matched semantics. The existing maintained regression targets (p50 1.05, p95 1.10, allocation 1.05) and its control/noise policy govern investigation/qualification; they are not claims of competitive success. Keep calibrated passes, failures, unavailable and uncalibrated cells distinct. Stage-share arithmetic, replay substitutions, source microbenchmarks and literature examples guide experiments but do not satisfy these public-call targets.
+
+The current 2×/50% milestone is a go/no-go investment gate for a broad architectural Sequence slice, not a claim that halving Agentic would catch Beautiful across every family. Narrow changes may be retained for demonstrated incremental gains or consistency benefits under the existing campaign selection rules, with regressions and tradeoffs explicit.
+
 ## Measurement and selection
 
 Run maintained complete release and browser corpora, scaling and workflow cases,
@@ -112,3 +129,13 @@ accounts for every original area, including broader work that remains absent.
 Lower allocation and faster editing/startup do not establish the competitive
 rendering or production bundle-size goal. `TODO.md` retains landing and
 remaining performance work; this design contract is not a second backlog.
+
+The [catch-up campaign](../../project/archive/performance-catchup-2026-10-23.md)
+starts after merged #467/#468. It records withdrawn bc8’s allocation and lazy
+delivery changes, failed peer qualification, rejected partial fusion, native
+bounds rejection, and source-pinned Frankenmermaid ideas. Final #471 retains
+only diagnostics and authored reporting; its measured production trials were
+withdrawn after selection and ownership integration. #433 has carried
+YAML/security work while #449 retains the graph solver and readiness owners.
+Their eventual composition requires a newly qualified artifact; branch gains
+are never added. PERF-1 remains the sole completion inventory.
