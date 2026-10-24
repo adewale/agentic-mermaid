@@ -163,6 +163,14 @@ describe('deferred terminal projection', () => {
     expect(Object.isFrozen(snapshot.terminalProjection)).toBe(true)
   })
 
+  test('a rejected write to a sealed deferred mark leaves its projection readable', () => {
+    const node = withDeferredTerminalProjections(edge)
+    const expected = deriveConnectorTerminalProjection(deferredTerminalProjectionInput(node)!)
+    Object.seal(node)
+    expect(() => { node.terminalProjection = expected }).toThrow()
+    expect(node.terminalProjection).toEqual(expected)
+  })
+
   test('retained snapshots apply identical resource caps to eager and deferred construction', () => {
     const limits = EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS
     const unicodeEdge = (): ConnectorMark => marks.connector({

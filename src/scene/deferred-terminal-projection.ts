@@ -32,8 +32,8 @@ const property: PropertyDescriptor = {
   get(this: ConnectorMark) { return projectionOf(this) },
   set(this: ConnectorMark, value: ConnectorMark['terminalProjection']) {
     if (Object.isFrozen(this)) throw new TypeError('Cannot assign to readonly terminalProjection')
-    deferred.delete(this)
     Object.defineProperty(this, 'terminalProjection', { value, enumerable: true, configurable: true, writable: true })
+    deferred.delete(this)
   },
 }
 
@@ -42,6 +42,9 @@ function install(node: ConnectorMark, input: ConnectorTerminalProjectionInput): 
   Object.defineProperty(node, 'terminalProjection', property)
 }
 
+/** The mark constructor transfers its fresh private input record here. Nested
+ * caller diagnostics still need their own snapshot; the public marker map is
+ * separate. This is not an admission path for arbitrary caller-owned records. */
 export function setConnectorTerminalProjection(node: ConnectorMark, input: ConnectorTerminalProjectionInput): void {
   // Path derivation also validates marker-mid ownership across contours, so it
   // stays eager. Additional diagnostics are captured before any caller can
@@ -51,10 +54,10 @@ export function setConnectorTerminalProjection(node: ConnectorMark, input: Conne
     node.terminalProjection = deriveConnectorTerminalProjection(input)
     return
   }
-  install(node, Object.freeze({
-    ...input,
-    ...(input.additionalDiagnostics ? { additionalDiagnostics: Object.freeze([...input.additionalDiagnostics]) } : {}),
-  }))
+  if (input.additionalDiagnostics) Object.defineProperty(input, 'additionalDiagnostics', {
+    value: Object.freeze([...input.additionalDiagnostics]), enumerable: true, configurable: true, writable: true,
+  })
+  install(node, Object.freeze(input))
 }
 
 /** A getter borrowed by a forged object is not registered and is never trusted. */

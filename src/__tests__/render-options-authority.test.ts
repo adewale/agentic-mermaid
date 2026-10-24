@@ -230,6 +230,19 @@ describe('shared RenderOptions authority', () => {
     expect(Object.isFrozen(request.renderOptions.class)).toBe(true)
   })
 
+  test('preserves captured own option values despite inherited setters', () => {
+    const prior = Object.getOwnPropertyDescriptor(Object.prototype, 'padding')
+    let padding: unknown
+    try {
+      Object.defineProperty(Object.prototype, 'padding', { configurable: true, set() {} })
+      padding = resolveRenderRequest('sequenceDiagram\nA->>B: Hello', { padding: 42 }).renderOptions.padding
+    } finally {
+      if (prior) Object.defineProperty(Object.prototype, 'padding', prior)
+      else Reflect.deleteProperty(Object.prototype, 'padding')
+    }
+    expect(padding).toBe(42)
+  })
+
   test('captures onConfigDiagnostic once outside the serializable request', () => {
     let callbackReads = 0
     const first: string[] = []

@@ -392,7 +392,9 @@ export function connector(fields: ConnectorFields): ConnectorMark {
   }
   // Fill omitted tangent fields from geometry. Curved projections retain any
   // exact derivative supplied by their lowering over the flattened chord.
-  const contours: ConnectorContourSemantics[] = derivedContours.map((derived, index) => {
+  // Geometry derivation owns these fresh contour records and endpoint copies.
+  // Keep them directly unless caller-supplied tangents need merging.
+  const contours: ConnectorContourSemantics[] = suppliedContours ? derivedContours.map((derived, index) => {
     const supplied = suppliedContours?.[index]
     const startTangent = supplied?.startTangent ?? derived.startTangent
     const endTangent = supplied?.endTangent ?? derived.endTangent
@@ -403,7 +405,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
       ...(startTangent ? { startTangent } : {}),
       ...(endTangent ? { endTangent } : {}),
     }
-  })
+  }) : derivedContours
   for (const contour of contours) {
     for (const tangent of [contour.startTangent, contour.endTangent]) {
       if (!tangent) continue
@@ -434,16 +436,8 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     closed: routeClosed,
     bendRadius: fields.route?.bendRadius ?? 0,
     contours,
-    ...(() => {
-      const derived = {
-        start: contours[0]?.startTangent,
-        end: contours.at(-1)?.endTangent,
-      }
-      return {
-        ...(fields.route?.startTangent ?? derived.start ? { startTangent: fields.route?.startTangent ?? derived.start } : {}),
-        ...(fields.route?.endTangent ?? derived.end ? { endTangent: fields.route?.endTangent ?? derived.end } : {}),
-      }
-    })(),
+    ...(fields.route?.startTangent ?? contours[0]?.startTangent ? { startTangent: fields.route?.startTangent ?? contours[0]?.startTangent } : {}),
+    ...(fields.route?.endTangent ?? contours.at(-1)?.endTangent ? { endTangent: fields.route?.endTangent ?? contours.at(-1)?.endTangent } : {}),
     labelAnchors: fields.route?.labelAnchors ?? labels.flatMap(label => label.anchor ? [label.anchor] : []),
   }
   if (fields.hit?.closed !== undefined && fields.hit.closed !== routeClosed) {

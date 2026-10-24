@@ -1050,18 +1050,17 @@ const FAMILY_DATA_MAX_CHARS = 2_000_000
 interface FamilyDataNormalizationBudget {
   nodes: number
   chars: number
+  opaque: boolean
 }
 
-/** Compact JSON-like family data under explicit recursion and aggregate-size
- * limits. This guard runs before the recursive schema validator and immutable
- * snapshot, so a buggy extension cannot trigger an unbounded stack walk first. */
+/** Capture compact immutable data under the bounds before schema validation.
+ * Opaque leaves remain unbranded for the owner's subsequent rejection. */
 function omitUndefinedObjectFields(
   value: unknown,
-  snapshot = false,
   path = '$',
   depth = 0,
   ancestors = new Set<object>(),
-  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0 },
+  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0, opaque: false },
 ): unknown {
   if (typeof value === 'string') {
     budget.chars += value.length
@@ -1078,39 +1077,34 @@ function omitUndefinedObjectFields(
     ancestors.add(value)
     try {
       const result: unknown[] = []
-      let reusable = snapshot
       for (let index = 0; index < value.length; index++) {
         if (!Object.prototype.hasOwnProperty.call(value, index)) throw new TypeError(`data must not contain a sparse array at ${path}[${index}]`)
-        const child = omitUndefinedObjectFields(value[index], snapshot, `${path}[${index}]`, depth + 1, ancestors, budget)
-        if (child !== null && typeof child === 'object' && !IMMUTABLE_SNAPSHOTS.has(child)) reusable = false
+        const child = omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget)
         result.push(child)
       }
-      return snapshot ? freezeSnapshot(result, reusable) : result
+      return freezeSnapshot(result, !budget.opaque)
     } finally {
       ancestors.delete(value)
     }
   }
-  if (!isPlainRecord(value)) return value
+  if (!isPlainRecord(value)) {
+    budget.opaque = true
+    return value
+  }
 
   ancestors.add(value)
   try {
-    // A null-prototype staging object keeps `__proto__` as ordinary data.
-    // Using `{}` here can either mutate the clone's prototype or silently
-    // discard a `__proto__: null` field before the admission validator names
-    // and rejects it.
-    const result: Record<string, unknown> = snapshot ? {} : Object.create(null) as Record<string, unknown>
-    let reusable = snapshot
+    const result: Record<string, unknown> = {}
     for (const [key, child] of Object.entries(value)) {
       budget.chars += key.length
       if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
       if (child !== undefined) {
-        const captured = omitUndefinedObjectFields(child, snapshot, `${path}.${key}`, depth + 1, ancestors, budget)
-        if (captured !== null && typeof captured === 'object' && !IMMUTABLE_SNAPSHOTS.has(captured)) reusable = false
-        if (snapshot && key === '__proto__') Object.defineProperty(result, key, { value: captured, enumerable: true })
+        const captured = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
+        if (key in result) Object.defineProperty(result, key, { value: captured, enumerable: true })
         else result[key] = captured
       }
     }
-    return snapshot ? freezeSnapshot(result, reusable) : result
+    return freezeSnapshot(result, !budget.opaque)
   } finally {
     ancestors.delete(value)
   }
@@ -1211,7 +1205,14 @@ function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   const record = value as Record<string, unknown>
-  return `{${Object.keys(record).sort().filter(key => record[key] !== undefined).map(key => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  let text = '{', separator = ''
+  for (const key of Object.keys(record).sort()) {
+    const child = record[key]
+    if (child === undefined) continue
+    text += `${separator}${JSON.stringify(key)}:${canonicalJson(child)}`
+    separator = ','
+  }
+  return `${text}}`
 }
 
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
@@ -1324,7 +1325,7 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
     // order without allocating a second array of key/value pairs per object.
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
       const captured = immutableSnapshot(child, `${path}.${key}`, ancestors, copies)
-      if (key === '__proto__') Object.defineProperty(record, key, { value: captured, enumerable: true })
+      if (key in record) Object.defineProperty(record, key, { value: captured, enumerable: true })
       else record[key] = captured
     }
     clone = record
@@ -1340,7 +1341,7 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
  * graph and cloning it later would permit a different value at execution. */
 function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
   try {
-    const captured = omitUndefinedObjectFields(value, true) as T
+    const captured = omitUndefinedObjectFields(value) as T
     // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
     // it, after the complete budget/accessor pass has kept its error order.
     return captured !== null && typeof captured === 'object' && !IMMUTABLE_SNAPSHOTS.has(captured)
