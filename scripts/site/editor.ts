@@ -244,7 +244,17 @@ async function generateEditorHtml(): Promise<string> {
       splitting: true,
       outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-    } : {}),
+    } : {
+      plugins: [{
+        name: 'standalone-worker-families',
+        setup(build) {
+          build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
+            const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
+            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
+          })
+        },
+      }],
+    }),
   })
   if (!buildResult.success) {
     console.error('Bundle failed:', buildResult.logs)
