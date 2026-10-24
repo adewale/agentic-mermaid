@@ -15,6 +15,9 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts } from './sequence-body.ts'
 import { readSequenceStatements } from '../sequence/parser.ts'
 import { readSequenceText } from '../sequence/text.ts'
+import { journeyActorKey } from '../journey/parse-core.ts'
+import { displayText } from '../multiline-utils.ts'
+import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
 import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
@@ -355,14 +358,15 @@ function factsEr(out: string[], body: ErBody): void {
 }
 
 function factsJourney(out: string[], body: JourneyBody): void {
-  if (body.title) add(out, `title ${clean(body.title)}`)
+  const text = (value: string, content?: LabelContent): string => clean(displayText(resolveLabelContent(value, content)))
+  if (body.title) add(out, `title ${text(body.title, body.titleContent)}`)
   body.sections.forEach((s, si) => {
-    if (s.label) add(out, `section ${clean(s.label)}`)
+    if (s.label) add(out, `section ${text(s.label, s.labelContent)}`)
     s.tasks.forEach((t, ti) => {
-      const actors = t.actors.length ? ` actors ${t.actors.map(clean).join(', ')}` : ''
-      add(out, `journey task ${clean(t.text)} score ${String(t.score)}${actors}`)
-      add(out, `journey task#${si}.${ti} ${clean(t.text)} score ${String(t.score)}${actors}`)
-      if (s.label) add(out, `journey task ${clean(t.text)} section ${clean(s.label)}`)
+      const actors = t.actors.length ? ` actors ${t.actors.map((actor, index) => text(actor, t.actorContents?.[index])).join(', ')}` : ''
+      add(out, `journey task ${text(t.text, t.textContent)} score ${String(t.score)}${actors}`)
+      add(out, `journey task#${si}.${ti} ${text(t.text, t.textContent)} score ${String(t.score)}${actors}`)
+      if (s.label) add(out, `journey task ${text(t.text, t.textContent)} section ${text(s.label, s.labelContent)}`)
     })
   })
 
@@ -372,8 +376,11 @@ function factsJourney(out: string[], body: JourneyBody): void {
   const tasks = body.sections.flatMap(s => s.tasks)
   add(out, `journey sections ${body.sections.length}`)
   add(out, `journey tasks ${tasks.length}`)
-  const participation = new Map<string, number>()
-  for (const t of tasks) for (const a of t.actors) participation.set(a, (participation.get(a) ?? 0) + 1)
+  const participation = new Map<string, { actor: string; count: number }>()
+  for (const t of tasks) for (const [index, actor] of t.actors.entries()) {
+    const key = journeyActorKey(actor, t.actorContents?.[index])
+    participation.set(key, { actor: text(actor, t.actorContents?.[index]), count: (participation.get(key)?.count ?? 0) + 1 })
+  }
   add(out, `journey actors ${participation.size}`)
   if (tasks.length > 0) {
     const scores = tasks.map(t => t.score)
@@ -383,11 +390,11 @@ function factsJourney(out: string[], body: JourneyBody): void {
     add(out, `journey score range ${min}..${max}`)
     add(out, `journey average score ${num(average)}`)
     for (const t of tasks) {
-      if (t.score === min) add(out, `journey lowest task ${clean(t.text)} score ${String(t.score)}`)
-      if (t.score === max) add(out, `journey highest task ${clean(t.text)} score ${String(t.score)}`)
+      if (t.score === min) add(out, `journey lowest task ${text(t.text, t.textContent)} score ${String(t.score)}`)
+      if (t.score === max) add(out, `journey highest task ${text(t.text, t.textContent)} score ${String(t.score)}`)
     }
   }
-  for (const [actor, count] of participation) add(out, `journey actor ${clean(actor)} tasks ${count}`)
+  for (const { actor, count } of participation.values()) add(out, `journey actor ${actor} tasks ${count}`)
 }
 
 function factsArchitecture(out: string[], body: ArchitectureBody): void {

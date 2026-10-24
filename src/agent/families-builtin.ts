@@ -1,4 +1,4 @@
-import { parseC4Diagram } from '../c4/parser.ts'
+import { C4AmbiguousArgumentError, parseC4Diagram } from '../c4/parser.ts'
 import { buildC4SourceMap, lintC4, mutateC4, parseC4Body, renderC4 } from './c4-body.ts'
 import { withMutationDraft } from './mutation-draft.ts'
 import { STABLE_FAMILY_AGENT_HOOKS } from './stable-family-adapters.ts'
@@ -30,10 +30,11 @@ import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
+import { SequenceParticipantIdError } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
-import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
+import { assertUnambiguousTimelineSections, isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { adoptStatementAccessibility } from './accessibility-envelope.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { mutateClass, parseClassBody, renderClass, verifyClass } from './class-body.ts'
@@ -229,8 +230,13 @@ export const SEQUENCE_AGENT_HOOKS = {
     // statement rather than silently discarding it with that first line.
     if (!/^sequenceDiagram$/i.test(expandedLines[0] ?? '')) return ok({ kind: 'opaque', family: 'sequence', source: opaqueSource })
     const rawBodyLines = sequenceRawBodyLines(source.familyBody, expandedLines)
-    const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
-    return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
+    try {
+      const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
+      return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
+    } catch (error) {
+      if (!(error instanceof SequenceParticipantIdError)) throw error
+      return err([{ code: 'PARSE_FAILED', message: error.message }])
+    }
   },
   serialize: body => {
     if (body.kind !== 'sequence') throw new Error(`sequence serializer received body kind ${body.kind}`)
@@ -300,6 +306,8 @@ export const TIMELINE_AGENT_HOOKS = {
   verify: body => verifyOpaqueTimeline(body),
   parse: ({ lines, opaqueSource, meta }) => {
     const header = parseTimelineHeader(lines[0] ?? '')
+    try { assertUnambiguousTimelineSections(lines.slice(1)) }
+    catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
     // Native rendering accepts inline header comments, but the structured
     // serializer does not retain them. Preserve authored source instead.
     const body = header?.kind === 'supported' && !header.hasInlineComment ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
@@ -1411,7 +1419,13 @@ export const SANKEY_AGENT_HOOKS = {
 
 export const C4_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
-  parse: ctx => ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }),
+  parse: ctx => {
+    try { return ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }) }
+    catch (error) {
+      if (!(error instanceof C4AmbiguousArgumentError)) throw error
+      return err([{ code: 'PARSE_FAILED', message: error.message }])
+    }
+  },
   serialize: body => {
     if (body.kind !== 'c4') throw new Error(`C4 serializer received body kind ${body.kind}`)
     return renderC4(body)

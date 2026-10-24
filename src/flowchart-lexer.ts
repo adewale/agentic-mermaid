@@ -35,6 +35,7 @@ import { decodeXML } from 'entities'
 import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 import { scanMetadataBlock } from './shared/metadata-block-scan.ts'
 import { TERMINAL_CONTROL_RE } from './shared/mermaid-entities.ts'
+import { syntaxError } from './shared/syntax-error.ts'
 
 export interface FlowchartTextRange { start: number; end: number }
 
@@ -522,6 +523,38 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
 
 /** A statement whose operand is style properties. */
 const STYLE_STATEMENT_RE = /^(?:style|classDef|linkStyle)\s/
+
+/** Property text uses Mermaid's styleComponent tokens, not CSS's identifier
+ * grammar. In particular backslashes, punctuation and whitespace can be text.
+ * Scan in lexer order: `1class` is NUM then CLASS, while `xclass` is one
+ * NODE_STRING. The appended colon supplies the actual declaration boundary. */
+function portableStyleProperty(name: string): boolean {
+  if (!name.trim() || /[\r\n:;,]/.test(name) || /direction\s+(?:TB|BT|RL|LR|TD)/.test(name)) return false
+  let rest = `${name}:`
+  while (rest !== ':') {
+    // These earlier lexer rules produce statement/link/string tokens, which
+    // styleComponent cannot consume. Accessibility requires its own colon;
+    // `accTitle-color` is ordinary text, unlike `class-color`.
+    if (/^(?:acc(?:Title|Descr)\s*:|(?:call|href|click)\s|(?:classDef|class|linkStyle|default|end|graph|flowchart|subgraph|swimlane-beta|interpolate|_self|_blank|_parent|_top|v)\b|["&*]|[xo]?(?:--|-\.)|[xo]?-?\.+-)/.test(rest)) return false
+    const token = /^(?:style\b|[0-9]+|#|[^\S\r\n]+)/.exec(rest)
+      ?? /^(?:[A-Za-z0-9!"#$%&'*+.`?\\_/]|-(?=[^>\-.]))+/.exec(rest)
+    if (!token) return false
+    rest = rest.slice(token[0].length)
+  }
+  return true
+}
+
+/** Shared by source admission, typed style edits and Flowchart serialization. */
+export function checkedFlowchartStyleProps<T extends Readonly<Record<string, string>>>(style: T): T {
+  for (const name of Object.keys(style)) {
+    if (!portableStyleProperty(name)) throw syntaxError({
+      what: `Invalid style property name ${JSON.stringify(name)}`,
+      expectedForm: 'property text that does not introduce Mermaid statements, links or shape delimiters',
+      example: 'style A background:#bbb,border:1px solid red',
+    })
+  }
+  return style
+}
 /** Text that is style properties alone (`stroke:#0a0, stroke-width:2px`):
  * a property name and `:` first, and no link, class, `&` list, metadata,
  * shape text or string. */

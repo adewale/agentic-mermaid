@@ -16,6 +16,7 @@ import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
+import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import {
   mergeFrontmatterMaps,
   mermaidInitDirectiveIdentity,
@@ -30,7 +31,8 @@ export interface SerializeOptions {
   /**
    * Wrapper emission policy. 'verbatim' (default) re-emits the leading source
    * wrapper (frontmatter, init directives, comments) byte-identically from
-   * `meta.wrapperSource`, then re-emits any init directive authored *after*
+   * `meta.wrapperSource`, except adjacent frontmatter delimiters with no content
+   * line, which Mermaid rejects. It then re-emits any init directive authored *after*
    * the family header that the serialized body does not already own — a
    * structured serializer receives directive-free grammar, so without this the
    * config would be lost. Such a directive therefore moves ahead of the
@@ -72,7 +74,13 @@ export function wrapperPrefix(
   bodySource = '',
 ): string {
   if (mode === 'verbatim' && meta.wrapperSource !== undefined) {
-    return meta.wrapperSource + postWrapperInitDirectives(meta, bodySource)
+    const frontmatter = matchMermaidFrontmatter(meta.wrapperSource)
+    // Mermaid requires a content line between delimiters, even if blank.
+    // Adjacent delimiters carry no config; retain the rest of the wrapper.
+    const wrapper = frontmatter && frontmatter.yaml === ''
+      ? meta.wrapperSource.slice(frontmatter.source.length)
+      : meta.wrapperSource
+    return wrapper + postWrapperInitDirectives(meta, bodySource)
   }
   return renderMeta(meta)
 }

@@ -10,6 +10,7 @@ import { asTimeline } from '../agent/types.ts'
 import type { TimelineValidDiagram, TimelineMutationOp } from '../agent/types.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { renderTimeline } from '../agent/timeline-body.ts'
 
 function parse(src: string) {
   const r = parseMermaid(src); if (!r.ok) throw new Error('parse: ' + JSON.stringify(r.error))
@@ -20,6 +21,22 @@ function timeline(src: string): TimelineValidDiagram {
 }
 
 describe('timeline parsing — structured', () => {
+  test.each([
+    'timeline\nsection<br>A : event',
+    'timeline section<br>A',
+    '---\nconfig:\n  theme: forest\n---\ntimeline section<br>A : event\naccTitle: Milestones',
+  ])('preserves a period whose section-like prefix ends at an escaped line break: %s', source => {
+    const parsed = timeline(source)
+    const native = parseTimelineDiagram(normalizeMermaidSource(source).lines)
+    expect(parsed.body.sections[0]!.periods[0]!.label).toBe('section\nA')
+    expect(native.sections[0]!.periods[0]!.label).toBe('section\nA')
+    const serialized = serializeMermaid(parsed)
+    expect(serialized).toContain('  section<br>A')
+    expect(timeline(serialized).body).toEqual(parsed.body)
+    expect(verifyMermaid(source).ok).toBe(true)
+    expect(verifyMermaid(parsed).ok).toBe(true)
+  })
+
   test('normalizes node-label br tags while preserving raw title text like pinned Mermaid', () => {
     const source = 'timeline\n  title <br>Product<br>history<br>\n  section <br>Platform<br>work<br>\n  2024<br>Q1 : <br>Soft<br>launch<br>\n  : Follow<br>up\n  2025<br>Q2'
     const parsed = timeline(source)
@@ -98,6 +115,15 @@ describe('timeline parsing — structured', () => {
 })
 
 describe('timeline fidelity fallback', () => {
+  test('the typed writer refuses period labels that would become section declarations', () => {
+    const body = timeline('timeline\n2020 : A').body
+    body.sections[0]!.periods[0]!.label = 'section a'
+    expect(() => renderTimeline(body)).toThrow('must not start with "section "')
+    body.sections[0]!.periods[0]!.label = '2020'
+    body.sections[0]!.label = 'a: v'
+    expect(() => renderTimeline(body)).toThrow('section labels must not contain :')
+  })
+
   test('unmodeled syntax falls back to opaque (lossless)', () => {
     const d = parse('timeline\n  some:unsupported')
     expect(d.body.kind).toBe('opaque')
@@ -306,7 +332,9 @@ describe('timeline mutate — all 10 ops', () => {
       { op: { kind: 'set_section_label', index: 0, label: text }, canonical: 'section Soft<br>launch', read: body => body.sections[0]!.label, expected: text },
       { op: { kind: 'add_section', label: text }, canonical: 'section Soft<br>launch', read: body => body.sections[2]!.label, expected: text },
       { op: { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: text }, canonical: 'Soft<br>launch : A', read: body => body.sections[0]!.periods[0]!.label, expected: text },
+      { op: { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: 'section<br>A' }, canonical: 'section<br>A : A', read: body => body.sections[0]!.periods[0]!.label, expected: 'section\nA' },
       { op: { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text }, canonical: ': Soft<br>launch', read: body => body.sections[0]!.periods[0]!.events[1]!.text, expected: text },
+      { op: { kind: 'add_period', sectionIndex: 0, label: 'section\nA' }, canonical: 'section<br>A', read: body => body.sections[0]!.periods[2]!.label, expected: 'section\nA' },
       {
         op: { kind: 'add_period', sectionIndex: 0, label: text, events: ['Next\rstep'] },
         canonical: 'Soft<br>launch : Next<br>step',
@@ -359,16 +387,21 @@ describe('timeline mutate — all 10 ops', () => {
     const tabSeparator = mutate(timeline(SRC), { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'A:\tB' })
     // Pinned Mermaid 11.16.0 treats the newline after a trailing colon as a
     // separator; with the next period present it can swallow that period.
-    const trailingColonOps: TimelineMutationOp[] = [
+    const invalidTextOps: TimelineMutationOp[] = [
       { kind: 'set_event_text', sectionIndex: 0, periodIndex: 0, eventIndex: 0, text: 'A:' },
       { kind: 'add_event', sectionIndex: 0, periodIndex: 0, text: 'A:b:' },
       { kind: 'add_period', sectionIndex: 0, label: '2023', events: ['A::'] },
+      { kind: 'add_section', label: 'a: v' },
+      { kind: 'set_section_label', index: 0, label: 'a: v' },
+      { kind: 'add_period', sectionIndex: 0, label: 'section a', events: ['v'] },
+      { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: 'section a' },
+      { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: 'section\ta' },
     ]
     const period = mutate(timeline(SRC), { kind: 'set_period_label', sectionIndex: 0, periodIndex: 0, label: '2020:Q1' })
     const title = mutate(timeline(SRC), { kind: 'set_title', title: '   ' })
     expect(!event.ok && event.error.code).toBe('INVALID_OP')
     expect(!tabSeparator.ok && tabSeparator.error.code).toBe('INVALID_OP')
-    for (const op of trailingColonOps) {
+    for (const op of invalidTextOps) {
       const result = mutate(timeline(SRC), op)
       expect(!result.ok && result.error.code, op.kind).toBe('INVALID_OP')
     }

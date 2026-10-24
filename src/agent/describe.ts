@@ -18,6 +18,9 @@ import type { C4Boundary, C4Element, C4Relationship, C4Shape } from '../c4/types
 import { parseGanttModel } from '../gantt/parser.ts'
 import { formatGanttInstant, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { journeyActorKey } from '../journey/parse-core.ts'
+import { displayText } from '../multiline-utils.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
@@ -180,8 +183,8 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     // reading the tree can find the pain points without re-parsing source.
     for (const s of d.body.sections)
       for (const t of s.tasks) {
-        const actors = t.actors.length ? `; ${t.actors.join(', ')}` : ''
-        tree.nodes.push({ id: t.id, label: `${t.text} (score ${t.score}${actors})` })
+        const actors = t.actors.length ? `; ${t.actors.map((actor, index) => displayText(resolveLabelContent(actor, t.actorContents?.[index]))).join(', ')}` : ''
+        tree.nodes.push({ id: t.id, label: `${displayText(resolveLabelContent(t.text, t.textContent))} (score ${t.score}${actors})` })
       }
   } else if (d.body.kind === 'architecture') {
     for (const g of d.body.groups) tree.nodes.push({ id: g.id, label: g.label || g.id })
@@ -423,13 +426,13 @@ function describeTimeline(d: TimelineValidDiagram): string {
 function describeJourney(body: import('./types.ts').JourneyBody): string {
   const sections = body.sections
   const taskCount = sections.reduce((n, s) => n + s.tasks.length, 0)
-  const actors = [...new Set(sections.flatMap(s => s.tasks.flatMap(t => t.actors)))]
-  let s = `A user journey${body.title ? ` titled "${body.title}"` : ''} with ${sections.length} sections and ${taskCount} tasks.`
-  const sectionLabels = sections.map(sec => sec.label).filter((l): l is string => l !== undefined)
+  const actors = new Map(sections.flatMap(s => s.tasks.flatMap(t => t.actors.map((actor, index) => [journeyActorKey(actor, t.actorContents?.[index]), displayText(resolveLabelContent(actor, t.actorContents?.[index]))] as const))))
+  let s = `A user journey${body.title ? ` titled "${displayText(resolveLabelContent(body.title, body.titleContent))}"` : ''} with ${sections.length} sections and ${taskCount} tasks.`
+  const sectionLabels = sections.flatMap(sec => sec.label === undefined ? [] : [displayText(resolveLabelContent(sec.label, sec.labelContent))])
   if (sectionLabels.length > 0) s += ` Sections: ${sectionLabels.join(', ')}.`
-  const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${t.text} (${t.score})`))
+  const taskStr = sections.flatMap(sec => sec.tasks.map(t => `${displayText(resolveLabelContent(t.text, t.textContent))} (${t.score})`))
   if (taskStr.length > 0) s += ` Tasks: ${taskStr.join(', ')}.`
-  if (actors.length > 0) s += ` Actors: ${actors.join(', ')}.`
+  if (actors.size > 0) s += ` Actors: ${[...actors.values()].join(', ')}.`
   return s
 }
 

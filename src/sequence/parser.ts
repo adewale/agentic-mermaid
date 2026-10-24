@@ -4,7 +4,8 @@ import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
-import { syntaxError } from '../shared/syntax-error.ts'
+import { MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
+import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
 import { readSequenceLabel } from './text.ts'
@@ -166,8 +167,11 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   // arrow tokens follow it where Mermaid expects text, so it rejects the
   // line, and what was meant is unclear: leave the statement unread. Where
   // Mermaid's sender runs on past our arrow, it reads another message.
-  const sender = mermaidSequenceActorAt(line, 0)
-  if (sender.length <= match[1]!.length && (sender !== match[1] || mermaidSequenceActorAt(line, line.length - tail.length) !== to)) return null
+  const grammar = toEntityMarkers(line)
+  const fromToken = toEntityMarkers(match[1]!), toToken = toEntityMarkers(to)
+  const receiverAt = toEntityMarkers(line.slice(0, line.length - tail.length)).length
+  const sender = mermaidSequenceActorAt(grammar, 0)
+  if (sender.length <= fromToken.length && (sender !== fromToken || mermaidSequenceActorAt(grammar, receiverAt) !== toToken)) return null
   const arrow = match[3]!
   return {
     from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark,
@@ -601,7 +605,8 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     const { syntax } = entry
     if (stack.length) entry.parent = stack.at(-1)!
     if (!syntax) {
-      if (entry.raw.trim() && !isSequenceCommentLine(entry.raw)) issue(entry, 'sequence_statement', `Sequence statement is preserved in source but not drawn: ${entry.raw.trim()}`)
+      if (entry.error instanceof SequenceParticipantIdError) issue(entry, 'sequence_participant_id', entry.error.message)
+      else if (entry.raw.trim() && !isSequenceCommentLine(entry.raw)) issue(entry, 'sequence_statement', `Sequence statement is preserved in source but not drawn: ${entry.raw.trim()}`)
       continue
     }
     if (syntax.kind === 'block' || syntax.kind === 'box') {
@@ -623,6 +628,10 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
       issue(entry, 'sequence_local_arrow', `The arrow ${localArrow} is a local spelling pinned Mermaid does not read, so it rejects this line. Ours draws it as Mermaid's ${arrow} and writes ${arrow}`)
     } else if (syntax.kind === 'declaration' && syntax.declaration.unspacedAlias) {
       issue(entry, 'sequence_unspaced_alias', 'Participant text immediately following as is read as its alias. Pinned Mermaid can reject this or read it as part of the ID; write as <label> with a separating space')
+    }
+    if (syntax.kind === 'declaration' || syntax.kind === 'create') {
+      const problem = sequenceParticipantIdProblem(syntax.declaration.id)
+      if (problem) issue(entry, 'sequence_participant_id_extension', problem)
     }
   }
   for (const index of stack) issue(statements[index]!, 'sequence_block_boundary', 'Sequence block or box is never closed by end')
@@ -719,11 +728,36 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
  *  change an actor that already exists. */
 export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
 
+function clearSequenceParticipantId(id: string): boolean {
+  // Mermaid protects entity tokens before lexing. Their terminator is not
+  // a declaration delimiter. A colon is also unambiguous in our declaration
+  // grammar; preserve that authored identity even though Mermaid rejects it.
+  return typeof id === 'string' && id !== '' && !/[<>,;@#\s]/.test(toEntityMarkers(id))
+}
+
+/** Strict admission for a newly written declaration. Native reads keep clear
+ * colon IDs, but encoding or replacing them would change authored identity. */
+export function sequenceParticipantIdProblem(id: string): string | null {
+  const clear = clearSequenceParticipantId(id)
+  if (clear && !id.includes(':')) return null
+  const reason = clear
+    ? 'is read as authored, but pinned Mermaid rejects colons in declaration IDs'
+    : 'has ambiguous declaration delimiters or whitespace'
+  return `Sequence participant ID ${JSON.stringify(id)} ${reason}. Typed editing and serialization require a portable ID; rename this ID and its references, and put display punctuation in an alias`
+}
+
+export class SequenceParticipantIdError extends MermaidSyntaxError {}
+
+function assertSequenceParticipantId(id: string): void {
+  if (!clearSequenceParticipantId(id)) throw new SequenceParticipantIdError(sequenceParticipantIdProblem(id)!)
+}
+
 export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {
   const metadata = line.match(/^(participant|actor)\s+([^\s@]+)\s*@\{/i)
   if (metadata) {
     const baseType = metadata[1]!.toLowerCase() as 'participant' | 'actor'
     const id = metadata[2]!
+    assertSequenceParticipantId(id)
     // Upstream's CONFIG lexer and YAML reader (shared/metadata-yaml.ts): the
     // first `}` ends the block, and a block YAML rejects rejects the diagram.
     const block = readMetadataBlock(line, metadata[0].length - 1, 'sequence')
@@ -758,6 +792,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
   const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as(\s*)(.+))?$/i)
   if (!ordinary) return null
   const id = ordinary[2]!
+  assertSequenceParticipantId(id)
   const keyword = ordinary[1]!.toLowerCase() as 'participant' | 'actor'
   return {
     id, label: ordinary[4]?.trim() ?? id, type: keyword, keyword, aliased: ordinary[4] !== undefined,
@@ -771,6 +806,7 @@ export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null
   const id = match[2]!
+  assertSequenceParticipantId(id)
   return { id, label: match[3]?.trim() ?? id, type: match[1]!.toLowerCase() as 'participant' | 'actor' }
 }
 

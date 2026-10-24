@@ -5,7 +5,8 @@
  * activation/deactivation, blocks (loop/alt/opt/par), notes, auto-created actors.
  */
 import { describe, it, expect } from 'bun:test'
-import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { parseSequenceDiagram, readSequenceStatements } from '../sequence/parser.ts'
+import { parseSequenceBody, renderSequence, sequenceUnsupportedSyntaxWarnings } from '../agent/sequence-body.ts'
 import { parseRegisteredMermaid, asSequence, mutate, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -21,6 +22,72 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseSequenceDiagram – actors', () => {
+  it.each(['participant :@', 'participant A@', 'participant A,B@{ "type": "database" }', 'create participant :@'])('refuses damaged declaration identities without inventing a participant: %s', declaration => {
+    const source = `sequenceDiagram\n${declaration}`
+    expect(() => parse(source)).toThrow('Sequence participant ID')
+    expect(readSequenceStatements([declaration]).issues).toContainEqual({ syntax: 'sequence_participant_id', line: 0, message: expect.stringContaining('Sequence participant ID') })
+    expect(() => parseSequenceBody([declaration])).toThrow('Sequence participant ID')
+    expect(() => renderSequence({ kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'opaque-block', lines: [declaration] }] })).toThrow('Sequence participant ID')
+  })
+
+  it.each([
+    ['participant note:0 as Authored', 'note:0', 'Authored', 'participant'],
+    ['actor B:start as Named', 'B:start', 'Named', 'actor'],
+    ['participant title:C@{ "type": "control", "alias": "Control" }', 'title:C', 'Control', 'control'],
+    ['create participant item:0 as Created', 'item:0', 'Created', 'participant'],
+  ] as const)('preserves clear native colon IDs but refuses a typed body that cannot write them: %s', (declaration, id, label, type) => {
+    const source = `sequenceDiagram\n${declaration}\nparticipant A as Before\nA->>B: Unchanged`
+    expect(parse(source).actors[0]).toEqual({ id, label, type })
+    expect(sequenceUnsupportedSyntaxWarnings(source)).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_participant_id_extension', line: 2 }))
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED', message: expect.stringContaining('rename this ID and its references') }))
+    expect(() => parseSequenceBody([declaration])).toThrow('Typed editing and serialization require a portable ID')
+    expect(() => renderSequence({ kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'opaque-block', lines: [declaration] }] })).toThrow('Typed editing and serialization require a portable ID')
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining('Typed editing and serialization require a portable ID') }))
+  })
+
+  it.each(['A+B', 'A/B', 'A\\B', 'A(B)', '$', '資料'])('keeps valid punctuation and Unicode declaration IDs: %s', id => {
+    const source = `sequenceDiagram\nparticipant ${id} as Label :@`
+    expect(parse(source).actors).toEqual([{ id, label: 'Label :@', type: 'participant' }])
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parse(serializeMermaid(parsed.value)).actors).toEqual([{ id, label: 'Label :@', type: 'participant' }])
+  })
+
+  it.each(['#35;', 'A#58;B', 'A#64;B', 'A#59;B'])('keeps entity-coded IDs and their message endpoints when relabeling: %s', id => {
+    const source = `sequenceDiagram\nparticipant ${id} as Original\n${id}->>B: Message`
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)!
+    expect(sequence.body.participants.map(participant => participant.id)).toEqual([id, 'B'])
+    expect(sequence.body.messages).toMatchObject([{ from: id, to: 'B', text: 'Message' }])
+    const edited = mutate(sequence, { kind: 'set_participant_label', id, label: 'Updated' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const rendered = parse(serializeMermaid(edited.value))
+    expect(rendered.actors).toEqual([{ id, label: 'Updated', type: 'participant' }, { id: 'B', label: 'B', type: 'participant' }])
+    expect(rendered.messages).toMatchObject([{ from: id, to: 'B', label: 'Message' }])
+  })
+
+  it.each([':@', '#hash', 'A#B', 'note:0'])('typed participant additions refuse declaration delimiters before creating identity %s', id => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nparticipant A')
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)!
+    expect(mutate(sequence, { kind: 'add_participant', id })).toMatchObject({ ok: false, error: { code: 'INVALID_OP', message: expect.stringContaining('Sequence participant ID') } })
+    const draft = structuredClone(sequence)
+    draft.body.participants[0]!.id = id
+    expect(() => serializeMermaid(draft)).toThrow('Sequence participant ID')
+  })
+
+  it('refuses to relabel a message-only ID that cannot be declared, without changing the message', () => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nA@->>B: Hello')
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)!
+    expect(mutate(sequence, { kind: 'set_participant_label', id: 'A@', label: 'Alias' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP', message: expect.stringContaining('Sequence participant ID') } })
+    expect(sequence.body.messages).toMatchObject([{ from: 'A@', to: 'B', text: 'Hello' }])
+  })
+
   it.each(['', ' ', '\t'])('reads participant metadata after separator %j', separator => {
     const source = `sequenceDiagram\nparticipant Harry${separator}@{ "type": "database", "alias": "Orders" }\nHarry->>Harry: Save`
     expect(() => parse(source)).not.toThrow()

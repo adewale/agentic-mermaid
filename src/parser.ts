@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { checkedFlowchartStyleProps, coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -387,7 +387,7 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
       const classDefMatch = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
       if (classDefMatch) {
         const names = classDefMatch[1]!.split(',').map(s => s.trim()).filter(Boolean)
-        const props = parseStyleProps(classDefMatch[2]!)
+        const props = checkedFlowchartStyleProps(parseStyleProps(classDefMatch[2]!))
         if (Object.keys(props).length === 0) continue
         for (const name of names) {
           graph.classDefs.set(name, props)
@@ -415,7 +415,7 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
         // A styled id is a mention: it creates the node, as upstream's
         // `addVertex` does, though a `style` line makes no subgraph member.
         for (const id of nodeIds) mentionNode(graph, id, declaredSubgraphIds)
-        const props = parseStyleProps(styleMatch[2]!)
+        const props = checkedFlowchartStyleProps(parseStyleProps(styleMatch[2]!))
         if (Object.keys(props).length === 0) continue
         for (const id of nodeIds) {
           graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
@@ -433,7 +433,7 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
         // above the line. Ours styles that link wherever it is defined, and a
         // style whose index names no link draws nothing; verify reports both
         // (agent/flowchart-unsupported.ts).
-        const props = parseStyleProps(linkStyleMatch[2]!)
+        const props = checkedFlowchartStyleProps(parseStyleProps(linkStyleMatch[2]!))
         if (Object.keys(props).length === 0) continue
         if (target === 'default') {
           graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })

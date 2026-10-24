@@ -286,10 +286,11 @@ afterAll(async () => {
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // About 1% gzip headroom over the rebased single-renderer control
-  // (1,247,550 bytes with main 297eaaf). A second embedded engine still fails.
+  // Strict writer repairs (#475) add 3,170 gzip bytes over main 8652b0ec
+  // (1,259,899 → 1,263,069 with Bun 1.4.2). Allow 4 KB for that change;
+  // a second embedded engine still fails both ceilings.
   expect(html.byteLength).toBeLessThanOrEqual(4_100_000)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_260_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_264_000)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {

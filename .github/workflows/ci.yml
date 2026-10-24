@@ -253,7 +253,7 @@ jobs:
           if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts; then
             exit 0
           fi
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation agent-flat-namespace agent-category-role agent-journey-visibility agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance
 
       - name: Retain diagram review images
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}

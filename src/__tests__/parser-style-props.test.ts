@@ -4,13 +4,64 @@
 import { describe, test, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { verifyMermaid } from '../agent/index.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 function nodeStyle(line: string, id = 'A'): Record<string, string> | undefined {
   return parseMermaid(`flowchart TD\n  A\n  ${line}`).nodeStyles.get(id)
 }
 
 describe('M4 style props — comma-aware splitting', () => {
+  test.each(['style T', 'classDef hot', 'linkStyle default'])('%s refuses damaged property names at read and write boundaries', directive => {
+    const source = `graph TD;style S background:#aaa;\n${directive} b] &   n4ackground:#bbb,border:1px solid red;`
+    expect(() => parseMermaid(source)).toThrow('style property name')
+    expect(parseRegisteredMermaid(source).ok).toBe(false)
+    expect(verifyMermaid(source).ok).toBe(false)
+
+    const parsed = parseRegisteredMermaid('flowchart TD\nS --> T')
+    if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw new Error('fixture rejected')
+    const graph = parsed.value.body.graph
+    const style = { 'b] &   n4ackground': '#bbb', border: '1px solid red' }
+    if (directive.startsWith('classDef')) graph.classDefs.set('hot', style)
+    else if (directive.startsWith('linkStyle')) graph.linkStyles.set('default', style)
+    else graph.nodeStyles.set('T', style)
+    expect(() => serializeMermaid(parsed.value)).toThrow('style property name')
+  })
+
+  test('unknown valid property names and CSS semicolon separators retain every field', () => {
+    const source = 'flowchart TD\nstyle T background:#bbb; border:1px solid red;custom-field:hello'
+    expect(parseMermaid(source).nodeStyles.get('T')).toEqual({ background: '#bbb', border: '1px solid red', 'custom-field': 'hello' })
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    expect(serializeMermaid(parsed.value)).toContain('style T background:#bbb,border:1px solid red,custom-field:hello')
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_style_semicolon' }))
+  })
+
+  test.each(['style A', 'classDef c', 'linkStyle 0'])('%s retains property text admitted by the style lexer', directive => {
+    const properties = { 'stroke\\-width': '2px', '\\66ill': 'red', 'font\\2d family': 'Arial', 'accTitle-color': 'blue', 'accDescr-width': '3px', 'custom.flag': 'value' }
+    const declarations = Object.entries(properties).map(([name, value]) => `${name}:${value}`).join(',')
+    const source = `flowchart TD\nA-->B\n${directive} ${declarations}`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw new Error(JSON.stringify(parsed))
+    const graph = parsed.value.body.graph
+    const actual = directive.startsWith('classDef') ? graph.classDefs.get('c')
+      : directive.startsWith('linkStyle') ? graph.linkStyles.get(0) : graph.nodeStyles.get('A')
+    expect(actual).toEqual(properties)
+    expect(serializeMermaid(parsed.value)).toContain(`${directive} ${declarations}`)
+    expect(verifyMermaid(source).ok).toBe(true)
+  })
+
+  test.each(['set_node_style', 'define_class'] as const)('%s accepts literal style tokens without interpreting them as CSS identifiers', kind => {
+    const parsed = parseRegisteredMermaid('flowchart TD\nA-->B')
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const style = 'stroke\\-width:2px,accTitle-color:red'
+    const edited = mutate(parsed.value, kind === 'set_node_style' ? { kind, id: 'A', style } : { kind, name: 'c', style })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    expect(serializeMermaid(edited.value)).toContain(style)
+  })
+
+  test.each(['é', '文', '--foo', 'a--b', 'default-color', 'class', '1class', 'v', 'foo class', '#end'])('refuses property name %s that Mermaid tokenizes as something else', name => {
+    expect(() => nodeStyle(`style A ${name}:red`)).toThrow('style property name')
+  })
   test('rgb() fill is preserved intact', () => {
     expect(nodeStyle('style A fill:rgb(10,10,10)')).toEqual({ fill: 'rgb(10,10,10)' })
   })

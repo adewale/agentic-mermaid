@@ -12,7 +12,8 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { asJourney } from '../agent/types.ts'
 import type { JourneyValidDiagram, JourneyMutationOp } from '../agent/types.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
-import { describeMermaidTree } from '../agent/describe.ts'
+import { describeMermaid, describeMermaidTree } from '../agent/describe.ts'
+import { renderMermaidASCII } from '../ascii/index.ts'
 
 const SRC = `journey
   title My working day
@@ -112,10 +113,10 @@ describe('journey structured parse', () => {
       accDescr: Literal #2: keep &amp; entity text
       Read: 3: Editor`)
 
-    expect(d.body.title).toBe('Book #2: subtitle &amp; notes')
+    expect(d.body.title).toBe('Book #2: subtitle & notes')
     expect(d.body.accessibilityTitle).toBe('Book #2: accessible subtitle')
     expect(d.body.accessibilityDescription).toBe('Literal #2: keep &amp; entity text')
-    expect(serializeMermaid(d)).toContain('title Book #2: subtitle &amp; notes')
+    expect(journey(serializeMermaid(d)).body.title).toBe('Book #2: subtitle & notes')
   })
 
   test('preserves Journey multiline label semantics through parse and serialize', () => {
@@ -154,7 +155,8 @@ describe('journey structured parse', () => {
       Triage ticket: 2: Agent: Tier 1, Escalation: API`)
 
     expect(d.body.sections[0]!.tasks[0]!.actors).toEqual(['Agent: Tier 1', 'Escalation: API'])
-    expect(serializeMermaid(d)).toContain('Triage ticket: 2: Agent: Tier 1, Escalation: API')
+    expect(serializeMermaid(d)).toContain('Triage ticket: 2: Agent#58; Tier 1, Escalation#58; API')
+    expect(journey(serializeMermaid(d)).body.sections[0]!.tasks[0]!.actors).toEqual(['Agent: Tier 1', 'Escalation: API'])
   })
 })
 
@@ -234,6 +236,35 @@ describe('journey mutation ops', () => {
     d = apply(d, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 2 })
     d = apply(d, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['Us'] })
     expect(d.body.sections[0]!.tasks[0]).toMatchObject({ text: 'Brew coffee', score: 2, actors: ['Us'] })
+
+    const actors = journey('journey\nTask: 3: &lt;b&gt;Alice&lt;/b&gt;, <b>Alice</b>, Bob')
+    const reordered = apply(actors, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['Bob', '<b>Alice</b>', '<b>Alice</b>'] })
+    expect(renderMermaidASCII(serializeMermaid(reordered))).toContain('by Bob, Alice, <b>Alice</b>')
+    const literal = journey('journey\nTask: 3: &lt;b&gt;Alice&lt;/b&gt;')
+    const duplicated = apply(literal, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['<b>Alice</b>', '<b>Alice</b>'] })
+    expect(renderMermaidASCII(serializeMermaid(duplicated))).toContain('by <b>Alice</b>, <b>Alice</b>')
+    const ambiguous = mutate(actors, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['<b>Alice</b>', '<b>Alice</b>', '<b>Alice</b>'] })
+    expect(ambiguous.ok).toBe(false)
+    if (!ambiguous.ok) expect(ambiguous.error.code).toBe('INVALID_OP')
+  })
+
+  test.each([
+    { authored: '&lt;br&gt;', value: '<br>' },
+    { authored: '&#42;X&#42;', value: '*X*' },
+    { authored: '&#92;n', value: '\\n' },
+  ])('setting retrieved $authored values preserves their literal interpretation', ({ authored, value }) => {
+    let d = journey(`journey\ntitle ${authored}\nsection ${authored}\n${authored}: 3: ${authored}`)
+    expect(d.body).toMatchObject({ title: value, sections: [{ label: value, tasks: [{ text: value, actors: [value] }] }] })
+    const before = serializeMermaid(d)
+    d = JSON.parse(JSON.stringify(d))
+    for (const op of [
+      { kind: 'set_title', title: value },
+      { kind: 'set_section_label', index: 0, label: value },
+      { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: value },
+      { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: [value] },
+      { kind: 'rename_actor', from: value, to: value },
+    ] as JourneyMutationOp[]) d = apply(d, op)
+    expect(serializeMermaid(d)).toBe(before)
   })
 
   test('rename_actor renames across all tasks', () => {
@@ -244,18 +275,20 @@ describe('journey mutation ops', () => {
     expect(d.body.sections[0]!.tasks[2]!.actors).toEqual(['Sam', 'Cat'])
   })
 
-  test('rejects edits that cannot survive Journey statement/actor delimiters', () => {
-    const d = journey()
+  test('typed edits preserve literal delimiters through the strict writer', () => {
+    let d = journey('journey\nsection A&#58;B\nTask: 3: A&#44;B')
     for (const op of [
       { kind: 'set_title', title: 'A; B' },
-      { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'A; B' },
-      { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['A, B'] },
-      { kind: 'rename_actor', from: 'Me', to: 'A; B' },
+      { kind: 'set_section_label', index: 0, label: 'A:B; C' },
+      { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'title Pick: A; B' },
+      { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['A,B'] },
+      { kind: 'rename_actor', from: 'A,B', to: 'A,B; C' },
     ] as JourneyMutationOp[]) {
-      const result = mutate(d, op)
-      expect(result.ok).toBe(false)
-      if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+      d = apply(d, op)
     }
+    const expected = { title: 'A; B', sections: [{ label: 'A:B; C', tasks: [{ text: 'title Pick: A; B', score: 3, actors: ['A,B; C'] }] }] }
+    expect(d.body).toMatchObject(expected)
+    expect(journey(serializeMermaid(d)).body).toMatchObject(expected)
     expect(apply(d, { kind: 'set_title', title: 'A &amp; B' }).body.title).toBe('A &amp; B')
   })
 
@@ -264,8 +297,9 @@ describe('journey mutation ops', () => {
       [{ kind: 'remove_section', index: 9 }, 'SECTION_NOT_FOUND'],
       [{ kind: 'remove_task', sectionIndex: 0, taskIndex: 9 }, 'TASK_NOT_FOUND'],
       [{ kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 6 }, 'INVALID_OP'],
-      [{ kind: 'add_section', label: 'has: colon' }, 'INVALID_OP'],
-      [{ kind: 'add_task', sectionIndex: 0, text: 'has: colon', score: 3 }, 'INVALID_OP'],
+      [{ kind: 'add_section', label: ' ' }, 'INVALID_OP'],
+      [{ kind: 'add_task', sectionIndex: 0, text: ' ', score: 3 }, 'INVALID_OP'],
+      [{ kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: [' '] }, 'INVALID_OP'],
       [{ kind: 'rename_actor', from: 'Nobody', to: 'Anyone' }, 'ACTOR_NOT_FOUND'],
     ]
     for (const [op, code] of cases) {
@@ -400,6 +434,14 @@ describe('journey facts aggregates + describe model', () => {
     const labels = tree.nodes.map(n => n.label)
     expect(labels).toContain('Make tea (score 5; Me)')
     expect(labels).toContain('Do work (score 1; Me, Cat)')
+
+    const formatted = journey('journey\nFirst: 3: &lt;b&gt;Alice&lt;/b&gt;\nSecond: 4: <b>Alice</b>\nThird: 5: &lt;b&gt;Alice&lt;/b&gt;, <b>Alice</b>')
+    const facts = describeMermaidFacts(formatted)
+    expect(facts).toContain('journey actors 2')
+    expect(facts).toContain('journey actor <b>Alice</b> tasks 2')
+    expect(facts).toContain('journey actor Alice tasks 2')
+    expect(describeMermaid(formatted)).toContain('Actors: <b>Alice</b>, Alice.')
+    expect(describeMermaidTree(formatted).nodes.map(node => node.label)).toContain('Third (score 5; <b>Alice</b>, Alice)')
   })
 })
 

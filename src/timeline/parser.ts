@@ -17,6 +17,7 @@ import {
   parseTimelineHeader,
   splitTimelineEvents,
   unsupportedTimelineHeaderError,
+  assertUnambiguousTimelineSections,
 } from './parse-core.ts'
 
 // ============================================================================
@@ -49,6 +50,7 @@ export function parseTimelineDiagram(
   const scanned = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(scanned)
   lines = scanned.familyLines
+  assertUnambiguousTimelineSections(lines)
   const diagram: TimelineDiagram = {
     sections: [],
     ...accessibilityFields({ ...accessibility, ...scanned.accessibility }),

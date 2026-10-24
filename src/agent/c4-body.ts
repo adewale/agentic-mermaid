@@ -1,7 +1,7 @@
 import { encodeMermaidEntities, TERMINAL_CONTROL_RE } from '../shared/mermaid-entities.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import {
-  C4_VARIANTS, c4ArgumentFields, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveCategory, c4ElementFields,
+  C4_VARIANTS, C4AmbiguousArgumentError, c4ArgumentFields, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveCategory, c4ElementFields,
   c4RecordSignature, c4RelationshipFields, emptyC4Body, readC4Source, resolveC4Directives,
 } from '../c4/parser.ts'
 import type {
@@ -21,7 +21,10 @@ export function parseC4Body(lines: string[] | string, accessibility: Accessibili
     if (accessibility.title !== undefined) body.accessibilityTitle = accessibility.title
     if (accessibility.descr !== undefined) body.accessibilityDescription = accessibility.descr
     return body
-  } catch { return null }
+  } catch (error) {
+    if (error instanceof C4AmbiguousArgumentError) throw error
+    return null
+  }
 }
 
 function quote(value: string): string {
@@ -118,6 +121,7 @@ function canonicalStatements(body: C4Body): C4Statement[] {
 const RESPELLED_C4_EXTENSIONS = new Set([
   'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_space_before_arguments',
   'c4_quoted_string_extension', 'c4_relindex_positional_metadata',
+  'c4_unquoted_argument',
 ])
 
 /** Unchanged statements retain exact raw bytes. A typed edit rewrites only its
