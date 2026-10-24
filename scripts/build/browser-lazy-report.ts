@@ -186,7 +186,6 @@ const elkConstructorOutputs = outputNames.filter(path =>
 if (elkConstructorOutputs.length === 0) throw new Error('ELK implementation has no emitted constructor seam')
 const elkFamilies = MEASURED_FAMILY_IDS.filter(id =>
   elkConstructorOutputs.some(path => staticFamilyFiles[id].includes(path)))
-const elkFiles = staticClosure([elkOutput])
 const budgetedFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([...staticFamilyFiles[id], ...yamlFiles, ...(elkFamilies.includes(id) ? elkFiles : [])]),
@@ -244,18 +243,17 @@ if (!MEASURE_ONLY) {
 const report = {
   schemaVersion: 1 as const,
   compression: 'sum of each fetched file; gzip level 9; Brotli quality 11',
-  familyClosure: 'static imports only; on-demand YAML, ELK and HTML entity downloads are additional when a diagram requires them',
+  familyClosure: 'selected ELK transfer; static excludes on-demand providers; YAML and HTML entity downloads remain explicit',
   budgetedFamilyClosure: 'static imports plus complete YAML transfer for frontmatter/directives and ELK transfer for families that can demand its constructor',
   yamlChunks: yamlProviderOutputs,
   yamlTransfer: transferSize(yamlFiles),
-  budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, { requests: budgetedFamilyFiles[id].length, ...transferSize(budgetedFamilyFiles[id]) }])),
   familyCost: 'selected ELK includes its solver; nativeSolver includes the shared forest implementation; omitted-layout Flowchart indexed forest and its ELK fallback union are reported and budgeted separately; static excludes on-demand dependencies; HTML5 tables remain additional',
   ...(implicitForestFiles && implicitForestFallbackFiles ? { omittedLayoutFlowchart: { indexedForest: { requests: implicitForestFiles.length, ...transferSize(implicitForestFiles) }, indexedForestThenElk: { requests: implicitForestFallbackFiles.length, ...transferSize(implicitForestFallbackFiles) } } } : {}),
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
   budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
-    requests: familyFiles[id].length, elk: familyFiles[id].includes(elkOutput), ...transferSize(familyFiles[id]),
+    requests: budgetedFamilyFiles[id].length, elk: budgetedFamilyFiles[id].includes(elkOutput), ...transferSize(budgetedFamilyFiles[id]),
   }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,
   families: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
     requests: familyFiles[id].length,
@@ -281,8 +279,10 @@ if (!MEASURE_ONLY) {
   checkBudget('initial', report.initial, budgets.initial)
   for (const id of BROWSER_BUILTIN_FAMILY_IDS) checkBudget(id, report.budgetedFamilies[id], budgets.families[id])
   if (report.omittedLayoutFlowchart) {
-    checkBudget('flowchart omitted-layout forest', report.omittedLayoutFlowchart.indexedForest, budgets.families.flowchart)
-    checkBudget('flowchart omitted-layout forest then ELK', report.omittedLayoutFlowchart.indexedForestThenElk, budgets.families.flowchart)
+    const forestBudget = staticClosure([...implicitForestFiles!, ...yamlFiles])
+    checkBudget('flowchart omitted-layout forest plus YAML', { requests: forestBudget.length, ...transferSize(forestBudget) }, budgets.families.flowchart)
+    const fallbackBudget = staticClosure([...implicitForestFallbackFiles!, ...yamlFiles])
+    checkBudget('flowchart omitted-layout forest then ELK plus YAML', { requests: fallbackBudget.length, ...transferSize(fallbackBudget) }, budgets.families.flowchart)
   }
 }
 if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\n${problems.join('\n')}`)
