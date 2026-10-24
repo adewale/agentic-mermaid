@@ -356,29 +356,32 @@ export function connectorContourSemantics(
   geometry: ConnectorGeometry,
   compatibilityClosed = false,
 ): ConnectorContourSemantics[] {
-  const subpaths = connectorSubpaths(geometry, compatibilityClosed)
-  const segments = connectorSegments(geometry, compatibilityClosed)
-  return subpaths.flatMap((subpath, subpathIndex) => {
+  const contours: ConnectorContourSemantics[] = []
+  for (const subpath of connectorSubpaths(geometry, compatibilityClosed)) {
     const start = subpath.points[0]
     const last = subpath.points.at(-1)
-    if (!start || !last) return []
-    const contourSegments = segments.filter(segment => segment.subpathIndex === subpathIndex)
+    if (!start || !last) continue
     let startTangent: ScenePoint | undefined
-    for (let index = 0; index < contourSegments.length && !startTangent; index++) {
-      startTangent = connectorUnitTangent(contourSegments[index]!.start, contourSegments[index]!.end)
+    for (let index = 1; index < subpath.points.length && !startTangent; index++) {
+      startTangent = connectorUnitTangent(subpath.points[index - 1]!, subpath.points[index]!)
     }
-    let endTangent: ScenePoint | undefined
-    for (let index = contourSegments.length - 1; index >= 0 && !endTangent; index--) {
-      endTangent = connectorUnitTangent(contourSegments[index]!.start, contourSegments[index]!.end)
+    const closing = subpath.closed && !sameConnectorPoint(start, last)
+    if (!startTangent && closing) startTangent = connectorUnitTangent(last, start)
+    let endTangent = closing ? connectorUnitTangent(last, start) : undefined
+    for (let index = subpath.points.length - 1; index > 0 && !endTangent; index--) {
+      endTangent = connectorUnitTangent(subpath.points[index - 1]!, subpath.points[index]!)
     }
-    return [{
-      start: { ...start },
-      end: { ...(subpath.closed ? start : last) },
+    // Scalar-line points were created here, so transfer them. Authored point
+    // arrays still receive independent endpoint copies, including closed ends.
+    contours.push({
+      start: geometry.kind === 'line' ? start : { ...start },
+      end: geometry.kind === 'line' ? last : { ...(subpath.closed ? start : last) },
       closed: subpath.closed,
       ...(startTangent ? { startTangent } : {}),
       ...(endTangent ? { endTangent } : {}),
-    }]
-  })
+    })
+  }
+  return contours
 }
 
 export interface ConnectorSegment {
