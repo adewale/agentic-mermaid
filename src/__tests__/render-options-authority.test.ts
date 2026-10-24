@@ -11,6 +11,7 @@ import {
   SHARED_RENDER_OPTION_FIELD_DESCRIPTORS,
   sharedRenderOptionsJsonSchema,
   styleInputJsonSchema,
+  deferredRenderContractDigest,
   resolveRenderRequest,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
@@ -141,6 +142,162 @@ describe('shared RenderOptions authority', () => {
     })
     expect(renderContractDigest(accessorBacked)).toBe(renderContractDigest({ value: 1 }))
     expect(getterReads).toBe(1)
+
+    let boundary: unknown = null
+    for (let index = 0; index < 64; index++) boundary = { a: boundary }
+    expect(renderContractDigest(boundary)).toMatch(/^fnv1a64:/)
+    expect(() => renderContractDigest({ a: boundary })).toThrow('exceeds maximum nesting depth 64')
+
+    const width = Array(4096).fill(null)
+    expect(renderContractDigest(width)).toMatch(/^fnv1a64:/)
+    width.push(null)
+    expect(() => renderContractDigest(width)).toThrow('at most 4096 items')
+    let lengthReads = 0
+    const changingLength = new Proxy(width, { get(target, key, receiver) {
+      if (key === 'length' && lengthReads++ === 0) return 0
+      return Reflect.get(target, key, receiver)
+    } })
+    expect(() => renderContractDigest(changingLength)).toThrow('at most 4096 items')
+
+    const nodes = Array.from({ length: 25 }, (_, index) => Array(index === 24 ? 3974 : 4000).fill(null))
+    expect(renderContractDigest(nodes)).toMatch(/^fnv1a64:/)
+    nodes[24]!.push(null)
+    expect(() => renderContractDigest(nodes)).toThrow('100000-node limit')
+
+    for (const key of ['__proto__', 'prototype', 'constructor']) {
+      expect(() => renderContractDigest(Object.fromEntries([[key, 1]]))).toThrow('forbidden prototype key')
+      expect(renderContractDigest(Object.fromEntries([[key, undefined]]))).toBe(renderContractDigest({}))
+    }
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, undefined, 1n, Symbol('invalid')]) {
+      expect(() => renderContractDigest([value])).toThrow(TypeError)
+    }
+    expect(() => renderContractDigest({ first: [Number.POSITIVE_INFINITY], second: {
+      get value() { throw new Error('capture must finish before validation') },
+    } })).toThrow('capture must finish before validation')
+  })
+
+  test.each(['drop', 'leak'] as const)('digest capture owns its slots when an inherited setter would %s a write', mode => {
+    const original = Object.getOwnPropertyDescriptor(Array.prototype, '0')
+    const marker = 123456
+    let captured: unknown[] | undefined
+    let reads = 0
+    let intercepted = 0
+    const source = mode === 'drop' ? [marker] : [marker, {
+      get later() { reads++; if (captured) captured[0] = Number.POSITIVE_INFINITY; return true },
+    }]
+    let failure: unknown
+    let digest: string | undefined
+    try {
+      Object.defineProperty(Array.prototype, '0', {
+        configurable: true,
+        set(this: unknown[], value: unknown) {
+          if (value === marker) intercepted++
+          if (value === marker && mode === 'drop') return
+          if (value === marker) captured = this
+          Object.defineProperty(this, '0', { value, writable: true, enumerable: true, configurable: true })
+        },
+      })
+      try { digest = renderContractDigest(source) } catch (error) { failure = error }
+    } finally {
+      if (original) Object.defineProperty(Array.prototype, '0', original)
+      else Reflect.deleteProperty(Array.prototype, '0')
+    }
+    expect(failure).toBeUndefined()
+    expect(intercepted).toBe(0)
+    expect(digest).toBe(renderContractDigest(mode === 'drop' ? [marker] : [marker, { later: true }]))
+    expect(reads).toBe(mode === 'drop' ? 0 : 1)
+  })
+
+  test('digest capture does not hand private arrays to an ambient push replacement', () => {
+    const original = Object.getOwnPropertyDescriptor(Array.prototype, 'push')!
+    const marker = 123456
+    let intercepted = 0
+    let failure: unknown
+    let digest: string | undefined
+    try {
+      Object.defineProperty(Array.prototype, 'push', { ...original,
+        value(this: unknown[], ...values: unknown[]) {
+          if (values.includes(marker)) { intercepted++; throw new Error('ambient push intercepted private data') }
+          return Reflect.apply(original.value, this, values)
+        },
+      })
+      try { digest = renderContractDigest([marker]) } catch (error) { failure = error }
+    } finally { Object.defineProperty(Array.prototype, 'push', original) }
+    expect(failure).toBeUndefined()
+    expect(intercepted).toBe(0)
+    expect(digest).toBe(renderContractDigest([marker]))
+  })
+
+  test.each(['array', 'object'] as const)('digest capture freezes each %s before a branding hook can change it', shape => {
+    const original = Object.getOwnPropertyDescriptor(WeakSet.prototype, 'add')!
+    const marker = 123456
+    const source = () => shape === 'array' ? [marker] : { proofMarker: marker }
+    let observed = 0
+    let mutable = 0
+    let digest: string | undefined
+    let deferred: (() => string) | undefined
+    let failure: unknown
+    try {
+      Object.defineProperty(WeakSet.prototype, 'add', { ...original,
+        value(this: WeakSet<object>, value: object) {
+          const key = Array.isArray(value) ? '0' : 'proofMarker'
+          if (Reflect.get(value, key) === marker) {
+            observed++
+            if (!Object.isFrozen(value)) mutable++
+            Reflect.set(value, key, Number.POSITIVE_INFINITY)
+          }
+          return Reflect.apply(original.value, this, [value])
+        },
+      })
+      try {
+        digest = renderContractDigest(source())
+        deferred = deferredRenderContractDigest(source())
+      } catch (error) { failure = error }
+    } finally { Object.defineProperty(WeakSet.prototype, 'add', original) }
+    expect(failure).toBeUndefined()
+    expect(observed).toBe(2)
+    expect(mutable).toBe(0)
+    // Independent FNV-1a-64 vectors for [123456] / {"proofMarker":123456}.
+    const expected = shape === 'array' ? 'fnv1a64:7dabd99ba02ca668' : 'fnv1a64:1c35bbcc0f62d15e'
+    expect(digest).toBe(expected)
+    expect(deferred!()).toBe(expected)
+  })
+
+  test.each(['proxy', 'getter'] as const)('bounds array copying when a %s grows after the length preflight', kind => {
+    const maximum = 100_000
+    let lastAllowedReads = 0
+    let overflowReads = 0
+    let source: unknown[]
+    if (kind === 'proxy') {
+      let lengthReads = 0
+      source = new Proxy([], {
+        get(target, key, receiver) {
+          if (key === 'length') return lengthReads++ === 0 ? 0 : maximum + 1
+          if (typeof key === 'string' && /^\d+$/.test(key)) {
+            if (Number(key) === maximum - 1) lastAllowedReads++
+            if (Number(key) === maximum) { overflowReads++; throw new Error('overflow slot was read') }
+            return null
+          }
+          return Reflect.get(target, key, receiver)
+        },
+        getOwnPropertyDescriptor(target, key) {
+          if (typeof key === 'string' && /^\d+$/.test(key)) return { value: null, writable: true, enumerable: true, configurable: true }
+          return Reflect.getOwnPropertyDescriptor(target, key)
+        },
+      })
+    } else {
+      source = [null]
+      Object.defineProperty(source, '0', { get() {
+        source.length = maximum + 1
+        source.fill(null, 1, maximum)
+        Object.defineProperty(source, maximum - 1, { get() { lastAllowedReads++; return null } })
+        Object.defineProperty(source, maximum, { get() { overflowReads++; throw new Error('overflow slot was read') } })
+        return null
+      } })
+    }
+    expect(() => renderContractDigest(source)).toThrow('100000-entry limit at $')
+    expect(lastAllowedReads).toBe(1)
+    expect(overflowReads).toBe(0)
   })
 
   test('graphical digests preserve the established canonical JSON string encoding', () => {

@@ -6,7 +6,7 @@ import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
 import { indentLines } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
-import { inspectNativePaintGeometry, nativePaintAncestors, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
+import { createOwnedNativePaintRecorder, nativePaintAncestors, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 
@@ -36,10 +36,11 @@ export interface NativeDrawing {
 
 /** Feed each emitted occurrence to inspection without copying its descendants
  * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
-function* paintEntries(parts: readonly Fragment[]): Generator<NativePaintEntry> {
+function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[]): ScenePaintGeometryInspection {
+  const recorder = createOwnedNativePaintRecorder(header)
   const groups: GroupFragment[] = []
   type Occurrence = Omit<NativePaintEntry, 'node' | 'key'>
-  function* visit(children: readonly Fragment[], prefix: string, occurrence?: Occurrence): Generator<NativePaintEntry> {
+  function visit(children: readonly Fragment[], prefix: string, occurrence?: Occurrence): void {
     for (let index = 0; index < children.length; index++) {
       const fragment = children[index]!
       const key = `${prefix}.${index}`
@@ -60,16 +61,17 @@ function* paintEntries(parts: readonly Fragment[]): Generator<NativePaintEntry> 
         }
         const ancestors = nativePaintAncestors(occurrence?.ancestors, fragment.own)
         const owner = fragment.owner?.id === fragment.own.id && fragment.owner.role === fragment.own.role ? ancestors.at(-1) : fragment.owner
-        yield* visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
+        visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
         groups.pop()
       } else if (occurrence) {
-        yield { node: fragment.node, key, ...occurrence, owner: fragment.node.owner ?? occurrence.owner }
+        recorder.leaf(fragment.node, key, occurrence.parentMatrix, occurrence.ancestors, occurrence.conditional, occurrence.groupOpacity, fragment.node.owner ?? occurrence.owner)
       } else {
-        yield { node: fragment.node, key }
+        recorder.leaf(fragment.node, key)
       }
     }
   }
-  yield* visit(parts, 'scene')
+  visit(parts, 'scene')
+  return recorder.finish()
 }
 
 /** Compose SVG immediately and retain shallow group handles until inspection. */
@@ -141,5 +143,5 @@ export function drawNative(
   const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
   const svg = document.parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n')
   assertFinalSvgByteBudget(svg, 'native drawing output')
-  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText, paint: inspectNativePaintGeometry(document, paintEntries(document.parts)) })
+  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText, paint: inspectPaint(document, document.parts) })
 }

@@ -41,7 +41,9 @@ export interface JsonConfigAdmissionOptions {
   readonly allowUndefinedObjectProperties?: boolean
 }
 
-const FORBIDDEN_PROTOTYPE_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
+export function isForbiddenJsonConfigKey(key: string): boolean {
+  return key === '__proto__' || key === 'prototype' || key === 'constructor'
+}
 
 type VisitFrame = {
   readonly kind: 'visit'
@@ -214,7 +216,7 @@ export function validateJsonConfigAdmission(
       const [key, child] = entries[index]!
       const childPath = [...frame.path, key]
       chargeText(key, childPath)
-      if (FORBIDDEN_PROTOTYPE_KEYS.has(key)) {
+      if (isForbiddenJsonConfigKey(key)) {
         addProblem('JSON_PROTOTYPE_KEY', childPath, 'uses a forbidden prototype key')
         continue
       }

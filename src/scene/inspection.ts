@@ -152,6 +152,18 @@ export function nativePaintAncestors(parent: readonly SceneOwner[] | undefined, 
   return ancestors
 }
 
+/** Feed native occurrences directly without allocating intermediate entries. */
+export function createOwnedNativePaintRecorder(header: PaintInspectionHeader) {
+  const recorder = createPaintRecorder(header, undefined, true)
+  return {
+    leaf(node: NativePaintEntry['node'], key: string, parentMatrix?: AffineMatrix, ancestors: readonly SceneOwner[] = emptyAncestors, conditional = false, groupOpacity = 1, owner?: SceneOwner) {
+      if (!ownedAncestors.has(ancestors)) throw new TypeError('Native paint ancestors must be owned snapshots')
+      recorder.leaf(node, key, parentMatrix, ancestors, conditional, groupOpacity, owner)
+    },
+    finish: recorder.finish,
+  }
+}
+
 export function inspectNativePaintGeometry(header: PaintInspectionHeader, entries: Iterable<NativePaintEntry>): ScenePaintGeometryInspection {
   const recorder = createPaintRecorder(header, undefined, true)
   let index = 0
