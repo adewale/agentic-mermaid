@@ -31,7 +31,9 @@ const editorDir = fileURLToPath(new URL('../../editor/', import.meta.url))
 
 async function readFile(relativePath: string): Promise<string> {
   const file = Bun.file(join(editorDir, relativePath))
-  return file.text()
+  const contents = await file.text()
+  // Keep authoring notes in source without shipping them in the controls.
+  return relativePath.startsWith('html/') ? contents.replace(/<!--[\s\S]*?-->/g, '') : contents
 }
 
 async function readSharedBrowserFile(relativePath: string): Promise<string> {
