@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseSequenceDiagram, readSequenceStatements } from '../sequence/parser.ts'
-import { parseSequenceBody, renderSequence } from '../agent/sequence-body.ts'
+import { parseSequenceBody, renderSequence, sequenceUnsupportedSyntaxWarnings } from '../agent/sequence-body.ts'
 import { parseRegisteredMermaid, asSequence, mutate, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { verifyMermaid } from '../agent/verify.ts'
@@ -22,12 +22,29 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseSequenceDiagram – actors', () => {
-  it.each(['participant :@', 'actor A:B as Named', 'participant A@', 'participant A:B@{ "type": "database" }', 'create participant :@'])('refuses damaged declaration identities without inventing a participant: %s', declaration => {
+  it.each(['participant :@', 'participant A@', 'participant A,B@{ "type": "database" }', 'create participant :@'])('refuses damaged declaration identities without inventing a participant: %s', declaration => {
     const source = `sequenceDiagram\n${declaration}`
     expect(() => parse(source)).toThrow('Sequence participant ID')
     expect(readSequenceStatements([declaration]).issues).toContainEqual({ syntax: 'sequence_participant_id', line: 0, message: expect.stringContaining('Sequence participant ID') })
     expect(() => parseSequenceBody([declaration])).toThrow('Sequence participant ID')
     expect(() => renderSequence({ kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'opaque-block', lines: [declaration] }] })).toThrow('Sequence participant ID')
+  })
+
+  it.each([
+    ['participant note:0 as Authored', 'note:0', 'Authored', 'participant'],
+    ['actor B:start as Named', 'B:start', 'Named', 'actor'],
+    ['participant title:C@{ "type": "control", "alias": "Control" }', 'title:C', 'Control', 'control'],
+    ['create participant item:0 as Created', 'item:0', 'Created', 'participant'],
+  ] as const)('preserves clear native colon IDs but refuses a typed body that cannot write them: %s', (declaration, id, label, type) => {
+    const source = `sequenceDiagram\n${declaration}\nparticipant A as Before\nA->>B: Unchanged`
+    expect(parse(source).actors[0]).toEqual({ id, label, type })
+    expect(sequenceUnsupportedSyntaxWarnings(source)).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_participant_id_extension', line: 2 }))
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED', message: expect.stringContaining('rename this ID and its references') }))
+    expect(() => parseSequenceBody([declaration])).toThrow('Typed editing and serialization require a portable ID')
+    expect(() => renderSequence({ kind: 'sequence', participants: [], messages: [], statements: [{ kind: 'opaque-block', lines: [declaration] }] })).toThrow('Typed editing and serialization require a portable ID')
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining('Typed editing and serialization require a portable ID') }))
   })
 
   it.each(['A+B', 'A/B', 'A\\B', 'A(B)', '$', '資料'])('keeps valid punctuation and Unicode declaration IDs: %s', id => {
@@ -53,7 +70,7 @@ describe('parseSequenceDiagram – actors', () => {
     expect(rendered.messages).toMatchObject([{ from: id, to: 'B', label: 'Message' }])
   })
 
-  it.each([':@', '#hash', 'A#B'])('typed participant additions refuse declaration delimiters before creating identity %s', id => {
+  it.each([':@', '#hash', 'A#B', 'note:0'])('typed participant additions refuse declaration delimiters before creating identity %s', id => {
     const parsed = parseRegisteredMermaid('sequenceDiagram\nparticipant A')
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     const sequence = asSequence(parsed.value)!

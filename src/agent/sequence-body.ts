@@ -66,8 +66,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   // logical content but keeps indentation/blank lines; we walk it in lockstep
   // by skipping its blank/comment lines, which `trimmedLines` already drops.
   const source = readSequenceStatements(rawLines ?? trimmedLines)
-  const invalidParticipant = source.issues.find(issue => issue.syntax === 'sequence_participant_id')
-  if (invalidParticipant) throw new SequenceParticipantIdError(invalidParticipant.message)
+  assertParticipantDeclarations(source)
   if (source.issues.some(issue => issue.syntax === 'sequence_block_boundary')) return null
   const raw = source.statements
 
@@ -366,7 +365,7 @@ export function renderSequence(body: SequenceBody): string {
     const mentioned = new Set<string>()
     for (const st of body.statements) {
       if (st.kind === 'opaque-block') {
-        assertParticipantDeclarations(st.lines)
+        assertParticipantDeclarations(readSequenceStatements(st.lines))
         for (const l of st.lines) lines.push(l)
       } else if (st.kind === 'participant') {
         const p = body.participants[st.ref]
@@ -389,7 +388,7 @@ export function renderSequence(body: SequenceBody): string {
 
 function renderFragment(fragment: SequenceFragment): string[] {
   if (fragment.rawLines) {
-    assertParticipantDeclarations(fragment.rawLines)
+    assertParticipantDeclarations(readSequenceStatements(fragment.rawLines))
     return [...fragment.rawLines]
   }
   const prefix = `  ${fragment.fragmentKind} `
@@ -417,9 +416,9 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
   return `${prefix}${label !== p.id || redeclared ? ` as ${label}` : ''}`
 }
 
-function assertParticipantDeclarations(lines: readonly string[]): void {
-  const problem = readSequenceStatements(lines).issues.find(issue => issue.syntax === 'sequence_participant_id')
-  if (problem) throw new Error(problem.message)
+function assertParticipantDeclarations(source: ReturnType<typeof readSequenceStatements>): void {
+  const problem = source.issues.find(issue => issue.syntax === 'sequence_participant_id' || issue.syntax === 'sequence_participant_id_extension')
+  if (problem) throw new SequenceParticipantIdError(problem.message)
 }
 
 /** The participant ids a statement names, in the order Mermaid meets them. */

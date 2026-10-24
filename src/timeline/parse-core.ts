@@ -40,10 +40,12 @@ export const TIMELINE_TITLE_RE = /^title\s+(.+)$/i
 export const TIMELINE_SECTION_RE = /^section\s+([^:]+)$/i
 export const TIMELINE_CONTINUATION_RE = /^:\s+(.+)$/
 
-/** A section prefix cannot also supply a period/event boundary on that line. */
+/** A section declaration cannot also supply a period/event boundary on that line. */
 export function assertUnambiguousTimelineSections(lines: readonly string[]): void {
   for (const line of scanAccessibilityDirectives([...lines]).familyLines) {
-    if (/^section\s+.*:/i.test(line.trim())) {
+    // Mermaid requires one whitespace plus non-colon text for a section token.
+    // `section : Event` is a period; `section  : Event` starts an empty section.
+    if (/^section\s[^:\n]+:/i.test(line.trim())) {
       throw syntaxError({
         what: `Ambiguous timeline section: "${line.trim()}"`,
         expectedForm: 'section Section name on its own line, then Period : Event on a separate line',

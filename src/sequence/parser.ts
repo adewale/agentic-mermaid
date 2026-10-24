@@ -629,6 +629,10 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     } else if (syntax.kind === 'declaration' && syntax.declaration.unspacedAlias) {
       issue(entry, 'sequence_unspaced_alias', 'Participant text immediately following as is read as its alias. Pinned Mermaid can reject this or read it as part of the ID; write as <label> with a separating space')
     }
+    if (syntax.kind === 'declaration' || syntax.kind === 'create') {
+      const problem = sequenceParticipantIdProblem(syntax.declaration.id)
+      if (problem) issue(entry, 'sequence_participant_id_extension', problem)
+    }
   }
   for (const index of stack) issue(statements[index]!, 'sequence_block_boundary', 'Sequence block or box is never closed by end')
   return { statements, issues }
@@ -724,22 +728,28 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
  *  change an actor that already exists. */
 export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
 
-/** The declaration ID token differs from message endpoints: punctuation such
- * as +, / and parentheses is legal here, but @ starts metadata and the other
- * delimiters cannot name a participant. Do not repair them into a new ID. */
-export function sequenceParticipantIdProblem(id: string): string | null {
+function clearSequenceParticipantId(id: string): boolean {
   // Mermaid protects entity tokens before lexing. Their terminator is not
-  // a declaration delimiter; keep the authored spelling for endpoint IDs.
-  return typeof id !== 'string' || !id || /[<>:,;@#\s]/.test(toEntityMarkers(id))
-    ? `Sequence participant ID ${JSON.stringify(id)} cannot contain declaration delimiters or whitespace; use an explicit ID and put display punctuation in its alias, e.g. participant A as Label :@`
-    : null
+  // a declaration delimiter. A colon is also unambiguous in our declaration
+  // grammar; preserve that authored identity even though Mermaid rejects it.
+  return typeof id === 'string' && id !== '' && !/[<>,;@#\s]/.test(toEntityMarkers(id))
+}
+
+/** Strict admission for a newly written declaration. Native reads keep clear
+ * colon IDs, but encoding or replacing them would change authored identity. */
+export function sequenceParticipantIdProblem(id: string): string | null {
+  const clear = clearSequenceParticipantId(id)
+  if (clear && !id.includes(':')) return null
+  const reason = clear
+    ? 'is read as authored, but pinned Mermaid rejects colons in declaration IDs'
+    : 'has ambiguous declaration delimiters or whitespace'
+  return `Sequence participant ID ${JSON.stringify(id)} ${reason}. Typed editing and serialization require a portable ID; rename this ID and its references, and put display punctuation in an alias`
 }
 
 export class SequenceParticipantIdError extends MermaidSyntaxError {}
 
 function assertSequenceParticipantId(id: string): void {
-  const problem = sequenceParticipantIdProblem(id)
-  if (problem) throw new SequenceParticipantIdError(problem)
+  if (!clearSequenceParticipantId(id)) throw new SequenceParticipantIdError(sequenceParticipantIdProblem(id)!)
 }
 
 export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {

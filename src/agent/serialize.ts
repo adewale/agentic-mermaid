@@ -31,7 +31,8 @@ export interface SerializeOptions {
   /**
    * Wrapper emission policy. 'verbatim' (default) re-emits the leading source
    * wrapper (frontmatter, init directives, comments) byte-identically from
-   * `meta.wrapperSource`, then re-emits any init directive authored *after*
+   * `meta.wrapperSource`, except adjacent frontmatter delimiters with no content
+   * line, which Mermaid rejects. It then re-emits any init directive authored *after*
    * the family header that the serialized body does not already own — a
    * structured serializer receives directive-free grammar, so without this the
    * config would be lost. Such a directive therefore moves ahead of the

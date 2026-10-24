@@ -42,9 +42,19 @@ describe('parseTimelineDiagram', () => {
 
   it.each([
     'timeline\nsection a: v',
+    'timeline\nsection  : v',
+    'timeline\n2020 : A\nsection \t: v',
     'timeline\n      title ;my;title;\n      section ;a;bc-123;\n     section abc-456 ;ta;sk1;: ;ev;ent1; : ;ev;ent2; : ;ev;e3;',
   ])('rejects ambiguous section/event boundaries without inventing a period: %s', source => {
     expect(() => parse(source)).toThrow('Ambiguous timeline section')
+  })
+
+  it.each(['section:', 'section :', 'section\t:', 'SECTION :'])('keeps %s as a period instead of a section declaration', prefix => {
+    const diagram = parse(`timeline\nsection Releases\n2020 : A\n${prefix} Beta : Gamma`)
+    expect(diagram.sections.map(section => ({
+      label: section.label,
+      periods: section.periods.map(period => [period.label, period.events.map(event => event.text)]),
+    }))).toEqual([{ label: 'Releases', periods: [['2020', ['A']], [prefix.slice(0, -1).trim(), ['Beta', 'Gamma']]] }])
   })
 
   it('keeps semicolons in unambiguous titles, sections, periods and events', () => {
