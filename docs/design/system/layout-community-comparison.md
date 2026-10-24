@@ -11,19 +11,22 @@ It distinguishes inspected source, a project's published measurements, and our
 same-input experiment. None is substituted for another. The peer campaign's frozen renderer is
 `e9db0dbe8bac597f6db7198ecfe388f5cfbbbf01`, `agentic-layered@22`;
 its subsequent reporting and benchmark-check commits do not change that artifact.
-The current accepted PR renderer is runtime26, source
-`3258d80ce165457a1dd4695bb2bc12171f492006`; its separate
-[follow-up qualification](layout-followup-results.md) does not relabel this
-older peer campaign as current-renderer measurements.
+Runtime26 source `3258d80ce165457a1dd4695bb2bc12171f492006` has separate
+historical [follow-up evidence](layout-followup-results.md). The current accepted
+source is `678af21d8f2fc4de62f6dcf98d7f0489c8cde9c0`, published through reporting
+head `8ac0040d8002952edd1c4e6c66adad97f510398e`. Each campaign retains its original
+revision and date; earlier timing and memory ratios do not qualify this current
+source. The [accepted forest delivery report](pr449-forest-boundary-2026-10-23.md)
+and [complete cost controls](pr449-controls-2026-10-23.md) record the newer evidence.
 
-| Current comparison | What is established | What is still missing |
+| Evidence by source and scope | What is established | What is still missing |
 | --- | --- | --- |
-| ELK quality | Runtime26 preserves the known-source crossing/label gains and bounded Architecture cleanup. | Fresh Architecture has21/64 crossing losses and48/128 worse edit transitions; bends, length, area and proof uncertainty remain separate dimensions. |
-| ELK cost | Separate accepted26 whole27 memory measurements show lower worker RSS and slightly lower allocation in both cache policies. Selected-native fetched closures are56–62% smaller than complete ELK closures. | Uncached cyclic allocation/time losses and failed hosted qualification remain. Both engines stay in the package, fallback adds ELK, and payload reserve is narrow. No universal speed/memory/size win. |
-| Pele/Ondine, Merman and other published peers | The pinned capability/source review and exact historical same-input experiment below remain evidence. | No fresh runtime26 same-input peer or human-readability experiment establishes a new lead. Compiler/mount-runtime and Rust-native/V8 memory scopes remain distinct. |
+| ELK quality | Historical runtime26 evidence records known-source crossing/label gains and bounded Architecture cleanup. | That study retains21/64 fresh Architecture crossing losses and48/128 worse edit transitions; bends, length, area and proof uncertainty remain separate dimensions. Current-source claims require their own qualification. |
+| ELK cost | At accepted678, Architecture's measured Brotli JavaScript closure is251,198B native versus572,973B ELK. Historical timing and memory observations retain their original source and scope. | Current qualification has not established a CPU or RSS win over ELK. Failed controls, deadlines and unavailable observations remain explicit. Both engines remain shipped; fallback and combined feature closures need complete accounting. |
+| Pele/Ondine, Merman and other published peers | The pinned capability/source review and exact historical same-input experiment below remain evidence. | No current accepted678 same-input peer or blinded readability experiment establishes a new lead. Compiler/mount-runtime and Rust-native/V8 memory scopes remain distinct. |
 | Zombie simple and family scope | Zombie's narrower optional solver remains a useful comparison with our six-family opt-in backend. | Neither expanding our families nor narrowing to Flowchart alone has measured justification; Flowchart-only would retain the cyclic tails. |
 
-Four further subtraction prototypes are now measured against accepted26:
+Four historical subtraction prototypes were measured against runtime26:
 rank-first, best-band reuse, ray views, and a separately declared combined
 query-local crossing-record/ray-view variant. None meets its declared improvement
 targets; the complete combined memory run is allocation-flat and would reduce
@@ -176,7 +179,8 @@ these defaults; small differences require healthy controls before interpretation
 
 ## What the controlled ELK comparison establishes
 
-These results come from the separately frozen, fuller qualification, using the
+The following table retains the historical runtime22/e9/b473 qualification. Its
+ratios and limits do not qualify accepted678. These results use the
 same parsers, text measurement, family adapters and receipt/paint pipeline.
 They isolate backend choice more closely than cross-product SVG timings do.
 Source metrics cover 246 occurrences / 231 distinct strings. Generated metrics
@@ -193,9 +197,9 @@ shared generated successes.
 | Paint proof | Source certificates 219 pass versus 217. | No. All 634 shared generated certificates remain unverified; native has more issues in 48 cases. |
 | Edit stability | All 36 undo SVG checks pass; six-family edit sequences recorded. | No. Four comparable transitions displace unaffected subjects more, and hints can change eligibility/backend. |
 | Native constraints | Frame terminals, empty scopes, grouped Architecture and supported local directions. | No. Active hints and ancestor-container terminals still decline; port/symmetry preference scoring is incomplete. |
-| Fully consumed normal-cache time | Latest full 27-input run: corpus native 0.974425× /A/A 0.973128×; agent edit 1.002526× /A/A 0.999490×. | Approximately tied. This consumes complete receipts/workflows, unlike the peer SVG-only experiment. |
-| Cache-off cost | Latest full run completes with healthy A/A: corpus native 0.579697× /A/A 0.991710×; agent edit 0.613027× /A/A 0.982787×. | Better aggregates; not all cases. Cyclic15/18-cuts still take 1.519808× /1.587379× ELK. Earlier incomplete runs remain retained. |
-| Memory | Latest corpus RSS 0.773295× off /0.787892× normal; peak heap about 0.601× in both. | Partial. Six uncached cyclic cases allocate 1.485–2.096× ELK; retained growth does not always improve. |
+| Fully consumed normal-cache time | Historical full27-input run(e9/b473): corpus native 0.974425× /A/A 0.973128×; agent edit 1.002526× /A/A 0.999490×. | Approximately tied. This consumes complete receipts/workflows, unlike the peer SVG-only experiment. |
+| Cache-off cost | Historical full run completed with healthy A/A: corpus native 0.579697× /A/A 0.991710×; agent edit 0.613027× /A/A 0.982787×. | Better aggregates; not all cases. Cyclic15/18-cuts still take 1.519808× /1.587379× ELK. Earlier incomplete runs remain retained. |
+| Memory | Historical corpus RSS 0.773295× off /0.787892× normal; peak heap about 0.601× in both. | Partial. Six uncached cyclic cases allocate 1.485–2.096× ELK; retained growth does not always improve. |
 | Browser delivery | Flowchart native 286669 gzip bytes versus ELK 711870; all six native closures smaller. | Yes on measured transfer bytes. Class/Requirement add one request; synchronous bundle keeps both engines. Architecture has only 7 Brotli bytes of budget headroom. |
 
 The complete [16-aspect qualification](layout-qualification.md) retains adverse
@@ -203,7 +207,7 @@ case IDs, visual inspections, study limits, source pins and both failed and
 successful cost campaigns. All required CI passes at `b4734ec7`; passing required
 CI is separate from passing advisory quality and cost qualification.
 
-The [latest full cost artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39695626480/artifacts/12391357430)
+The [historical full cost artifact](https://github.com/adewale/agentic-mermaid/actions/runs/39695626480/artifacts/12391357430)
 and [per-case/memory summary](layout-cost-b473-results.json) use b4734ec7,
 with renderer/build files unchanged from the e9 freeze. Both cache policies now
 complete on the recorded EPYC 9V74 runner; the earlier EPYC 7763 incomplete run
