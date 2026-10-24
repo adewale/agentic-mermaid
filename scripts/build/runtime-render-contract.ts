@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 
 /** Keep the canonical source manifest. Browser renderers need validation and
@@ -69,6 +70,40 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
 
 interface BrowserBuild {
   onLoad(options: { filter: RegExp }, callback: (args: { path: string }) => { contents: string; loader: 'ts'; resolveDir: string } | undefined): void
+  onResolve(options: { filter: RegExp }, callback: (args: { path: string; resolveDir: string }) => { path: string } | undefined): void
+}
+
+/** A split browser graph needs one error identity, not a separate fetched
+ * facade. Inline the canonical leaf declarations into its existing backend
+ * owner and redirect every leaf import there. Source/Node keep the leaf. */
+function runtimeLayoutBackendSource(source: string, path: string): string {
+  const errorPath = resolve(dirname(path), 'certification-error.ts')
+  const errors = readFileSync(errorPath, 'utf8')
+  const leaf = ts.createSourceFile(errorPath, errors, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const declarations = ['LayoutCertificationAttempt', 'LayoutCertificationError', 'DeferredDependencyError', 'deferredDependency']
+  if (leaf.statements.length !== declarations.length || leaf.statements.some((statement, index) =>
+    !(ts.isInterfaceDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isFunctionDeclaration(statement))
+    || statement.name?.text !== declarations[index])) throw new Error('Unsupported canonical layout error declarations')
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  let imports = 0, exports = 0
+  const statements = file.statements.filter(statement => {
+    if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) || !statement.moduleSpecifier
+      || !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== './certification-error.ts') return true
+    if (ts.isImportDeclaration(statement)) {
+      const bindings = statement.importClause?.namedBindings
+      if (!bindings || !ts.isNamedImports(bindings) || bindings.elements.length !== 1
+        || bindings.elements[0]!.propertyName || bindings.elements[0]!.name.text !== 'LayoutCertificationError') throw new Error('Unsupported layout error facade import')
+      imports++
+    } else {
+      const bindings = statement.exportClause
+      if (!bindings || !ts.isNamedExports(bindings) || bindings.elements.length !== 3 || bindings.elements.some((element, index) =>
+        element.propertyName || element.name.text !== ['DeferredDependencyError', 'LayoutCertificationError', 'LayoutCertificationAttempt'][index])) throw new Error('Unsupported layout error facade exports')
+      exports++
+    }
+    return false
+  })
+  if (imports !== 1 || exports !== 1) throw new Error('Expected one canonical layout error import and export')
+  return `${errors}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
 /** Pipeline prose is for Node-side inspection and generated documentation.
@@ -174,10 +209,18 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
 }
 
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceLayoutErrors = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
+      if (coalesceLayoutErrors) {
+        const backendPath = fileURLToPath(new URL('../../src/layout/backend.ts', import.meta.url))
+        const errorPath = resolve(dirname(backendPath), 'certification-error.ts')
+        build.onResolve({ filter: /[\\/]certification-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === errorPath ? { path: backendPath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]layout[\\/]backend\.ts$/ }, ({ path }) => path !== backendPath ? undefined : ({
+          contents: runtimeLayoutBackendSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+        }))
+      }
       build.onLoad({ filter: /[\\/]src[\\/]layout-engine\.ts$/ }, ({ path }) => ({
         contents: runtimeLayoutSource(readFileSync(path, 'utf8'), path),
         loader: 'ts',

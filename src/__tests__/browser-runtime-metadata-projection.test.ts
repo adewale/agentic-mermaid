@@ -20,6 +20,7 @@ function project(path: string, options: ProjectionOptions = {}): string {
   }> = []
   runtimeRenderContractPlugin(options).setup({
     onLoad({ filter }, load) { loaders.push({ filter, load }) },
+    onResolve() { throw new Error('Source-only projections must not register module resolvers') },
   })
   return loaders.find(loader => loader.filter.test(path))?.load({ path })?.contents ?? readFileSync(path, 'utf8')
 }
