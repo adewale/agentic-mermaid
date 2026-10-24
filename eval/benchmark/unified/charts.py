@@ -67,7 +67,11 @@ def community_composition(directory,result,scores,inputs,evidence):
         parents=[suite for suite in ledger.get('suites',[])if suite.get('id')=='community']
         if len(parents)!=1 or parents[0].get('result')!=raw or not ledger.get('finishedAt')or ledger.get('profile')!='full'or ledger.get('rounds')!=3:
             raise ValueError('Community composition source differs from its actual completed parent: '+phase)
-        if load(source/'community-inputs.json')!=inputs or proof.get('target')!=manifest.get('target')or proof.get('currentReference')!=manifest.get('currentReference')or proof.get('catalogIds')!=manifest.get('catalogIds')or proof.get('targetAdvance')!=manifest.get('targetAdvance'):
+        source_inputs=load(source/'community-inputs.json',{})
+        literal_envelope=lambda value:{key:item for key,item in value.items()if key!='source'}
+        provenance=manifest.get('inputSourceProvenance',{})
+        path_key='originalSourcePath'if phase=='original'else 'repairSourcePath'
+        if literal_envelope(source_inputs)!=literal_envelope(inputs)or source_inputs.get('source')!=provenance.get(path_key)or not provenance.get('scope')or (phase=='original'and source_inputs!=inputs)or proof.get('target')!=manifest.get('target')or proof.get('currentReference')!=manifest.get('currentReference')or proof.get('catalogIds')!=manifest.get('catalogIds')or proof.get('targetAdvance')!=manifest.get('targetAdvance'):
             raise ValueError('Community composition changed literal inputs, engine target, catalog or reference: '+phase)
         window=manifest.get(phase,{})
         if any(window.get(key)!=raw.get(key)for key in ('startedAt','finishedAt'))or window.get('qualification')!=proof.get('svgQualification'):
