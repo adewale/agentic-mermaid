@@ -16,27 +16,30 @@ queues. Retired IDs are not reused.
 
 ## Release / owner decisions
 
-- [ ] **PERF-1 — Land the measured candidate and close performance gaps**
-  (`todo`, owner requested 2026-10-22). PR #467 completes the before/after
-  campaign, experiment selection and rebase qualification. Its
-  [report](docs/project/archive/performance-campaign-2026-10-22.md) and
+- [ ] **PERF-1 — Close the measured rendering and delivery gaps**
+  (`todo`, owner requested 2026-10-22). PRs #467 and #468 are merged. The
+  [initial report](docs/project/archive/performance-campaign-2026-10-22.md),
   [recommendation crosswalk](docs/project/archive/performance-campaign-2026-10-22-crosswalk.md)
-  distinguish retained changes, rejected trials and unfinished redesigns.
-  Merge/publication remain outstanding. Agentic still trails Beautiful and
-  Pele on the shared peer cohort, production bundle size grows slightly, and
-  several timing/memory risks remain. PR #468 retains narrow Sequence miss
-  ownership transfer for repeatable allocation savings; its
-  [follow-up report](docs/project/archive/performance-followup-2026-10-23.md)
-  preserves the full-corpus timing losses, noisy confirmations and mixed memory
-  results. The native recorder rewrite was rejected. Renderer-instance lifetime
-  controls are implemented separately but blocked by unchanged payload caps;
-  they are not shipped or measured as a memory improvement. Next: qualify the
-  shared reachability workspace, integrate #433's semantic peer/tail/allocation
-  gates, establish geometry/proof ownership before broader reuse, and resolve
-  #449's native qualification failures. Production SVG-only distribution remains
-  unimplemented. Existing work stays with its owners;
-  the [campaign contract](docs/design/system/performance-campaign.md) records
-  the preservation requirements.
+  and [Sequence follow-up](docs/project/archive/performance-followup-2026-10-23.md)
+  retain their gains, rejected experiments and timing/memory limits. PR #469's
+  narrow reachability trial was closed without merging; broader workspace
+  ownership remains unimplemented. The [catch-up report](docs/project/archive/performance-catchup-2026-10-23.md)
+  records measured bc8's allocation and ordinary-download savings, larger broad
+  bundle, failed peer qualification and unmet 2×/50% Sequence milestone.
+  #433 now carries its canonical lazy YAML and shared security normalization;
+  its current combined artifact still needs qualification and green release
+  checks. Keep one scanner/security/occurrence implementation at that owner.
+  Native bounds was rejected for unresolved timing downside. Final #471 keeps
+  diagnostics and reporting; its production trials were withdrawn.
+  Next: test the shared admission/emission/transformation Sequence slice,
+  preflight measurement capabilities and controls, and coordinate graph
+  workspace/dependency reuse with #449's unresolved native qualification.
+  Compose one bounded deferred-provider contract for YAML, entities, ELK and
+  native/forest readiness before integrating those branches. Renderer-instance
+  lifetime controls remain blocked by unchanged payload caps; production
+  SVG-only distribution is unimplemented. The [campaign contract](docs/design/system/performance-campaign.md)
+  defines north-star metrics and preservation requirements; this item remains
+  open until the competitive and delivery goals are demonstrated.
 
 - [ ] **REL-1 — Publish and verify the prepared release** (`todo`,
   [#378](https://github.com/adewale/agentic-mermaid/issues/378)). Source declares
