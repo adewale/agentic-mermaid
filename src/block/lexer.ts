@@ -1,7 +1,7 @@
 // Adapted from Pele (458322a5b8abb1ae57ddf127c32017ab9fb14a92), copyright (c) 2026 kepano.
 // MIT license; see pele-license.txt in this directory.
 import { T } from './tokens.ts'
-import { isSpace, isWord } from './chars.ts'
+import { isSpace, isWord } from '../shared/lexer-chars.ts'
 export interface Tokens {
   types: number[]
   texts: string[]
