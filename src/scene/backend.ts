@@ -1,3 +1,4 @@
+import { observeCache } from '../performance-observations.ts'
 // ============================================================================
 // StyleBackend interface + DefaultBackend + backend registry (SPEC §3.2).
 //
@@ -147,6 +148,13 @@ export const DefaultBackend: StyleBackend = {
   },
 }
 
+const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
+
+/** A replacement method must use the checked backend path. */
+export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
+  return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
+}
+
 const CORE_BACKEND_VERSION = '1.0.0'
 const CORE_BACKEND_COMPATIBILITY = Object.freeze({ core: '^0.4.0', scene: '^2.0.0' })
 const CORE_BACKEND_PROVENANCE = Object.freeze({
@@ -159,6 +167,9 @@ const HOST_BACKEND_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-proce
 const BACKENDS = new Map<string, ExtensionRegistration<StyleBackend, 'backend'>>()
 const BACKEND_INPUT_NAMES = new Map<string, string>()
 const BACKEND_CONFORMANCE = new Map<string, () => BackendConformanceReport>()
+// Internal selection reuses one immutable registry snapshot until publication
+// changes. Public discovery still returns its ordinary fresh descriptor array.
+let selectionSnapshot: readonly BackendDescriptor[] | undefined
 
 /** Registration executes caller-owned methods. Keep every registry mutation
  * outside that executable window so a callback cannot install/uninstall a
@@ -227,6 +238,7 @@ function refuseUntilConforming(backend: StyleBackend, inputName: string, conform
     prove()
     return render.call(backend, doc, ctx)
   }
+  if (backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(render)) OWNED_DEFAULT_RENDERERS.add(methods.render)
   return backend
 }
 
@@ -390,6 +402,7 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
     // and its proof together during the same synchronous mutation window.
     registerExtension(BACKENDS, { identity, value: snapshot })
     BACKEND_CONFORMANCE.set(id, () => conformance)
+    selectionSnapshot = undefined
     const registration = BACKENDS.get(id)!
     return () => {
       assertBackendRegistryMutationAllowed()
@@ -398,6 +411,7 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
       if (BACKENDS.get(id) !== registration) return
       BACKENDS.delete(id)
       BACKEND_CONFORMANCE.delete(id)
+      selectionSnapshot = undefined
     }
   } finally {
     backendConformanceCandidate = null
@@ -428,6 +442,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     })
     BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
+    selectionSnapshot = undefined
   } finally {
     backendConformanceCandidate = null
   }
@@ -468,7 +483,8 @@ export function getBackendDescriptor(
   id: string,
   policy?: HostBackendPolicy,
 ): BackendDescriptor | undefined {
-  const registered = knownBackendDescriptors()
+  observeCache('backend-registry', policy ? 'bypass' : selectionSnapshot ? 'hit' : 'miss')
+  const registered = policy ? knownBackendDescriptors() : (selectionSnapshot ??= knownBackendDescriptors())
   const requested = backendDescriptorFromSnapshot(registered, id)
   if (!policy) return requested
 

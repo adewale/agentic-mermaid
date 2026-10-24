@@ -360,7 +360,7 @@ This section records the design discipline for the branch, not an active roadmap
 
 | What | How | Target |
 |---|---|---|
-| Layout JSON byte-equality across runs | Determinism grid (4 directions × node-counts 2..12 × {sparse, dense, star}) | 100% within one ELK version on one machine |
+| Layout JSON byte-equality across runs | Representative direction/density cases in `agent-determinism.test.ts`, plus corpus and cross-process keepers | Identical within one ELK version on one machine |
 | Drift sentinel | `layout-equivalence.test.ts`: integer-rounded geometry for the docs corpus plus layout-compare fixtures, byte-compared to a committed baseline; the PR description lists each changed golden and why | 0 diffs |
 | Cross-process determinism | Test spawns child `bun` processes; layout JSON byte-identical across them | 100% |
 | Tier-1 verifier recall on broken-fixture cases | Inline tests per Tier-1 code | high |
@@ -368,13 +368,13 @@ This section records the design discipline for the branch, not an active roadmap
 | Round-trip property | Property test (fast-check) | 100% on parseable input |
 | Sequence fidelity | Property test (BUILD-18): any sequence source is segments-or-opaque and always lossless — interleaved structured + opaque lines round-trip in order; `remove_message` never touches opaque-block bytes | 100% lossless |
 | Sad-path coverage | CLI mutate on opaque family; malformed JSON-RPC; broken Code Mode script; N-round format idempotence | explicit tests |
-| Fault-injection (poor-man's mutation testing) | Inject a known bug into each core function, confirm a test catches it, revert | every core fn covered |
+| Targeted fault controls | Introduce a credible regression at an audited boundary, confirm the owning test fails, restore | Evidence for the recorded scope; no whole-core mutation-coverage claim |
 | Code Mode sandbox isolation | Tests assert `execute()` cannot reach `process`, `require`, `fetch`, `eval`, `Function`, or host-constructor escape paths; dynamic code generation is disabled | explicit tests |
 
 Cross-cutting:
 
 - **Doc-sync** (both directions): every `LayoutWarning` code must appear in this spec, and the `MutationOp` menu is generated rather than copied here. `am --agent-instructions` output must equal `Instructions_for_agents.md` byte-for-byte.
-- **Test honesty:** no tautological assertions (`expect(typeof x).toBe('boolean')` is banned by review). Every test must be able to fail for the regression it names. Verified by the fault-injection pass.
+- **Test honesty:** each claimed behavior needs a credible failing regression and an independent oracle. Packaging parity, determinism and semantic correctness protect different contracts; see [`docs/testing-strategy.md`](./docs/testing-strategy.md).
 
 MermaidSeqBench is wired as an external corpus signal; live model transcript evaluation remains periodic / pre-release rather than PR CI.
 
@@ -399,7 +399,6 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 - **`LABEL_OVERFLOW` is a rendered-line char-count check** (Tier 1, reliable), not a font-metric heuristic: the cap applies to the longest displayed line (XML entities decode, `<br>` splits lines, formatting tags strip), not raw source chars. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, because that is what they draw.
 - **`Finite` branded type** enforced at every coordinate emission.
 - **Deliverable completeness:** CHANGELOG entry, README section, an `examples/` script, per-verb CLI `--help`, and a [`docs/fork-differences.md`](./docs/fork-differences.md) mention all ship with the code.
-- **Test honesty:** the tautological seed-variance test is gone; a fault-injection pass proves the suite has teeth.
 
 ---
 

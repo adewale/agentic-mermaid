@@ -1,5 +1,6 @@
 import { decodeXML } from 'entities'
 import { inspectSvgOnce } from './svg-inspection-cache.ts'
+import { isAsciiXmlNameChar } from './shared/xml-name.ts'
 
 export interface SvgAttributeToken {
   readonly name: string
@@ -17,13 +18,6 @@ export interface SvgStartTagToken {
   readonly end: number
   readonly attributes: readonly SvgAttributeToken[]
   readonly selfClosing: boolean
-}
-
-function isNameChar(char: string | undefined): boolean {
-  if (char === undefined) return false
-  const code = char.charCodeAt(0)
-  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
-    || (code >= 48 && code <= 57) || code === 95 || code === 46 || code === 58 || code === 45
 }
 
 /** Exactly JavaScript's `\s`, without a regex call per ASCII character. */
@@ -54,11 +48,12 @@ function scanTagEnd(source: string, start: number): number {
  * only supplies exact attribute/text ranges without ever interpreting text
  * nodes as markup or CSS. */
 export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
-  return inspectSvgOnce('start-tags', source, () => scanStartTags(source))
+  return inspectSvgOnce('start-tags', source, () => scanStartTags(source)!)
 }
 
-function scanStartTags(source: string): readonly SvgStartTagToken[] {
-  const tags: SvgStartTagToken[] = []
+// One lexical owner: inventory, CSS values/contexts, or style bodies only.
+function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[]): readonly SvgStartTagToken[] | undefined {
+  const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts ? undefined : []
   for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
     if (source.startsWith('<!--', start)) {
       const end = source.indexOf('-->', start + 4)
@@ -69,45 +64,56 @@ function scanStartTags(source: string): readonly SvgStartTagToken[] {
     const first = source[start + 1]
     if (!first || first === '/' || first === '!' || first === '?') continue
     let nameEnd = start + 1
-    while (isNameChar(source[nameEnd])) nameEnd++
+    while (isAsciiXmlNameChar(source[nameEnd])) nameEnd++
     if (nameEnd === start + 1) continue
     const end = scanTagEnd(source, nameEnd)
     if (end < 0) break
-    const attributes: SvgAttributeToken[] = []
-    let cursor = nameEnd
-    while (cursor < end - 1) {
-      while (isWhitespace(source[cursor])) cursor++
-      if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
-      const nameStart = cursor
-      while (isNameChar(source[cursor])) cursor++
-      if (cursor === nameStart) break
-      const name = source.slice(nameStart, cursor)
-      while (isWhitespace(source[cursor])) cursor++
-      if (source[cursor] !== '=') break
-      cursor++
-      while (isWhitespace(source[cursor])) cursor++
-      const quote = source[cursor]
-      if (quote !== '"' && quote !== "'") break
-      cursor++
-      const valueStart = cursor
-      while (cursor < end - 1 && source[cursor] !== quote) cursor++
-      if (source[cursor] !== quote) break
-      attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
-      cursor++
-    }
     // `/\s*>` at the end of the tag, read backwards without slicing it.
     let beforeClose = end - 2
     while (beforeClose > start && isWhitespace(source[beforeClose])) beforeClose--
-    tags.push(Object.freeze({
-      name: source.slice(start + 1, nameEnd),
-      start,
-      end,
-      attributes: Object.freeze(attributes),
-      selfClosing: source[beforeClose] === '/',
-    }))
+    const name = source.slice(start + 1, nameEnd)
+    const selfClosing = source[beforeClose] === '/'
+    const attributes: SvgAttributeToken[] | undefined = tags ? [] : undefined
+    if (tags || cssRanges) {
+      let cursor = nameEnd
+      while (cursor < end - 1) {
+        while (isWhitespace(source[cursor])) cursor++
+        if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
+        const nameStart = cursor
+        while (isAsciiXmlNameChar(source[cursor])) cursor++
+        if (cursor === nameStart) break
+        const name = source.slice(nameStart, cursor)
+        while (isWhitespace(source[cursor])) cursor++
+        if (source[cursor] !== '=') break
+        cursor++
+        while (isWhitespace(source[cursor])) cursor++
+        const quote = source[cursor]
+        if (quote !== '"' && quote !== "'") break
+        cursor++
+        const valueStart = cursor
+        while (cursor < end - 1 && source[cursor] !== quote) cursor++
+        if (source[cursor] !== quote) break
+        if (attributes) attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
+        else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
+          const range = { start: valueStart, end: cursor }
+          cssRanges.push(range)
+          if (name === 'style') styleContexts!.push(range)
+        }
+        cursor++
+      }
+    }
+    if (tags) tags.push(Object.freeze({ name, start, end, attributes: Object.freeze(attributes!), selfClosing }))
+    if (styleContexts && name === 'style' && !selfClosing) {
+      const close = source.indexOf('</style', end)
+      if (close >= 0) {
+        const range = { start: end, end: close }
+        cssRanges?.push(range)
+        styleContexts.push(range)
+      }
+    }
     start = end - 1
   }
-  return Object.freeze(tags)
+  return tags && Object.freeze(tags)
 }
 
 export function svgRootStartTag(source: string): SvgStartTagToken | undefined {
@@ -141,29 +147,26 @@ interface Replacement {
   readonly value: string
 }
 
-function applyReplacementsRightToLeft(source: string, replacements: readonly Replacement[]): string {
-  let output = source
-  for (const replacement of [...replacements].sort((left, right) => right.start - left.start)) {
-    output = `${output.slice(0, replacement.start)}${replacement.value}${output.slice(replacement.end)}`
-  }
-  return output
-}
-
 // Replacement ranges are normally disjoint (attribute values, style text), so
-// one forward pass assembles the result instead of re-copying it per range.
+// one linear pass assembles the result instead of re-copying it per range.
 // Overlap is possible only for tag-like text inside <style>; it keeps the
 // original right-to-left semantics.
 function applyReplacements(source: string, replacements: readonly Replacement[]): string {
   if (replacements.length === 0) return source
+  const ordered = [...replacements].sort((left, right) => right.start - left.start)
   const parts: string[] = []
-  let cursor = 0
-  for (const replacement of [...replacements].sort((left, right) => left.start - right.start)) {
-    if (replacement.start < cursor) return applyReplacementsRightToLeft(source, replacements)
-    parts.push(source.slice(cursor, replacement.start), replacement.value)
-    cursor = replacement.end
+  let cursor = source.length
+  for (const replacement of ordered) {
+    if (replacement.end > cursor) {
+      let output = source
+      for (const range of ordered) output = `${output.slice(0, range.start)}${range.value}${output.slice(range.end)}`
+      return output
+    }
+    parts.push(source.slice(replacement.end, cursor), replacement.value)
+    cursor = replacement.start
   }
-  parts.push(source.slice(cursor))
-  return parts.join('')
+  parts.push(source.slice(0, cursor))
+  return parts.reverse().join('')
 }
 
 export function transformSvgAttributes(
@@ -188,28 +191,44 @@ const CSS_VALUE_ATTRIBUTES = new Set([
   'stop-color', 'stroke', 'style',
 ])
 
-function svgCssRanges(source: string): readonly { readonly start: number; readonly end: number }[] {
-  const ranges: Array<{ start: number; end: number }> = []
-  for (const tag of scanSvgStartTags(source)) {
-    for (const attribute of tag.attributes) {
-      if (CSS_VALUE_ATTRIBUTES.has(attribute.name)) {
-        ranges.push({ start: attribute.valueStart, end: attribute.valueEnd })
-      }
-    }
-    if (tag.name === 'style' && !tag.selfClosing) {
-      const close = source.indexOf('</style', tag.end)
-      if (close >= 0) ranges.push({ start: tag.end, end: close })
-    }
-  }
+export interface SvgRange {
+  readonly start: number
+  readonly end: number
+}
+
+/** Local lexical CSS metadata, valid only for this exact immutable string.
+ * Consumed synchronously; never public inspection evidence or XML admission. */
+export interface SvgCssProjection {
+  readonly source: string
+  readonly cssRanges: readonly SvgRange[]
+  readonly styleContexts: readonly SvgRange[]
+}
+
+export function projectSvgCss(source: string): SvgCssProjection {
+  const cssRanges: SvgRange[] = []
+  const styleContexts: SvgRange[] = []
+  scanStartTags(source, cssRanges, styleContexts)
+  return { source, cssRanges, styleContexts }
+}
+
+/** Style bodies only: skip attribute parsing and retain no tag inventory. */
+export function svgStyleRanges(source: string): readonly SvgRange[] {
+  const ranges: SvgRange[] = []
+  scanStartTags(source, undefined, ranges)
   return ranges
 }
 
 export function svgCssText(source: string): string {
-  return svgCssRanges(source).map(range => source.slice(range.start, range.end)).join('\n')
+  return projectSvgCss(source).cssRanges.map(range => source.slice(range.start, range.end)).join('\n')
 }
 
-export function transformSvgCssValues(source: string, transform: (css: string) => string): string {
-  return applyReplacements(source, svgCssRanges(source).map(range => ({
+export function transformSvgCssValues(
+  source: string,
+  transform: (css: string) => string,
+  projection: SvgCssProjection = projectSvgCss(source),
+): string {
+  if (projection.source !== source) throw new Error('SVG CSS projection does not match its source')
+  return applyReplacements(source, projection.cssRanges.map(range => ({
     ...range,
     value: transform(source.slice(range.start, range.end)),
   })))

@@ -6,7 +6,7 @@ import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
 import { indentLines } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
-import { inspectNativePaintGeometry, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
+import { inspectNativePaintGeometry, nativePaintAncestors, type NativePaintEntry, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 
@@ -20,7 +20,7 @@ type LeafNode = Exclude<SceneNode, { kind: 'group' }>
 interface GroupFragment extends FragmentData {
   readonly kind: 'group'
   readonly children: readonly Fragment[]
-  readonly matrix: ReturnType<typeof transformMatrix>
+  readonly matrix: ReturnType<typeof transformMatrix> | undefined
   readonly own: NonNullable<NativePaintEntry['ancestors']>[number]
   readonly owner: NativePaintEntry['owner']
   readonly conditional: boolean
@@ -38,32 +38,34 @@ export interface NativeDrawing {
  * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
 function* paintEntries(parts: readonly Fragment[]): Generator<NativePaintEntry> {
   const groups: GroupFragment[] = []
-  function* visit(children: readonly Fragment[], prefix: string): Generator<NativePaintEntry> {
+  type Occurrence = Omit<NativePaintEntry, 'node' | 'key'>
+  function* visit(children: readonly Fragment[], prefix: string, occurrence?: Occurrence): Generator<NativePaintEntry> {
     for (let index = 0; index < children.length; index++) {
       const fragment = children[index]!
       const key = `${prefix}.${index}`
       if (fragment.kind === 'group') {
         groups.push(fragment)
-        yield* visit(fragment.children, key)
-        groups.pop()
-      } else if (groups.length === 0) {
-        yield { node: fragment.node, key }
-      } else {
-        // Preserve the original bottom-up floating-point association, including
-        // the innermost identity multiplication, for matrices and opacity.
-        let parentMatrix = IDENTITY_MATRIX
+        // Reduce once per occurrence, preserving the original bottom-up
+        // floating-point association for both matrices and group opacity.
+        let parentMatrix: ReturnType<typeof transformMatrix> | undefined
         let groupOpacity = 1
         let conditional: true | undefined
         for (let depth = groups.length - 1; depth >= 0; depth--) {
           const group = groups[depth]!
-          parentMatrix = composeMatrices(group.matrix, parentMatrix)
+          if (group.matrix !== undefined || parentMatrix !== undefined) {
+            parentMatrix = composeMatrices(group.matrix ?? IDENTITY_MATRIX, parentMatrix ?? IDENTITY_MATRIX)
+          }
           groupOpacity = group.opacity * groupOpacity
           if (group.conditional) conditional = true
         }
-        const owner = fragment.node.owner ?? groups[groups.length - 1]!.owner
-        yield { node: fragment.node, key, parentMatrix,
-          ancestors: groups.map(group => group.own), owner,
-          conditional, groupOpacity }
+        const ancestors = nativePaintAncestors(occurrence?.ancestors, fragment.own)
+        const owner = fragment.owner?.id === fragment.own.id && fragment.owner.role === fragment.own.role ? ancestors.at(-1) : fragment.owner
+        yield* visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
+        groups.pop()
+      } else if (occurrence) {
+        yield { node: fragment.node, key, ...occurrence, owner: fragment.node.owner ?? occurrence.owner }
+      } else {
+        yield { node: fragment.node, key }
       }
     }
   }
@@ -89,47 +91,55 @@ export function drawNative(
     shape: fields => leaf(marks.shape(fields)),
     text: fields => leaf(marks.text(fields)),
     connector: fields => leaf(marks.connector(fields)),
-    documentOpen: (...args) => leaf(marks.documentOpen(...args)),
-    documentContent: (...args) => leaf(marks.documentContent(...args)),
-    documentText: (...args) => leaf(marks.documentText(...args)),
-    definitions: (...args) => leaf(marks.definitions(...args)),
+    documentOpen: (fields, svg) => leaf(marks.documentOpen(fields, svg)),
+    documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
+    documentText: fields => leaf(marks.documentText(fields)),
+    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
     documentClose: () => leaf(marks.documentClose()),
     group(fields) {
-      let nodeCount = 1, childLength = 0, childDepth = 0
+      let nodeCount = 1, characters = 0, depth = 1, prepared = true
       const children: Fragment[] = []
       for (const child of fields.children) {
         children.push(child.node)
         nodeCount += child.node.nodeCount
-        childLength += child.node.svg.length
-        childDepth = Math.max(childDepth, child.node.depth)
+        characters += child.node.svg.length
+        depth = Math.max(depth, 1 + child.node.depth)
+        prepared = prepared && child.node.prepared
       }
       if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
-      if (childLength > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
+      if (characters > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
       const shell = marks.group({ ...fields, children: [] })
       validator.node(shell)
-      const depth = 1 + childDepth
       validator.depth(depth)
-      const matrix = transformMatrix(shell.transform)
+      const matrix = shell.transform ? transformMatrix(shell.transform) : undefined
       const own = shell.identity ?? { id: shell.id, role: shell.role }
       for (const child of children) {
         if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, own)
       }
-      const svg = [shell.open, ...fields.children.map(child => indentLines(child.node.svg, child.indent)), shell.close].join(shell.join)
+      const fragments = [shell.open]
+      for (const child of fields.children) fragments.push(indentLines(child.node.svg, child.indent))
+      fragments.push(shell.close)
+      const svg = fragments.join(shell.join)
       validator.serialization(svg)
       return { kind: 'group', svg, children, matrix, own, owner: shell.owner,
         conditional: shell.visibility === 'conditional', opacity: Number(shell.paint?.opacity ?? 1),
-        nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && children.every(child => child.prepared) }
+        nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && prepared }
     },
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }
   const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
   const result = validator.finish()
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
-  const nodeCount = document.parts.reduce((sum, fragment) => sum + fragment.nodeCount, 0)
+  let nodeCount = 0, characters = -1, preparedText = true
+  for (const part of document.parts) {
+    nodeCount += part.nodeCount
+    characters += part.svg.length + 1
+    preparedText = preparedText && part.prepared
+  }
   if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
-  if (document.parts.reduce((sum, part) => sum + part.svg.length + 1, -1) > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
+  if (characters > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
   const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
   const svg = document.parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n')
   assertFinalSvgByteBudget(svg, 'native drawing output')
-  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText: document.parts.every(part => part.prepared), paint: inspectNativePaintGeometry(document, paintEntries(document.parts)) })
+  return Object.freeze({ svg, header: { family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent }, preparedText, paint: inspectNativePaintGeometry(document, paintEntries(document.parts)) })
 }

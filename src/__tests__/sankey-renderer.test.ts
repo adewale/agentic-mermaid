@@ -78,6 +78,7 @@ describe('sankey SVG renderer · structure', () => {
     const svg = renderMermaidSVG('sankey-beta\n"North\nAmerica",Demand,1')
     expect(svg).toContain('>North</tspan>')
     expect(svg).toContain('>America</tspan>')
+    expect(svg).toMatch(/<tspan x="[^"]+" dy="[^"]+" textLength="[^"]+" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">North<\/tspan>/)
   })
 })
 
@@ -115,6 +116,15 @@ describe('sankey SVG renderer · config wiring', () => {
     expect(svg).toContain('<stop offset="100%"')
     expect(svg).toContain('stroke="url(#sankey-gradient-1)"')
     expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
+    // The suite preload enables Scene assertions. Ordinary production must
+    // admit the same typed resources in a fresh process before any import.
+    const ordinary = Bun.spawnSync({
+      cmd: [process.execPath, '-e', `import { renderMermaidSVG } from ${JSON.stringify(new URL('../index.ts', import.meta.url).pathname)}; process.stdout.write(renderMermaidSVG(${JSON.stringify(BASIC)}));`],
+      env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' },
+      stdout: 'pipe', stderr: 'pipe',
+    })
+    expect({ status: ordinary.exitCode, stderr: new TextDecoder().decode(ordinary.stderr) }).toEqual({ status: 0, stderr: '' })
+    expect(new TextDecoder().decode(ordinary.stdout)).toBe(svg)
   })
 
   test('each gradient runs from its ribbon source end to its target end', () => {

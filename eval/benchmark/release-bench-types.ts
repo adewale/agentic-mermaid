@@ -1,3 +1,5 @@
+import type { ReleaseRssDiagnostics } from './release-memory.ts'
+
 // The file protocol between the release benchmark and its isolated Node worker.
 export interface BenchInput {
   id: string
@@ -32,6 +34,11 @@ export interface MemoryResult {
   perInput: Array<{ id: string; allocatedBytes: number; peakHeapBytes: number }>
   passAllocatedBytes: number
   passPeakHeapBytes: number
+  settledHeapBytes: number
+  retainedHeapBytes: number
   retainedGrowthBytes: number
+  /** Process-lifetime getrusage high-water mark; retained for compatibility. */
   peakRssBytes: number
+  /** Diagnostic checkpoints only; absent from historical worker receipts. */
+  rss?: ReleaseRssDiagnostics
 }

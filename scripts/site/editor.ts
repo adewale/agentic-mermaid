@@ -244,7 +244,17 @@ async function generateEditorHtml(): Promise<string> {
       splitting: true,
       outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
-    } : {}),
+    } : {
+      plugins: [{
+        name: 'standalone-worker-families',
+        setup(build) {
+          build.onResolve({ filter: /(?:^|\/)verified-loaders\.ts$/ }, args => {
+            const original = fileURLToPath(new URL('../../src/browser-lazy/generated/verified-loaders.ts', import.meta.url))
+            return join(args.resolveDir, args.path) === original ? { path: fileURLToPath(new URL('../../src/browser-preview-eager-families.ts', import.meta.url)) } : undefined
+          })
+        },
+      }],
+    }),
   })
   if (!buildResult.success) {
     console.error('Bundle failed:', buildResult.logs)
@@ -270,6 +280,7 @@ async function generateEditorHtml(): Promise<string> {
     readHtmlPartials(themeItems, Boolean(runtimeDirectory)),
   ])
 
+  // The standalone runtime is also the worker source; keep app DOM code separate.
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -285,13 +296,10 @@ ${css}
 </head>
 <body>
 
-<!-- Top bar -->
 ${html.topbar}
 
-<!-- Main -->
 <main class="main" id="editor-main" aria-label="Mermaid editor workspace">
 
-  <!-- Persistent examples sidebar -->
   <aside class="examples-sidebar" id="examples-sidebar" aria-label="Example diagrams" aria-hidden="true" inert>
     <div class="examples-sidebar-inner">
       <div class="examples-sidebar-header">
@@ -307,20 +315,16 @@ ${html.topbar}
     </div>
   </aside>
 
-  <!-- Left panel -->
 ${html.leftPanel}
 
-  <!-- Resize handle -->
   <div class="resize-handle" id="resize-handle" role="separator" tabindex="0" aria-label="Resize source and preview panels" aria-orientation="vertical" aria-valuemin="280" aria-valuemax="75" aria-valuenow="42" aria-valuetext="Source panel width 42 percent"></div>
 
-  <!-- Right panel -->
 ${html.rightPanel}
 
 </main>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<!-- The standalone runtime is also the worker source; keep app DOM code separate. -->
 ${runtimeDirectory ? '' : `<script type="module" id="editor-runtime">\n${bundleJs}\n</script>`}
 <script type="module">
 ${runtimeDirectory ? bundleJs : ''}

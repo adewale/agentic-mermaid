@@ -1,11 +1,15 @@
 // Hotspot micro-benchmark cases for `eval/benchmark/micro-bench.ts`.
 //
-// Each case times one stage or hotspot that profiling of the warm SVG/ASCII
-// pipeline identified (see the case descriptions). Setup runs outside the
+// Each case times a public render, stage or hotspot in the warm SVG/PNG/ASCII
+// pipeline (see the case descriptions). Setup runs outside the
 // timed call. Every module is imported inside `setup`, never statically, so a
 // case whose internal entry point does not exist at a baseline revision is
 // reported as unavailable instead of preventing every other case from running.
 
+import { createHash } from 'node:crypto'
+import { decodeXML } from 'entities'
+import type { RenderedSvg } from '../../src/index.ts'
+import type { OutputSecurityDiagnostic } from '../../src/output-security.ts'
 import { flowchartMesh, flowchartTree, releaseBenchCases } from './release-bench-cases.ts'
 
 /** A stage case's timed call and the input an earlier stage of the same
@@ -14,6 +18,12 @@ import { flowchartMesh, flowchartTree, releaseBenchCases } from './release-bench
 export interface StagedCall {
   readonly call: () => unknown
   readonly input: string
+  /** Optional all-return validation, strictly outside clocks/GCProfiler. */
+  readonly consume?: (result: unknown) => void
+  /** Prepare one equivalent input outside timing; requires single-call capture. */
+  readonly beforeCall?: () => void
+  readonly captureBatchSize?: number
+  readonly evidence?: unknown
 }
 
 export interface MicroCase {
@@ -57,6 +67,7 @@ const MIXED_LABEL = '東京 → 👩‍💻 café naïve Ελληνικά 한국
 /** Plain-data text of a stage input, comparable across revisions. */
 const inputText = (value: unknown) => JSON.stringify(value, (_key, item) => (item instanceof Map || item instanceof Set ? [...item] : item))
 const isSvg = (value: unknown) => typeof value === 'string' && value.startsWith('<svg')
+const isPng = (value: unknown) => value instanceof Uint8Array && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((byte, index) => value[index] === byte)
 const nonEmptyString = (value: unknown) => typeof value === 'string' && value.length > 0
 
 // Same authored bytes at every revision: cleanup is measured through existing
@@ -95,6 +106,120 @@ const src = {
   conformance: () => import('../../src/scene/backend-conformance.ts'),
   paintCertification: () => import('../../src/scene/paint-certification.ts'),
   builtinBackends: () => import('../../src/scene/builtin-backends.ts'),
+  inspection: () => import('../../src/svg-inspection-cache.ts'),
+}
+
+// Literal authored labels, independent of the parser/lowering being measured.
+const receiptLabels = (workload: Workload): readonly (string | { visible: string; accessible: string })[] => {
+  const range = (prefix: string, count: number) => Array.from({ length: count }, (_, index) => `${prefix}${index}`)
+  switch (workload) {
+    case 'flow5': return ['Start', 'Check', 'Do it', 'Skip', 'End']
+    case 'tree50': return range('Node ', 50)
+    case 'mesh50': return range('label ', 20)
+    case 'seq20': return range('message ', 20)
+    case 'c4': return ['User', 'Email', 'Uses', 'Sends']
+    case 'class80': return range('C', 80)
+    case 'er40': return range('E', 40)
+    case 'state80': return range('S', 81)
+    case 'packet240': return ['Protocol fields', ...range('Field ', 240)]
+    case 'kanban240': return Array.from({ length: 12 }, (_, column) => [`Stage ${column}`, ...Array.from({ length: 20 }, (_, row) => `Task ${column}.${row}`)]).flat()
+    case 'requirement100': return range('Text: Requirement ', 100)
+    case 'treemap260': return ['Product allocation', ...Array.from({ length: 20 }, (_, group) => [`Group ${group}`, ...Array.from({ length: 12 }, (_, leaf) => ({ visible: `Investment ${group}.${leaf}`, accessible: `Investment ${group}.${leaf}: ${(leaf + 1) * 10}` }))]).flat()]
+    case 'ishikawa133': return ['Delayed delivery', ...Array.from({ length: 12 }, (_, category) => [`Category ${category}`, ...Array.from({ length: 10 }, (_, cause) => `Cause ${category}.${cause}`)]).flat()]
+    case 'block120': return range('Component ', 120)
+  }
+}
+
+/** Independent BigInt FNV reference, outside measurement; production uses
+ * 32-bit halves. Hash the actual secured SVG's JSON string, as receipts specify. */
+function svgDigest(svg: string): string {
+  const text = JSON.stringify(svg)
+  let hash = 0xcbf29ce484222325n
+  for (let index = 0; index < text.length; index++) hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 0x100000001b3n)
+  return `fnv1a64:${hash.toString(16).padStart(16, '0')}`
+}
+
+async function receiptConsumer(expected: RenderedSvg, workload: Workload) {
+  const { Resvg } = await import('@resvg/resvg-js')
+  // resvg parses real XML, rather than trusting the benchmark's SVG prefix.
+  new Resvg(expected.svg, { font: { loadSystemFonts: false } })
+  const visible = new Set<string>()
+  for (const tag of ['text', 'tspan']) {
+    for (const [, inner] of expected.svg.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'g'))) {
+      visible.add(decodeXML(inner!.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim())
+    }
+  }
+  // Tiny Treemap cells retain their exact authored label and quantity in a
+  // native title instead of painting text that cannot fit. Other labels must
+  // still be painted; a tooltip cannot stand in for missing visible text.
+  const accessible = new Set([...expected.svg.matchAll(/<title\b[^>]*>([\s\S]*?)<\/title>/g)]
+    .map(([, inner]) => decodeXML(inner!).trim()))
+  const missing = receiptLabels(workload).filter(label => typeof label === 'string'
+    ? !visible.has(label)
+    : !visible.has(label.visible) && !accessible.has(label.accessible))
+    .map(label => typeof label === 'string' ? label : label.visible)
+  if (missing.length) throw new Error(`receipt SVG lost literal labels: ${missing.join(', ')}`)
+  const digest = svgDigest(expected.svg)
+  if (expected.receipt.output !== 'svg' || expected.receipt.graphicalProjectionDigest !== digest || expected.receipt.layoutCertification?.outputDigest !== digest) {
+    throw new Error('receipt is not bound to the actual secured SVG')
+  }
+  const serialized = JSON.stringify(expected)
+  return {
+    consume(value: unknown): void {
+      // Consume every SVG byte and every receipt field after each timed batch.
+      if (JSON.stringify(value) !== serialized) throw new Error('SVG or complete bound receipt changed after the public reference render')
+    },
+    captureBatchSize: Math.max(1, Math.min(64, Math.floor(1024 * 1024 / serialized.length))),
+    evidence: {
+      svgSha256: createHash('sha256').update(expected.svg).digest('hex'),
+      svgBytes: Buffer.byteLength(expected.svg),
+      receipt: expected.receipt,
+      validation: 'all returns: complete public artifact equality; reference: resvg XML, literal text/tspan labels, independent BigInt output digest',
+      limitations: 'diagnostic source-runtime case; equality to the public API is a recipe/determinism oracle, not independent geometry/security proof; timed capture stores/clocks included, validation and capture-array allocation excluded',
+    },
+  }
+}
+
+function receiptCase(workload: Workload, postLayout: boolean): MicroCase {
+  return {
+    id: postLayout ? `scene:post-layout-secured-receipt-${workload}` : `render:svg-receipt-${workload}`,
+    description: postLayout
+      ? `Equivalent positioned input through fresh lowering/admission, paint certification, secured SVG and bound receipt, ${workload}`
+      : `Public renderMermaidSVGWithReceipt, complete artifact consumed outside timing, ${workload}`,
+    async setup() {
+      const { renderMermaidSVGWithReceipt } = await src.index()
+      const expected = renderMermaidSVGWithReceipt(MICRO_WORKLOADS[workload])
+      const consumer = await receiptConsumer(expected, workload)
+      if (!postLayout) return { call: () => renderMermaidSVGWithReceipt(MICRO_WORKLOADS[workload]), input: MICRO_WORKLOADS[workload], ...consumer }
+      const [{ resolveRenderRequest, resolvedRenderExecutionPlanOf, receiptOf }, { positionResolvedFamily }, { renderPositionedMermaidSVG, renderedSvgDigest }, { withSvgInspectionCache }] = await Promise.all([src.contract(), src.positioning(), src.graphical(), src.inspection()])
+      let request = resolveRenderRequest(MICRO_WORKLOADS[workload], {}, 'svg')
+      const layout = positionResolvedFamily(resolvedRenderExecutionPlanOf(request).family.id, request)
+      return {
+        input: inputText({ positioned: layout.positioned, options: request.renderOptions, appearance: request.appearance }),
+        ...consumer,
+        captureBatchSize: 1,
+        evidence: { ...consumer.evidence, inputPreparation: 'fresh equivalent resolved request before every call, outside clock/GCProfiler; original positioned wrapper retains its final geometry projection; layout generation excluded' },
+        beforeCall: () => { request = resolveRenderRequest(MICRO_WORKLOADS[workload], {}, 'svg') },
+        call: () => withSvgInspectionCache(() => {
+          const diagnostics: OutputSecurityDiagnostic[] = []
+          // Fresh requests defeat Scene/certification reuse without losing the
+          // original layout wrapper's private final geometry projection.
+          const rendered = renderPositionedMermaidSVG(request, layout, diagnostics)
+          const receipt = receiptOf(request, diagnostics)
+          const outputDigest = renderedSvgDigest(rendered.svg)
+          return Object.freeze({
+            svg: rendered.svg,
+            receipt: Object.freeze({
+              ...receipt,
+              graphicalProjectionDigest: outputDigest,
+              executionDecision: rendered.executionDecision,
+              ...(rendered.layoutCertification ? { layoutCertification: Object.freeze({ ...rendered.layoutCertification, outputDigest }) } : {}),
+            }),
+          })
+        }),
+      }
+    },
+  }
 }
 
 function cleanupCases(): MicroCase[] {
@@ -181,6 +306,19 @@ function asciiCase(workload: Workload): MicroCase {
 /** Include final string consumption and receipt hashing in the timed call.
  * These supplement text-only calls so lazy materialization is never mistaken
  * for a reduction in the cost of a fully consumed artifact. */
+function consumedSvgCase(workload: Workload): MicroCase {
+  return {
+    id: `render:svg-utf8-${workload}`,
+    description: `Public SVG fully UTF-8 consumed, without consuming the receipt, ${workload}`,
+    async setup() {
+      const { renderMermaidSVG } = await src.index()
+      const encoder = new TextEncoder()
+      return { call: () => encoder.encode(renderMermaidSVG(MICRO_WORKLOADS[workload])), input: MICRO_WORKLOADS[workload] }
+    },
+    check: result => result instanceof Uint8Array && result.length > 0,
+  }
+}
+
 function consumedCase(workload: Workload, output: 'svg' | 'ascii'): MicroCase {
   return {
     id: `render:${output}-consumed-${workload}`,
@@ -472,6 +610,30 @@ export function microCases(): readonly MicroCase[] {
     ...sceneCases('class80'),
     ...svgPassCases('class80'),
     ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(renderCase),
+    ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(consumedSvgCase),
+    ...(Object.keys(MICRO_WORKLOADS) as Workload[]).flatMap(workload => [receiptCase(workload, false), receiptCase(workload, true)]),
+    ...(['hand-drawn', 'watercolor'] as const).map((style): MicroCase => ({
+      id: `render:svg-flow5-${style}`,
+      description: `Public renderMermaidSVG, warm, flow5, ${style}, seed 7, strict security`,
+      async setup() {
+        const { renderMermaidSVG } = await src.index()
+        const options = { style, seed: 7, security: 'strict' as const }
+        return () => renderMermaidSVG(MICRO_WORKLOADS.flow5, options)
+      },
+      check: isSvg,
+    })),
+    // Source-runtime API cost, including rasterization. V8 allocation estimates
+    // omit resvg's native raster heap; packed PNG parity has a separate keeper.
+    ...(['flow5', 'seq20'] as const).map((workload): MicroCase => ({
+      id: `render:png-${workload}`,
+      description: `Public renderMermaidPNG, warm, ${workload}, scale 1, seed 7, strict security`,
+      async setup() {
+        const { renderMermaidPNG } = await src.agent()
+        const options = { scale: 1, seed: 7, security: 'strict' as const }
+        return () => renderMermaidPNG(MICRO_WORKLOADS[workload], options)
+      },
+      check: isPng,
+    })),
     ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(workload => consumedCase(workload, 'svg')),
     asciiCase('flow5'),
     asciiCase('mesh50'),

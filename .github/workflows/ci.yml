@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -205,7 +206,9 @@ jobs:
     name: E2E (${{ matrix.suite }})
     runs-on: ubuntu-latest
     # These suites construct their own inputs; no unit/quality dependency.
-    timeout-minutes: 45
+    # Three-browser system dependencies can consume 45 minutes on a slow
+    # package mirror. Leave room for the contracts after installation.
+    timeout-minutes: ${{ matrix.suite == 'browser' && 60 || 45 }}
     permissions:
       actions: read
       contents: read

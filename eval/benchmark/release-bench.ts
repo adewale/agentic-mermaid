@@ -1,8 +1,8 @@
 // Compare built packages in alternating fresh Node processes. Publication runs
 // use --candidate-tarball: the measured bytes are the bytes queued for npm.
 // Reports are generated evidence, never committed baselines.
-import { spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash, randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { cpus, release, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -10,7 +10,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { extractOfficialCorpus, officialCorpusInventory } from '../shared/official-fences.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { agentEditCase } from './release-bench-fidelity.ts'
-import { resolveBaseline } from './release-baseline.ts'
+import { resolveBaseline, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, frozenRuntimePolicy, installAgenticRuntime, installNormalizedNpmBaseline, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type BaselineLock, type RuntimeReceipt } from './release-baseline.ts'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 
 export interface Input extends BenchInput {
@@ -26,6 +26,8 @@ interface Identity {
   requested: string
   sha256?: string
   integrity?: string
+  dependencyLock?: { path: string; sha256: string }
+  runtime?: RuntimeReceipt
 }
 interface Engine {
   label: string
@@ -65,7 +67,7 @@ const CASE_BUDGET_MS = 10 * 60 * 1000
 const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
 function args(): Map<string, string> {
-  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case'])
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case', 'elk-cache', 'runtime-source', 'baseline-runtime-source', 'runtime-comparison'])
   const options = new Map<string, string>()
   const argv = process.argv.slice(2)
   for (let i = 0; i < argv.length; i++) {
@@ -77,14 +79,23 @@ function args(): Map<string, string> {
   }
   for (const [a, b] of [
     ['baseline', 'baseline-npm'],
+    ['baseline', 'baseline-tarball'],
+    ['baseline-npm', 'baseline-tarball'],
     ['candidate', 'candidate-tarball'],
   ] as const) {
     if (options.has(a) && options.has(b)) throw new Error(`Use only one of --${a} and --${b}`)
   }
+  const runtimeComparison = options.get('runtime-comparison') ?? 'matched'
+  if (!['matched', 'historical-compound', 'normalized-npm-compound'].includes(runtimeComparison)) throw new Error('--runtime-comparison must be matched, historical-compound or normalized-npm-compound')
+  if (runtimeComparison === 'normalized-npm-compound' && !options.has('baseline-npm')) throw new Error('Normalized npm comparison requires --baseline-npm; Git/directory/tarball comparisons remain strict')
+  if (runtimeComparison === 'historical-compound' && (!options.has('baseline-runtime-source') || !['baseline', 'baseline-npm', 'baseline-tarball'].some(key => options.has(key)))) throw new Error('Historical comparison requires a baseline and --baseline-runtime-source')
+  if (runtimeComparison !== 'historical-compound' && options.has('baseline-runtime-source')) throw new Error('--baseline-runtime-source requires historical-compound mode')
+  if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both --baseline-tarball and --baseline-sha256')
   if (options.has('candidate-sha256') && (!options.has('candidate-tarball') || !/^[a-f0-9]{64}$/.test(options.get('candidate-sha256')!))) {
     throw new Error('--candidate-sha256 requires --candidate-tarball and a lowercase SHA-256 digest')
   }
   if (options.has('baseline-lock') && !options.has('baseline-npm')) throw new Error('--baseline-lock requires --baseline-npm')
+  if (options.has('elk-cache') && !['on', 'off'].includes(options.get('elk-cache')!)) throw new Error('--elk-cache must be on or off')
   return options
 }
 function positive(options: Map<string, string>, key: string, fallback: number): number {
@@ -123,7 +134,7 @@ function successful(run: EngineRun, input: Input, rounds: number): boolean {
   return !!result?.svg.ok && result.validSvg && result.deterministic && !result.missingSvgLabels.length && result.mediansMs.length === rounds
 }
 
-function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number): EngineRun[] {
+function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number, elkCache: 'on' | 'off'): EngineRun[] {
   const runs: EngineRun[] = engines.map(engine => ({ ...engine, importMs: [], firstRenderMs: [], coldDeterministic: true, results: new Map(), memory: new Map(), failures: new Map() }))
   const record = (value: unknown) => appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify(value)}\n`)
   function worker(run: EngineRun, mode: 'time' | 'memory', group: Group, round?: number): TimeResult | MemoryResult | undefined {
@@ -135,8 +146,8 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
       const result = join(out, 'result.json')
       rmSync(result, { force: true })
       writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps }))
-      // Time ELK rather than a cached result, and renders as users get them.
-      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+      // Default to timing ELK; cache-on measures repeated rendering as a host sees it.
+      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: elkCache === 'on' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
       if (child.status === 0) {
         const value = JSON.parse(readFileSync(result, 'utf8')) as TimeResult | MemoryResult
         const evidence =
@@ -222,9 +233,15 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   const corpus = inputs.filter(input => input.kind === 'corpus')
   const scaling = inputs.filter(input => input.kind !== 'corpus')
   const checks: Check[] = []
+  const completeMemory = (value: MemoryResult | undefined) => value !== undefined && [value.settledHeapBytes, value.retainedHeapBytes].every(bytes => Number.isFinite(bytes) && bytes >= 0)
+  const incompleteMemory = (run: EngineRun) => [...run.memory].filter(([, value]) => !completeMemory(value)).map(([name]) => name)
   const addRatio = (name: string, value: number | undefined, limit: number) => checks.push({ name, ok: value === undefined ? null : value <= limit, detail: value === undefined ? 'not compared: no matched measurement' : times(value) })
   const incomplete = inputs.filter(input => candidate.results.get(input.id)?.mediansMs.length !== rounds)
-  checks.push({ name: 'Every candidate measurement completes', ok: candidate.failures.size === 0 && !incomplete.length, detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds` })
+  checks.push({
+    name: 'Every candidate measurement completes',
+    ok: candidate.failures.size === 0 && !incomplete.length && !incompleteMemory(candidate).length,
+    detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || (incompleteMemory(candidate).length ? `incomplete absolute heap observations: ${incompleteMemory(candidate).join(', ')}` : `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds`),
+  })
   checks.push({ name: 'Cold SVG render succeeds', ok: candidate.firstRender?.ok === true, detail: candidate.firstRender?.error ?? (candidate.firstRender?.ok ? 'flowchart rendered' : 'not measured') })
   const unstable = [...candidate.results].filter(([, result]) => !result.deterministic).map(([id]) => id)
   checks.push({ name: 'Deterministic SVG and ASCII output', ok: candidate.coldDeterministic && !unstable.length, detail: unstable.join(', ') || (candidate.coldDeterministic ? 'all repeats and fresh processes agree' : 'cold renders differ between processes') })
@@ -236,7 +253,11 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   checks.push({ name: 'Every scaling and agent workflow succeeds', ok: !failedWorkloads.length, detail: failedWorkloads.map(input => input.id).join(', ') || `${scaling.length} workloads passed` })
   if (baseline) {
     const incompleteBaseline = inputs.filter(input => baseline.results.get(input.id)?.mediansMs.length !== rounds)
-    checks.push({ name: 'Every required baseline measurement completes', ok: baseline.failures.size === 0 && !incompleteBaseline.length, detail: [...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incompleteBaseline.length}/${inputs.length} inputs completed ${rounds} rounds` })
+    checks.push({
+      name: 'Every required baseline measurement completes',
+      ok: baseline.failures.size === 0 && !incompleteBaseline.length && !incompleteMemory(baseline).length,
+      detail: [...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || (incompleteMemory(baseline).length ? `incomplete absolute heap observations: ${incompleteMemory(baseline).join(', ')}` : `${inputs.length - incompleteBaseline.length}/${inputs.length} inputs completed ${rounds} rounds`),
+    })
     checks.push({ name: 'Baseline has comparable successful SVG measurements', ok: shared(inputs).length > 0 && (!corpus.length || shared(corpus).length > 0), detail: `${shared(inputs).length}/${inputs.length} total; ${shared(corpus).length}/${corpus.length} corpus inputs compared` })
     for (const format of ['svg', 'ascii'] as const) {
       const lost = measured(inputs).filter(input => baseline.results.get(input.id)![format].ok && !candidate.results.get(input.id)![format].ok)
@@ -253,7 +274,8 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
     checks.push({ name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`, ok: comparable.length ? !slow.length : null, detail: `${comparable.length}/${scaling.length} compared${slow.length ? `; slow: ${slow.map(input => input.id).join(', ')}` : ''}` })
     const before = baseline.memory.get('corpus')
     const after = candidate.memory.get('corpus')
-    if (shared(corpus).length) checks.push({ name: 'Required matched corpus memory measurements complete', ok: !!before && !!after, detail: before && after ? `${before.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate memory observations' })
+    if (shared(corpus).length)
+      checks.push({ name: 'Required matched corpus memory measurements complete', ok: completeMemory(before) && completeMemory(after), detail: completeMemory(before) && completeMemory(after) ? `${before!.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate absolute heap observations' })
     addRatio(`Corpus allocation ≤ ${GATES.allocationGrowth}× baseline`, ratio(after?.passAllocatedBytes, before?.passAllocatedBytes), GATES.allocationGrowth)
     addRatio(`Corpus peak RSS ≤ ${GATES.rssGrowth}× baseline`, ratio(after?.peakRssBytes, before?.peakRssBytes), GATES.rssGrowth)
   }
@@ -335,17 +357,35 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
     for (const [key, label] of [
       ['passAllocatedBytes', 'allocated / pass'],
       ['passPeakHeapBytes', 'peak heap during pass'],
-      ['retainedGrowthBytes', 'retained heap / pass'],
-      ['peakRssBytes', 'whole worker peak RSS'],
+      ['settledHeapBytes', 'settled heap before pass (post-GC)'],
+      ['retainedHeapBytes', 'retained heap after pass (post-GC)'],
+      ['retainedGrowthBytes', 'retained heap growth / pass'],
+      ['peakRssBytes', 'process-lifetime peak RSS (getrusage)'],
     ] as const)
       metric(
         `${group.name}: ${label}`,
         runs.map(run => mb(run.memory.get(group.name)?.[key])),
       )
   }
+  for (const group of [...groups, { name: 'candidate-corpus' }]) {
+    if (!runs.some(run => run.memory.get(group.name)?.rss)) continue
+    for (const [checkpoint, label] of [
+      ['workerStart', 'worker entry after static imports, before job/package loading'],
+      ['beforeMemoryWork', 'after package imports, before memory warmup'],
+      ['afterMemoryWork', 'after memory measurement and final GC'],
+    ] as const) {
+      for (const [key, metricLabel] of [['currentRssBytes', 'current RSS'], ['maxRssBytes', 'process-lifetime peak RSS'], ['linuxVmHwmBytes', 'Linux current-mm VmHWM']] as const) {
+        metric(`${group.name}: ${label}: ${metricLabel}`, runs.map(run => {
+          const sample = run.memory.get(group.name)?.rss?.[checkpoint]
+          const value = sample?.[key]
+          return typeof value === 'number' ? mb(value) : sample?.linuxVmHwmUnavailableReason ?? 'not recorded'
+        }))
+      }
+    }
+  }
   md.push(
     '',
-    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Retained heap covers one settled pass. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
+    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Settled and retained heap are absolute used heap before and after one pass, each after GC; growth is their nonnegative difference. A single memory pair does not establish a retained-heap noise floor. The backward-compatible peakRssBytes field is the process-lifetime getrusage maximum, including any inherited exec floor; its origin is not proven by these checkpoints. New receipts separately record current RSS and Linux current-mm VmHWM at worker entry after static imports, before memory warmup after package imports, and after measurement/final GC. Linux VmHWM is null with an explicit reason where unavailable; historical receipts have no checkpoints. Samples are sequential, not atomic. These resident-memory diagnostics are not allocation measurements or renderer-only peaks, and do not change any gate. A single pair does not establish an RSS noise floor; use matched A/A controls before attributing a difference. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
   )
   return {
     ok,
@@ -377,6 +417,7 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
 
 function main() {
   const options = args()
+  const elkCache = (options.get('elk-cache') ?? 'off') as 'on' | 'off'
   const rounds = positive(options, 'rounds', 3)
   const reps = positive(options, 'reps', 5)
   const budgetMs = positive(options, 'budget-ms', DEFAULT_BUDGET_MS)
@@ -392,33 +433,46 @@ function main() {
   const startedAt = new Date().toISOString()
   // Leave time to finalize reports before the workflow's outer timeout.
   const deadline = Date.now() + budgetMs
-  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
+  const comparisonMode = options.get('runtime-comparison') ?? 'matched'
+  const metadata = { runtimeComparisonMode: comparisonMode, startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES, elkCache, sceneAssertions: 'off', aplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }, environment: { node: execFileSync('node', ['--version'], { encoding: 'utf8' }).trim(), bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
     cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
     memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined } }
   writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
   writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, ok: false, status: 'running' }, null, 2))
   writeFileSync(join(out, 'report.md'), '# Release benchmark: incomplete\n')
   const temporary: string[] = []
-  function install(spec: string, label: string, identity: Identity, prefix?: string): Engine {
+  const baselineSource = options.get('baseline')
+  const runtimePolicy = frozenRuntimePolicy(options.get('runtime-source') ?? (comparisonMode !== 'historical-compound' && baselineSource && existsSync(join(resolve(baselineSource), 'bun.lock')) ? baselineSource : ROOT))
+  const baselinePolicy = comparisonMode === 'historical-compound' ? frozenRuntimePolicy(options.get('baseline-runtime-source')!) : runtimePolicy
+  function install(spec: string, label: string, identity: Identity, prefix?: string, npmBaseline?: BaselineLock): Engine {
     const dir = prefix ?? mkdtempSync(join(tmpdir(), 'am-bench-'))
     if (!prefix) temporary.push(dir)
     const remaining = Math.min(5 * 60 * 1000, deadline - Date.now())
     if (remaining <= 0) throw new Error('Overall benchmark budget exhausted during package installation')
-    const result = spawnSync('npm', ['install', '--prefix', dir, '--ignore-scripts', '--no-audit', '--no-fund', spec], { stdio: 'inherit', timeout: remaining, killSignal: 'SIGKILL' })
-    if (result.status !== 0) throw new Error(`${label}: npm install failed: ${result.error?.message ?? result.status ?? result.signal}`)
-    const lock = JSON.parse(readFileSync(join(dir, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
-    const integrity = lock.packages['node_modules/agentic-mermaid']?.integrity
-    if (identity.integrity && identity.integrity !== integrity) throw new Error(`${label}: installed package integrity differs from the locked identity`)
-    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity })
+    const { integrity, runtime } = npmBaseline
+      ? installNormalizedNpmBaseline(npmBaseline, dir, runtimePolicy, out, label, remaining)
+      : installAgenticRuntime(spec, dir, label === 'baseline' ? baselinePolicy : runtimePolicy, out, label, identity.integrity, remaining)
+    const bytes = readFileSync(join(dir, 'package-lock.json')), path = join(out, `${label}-${randomUUID()}.package-lock.json`)
+    writeFileSync(path, bytes, { flag: 'wx' })
+    const dependencyLock = { path, sha256: createHash('sha256').update(bytes).digest('hex') }
+    appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engine: label, dependencyLock })}\n`)
+    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity, dependencyLock, runtime })
   }
   try {
     const engines: Engine[] = []
     const baseline = options.get('baseline')
     const npm = options.get('baseline-npm')
-    if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline) }))
+    if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline), runtime: inspectAgenticRuntime(resolve(baseline), baselinePolicy, out, 'baseline') }))
     else if (npm) {
       const locked = resolveBaseline(npm, resolve(options.get('baseline-lock') ?? join(out, 'baseline.json')))
-      engines.push(install(`agentic-mermaid@${locked.version}`, 'baseline', { kind: 'npm', requested: npm, integrity: locked.integrity }))
+      engines.push(install(`agentic-mermaid@${locked.version}`, 'baseline', { kind: 'npm', requested: npm, integrity: locked.integrity }, undefined,
+        comparisonMode === 'normalized-npm-compound' ? locked : undefined))
+    }
+    else if (options.has('baseline-tarball')) {
+      const path = resolve(options.get('baseline-tarball')!), bytes = readFileSync(path)
+      const sha256 = createHash('sha256').update(bytes).digest('hex')
+      if (sha256 !== options.get('baseline-sha256')) throw new Error('Baseline tarball SHA-256 does not match the verified artifact')
+      engines.push(install(path, 'baseline', { kind: 'tarball', requested: path, sha256, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }))
     }
     const tarball = options.get('candidate-tarball')
     if (tarball) {
@@ -432,12 +486,22 @@ function main() {
       engines.push(install(staged, 'candidate', { kind: 'tarball', requested: resolve(tarball), sha256, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }, dir))
     } else {
       const dir = resolve(options.get('candidate') ?? ROOT)
-      engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir }))
+      engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir, runtime: inspectAgenticRuntime(dir, runtimePolicy, out, 'candidate') }))
     }
     appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
-    const runs = measure(out, engines, groups, rounds, reps, deadline)
+    const runtimeComparison = comparisonMode === 'historical-compound'
+      ? assertHistoricalAgenticRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, engines.find(engine => engine.label === 'candidate')!.identity.runtime!)
+      : comparisonMode === 'normalized-npm-compound'
+        ? assertNormalizedNpmRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, engines.find(engine => engine.label === 'candidate')!.identity.runtime!)
+      : (assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!)), { mode: 'matched' as const })
+    writeFileSync(join(out, 'runtime-comparison.json'), `${JSON.stringify(runtimeComparison, null, 2)}\n`)
+    appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ runtimeComparison })}\n`)
+    const runs = measure(out, engines, groups, rounds, reps, deadline, elkCache)
     const result = report(inputs, groups, runs, rounds)
-    writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), ...result.summary }, null, 2))
+    if (comparisonMode === 'historical-compound') result.markdown = `> Historical compound comparison: declared runtime roots differ. Shared dependency versions, integrities and edges match; this is not an isolated PR gain. See runtime-comparison.json.\n\n${result.markdown}`
+    if (comparisonMode === 'normalized-npm-compound') result.markdown = `> Normalized npm compound comparison: the original verified npm archive runs under current frozen pins projected onto its compatible declared roots. This is not its original frozen dependency environment or an isolated PR gain. Shared dependency versions, integrities and edges match; all existing coverage and numeric gates remain. See runtime-comparison.json.\n\n${result.markdown}`
+    result.markdown += `\nEffective policy: ELK cache **${elkCache}**; built-in Scene assertions **off**; APL environment: ${JSON.stringify(metadata.config.aplEnvironment)}.\n`
+    writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), runtimeComparison, ...result.summary }, null, 2))
     writeFileSync(join(out, 'report.md'), result.markdown)
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, result.markdown)
     console.log(result.markdown)

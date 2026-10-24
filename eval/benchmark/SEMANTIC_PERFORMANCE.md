@@ -1,0 +1,219 @@
+# Maintained semantic performance qualification
+
+This is the persistent harness work assigned to #433 in
+[the peer scorecard comment](https://github.com/adewale/agentic-mermaid/pull/433#issuecomment-6352969557).
+It extends `bench:peers` and its existing adapters, verified-package installer,
+worker isolation and raw receipts. The separate campaign in #467 owns production
+optimizations. Passing release regression budgets does not establish peer
+competitiveness or the original 20% time / 30% allocation goals.
+
+## Populations and tracks
+
+The immutable historical anchor remains
+`a9d1551da27ddab542a1ae96329464ad65725448`. The existing fixed-baseline workflow
+and complete release inventory remain available; the anchor is not advanced to
+make a gate pass. Its known unsupported families remain failures in its own A/A
+coverage report.
+
+The fixed shared cohort is **flow5, tree50, mesh50, seq20, class80, er40, state80**.
+It never shrinks to an opportunistic successful intersection. Full Agentic
+coverage retains all 14 SVG fixtures and complete receipts. Additional tree100
+and mesh100 cases measure larger-input behavior without altering the seven-case
+cohort. Unsupported, lost-label and error observations remain explicit for every
+peer, round, phase and consumer; third-party receipt APIs are not invented.
+
+`--tracks all` separates:
+
+- **First use:** one call in a fresh process for each case, consumer and round;
+  import is recorded separately. No earlier workload warms that process.
+- **Warm new source:** warmed engine, real changed visible labels and renamed
+  authored identifiers, with a new source variant for each observation.
+- **Exact repeat:** identical source bytes after priming.
+- **Label edits:** changed visible node/message or relationship labels while
+  authored identities stay fixed. Class, ER and State use shared relationship
+  syntax, so a peer's ignored declaration aliases do not create a false comparison.
+
+Each phase has separate **consumed SVG** and **complete serialized receipt**
+consumers. UTF-8 materialization and a byte checksum run inside the measured call;
+receipts serialize the entire returned artifact. Each returned SVG is checked
+outside the clock for XML acceptance, expected text, nonempty drawable geometry
+and the bounded authored identity/endpoint contract where observable. Missing
+endpoint observability is explicitly unavailable, not semantic equivalence.
+Those peers retain label-checked timings but cannot pass semantic numeric gates.
+These checks do not prove attachment geometry, edge multiplicity or aesthetics.
+
+Warm tracks prime three real calls, then record 31 individual call durations and
+three independent V8 allocation probes, subject to the recorded case deadline.
+They do not report a percentile of batch averages as call p95. A minimum of 20
+complete calls per warm case is required for tail qualification. Quick mode is a
+functional smoke policy, never performance qualification. Legacy `bench:peers`
+without `--tracks` keeps its existing warmup and calibrated-loop methodology.
+
+## Calibration and decisions
+
+`bench:peers:qualify` runs **two independent A/A reports**, followed by the
+candidate comparison, serially on the same host and in the same cache mode.
+Each report uses five counterbalanced rounds. Both Agentic sides in A/A install
+the exact comparison baseline archive. Package hashes and canonical resolved
+runtime dependency graphs must agree, alongside host/runtime, fixture source,
+sampling policy and cache policy. Peer package/integrity and dependency graphs
+also bind their calibration. Recorded Git revision and a clean harness worktree
+prevent reusing controls after changing variant generation, validation or timing
+code; full input records are compared directly. Known feature/runtime settings
+(`AGENTIC_MERMAID_EXPERIMENTS`, `NODE_OPTIONS`, `BUN_OPTIONS`, `NODE_ENV`, `TZ`)
+are recorded and must match. An explicit experiment string, including the empty
+string that disables defaults, cannot qualify the default production profile.
+Missing or failed mandatory warm controls fail
+completeness; they cannot disable an otherwise adverse numeric gate.
+
+Before any benchmark worker, warmup, import measurement or browser launch,
+the shared acquisition owner (`release-baseline.ts`) derives an exact runtime
+closure from the frozen source `bun.lock`. `--runtime-source` selects that source
+directory; the Git-baseline workflow supplies its immutable baseline worktree,
+and standalone archive commands default to the current root. The Node
+`--baseline` directory mode also defaults to that directory's lock when present.
+Both Agentic archives install with the same exact temporary root overrides,
+including runtime transitives and native optional packages. Installed versions
+and fetched SHA-512 integrities must match the frozen policy, and the actual
+resolved dependency graphs must match each other. Equal fresh resolutions alone
+are insufficient: both resolving a newer caret-compatible ELK or YAML still
+fails the intended frozen policy. Third-party peers retain their own graphs.
+
+Each acquisition retains the separate consumer manifest/override policy,
+source policy, npm lock and installed lock, and actual runtime graph. Original
+shipped archives, their manifests and archive identities are unchanged. Git
+baseline release comparisons install both original archives under this policy;
+directory comparisons inspect actual installed versions and the directory's own
+frozen Bun identities, with that integrity source recorded explicitly. An
+unlocked directory with no installed npm lock is rejected as unverifiable.
+Drifted historical reports remain diagnostics for their recorded
+graphs and are never relabeled as dependency-matched qualification. Matched local
+reports using another explicitly recorded runtime graph remain distinct evidence.
+
+Targets are explicit and distinct:
+
+| Scorecard | p50 target | p95 target | Allocation target |
+| --- | ---: | ---: | ---: |
+| Candidate / release baseline | ≤1.05× | ≤1.10× | ≤1.05× |
+| Candidate / Beautiful and Pele, separately | ≤1.00× | ≤1.00× | ≤1.00× |
+| Normalized doubled-size cost growth | ≤1.05× | ≤1.10× | ≤1.05× |
+
+The first two tables pair each case's same-round observations, then take the
+median ratio across rounds. Scaling growth is
+`(candidate100/candidate50)/(baseline100/baseline50)` per round, then its median.
+All 14 Agentic cases and both larger cases retain independent relative-regression gates.
+No corpus median can conceal a failing case or tail.
+
+For each metric, calibration uses the largest symmetric A/A ratio across all
+control rounds, with a 2% margin. The effective blocking budget is the greater
+of the explicit target and that noise bound. Predeclared control noise ceilings
+are 15% for p50, 25% for p95 and 10% for allocation. Controls exceeding these
+ceilings are **uncalibrated**, not passes; the gate does not expand indefinitely
+to accommodate noise. Peer calibration additionally checks the dispersion of
+paired baseline/peer ratios across both controls. A calibrated missed budget is
+a blocking failure. Gate JSON records every control ratio and effective budget.
+
+First-use p95 has only one independent call per round in the default protocol,
+and cold allocation needs separate fresh-process probes. These remain explicitly
+unqualified. Uncalibrated checks are advisory until sufficient repeated controls
+exist, as requested by the owner. `ok:true` therefore means no blocking failure;
+only `performanceQualified:true` means all enrolled performance checks passed.
+The summary always distinguishes `failed`, `uncalibrated` and `passed`.
+
+Allocation is a V8 GC-boundary estimate, excluding native/WASM memory. Zero
+observations are retained, but never discarded to manufacture a finite favorable
+ratio. Short operations may be too noisy to qualify.
+
+## Immutable historical anchors
+
+Publication's default previous-npm-release comparison explicitly selects
+`normalized-npm-compound` in both the Node and advisory browser commands. The
+original exact-version npm archive is retained and its locked SHA-512 integrity,
+installed name and version are checked before reading its declared roots/ranges.
+Its roots must be a subset of the current frozen source roots, and every range
+must admit the current pin. This narrow mode supports stable exact, caret,
+tilde and equal version ranges; other syntax is rejected, not treated as a
+wildcard. The current frozen closure is projected onto those verified roots,
+while the temporary consumer's actual full-current overrides and locks remain
+retained. All installed versions/SRI and shared dependency edges still match;
+extra closures must be attributable to exclusive declared roots.
+
+This policy is labeled **normalized from current source**, not the published
+baseline's original frozen dependency environment. Receipts explicitly mark
+`isolatedProductionGain:false`; original archives/manifests remain unchanged.
+No coverage or numeric gate is waived. Browser IIFE/lazy code stays exactly as
+published: normalizing the external consumer graph does not rebuild or prove
+equality of embedded dependency versions. Its scorecard remains advisory and
+compound. This mode requires a locked npm baseline; Git/tarball current-main
+comparisons and all semantic calibration retain strict full-graph equality.
+
+The fixed historical workflow explicitly uses `historical-compound` runtime
+comparison. Baseline and candidate each install under their own frozen source
+policy; the shared dependency versions, SHA-512 integrities and dependency
+edges must still match exactly. Only package closures reachable from declared
+roots exclusive to one side may differ. Both policies, installed locks, root
+differences and closure differences accompany a comparison receipt marked
+`isolatedProductionGain:false`. The resulting ratios describe a compound
+historical comparison, never an isolated gain from this PR. Current-main and
+default commands retain exact full-graph equality; this exception cannot
+qualify the calibrated semantic controls. Historical A/A remains baseline-only,
+and unsupported inputs and existing numeric/coverage gates remain failures.
+Original shipped archive bytes and package manifests remain immutable; install
+overrides belong only to temporary consumers. Default validation and timing
+behavior remain unchanged.
+
+On-demand `evidence-scope: fixed` requires `fixed-baseline-sha` and retains
+candidate build, pack and provenance, then runs the original five-round fixed
+A/A, comparisons, peers and profiles. It explicitly skips the current-baseline
+Node comparisons, browser scorecard and semantic matrix. Scope receipts record
+those skipped lanes; this run cannot claim full qualification. The default
+`all` scope retains every lane. Prior reports keep their original harness and
+archive identities; controls are never reused across harness revisions.
+
+## Actual cache hits and fallbacks
+
+An internal opt-in symbol observer reports decisions at their owning branches:
+ELK, positioned layout, SVG inspection, retained Scene/native drawing and paint
+certification caches; native adapter fallback, ELK retry/degradation and rejected
+layout candidates. Events contain scalar owner/outcome/reason fields, never
+source strings, cache keys or retained user objects. Observer exceptions cannot
+change rendering, and no public package export is added.
+
+The observer is absent during timing and allocation. Separate successful warm
+replays collect hits, misses, bypasses, skipped stores and fallback reasons.
+Hit rate is `hits/(hits+misses)`, excluding bypasses. Positioned-cache events
+count one logical lookup: the private borrowed probe and any following cloned
+public probe do not count as two misses for one lookup. A graphical support event
+and successful complete replay establish observation; a scope event followed by
+an exception does not. Cold diagnostic replay and uninstrumented peers/baselines
+remain **unobserved**, never inferred zero hits. No fallback event during a
+successful observed replay means zero observed fallbacks at the instrumented
+owners; this is not universal coverage of font/parser/routing fallbacks.
+
+## Reproduction and CI
+
+Build and verify both archives before timing, retaining source/dependency locks.
+Then run each cache policy on an otherwise idle host:
+
+```sh
+bun run bench:peers:qualify \
+  --candidate-tarball candidate/package.tgz --candidate-sha256 <verified-sha256> \
+  --baseline-tarball main/package.tgz --baseline-sha256 <verified-sha256> \
+  --runtime-source /path/to/frozen-baseline-source \
+  --elk-cache off --rounds 5 --out bench-report/semantic-off
+```
+
+Repeat with `--elk-cache on` and a separate output directory. `--quick --rounds 1`
+checks protocol plumbing only. `bench:peers --tracks all --aa` exposes the same
+maintained protocol directly. `performance-gates.ts --candidate <report> --controls
+<aa1>,<aa2> --out <prefix>` regenerates scorecards from retained data.
+
+The Release benchmark workflow has separate cache-off/on calibration jobs. Each
+downloads the exact verified candidate, records and packs its immutable main
+comparison revision, and serially runs both controls before the candidate.
+Controls, runtime locks, raw calls, semantic limitations, actual cache/fallback
+events, interrupted status and both scorecards upload even after failure.
+Source unit CI exercises fail-closed decisions with controlled observations.
+This integration does not revive the recipe interpreter or change native/ELK
+selection policy. The original early installed-State window and PNG allocation
+controls remain separate release evidence and are not replaced by these tracks.

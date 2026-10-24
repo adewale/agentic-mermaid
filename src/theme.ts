@@ -17,7 +17,7 @@ import { estimatedResidency } from './experimental/cache-residency.ts'
 // Types
 // ============================================================================
 
-import { scanSvgStartTags, transformSvgCssValues } from './svg-structure.ts'
+import { projectSvgCss, transformSvgCssValues, type SvgCssProjection } from './svg-structure.ts'
 
 /**
  * Diagram color configuration.
@@ -597,15 +597,11 @@ export function resolvedColorValue(value: string, colors: DiagramColors): string
 /** Read each owned CSS context separately: a final root declaration need not
  * end with a semicolon. Family aliases may contain exact non-hex paints or
  * live references, including intentionally absent outlines. */
-function cssPaintDefinitions(svg: string): Map<string, string> {
+function cssPaintDefinitions(projection: SvgCssProjection): Map<string, string> {
   const definitions = new Map<string, string>()
-  for (const tag of scanSvgStartTags(svg)) {
-    const contexts = tag.attributes.filter(attribute => attribute.name === 'style').map(attribute => attribute.value)
-    if (tag.name === 'style' && !tag.selfClosing) {
-      const close = svg.indexOf('</style', tag.end)
-      if (close >= 0) contexts.push(svg.slice(tag.end, close))
-    }
-    for (const css of contexts) for (const match of css.matchAll(/--([\w-]+)\s*:\s*([^;{}]+)/g)) {
+  for (const range of projection.styleContexts) {
+    const css = projection.source.slice(range.start, range.end)
+    for (const match of css.matchAll(/--([\w-]+)\s*:\s*([^;{}]+)/g)) {
       const value = match[2]!.trim()
       if (value === 'none' || value.toLowerCase() === 'currentcolor' || tryParseCssColor(value) || (value.startsWith('var(') && safeCssPaint(value))) definitions.set(match[1]!, value)
     }
@@ -644,7 +640,8 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // Some family renderers define concrete custom properties on the SVG root
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
-  for (const [name, value] of cssPaintDefinitions(svg)) vars.set(name, value)
+  const projection = projectSvgCss(svg)
+  for (const [name, value] of cssPaintDefinitions(projection)) vars.set(name, value)
   // Literal RGB/named pages were normalized for concrete color-mix math;
   // their authored root tokens must not undo that internal normalization.
   vars.set('bg', rc.bg)
@@ -695,28 +692,38 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // Resolve only actual CSS-bearing contexts. Text/title/desc and ordinary
   // data attributes are authored content, even when they happen to contain a
   // string such as `var(--fg)` or `color-mix(...)`.
-  let text = transformSvgCssValues(svg, css => resolveCss(css, vars, 10))
+  const resolvedValues = new Map<string, string>()
+  let text = transformSvgCssValues(svg, css => {
+    const prior = resolvedValues.get(css)
+    if (prior !== undefined) return prior
+    const resolved = resolveCss(css, vars, 10)
+    resolvedValues.set(css, resolved)
+    return resolved
+  }, projection)
 
   // Phase 2 rewrites only var() references it may resolve and color-mix()
   // calls. When neither occurs anywhere in the document it would return the
   // text unchanged, so skip its rescan of every tag. The lookahead examines
   // every `var(`, including one inside a skipped name such as `--f_var(`.
-  const mayResolve = (value: string) => {
-    if (value.includes('color-mix(')) return true
-    for (const match of value.matchAll(/var\((?=\s*--([\w-]+))/g)) if (!SKIP_VARS.has(match[1]!)) return true
-    return false
+  let mayResolve = text.includes('color-mix(')
+  if (!mayResolve) {
+    for (const match of text.matchAll(/var\((?=\s*--([\w-]+))/g)) {
+      if (!SKIP_VARS.has(match[1]!)) { mayResolve = true; break }
+    }
   }
-  if (!mayResolve(text)) return text
+  if (!mayResolve) return text
 
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
   // any remaining var() references (e.g. --xychart-color-0 defined in style)
-  const cssDefs = cssPaintDefinitions(text)
+  let textProjection = projectSvgCss(text)
+  const cssDefs = cssPaintDefinitions(textProjection)
 
   if (cssDefs.size > 0) {
     for (let pass = 0; pass < 5; pass++) {
-      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1))
+      const resolved = transformSvgCssValues(text, css => resolveCss(css, cssDefs, 1), textProjection)
       if (resolved === text) break
       text = resolved
+      textProjection = projectSvgCss(text)
     }
   }
 

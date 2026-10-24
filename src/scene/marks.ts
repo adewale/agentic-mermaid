@@ -207,6 +207,17 @@ function connectorGeometryEndpoints(geometry: ConnectorGeometry, closed: boolean
   }
 }
 
+/** Geometry endpoints are fresh constructor data. Adopt them when there is no
+ * caller override; otherwise merge while copying the caller's owner/point. */
+function ownConnectorEndpoint(geometry: ConnectorEndpointAnchor | undefined, endpoint: ConnectorEndpointAnchor | undefined): ConnectorEndpointAnchor {
+  return endpoint ? {
+    ...geometry,
+    ...endpoint,
+    ...(endpoint.owner ? { owner: { ...endpoint.owner } } : {}),
+    ...(endpoint.point ? { point: { ...endpoint.point } } : {}),
+  } : geometry ?? {}
+}
+
 function numericStrokeWidth(width: string | number): number {
   const parsed = typeof width === 'number' ? width : parseFloat(width)
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 1
@@ -301,18 +312,10 @@ export function connector(fields: ConnectorFields): ConnectorMark {
       throw new TypeError(`Connector "${fields.id}" endpoints.${position}.point disagrees with typed route geometry`)
     }
   }
-  // Copy the caller's endpoint owner and point, as the terminal projection
-  // does: admission freezes a built-in Scene in place, and must not freeze an
-  // object its caller still holds.
-  const ownEndpoint = (endpoint: ConnectorEndpointAnchor | undefined) => endpoint && {
-    ...endpoint,
-    ...(endpoint.owner ? { owner: { ...endpoint.owner } } : {}),
-    ...(endpoint.point ? { point: { ...endpoint.point } } : {}),
-  }
   const endpoints: ConnectorEndpoints = {
     ...(fields.endpoints ?? {}),
-    start: { ...geometryEndpoints.start, ...ownEndpoint(fields.endpoints?.start) },
-    end: { ...geometryEndpoints.end, ...ownEndpoint(fields.endpoints?.end) },
+    start: ownConnectorEndpoint(geometryEndpoints.start, fields.endpoints?.start),
+    end: ownConnectorEndpoint(geometryEndpoints.end, fields.endpoints?.end),
   }
   const relationship: ConnectorRelationship = {
     kind: fields.relationship?.kind ?? fields.role,
@@ -392,7 +395,9 @@ export function connector(fields: ConnectorFields): ConnectorMark {
   }
   // Fill omitted tangent fields from geometry. Curved projections retain any
   // exact derivative supplied by their lowering over the flattened chord.
-  const contours: ConnectorContourSemantics[] = derivedContours.map((derived, index) => {
+  // Geometry derivation owns these fresh contour records and endpoint copies.
+  // Keep them directly unless caller-supplied tangents need merging.
+  const contours: ConnectorContourSemantics[] = suppliedContours ? derivedContours.map((derived, index) => {
     const supplied = suppliedContours?.[index]
     const startTangent = supplied?.startTangent ?? derived.startTangent
     const endTangent = supplied?.endTangent ?? derived.endTangent
@@ -403,7 +408,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
       ...(startTangent ? { startTangent } : {}),
       ...(endTangent ? { endTangent } : {}),
     }
-  })
+  }) : derivedContours
   for (const contour of contours) {
     for (const tangent of [contour.startTangent, contour.endTangent]) {
       if (!tangent) continue
@@ -434,16 +439,8 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     closed: routeClosed,
     bendRadius: fields.route?.bendRadius ?? 0,
     contours,
-    ...(() => {
-      const derived = {
-        start: contours[0]?.startTangent,
-        end: contours.at(-1)?.endTangent,
-      }
-      return {
-        ...(fields.route?.startTangent ?? derived.start ? { startTangent: fields.route?.startTangent ?? derived.start } : {}),
-        ...(fields.route?.endTangent ?? derived.end ? { endTangent: fields.route?.endTangent ?? derived.end } : {}),
-      }
-    })(),
+    ...(fields.route?.startTangent ?? contours[0]?.startTangent ? { startTangent: fields.route?.startTangent ?? contours[0]?.startTangent } : {}),
+    ...(fields.route?.endTangent ?? contours.at(-1)?.endTangent ? { endTangent: fields.route?.endTangent ?? contours.at(-1)?.endTangent } : {}),
     labelAnchors: fields.route?.labelAnchors ?? labels.flatMap(label => label.anchor ? [label.anchor] : []),
   }
   if (fields.hit?.closed !== undefined && fields.hit.closed !== routeClosed) {

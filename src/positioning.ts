@@ -3,7 +3,8 @@ import { DefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, retainOwnedSequencePositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
 // Public adapters resolve source, config, appearance and shared options once.
@@ -68,6 +69,10 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   const cacheKey = cacheEnabled ? JSON.stringify([cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions,
     Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
+  if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
+    !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
+      : familyId === 'gantt' ? 'time-dependent-family' : executionPlan.textMeasurement ? 'custom-text-measurement'
+        : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
   return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     if (borrow && boundedKey !== undefined) {
       const snapshot = borrowedPositioned(descriptor, boundedKey)
@@ -76,7 +81,9 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         return snapshot.result
       }
     }
-    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey)
+    // The private borrow probe already observed this logical lookup. Retain
+    // the public-copy fallback without counting its second probe again.
+    const hit = boundedKey === undefined ? undefined : cachedPositioned(descriptor, boundedKey, borrow)
     const result = hit ?? normalizeFamilyLayoutResult(
       descriptor.layout!({
         source,
@@ -101,10 +108,11 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       }
     }
     if (!hit && boundedKey !== undefined) {
-      // The original Sequence hook parses a fresh private diagram. Native SVG
-      // consumes its geometry without exposing it; shared prepared text is frozen.
-      const retain = borrow && familyId === 'sequence' && request.output === 'svg'
-        ? retainOwnedSequencePositioned : retainPositioned
+      // These original hooks parse fresh private diagrams. Native SVG consumes
+      // their geometry without exposing it; shared prepared text is frozen.
+      const retain = borrow && request.output === 'svg'
+        && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state')
+        ? retainOwnedNativeSvgPositioned : retainPositioned
       retain(descriptor, boundedKey, result, retainedProjections.get(result))
     }
     return result

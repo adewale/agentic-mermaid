@@ -7,7 +7,7 @@
 
 import './scene/default-backend.ts'
 
-import { compactSvg, namespaceSvgIds } from './renderer.ts'
+import { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { fitUncalibratedSvgText } from './custom-font-geometry.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'

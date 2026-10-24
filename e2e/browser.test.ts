@@ -16,7 +16,7 @@ import { join } from 'path'
 import { deflateRawSync, gzipSync } from 'node:zlib'
 import { chromium, type Browser, type BrowserContext, type CDPSession, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const ROOT = join(import.meta.dir, '..')
@@ -353,6 +353,23 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     const png = new Uint8Array(await Bun.file((await (await downloaded).path())!).arrayBuffer())
     expect([...png.slice(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
     expect(await replacement.evaluate(() => (globalThis as any).__exportOperations)).toEqual(['ascii', 'unicode', 'png'])
+    // The single-file worker uses complete eager families rather than hosted
+    // loaders. Check graphical and terminal hooks through that actual worker.
+    for (const family of BUILTIN_FAMILY_METADATA) {
+      const artifacts = await standalone.evaluate(async source => {
+        const api = (window as any).__mermaid
+        return {
+          svg: await api.renderMermaidSVGWithReceipt(source),
+          ascii: await api.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }),
+        }
+      }, family.example)
+      const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', embedFontImport: false })
+      expect(artifacts.svg.svg, family.id).toBe(expected.svg)
+      expect(artifacts.svg.receipt, family.id).toEqual(expected.receipt)
+      const ascii = renderMermaidASCIIWithReceipt(family.example, { colorMode: 'none', useAscii: true })
+      expect(artifacts.ascii.text, family.id).toBe(ascii.text)
+      expect(artifacts.ascii.receipt, family.id).toEqual(ascii.receipt)
+    }
   } finally { await standalone.close() }
 })
 

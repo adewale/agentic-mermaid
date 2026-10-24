@@ -1,4 +1,4 @@
-import { assertBackendConformance } from './backend.ts'
+import { assertBackendConformance, isBuiltinDefaultBackend } from './backend.ts'
 import { nativeDrawingOf } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
@@ -11,8 +11,9 @@ import { sceneAssertionsEnabled } from './assertions.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import type { SceneDoc } from './ir.ts'
 import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
+import { observeCache, observeFallback } from '../performance-observations.ts'
 
-interface PositionedScene { scene: SceneDoc; certification?: PaintLayoutCertification }
+interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
 interface PositionedNative { drawing: NativeDrawing; certification?: PaintLayoutCertification }
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
@@ -23,7 +24,15 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   let requests = retained.get(layout)
   if (!requests) { requests = new WeakMap(); retained.set(layout, requests) }
   const prior = requests.get(request)
-  if (prior) return prior.scene
+  if (prior) {
+    observeCache('positioned-scene', 'hit')
+    if (sceneAssertionsEnabled(request) && !prior.crossChecks) {
+      admitFamilyScene(resolvedRenderExecutionPlanOf(request).family, prior.scene, true)
+      prior.crossChecks = true
+    }
+    return prior.scene
+  }
+  observeCache('positioned-scene', 'miss')
   const plan = resolvedRenderExecutionPlanOf(request)
   if (!plan.family.lowerScene) throw new Error(`Resolved ${request.output} family has no Scene lowering`)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
@@ -32,7 +41,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
     !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
-  requests.set(request, { scene })
+  requests.set(request, { scene, crossChecks: assertions })
   return scene
 }
 
@@ -40,19 +49,26 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
  * alternate backends deliberately retain the extension-facing Scene adapter. */
 export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): NativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
-  if (sceneAssertionsEnabled(request) || plan.family.id.startsWith('family:')
-    || !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')) return undefined
-  const producer = nativeDrawingOf(plan.family.lowerScene)
-  if (!producer) return undefined
+  let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
+    : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
+      : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default') ? 'unsupported-mode' : undefined
+  const producer = bypass ? undefined : nativeDrawingOf(plan.family.lowerScene)
+  if (!producer) bypass ??= 'no-native-producer'
+  if (bypass) {
+    observeCache('native-drawing', 'bypass', bypass)
+    observeFallback('native-drawing', bypass)
+    return undefined
+  }
   let requests = native.get(layout)
   if (!requests) { requests = new WeakMap(); native.set(layout, requests) }
   const prior = requests.get(request)
-  if (prior) return prior.drawing
+  if (prior) { observeCache('native-drawing', 'hit'); return prior.drawing }
+  observeCache('native-drawing', 'miss')
   // Reading conformance proves the same default writer capability as render().
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
-  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer,
+  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
     { positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   requests.set(request, { drawing })
   return drawing
@@ -62,10 +78,12 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   const drawing = retainedNativeDrawing(request, layout)
   if (drawing) {
     const entry = native.get(layout)!.get(request)!
+    observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
     return entry.certification ??= certifyNativePaint(drawing.header, drawing.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
   }
   const scene = retainedPositionedScene(request, layout)
   const entry = retained.get(layout)!.get(request)!
+  observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'scene')
   if (entry.certification) return entry.certification
   const plan = resolvedRenderExecutionPlanOf(request)
   const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')

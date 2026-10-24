@@ -20,6 +20,7 @@ import type { ElkNode } from 'elkjs'
 import { assertLayoutGraphWork } from './shared/diagram-limits.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { elkConstructor } from './elk-constructor.ts'
+import { observeCache } from './performance-observations.ts'
 
 interface RawFakeWorker {
   postMessage(msg: unknown): void
@@ -114,15 +115,17 @@ const elkResults = new WeightedLru<string, ElkNode>(ELK_CACHE_MAX_ENTRIES, ELK_C
 
 function cachedElkLayout(graph: ElkNode): ElkNode {
   assertLayoutGraphWork(graph)
-  if (!ELK_CACHE_ENABLED) return layoutElkGraph(graph)
+  if (!ELK_CACHE_ENABLED) { observeCache('elk-layout', 'bypass', 'disabled'); return layoutElkGraph(graph) }
   const key = elkGraphKey(graph)
   const cached = elkResults.get(key)
-  if (cached) return structuredClone(cached)
+  if (cached) { observeCache('elk-layout', 'hit'); return structuredClone(cached) }
+  observeCache('elk-layout', 'miss')
   const result = layoutElkGraph(graph)
   if (key.length <= ELK_CACHE_MAX_KEY_UNITS) {
     const weight = Math.max(key.length * 8, key.length * 2 + estimatedResidency(result, ELK_CACHE_MAX_RESIDENCY))
     if (weight <= ELK_CACHE_MAX_RESIDENCY) elkResults.set(key, structuredClone(result), weight)
-  }
+    else observeCache('elk-layout', 'store-skipped', 'weight-limit')
+  } else observeCache('elk-layout', 'store-skipped', 'key-limit')
   return result
 }
 

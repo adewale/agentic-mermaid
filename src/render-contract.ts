@@ -599,11 +599,10 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
   const admissionProblems = renderOptionsAdmissionMessages(value)
   if (admissionProblems.length > 0) return admissionProblems
   const problems: string[] = []
-  const allowed = new Set<string>(SHARED_RENDER_OPTION_FIELDS)
   // The schema is a projection of frozen module constants: build it once.
   const rootSchema = validationRootSchema ??= deepFreeze(sharedRenderOptionsJsonSchema())
   for (const [field, fieldValue] of Object.entries(value)) {
-    if (!allowed.has(field)) {
+    if (!Object.hasOwn(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS, field)) {
       problems.push(`unknown render option "${field}"`)
       continue
     }
@@ -1050,17 +1049,17 @@ const FAMILY_DATA_MAX_CHARS = 2_000_000
 interface FamilyDataNormalizationBudget {
   nodes: number
   chars: number
+  opaque: boolean
 }
 
-/** Compact JSON-like family data under explicit recursion and aggregate-size
- * limits. This guard runs before the recursive schema validator and immutable
- * snapshot, so a buggy extension cannot trigger an unbounded stack walk first. */
+/** Capture compact immutable data under the bounds before schema validation.
+ * Opaque leaves remain unbranded for the owner's subsequent rejection. */
 function omitUndefinedObjectFields(
   value: unknown,
   path = '$',
   depth = 0,
   ancestors = new Set<object>(),
-  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0 },
+  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0, opaque: false },
 ): unknown {
   if (typeof value === 'string') {
     budget.chars += value.length
@@ -1079,28 +1078,32 @@ function omitUndefinedObjectFields(
       const result: unknown[] = []
       for (let index = 0; index < value.length; index++) {
         if (!Object.prototype.hasOwnProperty.call(value, index)) throw new TypeError(`data must not contain a sparse array at ${path}[${index}]`)
-        result.push(omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget))
+        const child = omitUndefinedObjectFields(value[index], `${path}[${index}]`, depth + 1, ancestors, budget)
+        result.push(child)
       }
-      return result
+      return freezeSnapshot(result, !budget.opaque)
     } finally {
       ancestors.delete(value)
     }
   }
-  if (!isPlainRecord(value)) return value
+  if (!isPlainRecord(value)) {
+    budget.opaque = true
+    return value
+  }
 
   ancestors.add(value)
   try {
-    // A null-prototype staging object keeps `__proto__` as ordinary data.
-    // Using `{}` here can either mutate the clone's prototype or silently
-    // discard a `__proto__: null` field before the admission validator names
-    // and rejects it.
-    const result: Record<string, unknown> = Object.create(null) as Record<string, unknown>
+    const result: Record<string, unknown> = {}
     for (const [key, child] of Object.entries(value)) {
       budget.chars += key.length
       if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
-      if (child !== undefined) result[key] = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
+      if (child !== undefined) {
+        const captured = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
+        if (key in result) Object.defineProperty(result, key, { value: captured, enumerable: true })
+        else result[key] = captured
+      }
     }
-    return result
+    return freezeSnapshot(result, !budget.opaque)
   } finally {
     ancestors.delete(value)
   }
@@ -1201,7 +1204,14 @@ function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   const record = value as Record<string, unknown>
-  return `{${Object.keys(record).sort().filter(key => record[key] !== undefined).map(key => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`
+  let text = '{', separator = ''
+  for (const key of Object.keys(record).sort()) {
+    const child = record[key]
+    if (child === undefined) continue
+    text += `${separator}${JSON.stringify(key)}:${canonicalJson(child)}`
+    separator = ','
+  }
+  return `${text}}`
 }
 
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
@@ -1282,11 +1292,18 @@ export function canonicalTextDigest(text: string): string {
  */
 const IMMUTABLE_SNAPSHOTS = new WeakSet<object>()
 
-function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(), copies = new WeakMap<object, object>()): T {
+function freezeSnapshot<T extends object>(value: T, reusable = true): T {
+  if (reusable) IMMUTABLE_SNAPSHOTS.add(value)
+  return Object.freeze(value)
+}
+
+function immutableSnapshot<T>(value: T, path = '$', ancestors?: Set<object>, copies?: WeakMap<object, object>): T {
   if (value === null || typeof value !== 'object') return value
   // Object.isFrozen is insufficient: an externally frozen object may retain
   // getters or mutable descendants. Reuse only snapshots created here.
   if (IMMUTABLE_SNAPSHOTS.has(value)) return value
+  ancestors ??= new Set<object>()
+  copies ??= new WeakMap<object, object>()
   if (ancestors.has(value)) throw new TypeError(`render request contains a cycle at ${path}`)
   const existing = copies.get(value)
   if (existing) return existing as T
@@ -1309,15 +1326,14 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
     // order without allocating a second array of key/value pairs per object.
     for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
       const captured = immutableSnapshot(child, `${path}.${key}`, ancestors, copies)
-      if (key === '__proto__') Object.defineProperty(record, key, { value: captured, enumerable: true })
+      if (key in record) Object.defineProperty(record, key, { value: captured, enumerable: true })
       else record[key] = captured
     }
     clone = record
   }
   ancestors.delete(value)
   copies.set(value, clone as object)
-  IMMUTABLE_SNAPSHOTS.add(clone as object)
-  return Object.freeze(clone) as T
+  return freezeSnapshot(clone as object) as T
 }
 
 /** Materialize a caller-owned JSON-like graph once under the same finite
@@ -1326,7 +1342,9 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
  * graph and cloning it later would permit a different value at execution. */
 function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
   try {
-    return immutableSnapshot(omitUndefinedObjectFields(value) as T)
+    // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
+    // it, after the complete budget/accessor pass has kept its error order.
+    return immutableSnapshot(omitUndefinedObjectFields(value)) as T
   } catch (error) {
     throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -1830,13 +1848,12 @@ export function resolveRenderRequestForExecution(
   // callers use its digest to prove that SVG, PNG, terminal and layout
   // transports received the same source and appearance request. The full
   // request receipt below restores the exact output negotiation decision.
+  const sharedResolutions = Object.freeze(capabilityDecision.resolutions.filter(isSharedCapabilityResolution))
   const sharedCapabilityDecision: CapabilityDecision = Object.freeze({
     version: capabilityDecision.version,
-    accepted: capabilityDecision.resolutions
-      .filter(isSharedCapabilityResolution)
+    accepted: sharedResolutions
       .every(resolution => resolution.level !== 'required' || resolution.status === 'selected'),
-    resolutions: Object.freeze(capabilityDecision.resolutions
-      .filter(isSharedCapabilityResolution)),
+    resolutions: sharedResolutions,
   })
   const sharedRequestReceipt = {
     version: RENDER_CONTRACT_VERSION,

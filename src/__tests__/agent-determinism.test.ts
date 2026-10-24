@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { verifyMermaid } from '../agent/verify.ts'
+import type { RenderedLayout } from '../agent/types.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { useTestChildren } from './helpers/test-child.ts'
@@ -204,18 +205,34 @@ describe('determinism — REAL cross-process (the test I claimed but never wrote
   // reproducible-across-invocations.
   const RUNNER = join(import.meta.dir, 'helpers', 'layout-runner.ts')
   const samples = [
-    'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D\n  D --> E\n  E --> A',
-    'flowchart TD\n  ' + Array.from({ length: 10 }, (_, i) => `N${i} --> N${(i + 1) % 10}`).join('\n  '),
-  ]
-  for (const src of samples) {
+    {
+      source: 'flowchart LR\n  A --> B\n  A --> C\n  B --> D\n  C --> D\n  D --> E\n  E --> A',
+      nodeIds: ['A', 'B', 'C', 'D', 'E'],
+    },
+    {
+      source: 'flowchart TD\n  ' + Array.from({ length: 10 }, (_, i) => `N${i} --> N${(i + 1) % 10}`).join('\n  '),
+      nodeIds: ['N0', 'N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8', 'N9'],
+    },
+  ] as const
+  for (const { source: src, nodeIds } of samples) {
     test(`identical across 3 child processes: ${src.slice(0, 24).replace(/\n/g, ' ')}…`, async () => {
       const run = async () => {
-        const child = await runChild('bun', ['run', RUNNER, src])
-        expect(child.status, JSON.stringify(child)).toBe(0)
-        return child.stdout
+        const result = await runChild('bun', ['run', RUNNER, src])
+        expect(result.status, result.stderr).toBe(0)
+        const layout = JSON.parse(result.stdout) as RenderedLayout
+        expect(layout).toMatchObject({ version: 1, kind: 'flowchart' })
+        expect(layout.nodes.map(node => node.id).sort()).toEqual([...nodeIds])
+        expect(Array.isArray(layout.edges)).toBe(true)
+        expect(Array.isArray(layout.groups)).toBe(true)
+        expect([layout.bounds.w, layout.bounds.h].every(value => Number.isFinite(value) && value > 0)).toBe(true)
+        for (const node of layout.nodes) {
+          expect([node.x, node.y, node.w, node.h].every(Number.isFinite)).toBe(true)
+          expect(node.w).toBeGreaterThan(0)
+          expect(node.h).toBeGreaterThan(0)
+        }
+        return result.stdout
       }
       const a = await run(), b = await run(), c = await run()
-      expect(a.length).toBeGreaterThan(2)
       expect(b).toEqual(a)
       expect(c).toEqual(a)
     })

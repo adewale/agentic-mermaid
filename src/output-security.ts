@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { inspectSvgOnce } from './svg-inspection-cache.ts'
+import { isAsciiXmlNameChar } from './shared/xml-name.ts'
 
 export const OUTPUT_SECURITY_POLICY_VERSION = 2 as const
 export type OutputSecurityMode = 'default' | 'strict'
@@ -77,39 +78,25 @@ function isXmlWhitespace(char: string | undefined): boolean {
   return char === ' ' || char === '\t' || char === '\n' || char === '\r'
 }
 
-function isXmlNameStart(char: string | undefined): boolean {
-  if (char === undefined) return false
-  const code = char.charCodeAt(0)
-  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95
-}
-
-function isXmlNameChar(char: string | undefined): boolean {
-  if (char === undefined) return false
-  const code = char.charCodeAt(0)
-  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
-    || (code >= 48 && code <= 57) || code === 95 || code === 46 || code === 58 || code === 45
-}
-
 function readXmlName(source: string, start: number): { name: string; end: number } | undefined {
-  if (!isXmlNameStart(source[start])) return undefined
+  if (!/[A-Za-z_]/.test(source[start] ?? '')) return undefined
   let end = start + 1
-  while (isXmlNameChar(source[end])) end++
+  while (isAsciiXmlNameChar(source[end])) end++
   return { name: source.slice(start, end), end }
 }
 
 interface XmlQualifiedName {
-  readonly prefix?: string
+  readonly prefix: string
   readonly local: string
 }
 
 /** The admitted serializer subset uses ASCII XML names. Enforce QName shape
  * separately from the lexical name scanner so a colon cannot appear more than
  * once or at either edge. */
-function parseXmlQualifiedName(name: string): XmlQualifiedName | undefined {
-  const parts = name.split(':')
-  if (parts.length === 1) return { local: parts[0]! }
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return undefined
-  return { prefix: parts[0], local: parts[1] }
+function parsePrefixedXmlName(name: string): XmlQualifiedName | undefined {
+  const colon = name.indexOf(':')
+  if (colon <= 0 || colon === name.length - 1 || name.indexOf(':', colon + 1) >= 0) return undefined
+  return { prefix: name.slice(0, colon), local: name.slice(colon + 1) }
 }
 
 const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
@@ -129,12 +116,8 @@ function isAllowedXmlCodePoint(codePoint: number): boolean {
 }
 
 function hasOnlyXmlCharacters(source: string): boolean {
-  for (let index = 0; index < source.length; index++) {
-    const codePoint = source.codePointAt(index)!
-    if (!isAllowedXmlCodePoint(codePoint)) return false
-    if (codePoint > 0xffff) index++
-  }
-  return true
+  // Unicode matching consumes valid astral pairs and rejects lone surrogates.
+  return !/[\0-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]/u.test(source)
 }
 
 /** DTDs are prohibited, so only XML's five predefined names and numeric
@@ -202,7 +185,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     if (svg.startsWith('</', cursor)) {
       const parsed = readXmlName(svg, cursor + 2)
-      if (!parsed || !parseXmlQualifiedName(parsed.name)) return false
+      if (!parsed || parsed.name.includes(':')) return false
       let end = parsed.end
       while (isXmlWhitespace(svg[end])) end++
       if (svg[end] !== '>' || stack.pop()?.name !== parsed.name) return false
@@ -215,8 +198,9 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     const parsed = readXmlName(svg, cursor + 1)
-    const elementName = parsed && parseXmlQualifiedName(parsed.name)
-    if (!parsed || !elementName || rootClosed) return false
+    // The admitted serializer subset has only unprefixed SVG elements.
+    // Qualified-name objects are needed for attributes, never for elements.
+    if (!parsed || parsed.name.includes(':') || rootClosed) return false
     if (stack.length === 0) {
       if (rootSeen || parsed.name !== 'svg') return false
       rootSeen = true
@@ -224,7 +208,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
 
     let end = parsed.end
     const rawAttributes = new Set<string>()
-    const attributes: Array<{ readonly name: string; readonly qname: XmlQualifiedName; readonly value: string }> = []
+    const namespaceAttributes: Array<{ readonly name: string; readonly prefix?: string; readonly local?: string; readonly value: string }> = []
     let selfClosing = false
     for (;;) {
       const hadWhitespace = isXmlWhitespace(svg[end])
@@ -237,8 +221,10 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       }
       if (!hadWhitespace) return false
       const attribute = readXmlName(svg, end)
-      const attributeName = attribute && parseXmlQualifiedName(attribute.name)
-      if (!attribute || !attributeName || rawAttributes.has(attribute.name)) return false
+      if (!attribute || rawAttributes.has(attribute.name)) return false
+      const prefixed = attribute.name.includes(':')
+      const attributeName = prefixed ? parsePrefixedXmlName(attribute.name) : undefined
+      if (prefixed && !attributeName) return false
       rawAttributes.add(attribute.name)
       end = attribute.end
       while (isXmlWhitespace(svg[end])) end++
@@ -255,52 +241,60 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (end >= svg.length) return false
       const value = svg.slice(valueStart, end)
       if (!hasWellFormedXmlReferences(value)) return false
-      attributes.push({ name: attribute.name, qname: attributeName, value: decodeXmlReferences(value) })
+      // Namespace expansion never consumes ordinary unprefixed attributes:
+      // their raw names already prove uniqueness. Still validate every value
+      // and report its raw bytes to security in the original lexical order.
+      if (attributeName || attribute.name === 'xmlns') {
+        namespaceAttributes.push({ name: attribute.name, ...attributeName, value: decodeXmlReferences(value) })
+      }
       observeAttribute?.(attribute.name, value)
       end++
     }
 
-    const namespaces = new Map(stack.at(-1)?.namespaces ?? [
-      ['xml', XML_NAMESPACE],
-    ])
-    for (const attribute of attributes) {
+    // Frames share inherited bindings until a declaration changes them. Never
+    // mutate a parent's map: a child's declarations cannot leak to siblings.
+    const inheritedNamespaces = stack.at(-1)?.namespaces
+    let namespaces: ReadonlyMap<string, string> = inheritedNamespaces ?? new Map([['xml', XML_NAMESPACE]])
+    let declaredNamespaces: Map<string, string> | undefined
+    for (const attribute of namespaceAttributes) {
       const isDefaultDeclaration = attribute.name === 'xmlns'
-      const isPrefixedDeclaration = attribute.qname.prefix === 'xmlns'
+      const isPrefixedDeclaration = attribute.prefix === 'xmlns'
       if (!isDefaultDeclaration && !isPrefixedDeclaration) continue
-      const prefix = isDefaultDeclaration ? '' : attribute.qname.local
+      const prefix = isDefaultDeclaration ? '' : attribute.local!
       const uri = attribute.value
       if (prefix === 'xmlns'
         || uri === XMLNS_NAMESPACE
         || (prefix === 'xml' && uri !== XML_NAMESPACE)
         || (prefix !== 'xml' && uri === XML_NAMESPACE)
         || (prefix !== '' && uri === '')) return false
-      namespaces.set(prefix, uri)
+      if (!declaredNamespaces) {
+        declaredNamespaces = new Map(namespaces)
+        namespaces = declaredNamespaces
+      }
+      declaredNamespaces.set(prefix, uri)
     }
 
-    if (elementName.prefix === 'xmlns') return false
-    const elementNamespace = elementName.prefix === undefined
-      ? (namespaces.get('') ?? '')
-      : namespaces.get(elementName.prefix)
-    if (elementNamespace === undefined) return false
     // One deliberately small serializer subset: every element is an
     // unprefixed SVG element. Namespaced attributes (xml/xlink/extension
     // metadata) remain available, but prefixed or namespace-reset elements
     // cannot bypass local-name security checks or render differently by host.
-    if (elementName.prefix !== undefined || elementNamespace !== SVG_NAMESPACE) return false
-    if (stack.length > 0 && elementName.local === 'svg' && elementNamespace === SVG_NAMESPACE) {
+    if (namespaces.get('') !== SVG_NAMESPACE) return false
+    if (stack.length > 0 && parsed.name === 'svg') {
       // Preserve the established single-SVG-document contract; nested SVG
       // roots are not part of the admitted backend serialization subset.
       return false
     }
 
-    const expandedAttributes = new Set<string>()
-    for (const attribute of attributes) {
-      if (attribute.name === 'xmlns' || attribute.qname.prefix === 'xmlns') continue
-      const namespace = attribute.qname.prefix === undefined
-        ? ''
-        : namespaces.get(attribute.qname.prefix)
-      if (namespace === undefined || attribute.qname.prefix === 'xmlns') return false
-      const expanded = `${namespace}\u0000${attribute.qname.local}`
+    let expandedAttributes: Set<string> | undefined
+    for (const attribute of namespaceAttributes) {
+      if (attribute.name === 'xmlns' || attribute.prefix === 'xmlns') continue
+      // Raw-name uniqueness already proves unprefixed attributes unique.
+      // A declared prefix always has a nonempty URI, so only prefixed names
+      // can alias one another after namespace expansion.
+      const namespace = namespaces.get(attribute.prefix!)
+      if (namespace === undefined) return false
+      const expanded = `${namespace}\u0000${attribute.local}`
+      if (!expandedAttributes) expandedAttributes = new Set()
       if (expandedAttributes.has(expanded)) return false
       expandedAttributes.add(expanded)
     }
@@ -389,16 +383,13 @@ function unsafeCssReferences(value: string): string[] {
 
 function unsafeActiveCss(value: string): boolean {
   const scan = normalizeCssObfuscation(decodeXmlReferences(value))
+  return unsafeActiveCssScan(scan)
+}
+
+function unsafeActiveCssScan(scan: string): boolean {
   if (/(?:expression|behavior)\s*\(|-moz-binding\s*:/i.test(scan)) return true
   if (/(?:javascript|vbscript|data|file)\s*:/i.test(scan)) return true
   return false
-}
-
-function unsafeCssOrAnimatedValue(value: string): boolean {
-  const scan = normalizeCssObfuscation(decodeXmlReferences(value))
-  return unsafeCssReferences(scan).length > 0
-    || /(?:javascript|vbscript|data|file)\s*:/i.test(scan)
-    || /(?:expression|behavior)\s*\(/i.test(scan)
 }
 
 const CSS_VALUE_ATTRIBUTES = new Set([
@@ -437,8 +428,15 @@ function inspectAttributeSecurity(qualified: string, value: string, refs: string
     if (/^(?:javascript|vbscript|data|file):/.test(normalized)) active.push(`${qualified}=${value}`)
   }
   if (CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') {
-    if (unsafeCssOrAnimatedValue(value)) refs.push(`${qualified}=${value}`)
-    if (unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
+    // Without a function, scheme, at-rule, escape or entity delimiter, CSS
+    // normalization cannot introduce any of the active/fetching forms below.
+    // Escaped and encoded inputs retain full reference/active classification.
+    if (!/[(:@\\&]/.test(value)) return
+    const scan = normalizeCssObfuscation(decodeXmlReferences(value))
+    if (unsafeCssReferences(scan).length > 0
+      || /(?:javascript|vbscript|data|file)\s*:/i.test(scan)
+      || /(?:expression|behavior)\s*\(/i.test(scan)) refs.push(`${qualified}=${value}`)
+    if (unsafeActiveCssScan(scan)) active.push(`${qualified}=${value}`)
   }
 }
 
