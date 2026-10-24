@@ -396,8 +396,6 @@ export interface LaneContext {
   nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
   /** Owner invalidation follows every route write; labels remain live. */
   routeChannelGeometry?: RouteChannelGeometry
-  /** Only the private producer/auditor owns the route mutation boundaries. */
-  ownsRouteGeometry?: true
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -503,7 +501,7 @@ export function buildRouteLaneContext(
 
   return {
     axis,
-    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance, ownsRouteGeometry: true,
+    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance,
       nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
       routeChannelGeometry: customTextMeasurementActive() ? undefined : new RouteChannelGeometry() },
   }

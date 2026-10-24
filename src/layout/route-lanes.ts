@@ -572,7 +572,8 @@ export function proveLane(
   // A repair may never increase edge crossings: a perpendicular crossing is
   // legal when the router chose it, but the straightener must not create
   // one that the original route avoided.
-  const priorCrossings = ctx.ownsRouteGeometry && !customTextMeasurementActive()
+  // The index owner exists only in private frozen-geometry contexts.
+  const priorCrossings = ctx.nodeLaneIndexes && !customTextMeasurementActive()
     ? search.priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
     : countRouteCrossings(edge.points, edge, ctx)
   const nextCrossings = countRouteCrossings([start, end], edge, ctx, priorCrossings)

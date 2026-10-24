@@ -331,8 +331,8 @@ export function applyRouteContracts(
     // Until then this Boolean proof depends only on the source leg and which
     // probe owns the label/self-exclusion rules. Keep its cache inside this
     // immutable search; a later edge or fixed-point round must re-prove it.
-    const memoFirstLeg = ctx.ownsRouteGeometry === true && !customTextMeasurementActive()
-    let firstLegProofs: Array<{ srcMain: number; jog: number; blocked: boolean } | undefined> | undefined
+    const memoFirstLeg = !customTextMeasurementActive()
+    let firstLegProofs: Array<{ jog: number; blocked: boolean } | undefined> | undefined
 
     for (const c2 of c2s) {
       if (c2 < s2.lo - EPS || c2 > s2.hi + EPS) continue
@@ -355,22 +355,21 @@ export function applyRouteContracts(
           // hop are proved with a label-stripped probe so the own-label
           // capacity check applies exactly once, where the pill will live.
           const longFirst = Math.abs(jog - srcMain) >= Math.abs(tgtMain - jog)
+          // The source anchor is fixed for c1Index throughout this search.
+          // Only the target-dependent jog and probe identity can vary.
+          const proofIndex = memoFirstLeg ? (c1Index * 3 + jogIndex) * 2 + Number(longFirst) : 0
+          const cached = memoFirstLeg ? firstLegProofs?.[proofIndex] : undefined
           let firstBlocked: boolean
-          if (memoFirstLeg) {
-            // At most six records per source candidate. Check the actual
-            // anchors too: curved target sides can change a jog between c2s.
-            const proofIndex = (c1Index * 3 + jogIndex) * 2 + Number(longFirst)
-            const cached = firstLegProofs?.[proofIndex]
-            if (cached && Object.is(cached.srcMain, srcMain) && Object.is(cached.jog, jog)) firstBlocked = cached.blocked
-            else {
-              firstBlocked = hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)
+          if (cached && Object.is(cached.jog, jog)) firstBlocked = cached.blocked
+          else {
+            firstBlocked = hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)
+            if (memoFirstLeg) {
               if (cached) {
-                cached.srcMain = srcMain
                 cached.jog = jog
                 cached.blocked = firstBlocked
-              } else (firstLegProofs ??= [])[proofIndex] = { srcMain, jog, blocked: firstBlocked }
+              } else (firstLegProofs ??= [])[proofIndex] = { jog, blocked: firstBlocked }
             }
-          } else firstBlocked = hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)
+          }
           if (firstBlocked) continue
           const hopAxis = perpendicularAxis(axis, c1, c2)
           if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
