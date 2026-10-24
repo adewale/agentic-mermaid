@@ -1,6 +1,6 @@
 import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
-import { RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
+import { type RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
 import type { AnyPort, DiamondFacet, Direction, MermaidGraph, Point, PortSemanticRole, PortSide, PositionedEdge, PositionedNode, RouteClass, RoutePortAssignment } from '../types.ts'
 import { isOutwardShapeApproach } from '../shape-clipping.ts'
 import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
@@ -503,7 +503,7 @@ export function buildRouteLaneContext(
     axis,
     ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance,
       nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
-      routeChannelGeometry: customTextMeasurementActive() ? undefined : new RouteChannelGeometry() },
+      routeChannelGeometry: customTextMeasurementActive() ? undefined : new WeakMap() },
   }
 }
 
@@ -516,7 +516,7 @@ export function perpendicularAxis(axis: Axis, from: number, to: number): Axis {
 }
 
 export function invalidateRouteGeometry(ctx: LaneContext, edge: PositionedEdge): void {
-  ctx.routeChannelGeometry?.invalidate(edge)
+  ctx.routeChannelGeometry?.delete(edge)
 }
 
 export function setRoutePoints(ctx: LaneContext, edge: PositionedEdge, points: Point[]): void {

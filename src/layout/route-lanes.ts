@@ -1,3 +1,4 @@
+import { routeChannelMayBlock } from '../shared/route-channel-geometry.ts'
 import { nodeLaneIndexForQuery, nodeLaneCell } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
@@ -260,7 +261,7 @@ function collectLaneBlockers(
     // fine. Exception: two edges into the SAME target may converge exactly
     // collinearly at the shared target port — the classic flowchart fan-in
     // merge, where the final approaches draw as one line into one arrowhead.
-    if (channels && !channels.mayBlock(other, axis.cross, c, mainLo, mainHi, CLEARANCE, EPS)) continue
+    if (channels && !routeChannelMayBlock(channels, other, axis.cross, c, mainLo, mainHi, CLEARANCE, EPS)) continue
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
       if (Math.abs((axis.cross === 'x' ? a.x : a.y) - (axis.cross === 'x' ? b.x : b.y)) > EPS) continue
