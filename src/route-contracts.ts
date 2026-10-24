@@ -39,6 +39,9 @@ import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
 import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
 import { LABEL_PILL_PADDING, labelRect, pillRect, segmentEntersLabelRect } from './shared/edge-label-geometry.ts'
+import { nodeLaneIndexForQuery, nodeLaneCell, type NodeLaneIndex } from './shared/node-lane-index.ts'
+import { customTextMeasurementActive } from './text-measurement-profile.ts'
+import { RouteChannelGeometry } from './shared/route-channel-geometry.ts'
 
 export { labelRect } from './shared/edge-label-geometry.ts'
 
@@ -406,6 +409,21 @@ interface LaneContext {
   finalLabelClearance?: boolean
   /** A direct producer already reserved label bodies during placement. */
   fixedLabels?: boolean
+  /** Private frozen-geometry calls only. Exported placement contexts stay live. */
+  nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
+  /** Owner invalidation follows every route write; labels remain live. */
+  routeChannelGeometry?: RouteChannelGeometry
+  /** Only the private producer/auditor owns the route mutation boundaries. */
+  ownsRouteGeometry?: true
+}
+
+function invalidateRouteGeometry(ctx: LaneContext, edge: PositionedEdge): void {
+  ctx.routeChannelGeometry?.invalidate(edge)
+}
+
+function setRoutePoints(ctx: LaneContext, edge: PositionedEdge, points: Point[]): void {
+  invalidateRouteGeometry(ctx, edge)
+  edge.points = points
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -458,6 +476,12 @@ function sideOrderCoordinate(side: PortSide, node: PositionedNode, point: Point 
   return side === 'N' || side === 'S' ? node.x + node.width / 2 : node.y + node.height / 2
 }
 
+function indexRouteNodes(nodes: readonly PositionedNode[]): Map<string, PositionedNode> {
+  const index = new Map<string, PositionedNode>()
+  nodes.forEach(node => index.set(node.id, node))
+  return index
+}
+
 /**
  * Dynamic port allocator: for every node endpoint, record the physical side,
  * deterministic slot order along that side, and semantic role (flow emit,
@@ -470,8 +494,17 @@ export function allocateRoutePorts(
   graph: MermaidGraph,
   classes: RouteClass[] = classifyRoutes(graph),
 ): RoutePortAllocation {
+  return allocateRoutePortsImpl(positioned, graph, classes, true)
+}
+
+function allocateRoutePortsImpl(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  graph: MermaidGraph,
+  classes: RouteClass[],
+  fullPlan: boolean,
+): RoutePortAllocation {
   const axis = axisFor(graph.direction)
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const nodeMap = indexRouteNodes(positioned.nodes)
   const drafts: RoutePortEndpointDraft[] = []
   const sideUse = new Map<string, number>()
   const bumpSideUse = (nodeId: string, side: PortSide) => {
@@ -492,6 +525,10 @@ export function allocateRoutePorts(
       const side = sideForPort(port, semanticSide)
       const competes = routeClass === 'primary-forward' || (routeClass === 'feedback' && !edge.label)
       if (competes) bumpSideUse(nodeId, semanticSide)
+      if (!fullPlan) {
+        sideOrderCoordinate(side, node, point)
+        continue
+      }
       drafts.push({
         edge,
         endpoint,
@@ -504,6 +541,8 @@ export function allocateRoutePorts(
       })
     }
   }
+
+  if (!fullPlan) return { byEdge: new Map(), sideUse }
 
   const groups = new Map<string, RoutePortEndpointDraft[]>()
   for (const draft of drafts) {
@@ -548,7 +587,7 @@ function buildRouteLaneContext(
   finalLabelClearance = false,
 ): { ctx: LaneContext; axis: Axis } {
   const axis = axisFor(graph.direction)
-  const sideUse = allocateRoutePorts(positioned, graph, classes).sideUse
+  const sideUse = allocateRoutePortsImpl(positioned, graph, classes, false).sideUse
 
   for (const edge of positioned.edges) {
     if (!isBundleOwned(edge) || edge.edgeIndex === undefined) continue
@@ -567,7 +606,9 @@ function buildRouteLaneContext(
 
   return {
     axis,
-    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance },
+    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance, ownsRouteGeometry: true,
+      nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
+      routeChannelGeometry: customTextMeasurementActive() ? undefined : new RouteChannelGeometry() },
   }
 }
 
@@ -583,7 +624,7 @@ function portPoint(node: PositionedNode, side: PortSide | DiamondFacet): Point {
   return shapePorts(node)[side as PortSide]
 }
 
-function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNode, isStart: boolean): void {
+function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNode, isStart: boolean, ctx: LaneContext): void {
   const boundary = shapeRoutingProfile(node).boundary
   if (boundary.kind !== 'rect' || edge.points.length < 2) return
   const idx = isStart ? 0 : edge.points.length - 1
@@ -594,6 +635,7 @@ function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: PositionedNo
   const y1 = boundary.y + boundary.height
   const near = (a: number, b: number) => Math.abs(a - b) <= PORT_TOLERANCE
   const pushStub = (outline: Point, stub: Point) => {
+    invalidateRouteGeometry(ctx, edge)
     edge.points[idx] = outline
     if (Math.abs(outline.x - stub.x) <= EPS && Math.abs(outline.y - stub.y) <= EPS) return
     if (isStart) {
@@ -641,7 +683,7 @@ function diamondSpreadAssignment(
   if (!hasFacetAttachments(source) || edge.edgeIndex === undefined || ctx.classes?.[edge.edgeIndex] !== 'primary-forward') {
     return null
   }
-  const nodeMap = new Map(ctx.nodes.map(node => [node.id, node]))
+  const nodeMap = indexRouteNodes(ctx.nodes)
   const siblings = ctx.edges
     .filter(candidate => candidate.source === edge.source &&
       candidate.edgeIndex !== undefined &&
@@ -764,19 +806,28 @@ function collectLaneBlockers(
 ): RouteBlocker[] | boolean {
   const blockers: RouteBlocker[] | undefined = firstOnly ? undefined : []
 
-  for (let nodeIndex = 0; nodeIndex < ctx.nodes.length; nodeIndex++) {
-    const node = ctx.nodes[nodeIndex]!
+  const indexes = ctx.nodeLaneIndexes
+  const index = nodeLaneIndexForQuery(indexes, ctx.nodes, axis.cross, CLEARANCE)
+  const cell = index ? nodeLaneCell(index, c) : null
+  const indexed = index && cell !== null
+  const from = indexed ? index.offsets[cell] ?? 0 : 0
+  const to = indexed ? index.offsets[cell + 1] ?? 0 : ctx.nodes.length
+  for (let candidate = from; candidate < to; candidate++) {
+    const node = ctx.nodes[indexed ? index.ordinals[candidate]! : candidate]!
     if (node.id === edge.source || node.id === edge.target) continue
-    const nMainLo = (axis.main === 'x' ? node.x : node.y) - CLEARANCE
-    const nMainHi = (axis.main === 'x' ? node.x : node.y) + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
     const nCrossLo = (axis.cross === 'x' ? node.x : node.y) - CLEARANCE
     const nCrossHi = (axis.cross === 'x' ? node.x : node.y) + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
-    if (c > nCrossLo && c < nCrossHi && Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
-      if (firstOnly) return true
-      blockers!.push({ kind: 'node', id: node.id })
+    if (c > nCrossLo && c < nCrossHi) {
+      const nMainLo = (axis.main === 'x' ? node.x : node.y) - CLEARANCE
+      const nMainHi = (axis.main === 'x' ? node.x : node.y) + (axis.main === 'x' ? node.width : node.height) + CLEARANCE
+      if (Math.min(mainHi, nMainHi) - Math.max(mainLo, nMainLo) > EPS) {
+        if (firstOnly) return true
+        blockers!.push({ kind: 'node', id: node.id })
+      }
     }
   }
 
+  const channels = ctx.routeChannelGeometry
   for (let edgeIndex = 0; edgeIndex < ctx.edges.length; edgeIndex++) {
     const other = ctx.edges[edgeIndex]!
     // Compare by edgeIndex as well as identity: validation proves lanes on a
@@ -801,6 +852,7 @@ function collectLaneBlockers(
     // fine. Exception: two edges into the SAME target may converge exactly
     // collinearly at the shared target port — the classic flowchart fan-in
     // merge, where the final approaches draw as one line into one arrowhead.
+    if (channels && !channels.mayBlock(other, axis.cross, c, mainLo, mainHi, CLEARANCE, EPS)) continue
     for (let i = 1; i < other.points.length; i++) {
       const a = other.points[i - 1]!, b = other.points[i]!
       if (Math.abs((axis.cross === 'x' ? a.x : a.y) - (axis.cross === 'x' ? b.x : b.y)) > EPS) continue
@@ -901,7 +953,7 @@ export function findLabelSlot(
 }
 
 /** Use the same visible proper crossings for proposals and final scoring. */
-function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): number {
+function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext, stopAfter = Infinity): number {
   if (edge.style === 'invisible') return 0
   let count = 0
   for (const other of ctx.edges) {
@@ -909,8 +961,16 @@ function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneCon
     // The exact pair query includes the allocation-free broad phase; do not
     // traverse both routes once to reject, then again to count crossings.
     count += countPointPairCrossings(points, other.points)
+    // Pair counts are already deduplicated and nonnegative. Once the total
+    // exceeds the allowed count, later peers cannot change the rejection.
+    if (count > stopAfter) return count
   }
   return count
+}
+
+function routeAddsCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): boolean {
+  const prior = countRouteCrossings(edge.points, edge, ctx)
+  return countRouteCrossings(points, edge, ctx, prior) > prior
 }
 
 /**
@@ -981,6 +1041,8 @@ interface LaneSearch {
   candidates: number[]
   isPortLane: (c: number) => boolean
   emptyRelaxed: boolean
+  /** This search ends before accepting a mutation; peer routes stay fixed. */
+  priorCrossings?: number
 }
 
 function laneSearch(
@@ -1122,7 +1184,11 @@ function proveLane(
   // A repair may never increase edge crossings: a perpendicular crossing is
   // legal when the router chose it, but the straightener must not create
   // one that the original route avoided.
-  if (countRouteCrossings([start, end], edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) {
+  const priorCrossings = ctx.ownsRouteGeometry && !customTextMeasurementActive()
+    ? search.priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
+    : countRouteCrossings(edge.points, edge, ctx)
+  const nextCrossings = countRouteCrossings([start, end], edge, ctx, priorCrossings)
+  if (nextCrossings > priorCrossings) {
     return { blockers: [{ kind: 'crossing', id: edgeId(edge) }] }
   }
   const slot = findLabelSlot(edge, start, end, ctx)
@@ -1185,7 +1251,7 @@ function tryStraighten(
         continue
       }
     }
-    edge.points = [proven.start, proven.end]
+    setRoutePoints(ctx, edge, [proven.start, proven.end])
     if (edge.label) edge.labelPosition = proven.slot ?? undefined
     return { applied: true, blockers: [], usedCandidateIndex: candidateIndex }
   }
@@ -1270,7 +1336,7 @@ export function applyRouteContracts(
     Boolean(options?.preserveLabels),
   )
   ctx.fixedLabels = Boolean(options?.preserveLabels)
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const nodeMap = indexRouteNodes(positioned.nodes)
   const groupMap = flattenGroups(positioned.groups)
   const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
 
@@ -1508,12 +1574,19 @@ export function applyRouteContracts(
     // label-free probe and lazily compute the unchanged route's crossing count.
     const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
     let priorCrossings: number | undefined
+    // A successful candidate's first geometry/label write immediately returns.
+    // Until then this Boolean proof depends only on the source leg and which
+    // probe owns the label/self-exclusion rules. Keep its cache inside this
+    // immutable search; a later edge or fixed-point round must re-prove it.
+    const memoFirstLeg = ctx.ownsRouteGeometry === true && !customTextMeasurementActive()
+    let firstLegProofs: Array<{ srcMain: number; jog: number; blocked: boolean } | undefined> | undefined
 
     for (const c2 of c2s) {
       if (c2 < s2.lo - EPS || c2 > s2.hi + EPS) continue
       const tgtMain = anchorMain(target, c2, axis, -1)
       if (tgtMain === null) continue
-      for (const c1 of c1s) {
+      for (let c1Index = 0; c1Index < c1s.length; c1Index++) {
+        const c1 = c1s[c1Index]!
         if (c1 < s1.lo - EPS || c1 > s1.hi + EPS) continue
         if (Math.abs(c1 - c2) < CLEARANCE) continue // that would be a hitch, not a Z
         const srcMain = anchorMain(source, c1, axis, 1)
@@ -1522,21 +1595,40 @@ export function applyRouteContracts(
         const jogs = forcedLanes?.preferSourceJog
           ? [srcMain + axis.sign * 12, (srcMain + tgtMain) / 2, tgtMain - axis.sign * 12]
           : [tgtMain - axis.sign * 12, (srcMain + tgtMain) / 2, srcMain + axis.sign * 12]
-        for (const jog of jogs) {
+        for (let jogIndex = 0; jogIndex < jogs.length; jogIndex++) {
+          const jog = jogs[jogIndex]!
           if ((jog - srcMain) * axis.sign <= EPS || (tgtMain - jog) * axis.sign <= EPS) continue
           // The label rides the longest lane only; the other lane and the
           // hop are proved with a label-stripped probe so the own-label
           // capacity check applies exactly once, where the pill will live.
           const longFirst = Math.abs(jog - srcMain) >= Math.abs(tgtMain - jog)
-          if (hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)) continue
+          let firstBlocked: boolean
+          if (memoFirstLeg) {
+            // At most six records per source candidate. Check the actual
+            // anchors too: curved target sides can change a jog between c2s.
+            const proofIndex = (c1Index * 3 + jogIndex) * 2 + Number(longFirst)
+            const cached = firstLegProofs?.[proofIndex]
+            if (cached && Object.is(cached.srcMain, srcMain) && Object.is(cached.jog, jog)) firstBlocked = cached.blocked
+            else {
+              firstBlocked = hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)
+              if (cached) {
+                cached.srcMain = srcMain
+                cached.jog = jog
+                cached.blocked = firstBlocked
+              } else (firstLegProofs ??= [])[proofIndex] = { srcMain, jog, blocked: firstBlocked }
+            }
+          } else firstBlocked = hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)
+          if (firstBlocked) continue
           const hopAxis = perpendicularAxis(axis, c1, c2)
           if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
           if (hasDirectLaneBlocker(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
           const route = [axisPoint(axis, srcMain, c1), axisPoint(axis, jog, c1), axisPoint(axis, jog, c2), axisPoint(axis, tgtMain, c2)]
           const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
           const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
-          priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
-          const nextCrossings = countRouteCrossings(route, edge, ctx)
+          // Occlusion repair does not consult either count. It ranks a clear
+          // lane above an illegal through-node route regardless of crossings.
+          priorCrossings ??= repairingOcclusion ? 0 : countRouteCrossings(edge.points, edge, ctx)
+          const nextCrossings = repairingOcclusion ? 0 : countRouteCrossings(route, edge, ctx, priorCrossings)
           // Crossings may not increase — unless the current route passes
           // THROUGH a node (a hard defect, e.g. a later pass moved a node
           // into the routed corridor): a legal crossing always beats an
@@ -1566,13 +1658,13 @@ export function applyRouteContracts(
             }
             edge.labelPosition = slot
           }
-          edge.points = route
+          setRoutePoints(ctx, edge, route)
           return true
         }
       }
     }
     if (occlusionFallback) {
-      edge.points = occlusionFallback.route
+      setRoutePoints(ctx, edge, occlusionFallback.route)
       if (edge.label) edge.labelPosition = occlusionFallback.labelMid
       return true
     }
@@ -1691,15 +1783,15 @@ export function applyRouteContracts(
       const labelLane: [Point, Point] = [axisPoint(axis, gapMain, escCross), axisPoint(axis, hopMain, escCross)]
       if (edge.label) {
         const slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
-        if (slot) { edge.labelPosition = slot; edge.points = route; return true }
+        if (slot) { edge.labelPosition = slot; setRoutePoints(ctx, edge, route); return true }
         if (!fallback) fallback = { route, labelMid: { x: (labelLane[0].x + labelLane[1].x) / 2, y: (labelLane[0].y + labelLane[1].y) / 2 } }
         continue
       }
-      edge.points = route
+      setRoutePoints(ctx, edge, route)
       return true
     }
     if (fallback) {
-      edge.points = fallback.route
+      setRoutePoints(ctx, edge, fallback.route)
       if (edge.label) edge.labelPosition = fallback.labelMid
       return true
     }
@@ -1765,13 +1857,13 @@ export function applyRouteContracts(
     if (hasDirectLaneBlocker(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis)) return false
     const route = [axisPoint(axis, srcMain, lane), axisPoint(axis, portMain, lane), axisPoint(axis, portMain, entryCross)]
     if (!routeThroughNodeBBox(edge, ctx) &&
-      countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
+      routeAddsCrossings(route, edge, ctx)) return false
     if (edge.label) {
       const slot = findLabelSlot(edge, route[0]!, route[1]!, ctx)
       if (!slot) return false
       edge.labelPosition = slot
     }
-    edge.points = route
+    setRoutePoints(ctx, edge, route)
     return true
   }
 
@@ -1906,9 +1998,9 @@ export function applyRouteContracts(
     }
     if (!tightened) return false
     // Same rule as straightening: tightening may never increase crossings.
-    if (countRouteCrossings(simplifyPolyline(tightened), edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
+    if (routeAddsCrossings(simplifyPolyline(tightened), edge, ctx)) return false
     const before = edge.points
-    edge.points = simplifyPolyline(tightened)
+    setRoutePoints(ctx, edge, simplifyPolyline(tightened))
     // Re-place the label if its pill sat on a removed segment.
     if (edge.label && edge.labelPosition) {
       const lp = edge.labelPosition
@@ -1932,7 +2024,7 @@ export function applyRouteContracts(
         if (slot) {
           edge.labelPosition = slot
         } else {
-          edge.points = before // no honest label slot on the tightened loop: keep ELK's
+          setRoutePoints(ctx, edge, before) // no honest label slot on the tightened loop: keep ELK's
           return false
         }
       }
@@ -2111,7 +2203,7 @@ export function applyRouteContracts(
     // Clip both endpoints onto non-rectangular outlines (diamond facets,
     // circles, …) — the clip slides the endpoint along its own orthogonal
     // segment, so orthogonality is preserved.
-    edge.points = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
+    setRoutePoints(ctx, edge, clipEdgeToShape(clipEdgeToShape(points, node, true), node, false))
     if (edge.label && pill) {
       // Center the pill normally just beyond its outer segment. If a blocker
       // capped two same-side depths close together, shift the later pill only
@@ -2173,7 +2265,7 @@ export function applyRouteContracts(
 
   const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   for (const edge of positioned.edges) {
-    edge.points = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
+    setRoutePoints(ctx, edge, simplifyPolyline(orthogonalizeResidualDiagonals(edge.points)))
 
     const edgeIndex = edge.edgeIndex ?? -1
     const routeClass: RouteClass = classes[edgeIndex] ?? 'primary-forward'
@@ -2277,8 +2369,8 @@ export function applyRouteContracts(
   for (const edge of positioned.edges) {
     const sourceNode = nodeMap.get(edge.source)
     const targetNode = nodeMap.get(edge.target)
-    if (sourceNode) repairRectLikeEndpointOverflow(edge, sourceNode, true)
-    if (targetNode) repairRectLikeEndpointOverflow(edge, targetNode, false)
+    if (sourceNode) repairRectLikeEndpointOverflow(edge, sourceNode, true, ctx)
+    if (targetNode) repairRectLikeEndpointOverflow(edge, targetNode, false, ctx)
   }
 
   const certificates: RouteCertificate[] = []
@@ -2409,7 +2501,7 @@ function scanRouteHitches(
     edge => edge.routeCertificate?.invariant === 'bundle',
     true,
   )
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const nodeMap = indexRouteNodes(positioned.nodes)
   const sideUse = ctx.sideUse!
   const hitches: RouteHitch[] = []
   const closedEdges = new Set<PositionedEdge>()
@@ -2944,7 +3036,7 @@ export function separateEdgeLabelPills(
  * endpoint adds no line, crosses no obstacle and moves contact by less than
  * one pixel, but prevents that tiny run rotating the whole marker sideways. */
 function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[]): void {
-  const nodeMap = new Map(nodes.map(node => [node.id, node]))
+  const nodeMap = indexRouteNodes(nodes)
   for (const edge of edges) {
     const saved = edge.routeCertificate
     let changed = false
@@ -2993,7 +3085,7 @@ export function auditRouteContracts(
   style: LabelMetricsStyle = resolveRenderStyle({}),
 ): RouteAuditFinding[] {
   const findings: RouteAuditFinding[] = []
-  const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
+  const nodeMap = indexRouteNodes(positioned.nodes)
   const groupMap = flattenGroups(positioned.groups)
   const TOL = 1
 

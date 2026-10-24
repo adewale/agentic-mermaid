@@ -15,6 +15,43 @@ import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { measureLabelConflicts } from '../layout/label-conflicts.ts'
+import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+
+it('keeps route clearance live when trusted label measurement moves an obstacle', () => {
+  const graph = parseMermaid('flowchart TD\nA[start]\nB[end]\nC[obstacle]\nA-->|yes|B\nB-->|retry|A\nA-->B\nC-->B')
+  const nodes: PositionedNode[] = [
+    { id: 'A', label: 'A', shape: 'rectangle', x: 20, y: 40, width: 80, height: 40 },
+    { id: 'B', label: 'B', shape: 'rectangle', x: 80, y: 360, width: 80, height: 40 },
+    { id: 'C', label: 'C', shape: 'rectangle', x: 0, y: 200, width: 80, height: 40 },
+    ...Array.from({ length: 48 }, (_, j) => ({ id: `extra${j}`, label: 'extra', shape: 'rectangle' as const,
+      x: -512 + j * 24, y: 100 + j % 7 * 35, width: 12 + j % 4 * 13, height: 20 + j % 5 * 11 })),
+  ]
+  const routes = [
+    [[40, 80], [40, 140], [100, 140], [100, 360]],
+    [[100, 340], [100, 280], [-60, 280], [-60, 80]],
+    [[40, 80], [40, 140], [100, 140], [100, 360]],
+    [[160, 240], [160, 300], [100, 300], [100, 360]],
+  ]
+  const edges = graph.edges.map((edge, i) => ({ ...edge, edgeIndex: i, points: routes[i]!.map(([x, y]) => ({ x: x!, y: y! })),
+    ...(edge.label ? { labelPosition: { x: i === 1 ? -60 : 100, y: 220 } } : {}) }))
+  const obstacle = nodes[11]!
+  const execution = createTextMeasurementExecution({ id: 'test:live-route-obstacle', version: '1.0.0', measure: () => {
+    obstacle.x = 40
+    obstacle.y = 200
+    return 24
+  } }, 'Inter')
+  withTextMeasurementExecution(execution, () => applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set(), resolveRenderStyle()))
+  expect([obstacle.x, obstacle.y]).toEqual([40, 200])
+  const route = edges[3]!.points
+  for (let i = 1; i < route.length; i++) {
+    const a = route[i - 1]!, b = route[i]!
+    const verticalConflict = a.x === b.x && a.x > obstacle.x - 4 && a.x < obstacle.x + obstacle.width + 4 &&
+      Math.min(Math.max(a.y, b.y), obstacle.y + obstacle.height + 4) > Math.max(Math.min(a.y, b.y), obstacle.y - 4)
+    const horizontalConflict = a.y === b.y && a.y > obstacle.y - 4 && a.y < obstacle.y + obstacle.height + 4 &&
+      Math.min(Math.max(a.x, b.x), obstacle.x + obstacle.width + 4) > Math.max(Math.min(a.x, b.x), obstacle.x - 4)
+    expect(verticalConflict || horizontalConflict).toBe(false)
+  }
+})
 
 describe('route proposal crossing consistency', () => {
   it('keeps settled reciprocal labels as obstacles in the final closure and its auditor', () => {
