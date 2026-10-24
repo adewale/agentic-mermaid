@@ -76,6 +76,34 @@ function dependencyRoot(from: string, name: string): string | undefined {
   }
 }
 
+/** Bind npm identity to the exact installed package, including aliased prefixes.
+ * A same-name nested package is not evidence for the requested module root. */
+export function installedNpmPackagePin(prefix: string, root: string, name: string, version: string,
+  lockPath = join(prefix, 'node_modules/.package-lock.json')): RuntimePin & { packageRoot: string; lockKey: string } {
+  const packageRoot = realpathSync(root), pkg = manifest(packageRoot)
+  if (typeof name !== 'string' || !name || typeof version !== 'string' || !version || pkg.name !== name || pkg.version !== version) throw new Error(`${name}@${version}: installed package name/version differs`)
+  const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { packages?: Record<string, { name?: string; version?: string; integrity?: string; link?: boolean }> }
+  const bases = [...new Set([resolve(prefix), realpathSync(prefix)])]
+  const matches = Object.entries(lock.packages ?? {}).filter(([key, entry]) => {
+    if (!key || entry.link) return false
+    const roots = new Set<string>()
+    for (const base of bases) {
+      try { roots.add(realpathSync(resolve(base, key))) }
+      catch (error) {
+        if (!['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+      }
+    }
+    if (roots.has(packageRoot) && roots.size !== 1) throw new Error(`${name}@${version}: ambiguous installed npm lock path`)
+    return roots.has(packageRoot)
+  })
+  if (matches.length !== 1) throw new Error(`${name}@${version}: expected one exact installed npm lock identity, found ${matches.length}`)
+  const [lockKey, pin] = matches[0]!
+  if ((pin.name !== undefined && pin.name !== name) || pin.version !== version || !sri(pin.integrity) || pin.integrity.length !== 95) throw new Error(`${name}@${version}: installed npm name/version/SHA-512 identity is unavailable or differs`)
+  const encoded = pin.integrity.slice(7), digest = Buffer.from(encoded, 'base64')
+  if (digest.length !== 64 || digest.toString('base64') !== encoded) throw new Error(`${name}@${version}: installed npm name/version/SHA-512 identity is unavailable or differs`)
+  return { version, integrity: pin.integrity, packageRoot, lockKey }
+}
+
 /** Inspect what the package will actually resolve, rather than comparing
  * manifest ranges. npm's installed lock must agree with frozen tarball SRI;
  * a frozen Bun source install must have the exact locked package versions. */
@@ -205,10 +233,9 @@ function installRuntime(spec: string, prefix: string, policy: RuntimePolicy, out
   writeFileSync(join(out, `${label}.install-package.json`), `${JSON.stringify(consumer, null, 2)}\n`)
   const result = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', spec], { encoding: 'utf8', timeout, killSignal: 'SIGKILL' })
   if (result.status !== 0) throw new Error(`${label}: npm install failed: ${result.stderr || result.error?.message || result.status}`)
-  const lock = JSON.parse(readFileSync(join(prefix, 'package-lock.json'), 'utf8')) as { packages: Record<string, RuntimePin> }
-  const integrity = lock.packages['node_modules/agentic-mermaid']?.integrity
-  if (!sri(integrity) || (expectedIntegrity && expectedIntegrity !== integrity)) throw new Error(`${label}: installed package integrity differs from the verified artifact`)
   const root = join(prefix, 'node_modules/agentic-mermaid')
+  const { integrity } = installedNpmPackagePin(prefix, root, 'agentic-mermaid', manifest(root).version, join(prefix, 'package-lock.json'))
+  if (expectedIntegrity && expectedIntegrity !== integrity) throw new Error(`${label}: installed package integrity differs from the verified artifact`)
   if (archive) {
     const pkg = manifest(root)
     writeFileSync(join(out, `${label}.original-package.json`), readFileSync(join(root, 'package.json')))

@@ -10,7 +10,7 @@ import { join, resolve, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { chromium, type Page } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
-import { frozenRuntimePolicy, installAgenticRuntime, installNormalizedNpmBaseline, assertNormalizedNpmRuntimes, assertMatchedAgenticRuntimes, type BaselineLock, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
+import { frozenRuntimePolicy, installAgenticRuntime, installedNpmPackagePin, installNormalizedNpmBaseline, assertNormalizedNpmRuntimes, assertMatchedAgenticRuntimes, type BaselineLock, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 import { workingRevision } from './revision-tree.ts'
 import { browserPerformanceOptions, configureAgenticEngines, configureBrowserPage, type BrowserElkCache } from './browser-config.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from './browser-memory.ts'
@@ -100,9 +100,8 @@ function install(spec: string, name: string, label: string, parent: string, expe
   }
   const root = join(prefix, 'node_modules', name)
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
-  const lock = JSON.parse(readFileSync(join(prefix, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
-  const integrity = lock.packages[`node_modules/${name}`]?.integrity
-  if (pkg.name !== name || !integrity || (expectedIntegrity && expectedIntegrity !== integrity)) throw new Error(`${label}: package identity differs from the requested artifact`)
+  const { integrity } = installedNpmPackagePin(prefix, root, name, pkg.version, join(prefix, 'package-lock.json'))
+  if (expectedIntegrity && expectedIntegrity !== integrity) throw new Error(`${label}: package identity differs from the requested artifact`)
   return { label, name, version: pkg.version, root, kind: name === 'agentic-mermaid' ? 'agentic' : name as 'pele' | 'mermaid',
     bundle: name === 'agentic-mermaid' ? 'dist/browser.global.js' : name === 'pele' ? 'dist/pele.global.js' : 'dist/mermaid.min.js',
     global: name === 'agentic-mermaid' ? 'agenticMermaid' : name, identity: { integrity, ...(acquired ? { runtime: acquired.runtime } : {}) } }
@@ -331,7 +330,8 @@ async function main() {
     const memory = diagnostics.memoryPasses > 0 ? await browserMemoryDiagnostics({ engines, origin,
       inputs: sharedMemoryInputs(inputs, samples, engines.map(engine => engine.label), rounds), rounds, passes: diagnostics.memoryPasses, out,
       executablePath: options.get('executable'), elkCache }) : undefined
-    const report = { status: memory && memory.status !== 'completed' ? 'incomplete' : 'completed', advisory: true, startedAt, finishedAt: new Date().toISOString(), sourceRevision: process.env.GITHUB_SHA ?? workingRevision(), browser: browserVersion, node: process.versions.node,
+    const harnessRuntime = { name: process.versions.bun ? 'bun' : 'node', version: process.versions.bun ?? process.versions.node, nodeCompatibilityVersion: process.versions.node }
+    const report = { status: memory && memory.status !== 'completed' ? 'incomplete' : 'completed', advisory: true, startedAt, finishedAt: new Date().toISOString(), sourceRevision: process.env.GITHUB_SHA ?? workingRevision(), browser: browserVersion, node: process.versions.node, harnessRuntime,
       environment: { os: release(), arch: process.arch, cpu: cpus()[0]?.model, logicalCpus: cpus().length,
         cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
         memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined },
@@ -344,6 +344,7 @@ async function main() {
       ...(comparisonMode === 'normalized-npm-compound' ? ['> Normalized npm compound comparison, not an isolated PR gain. Only the external consumer dependency graph is normalized to current frozen pins; original IIFE/lazy bundles are unchanged and their embedded dependency equality is not established.', ''] : []),
       `${inputs.length}/${inventory.occurrenceCount} upstream fence occurrences, ${inventory.distinctCount} distinct examples across ${inventory.pages.length} pages. Chromium ${browserVersion}; ${rounds} counterbalanced rounds.`, '',
       `Policy: ELK cache **${elkCache}**; built-in Scene assertions **off**; browser APL environment empty (host APL variables are not applied).`, '',
+      `Harness runtime: **${harnessRuntime.name} ${harnessRuntime.version}**. The legacy node field records Node API compatibility version ${harnessRuntime.nodeCompatibilityVersion}; browser execution uses Chromium above.`, '',
       '| Engine | Returns SVG in every round | Median all-attempt call time | Complete bundle gzip |', '|---|---:|---:|---:|']
     for (const engine of engines) {
       const row = summary.engines.find(row => row.label === engine.label)!

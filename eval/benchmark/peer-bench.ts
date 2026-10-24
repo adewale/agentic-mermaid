@@ -60,7 +60,7 @@ import { PEER_CONSUMERS, PEER_FROZEN_COHORT, PEER_EXPECTED_LABELS, emptyTrackObs
 import type { PeerTrackObservation, PeerTrackReport } from './peer-tracks.ts'
 import { measurePeerTrack } from './peer-track-worker.ts'
 import type { TrackJob } from './peer-track-worker.ts'
-import { frozenRuntimePolicy, installAgenticRuntime, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
+import { frozenRuntimePolicy, installAgenticRuntime, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, type RuntimePolicy, type RuntimeReceipt } from './release-baseline.ts'
 
 type WorkloadId = string
 type Output = 'svg' | 'terminal'
@@ -574,7 +574,7 @@ function packageEntry(root: string, subpath: string): string {
   return join(root, target)
 }
 
-function installNpm(name: string, version: string): { root: string; integrity?: string; engines?: string; installedLocks: string[] } {
+function installNpm(name: string, version: string): { root: string; integrity: string; engines?: string; installedLocks: string[] } {
   const prefix = join(CACHE, `${name}@${version}`)
   const root = join(prefix, 'node_modules', name)
   const installed = () => {
@@ -590,9 +590,9 @@ function installNpm(name: string, version: string): { root: string; integrity?: 
     const child = spawnSync('npm', ['install', '--prefix', prefix, '--no-save', '--no-audit', '--no-fund', '--ignore-scripts', `${name}@${version}`], { encoding: 'utf8', timeout: 300_000 })
     if (child.status !== 0 || installed() !== version) throw new Error(`npm install ${name}@${version} failed: ${(child.stderr || child.error?.message || '').trim().split('\n').at(-1)}`)
   }
-  const lock = JSON.parse(readFileSync(join(prefix, 'node_modules/.package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
+  const { integrity } = installedNpmPackagePin(prefix, root, name, version)
   const engines = (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { engines?: { node?: string } }).engines?.node
-  return { root, integrity: lock.packages[`node_modules/${name}`]?.integrity, engines, installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')].filter(existsSync) }
+  return { root, integrity, engines, installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')].filter(existsSync) }
 }
 
 function installPypi(name: string, version: string): { python: string; pythonVersion: string } {
@@ -652,7 +652,7 @@ function prepare(peer: Peer, nodeVersion: string): Prepared {
     const { root, integrity, engines, installedLocks } = installNpm(name, version)
     const floor = engines?.match(/^>=\s*(\d+)/)?.[1]
     if (floor && Number(nodeVersion.replace(/^v/, '').split('.')[0]) < Number(floor)) warnings.push(`${peer.id}: ${name}@${version} declares engines.node ${engines}; workers run Node ${nodeVersion}`)
-    return { peer, label, root, version, warnings, installedLocks, ...(integrity ? { integrity } : {}) }
+    return { peer, label, root, version, warnings, installedLocks, integrity }
   } catch (error) {
     return { peer, label, version, warnings, error: firstLine(error) }
   }
@@ -670,8 +670,8 @@ function preparePackedCandidate(tarball: string, expectedSha: string, parent: st
   const acquired = installAgenticRuntime(staged, prefix, policy, out, label, integrity)
   const root = join(prefix, 'node_modules', 'agentic-mermaid')
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
-  const lock = JSON.parse(readFileSync(join(prefix, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
-  if (pkg.name !== 'agentic-mermaid' || lock.packages['node_modules/agentic-mermaid']?.integrity !== integrity) throw new Error('Installed candidate package identity differs from the verified tarball')
+  const installed = installedNpmPackagePin(prefix, root, 'agentic-mermaid', pkg.version, join(prefix, 'package-lock.json'))
+  if (installed.integrity !== integrity) throw new Error('Installed candidate package identity differs from the verified tarball')
   return { peer: PEERS[0]!, root, version: pkg.version, warnings: [], label: `agentic-mermaid ${pkg.version} packed SHA-256 ${sha256}`,
     identity: { kind: 'tarball', requested: resolve(tarball), sha256, integrity }, runtime: acquired.runtime, installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')].filter(existsSync) }
 }

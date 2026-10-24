@@ -1,9 +1,9 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. Registry and browser failures are controlled in subprocess probes.
 import { describe, expect, test } from 'bun:test'
-import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { createHash } from 'node:crypto'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
 import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
@@ -17,7 +17,7 @@ import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 import { linuxRssHighWater } from '../../eval/benchmark/release-memory.ts'
-import { frozenRuntimePolicy, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
+import { frozenRuntimePolicy, installedNpmPackagePin, inspectAgenticRuntime, assertMatchedAgenticRuntimes, assertHistoricalAgenticRuntimes, assertNormalizedNpmRuntimes, type RuntimeReceipt } from '../../eval/benchmark/release-baseline.ts'
 
 const temp = useTempDirs()
 const runChild = useTestChildren(10_000)
@@ -318,6 +318,58 @@ test('agent workload completes a verified edit and renders the original and adde
   const dropsEdits = Object.create(api) as typeof api
   Object.defineProperty(dropsEdits, 'mutate', { value: (diagram: unknown) => ({ ok: true, value: diagram }) })
   expect(() => renderAgentEdit(dropsEdits, agentEditCase.source)).toThrow('requested or preserved facts were lost')
+})
+
+test.each([false, true])('installed npm identity follows the exact module root (aliased prefix=%s)', alias => {
+  const dir = temp.dir(), physical = join(dir, 'physical'), logical = alias ? join(dir, 'alias', 'deep', 'consumer') : physical
+  const root = join(physical, 'node_modules', 'example-peer'), nested = join(root, 'node_modules', 'example-peer')
+  mkdirSync(nested, { recursive: true })
+  if (alias) { mkdirSync(join(dir, 'alias', 'deep'), { recursive: true }); symlinkSync(physical, logical, 'dir') }
+  for (const path of [root, nested]) writeFileSync(join(path, 'package.json'), JSON.stringify({ name: 'example-peer', version: '1.2.3' }))
+  const integrity = `sha512-${Buffer.alloc(64, 0x61).toString('base64')}`, nestedIntegrity = `sha512-${Buffer.alloc(64, 0x62).toString('base64')}`
+  const key = relative(logical, realpathSync(root)).split('\\').join('/')
+  const nestedKey = relative(logical, realpathSync(nested)).split('\\').join('/')
+  const lockPath = join(logical, 'node_modules/.package-lock.json')
+  const packages = { [key]: { version: '1.2.3', integrity }, [nestedKey]: { version: '1.2.3', integrity: nestedIntegrity } }
+  writeFileSync(lockPath, JSON.stringify({ packages }))
+  expect(installedNpmPackagePin(logical, join(logical, 'node_modules/example-peer'), 'example-peer', '1.2.3')).toEqual({ version: '1.2.3', integrity, packageRoot: realpathSync(root), lockKey: key })
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', '2.0.0')).toThrow('name/version differs')
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'other-peer', version: '1.2.3' }))
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('name/version differs')
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'example-peer' }))
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', undefined as unknown as string)).toThrow('name/version differs')
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'example-peer', version: '1.2.3' }))
+  writeFileSync(lockPath, JSON.stringify({ packages: { [key]: { version: '1.2.3' } } }))
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('SHA-512 identity')
+  writeFileSync(lockPath, JSON.stringify({ packages: { [key]: { version: '2.0.0', integrity } } }))
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('version/SHA-512 identity')
+  writeFileSync(lockPath, JSON.stringify({ packages: { [key]: { name: 'other-peer', version: '1.2.3', integrity } } }))
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('name/version/SHA-512 identity')
+  writeFileSync(lockPath, JSON.stringify({ packages: { [key]: { name: 'example-peer', version: '1.2.3', integrity } } }))
+  expect(installedNpmPackagePin(logical, root, 'example-peer', '1.2.3').integrity).toBe(integrity)
+  // Exact 64-byte canonical identities are required. The changed padding bits
+  // below decode to the same bytes but are not their canonical base64 spelling.
+  const invalidIntegrities = [
+    'sha512-YWJjZA==', `sha512-${Buffer.alloc(63).toString('base64')}`, `sha512-${Buffer.alloc(65).toString('base64')}`,
+    integrity.slice(0, -2), `${integrity}=`, `${integrity.slice(0, -3)}R==`,
+    integrity.replace('sha512-', 'sha256-'), integrity.replace('sha512-', 'sha512-!'), `${integrity.slice(0, 12)} ${integrity.slice(12)}`,
+  ]
+  for (const invalid of invalidIntegrities) {
+    writeFileSync(lockPath, JSON.stringify({ packages: { [key]: { version: '1.2.3', integrity: invalid } } }))
+    expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('SHA-512 identity')
+  }
+  writeFileSync(lockPath, JSON.stringify({ packages: { [key]: { version: '1.2.3', integrity }, [`${key}/.`]: { version: '1.2.3', integrity } } }))
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('found 2')
+  writeFileSync(lockPath, JSON.stringify({ packages: { [nestedKey]: { version: '1.2.3', integrity } } }))
+  expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('found 0')
+  if (alias) {
+    const other = join(dir, 'peer')
+    mkdirSync(other)
+    writeFileSync(join(other, 'package.json'), JSON.stringify({ name: 'example-peer', version: '1.2.3' }))
+    symlinkSync(root, join(dir, 'alias', 'deep', 'peer'), 'dir')
+    writeFileSync(lockPath, JSON.stringify({ packages: { '../peer': { version: '1.2.3', integrity } } }))
+    expect(() => installedNpmPackagePin(logical, root, 'example-peer', '1.2.3')).toThrow('ambiguous installed npm lock path')
+  }
 })
 
 test('baseline resolution survives a changed latest tag across CLI retries', async () => {
