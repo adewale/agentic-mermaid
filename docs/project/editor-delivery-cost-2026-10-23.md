@@ -424,6 +424,14 @@ The public async browser catalog had the same header-comment omission and now
 uses that rule too. No family detector or loading path owns a separate comment
 stripping rule.
 
+The follow-up audit also found a pre-existing discrepancy in the lightweight
+public async header reader: it removed init directives but retained other closed
+directives that full rendering removes, including directives inside a header.
+Header extraction and configuration preprocessing now share `stripMermaidDirectives`;
+only preprocessing interprets init payloads. Explicit before/inside-header API
+cases and the existing wrapper property cover this boundary without eagerly
+loading the YAML reader in the async entry.
+
 The browser admission cases use explicit source and label expectations, then
 compare complete SVG/verification and terminal receipts against eager execution.
 Each accepted input starts in a new empty page, with SVG and Unicode separately

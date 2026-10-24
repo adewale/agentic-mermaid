@@ -166,6 +166,8 @@ timeline
   2026 : Ship`, 'Ship'],
     ['header comment', 'packet %% Header comment\n0-7: "Header"', 'Header'],
     ['encoded header and comment', 'sequence&#68;iagram %% Header comment\nAlice->>Bob: Decoded once', 'Decoded once'],
+    ['ignored directive before header', '%%{config: {}}%%packet\n0-7: "Header"', 'Header'],
+    ['ignored directive within header', 'pa%%{config: {}}%%cket\n0-7: "Header"', 'Header'],
   ])('normalizes %s before loading', async (_name, source, label) => {
     const svg = await renderMermaidSVGAsync(source, { security: 'strict' })
     expect(svg).toContain(label)

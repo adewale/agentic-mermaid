@@ -86,6 +86,15 @@ export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init(?:ialize)?\s*:\s*
  *  closed one as a directive. */
 export const MERMAID_DIRECTIVE_REGEX = /%%\{\s*\w+(?:(?!\}%%)[\s\S])*\}%%/g
 
+/** Header discovery and full preprocessing consume the same directive-free
+ * body. Only full preprocessing interprets init payloads as configuration. */
+export function stripMermaidDirectives(text: string, onInit?: (payload: string | undefined) => void): string {
+  return text.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), (_match, onItsLine: string | undefined, inStatement: string | undefined) => {
+    onInit?.(onItsLine ?? inStatement)
+    return ''
+  }).replace(MERMAID_DIRECTIVE_REGEX, '')
+}
+
 export function toMermaidLines(text: string): string[] {
   return text
     .split(/\r\n?|\n/)
@@ -131,6 +140,6 @@ export function splitHeaderStatement(body: string): string {
  * reports as `firstLine`, found without parsing frontmatter or directives. */
 export function mermaidFirstLine(text: string): string {
   return toMermaidLines(splitHeaderStatement(
-    text.slice(matchMermaidFrontmatter(text)?.source.length ?? 0).replace(INIT_DIRECTIVE_REGEX, ''),
+    stripMermaidDirectives(text.slice(matchMermaidFrontmatter(text)?.source.length ?? 0)),
   ))[0]?.toLowerCase() ?? ''
 }

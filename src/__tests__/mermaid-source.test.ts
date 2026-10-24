@@ -278,7 +278,7 @@ describe('mermaidFirstLine is normalizeMermaidSource(…).firstLine without pars
   })
 
   it('on generated wrappers: BOM, CRLF, frontmatter, init directives, comments and blank lines', () => {
-    const line = fc.constantFrom('', '   ', '%% a comment', '%%{init: {"theme": "dark"}}%%', '%%{ initialize: { "look": "handDrawn" } }%%', '%%{init: {\n  "theme": "base"\n}}%%')
+    const line = fc.constantFrom('', '   ', '%% a comment', '%%{config: {}}%%', '%%{name}%%', '%%{init: {"theme": "dark"}}%%', '%%{ initialize: { "look": "handDrawn" } }%%', '%%{init: {\n  "theme": "base"\n}}%%')
     const frontmatter = fc.constantFrom('', '---\ntitle: T\n---\n', '---\nconfig:\n  theme: forest\n---\n', '  ---\na: 1\n  ---\n')
     const header = fc.constantFrom('flowchart TD', 'Graph LR', 'sequenceDiagram', 'stateDiagram-v2', 'pie showData', 'xychart-beta', '  erDiagram  ')
     fc.assert(fc.property(
@@ -288,6 +288,12 @@ describe('mermaidFirstLine is normalizeMermaidSource(…).firstLine without pars
         agree(crlf ? text.replace(/\n/g, '\r\n') : text)
       },
     ))
+  })
+
+  it.each(['%%{config: {}}%%packet', 'pa%%{config: {}}%%cket'])('removes inert directives in %s before selecting the header', header => {
+    const source = `${header}\n0-7: "Header"`
+    expect(mermaidFirstLine(source)).toBe('packet')
+    expect(normalizeMermaidSource(source).firstLine).toBe('packet')
   })
 })
 
