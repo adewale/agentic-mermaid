@@ -1,4 +1,4 @@
-import { drawableAuthoredCssPaint } from './css-color.ts'
+import { authoredCssPaintDescription, drawableAuthoredCssPaint } from './css-color.ts'
 import { syntaxError } from './syntax-error.ts'
 
 /** Split CSS-like Mermaid style pairs at a `,` or `;` without splitting
@@ -68,7 +68,7 @@ export class AuthoredStyleColorError extends Error {
   ) {
     super(syntaxError({
       what: `${subject}: ${property} ${JSON.stringify(value)} is not a CSS color`,
-      expectedForm: `a color name, #RGB, #RGBA, #RRGGBB, #RRGGBBAA, rgb(), rgba(), hsl(), hsla(), transparent, currentColor${property === 'color' ? '' : ', none'}, or var(--name)`,
+      expectedForm: authoredCssPaintDescription(property !== 'color'),
       example: `${directive ? `${directive} ` : ''}${property}:#f96`,
     }).message)
     this.name = 'AuthoredStyleColorError'
