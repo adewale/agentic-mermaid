@@ -39,6 +39,11 @@ export interface UnifiedRunOptions {
   harnessRoot?: string
   packageRoot?: string
   communityArtifacts?: string
+  communityCoverageOnce?: boolean
+  communityArtifactPolicy?: 'frozen' | 'latest'
+  communityPreparedFile?: string
+  communityInputsFile?: string
+  communityBrowserPreparedFile?: string
   rounds: number
   profile: 'smoke' | 'full'
   /** All timing campaigns run sequentially. */

@@ -1,12 +1,15 @@
 import { describe, expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { installedNpmIntegrity, runCommunityCli, runCommunityNodeRound } from '../../eval/benchmark/unified/community.ts'
+import { createCatalogEligibility } from '../../eval/benchmark/unified/catalog-eligibility.ts'
+import { communityCoreWorkloads, installedNpmIntegrity, rankCommunityFamilyObservations, rankCommunityObservations, runCommunityCli, runCommunityNodeRound } from '../../eval/benchmark/unified/community.ts'
 import { runExternalCommunity } from '../../eval/benchmark/unified/community-external.ts'
 import type { PreparedCommunity } from '../../eval/benchmark/unified/community-types.ts'
-import type { UnifiedWorkload } from '../../eval/benchmark/unified/types.ts'
+import type { BenchmarkObservation, UnifiedWorkload } from '../../eval/benchmark/unified/types.ts'
+
 const driver = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const example: UnifiedWorkload = { id: 'authored-flow', family: 'flowchart', source: 'flowchart LR\nA[Start] --> B[End]', features: [], provenance: 'independently authored admission regression', expectedLabels: ['Start', 'End'] }
 
@@ -114,6 +117,57 @@ import fs from 'node:fs';const job=JSON.parse(fs.readFileSync(process.argv[2],'u
       const attempts = JSON.parse(readFileSync(join(directory, 'community-raw/fixture_parser-parse-r1-attempts.json'), 'utf8'))
       expect(attempts[0].exitCode).toBe(42)
       expect(attempts[1].exitCode).toBe(0)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('matched family evidence and artifact alias guards', () => {
+  test('qualifies a complete existing flowchart cohort while withholding broader/missing/duplicate/failed/zero claims', () => {
+    const rows: BenchmarkObservation[] = [1, 2, 3].flatMap(round =>
+      communityCoreWorkloads()
+        .filter(workload => workload.family === 'flowchart')
+        .map(workload => ({ suite: 'community', surface: 'node:public-api', runtime: 'fixture runtime', family: workload.family, caseId: workload.id, operation: 'render', format: 'svg', mode: 'core-api-repeat', status: 'passed', samplesMs: [4, 5, 6], metrics: { implementation: 'fixture/flow-only', round } })),
+    )
+    expect(rankCommunityFamilyObservations(rows, 3)[0]).toMatchObject({ family: 'flowchart', qualified: true, medianMs: 10, requiredCaseIds: ['core:flow5', 'core:tree50'] })
+    expect(rankCommunityObservations(rows, 3)[0]?.qualified).toBe(false)
+    expect(rankCommunityFamilyObservations(rows.slice(1), 3)[0]?.qualified).toBe(false)
+    expect(rankCommunityFamilyObservations([...rows, rows[0]!], 3)[0]?.qualified).toBe(false)
+    expect(
+      rankCommunityFamilyObservations(
+        rows.map((row, index) => (index ? row : { ...row, status: 'failed' })),
+        3,
+      )[0]?.qualified,
+    ).toBe(false)
+    expect(
+      rankCommunityFamilyObservations(
+        rows.map((row, index) => (index ? row : { ...row, samplesMs: [0] })),
+        3,
+      )[0]?.qualified,
+    ).toBe(false)
+    expect(
+      rankCommunityFamilyObservations(
+        rows.map(row => ({ ...row, metrics: { ...row.metrics, evidenceImplementation: 'fixture/representative', evidenceReuse: true } })),
+        3,
+      )[0],
+    ).toMatchObject({ qualified: true, independentMeasurement: false, evidenceImplementation: 'fixture/representative' })
+  })
+  test('same Git pin and equal bytes never alias interpreted programs or different reviewed protocols', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'am-artifact-alias-'))
+    try {
+      const module = join(directory, 'compiled-renderer.mjs'),
+        bytes = 'export const admitted = true;\n'
+      writeFileSync(module, bytes)
+      const node = (id: string) => ({ id, outputs: ['svg'], roles: ['observed'], benchmark: { adapter: 'extra-source', sourceAdapter: 'fixture-compiled', sourcePin: 'a'.repeat(40), outputs: ['svg'] } })
+      const catalog = { nodes: [node('fixture/a'), node('fixture/b')] },
+        artifact = { module, sha256: createHash('sha256').update(bytes).digest('hex'), revision: 'a'.repeat(40), reviewed: true, buildRecipeId: 'reviewed-build-v1', runtimeCommandId: 'reviewed-render-v1', runtimeVersion: 'fixture-runtime1', artifactClass: 'compiled-or-shipped' as const }
+      const result = createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': artifact })
+      expect(result.equivalenceGroups[0]).toMatchObject({ status: 'verified-artifact-equivalence', aliases: [{ id: 'fixture/b', evidenceFrom: 'fixture/a' }] })
+      expect(createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': { ...artifact, sourceProgramClass: 'git-interpreted-source' } }).equivalenceGroups[0]?.status).toBe('candidate-only-no-evidence-reuse')
+      expect(createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': { ...artifact, runtimeCommandId: 'other-protocol' } }).equivalenceGroups[0]?.status).toBe('candidate-only-no-evidence-reuse')
+      writeFileSync(module, bytes + '// changed artifact\n')
+      expect(createCatalogEligibility(catalog, { 'fixture/a': artifact, 'fixture/b': artifact }).equivalenceGroups[0]?.status).toBe('candidate-only-no-evidence-reuse')
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }

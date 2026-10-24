@@ -1,4 +1,6 @@
 import { resolve } from 'node:path'
+import { isRenderedSourceEcho } from './qualification-visible-source.ts'
+export { isRenderedSourceEcho } from './qualification-visible-source.ts'
 import { decodeHTML } from 'entities'
 import type { UnifiedWorkload } from './types.ts'
 
@@ -79,12 +81,14 @@ export function qualifyOutput(workload: UnifiedWorkload, output: unknown, format
   }
   if (typeof output !== 'string' || !output.trim()) return { ok: false, findings: ['Expected a nonempty output string'], scope: 'format-only' }
   if (format === 'svg') {
+    if (isRenderedSourceEcho(workload.source, output, 'svg')) findings.push('Visible output echoes Mermaid source instead of an admitted diagram')
     if (!/^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b/i.test(output) || !/(?:<\/svg>|<svg\b[^>]*\/>)\s*$/.test(output)) findings.push('Invalid SVG root envelope')
     const missing = missingAuthoredSvgLabels(output, workload.expectedLabels)
     findings.push(...missing.map(label => `Missing authored label: ${label}`))
     return { ok: !findings.length, findings, scope: workload.expectedLabels?.length ? 'format-and-authored-labels' : 'format-only' }
   }
   if (format === 'ascii' || format === 'unicode' || format === 'terminal') {
+    if (isRenderedSourceEcho(workload.source, output, 'terminal')) findings.push('Visible output echoes Mermaid source instead of an admitted diagram')
     const plain = output.replace(/\u001b\[[0-9;]*m/g, '').replace(/\s+/g, ' ')
     // Terminal wrapping is geometry-dependent. A contiguous single-line label
     // can be asserted; wrapped labels require the terminal owner/region oracle.

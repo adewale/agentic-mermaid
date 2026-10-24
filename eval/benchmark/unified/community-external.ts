@@ -27,7 +27,7 @@ export async function runExternalCommunity(prepared: PreparedCommunity, workload
         job = join(root, stem + '.job.json'),
         result = join(root, stem + '.jsonl')
       if (existsSync(result)) unlinkSync(result)
-      writeFileSync(job, JSON.stringify({ output, timing: { warmCalls: core ? 3 : 1, warmupMs: core ? 50 : 0, minSampleMs: core ? 10 : 0, maxCaseMs: 10_000, samples: core ? 5 : 3 }, workloads: remaining.map(w => ({ id: w.id, source: w.source, expected: w.expectedLabels ?? [] })) }))
+      writeFileSync(job, JSON.stringify({ output, coverageOnly: !core && (options.communityCoverageOnce ?? true), timing: { warmCalls: core ? 3 : 1, warmupMs: core ? 50 : 0, minSampleMs: core ? 10 : 0, maxCaseMs: 10_000, samples: core ? 5 : 3 }, workloads: remaining.map(w => ({ id: w.id, source: w.source, expected: w.expectedLabels ?? [] })) }))
       const command = artifact.kind === 'python' ? [artifact.python ?? artifact.executable!, join(dirname(fileURLToPath(import.meta.url)), 'community-python-worker.py'), job, result] : [artifact.executable!, job, result]
       let text = '',
         stderr = '',
@@ -112,9 +112,9 @@ export async function runExternalCommunity(prepared: PreparedCommunity, workload
         caseId: w.id,
         operation: 'render',
         format: output,
-        mode: core ? 'core-api-repeat' : 'feature-corpus-attempt',
+        mode: core ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt',
         status,
-        samplesMs: r?.samplesMs as number[] | undefined,
+        samplesMs: !core && (options.communityCoverageOnce ?? true) ? undefined : r?.samplesMs as number[] | undefined,
         bytes: r?.outputBytes as number | undefined,
         detail: (r?.detail as string | undefined) ?? lastDetail ?? (remaining.length ? 'External worker restart limit exhausted; completed rows are retained' : undefined),
         metrics: {

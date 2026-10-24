@@ -8,6 +8,7 @@ export interface SuiteOptions extends UnifiedRunOptions {
   harnessRoot: string
   packageRoot?: string
   site?: string
+  ownershipSite?: string
   candidateTarball?: string
   candidateSha256?: string
   baseline?: string
@@ -78,6 +79,15 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     },
     { id: 'community', title: 'Community JSON population comparison', kind: 'internal', smoke: true, source: 'eval/benchmark/unified/community.ts', prerequisites: [], policy: 'Population is docs/mermaid-community.json; no missing peer is a zero-cost success.' },
   ]
+  suites.push({
+    id: 'community-cli',
+    title: 'Matched public CLI cohorts and separately instrumented resources',
+    kind: 'internal',
+    smoke: false,
+    source: 'eval/benchmark/unified/community-cli.ts',
+    prerequisites: [],
+    policy: 'Requires the completed sibling community artifacts; fresh-process CLI variants use matched fixed inputs. Child RSS/CPU are a separate post-latency diagnostic pass; source aliases are not additional independent engines.',
+  })
   for (const [script, command] of Object.entries(pkg.scripts)) {
     if (!script.startsWith('bench:') || script === 'bench:charts' || /eval\/benchmark\/(?:unified\/(?:run|pr-campaign|update-scorecard)|suite)\.ts/.test(command)) continue
     const id = script.slice('bench:'.length),
@@ -145,9 +155,13 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     ['editor-session', 'editor-session-bench.ts', ['--cold-runs', String(options.rounds)]],
     ['editor-ownership', 'editor-ownership-bench.ts', ['--runs', String(options.rounds)]],
   ] as const) {
-    const args = ['--site', site, '--out', out(id), ...extra]
+    const selectedSite = id === 'editor-ownership' ? options.ownershipSite ?? site : site
+    const selectedMissing = id === 'editor-ownership'
+      ? ['original.html', 'candidate.html'].filter(file => !existsSync(join(selectedSite, file))).map(file => `Controlled ownership comparison needs frozen ${file}: ${selectedSite}; provide --ownership-site with both reviewed variants and their assets`)
+      : siteMissing
+    const args = ['--site', selectedSite, '--out', out(id), ...extra]
     add(args, '--executable', options.executable)
-    standalone(id, id, `eval/benchmark/${file}`, args, [...siteMissing, ...browserMissing], 'Real hosted editor/production adapter; verified DOM, request closure and ownership have separate clocks and contracts.')
+    standalone(id, id, `eval/benchmark/${file}`, args, [...selectedMissing, ...browserMissing], 'Real hosted editor/production adapter; verified DOM, request closure and ownership have separate clocks and contracts. Controlled ownership requires actual frozen original/candidate pages; no identical copies are fabricated to satisfy prerequisites.')
   }
   const renderer = ['--agentic-root', options.packageRoot ?? root, '--bezel-dir', options.bezelDir ?? '', '--out', out('renderer-profile'), '--rounds', String(options.rounds)]
   add(renderer, '--executable', options.executable)
@@ -169,12 +183,14 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
   let managedBrowserMissing: string[] = []
   try {
     const require = createRequire(join(root, 'package.json')),
-      chromiumPath = require('playwright').chromium.executablePath() as string,
+      playwright = require('playwright'),
+      chromiumPath = playwright.chromium.executablePath() as string,
       registry = require(join(dirname(require.resolve('playwright-core/package.json')), 'lib/server/registry/index.js')).registry,
       headlessPath = registry.findExecutable('chromium-headless-shell')?.executablePath('javascript') as string | undefined
     managedBrowserMissing = [
       ...(!existsSync(chromiumPath) ? [`Canonical browser contracts need managed Playwright Chromium: ${chromiumPath}`] : []),
       ...(!headlessPath || !existsSync(headlessPath) ? ['Canonical browser contracts need the installed Playwright chromium-headless-shell; run playwright install chromium'] : []),
+      ...(['firefox', 'webkit'] as const).flatMap(name => { const file = playwright[name].executablePath() as string; return existsSync(file) ? [] : [`Canonical cross-engine browser contracts need managed ${name}: ${file}; run playwright install chromium firefox webkit`] }),
     ]
   } catch (error) {
     managedBrowserMissing = [`Cannot resolve canonical managed Playwright prerequisites: ${String(error)}`]
@@ -190,7 +206,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
       environment: { UPDATE_BASELINES: '' },
       prerequisites: managedBrowserMissing,
       policy:
-        'Driver-owned canonical runner rebuilds the driver website and executes its enrolled browser contracts one file per process. It accepts no --site/--executable override; managed Playwright Chromium and its headless shell are required. Fresh counts sum independent process summaries; wall time includes build/setup. No baseline screenshots are rewritten.',
+        'Driver-owned canonical runner rebuilds the driver website and executes its enrolled browser contracts one file per process. It accepts no --site/--executable override; managed Playwright Chromium/headless shell, Firefox and WebKit are required. Fresh counts sum independent process summaries; first failing file stops later contracts, so a failed process is partial evidence. Wall time includes build/setup. No baseline screenshots are rewritten.',
     })
   const distributionPolicy =
     'Existing CI public-distribution correctness boundary in the driver checkout. Owning tests build/pack their own driver artifacts into isolated temporary consumer projects; --target and --package-root do not rebind this source/consumer parity gate. Process wall time is not public API latency.'
@@ -242,7 +258,12 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     .sort()
     .map(file => 'src/__tests__/' + file)
   test('family-functionality', 'Scoped public family/agent mutation, query, serializer and route behavior', familyFunctionality)
-  suites.find(suite => suite.id === 'family-functionality')!.policy +=
+  const familySuite = suites.find(suite => suite.id === 'family-functionality')!
+  // Proxy-configured environments must still exercise the owning IPv6 loopback
+  // transport directly. Preserve all external proxy configuration and bypasses.
+  const loopbackBypasses = [...new Set([process.env.NO_PROXY, process.env.no_proxy, '::1', '[::1]'].flatMap(value => (value ?? '').split(',')).filter(Boolean))].join(',')
+  familySuite.environment = { NO_PROXY: loopbackBypasses, no_proxy: loopbackBypasses }
+  familySuite.policy +=
     ' Enrollment follows existing owning filename conventions and registry family IDs; it excludes the unrelated unit suite. Passing this group is not a per-schema-operation witness map; operations without explicit benchmark witnesses remain unmeasured.'
   const importedTests = readdirSync(join(root, 'src/__tests__'))
     .filter(file => /(?:upstream.*bench|mermaidseqbench|mindmap-gitgraph-upstream-oracle)\.test\.ts$/.test(file))

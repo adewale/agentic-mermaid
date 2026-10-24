@@ -77,15 +77,24 @@ does not credit them to a different artifact. Set `NODE22_EXECUTABLE` to the rea
 Node22 binary. Its directory leads PATH for that consumer gate.
 
 Canonical browser contracts rebuild the driver website and use managed
-Playwright Chromium plus its headless shell. They accept no benchmark `--site`
-or `--executable` override. Install them with `playwright install chromium`,
+Playwright Chromium plus its headless shell, Firefox and WebKit. They accept no benchmark `--site`
+or `--executable` override. Install all engines with `playwright install chromium firefox webkit`,
 optionally setting `PLAYWRIGHT_BROWSERS_PATH` consistently for preparation and
 execution. Missing executables are blocked prerequisites. Screenshot baseline
 updates are disabled. Counts sum the separate fresh test-process summaries.
+Use `playwright install chromium firefox webkit` for the complete cross-engine
+lane. Its canonical runner stops on the first failed file, so those scores are
+partial and never imply all ten contract files executed.
 The lazy-browser delivery gate separately checks actual built closures and
 gzip/Brotli budgets without rebuilding during its evaluation.
+
+The controlled ownership comparison additionally requires reviewed frozen
+`original.html` and `candidate.html` pages with their assets. Point
+`--ownership-site DIRECTORY` to that pair; normal `--site` production output
+does not supply them. Missing variants are blocked. The runner does not create
+identical copies or claim a before/after comparison from an unreviewed pair.
 Profiles and `--suites` make expensive work explicit. The default per-suite
-outer budget is 30 minutes (`--timeout-ms` changes it); timeout terminates the
+outer budget is four hours for full and 30 minutes for smoke (`--timeout-ms` changes it); timeout terminates the
 entire subprocess group, including browser/reference children.
 
 Current pinned Mermaid is read from
@@ -144,3 +153,146 @@ parser scores have separate panels. Missing evidence is listed rather than
 invented. The helper never executes benchmarks and is excluded from suite
 discovery. Keep generated charts outside the checkout or under an ignored
 artifact directory; do not commit them.
+
+When a completed supplemental `community-cli/ranks.json` and its matching
+`community-cli-result.json` are present, charts use that fresh cohort for CLI
+ranks and retain the original API/browser evidence. Its frozen core inputs must
+match the original community cohort. Node CLI and compiled CLI remain variants
+of Agentic Mermaid through `variantOf`; they do not become additional catalog
+tools. Supplemental CLI feature breadth is unmeasured and omitted from the
+performance/breadth scatter, rather than plotted as zero.
+
+PR payload panels distinguish actual npm archive bytes from gzip of the shipped
+browser IIFE; separately fetched assets are excluded from the IIFE figure.
+Broad PR family/invocation panels show observation statuses with resolved
+profiles and rounds, including intentional invocation overrides. They distinguish
+N/A, unsupported, blocked, failed and unavailable evidence, and do not imply
+exhaustive feature coverage or merge readiness for exploratory heads.
+
+An explicitly reconciled main invocation ledger can be supplied with
+`--invocation-correction /path/to/invocation-corrected.json`. Its sibling
+`reconciliation.json` must bind the original completed invocation, frozen packed
+target, exact style observation keys, three runtimes and three rounds. The chart
+reader additionally verifies that every observation outside `library:./svg/styles`
+is unchanged and that the normalized counts/status agree with the manifest.
+Only the main invocation coverage and diagnostics use this overlay; original run
+and suite statuses, other community/API evidence, PR results and all raw files
+remain unchanged. Reduced evidence and affected figures identify the protocol
+correction and scoped rerun timestamps. This is a mixed-run reporting ledger,
+not a new full benchmark or a product fidelity improvement. No correction file
+is discovered or applied implicitly.
+
+Supplemental CLI resource panels use the separate GNU time pass after all
+uninstrumented latency rounds. Each output keeps its fixed source/label cohort:
+peak RSS is the maximum per-case child high-water mark, while user/system CPU
+is summed across fresh per-case processes. These scopes never mix with the
+varying-portfolio Node worker RSS or browser V8 heap diagnostics. GNU time CPU
+fields have 10 ms reporting grain; censored values and conservative bounds must
+not be interpreted as zero CPU cost or zero latency. Missing or unqualified
+resource cohorts are N/A.
+
+Executable footprint panels distinguish compiled native/Bun CLI file bytes
+from an external Node runtime executable. Neither includes the full dynamic
+library/resource closure, and Node runtime bytes are not the npm package's
+delivery cost. Variant identities and per-case resource evidence remain in the
+reduced chart data.
+
+PR editor panels read each candidate's own invocation evidence, including the
+editor's observed initial gzip and closure through attempted family edits.
+These can reveal loader changes that leave the static browser IIFE size tied.
+The editor latency portfolio is shown only when frozen main and candidate both
+qualify every exact ordered representative source/label case, use the same
+actual Chromium version, and record the smoke/one-round single-changed-input
+protocol. It remains an observed unpaired DOM interaction portfolio with no
+calibrated ratio or confidence interval. Full-main eight-edit bursts are kept
+separate. Missing common keys withhold latency while available exact delivery
+bytes remain visible. Renderer source aliases never substitute another
+candidate's editor measurements; conflicting heads and own bases stay
+exploratory.
+
+`--reference-correction /path/to/reference-score-result.json` explicitly selects
+a fresh `public-positive-eligibility-v2` parser rerun. Its sibling eligibility,
+raw and diagnostic artifacts must agree. The reader validates the original and
+corrected source-fixture Git objects, the same current Mermaid/parser/DOM pins,
+frozen candidate revision and shipped parser bytes against the original admitted
+tarball, and all eligible cases for both engines across three rounds. Reviewed
+eligibility partitions the retained raw fixture universe before either parser's
+outcome; diagnostic-only sources still execute and retain replies and clocks.
+Their counts are excluded from the positive score and timing portfolio.
+
+The explicit overlay affects only main pinned-reference score/timing figures.
+It preserves original aggregate statuses, raw attempts and historical imported
+test provenance. Figures and reduced evidence identify the scoped rerun and
+eligibility census as a baseline protocol repair, never a product improvement or
+a replacement full run. The corrected eligible cohort intentionally differs
+from the original raw positive denominator; unchanged eligible criteria and
+retained diagnostic evidence are checked instead of pretending cohort equality.
+
+The expanded community protocol calibrates the same fixed core in three fresh
+rounds. With `communityCoverageOnce`, broader feature inputs execute and qualify
+one actual call in round one, with no warm calls or repeated feature timing
+samples; later rounds contain core only. Request closures and heap diagnostics
+therefore retain their portfolio/round scope instead of pooling full-feature
+and core-only costs.
+
+Published extra adapters bind reviewed package APIs and real companion
+pipelines. Terminal Pi renderer components and real headless OpenTUI integration
+have separate boundaries from plain Node/Bun APIs; React component rendering has
+a separate browser boundary. Source formatters and React Flow IR remain source
+and IR operations, rather than SVG stand-ins. Validators must reject authored
+negative controls before timed core work and accept the independently valid
+core without error findings. Broader diagnostic completion retains actual
+acceptance/findings and never claims a positive feature oracle. Acquired package,
+source, optional native dependency, compiled asset and host prerequisites still
+require fresh actual admission; binding code alone is not a passing result.
+
+Community v2 calibrates the fixed core in every round and qualifies the full feature
+corpus once per admitted artifact. Source echoes, including framed unsupported-input
+code fallbacks, cannot qualify as diagram ink. Catalog enrollment covers all84 nodes;
+configuration is not evidence of a working adapter. Each acquisition or host failure
+remains explicit. Source-equivalent aliases require actual compiled artifact and
+reviewed runtime/protocol equivalence. Interpreted sources retain Git blob proofs.
+
+Use `--community-prepared FILE --community-inputs FILE
+--community-browser-prepared FILE --community-artifact-policy frozen` to execute a
+reviewed preparation snapshot without installing or bundling during the run.
+`--community-coverage repeated` retains the more expensive repeated feature profile.
+The matched CLI resource phase runs after its uninstrumented latency clocks.
+
+Charts accept `--community-run /path/to/community-final/community` to select an
+explicit completed expanded community campaign. The reader checks the parent
+ledger and invocation, frozen target revision/package/tarball, pinned reference,
+literal six core and 957 feature inputs, all 84 unique enrollments with recorded
+outcomes, three calibrated core rounds, feature-once policy, and final artifact
+identity checks. It replaces only community evidence in the presentation; the
+original full-run status and raw earlier population remain unchanged. Its
+supplemental CLI data comes from the new campaign's sibling `community-cli`
+directory. Different population and stronger output qualification are protocol
+changes, never evidence of a product speed improvement.
+
+Conditional family charts reuse the existing fixed core, grouped by family,
+output and invocation boundary. Flowchart has two inputs and the other SVG or
+parser families have one each; terminal covers flowchart and sequence. Every
+required input must qualify across all rounds. These charts let narrow tools
+participate in an appropriate comparison without inventing broader coverage.
+Search the standalone HTML by family or boundary to select a panel and inspect
+qualified and unqualified evidence rows. Source-equivalent measurements retain
+their shared-evidence labels. Full-feature round-one payload/heap observations
+are scoped separately from later core-only rounds and from other output formats.
+
+`--ownership-site DIRECTORY` selects the editor ownership suite's actual frozen
+`original.html`/`candidate.html` pair, with its local assets. A historical pair
+must retain its own page artifact identities and provenance; running that pair
+does not establish current-main performance. The family functionality suite
+preserves proxy configuration while bypassing IPv6 loopback through both
+`NO_PROXY` and `no_proxy`, so owning transport checks exercise the local server.
+
+The Markdown updater accepts the same explicit `--community-run`,
+`--invocation-correction` and `--reference-correction` selections as charts. It
+calls `charts.py --validate-only` through Python 3 (override `PYTHON_BINARY` if
+needed), sharing the exact cohort/artifact admission rules without importing
+plotting dependencies or rendering figures. A failed admission leaves the
+existing snapshot intact. The generated snapshot retains the original complete
+suite ledger, records replay provenance, and separates diagnostic memory by
+runtime, output, round, worker attempt and portfolio scope. Its per-operation
+status tables preserve unsupported, blocked and not-applicable outcomes.

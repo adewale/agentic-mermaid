@@ -5,8 +5,9 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
-const job = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), { prepared, workloads, output } = job, artifact = prepared.artifact, config = prepared.node.benchmark
+const job = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), { prepared, workloads, output } = job, artifact = prepared.artifact, declaredConfig = prepared.node.benchmark, config = { ...declaredConfig, adapter: ['beautiful-source','beautiful-fork'].includes(declaredConfig.sourceAdapter) ? 'beautiful' : ['mermaid-source','mermaid-fork'].includes(declaredConfig.sourceAdapter) ? 'mermaid' : declaredConfig.adapter }
 const { qualifyOutput } = await import(pathToFileURL(job.harnessRoot + '/eval/benchmark/unified/qualification.ts'))
+let extraApi, diagnosticHelpers, diagnosticAdmission
 const start = performance.now(), rows = [], cleanups = [], jsonl = job.out + '.jsonl'
 fs.writeFileSync(jsonl, '')
 const req = createRequire((artifact.root ?? job.harnessRoot) + '/package.json')
@@ -15,6 +16,12 @@ const emit = row => { rows.push(row); fs.appendFileSync(jsonl, JSON.stringify(ro
 function valueAt(module, names) { for (const name of names) { const value = name.split('.').reduce((x, key) => x?.[key], module); if (typeof value === 'function') return value } throw Error('Public API absent: ' + names.join(', ')) }
 async function renderer() {
   let module
+  if (output === 'diagnostics') diagnosticHelpers = await import('./community-extra-adapters.mjs')
+  if (config.adapter === 'published-extra' || config.adapter === 'extra-source') {
+    const { createExtraCommunityApi } = await import('./community-extra-adapters.mjs')
+    extraApi = await createExtraCommunityApi({ artifact, node: prepared.node, config, output, require: req, cleanups })
+    return extraApi.invoke
+  }
   if (artifact.kind === 'global') { globalThis.self ??= globalThis; await import(pathToFileURL(artifact.module)); if (typeof globalThis[artifact.global] !== 'function') throw Error('Public global API absent: ' + artifact.global); return source => globalThis[artifact.global](source) }
   if (config.adapter === 'mermaid') {
     const domRequire = createRequire(resolve(process.env.MERMAID_REFERENCE_DIR ?? resolve(job.harnessRoot, '../mermaid-reference'), 'package.json')), { JSDOM } = domRequire('jsdom'), dom = new JSDOM('<!doctype html><body>')
@@ -39,7 +46,7 @@ async function renderer() {
     case 'beautiful': {
       if (prepared.node.id === 'dfadler/zombie-mermaid' && typeof api.registerElk === 'function') { const elk = req('elkjs/lib/elk.bundled.js'); api.registerElk(elk.default ?? elk) }
       const terminal = api
-      return output === 'svg' ? source => api.renderMermaidSVG(source) : source => terminal.renderMermaidASCII(source, { useAscii: false, colorMode: 'none' })
+      return output === 'svg' ? source => valueAt(api, ['renderMermaidSVG','renderMermaidSync','renderMermaid'])(source) : source => valueAt(terminal, ['renderMermaidASCII','renderMermaidAscii'])(source, { useAscii: false, colorMode: 'none' })
     }
     case 'pele': return source => api.render(source).svg
     case 'ondine': return source => api.render(source).svg
@@ -92,6 +99,9 @@ function labelStrings(value) {
   walk(value); return found
 }
 function qualify(value, workload) {
+  if (output === 'diagnostics') return diagnosticHelpers.diagnosticQualification(value, workload)
+  const extraQualification = extraApi?.qualify?.(value, workload)
+  if (typeof extraQualification === 'string') return extraQualification
   if (output === 'parse') {
     if (value === false || value?.ok === false || value?.success === false) invalid('Parser rejected source: ' + JSON.stringify(value))
     if (config.adapter === 'mermaid') { if (value !== true && !(structured(value) && typeof value.diagramType === 'string' && value.diagramType)) invalid('Public parser returned no syntax acceptance'); return 'public-parser-acceptance' }
@@ -125,17 +135,27 @@ function qualify(value, workload) {
     if (missing.length) invalid('Structured parser lost declared labels (raw source/sidecars excluded): ' + missing.slice(0, 8).join(', '))
     return workload.expectedLabels?.length ? 'typed-result-and-declared-labels-without-source-echo' : 'typed-result-envelope'
   }
-  if (output === 'diagnostics') {
-    if (!structured(value) || !Array.isArray(value.errors)) invalid('Missing typed diagnostic result')
-    if (value.type === 'unknown') throw Error('Unsupported diagnostic family: validator pass-through is not validation')
-    return 'typed-diagnostic-envelope; nonempty findings retained as diagnosticsCount'
-  }
   const qualification = qualifyOutput(workload, value, output)
   if (!qualification.ok) invalid(qualification.findings.join('; '))
-  return qualification.scope
+  return [qualification.scope, extraApi?.qualification].filter(Boolean).join('; ')
 }
 try {
   const render = await renderer(), importMs = performance.now() - start
+  if (output === 'diagnostics') {
+    diagnosticAdmission = []
+    for (const source of ['This is deliberately not a Mermaid diagram. @@@ {{{', 'flowchart LR\n --> -->']) {
+      let value, rejection
+      try { value = render(source); if (thenable(value)) value = await value }
+      catch (error) { rejection = String(error) }
+      let summary
+      try { summary = rejection ? undefined : diagnosticHelpers.diagnosticSummary(value) }
+      catch (error) { diagnosticAdmission.push({ source, rejection, value, qualificationError: String(error) }); fs.writeFileSync(job.out + '.diagnostic-admission.json', JSON.stringify({ diagnosticAdmission }, null, 2)); throw error }
+      diagnosticAdmission.push({ source, rejection, value, summary })
+      fs.writeFileSync(job.out + '.diagnostic-admission.json', JSON.stringify({ policy: 'Authored negative controls before core API clocks; warnings do not substitute for rejection', diagnosticAdmission }, null, 2))
+      if (!rejection && summary.accepted) throw Error('Validator negative admission failed: authored invalid source was accepted without error findings')
+    }
+    fs.writeFileSync(job.out + '.diagnostic-admission.json', JSON.stringify({ policy: 'Authored negative controls before core API clocks; warnings do not substitute for rejection', diagnosticAdmission }, null, 2))
+  }
   progress({ phase: 'ready', importMs })
   for (const workload of workloads) {
     progress({ phase: 'case', id: workload.id })
@@ -145,6 +165,11 @@ try {
       let tick = performance.now(), sink = render(workload.source); if (thenable(sink)) sink = await sink
       firstMs = performance.now() - tick
       const qualification = qualify(sink, workload), bytes = consume(sink), core = workload.features.includes('core-graph-batch')
+      if (!core && (job.coverageOnce || job.coverageOnly)) {
+        globalThis.__communitySink = sink
+        emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', firstMs, bytes, qualification, mode: 'feature-corpus-qualification', coverageOnly: true, ...(output === 'diagnostics' ? { diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
+        continue
+      }
       let calls = 0; const warm = performance.now()
       do { sink = render(workload.source); if (thenable(sink)) sink = await sink; calls++ } while (core && (calls < 3 || performance.now() - warm < job.warmupMs))
       const perCall = (performance.now() - warm) / calls, iterations = core ? Math.max(1, Math.min(1024, Math.ceil(job.minSampleMs / Math.max(.001, perCall)))) : 1, samples = []
@@ -154,11 +179,11 @@ try {
         samples.push((performance.now() - tick) / iterations)
       }
       qualify(sink, workload); globalThis.__communitySink = sink
-      emit({ id: workload.id, family: workload.family, status: 'passed', samplesMs: samples, medianMs: median(samples), firstMs, bytes, iterations, qualification, ...(output === 'diagnostics' ? { diagnosticsCount: sink.errors.length } : {}) })
-    } catch (error) { emit({ id: workload.id, family: workload.family, status: !error.qualification && /unsupported|unknown.*diagram|invalid.*header|not.*supported|MERMAN_UNSUPPORTED/i.test(String(error)) ? 'unsupported' : 'failed', firstMs: firstMs ?? performance.now() - firstStart, detail: String(error) }) }
+      emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: 'passed', samplesMs: samples, medianMs: median(samples), firstMs, bytes, iterations, qualification, ...(output === 'diagnostics' ? { diagnosticsCount: diagnosticHelpers.diagnosticSummary(sink).errorCount, diagnosticAccepted: diagnosticHelpers.diagnosticSummary(sink).accepted, diagnosticStatusScope: core ? 'independently-valid-core-admission' : 'operation-completion-without-positive-feature-oracle' } : {}) })
+    } catch (error) { emit({ runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, surface: extraApi?.surface, apiBoundary: extraApi?.boundary, id: workload.id, family: workload.family, status: !error.qualification && /unsupported|unknown.*diagram|invalid.*header|not.*supported|MERMAN_UNSUPPORTED/i.test(String(error)) ? 'unsupported' : 'failed', firstMs: firstMs ?? performance.now() - firstStart, detail: String(error) }) }
   }
   const memory = { rssBytes: process.memoryUsage().rss, peakRssBytes: process.resourceUsage().maxRSS * 1024 }
   for (const close of cleanups.reverse()) await close()
-  fs.writeFileSync(job.out, JSON.stringify({ status: 'completed', importMs, runtime: process.version, ...memory, rows }))
+  fs.writeFileSync(job.out, JSON.stringify({ status: 'completed', importMs, runtime: process.versions.bun ? 'Bun ' + process.versions.bun : 'Node ' + process.versions.node, ...memory, diagnosticAdmission, rows }))
   progress({ phase: 'done' })
-} catch (error) { fs.writeFileSync(job.out, JSON.stringify({ status: 'blocked', detail: String(error), rows })); process.exitCode = 1 }
+} catch (error) { fs.writeFileSync(job.out, JSON.stringify({ status: 'blocked', detail: String(error), diagnosticAdmission, rows })); process.exitCode = 1 }

@@ -30,3 +30,12 @@ describe('benchmark output admission at reader-facing text', () => {
     expect(qualifyOutput(workload(['A']), '<svg width="1" height="1"/>', 'svg').ok).toBe(false)
   })
 })
+
+test('source code fallbacks never qualify as rendered SVG or terminal diagrams', () => {
+  const source = 'flowchart LR\nA[Start] --> B[End]'
+  const w = { ...workload(['Start', 'End']), source }
+  expect(qualifyOutput(w, '┌────────────────────────────┐\n│ flowchart LR               │\n│ A[Start] --> B[End]         │\n└────────────────────────────┘', 'terminal').ok).toBe(false)
+  expect(qualifyOutput(w, '<svg><text>flowchart LR</text><text>A[Start] --&gt; B[End]</text></svg>', 'svg').ok).toBe(false)
+  expect(qualifyOutput(w, '<svg><metadata>flowchart LR A[Start] --&gt; B[End]</metadata><text>Start</text><text>End</text></svg>', 'svg').ok).toBe(true)
+  expect(qualifyOutput(w, source, 'source').ok).toBe(true)
+})
