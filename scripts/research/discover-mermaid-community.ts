@@ -9,7 +9,7 @@ export interface Candidate {
   repo?: string
   description?: string
   packages?: string[]
-  sources: { service: 'github' | 'npm'; query: string; page: number; url: string }[]
+  sources: { service: 'github' | 'npm'; query: string; page: number; url: string; repo?: string | null }[]
 }
 
 interface Member {
@@ -54,12 +54,15 @@ export function mergeCandidates(members: Member[], hits: Candidate[]) {
     // A different observed repository must remain visible for source review.
     const member = known.get(hit.id.toLowerCase()) ?? (!hit.repo && owners.size === 1 ? known.get([...owners][0]!) : undefined)
     const key = (member?.id ?? hit.id).toLowerCase(), previous = candidates.get(key)
+    // Preserve each observation, including when a merged candidate is ingested
+    // again. Inventory fallback is not an observed search repository.
+    const sources = hit.sources.map(source => ({ ...source, repo: source.repo === undefined ? hit.repo ?? null : source.repo }))
     if (previous) {
-      previous.sources.push(...hit.sources)
+      previous.sources.push(...sources)
       previous.packages = [...new Set([...(previous.packages ?? []), ...(hit.packages ?? [])])]
       previous.repo ??= hit.repo
     } else candidates.set(key, { ...hit, id: member?.id ?? hit.id, repo: hit.repo ?? member?.repo,
-      sources: [...hit.sources], packages: [...(hit.packages ?? [])] })
+      sources, packages: [...(hit.packages ?? [])] })
   }
   return [...candidates].map(([key, candidate]) => {
     const owners = [...matchingMembers(candidate.packages)].filter(owner => owner !== key)
@@ -100,7 +103,7 @@ if (import.meta.main) {
         searches.push({ service: 'github', query, page, total: body.total_count, returned: body.items.length,
           incomplete: body.incomplete_results || page * perPage < body.total_count })
         for (const item of body.items) hits.push({ id: item.full_name, repo: item.html_url, description: item.description ?? undefined,
-          sources: [{ service: 'github', query, page, url: `https://github.com/search?q=${encodeURIComponent(query)}&type=repositories` }] })
+          sources: [{ service: 'github', query, page, url: `https://github.com/search?q=${encodeURIComponent(query)}&type=repositories`, repo: item.html_url }] })
         if (body.items.length < perPage) break
       } catch (error) {
         errors.push({ service: 'github', query, page, message: error instanceof Error ? error.message : String(error) })
@@ -118,7 +121,8 @@ if (import.meta.main) {
         searches.push({ service: 'npm', query, page, total: body.total, returned: body.objects.length, incomplete: page * perPage < body.total })
         for (const { package: pkg } of body.objects) {
           const repository = repositoryIdentity(pkg.links?.repository ?? '', `npm:${pkg.name}`)
-          hits.push({ ...(repository ?? { id: `npm:${pkg.name}` }), description: pkg.description, packages: [pkg.name], sources: [{ service: 'npm', query, page, url }] })
+          hits.push({ ...(repository ?? { id: `npm:${pkg.name}` }), description: pkg.description, packages: [pkg.name],
+            sources: [{ service: 'npm', query, page, url, repo: pkg.links?.repository || null }] })
         }
         if (body.objects.length < perPage) break
       } catch (error) {

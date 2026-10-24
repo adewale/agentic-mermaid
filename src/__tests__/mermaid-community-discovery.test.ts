@@ -23,7 +23,7 @@ test('combines registry and GitHub discoveries while retaining their query prove
 })
 
 test('recognises a curated npm package without repository search metadata and merges its provenance', () => {
-  const members = [{ id: 'example/editor', categories: ['editor'], packages: [{ registry: 'npm', name: 'known-editor' }] }]
+  const members = [{ id: 'example/editor', repo: 'https://github.com/example/editor', categories: ['editor'], packages: [{ registry: 'npm', name: 'known-editor' }] }]
   const sources = [
     { service: 'npm' as const, query: 'mermaid editor', page: 1, url: 'https://registry.npmjs.org/-/v1/search' },
     { service: 'github' as const, query: 'mermaid editor', page: 1, url: 'https://github.com/example/editor' },
@@ -33,7 +33,10 @@ test('recognises a curated npm package without repository search metadata and me
     { id: 'example/editor', repo: 'https://github.com/example/editor', sources: [sources[1]!] },
   ])
   expect(candidates).toHaveLength(1)
-  expect(candidates[0]).toMatchObject({ id: 'example/editor', knownMember: true, categories: ['editor'], classification: 'catalogued', packages: ['known-editor'], sources })
+  expect(candidates[0]).toMatchObject({ id: 'example/editor', knownMember: true, categories: ['editor'], classification: 'catalogued', packages: ['known-editor'] })
+  const expectedSources = [{ ...sources[0]!, repo: null }, { ...sources[1]!, repo: 'https://github.com/example/editor' }]
+  expect(candidates[0]?.sources).toEqual(expectedSources)
+  expect(mergeCandidates(members, candidates)[0]?.sources).toEqual(expectedSources)
 })
 
 test.each([
@@ -62,6 +65,30 @@ test.each(['conflicting repository', 'known repository with conflicting ownershi
     sources: [{ service: 'npm' as const, query: 'mermaid editor', page: 1, url: 'https://registry.npmjs.org/-/v1/search' }] }
   const candidates = mergeCandidates(members, [hit])
   expect(candidates[0]).toMatchObject({ id: hit.id, classification: 'needs-source-review', identityConflict: true, sources: hit.sources })
+})
+
+test.each([
+  ['https://gitlab.com/one/editor', 'https://bitbucket.org/two/editor'],
+  ['https://bitbucket.org/two/editor', 'https://gitlab.com/one/editor'],
+])('retains each repository observation when %s precedes %s for the same package', (firstRepo, secondRepo) => {
+  const members = [{ id: 'example/editor', categories: ['editor'], packages: [{ registry: 'npm', name: 'known-editor' }] }]
+  const sources = [
+    { service: 'npm' as const, query: 'mermaid editor', page: 1, url: 'https://registry.npmjs.org/-/v1/search?text=mermaid%20editor' },
+    { service: 'npm' as const, query: 'mermaid export', page: 1, url: 'https://registry.npmjs.org/-/v1/search?text=mermaid%20export' },
+    { service: 'npm' as const, query: 'mermaid editor', page: 2, url: 'https://registry.npmjs.org/-/v1/search?text=mermaid%20editor&from=50' },
+  ]
+  const candidates = mergeCandidates(members, [firstRepo, secondRepo, firstRepo].map((repo, index) => ({
+    ...repositoryIdentity(repo, 'npm:known-editor')!, packages: ['known-editor'], sources: [sources[index]!],
+  })))
+  expect(candidates).toHaveLength(1)
+  expect(candidates[0]).toMatchObject({ id: 'npm:known-editor', repo: firstRepo, classification: 'needs-source-review', identityConflict: true, packageMatches: ['example/editor'] })
+  const expectedSources = [
+    { ...sources[0]!, repo: firstRepo },
+    { ...sources[1]!, repo: secondRepo },
+    { ...sources[2]!, repo: firstRepo },
+  ]
+  expect(candidates[0]?.sources).toEqual(expectedSources)
+  expect(mergeCandidates(members, candidates)[0]?.sources).toEqual(expectedSources)
 })
 
 test.each([

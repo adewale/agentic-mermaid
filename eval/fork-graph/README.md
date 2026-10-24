@@ -55,7 +55,12 @@ searches. The report preserves every hit and query, merges repository/package
 identities, marks known members and leaves new candidates for source review.
 When npm search omits a repository URL, an unambiguous curated package owner
 supplies the member identity. Conflicting repositories or package ownership
-remain separate, with the matched members recorded for review.
+remain visible for review. Different repository identities remain separate
+candidates; observations sharing an identity retain their repository URLs in
+`sources[].repo`, alongside each query/page. These are the original observed
+URLs, before GitHub identity normalisation, or `null` when metadata was absent.
+The candidate's top-level `repo` is a convenience URL and may come from the
+inventory fallback; that inferred URL is not written into missing observations.
 Explicit URLs on GitLab, Bitbucket or other hosts remain observed metadata;
 failure to normalise them as GitHub identities never permits the missing-URL
 fallback. Responsibility reviews use public packages and authoring flows,
