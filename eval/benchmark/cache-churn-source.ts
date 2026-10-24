@@ -9,6 +9,19 @@ import { cacheChurnGenerator, cacheChurnPopulation } from './cache-churn-populat
 const sha = (value: string) => createHash('sha256').update(value).digest('hex')
 const event = (layer: string, name: string) => `cacheProbeEvent(this, ${layer}, '${name}', this.#weight, this.#entries.size${name === 'get' || name === 'set' ? ', key' : ''});`
 
+/** Bind private counters to the owner, not an obsolete key-length budget. */
+export function cacheProbeLayers(elkSource: string): Record<string, string> {
+  for (const owner of [
+    'const ELK_CACHE_MAX_ENTRIES = 64',
+    'const ELK_CACHE_MAX_RESIDENCY = 8 * 1024 * 1024',
+    'const elkResults = new WeightedLru<string, ElkNode>(ELK_CACHE_MAX_ENTRIES, ELK_CACHE_MAX_RESIDENCY)',
+    'const weight = Math.max(key.length * 8, key.length * 2 + estimatedResidency(result, ELK_CACHE_MAX_RESIDENCY))',
+  ]) if (elkSource.split(owner).length !== 2) throw new Error('ELK cache diagnostic owner or residency policy changed')
+  return { 'weighted:128:16777216': 'outer positioned artifact cache',
+    'weighted:64:8388608': 'ELK geometry cache (estimated residency weight, not resident bytes)',
+    'native:8388608': 'owned measured geometry', 'native:1048576': 'owned order choices' }
+}
+
 function once(source: string, search: string, replacement: string): string {
   if (source.split(search).length !== 2) throw new Error(`Cache instrumentation expected exactly one occurrence: ${search}`)
   return source.replace(search, replacement)
@@ -50,10 +63,10 @@ async function main() {
   const transformations: unknown[] = [], observations: unknown[] = []
   const metadata = { protocol: 'source-cache-layer-diagnosis@1', sourceRoot: root, population: count, generator: cacheChurnGenerator(count), inputs, layoutCache: cache, budgetMs: budget,
     sourceFiles: ['src/experimental/weighted-lru.ts', 'src/layout/agentic-producer-core.ts'].map(path => ({ path, sha256: sha(readFileSync(join(root, path), 'utf8')) })),
-    layers: { 'weighted:128:16777216': 'outer positioned artifact cache', 'weighted:64:1048576': 'ELK geometry cache (key code units)',
-      'native:8388608': 'owned measured geometry', 'native:1048576': 'owned order choices' },
+    layers: cacheProbeLayers(readFileSync(join(root, 'src/elk-instance.ts'), 'utf8')),
     limitations: ['Instrumented source/Bun only; no timing or memory-performance claim.', 'Paired uninstrumented source control must produce identical SVG/receipt hashes.',
-      'Event weights retain each cache implementation\'s units; ELK key code units are not resident bytes.',
+      'Event weights retain each cache implementation\'s estimated units and are not measured resident bytes.',
+      'Canonical cache observations are reported separately from private key/cardinality/eviction instrumentation; neither is a performance measurement.',
       'Distinct key cardinality uses full SHA256 fingerprints of actual get/set keys. Hashes/counts are evaluator-only, not inferred from authored sources.',
       'No public renderer globals, exports or source files are modified.'] }
   const save = (status: string, extra: Record<string, unknown> = {}) => writeFileSync(join(out, 'report.json'), `${JSON.stringify({ ...metadata, status, transformations, observations, ...extra }, null, 2)}\n`)
@@ -80,7 +93,7 @@ async function main() {
     // around a render; counts diagnose cache behavior, not performance.
     for (const outer of ['normal', 'off']) for (const backend of ['elk', 'agentic']) for (const instrumented of [false, true]) {
       const label = `${outer}-${backend}-${instrumented ? 'instrumented' : 'control'}`, prefix = join(out, label)
-      const job = { inputs, backend, out: `${prefix}.json` }; writeFileSync(`${prefix}.job.json`, JSON.stringify(job))
+      const job = { inputs, backend, observeCaches: instrumented, out: `${prefix}.json` }; writeFileSync(`${prefix}.job.json`, JSON.stringify(job))
       const remaining = deadline - Date.now()
       if (remaining <= 0) { observations.push({ label, failure: 'shared diagnostic budget exhausted before launch' }); save('running'); continue }
       const child = spawnSync(process.execPath, [join(out, instrumented ? 'instrumented.js' : 'control.js'), `${prefix}.job.json`], {
@@ -106,7 +119,7 @@ async function main() {
       const successful = equal && measured!.result!.phases.every(phase => phase.outcomes.every(outcome => outcome.ok))
       const actualKeyCardinality = measured?.result?.phases.at(-1)?.after.map(layer => ({ layer: layer.layer,
         distinctGetKeys: layer.distinctGetKeys, distinctSetKeys: layer.distinctSetKeys, observedEvictions: layer.events.evict ?? 0 })) ?? []
-      const target = backend === 'elk' ? 'weighted:64:1048576' : 'native:8388608'
+      const target = backend === 'elk' ? 'weighted:64:8388608' : 'native:8388608'
       const geometry = actualKeyCardinality.filter(layer => layer.layer === target)
       const requiresStrongCheck = count !== 96 && cache === 'normal' && outer === 'off'
       // Only actual instrumented geometry keys+evictions substantiate solver

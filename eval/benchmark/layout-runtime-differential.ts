@@ -51,8 +51,8 @@ export function artifactIdentity(directory: string) {
 
 export function runtimeDifferentialPlans(baseline: ReturnType<typeof artifactIdentity>, candidate: ReturnType<typeof artifactIdentity>, cache: LayoutCache,
   includeFallback = false, mainElk?: ReturnType<typeof artifactIdentity>) {
-  const engine = (artifact: typeof baseline, label: string, layoutMode: LayoutMode) => ({ label, entry: artifact.entry, version: artifact.version,
-    identity: { kind: 'directory' as const, requested: artifact.directory, sha256: artifact.sha256 }, layoutMode, layoutCache: cache, consumeReceipt: true })
+  const engine = (artifact: typeof baseline, label: string, layoutMode?: LayoutMode) => ({ label, entry: artifact.entry, version: artifact.version,
+    identity: { kind: 'directory' as const, requested: artifact.directory, sha256: artifact.sha256 }, ...(layoutMode ? { layoutMode } : {}), layoutCache: cache, consumeReceipt: true })
   const before = engine(baseline, 'native23-reference', 'agentic'), after = engine(candidate, 'native24', 'agentic')
   const elk = engine(candidate, 'candidate-elk', 'elk')
   const plans = [
@@ -63,7 +63,9 @@ export function runtimeDifferentialPlans(baseline: ReturnType<typeof artifactIde
   if (includeFallback) plans.push({ name: 'fallback23-fallback24', advisory: false,
     engines: [engine(baseline, 'fallback23', 'agentic-with-elk'), engine(candidate, 'fallback24', 'agentic-with-elk')] })
   if (mainElk) {
-    const reference = engine(mainElk, 'main-elk', 'elk')
+    // Pre-selector main has no graphLayout option. The shared declared
+    // experiment policy excludes indexed-layout, selecting its ELK path.
+    const reference = engine(mainElk, 'main-elk')
     plans.push({ name: 'main-elk-native24', advisory: false, engines: [reference, after] },
       { name: 'main-elk-candidate-elk', advisory: false, engines: [reference, elk] })
   }
@@ -108,6 +110,7 @@ function main() {
       cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
       memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined },
     limitations: ['Historical27 canary, including edit workflow; Architecture junction supplements are separate.',
+      'Optional main-elk is a pre-selector default renderer with graphLayout omitted; the declared experiment policy excludes indexed-layout. It is not a native baseline.',
       'Native A/A is an independent old-native control, never an ELK control or ratio divisor.',
       'Receipt version/implementation differences are recorded separately from output identity; no receipt normalization.',
       'The source/layout quality rerun is labelled separately by the existing release worker.'] }

@@ -1,16 +1,58 @@
-// Controlled observations only: no renderer, build or measurement subprocess.
+// Controlled private-cache and stub-worker fixtures; no product measurements.
 import { expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { instrumentCacheSource } from '../../eval/benchmark/cache-churn-source.ts'
-import { cacheProbeEvent, cacheProbeSnapshot } from '../../eval/benchmark/cache-probe-state.ts'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { cacheProbeLayers, instrumentCacheSource } from '../../eval/benchmark/cache-churn-source.ts'
+import { cacheProbeEvent, cacheProbeSnapshot, cacheObservationSnapshot, withCacheProbeObservations } from '../../eval/benchmark/cache-probe-state.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import { runtimeDifferentialPlans, differentialArgs } from '../../eval/benchmark/layout-runtime-differential.ts'
+import { layoutCacheEnvironment, layoutRenderOptions } from '../../eval/benchmark/release-bench-fidelity.ts'
 import { measureLayoutComparisons, report, type Input, type MeasurementWorker } from '../../eval/benchmark/release-bench.ts'
 import { churnRatios } from '../../eval/benchmark/layout-cache-churn.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
 const temporary = useTempDirs()
+const runChild = useTestChildren(10_000)
 const artifact = (name: string) => ({ directory: `/${name}`, entry: `/${name}/dist/index.js`, version: '0.4.2', sha256: name, files: [] })
+
+test.each(['off', 'normal'] as const)('pre-selector main ELK omits backend options and retains receipt/cache policy: %s', async cache => {
+  const plans = runtimeDifferentialPlans(artifact('old-native'), artifact('candidate'), cache, false, artifact('main-elk'))
+  const main = plans.filter(plan => plan.name.startsWith('main-elk-'))
+  expect(main).toHaveLength(2)
+  for (const plan of main) {
+    const reference = plan.engines[0]!
+    expect(reference.entry).toBe('/main-elk/dist/index.js')
+    expect(reference).not.toHaveProperty('layoutMode')
+    expect(layoutRenderOptions(reference.layoutMode)).toBeUndefined()
+    expect(reference.consumeReceipt).toBe(true)
+    expect(reference.layoutCache).toBe(cache)
+  }
+  expect(layoutCacheEnvironment(cache)).toEqual({ AGENTIC_MERMAID_ELK_CACHE: cache === 'normal' ? '1' : '0',
+    AGENTIC_MERMAID_EXPERIMENTS: cache === 'normal' ? 'text-spans,position-cache' : 'text-spans' })
+  expect(plans.find(plan => plan.name === 'native23-aa')!.engines.every(engine => engine.layoutMode === 'agentic')).toBe(true)
+  expect(plans.find(plan => plan.name === 'candidate-elk-native24')!.engines.map(engine => engine.layoutMode)).toEqual(['elk', 'agentic'])
+  const dir = temporary.dir(), entry = join(dir, 'main.mjs'), job = join(dir, 'job.json'), out = join(dir, 'out.json')
+  writeFileSync(entry, `
+    function checked(options) {
+      if (!options || 'graphLayout' in options || typeof options.onConfigDiagnostic !== 'function') throw Error('unsupported selector');
+      if (process.env.AGENTIC_MERMAID_ELK_CACHE !== ${JSON.stringify(cache === 'normal' ? '1' : '0')}
+          || process.env.AGENTIC_MERMAID_EXPERIMENTS !== ${JSON.stringify(cache === 'normal' ? 'text-spans,position-cache' : 'text-spans')}) throw Error('wrong cache policy');
+      return { checked: true };
+    }
+    export const renderMermaidSVGWithReceipt = (source, options) => ({svg:'<svg xmlns="http://www.w3.org/2000/svg"><text>main</text></svg>', receipt:checked(options)});
+    export const renderMermaidASCIIWithReceipt = (source, options) => ({text:'main', receipt:checked(options)});
+  `)
+  writeFileSync(job, JSON.stringify({ entry, mode: 'time', reps: 1, consumeReceipt: true, layoutCache: cache,
+    layoutMode: main[0]!.engines[0]!.layoutMode, inputs: [{ id: 'main-selector', source: 'unused', family: 'flowchart', expectedSvgLabels: ['main'] }] }))
+  const child = await runChild('node', ['--no-warnings', resolve('eval/benchmark/release-bench-worker.ts'), job, out])
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const result = JSON.parse(readFileSync(out, 'utf8'))
+  expect(result.firstRender.ok).toBe(true)
+  expect(result.results[0].svg.ok).toBe(true)
+  expect(result.results[0].ascii.ok).toBe(true)
+  expect(result.cacheEnvironment).toEqual(layoutCacheEnvironment(cache))
+})
 
 test('a new-native timeout cannot erase old-native A/A or get retried on a smaller population', () => {
   const inputs: Input[] = [{ id: 'official', family: 'flowchart', source: 'unused', kind: 'corpus' },
@@ -20,7 +62,7 @@ test('a new-native timeout cannot erase old-native A/A or get retried on a small
   const launches: Array<{ arm: string; mode: string; ids: string[] }> = []
   const execute: MeasurementWorker = (engine, mode, group) => {
     launches.push({ arm: engine.label, mode, ids: group.inputs.map(input => input.id) })
-    if (mode === 'memory') return { perInput: [], passAllocatedBytes: 1, passPeakHeapBytes: 1, retainedGrowthBytes: 0, peakRssBytes: 1 }
+    if (mode === 'memory') return { perInput: [], passAllocatedBytes: 1, passPeakHeapBytes: 1, settledHeapBytes: 1, retainedHeapBytes: 1, retainedGrowthBytes: 0, peakRssBytes: 1 }
     if (engine.label === 'native24') {
       engine.failures.set(`time:${group.name}`, 'controlled timeout; no result written')
       return undefined
@@ -55,7 +97,7 @@ test('full review parameters cannot silently increase the bound or shrink rounds
 })
 
 test('cache memory summaries preserve a missing/failed round instead of filling it from another round', () => {
-  const result = { perInput: [], passAllocatedBytes: 100, passPeakHeapBytes: 1, retainedGrowthBytes: 0, peakRssBytes: 1 }
+  const result = { perInput: [], passAllocatedBytes: 100, passPeakHeapBytes: 1, settledHeapBytes: 1, retainedHeapBytes: 1, retainedGrowthBytes: 0, peakRssBytes: 1 }
   const rows = [
     { population: 129, round: 1, arm: 'old', status: 'ok', result },
     { population: 129, round: 1, arm: 'new', status: 'ok', result: { ...result, passAllocatedBytes: 50 } },
@@ -96,6 +138,40 @@ test('private cache counters retain weighted eviction behavior and fail closed o
   expect(counter.distinctSetKeys).toBe(3) // Oversized retention was rejected.
   expect(counter.getKeySha256.every(value => /^[a-f0-9]{64}$/.test(value))).toBe(true)
   expect(() => instrumentCacheSource(original.replace('const found = this.#entries.get(key)', 'const changed = this.#entries.get(key)'), false, '/unused')).toThrow('exactly one')
+})
+
+test('ELK churn counters bind the actual owner residency policy rather than the old key budget', () => {
+  const source = readFileSync(new URL('../elk-instance.ts', import.meta.url), 'utf8')
+  expect(cacheProbeLayers(source)['weighted:64:8388608']).toContain('estimated residency')
+  expect(cacheProbeLayers(source)['weighted:64:1048576']).toBeUndefined()
+  expect(() => cacheProbeLayers(source.replace('const ELK_CACHE_MAX_RESIDENCY = 8 * 1024 * 1024', 'const ELK_CACHE_MAX_RESIDENCY = 1024 * 1024'))).toThrow('owner or residency policy')
+  expect(() => cacheProbeLayers(source.replace('estimatedResidency(result, ELK_CACHE_MAX_RESIDENCY)', 'key.length'))).toThrow('owner or residency policy')
+})
+
+test('canonical cache replay stays separate from private cardinality and restores its observer on failure', () => {
+  const symbol = Symbol.for('agentic-mermaid.performance-observer.v1')
+  const host = globalThis as unknown as Record<symbol, unknown>
+  const previous = Object.getOwnPropertyDescriptor(host, symbol)
+  const enclosing = () => {}
+  const before = cacheObservationSnapshot(), privateBefore = cacheProbeSnapshot()
+  Object.defineProperty(host, symbol, { configurable: true, writable: true, value: enclosing })
+  try {
+    expect(() => withCacheProbeObservations(() => {
+      const observe = host[symbol] as (event: object) => void
+      observe({ version: 1, kind: 'scope', owner: 'graphical' })
+      observe({ version: 1, kind: 'cache', owner: 'elk-layout', outcome: 'hit' })
+      throw new Error('controlled replay failure')
+    })).toThrow('controlled replay failure')
+    expect(host[symbol]).toBe(enclosing)
+    const after = cacheObservationSnapshot()
+    expect(after.observed).toBe(true)
+    expect(after.graphicalScopes).toBe(before.graphicalScopes + 1)
+    expect(after.events['elk-layout:hit']).toBe((before.events['elk-layout:hit'] ?? 0) + 1)
+    expect(cacheProbeSnapshot()).toEqual(privateBefore)
+  } finally {
+    if (previous) Object.defineProperty(host, symbol, previous)
+    else delete host[symbol]
+  }
 })
 
 
