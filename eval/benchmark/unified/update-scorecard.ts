@@ -55,7 +55,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     ['--reference-correction', selection.referenceCorrection],
   ])
     if (value) validationArgs.push(flag!, value)
-  const admission = JSON.parse(execFileSync(process.env.PYTHON_BINARY ?? 'python3', validationArgs, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }))
+  const admission = JSON.parse(execFileSync(process.env.PYTHON_BINARY ?? 'python3', validationArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024 }))
   if (admission.protocol !== 'unified-report-selection-v1') throw Error('Unknown shared report-selection admission protocol')
   const ledger = JSON.parse(readFileSync(join(run, 'report.json'), 'utf8'))
   const communityRoot = admission.communityDirectory as string
@@ -167,7 +167,14 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       `CLI ranks use the separate fresh matched cohort **${cli.startedAt} → ${cli.finishedAt}**, with ${cli.rounds} rounds. Agentic Mermaid #node-cli/#native-cli are invocation variants of one catalog tool. The supplemental phase adds no broad feature-coverage claims. Original API/browser timings retain their own phase.`,
       '',
     )
-  lines.push('## Observed feature-corpus coverage', '', '| Implementation | Surface | Format | Qualified / attempted observations | Families with a qualified observation |', '|---|---|---|---:|---:|')
+  lines.push(
+    '## Observed feature-corpus coverage',
+    '',
+    'These are operation-specific outcomes, not a universal fidelity score. SVG/terminal qualification checks output envelopes and authored labels; parser/IR/source operations retain their own scopes. A diagnostic operation may complete with rejection findings; diagnostic acceptance is shown separately and is not an independently established feature oracle.',
+    '',
+    '| Implementation | Surface | Format | Operation-complete / attempted observations | Families with operation completion | Diagnostic accepted / completed with acceptance recorded |',
+    '|---|---|---|---:|---:|---:|',
+  )
   const coverage = new Map<string, BenchmarkObservation[]>()
   const featureIds = new Set<string>(
     JSON.parse(readFileSync(join(dirname(ranksFile), 'community-inputs.json'), 'utf8'))
@@ -180,7 +187,10 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   }
   for (const [key, rows] of coverage) {
     const [id, surface, format] = key.split('|')
-    lines.push(`| ${escape(id)} | ${escape(surface)} | ${escape(format)} | ${rows.filter(r => r.status === 'passed').length} / ${rows.length} | ${new Set(rows.filter(r => r.status === 'passed').map(r => r.family)).size} |`)
+    const diagnostics = rows.filter(row => row.status === 'passed' && typeof row.metrics?.accepted === 'boolean')
+    lines.push(
+      `| ${escape(id)} | ${escape(surface)} | ${escape(format)} | ${rows.filter(r => r.status === 'passed').length} / ${rows.length} | ${new Set(rows.filter(r => r.status === 'passed').map(r => r.family)).size} | ${diagnostics.length ? `${diagnostics.filter(row => row.metrics?.accepted === true).length} / ${diagnostics.length}` : 'N/A'} |`,
+    )
   }
   lines.push(
     '',

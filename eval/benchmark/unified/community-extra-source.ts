@@ -35,7 +35,7 @@ export interface ExtraSourceArtifact extends CommunityArtifact {
 const json = (path: string): any => JSON.parse(readFileSync(path, 'utf8'))
 const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
 const executable = (name: string) => (name.includes('/') ? resolve(name) : execFileSync('which', [name], { encoding: 'utf8' }).trim())
-const version = (command: string, args = ['--version']) => execFileSync(command, args, { encoding: 'utf8', timeout: 15_000, stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+const version = (command: string, args = ['--version'], env: NodeJS.ProcessEnv = process.env) => execFileSync(command, args, { env, encoding: 'utf8', timeout: 15_000, stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 const select = (value: any): string | undefined => (typeof value === 'string' ? value : value && typeof value === 'object' ? select(value.import ?? value.node ?? value.default ?? value.require) : undefined)
 function runtimeEntry(root: string): string | undefined {
   const pkg = json(join(root, 'package.json')),
@@ -178,8 +178,8 @@ export async function prepareExtraCommunitySource(node: ExtraSourceNode, cacheRo
   if (adapter === 'fork-go-cli' || adapter === 'mermaidtext-go') {
     const go = executable(process.env.AM_BENCH_GO ?? (existsSync('/workspace/tooling/go-community/go/bin/go') ? '/workspace/tooling/go-community/go/bin/go' : 'go')),
       output = join(binary, adapter === 'mermaidtext-go' ? 'mermaidtext' : 'mermaid-ascii')
-    env.GOCACHE ??= join(resolve(cacheRoot), '.extra-go-build')
-    env.GOPATH ??= join(resolve(cacheRoot), '.extra-go')
+    env.GOCACHE ??= join(resolve(cacheRoot), '.go-build')
+    env.GOPATH ??= join(resolve(cacheRoot), '.go')
     runtimeVersion = version(go, ['version'])
     await run([go, 'build', '-trimpath', '-o', output, adapter === 'mermaidtext-go' ? './cmd/mermaidtext' : '.'], source, env, log)
     buildRecipeId += 'go-build-trimpath'
@@ -230,9 +230,9 @@ export async function prepareExtraCommunitySource(node: ExtraSourceNode, cacheRo
       scratch = join(directory, 'public-markdown-shim'),
       target = join(directory, 'compiler-target'),
       output = join(binary, 'grok-markdown-mermaid')
-    runtimeVersion = version(rustc)
     if (existsSync('/workspace/tooling/cargo')) env.CARGO_HOME ??= '/workspace/tooling/cargo'
     if (existsSync('/workspace/tooling/rustup')) env.RUSTUP_HOME ??= '/workspace/tooling/rustup'
+    runtimeVersion = version(rustc, ['--version'], env)
     env.CARGO_TARGET_DIR = target
     mkdirSync(join(scratch, 'src'), { recursive: true })
     writeFileSync(join(scratch, 'Cargo.toml'), `[package]\nname="grok-markdown-mermaid"\nversion="0.0.0"\nedition="2024"\n[dependencies]\nxai-grok-markdown={path=${JSON.stringify(join(source, 'crates/codegen/xai-grok-markdown'))}}\n[profile.release]\ndebug=0\nstrip="debuginfo"\n`)

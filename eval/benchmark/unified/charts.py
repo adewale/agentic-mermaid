@@ -56,6 +56,11 @@ def community_overlay(report, original_inputs, directory, original_directory):
         raise ValueError('--community-run needs completed community result/ranks/inputs plus its parent report.json and invocation.json')
     if result.get('id')!='community'or not result.get('finishedAt')or not ledger.get('finishedAt')or scores.get('startedAt')!=result.get('startedAt'):
         raise ValueError('Expanded community replay is incomplete or result/ranks identities differ')
+    evidence=scores.get('evidence',{})
+    if scores.get('protocol')!='community-fixed-core-feature-once-v2'or evidence.get('protocol')!=scores['protocol']or load(directory/'community-evidence.json')!=evidence:
+        raise ValueError('Expanded community replay has no matching explicit v2 evidence manifest')
+    if scores.get('finishedAt')!=result['finishedAt']or evidence.get('finishedAt')!=result['finishedAt']or evidence.get('profile')!='full'or evidence.get('rounds')!=3 or evidence.get('coverageOnce')is not True:
+        raise ValueError('Expanded community evidence protocol/timestamps differ from its actual result')
     if ledger.get('profile')!='full'or ledger.get('rounds')!=3 or scores.get('rounds')!=3 or invocation.get('communityCoverageOnce')is not True:
         raise ValueError('Expanded community replay must record full/three-core-round/feature-once protocol')
     for key in ('targetRevision','packageRoot'):
@@ -68,9 +73,12 @@ def community_overlay(report, original_inputs, directory, original_directory):
         raise ValueError('Expanded community replay does not retain every exact frozen core and feature input/expectation')
     core=[row for row in after if 'core-graph-batch'in row.get('features',[])];features=[row for row in after if 'core-graph-batch'not in row.get('features',[])]
     if len(core)!=6 or len(features)!=957:raise ValueError('Expected frozen six-core/957-feature campaign')
+    if evidence.get('coreCaseIds')!=[row['id']for row in core]or evidence.get('featureCaseIds')!=[row['id']for row in features]or evidence.get('currentReference')!=inputs.get('reference'):
+        raise ValueError('Expanded community manifest cohorts/reference differ from literal frozen inputs')
     artifacts=scores.get('artifacts',[]);ids=[row.get('node',{}).get('id')for row in artifacts]
     if len(ids)!=84 or len(set(ids))!=84 or scores.get('catalogNodes')!=84:
         raise ValueError('Expanded community replay must enroll all84 unique catalog nodes')
+    if evidence.get('catalogIds')!=ids:raise ValueError('Expanded evidence enrollment differs from actual preparation outcomes')
     observations=result.get('observations',[]);statuses={'passed','failed','blocked','not-applicable','skipped','unsupported'}
     for implementation in ids:
         rows=[row for row in observations if tool(row)==implementation]
@@ -91,6 +99,9 @@ def community_overlay(report, original_inputs, directory, original_directory):
     original_invocation=load(original_directory/'invocation.json',{})
     for key in ('candidateTarball','candidateSha256'):
         if not original_invocation.get(key)or invocation.get(key)!=original_invocation[key]:raise ValueError('Expanded replay differs from original admitted '+key)
+        if evidence.get('target',{}).get(key)!=invocation[key]:raise ValueError('Expanded evidence differs from actual target '+key)
+    if evidence.get('target',{}).get('revision')!=ledger['targetRevision']or evidence.get('target',{}).get('packageRoot')!=ledger['packageRoot']:
+        raise ValueError('Expanded evidence target differs from completed run ledger')
     tarball=Path(invocation['candidateTarball'])
     if hashlib.sha256(tarball.read_bytes()).hexdigest()!=invocation['candidateSha256']:raise ValueError('Frozen target tarball bytes changed')
     old_scores=load(find(original_directory,'community-ranks.json'),{})
@@ -104,7 +115,7 @@ def community_overlay(report, original_inputs, directory, original_directory):
         compiled=archive.extractfile(member)
         if not compiled or hashlib.sha256(compiled.read()).hexdigest()!=new_self[0]['sha256']or hashlib.sha256(module.read_bytes()).hexdigest()!=new_self[0]['sha256']:
             raise ValueError('Actual Agentic entry no longer matches admitted target tarball bytes')
-    metadata=dict(directory=str(directory.resolve()),protocol='community-fixed-core-feature-once-v2',originalStatus=report.get('status'),replayStatus=ledger.get('status'),startedAt=result['startedAt'],finishedAt=result['finishedAt'],catalogNodes=84,coreCases=6,featureCases=957,rounds=3,coverageOnce=True,targetRevision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateSha256=invocation['candidateSha256'],identityRechecks=rechecks,qualificationChange='Expanded population and source-echo/diagnostic qualification safeguards; this is a protocol replay, not a product speed improvement.')
+    metadata=dict(directory=str(directory.resolve()),evidenceFile=str((directory/'community-evidence.json').resolve()),protocol=evidence['protocol'],originalStatus=report.get('status'),replayStatus=ledger.get('status'),startedAt=result['startedAt'],finishedAt=result['finishedAt'],catalogNodes=84,coreCases=6,featureCases=957,rounds=3,coverageOnce=True,targetRevision=ledger['targetRevision'],packageRoot=ledger['packageRoot'],candidateSha256=invocation['candidateSha256'],agenticEntrySha256=new_self[0]['sha256'],currentReference=evidence['currentReference'],identityRechecks=rechecks,qualificationChange='Expanded population and source-echo/diagnostic qualification safeguards; this is a protocol replay, not a product speed improvement.')
     return result,scores,inputs,metadata
 
 
