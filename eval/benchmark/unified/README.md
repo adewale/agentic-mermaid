@@ -194,11 +194,19 @@ fields have 10 ms reporting grain; censored values and conservative bounds must
 not be interpreted as zero CPU cost or zero latency. Missing or unqualified
 resource cohorts are N/A.
 
-Executable footprint panels distinguish compiled native/Bun CLI file bytes
-from an external Node runtime executable. Neither includes the full dynamic
-library/resource closure, and Node runtime bytes are not the npm package's
-delivery cost. Variant identities and per-case resource evidence remain in the
-reduced chart data.
+Executable footprint panels distinguish compiled native/Bun CLI files from
+external Node and Python/other interpreter executables. Interpreter bytes are
+not a compiled tool payload. Earlier recorded delivery scopes remain in the
+raw evidence and reduced data when corrected in the presentation. None includes
+the full dynamic library/resource closure; external runtime bytes are not the
+tool's package/program delivery cost. Git objects bind interpreted programs and
+authored dependency helpers separately from shipped compiled byte identities.
+When the supplemental cohort includes Agentic's separately built native CLI,
+both reporters require `--cli-native-proof FILE`: the explicit clean-source
+`build:binary` reproduction must match the frozen revision/package/archive,
+the actual measured executable SHA256 and retained original bytes exactly.
+A later bit-identical rebuild attests the earlier artifact; it does not replace
+its measurements or pretend that archive metadata alone identifies the binary.
 
 PR editor panels read each candidate's own invocation evidence, including the
 editor's observed initial gzip and closure through attempted family edits.
@@ -273,11 +281,28 @@ supplemental CLI data comes from the new campaign's sibling `community-cli`
 directory. Different population and stronger output qualification are protocol
 changes, never evidence of a product speed improvement.
 
+The same `--community-run` flag can explicitly select a qualification composition
+produced by `reconcile-community.mjs`. The reader checks both completed source
+ledgers, fixed target/artifacts/cohort/pins, exact untouched rows, and fresh
+SVG/React Flow rows. Both measurement windows remain visible. The authored-text
+SVG repair shares namespace-aware inert-container filtering, literal XML text,
+positioned text runs and token-bounded decorated-label matching across Node and
+browser hosts. It still does not establish CSS/paint visibility, geometry, roles,
+multiplicity or pixel fidelity. Identical legacy failure rows with missing round
+fields retain a set of committed raw-record round candidates; no individual old
+failure is assigned an invented round. Optional composed CLI evidence replaces
+only its explicitly fresh SVG latency/resource lane and preserves original
+terminal observations. Qualification repair is a benchmark protocol change,
+not product improvement; original raw reports and helper assets stay intact.
+
 Conditional family charts reuse the existing fixed core, grouped by family,
 output and invocation boundary. Flowchart has two inputs and the other SVG or
 parser families have one each; terminal covers flowchart and sequence. Every
 required input must qualify across all rounds. These charts let narrow tools
 participate in an appropriate comparison without inventing broader coverage.
+Supplemental CLI variants receive the same conditional family views derived
+from their actual fixed-core raw rows, with every required case in all three
+rounds. They retain `variantOf` and do not acquire feature-corpus coverage.
 Search the standalone HTML by family or boundary to select a panel and inspect
 qualified and unqualified evidence rows. Source-equivalent measurements retain
 their shared-evidence labels. Full-feature round-one payload/heap observations

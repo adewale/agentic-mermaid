@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createRequire } from 'node:module'
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
@@ -112,10 +112,15 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
     cache = join(harness, 'node_modules/.cache/unified-community-browser'),
     results: PreparedCommunityBrowser[] = []
   mkdirSync(cache, { recursive: true })
-  const qualificationHelper = join(cache, 'qualification.js')
-  await build({
-    stdin: { contents: `export{isRenderedSourceEcho}from ${JSON.stringify(join(harness, 'eval/benchmark/unified/qualification-visible-source.ts'))}`, resolveDir: harness, sourcefile: 'community-visible-output-qualification.mjs' },
-    outfile: qualificationHelper,
+  const helperDirectory = options.communityQualificationAssetDir ?? cache
+  mkdirSync(helperDirectory, { recursive: true })
+  const helperBuild = await build({
+    stdin: {
+      contents: `export{isRenderedSourceEcho}from ${JSON.stringify(join(harness, 'eval/benchmark/unified/qualification-visible-source.ts'))};export{inspectSvgText}from ${JSON.stringify(join(harness, 'eval/benchmark/unified/svg-text-inspection.ts'))}`,
+      resolveDir: harness,
+      sourcefile: 'community-visible-output-qualification.mjs',
+    },
+    write: false,
     bundle: true,
     platform: 'browser',
     format: 'iife',
@@ -125,6 +130,14 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
     minify: true,
     logLevel: 'silent',
   })
+  const helperBytes = helperBuild.outputFiles[0]?.contents
+  if (!helperBytes) throw Error('Browser qualification helper compilation produced no output')
+  const helperDigest = createHash('sha256').update(helperBytes).digest('hex'),
+    qualificationHelper = join(helperDirectory, `qualification-visible-content-v3-${helperDigest}.js`)
+  if (existsSync(qualificationHelper)) {
+    if (options.communityQualificationAssetDir) throw Error('Qualification repair helper already exists; use a fresh asset directory')
+    if (!Buffer.from(helperBytes).equals(readFileSync(qualificationHelper))) throw Error('Existing browser qualification helper does not match its compiled-byte identity')
+  } else writeFileSync(qualificationHelper, helperBytes, { flag: 'wx' })
   for (const peer of prepared) {
     let result: PreparedCommunityBrowser = { ...peer, browserStatus: 'blocked' }
     try {
@@ -275,6 +288,8 @@ export async function prepareCommunityBrowsers(prepared: readonly PreparedCommun
 /** Public API calls are timed inside the page, excluding qualification and
  * output encoding. Returned SVG is independently checked outside API clocks. */
 export async function runCommunityBrowserSuite(prepared: readonly PreparedCommunityBrowser[], workloads: readonly UnifiedWorkload[], options: UnifiedRunOptions): Promise<UnifiedSuiteResult> {
+  const selectedOutputs = options.communityOutputs
+  const selected = (output: string) => !selectedOutputs || selectedOutputs.includes(output)
   const startedAt = new Date().toISOString(),
     observations: BenchmarkObservation[] = [],
     gaps = [
@@ -295,7 +310,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
     ...extra,
     metrics: { implementation: peer.node.id, apiBoundary: peer.browser?.apiBoundary ?? 'prepared public browser API', ...extra.metrics },
   })
-  for (const peer of prepared.filter(peer => peer.browserStatus !== 'prepared')) {
+  for (const peer of prepared.filter(peer => peer.browserStatus !== 'prepared' && selected(peer.browser?.output ?? 'svg'))) {
     const unavailable: UnifiedWorkload = { id: 'browser-capability', family: '*', source: '', features: [], provenance: 'community browser capability admission' }
     observations.push({
       ...row(peer, unavailable, 'capability', peer.browserStatus === 'not-applicable' ? 'not-applicable' : 'blocked', { detail: peer.browserDetail ?? 'Browser preparation was not run', metrics: { unmeasuredCases: workloads.length, reason: peer.browserDetail ?? 'Browser preparation required' } }),
@@ -303,7 +318,10 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
     })
     if (peer.browserStatus === 'blocked') gaps.push(`${peer.node.id}: ${peer.browserDetail ?? 'Browser preparation required'} (${workloads.length} corpus cases unmeasured)`)
   }
-  const engines = prepared.filter(peer => peer.browserStatus === 'prepared' && peer.browser).flatMap(peer => [peer, ...(peer.browser!.additionalOutputs ?? []).map(output => ({ ...peer, browser: { ...peer.browser!, output, additionalOutputs: undefined } }))])
+  const engines = prepared
+    .filter(peer => peer.browserStatus === 'prepared' && peer.browser)
+    .flatMap(peer => [peer, ...(peer.browser!.additionalOutputs ?? []).map(output => ({ ...peer, browser: { ...peer.browser!, output, additionalOutputs: undefined } }))])
+    .filter(peer => selected(peer.browser!.output ?? 'svg'))
   for (let round = 1; round <= options.rounds; round++)
     for (const peer of round % 2 ? engines : [...engines].reverse()) {
       const engine = peer.browser!,
@@ -471,30 +489,16 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
                     width = length(element.getAttribute('width')),
                     height = length(element.getAttribute('height'))
                   if (!(viewBox && viewBox.length === 4 && viewBox.every(Number.isFinite) && viewBox[2]! > 0 && viewBox[3]! > 0) && !(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) return ['SVG has no positive finite canvas']
-                  if ((globalThis as any).unifiedCommunityQualification.isRenderedSourceEcho(source, svg, 'svg')) return ['Visible SVG source-echo fallback is not diagram ink']
-                  const normalize = (text: string) => text.replace(/\s+/g, ' ').trim(),
-                    seen = new Set<string>([...doc.querySelectorAll('text,tspan,foreignObject')].map(node => normalize(node.textContent ?? '')))
-                  for (const node of doc.querySelectorAll('foreignObject')) {
-                    const walker = doc.createTreeWalker(node, NodeFilter.SHOW_TEXT)
-                    while (walker.nextNode()) seen.add(normalize(walker.currentNode.textContent ?? ''))
+                  const tree = (node: Node): any => {
+                    if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.CDATA_SECTION_NODE) return { kind: 'text', value: node.nodeValue ?? '' }
+                    if (!(node instanceof Element)) return undefined
+                    return { kind: 'element', localName: node.localName, namespaceURI: node.namespaceURI ?? '', attributes: Object.fromEntries([...node.attributes].map(attribute => [attribute.name, attribute.value])), children: [...node.childNodes].map(tree).filter(Boolean) }
                   }
-                  for (const text of doc.querySelectorAll('text')) {
-                    let previousY: number | undefined
-                    const joined = [...text.childNodes]
-                      .map(child => {
-                        if (!(child instanceof Element) || child.localName !== 'tspan') return child.textContent ?? ''
-                        const y = child.hasAttribute('y') ? Number(child.getAttribute('y')) : NaN,
-                          parsedDy = Number.parseFloat(child.getAttribute('dy') ?? '0'),
-                          dy = Number.isFinite(parsedDy) ? parsedDy : 0,
-                          currentY = Number.isFinite(y) ? y : previousY === undefined ? undefined : previousY + dy
-                        const newline = child.hasAttribute('x') && (dy !== 0 || (previousY !== undefined && currentY !== undefined && currentY !== previousY))
-                        previousY = currentY
-                        return (newline ? ' ' : '') + (child.textContent ?? '')
-                      })
-                      .join('')
-                    seen.add(normalize(joined))
-                  }
-                  return expected.filter(label => !seen.has(normalize(label))).map(label => `Missing authored label: ${label}`)
+                  const helper = (globalThis as any).unifiedCommunityQualification
+                  if (typeof helper.inspectSvgText !== 'function') return ['Prepared qualification helper has no namespace-aware SVG text inspector']
+                  const inspected = helper.inspectSvgText(tree(element), expected)
+                  if (helper.isRenderedSourceEcho(source, svg, 'svg', inspected.primaryRuns)) return ['Visible SVG source-echo fallback is not diagram ink']
+                  return inspected.missingLabels.map((label: string) => `Missing authored label: ${label}`)
                 }
                 const first = await call('_first')
                 if (first.error) return { status: 'error', error: first.error, firstMs: first.ms }
@@ -559,7 +563,7 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
             })
             record.samples.push(observation)
           } catch (error) {
-            record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'failed', { detail: String(error) }))
+            record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'failed', { detail: String(error), metrics: { round } }))
             throw error
           }
         }
@@ -609,7 +613,9 @@ export async function runCommunityBrowserSuite(prepared: readonly PreparedCommun
           })
         const observed = new Set(record.samples.map(sample => sample.caseId))
         for (const workload of roundWorkloads.filter(workload => !observed.has(workload.id)))
-          record.samples.push(row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'blocked', { detail: `Browser realm unavailable after error: ${String(error)}` }))
+          record.samples.push(
+            row(peer, workload, workload.features.includes('core-graph-batch') ? 'core-api-repeat' : (options.communityCoverageOnce ?? true) ? 'feature-corpus-qualification' : 'feature-corpus-attempt', 'blocked', { detail: `Browser realm unavailable after error: ${String(error)}`, metrics: { round } }),
+          )
         gaps.push(`${peer.node.id} round ${round}: ${String(error)}`)
       } finally {
         await browser?.close()

@@ -1,8 +1,10 @@
 /** The user-requested maintained Markdown snapshot. Raw artifacts stay ignored. */
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+
 import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import type { BenchmarkObservation } from './types.ts'
+
 const escape = (v: unknown) =>
   String(v ?? '—')
     .replaceAll('|', '\\|')
@@ -33,6 +35,7 @@ export interface ScorecardSelection {
   allowCommunityTargetChange?: boolean
   currentRun?: string
   additionalRun?: string
+  cliNativeProof?: string
 }
 function args() {
   const m = new Map<string, string>()
@@ -43,7 +46,7 @@ function args() {
       continue
     }
     const v = process.argv[++i]
-    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run', '--additional-run'].includes(k) || !v)
+    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run', '--additional-run', '--cli-native-proof'].includes(k) || !v)
       throw Error('Use --run DIRECTORY [--prs DIRECTORY] [--output FILE] [--community-run DIRECTORY] [--invocation-correction FILE] [--reference-correction FILE] [--current-run DIRECTORY] [--additional-run DIRECTORY]')
     m.set(k, resolve(v))
   }
@@ -65,6 +68,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     ['--reference-correction', selection.referenceCorrection],
     ['--current-run', selection.currentRun],
     ['--additional-run', selection.additionalRun],
+    ['--cli-native-proof', selection.cliNativeProof],
   ])
     if (value) validationArgs.push(flag!, value)
   const admission = JSON.parse(execFileSync(process.env.PYTHON_BINARY ?? 'python3', validationArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024 }))
@@ -77,7 +81,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   const scores = JSON.parse(readFileSync(ranksFile, 'utf8')) as { startedAt: string; rounds: number; ranks: Rank[]; familyRanks?: Rank[]; catalogNodes: number; comparatorNodes: number; artifacts: { node: { id: string; benchmark?: unknown }; artifact?: { version: string }; error?: string }[]; gaps: string[] }
   const results = JSON.parse(readFileSync(resultsFile, 'utf8')) as { startedAt: string; finishedAt: string; observations: BenchmarkObservation[]; gaps: string[] }
   if (results.startedAt !== scores.startedAt || !Number.isFinite(Date.parse(results.finishedAt)) || Date.parse(results.finishedAt) < Date.parse(scores.startedAt)) throw Error('Community ranks and result must belong to the same completed run')
-  const cliFile = join(dirname(ranksFile), '../community-cli/ranks.json')
+  const cliFile = admission.cliSupplement ? join(admission.cliSupplement.directory, 'ranks.json') : join(dirname(ranksFile), '../community-cli/ranks.json')
   let cli: any
   if (existsSync(cliFile)) {
     cli = JSON.parse(readFileSync(cliFile, 'utf8'))
@@ -89,7 +93,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       cli.finishedAt !== raw.finishedAt ||
       cli.startedAt !== raw.startedAt ||
       cli.rounds !== raw.rounds ||
-      resolve(cli.evidence?.sourceRun ?? '') !== resolve(dirname(ranksFile)) ||
+      realpathSync(cli.evidence?.sourceRun ?? '') !== realpathSync(dirname(ranksFile)) ||
       JSON.stringify(cli.evidence?.cohort) !== JSON.stringify(originalInputs) ||
       JSON.stringify(cli.ranks) !== JSON.stringify(raw.ranks)
     )
@@ -97,6 +101,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     for (const rank of cli.ranks as Rank[])
       if (rank.qualified && (rank.perRoundMs.length !== cli.rounds || rank.perRoundMs.some(v => typeof v !== 'number' || !Number.isFinite(v) || v <= 0) || typeof rank.medianMs !== 'number' || !Number.isFinite(rank.medianMs) || rank.medianMs <= 0)) throw Error('Supplemental CLI rank has invalid timing admission')
     scores.ranks = [...scores.ranks.filter(r => r.surface !== 'cli:end-to-end'), ...cli.ranks]
+    scores.familyRanks = [...(scores.familyRanks ?? []).filter(r => r.surface !== 'cli:end-to-end'), ...(admission.cliSupplement?.familyRanks ?? [])]
   }
   const lines = [
     '# Mermaid community benchmark ranking',
@@ -141,6 +146,20 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       '',
     )
   }
+  if (admission.communityReplay?.composition) {
+    const composition = admission.communityReplay.composition
+    lines.push(
+      '',
+      `**Explicit community qualification composition:** original non-SVG/non-IR measurements ${escape(composition.original.startedAt)} → ${escape(composition.original.finishedAt)}; fresh SVG/React Flow qualification measurements ${escape(composition.repair.startedAt)} → ${escape(composition.repair.finishedAt)}. Composed ${escape(composition.composedAt)}. Engine bytes, target, pins and literal sources remain fixed. This repairs benchmark qualification and does not measure product speed improvement. Original raw ledgers remain unchanged.`,
+      '',
+    )
+  }
+  if (admission.cliSupplement?.nativeBinding)
+    lines.push(
+      '',
+      `**Native CLI source binding:** a clean-source rebuild of ${escape(admission.cliSupplement.nativeBinding.sourceRevision)} reproduced the exact previously measured executable SHA256 ${escape(admission.cliSupplement.nativeBinding.executableSha256)}. The post-latency proof adds source provenance; no timing row changes. Proof: ${escape(admission.cliSupplement.nativeBinding.proofFile)}.`,
+      '',
+    )
   const groups = new Map<string, Rank[]>()
   for (const rank of scores.ranks) {
     const key = `${rank.surface} / ${rank.output}`
@@ -277,6 +296,23 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       lines.push(
         `| ${escape(row.implementation)} | ${escape(row.output)} | ${row.requiredCaseIds?.length ?? '—'} | ${qualified ? number(row.peakRssBytes / 1024 ** 2, 1) : 'N/A'} | ${qualified ? (row.cpuBelowResolution ? `< ${number(row.totalCpuUpperBoundMs, 0)} (censored)` : number(row.totalCpuMs, 0)) : 'N/A'} | ${qualified ? `${number(row.totalCpuLowerBoundMs, 0)}–${number(row.totalCpuUpperBoundMs, 0)}` : 'N/A'} |`,
       )
+    }
+    lines.push(
+      '',
+      '### CLI executable file scopes',
+      '',
+      'Executable bytes are delivery identities, not equal-work memory or complete tool package sizes. Python and other interpreted programs use external runtimes; their interpreter bytes are not a compiled tool payload. Original recorded scope remains in raw evidence. Dynamic libraries, source/dependency download closures and complete installation sizes are unmeasured here.',
+      '',
+      '| Implementation | Variant | Executable file, MiB | Scope |',
+      '|---|---|---:|---|',
+    )
+    for (const variant of cli.evidence?.variants ?? []) {
+      const artifact = variant.prepared?.artifact ?? {},
+        delivery = variant.identity?.delivery ?? {},
+        runtime = String(artifact.runtime ?? ''),
+        interpreted = Boolean(artifact.sourceFiles?.length) && (artifact.args ?? []).some((arg: unknown) => /\.(?:py|ts|js|mjs)$/.test(String(arg))),
+        scope = runtime.startsWith('node:') ? 'External Node executable; not npm delivery' : interpreted || /^(?:python|bun[: ])/i.test(runtime) ? 'External interpreter executable; not compiled tool payload' : 'Compiled executable only; external libraries/resources excluded'
+      lines.push(`| ${escape(variant.prepared?.node?.id)} | ${escape(variant.variant)} | ${variant.error || typeof delivery.executableBytes !== 'number' ? 'N/A' : number(delivery.executableBytes / 1024 ** 2, 2)} | ${escape(scope)} |`)
     }
   }
   const reference = selection.referenceCorrection ?? find(run, 'reference-score-result.json') ?? find(join(run, 'pinned-reference-score'), 'reference-score-result.json')
@@ -544,5 +580,6 @@ if (import.meta.main) {
     allowCommunityTargetChange: a.get('--allow-community-target-change') === 'true',
     currentRun: a.get('--current-run'),
     additionalRun: a.get('--additional-run'),
+    cliNativeProof: a.get('--cli-native-proof'),
   })
 }

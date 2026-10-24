@@ -13,6 +13,7 @@ interface Options {
   target: string
   packageRoot: string
   rounds: number
+  outputs?: string[]
 }
 interface Variant {
   prepared: PreparedCommunity
@@ -248,6 +249,8 @@ function resourceRanksFor(variants: Variant[], diagnostics: BenchmarkObservation
 }
 export async function runCommunityCliCohort(options: Options) {
   if (!Number.isSafeInteger(options.rounds) || options.rounds < 1) throw Error('rounds must be a positive integer')
+  const selectedOutputs = options.outputs?.map(normalizeCommunityOutput)
+  if (selectedOutputs && (!selectedOutputs.length || new Set(selectedOutputs).size !== selectedOutputs.length || selectedOutputs.some(output => !['svg', 'terminal'].includes(output)))) throw Error('CLI output selection must contain unique svg/terminal names')
   const source = findRun(options.run),
     prepared = read(join(source, 'community-prepared.json')) as PreparedCommunity[],
     inputs = read(join(source, 'community-inputs.json')) as { workloads: UnifiedWorkload[] }
@@ -263,6 +266,7 @@ export async function runCommunityCliCohort(options: Options) {
     .filter(entry => entry.artifact?.kind === 'cli')
     .map(entry => ({ prepared: entry, variantOf: entry.node.id, variant: 'public-cli', outputs: [...new Set((entry.node.benchmark?.outputs ?? entry.node.outputs).map(normalizeCommunityOutput))].filter(output => output === 'svg' || output === 'terminal') }))
   variants.push(...candidateVariants(options, prepared))
+  if (selectedOutputs) for (const variant of variants) variant.outputs = variant.outputs.filter(output => selectedOutputs.includes(output))
   for (const variant of variants) {
     try {
       variant.identity = admittedIdentity(variant.prepared.artifact!)
@@ -276,6 +280,8 @@ export async function runCommunityCliCohort(options: Options) {
     harnessStatus = git(harnessRoot, ['status', '--porcelain=v1', '--untracked-files=all']).split('\n').filter(Boolean)
   const evidence = {
     sourceRun: source,
+    outputSelection: selectedOutputs ?? null,
+    scope: selectedOutputs ? 'partial-output-lane; omitted CLI latency/resources were not executed' : 'all-bound-CLI-outputs',
     preparedFile: join(source, 'community-prepared.json'),
     inputsFile: join(source, 'community-inputs.json'),
     harness: { root: harnessRoot, head: git(harnessRoot, ['rev-parse', 'HEAD']), dirty: harnessStatus.length > 0, status: harnessStatus },
@@ -383,7 +389,7 @@ export async function runCommunityCliSuite(options: UnifiedRunOptions): Promise<
     for (const file of ['community-prepared.json', 'community-inputs.json', 'community-result.json']) if (!existsSync(join(source, file))) throw Error(`Completed community prerequisite is absent: ${join(source, file)}`)
     const prerequisite = read(join(source, 'community-result.json'))
     if (prerequisite.id !== 'community' || typeof prerequisite.finishedAt !== 'string' || !Array.isArray(prerequisite.observations)) throw Error('Community prerequisite has no completed suite envelope')
-    const result = await runCommunityCliCohort({ run: source, out: options.out, target: options.root, packageRoot: options.packageRoot ?? options.root, rounds: options.rounds })
+    const result = await runCommunityCliCohort({ run: source, out: options.out, target: options.root, packageRoot: options.packageRoot ?? options.root, rounds: options.rounds, outputs: options.communityOutputs })
     envelope = {
       id: 'community-cli',
       status: result.status as UnifiedSuiteResult['status'],
@@ -407,16 +413,25 @@ export async function runCommunityCliSuite(options: UnifiedRunOptions): Promise<
   writeFileSync(join(options.out, 'community-cli-suite.json'), JSON.stringify(envelope, null, 2))
   return envelope
 }
+export { ranksFor as rankCommunityCliObservations, resourceRanksFor as rankCommunityCliResources }
+
 if (import.meta.main) {
   const values = new Map<string, string>()
   for (let index = 2; index < process.argv.length; index += 2) {
     const option = process.argv[index]!,
       value = process.argv[index + 1]
-    if (!['--run', '--out', '--target', '--package-root', '--rounds'].includes(option) || !value || value.startsWith('--') || values.has(option)) throw Error('Usage: bun run eval/benchmark/unified/community-cli.ts --run DIR --out FRESH_DIR --target CHECKOUT --package-root INSTALLED_PACKAGE [--rounds 3]')
+    if (!['--run', '--out', '--target', '--package-root', '--rounds', '--outputs'].includes(option) || !value || value.startsWith('--') || values.has(option)) throw Error('Usage: bun run eval/benchmark/unified/community-cli.ts --run DIR --out FRESH_DIR --target CHECKOUT --package-root INSTALLED_PACKAGE [--rounds 3]')
     values.set(option, value)
   }
   for (const name of ['--run', '--out', '--target', '--package-root']) if (!values.has(name)) throw Error('Missing required ' + name)
-  const result = await runCommunityCliCohort({ run: resolve(values.get('--run')!), out: resolve(values.get('--out')!), target: resolve(values.get('--target')!), packageRoot: resolve(values.get('--package-root')!), rounds: Number(values.get('--rounds') ?? 3) })
+  const result = await runCommunityCliCohort({
+    run: resolve(values.get('--run')!),
+    out: resolve(values.get('--out')!),
+    target: resolve(values.get('--target')!),
+    packageRoot: resolve(values.get('--package-root')!),
+    rounds: Number(values.get('--rounds') ?? 3),
+    outputs: values.has('--outputs') ? values.get('--outputs')!.split(',') : undefined,
+  })
   console.log(JSON.stringify({ status: result.status, ranks: result.ranks.map(rank => ({ implementation: rank.implementation, output: rank.output, qualified: rank.qualified, medianMs: rank.medianMs })) }))
   if (result.status === 'failed') process.exitCode = 1
   else if (result.status === 'blocked') process.exitCode = 2

@@ -8,6 +8,7 @@ import { MICRO_WORKLOADS } from '../micro-bench-cases.ts'
 import { type CatalogArtifactAdmission, createCatalogEligibility } from './catalog-eligibility.ts'
 import { assertCommunityNotInterrupted, trackCommunityProcess } from './community-process.ts'
 import type { CommunityArtifact, CommunityNode, CommunityWorkerJob, PreparedCommunity } from './community-types.ts'
+import { readWorkerRows } from './community-worker-evidence.ts'
 import { qualifyOutput, svgQualificationProvenance, withReferenceLabels } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 import { getWorkloadEvidence, unifiedWorkloads } from './workloads.ts'
@@ -443,8 +444,10 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     rows: RawRow[]
   }
   const controls = new Map<string, { kind: 'validator' | 'parser'; control: DiagnosticControl; attempt: number; runtime?: string; publicApiAvailable?: boolean; file: string }>()
+  const admissionAttempts: { attempt: number; file: string; kind: 'validator' | 'parser'; controls?: DiagnosticControl[]; error?: string }[] = []
   const collected = new Map<string, { row: RawRow; raw?: Raw; attempt: number }>(),
     attempts: { attempt: number; exitCode: number | null; timedOut: boolean; activeCase?: string; detail?: string }[] = []
+  let admissionEvidenceIssue = false
   let remaining = [...workloads],
     lifecycleIssue: string | undefined
   for (let attempt = 1; remaining.length && attempt <= 8; attempt++) {
@@ -539,31 +542,58 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
     let raw: Raw | undefined,
       rows: RawRow[] = []
     try {
-      if (existsSync(file)) raw = JSON.parse(readFileSync(file, 'utf8')) as Raw
+      if (existsSync(file)) {
+        const value: unknown = JSON.parse(readFileSync(file, 'utf8'))
+        if (!value || typeof value !== 'object' || !Array.isArray((value as Raw).rows)) throw Error('Completed worker report has no rows array')
+        raw = value as Raw
+      }
     } catch (error) {
       detail = `Malformed completed worker report: ${String(error)}`
     }
-    try {
-      if (existsSync(progressFile))
-        rows = readFileSync(progressFile, 'utf8')
-          .split('\n')
-          .filter(Boolean)
-          .map(line => JSON.parse(line) as RawRow)
-    } catch (error) {
-      detail = `Malformed partial worker report: ${String(error)}`
-    }
-    const admissionGroups: { kind: 'validator' | 'parser'; controls: DiagnosticControl[] }[] = [
-      { kind: 'validator', controls: raw?.diagnosticAdmission ?? [] },
-      { kind: 'parser', controls: raw?.parserAdmission ?? [] },
+    const admittedRows = readWorkerRows(progressFile, raw?.rows ?? [])
+    rows = admittedRows.rows as unknown as RawRow[]
+    if (admittedRows.errors.length) detail = admittedRows.errors.join('; ')
+    if (admittedRows.ignoredTail) detail = [detail, 'Uncommitted JSONL tail ignored; earlier complete rows retained'].filter(Boolean).join('; ')
+    const admissionGroups: { kind: 'validator' | 'parser'; controls: DiagnosticControl[]; file: string }[] = [
+      { kind: 'validator', controls: raw?.diagnosticAdmission ?? [], file },
+      { kind: 'parser', controls: raw?.parserAdmission ?? [], file },
     ]
-    for (const group of admissionGroups)
+    for (const [kind, suffix, property] of [
+      ['validator', '.diagnostic-admission.json', 'diagnosticAdmission'],
+      ['parser', '.parser-admission.json', 'parserAdmission'],
+    ] as const) {
+      const sidecar = file + suffix
+      if (!existsSync(sidecar)) continue
+      try {
+        const value = JSON.parse(readFileSync(sidecar, 'utf8')) as Record<string, unknown>
+        const evidence = value[property]
+        if (!Array.isArray(evidence)) throw Error('Negative-admission sidecar has no control array')
+        admissionGroups.push({ kind, controls: evidence as DiagnosticControl[], file: sidecar })
+      } catch (error) {
+        admissionAttempts.push({ attempt, file: sidecar, kind, error: String(error) })
+        admissionEvidenceIssue = true
+        lifecycleIssue = `Malformed negative-admission sidecar: ${sidecar}: ${String(error)}`
+      }
+    }
+    for (const group of admissionGroups) {
+      if (!Array.isArray(group.controls)) {
+        admissionEvidenceIssue = true
+        continue
+      }
+      if (group.controls.length) admissionAttempts.push({ attempt, file: group.file, kind: group.kind, controls: group.controls })
       for (const control of group.controls) {
+        if (!control || typeof control.id !== 'string' || typeof control.source !== 'string' || control.expectedAccepted !== false || !['passed', 'failed'].includes(control.status) || ![true, false, null].includes(control.actualAccepted)) {
+          admissionEvidenceIssue = true
+          admissionAttempts.push({ attempt, file: group.file, kind: group.kind, error: 'Malformed negative control; no admission inferred' })
+          continue
+        }
         const key = JSON.stringify([group.kind, control.id, control.source]),
           previous = controls.get(key)
-        const actual = previous && (previous.control.status !== control.status || previous.control.actualAccepted !== control.actualAccepted) ? { ...control, status: 'failed' as const, detail: 'Negative-control outcome changed across fresh worker attempts: ' + (control.detail ?? '') } : control
-        controls.set(key, { kind: group.kind, control: actual, attempt, runtime: raw?.runtime, publicApiAvailable: raw?.publicApiAvailable, file })
+        const normalized = control.status === 'passed' && control.actualAccepted !== false ? { ...control, status: 'failed' as const, detail: 'Negative control did not reject; claimed pass is contradictory' } : control
+        const actual = previous && (previous.control.status !== normalized.status || previous.control.actualAccepted !== normalized.actualAccepted) ? { ...normalized, status: 'failed' as const, detail: 'Negative-control outcome changed across fresh worker attempts: ' + (normalized.detail ?? '') } : normalized
+        controls.set(key, { kind: group.kind, control: actual, attempt, runtime: raw?.runtime, publicApiAvailable: raw?.publicApiAvailable, file: group.file })
       }
-    if (!rows.length && raw?.rows) rows = raw.rows
+    }
     for (const row of rows) if (remaining.some(workload => workload.id === row.id)) collected.set(row.id, { row, raw, attempt })
     attempts.push({ attempt, exitCode, timedOut, activeCase, detail: detail ?? raw?.detail })
     if (activeCase && !collected.has(activeCase)) collected.set(activeCase, { row: { id: activeCase, family: remaining.find(workload => workload.id === activeCase)!.family, status: 'failed', detail: detail ?? `Worker stopped during workload (exit ${exitCode}): ${stderr.slice(-1500)}` }, raw, attempt })
@@ -583,12 +613,14 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
   }
   for (const workload of remaining) collected.set(workload.id, { row: { id: workload.id, family: workload.family, status: 'blocked', detail: 'Eight worker restart attempts exhausted; previous completed rows are preserved' }, attempt: 8 })
   writeFileSync(join(directory, `${safe(prepared.node.id)}-${output}-r${round}-attempts.json`), JSON.stringify(attempts, null, 2))
+  writeFileSync(join(directory, `${safe(prepared.node.id)}-${output}-r${round}-negative-admission-attempts.json`), JSON.stringify(admissionAttempts, null, 2))
   const observations = workloads.map(workload => {
     const { row: result, raw, attempt } = collected.get(workload.id)!,
       row = envelope(prepared.node, output, workload, round)
     row.runtime = result.runtime ?? raw?.runtime ?? prepared.artifact?.runtime ?? 'Node'
     if (result.surface) row.surface = result.surface
     if (result.mode) row.mode = result.mode
+    else if ((options.communityCoverageOnce ?? true) && !workload.features.includes('core-graph-batch')) row.mode = 'feature-corpus-qualification'
     if (!result.surface && /bun/i.test(prepared.artifact?.runtime ?? '')) row.surface = /component|integration/i.test(prepared.artifact?.apiBoundary ?? '') ? 'bun:renderer-component' : 'bun:public-api'
     row.status = result.status === 'passed' ? 'passed' : result.status === 'unsupported' ? 'unsupported' : result.status === 'blocked' ? 'blocked' : 'failed'
     row.samplesMs = result.samplesMs
@@ -654,7 +686,7 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
       row.status = 'failed'
       row.detail = 'Independent negative-admission controls failed or changed across worker attempts; core speed rank withheld'
     }
-  if ((output === 'diagnostics' || requiresParserControls) && controlCount !== 2) {
+  if ((output === 'diagnostics' || requiresParserControls) && (controlCount !== 2 || admissionEvidenceIssue)) {
     for (const row of observations.filter(row => row.caseId.startsWith('core:'))) {
       row.status = 'blocked'
       row.detail = 'Complete independent negative-admission control evidence is unavailable; core speed rank withheld'
@@ -664,7 +696,7 @@ async function nodeRound(prepared: PreparedCommunity, output: string, workloads:
       operation: `${admissionKind}-negative-admission`,
       mode: 'independent-negative-control',
       status: 'blocked',
-      detail: `Expected2 independent negative controls; observed${controlCount}. No acceptance or timing inferred.`,
+      detail: `Expected2 valid independent negative controls; observed${controlCount}; malformedEvidence=${admissionEvidenceIssue}. No acceptance or timing inferred.`,
     })
   }
   if (lifecycleIssue) observations.push({ ...envelope(prepared.node, output, { id: 'worker-lifecycle', family: '*', source: '', features: [], provenance: 'worker lifecycle' }, round), operation: 'worker-lifecycle', status: 'blocked', detail: lifecycleIssue })
@@ -722,6 +754,16 @@ function sourceAliasPlan(prepared: PreparedCommunity[], catalog: { nodes: Commun
       sourceProgramClass: artifact.sourceProgramClass ?? null,
       entry: path ? realpathSync(path) : null,
       root: artifact.root ? realpathSync(artifact.root) : null,
+      benchmarkConfig: entry.node.benchmark,
+      specialNodeBinding: entry.node.id === 'dfadler/zombie-mermaid' ? entry.node.id : null,
+      module: artifact.module ?? null,
+      executable: artifact.executable ?? null,
+      global: artifact.global ?? null,
+      python: artifact.python ?? null,
+      wasm: artifact.wasm ?? null,
+      apiAdmission: artifact.apiAdmission ?? null,
+      version: artifact.version,
+      sourceRevision: artifact.sourceRevision ?? artifact.revision ?? null,
       adapter: entry.node.benchmark?.adapter,
       sourceAdapter: entry.node.benchmark?.sourceAdapter,
       outputs: [...new Set((entry.node.benchmark?.outputs ?? []).map(normalizeCommunityOutput))].sort(),
@@ -801,6 +843,10 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     observations: BenchmarkObservation[] = [],
     gaps: string[] = [],
     prepared = await prepareCommunity(options)
+  const outputSelection = options.communityOutputs?.map(normalizeCommunityOutput)
+  if (outputSelection && (!outputSelection.length || new Set(outputSelection).size !== outputSelection.length || outputSelection.some(output => !prepared.some(entry => entry.node.benchmark?.outputs?.some(bound => normalizeCommunityOutput(bound) === output)))))
+    throw Error('Unknown, empty or duplicate community output selection')
+  const outputSelected = (output: string) => !outputSelection || outputSelection.includes(normalizeCommunityOutput(output))
   const driverWorkloads = unifiedWorkloads(options.profile) // Initializes parser-only/feature evidence without replacing frozen sources.
   const frozenInputs = loadCommunityInputs(options)
   const enriched = frozenInputs ? undefined : await withReferenceLabels(driverWorkloads, { root: options.harnessRoot ?? options.root })
@@ -857,7 +903,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     }
     const boundOutputs = new Set((entry.node.benchmark.outputs ?? []).map(normalizeCommunityOutput))
     for (const declaredOutput of new Set(entry.node.outputs.map(normalizeCommunityOutput))) {
-      if (boundOutputs.has(declaredOutput)) continue
+      if (!outputSelected(declaredOutput) || boundOutputs.has(declaredOutput)) continue
       const detail = `Catalog declares ${declaredOutput}; no benchmark output adapter is bound. This capability is unmeasured.`
       gaps.push(`${entry.node.id}: ${detail}`)
       observations.push({
@@ -885,7 +931,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     for (const entry of round % 2 ? runnable : [...runnable].reverse()) {
       assertCommunityNotInterrupted()
       console.log(`community round ${round}/${options.rounds}: ${entry.node.id} ${entry.artifact!.version}`)
-      for (const output of new Set((entry.node.benchmark!.outputs ?? []).map(normalizeCommunityOutput))) {
+      for (const output of [...new Set((entry.node.benchmark!.outputs ?? []).map(normalizeCommunityOutput))].filter(outputSelected)) {
         const roundWorkloads = ((options.communityCoverageOnce ?? true) && round > 1 ? workloads.filter(w => w.features.includes('core-graph-batch')) : workloads).filter(w => output !== 'terminal' || !w.features.includes('core-graph-batch') || ['core:flow5', 'core:tree50', 'core:seq20'].includes(w.id))
         const selectedWorkloads = ['parse', 'diagnostics'].includes(output) ? roundWorkloads : roundWorkloads.filter(w => !getWorkloadEvidence(w.id)?.parserOnly)
         for (const workload of roundWorkloads.filter(w => !selectedWorkloads.includes(w))) observations.push({ ...envelope(entry.node, output, workload, round), status: 'not-applicable', detail: 'Owning fixture declares a parser-only assertion scope; rendering is not a promised operation for this input.' })
@@ -918,7 +964,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     }
   for (const [implementation, alias] of aliasPlan.aliases) {
     const sourceRows = observations.filter(row => row.metrics?.implementation === alias.representative && (row.surface.startsWith('node:') || row.surface.startsWith('bun:') || row.surface === 'cli:end-to-end'))
-    if (!sourceRows.length)
+    if (!sourceRows.length && !outputSelection)
       observations.push({
         ...envelope(prepared.find(entry => entry.node.id === implementation)!.node, '*', { id: 'shared-artifact-evidence', family: '*', source: '', features: [], provenance: aliasProofPath }, 0),
         status: 'blocked',
@@ -936,7 +982,7 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
     workloads.filter(w => !getWorkloadEvidence(w.id)?.parserOnly),
     options,
   )
-  for (const peer of preparedBrowsers.filter(peer => peer.browserStatus === 'prepared'))
+  for (const peer of preparedBrowsers.filter(peer => peer.browserStatus === 'prepared' && outputSelected(peer.browser?.output ?? 'svg')))
     for (const workload of workloads.filter(w => getWorkloadEvidence(w.id)?.parserOnly))
       observations.push({ ...envelope(peer.node, 'svg', workload, 0), surface: 'browser:public-api', runtime: 'chromium', status: 'not-applicable', detail: 'Owning fixture declares a parser-only assertion scope; browser rendering is not a promised operation for this input.' })
   observations.push(...browserResult.observations)
@@ -980,6 +1026,9 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
   const candidateArtifact = prepared.find(entry => entry.node.benchmark?.adapter === 'agentic')?.artifact
   const evidence = {
     protocol: 'community-fixed-core-feature-once-v2',
+    outputSelection: outputSelection ?? null,
+    scope: outputSelection ? 'partial-output-lane; omitted output observations were not executed' : 'all-bound-outputs',
+    qualificationProtocol: options.communityQualificationProtocol ?? null,
     svgQualification: svgQualificationProvenance(),
     profile: options.profile,
     rounds: options.rounds,
@@ -1042,4 +1091,4 @@ export async function runCommunitySuite(options: UnifiedRunOptions): Promise<Uni
 
 // Adapter boundaries are exported for independently authored admission probes.
 export const rankCommunityFamilyObservations = (observations: BenchmarkObservation[], rounds: number) => matchedRanks(observations, rounds, true)
-export { matchedRanks as rankCommunityObservations, nodeRound as runCommunityNodeRound, runCli as runCommunityCli }
+export { matchedRanks as rankCommunityObservations, nodeRound as runCommunityNodeRound, runCli as runCommunityCli, sourceAliasPlan as planCommunitySourceAliases }

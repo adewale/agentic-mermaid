@@ -1,10 +1,11 @@
+import { execFileSync, spawn } from 'node:child_process'
+import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { availableParallelism, cpus, totalmem } from 'node:os'
-import { spawn, execFileSync } from 'node:child_process'
-import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { benchmarkSuites, type SuiteDefinition, type SuiteOptions } from './suites.ts'
+import { subprocessTreeTerminator } from './process-tree.ts'
 import { type SuiteExecution, type UnifiedReport, writeUnifiedReport } from './report.ts'
+import { benchmarkSuites, type SuiteDefinition, type SuiteOptions } from './suites.ts'
 import type { BenchmarkObservation, UnifiedSuiteResult } from './types.ts'
 
 const DRIVER = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
@@ -51,6 +52,9 @@ export function parseOptions(argv: string[]): RunnerOptions {
     'community-browser-prepared',
     'community-artifact-policy',
     'community-coverage',
+    'community-outputs',
+    'community-qualification-assets',
+    'community-qualification-protocol',
   ])
   const options = new Map<string, string>()
   const seen = new Set<string>()
@@ -122,6 +126,14 @@ export function parseOptions(argv: string[]): RunnerOptions {
     communityBrowserPreparedFile: path('community-browser-prepared'),
     communityArtifactPolicy: communityPolicy as 'frozen' | 'latest',
     communityCoverageOnce: communityCoverage === 'once',
+    communityOutputs: options.has('community-outputs')
+      ? options
+          .get('community-outputs')!
+          .split(',')
+          .map(value => value.trim())
+      : undefined,
+    communityQualificationAssetDir: path('community-qualification-assets'),
+    communityQualificationProtocol: options.get('community-qualification-protocol'),
   }
 }
 function git(root: string, args: string[]): string | undefined {
@@ -181,12 +193,14 @@ async function subprocess(command: string[], cwd: string, env: NodeJS.ProcessEnv
     launchError: string | undefined
   const normalized = command[0] === 'bun' ? [bun(), ...command.slice(1)] : command
   const child = spawn(normalized[0]!, normalized.slice(1), { cwd, env, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] })
-  const kill = (signal: NodeJS.Signals) => {
+  const fallbackKill = (signal: NodeJS.Signals) => {
     try {
       if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, signal)
       else child.kill(signal)
     } catch {}
   }
+  const tree = child.pid ? subprocessTreeTerminator(child.pid, fallbackKill) : undefined
+  const kill = (signal: NodeJS.Signals) => (tree ? tree.signal(signal) : fallbackKill(signal))
   let force: ReturnType<typeof setTimeout> | undefined
   const terminate = (signal: NodeJS.Signals) => {
     kill(signal)
@@ -220,6 +234,10 @@ async function subprocess(command: string[], cwd: string, env: NodeJS.ProcessEnv
     child.once('close', (code, signal) => done({ code, signal }))
   })
   clearTimeout(timer)
+  if (force) {
+    clearTimeout(force)
+    await tree?.finish()
+  }
   process.off('SIGTERM', onTerm)
   process.off('SIGINT', onInt)
   await new Promise<void>(done => stream.end(done))
@@ -283,7 +301,17 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
   for (const suite of catalog) {
     const suiteOut = join(options.out, suite.id.replaceAll(':', '-'))
     mkdirSync(suiteOut, { recursive: true })
-    const execution: SuiteExecution = { id: suite.id, title: suite.title, source: suite.source, policy: suite.policy, target: suite.target ?? (suite.kind === 'internal' ? 'candidate' : 'driver'), status: 'skipped', selected: selected.has(suite.id), prerequisites: suite.prerequisites, ...(suite.pin ? { pin: suite.pin } : {}) }
+    const execution: SuiteExecution = {
+      id: suite.id,
+      title: suite.title,
+      source: suite.source,
+      policy: suite.policy,
+      target: suite.target ?? (suite.kind === 'internal' ? 'candidate' : 'driver'),
+      status: 'skipped',
+      selected: selected.has(suite.id),
+      prerequisites: suite.prerequisites,
+      ...(suite.pin ? { pin: suite.pin } : {}),
+    }
     report.suites.push(execution)
     if (!execution.selected) {
       writeUnifiedReport(options.out, report)
@@ -310,7 +338,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
     execution.workingDirectory = suite.cwd ?? options.harnessRoot
     execution.environment = suite.environment
     execution.log = `${suite.id.replaceAll(':', '-')}/run.log`
-    console.log(`unified: ${suite.id} (${suite.kind === 'internal' ? options.root : suite.cwd ?? options.harnessRoot})`)
+    console.log(`unified: ${suite.id} (${suite.kind === 'internal' ? options.root : (suite.cwd ?? options.harnessRoot)})`)
     const env: NodeJS.ProcessEnv = { ...process.env, AM_BENCH_SUITE_OUT: suiteOut, AM_FC_SEED: process.env.AM_FC_SEED ?? '7', ...suite.environment }
     if (options.mermaidDir) env.MERMAID_UPSTREAM_DIR = options.mermaidDir
     if (options.referenceDir) env.MERMAID_REFERENCE_DIR = options.referenceDir

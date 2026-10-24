@@ -111,7 +111,7 @@ async function bindExtraCommunityApi(context) {
       if (typeof api.default === 'function') await api.default(artifact.wasm ? fs.readFileSync(artifact.wasm) : undefined)
       const validate = api.validateMermaid ?? api.validateMermaidJson
       if (typeof validate !== 'function') throw Error('Published Rusty Mermaid validator API unavailable')
-      return { invoke: source => validate(source), qualify: value => diagnosticQualification(typeof value === 'string' ? JSON.parse(value) : value), diagnosticsCount: value => resultErrors(typeof value === 'string' ? JSON.parse(value) : value)?.length ?? null, qualification: 'public validator findings; no rendering claim' }
+      return { invoke: source => validate(source), qualify: (value, workload) => diagnosticQualification(typeof value === 'string' ? JSON.parse(value) : value, workload), diagnosticsCount: value => resultErrors(typeof value === 'string' ? JSON.parse(value) : value)?.length ?? null, qualification: 'public validator findings; no rendering claim' }
     }
     case 'mermaid-formatter': return {
       invoke: fn(api, 'formatMermaid'),
@@ -136,7 +136,18 @@ async function bindExtraCommunityApi(context) {
     case '@kitlangton/merman': return { invoke: source => fn(api, 'render')(source, { color: false }), qualification: 'public plain-text terminal render' }
     case 'vitepress-plugin-mermaid-diagram': return { invoke: source => requireResult(fn(api, 'render')(source), 'standalone render'), qualification: 'public standalone renderer; Markdown/Vite lifecycle excluded' }
     case 'dsh-plugin-mermaid-gb-svg': return { invoke: source => requireResult(fn(api, 'renderDiagram')(source, { ...api.DEFAULT_OPTIONS }, {}), 'renderDiagram')?.res?.svg, qualification: 'public /engine source→parse→layout→SVG with package defaults' }
-    case 'mermaid-reactflow-render': return { invoke: fn(api, 'convertMermaidToReactFlow'), qualify(value, workload) { if (!value || !Array.isArray(value.nodes) || !Array.isArray(value.edges)) throw Error('React Flow API returned no nodes/edges IR'); const labels = new Set(value.nodes.map(node => node?.data?.label ?? node?.label).filter(label => typeof label === 'string').map(label => label.replace(/\s+/g, ' ').trim())); if ((workload.expectedLabels ?? []).some(label => !labels.has(label.replace(/\s+/g, ' ').trim()))) throw Error('React Flow IR lost declared node labels'); return 'positioned React Flow nodes/edges plus authored node-label presence; not SVG or complete relationship fidelity' }, qualification: 'public positioned React Flow IR; never represented as SVG or terminal output' }
+    case 'mermaid-reactflow-render': return {
+      invoke: fn(api, 'convertMermaidToReactFlow'),
+      qualify(value, workload) {
+        if (!value || !Array.isArray(value.nodes) || !Array.isArray(value.edges)) throw Error('React Flow API returned no nodes/edges IR')
+        const nativeLabels = [...value.nodes.map(node => node?.data?.label ?? node?.label), ...value.edges.map(edge => edge?.label ?? edge?.data?.label)]
+        const labels = new Set(nativeLabels.filter(label => typeof label === 'string').map(label => label.replace(/\s+/g, ' ').trim()))
+        const missing = (workload.expectedLabels ?? []).filter(label => !labels.has(label.replace(/\s+/g, ' ').trim()))
+        if (missing.length) throw Error('React Flow IR lost declared node/edge labels: ' + missing.slice(0, 8).join(', '))
+        return 'positioned React Flow nodes/edges plus declared literal labels in native node/edge fields; role correspondence and relationship multiplicity unmeasured; not SVG fidelity'
+      },
+      qualification: 'public positioned React Flow IR; never represented as SVG or terminal output',
+    }
     case 'mermaidtui': return { invoke: source => fn(api, 'renderMermaidToTui')(source, { ascii: false }), qualification: 'public Unicode terminal renderer' }
     case '@tayomi/termaid-ts': return { invoke: fn(api, 'render'), qualify(_value, workload) { if (typeof api.declaredType === 'function' && !api.declaredType(workload.source)) throw Error('Unsupported declared family: raw-source fallback is not a diagram'); return undefined }, qualification: 'public terminal render; raw-source fallback excluded' }
     case 'tui-mermaid':
