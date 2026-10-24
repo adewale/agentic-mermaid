@@ -5,7 +5,6 @@ import { deriveConnectorTerminalProjection, type ConnectorTerminalProjectionInpu
 
 interface DeferredProjection {
   readonly input: ConnectorTerminalProjectionInput
-  readonly get: () => ConnectorMark['terminalProjection']
   projection: ConnectorMark['terminalProjection'] | undefined
 }
 
@@ -19,32 +18,28 @@ export function withDeferredTerminalProjections<T>(lower: () => T): T {
   try { return lower() } finally { loweringDepth-- }
 }
 
+function projectionOf(node: object): ConnectorMark['terminalProjection'] {
+  const state = deferred.get(node)
+  if (!state) throw new TypeError('Unregistered terminal projection receiver')
+  return state.projection ??= deriveConnectorTerminalProjection(state.input, true)
+}
+
+// The receiver's private entry owns the captured input. Sharing accessors does
+// not authorize a copied descriptor on an unregistered object.
+const property: PropertyDescriptor = {
+  enumerable: true,
+  configurable: true,
+  get(this: ConnectorMark) { return projectionOf(this) },
+  set(this: ConnectorMark, value: ConnectorMark['terminalProjection']) {
+    if (Object.isFrozen(this)) throw new TypeError('Cannot assign to readonly terminalProjection')
+    deferred.delete(this)
+    Object.defineProperty(this, 'terminalProjection', { value, enumerable: true, configurable: true, writable: true })
+  },
+}
+
 function install(node: ConnectorMark, input: ConnectorTerminalProjectionInput): void {
-  const state: DeferredProjection = {
-    input,
-    projection: undefined,
-    get() {
-      if (state.projection === undefined) {
-        const projection = deriveConnectorTerminalProjection(input, true)
-        state.projection = projection
-      }
-      return state.projection
-    },
-  }
-  deferred.set(node, state)
-  Object.defineProperty(node, 'terminalProjection', {
-    enumerable: true,
-    configurable: true,
-    get: state.get,
-    set(value: ConnectorMark['terminalProjection']) {
-      // Before admission a lowering may replace a derived field (the
-      // consistency checks diagnose that defect). Frozen public Scenes must
-      // retain the old data property's read-only behavior.
-      if (Object.isFrozen(node)) throw new TypeError('Cannot assign to readonly terminalProjection')
-      deferred.delete(node)
-      Object.defineProperty(node, 'terminalProjection', { value, enumerable: true, configurable: true, writable: true })
-    },
-  })
+  deferred.set(node, { input, projection: undefined })
+  Object.defineProperty(node, 'terminalProjection', property)
 }
 
 export function setConnectorTerminalProjection(node: ConnectorMark, input: ConnectorTerminalProjectionInput): void {
@@ -67,15 +62,15 @@ export function deferredTerminalProjectionInput(node: object): ConnectorTerminal
   const state = deferred.get(node)
   if (!state || state.projection !== undefined) return undefined
   const descriptor = Object.getOwnPropertyDescriptor(node, 'terminalProjection')
-  return descriptor?.get === state.get ? state.input : undefined
+  return descriptor?.get === property.get ? state.input : undefined
 }
 
 /** Snapshot only our registered getter. External caller accessors still fail
  * the own-data admission rule without being invoked. */
 export function materializeOwnTerminalProjection(node: object, key: string, descriptor: PropertyDescriptor): unknown {
   const state = deferred.get(node)
-  return key === 'terminalProjection' && state && descriptor.get === state.get
-    ? state.get()
+  return key === 'terminalProjection' && state && descriptor.get === property.get
+    ? projectionOf(node)
     : undefined
 }
 
