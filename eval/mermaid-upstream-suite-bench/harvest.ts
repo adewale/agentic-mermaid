@@ -229,7 +229,8 @@ function extractTestBlocks(text: string, family: Family, file: string): TestBloc
   const blocks: TestBlock[] = []
   function registration(node: ts.Expression): { test: boolean; skipped: boolean } {
     if (ts.isIdentifier(node)) {
-      const binding = checker.getSymbolAtLocation(node)?.valueDeclaration
+      const symbol = checker.getSymbolAtLocation(node)
+      const binding = symbol?.valueDeclaration ?? symbol?.declarations?.[0]
       if (binding && ts.isImportSpecifier(binding)) {
         const declaration = binding.parent.parent.parent
         const imported = binding.propertyName?.text ?? binding.name.text
