@@ -193,6 +193,14 @@ process.stdout.write(JSON.stringify({ resolved, results, pngResults }))
 `
 
 describe('installed tarball — library', () => {
+  test('ships public API documentation without benchmark reports or benchmark tooling', () => {
+    expect(haveConsumer).toBe(true)
+    expect(existsSync(join(packageDir, 'docs/api.md'))).toBe(true)
+    for (const path of ['docs/community-benchmark-ranking.md', 'eval/benchmark', 'bench-report']) {
+      expect({ path, shipped: existsSync(join(packageDir, path)) }).toEqual({ path, shipped: false })
+    }
+  })
+
   test('published documentation entry points have no broken relative links', () => {
     expect(haveConsumer).toBe(true)
     for (const relativeHubPath of ['README.md', 'docs/README.md']) {
