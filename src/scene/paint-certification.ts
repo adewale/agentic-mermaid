@@ -1,9 +1,10 @@
 import type { RenderedLayout } from '../agent/types.ts'
-import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, paintedStrokeExtent, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
+import { connectorMarkerPaintRegions, connectorStrokeHasJoins, expandSceneBounds, nodePaintBounds, paintedStrokeExtent, unionSceneBounds, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
-import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, sceneGroupOpacity, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
@@ -50,7 +51,7 @@ const overlaps = (a: AxisAlignedBox, b: AxisAlignedBox): boolean => a.x0 < b.x1 
 const box = (r: { x: number; y: number; w: number; h: number }): AxisAlignedBox => ({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h })
 const viewportBox = (v: PaintViewport): AxisAlignedBox => ({ x0: v.x, y0: v.y, x1: v.x + v.width, y1: v.y + v.height })
 
-interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interior?: AxisAlignedBox; borderWidth?: number }
+interface Surface { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; interiors?: readonly AxisAlignedBox[]; borderWidth?: number; partBorderWidths?: readonly number[]; partFilled?: readonly boolean[]; partBounds?: readonly (AxisAlignedBox | undefined)[] }
 interface Tree { bounds: AxisAlignedBox; leaves?: readonly Surface[]; left?: Tree; right?: Tree }
 function tree(items: Surface[]): Tree | undefined {
   if (!items.length) return undefined
@@ -86,30 +87,67 @@ function solidInteriors(scene: NativePaintHeader, primitives: readonly ScenePain
   const outlineKey = (primitive: ScenePaintPrimitive, geometry: Geometry) => JSON.stringify([primitive.owner, geometry, scenePrimitiveMatrix(primitive)])
   for (const primitive of primitives) {
     const node = paintPrimitiveSource(primitive)
-    if (node?.kind !== 'shape' || node.paint.vectorEffect === 'non-scaling-stroke' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional' || !node.paint.stroke || !opaque(node.paint.stroke) || node.paint.stroke === 'none' || node.paint.stroke === 'transparent' || Number(node.paint.opacity ?? 1) !== 1) continue
-    const width = Number(node.paint.strokeWidth?.replace(/px$/, '') ?? 1)
-    if (Number.isFinite(width)) outlines.set(outlineKey(primitive, node.geometry), width)
+    if (node?.kind !== 'shape' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional' || primitive.groupOpacity !== undefined) continue
+    // Each border band needs its own emitted continuous opaque outline. A
+    // compound's summary paint need not be used by any of its SVG children.
+    const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
+    for (let index = 0; index < pieces.length; index++) {
+      const paint = node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint
+      if (paint.vectorEffect === 'non-scaling-stroke' || !paint.stroke || !opaque(paint.stroke) || Number(paint.opacity ?? 1) !== 1 || Number(paint.strokeOpacity ?? 1) !== 1 || paint.strokeDasharray) continue
+      const width = Number(paint.strokeWidth?.replace(/px$/, '') ?? 1)
+      if (Number.isFinite(width) && width > 0) outlines.set(outlineKey(primitive, pieces[index]!), width)
+    }
   }
   const surfaces: Surface[] = []
   for (const primitive of primitives) {
     const node = paintPrimitiveSource(primitive)
-    if (!node || node.kind !== 'shape' || node.geometry.kind === 'line' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') continue
-    const paint = shapeSurfacePaint(node)
-    // A translucent wrapper lets what lies beneath show through, as a translucent fill does.
+    if (!node || node.kind !== 'shape' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') continue
+    // A translucent wrapper lets what lies beneath show through. Each SVG
+    // child replaces the summary paint completely and has its own fill alpha.
     if (primitive.groupOpacity !== undefined) continue
-    if (Number(paint.opacity ?? 1) === 0 || paint.fill === 'none' || paint.fill === 'transparent') continue
-    const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
-    if (knownFill && knownFill[3] < 1 || Number(paint.fillOpacity ?? 1) < 1) continue
-    const candidate = { primitive, bounds: primitive.bounds!, borderWidth: outlines.get(outlineKey(primitive, node.geometry)) }
-    if (Number(paint.opacity ?? 1) !== 1 || !paint.fill || !opaque(paint.fill) || node.geometry.kind !== 'rect') { surfaces.push(candidate); continue }
+    const pieces = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
+    const paints = pieces.map((_, index) => node.geometry.kind === 'compound' ? node.childPaints?.[index] ?? node.paint : node.paint)
+    const filled = pieces.map((piece, index) => {
+      const paint = paints[index]!, opacity = sceneGroupOpacity(paint.opacity), fillOpacity = sceneGroupOpacity(paint.fillOpacity)
+      const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
+      return piece.kind !== 'line' && paint.fill !== 'none' && paint.fill !== 'transparent'
+        && !(opacity < 1 || fillOpacity < 1 || knownFill && knownFill[3] < 1)
+    })
+    const stroked = pieces.map((piece, index) => {
+      const paint = paints[index]!
+      return sceneGroupOpacity(paint.opacity) !== 0 && sceneGroupOpacity(paint.strokeOpacity) !== 0
+        && paintedStrokeExtent(paint, ['polygon', 'polyline', 'path', 'compound'].includes(piece.kind)) !== 0
+    })
+    if (!filled.some(Boolean) && !stroked.some(Boolean)) continue
     const m = scenePrimitiveMatrix(primitive)!
+    const [a, b, c, d, e, f] = m
+    const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+    let bounds: AxisAlignedBox | undefined
+    const partBounds: Array<AxisAlignedBox | undefined> = []
+    pieces.forEach((geometry, index) => {
+      const paint = paints[index]!
+      if (!filled[index] && !stroked[index]) return
+      // Do not keep an invisible sibling's geometry in the possible ink box.
+      // Unknown child bounds retain the original conservative primitive box.
+      const painted = nodePaintBounds({ kind: 'shape', id: primitive.id, role: primitive.role, geometry, paint }, transform)
+      partBounds[index] = painted ?? primitive.bounds!
+      bounds = unionSceneBounds(bounds, partBounds[index])
+    })
+    if (!bounds) continue
+    const candidate = { primitive, bounds, borderWidth: outlines.get(outlineKey(primitive, node.geometry)), ...(node.geometry.kind === 'compound' ? { partBorderWidths: pieces.map(child => outlines.get(outlineKey(primitive, child)) ?? 0), partFilled: filled, partBounds } : {}) }
     // A rotated/sheared AABB is not a solid rectangle. Keep it out of this
     // exact test instead of interpreting empty corners as painted pixels.
     if (Math.abs(m[1]) > 1e-12 || Math.abs(m[2]) > 1e-12) { surfaces.push(candidate); continue }
-    const g = node.geometry, rx = Math.min(g.width / 2, g.rx ?? g.ry ?? 0), ry = Math.min(g.height / 2, g.ry ?? g.rx ?? 0)
-    const a = transformPoint({ x: g.x + rx, y: g.y + ry }, m)
-    const b = transformPoint({ x: g.x + g.width - rx, y: g.y + g.height - ry }, m)
-    surfaces.push({ ...candidate, interior: { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) } })
+    const interiors: AxisAlignedBox[] = []
+    pieces.forEach((g, index) => {
+      const paint = paints[index]!
+      if (!filled[index] || g.kind !== 'rect' || sceneGroupOpacity(paint.opacity) !== 1 || sceneGroupOpacity(paint.fillOpacity) !== 1 || !paint.fill || !opaque(paint.fill)) return
+      const rx = Math.min(g.width / 2, g.rx ?? g.ry ?? 0), ry = Math.min(g.height / 2, g.ry ?? g.rx ?? 0)
+      const a = transformPoint({ x: g.x + rx, y: g.y + ry }, m)
+      const b = transformPoint({ x: g.x + g.width - rx, y: g.y + g.height - ry }, m)
+      interiors.push({ x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) })
+    })
+    surfaces.push({ ...candidate, interiors })
   }
   return surfaces
 }
@@ -124,13 +162,39 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   if (!inverse) return false
   const corners = (hull ?? [{ x: bounds.x0, y: bounds.y0 }, { x: bounds.x0, y: bounds.y1 }, { x: bounds.x1, y: bounds.y0 }, { x: bounds.x1, y: bounds.y1 }]).map(point => transformPoint(point, inverse))
   const [a, b, c, d] = inverse
-  const margin = padding * (Math.hypot(a + d, b - c) + Math.hypot(a - d, b + c)) / 2
+  const inverseNorm = (Math.hypot(a + d, b - c) + Math.hypot(a - d, b + c)) / 2
+  const margin = padding * inverseNorm
   // An attached arrow's stroke can meet its endpoint outline. Exclude only
   // that declared border band; a marker entering the filled body stays checked.
-  const inset = attached ? Math.max(0, (surface.borderWidth ?? 0) / 2) : 0
-  const outside = (g: Geometry): boolean => {
+  const outside = (g: Geometry, borderWidth = surface.borderWidth ?? 0, paint = shape.paint, filled = true, painted = surface.bounds): boolean => {
     if (!work()) return false
-    if (g.kind === 'compound') return g.children.length <= 64 && g.children.every(outside)
+    // The shape writer admits one compound level only. Never reinterpret
+    // nested indices as the root's independently painted siblings.
+    if (g.kind === 'compound') return g === shape.geometry && g.children.length <= 64 && g.children.every((child, index) => child.kind !== 'compound' && outside(child, surface.partBorderWidths?.[index] ?? 0, shape.childPaints?.[index] ?? shape.paint, surface.partFilled?.[index] ?? true, surface.partBounds?.[index] ?? surface.bounds))
+    if (!filled) {
+      // An absent/translucent fill does not occlude the retained ink, but its
+      // independently emitted stroke still needs a conservative separator.
+      if (sceneGroupOpacity(paint.opacity) === 0 || sceneGroupOpacity(paint.strokeOpacity) === 0 || paintedStrokeExtent(paint, g.kind !== 'line') === 0) return true
+    }
+    if (g.kind === 'line') {
+      // SVG lines have no filled area. Their actual child stroke must still
+      // separate from the complete marker hull, including cap and affine ink.
+      const extent = paintedStrokeExtent(paint, false)
+      if (extent === undefined) return false
+      if (extent === 0) return true
+      const radius = extent * (paint.vectorEffect === 'non-scaling-stroke' ? inverseNorm : 1)
+      return corners.every(p => work() && p.x + margin <= Math.min(g.x1, g.x2) - radius)
+        || corners.every(p => work() && p.x - margin >= Math.max(g.x1, g.x2) + radius)
+        || corners.every(p => work() && p.y + margin <= Math.min(g.y1, g.y2) - radius)
+        || corners.every(p => work() && p.y - margin >= Math.max(g.y1, g.y2) + radius)
+    }
+    // A fill separator does not bound a stroke outside that geometry. Retain
+    // uncertainty there unless the existing owned opaque border-band contact
+    // applies. Lines above always check their complete stroke independently.
+    const strokeExtent = paintedStrokeExtent(paint, ['polygon', 'polyline', 'path'].includes(g.kind))
+    if (strokeExtent === undefined) return false
+    if (strokeExtent > 0 && sceneGroupOpacity(paint.opacity) !== 0 && sceneGroupOpacity(paint.strokeOpacity) !== 0 && !(attached && borderWidth > 0) && overlaps(painted, bounds)) return false
+    const inset = attached ? Math.max(0, borderWidth / 2) : 0
     if (g.kind === 'ellipse' || g.kind === 'circle') {
       const rx = g.kind === 'circle' ? g.r : g.rx, ry = g.kind === 'circle' ? g.r : g.ry
       if (!(rx > 0 && ry > 0)) return false
@@ -213,7 +277,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     const b = primitive.bounds
     if (b) { x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1) }
   }
-  if (conditional) issue({ code: 'CONDITIONAL_PAINT', message: `${conditional} primitives depend on interaction state` })
+  if (conditional) issue({ code: 'CONDITIONAL_PAINT', message: `${conditional} primitives depend on unresolved paint or interaction state` })
   if (options.outputSupported === false || scene.family.startsWith('family:')) issue({ code: 'OUTPUT_SCOPE', message: 'Selected backend, style or external family has no native final-paint proof' })
   x0 = Math.min(0, x0 + ARITHMETIC_NOISE); y0 = Math.min(0, y0 + ARITHMETIC_NOISE)
   x1 = Math.max(scene.width, x1 - ARITHMETIC_NOISE); y1 = Math.max(scene.height, y1 - ARITHMETIC_NOISE)
@@ -281,7 +345,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (!work()) return
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (surface.primitive.order <= primitive.order || !overlaps(surface.bounds, primitive.bounds!)) continue
-      if (surface.interior && contains(surface.interior, primitive.bounds!)) issue({ code: 'TEXT_OCCLUDED', id: primitive.id, by: surface.primitive.id, message: `Retained text is fully covered by later opaque artwork owned by ${surface.primitive.owner.id}` }, true)
+      if (surface.interiors?.some(interior => work() && contains(interior, primitive.bounds!))) issue({ code: 'TEXT_OCCLUDED', id: primitive.id, by: surface.primitive.id, message: `Retained text is fully covered by later opaque artwork owned by ${surface.primitive.owner.id}` }, true)
       else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified' })
     }
   }
@@ -323,7 +387,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
           if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
           const relation = endpointRelation(node, surface.primitive.owner)
           if (relation === 'attached') continue
-          if (exactInk && relation === 'unrelated' && line && surface.interior && lineCrossesInterior(line, surface.interior)) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
+          if (exactInk && relation === 'unrelated' && line && surface.interiors?.some(interior => work() && lineCrossesInterior(line, interior))) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
           else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
         }
       }
@@ -345,7 +409,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   const lastMarkers = new Map<string, MarkerTarget>()
   for (const primitive of inspection.primitives) {
     const node = paintPrimitiveSource(primitive)
-    if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.visibility === 'conditional') continue
+    if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.coverage === 'non-painting') continue
     const ownInverse = inverseMatrix(transformMatrix(node.transform))
     if (!ownInverse) continue
     const [a, b, c, d, e, f] = composeMatrices(scenePrimitiveMatrix(primitive)!, ownInverse)
@@ -357,13 +421,16 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     }
   }
   const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
+    // A matching later conditional repaint may restore this marker, but does
+    // not establish final visible ink. The scene's conditional issue stays U.
+    if (target.primitive.visibility === 'conditional') return
     if (exhausted || !work() || !branch || !overlaps(branch.bounds, target.bounds)) return
     if (!branch.leaves) { markerCheck(branch.left, target); markerCheck(branch.right, target); return }
     for (const surface of branch.leaves) {
       if (!work()) return
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (surface.primitive.order <= target.primitive.order || !overlaps(surface.bounds, target.bounds)) continue
-      if (surface.interior && contains(surface.interior, target.bounds)) {
+      if (surface.interiors?.some(interior => work() && contains(interior, target.bounds))) {
         issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
         continue
       }

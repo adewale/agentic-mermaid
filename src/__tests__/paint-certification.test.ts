@@ -2,8 +2,8 @@ import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { readFileSync } from 'node:fs'
 import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
-import { certifyScenePaint } from '../scene/paint-certification.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certification.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, verifyMermaid } from '../agent/core.ts'
@@ -12,10 +12,15 @@ import { lowerPositionedFamilyScene, renderedSvgDigest } from '../graphical-rend
 import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { inspectScenePrimitives, scenePrimitiveSource } from '../scene/inspection.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
+import { serializeMarkerResource, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { drawNative } from '../scene/native-drawing.ts'
+import type { DrawingProducer } from '../scene/drawing.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
+import type { PositionedIshikawa } from '../ishikawa/types.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -237,6 +242,170 @@ test('a differently scaled marker carrier cannot erase earlier occluded artwork'
   expect(proof.status).toBe('failed')
   expect(proof.checks.markers).toBe(2)
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'relationship' }))
+})
+
+test('a zero-opacity group cannot repaint an earlier occluded endpoint marker', () => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }
+  const edge = marks.connector(fields)
+  const repaint = marks.connector({ ...fields, id: 'repaint', role: 'chrome', owner: { id: 'relationship', role: 'edge' } })
+  const hidden = marks.group({ id: 'hidden', role: 'chrome', open: '<g>', close: '</g>', paint: { opacity: '0' }, children: [{ node: repaint, indent: 0 }] })
+  // The original triangle occupies x=22..30, y=27.5..32.5, fully inside
+  // the later white card. The final marker reference paints no pixels.
+  expect(sceneNodeSerialization(hidden)).toContain('<g opacity="0">')
+  expect(sceneNodeSerialization(hidden)).toContain('marker-end="url(#arrow)"')
+  const proof = certifyScenePaint(scene([edge, surface(), hidden]))
+  expect(proof.status).toBe('failed')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'relationship', by: 'cover' }))
+  expect(certifyScenePaint(scene([hidden])).checks.markers).toBe(0)
+  expect(certifyScenePaint(scene([edge, surface(), repaint])).status).toBe('passed')
+})
+
+test.each([
+  { opacity: ['1'], status: 'failed' },
+  { opacity: ['1', '1'], status: 'failed' },
+  { opacity: ['0.5'], status: 'passed' },
+  { opacity: ['2', '0.5'], status: 'passed' },
+  { opacity: ['-1', '-1'], status: 'passed' },
+  { opacity: ['var(--unknown,0.5)'], status: 'unverified' },
+  { opacity: ['var(--unknown,0.5)', '0'], status: 'passed' },
+] as const)('group opacity $opacity preserves actual occluder certainty', ({ opacity, status }) => {
+  const cover = opacity.reduce<SceneNode>((node, value, index) => marks.group({ id: `opacity:${index}`, role: 'chrome', open: '<g>', close: '</g>', paint: { opacity: value }, children: [{ node, indent: 0 }] }), surface())
+  expect(sceneNodeSerialization(cover)).toContain(`opacity="${opacity.at(-1)}"`)
+  expect(certifyScenePaint(scene([label(), cover])).status).toBe(status)
+})
+
+test.each(['1', '0.5', 'var(--unknown,0)', 'conditional', 'conditional-unrelated', '-1'] as const)('a later %s marker carrier preserves repaint certainty in both paint producers', opacity => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }
+    const repaint = factory.connector({ ...fields, id: opacity === 'conditional-unrelated' ? 'unrelated' : 'repaint', role: opacity === 'conditional-unrelated' ? 'edge' : 'chrome', owner: { id: opacity === 'conditional-unrelated' ? 'unrelated' : 'relationship', role: 'edge' } })
+    return { ...scene([]), parts: [
+      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: { bg: '#fff', fg: '#111' }, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+      factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+      factory.connector(fields),
+      factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill: '#fff' } }),
+      factory.group({ id: 'repaint-group', role: 'chrome', open: '<g>', close: '</g>', ...(opacity.startsWith('conditional') ? { visibility: 'conditional' as const } : { paint: { opacity } }), children: [{ node: repaint, indent: 0 }] }),
+      factory.documentClose(),
+    ] }
+  }
+  const lowered = producer(marks, context)
+  const expected = opacity === 'conditional' || opacity.startsWith('var(') ? 'unverified' : opacity === '-1' || opacity === 'conditional-unrelated' ? 'failed' : 'passed'
+  expect(certifyScenePaint(lowered).status).toBe(expected)
+  // Out-of-range alpha is refused by native admission; the direct inspector
+  // above still must follow the SVG clamp semantics for its typed input.
+  if (opacity === '-1') return
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('marker-end="url(#arrow)"')
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe(expected)
+})
+
+test.each(['1', 'var(--unknown,0.5)'])('native group opacity %s admits only certain opaque occluders', opacity => {
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => {
+    const cover = factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill: '#fff' } })
+    return { ...scene([]), parts: [
+      factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+      factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
+      factory.group({ id: 'cover-group', role: 'chrome', open: '<g>', close: '</g>', paint: { opacity }, children: [{ node: cover, indent: 0 }] }),
+      factory.documentClose(),
+    ] }
+  }
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain(`opacity="${opacity}"`)
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe(opacity === '1' ? 'failed' : 'unverified')
+})
+
+test.each([
+  { first: { fill: 'rgba(255,255,255,0.5)' }, second: { fill: '#fff' }, status: 'failed' },
+  { first: { fill: '#fff', fillOpacity: '0' }, second: { fill: '#fff' }, status: 'failed' },
+  { first: { fill: '#fff', opacity: '0' }, second: { fill: '#fff' }, status: 'failed' },
+  { first: { fill: 'none' }, second: { fill: '#fff' }, status: 'failed' },
+  { first: { fill: '#fff' }, second: { fill: 'rgba(255,255,255,0.5)' }, status: 'passed' },
+  { first: { fill: '#fff' }, second: { fill: '#fff', fillOpacity: '0' }, status: 'passed' },
+  { first: { fill: '#fff' }, second: { fill: '#fff', fillOpacity: 'var(--unknown,0.5)' }, status: 'unverified' },
+  { first: { fill: '#fff' }, second: { fill: '#fff', opacity: 'var(--unknown,0.5)' }, status: 'unverified' },
+  { first: { fill: '#fff' }, second: { stroke: 'none' }, status: 'unverified' },
+] satisfies Array<{ first: MarkPaint; second: MarkPaint; status: string }>)('compound child fills $first / $second retain independent occluder evidence', ({ first, second, status }) => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }),
+    factory.text({ id: 'text', role: 'label', text: 'Read', block: preparePixelText('Read', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }),
+    factory.shape({ id: 'cover', role: 'node', geometry: { kind: 'compound', children: [{ kind: 'rect', x: 80, y: 10, width: 10, height: 10 }, { kind: 'rect', x: 10, y: 10, width: 60, height: 60 }] }, paint: { fill: 'none', opacity: '0' }, childPaints: [first, second] }),
+    factory.documentClose(),
+  ] })
+  const lowered = producer(marks, context)
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('<rect x="10" y="10" width="60" height="60"')
+  for (const proof of [certifyScenePaint(lowered), certifyNativePaint(drawing.header, drawing.paint)]) {
+    expect(proof.status).toBe(status)
+    // The entire actual triangle and prepared text are inside child1. A
+    // translucent or absent sibling cannot erase this opaque child's ink.
+    if (status === 'failed') {
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'edge', by: 'cover' }))
+      expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'text', by: 'cover' }))
+    }
+  }
+})
+
+test.each(['unfilled-rect', 'filled-rect', 'unfilled-polygon', 'stroke-only-compound', 'standalone-unfilled-rect', 'standalone-line', 'standalone-clear-line', 'clear-rect'] as const)('%s child strokes retain their full outer ink envelope', mode => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+  const clear = mode === 'clear-rect' || mode === 'standalone-clear-line'
+  const standalone = mode.startsWith('standalone')
+  const geometry: Geometry = mode === 'unfilled-polygon' ? { kind: 'polygon', points: [{ x: 40, y: 10 }, { x: 70, y: 10 }, { x: 70, y: 70 }, { x: 40, y: 70 }] } : mode.endsWith('line') ? { kind: 'line', x1: 40, y1: 10, x2: 40, y2: 70 } : { kind: 'rect', x: 40, y: 10, width: 30, height: 60 }
+  const strokePaint = { fill: mode === 'filled-rect' ? '#fff' : 'none', stroke: '#111', strokeWidth: '20' }
+  const producer: DrawingProducer = factory => ({ ...scene([]), parts: [
+    factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80">'),
+    factory.definitions({ id: 'markers' }, `<defs>${serializeMarkerResource(marker)}</defs>`),
+    factory.connector({ id: 'edge', role: 'chrome', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: clear ? 20 : 39, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'another' }, markers: { end: marker } }),
+    factory.shape({ id: 'cover', role: 'node', geometry: standalone ? geometry : { kind: 'compound', children: [{ kind: 'rect', x: 80, y: 10, width: 10, height: 10 }, geometry] }, paint: standalone ? strokePaint : { fill: 'none' }, ...(!standalone ? { childPaints: [{ fill: mode === 'stroke-only-compound' ? 'none' : '#fff' }, strokePaint] } : {}) }),
+    factory.documentClose(),
+  ] })
+  const drawing = drawNative(producer, context, 'flowchart')
+  expect(drawing.svg).toContain('stroke-width="20"')
+  // Marker x=31..39 lies wholly in the left stroke band x=30..50,
+  // although it is outside the rectangle's fill beginning at x=40.
+  const expected = clear ? 'passed' : 'unverified'
+  expect(certifyScenePaint(producer(marks, context)).status).toBe(expected)
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe(expected)
+})
+
+test('the Ishikawa spine declares its actual effect-head contact', () => {
+  const request = resolveRenderRequestForExecution(getFamily('ishikawa')!.example, {}, 'svg')
+  const positioned = positionResolvedFamily('ishikawa', request)
+  const inspection = inspectScenePrimitives(lowerPositionedFamilyScene(request, positioned))
+  const spine = scenePrimitiveSource(inspection.primitives.find(primitive => primitive.id === 'spine')!)!
+  const effect = (positioned.positioned as PositionedIshikawa).nodes.find(node => node.depth === 0)!
+  if (spine.kind !== 'connector') throw new Error('Expected the native effect spine')
+  if (spine.route.geometry.kind !== 'polyline') throw new Error('Expected the native polyline spine')
+  const last = spine.route.geometry.points.at(-1)!
+  expect(last).toEqual({ x: effect.x, y: effect.y + effect.height / 2 })
+  expect(spine.endpoints).toMatchObject({ to: effect.node.id, end: { owner: { id: effect.node.id, role: 'node' }, point: last } })
+  const first = spine.route.geometry.points[0]!
+  expect(sceneNodeSerialization(spine)).toContain(`points="${first.x},${first.y} ${effect.x},${effect.y + effect.height / 2}"`)
+})
+
+test.each(['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-piece'] as const)('%s outlines cannot certify the filled endpoint border band as visible', mode => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 40, x2: 40.4, y2: 40 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } })
+  const geometry = { kind: 'rect' as const, x: 40, y: 10, width: 50, height: 60 }
+  const paint = { fill: '#fff', stroke: '#111', strokeWidth: '10', ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : mode === 'transparent' || mode === 'translucent' ? { strokeOpacity: mode === 'transparent' ? '0' : '0.5' } : {}) }
+  const card = marks.shape({ id: 'node', role: 'node', geometry: mode === 'compound-piece' ? { kind: 'compound', children: [geometry] } : geometry, paint: mode === 'group-opacity' ? { fill: '#fff' } : paint, ...(mode === 'compound-piece' ? { childPaints: [{ fill: '#fff', stroke: 'none' }] } : {}) })
+  const parts: SceneNode[] = [edge, card]
+  if (mode === 'group-opacity') {
+    const outline = marks.shape({ id: 'outline', role: 'node', owner: { id: 'node', role: 'node' }, geometry, paint: { ...paint, fill: 'none' } })
+    parts.push(marks.group({ id: 'translucent-outline', role: 'chrome', open: '<g>', close: '</g>', paint: { opacity: '0.5' }, children: [{ node: outline, indent: 0 }] }))
+  }
+  // The triangle tip enters the opaque fill by 0.4px. A transparent,
+  // translucent or dashed outline supplies no continuous opaque border band.
+  const emitted = parts.map(sceneNodeSerialization).join('\n')
+  expect(emitted).toContain(mode === 'dashed' ? 'stroke-dasharray="1 100"' : mode === 'group-opacity' ? '<g opacity="0.5">' : mode === 'compound-piece' ? 'stroke="none"' : `stroke-opacity="${paint.strokeOpacity}"`)
+  expect(certifyScenePaint(scene(parts))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'edge', by: 'node' })] })
 })
 
 test('separated leaves cannot evade the final occlusion traversal budget', () => {
@@ -588,4 +757,61 @@ test('the retained Native Class clearance witness certifies without changing its
   const rendered = renderMermaidSVGWithReceipt(source, { class: { hierarchicalNamespaces: true }, graphLayout: { backend: 'agentic' }, layoutSafety: 'strict', idPrefix: 'class-clearance-' })
   expect(rendered.receipt.layoutCertification?.status).toBe('passed')
   expect(rendered.receipt.layoutDecisions).toContainEqual(expect.objectContaining({ requested: 'agentic', selected: 'agentic' }))
+})
+
+const cylinderMarker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '0.5', strokeLinejoin: 'round' }, 'userSpaceOnUse')
+function cylinderWitness(inset = 0, extra?: { geometry: Geometry; paint: MarkPaint }, scale = 1) {
+  const local = (value: number) => value / scale
+  const geometry: Geometry = { kind: 'compound', children: [
+    { kind: 'rect', x: local(20), y: local(27), width: local(60), height: local(26) },
+    { kind: 'line', x1: local(20), y1: local(27), x2: local(20), y2: local(53) },
+    { kind: 'line', x1: local(80), y1: local(27), x2: local(80), y2: local(53) },
+    { kind: 'ellipse', cx: local(50), cy: local(53), rx: local(30), ry: local(7) },
+    { kind: 'ellipse', cx: local(50), cy: local(27), rx: local(30), ry: local(7) },
+    ...(extra ? [extra.geometry] : []),
+  ] }
+  const stroke = { stroke: '#111', strokeWidth: String(1 / scale) }
+  const childPaints: MarkPaint[] = [{ fill: '#fff', stroke: 'none' }, { ...stroke, fill: 'none' }, { ...stroke, fill: 'none' }, { ...stroke, fill: '#fff' }, { ...stroke, fill: '#fff' }, ...(extra ? [extra.paint] : [])]
+  const card = marks.shape({ id: 'cylinder', role: 'node', geometry, paint: { ...stroke, fill: '#fff' }, childPaints, ...(scale !== 1 ? { transform: { kind: 'matrix' as const, a: scale, b: 0, c: 0, d: scale, e: 0, f: 0 } } : {}) })
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 50, y1: 2, x2: 50, y2: 20 + inset }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'cylinder' }, markers: { end: cylinderMarker } })
+  return { card, proof: certifyScenePaint(scene([edge, card])) }
+}
+
+test('a cap-attached cylinder marker clears both independently stroked side lines', () => {
+  const { card, proof } = cylinderWitness()
+  // Arrow points downward from (52.5,12),(50,20),(47.5,12). Cap upper
+  // boundary is y=20; side strokes occupy x=19.5..20.5 and 79.5..80.5.
+  expect(sceneNodeSerialization(card)).toContain('<line x1="20" y1="27" x2="20" y2="53" fill="none" stroke="#111" stroke-width="1"')
+  expect(proof.status).toBe('passed')
+})
+
+test('a cap-entering marker stays unverified', () => {
+  expect(cylinderWitness(2).proof.status).toBe('unverified')
+})
+
+test.each(['butt', 'round', 'square'] as const)('%s line-child stroke through marker cannot be excluded with its zero-area fill', strokeLinecap => {
+  const { proof } = cylinderWitness(0, { geometry: { kind: 'line', x1: 40, y1: 15, x2: 60, y2: 15 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '4', strokeLinecap } })
+  expect(proof.status).toBe('unverified')
+})
+
+test('a downscaled non-scaling square-capped line retains its world-space stroke', () => {
+  const { proof } = cylinderWitness(0, { geometry: { kind: 'line', x1: 350, y1: 150, x2: 430, y2: 150 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '10', strokeLinecap: 'square', vectorEffect: 'non-scaling-stroke' } }, 0.1)
+  expect(proof.status).toBe('unverified')
+})
+
+test('unknown line-child stroke units preserve uncertainty', () => {
+  const { proof } = cylinderWitness(0, { geometry: { kind: 'line', x1: 40, y1: 15, x2: 60, y2: 15 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '1em' } })
+  expect(proof.status).toBe('unverified')
+})
+
+test('nested compound paint indices cannot provide an emitted border-band proof', () => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 40, x2: 40.4, y2: 40 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } })
+  const card = marks.shape({ id: 'node', role: 'node', geometry: { kind: 'compound', children: [
+    { kind: 'rect', x: 70, y: 70, width: 5, height: 5 },
+    { kind: 'compound', children: [{ kind: 'rect', x: 40, y: 10, width: 50, height: 60 }] },
+  ] }, paint: { fill: '#fff' }, childPaints: [{ fill: '#fff', stroke: '#111', strokeWidth: '10' }, { fill: '#fff', stroke: 'none' }] })
+  expect(() => sceneNodeSerialization(card)).toThrow('nests compound geometry')
+  // The nested first piece must not borrow the root sibling's 10px band.
+  expect(certifyScenePaint(scene([edge, card])).status).toBe('unverified')
 })

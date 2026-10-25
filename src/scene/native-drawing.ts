@@ -6,7 +6,7 @@ import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
 import { indentLines } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
-import { createOwnedNativePaintRecorder, nativePaintAncestors, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
+import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 
@@ -56,7 +56,7 @@ function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[])
           if (group.matrix !== undefined || parentMatrix !== undefined) {
             parentMatrix = composeMatrices(group.matrix ?? IDENTITY_MATRIX, parentMatrix ?? IDENTITY_MATRIX)
           }
-          groupOpacity = group.opacity * groupOpacity
+          groupOpacity = multiplySceneOpacity(group.opacity, groupOpacity)
           if (group.conditional) conditional = true
         }
         const ancestors = nativePaintAncestors(occurrence?.ancestors, fragment.own)
@@ -124,7 +124,7 @@ export function drawNative(
       const svg = fragments.join(shell.join)
       validator.serialization(svg)
       return { kind: 'group', svg, children, matrix, own, owner: shell.owner,
-        conditional: shell.visibility === 'conditional', opacity: Number(shell.paint?.opacity ?? 1),
+        conditional: shell.visibility === 'conditional', opacity: sceneGroupOpacity(shell.paint?.opacity),
         nodeCount, depth, prepared: !/<\s*text/i.test(shell.open + shell.close) && prepared }
     },
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),

@@ -75,12 +75,26 @@ function finite(box: AxisAlignedBox): boolean {
 function absentPaint(value: string | undefined): boolean {
   return value === 'none' || value === 'transparent' || !!value && tryParseCssColor(value)?.[3] === 0
 }
+
+/** SVG clamps each group's numeric opacity before compositing. Dynamic CSS
+ * stays unknown; treating it as the omitted default would invent opaque ink. */
+export function sceneGroupOpacity(value: string | undefined): number {
+  if (value === undefined) return 1
+  const text = value.trim()
+  if (!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) return Number.NaN
+  const opacity = Number(text)
+  return Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : Number.NaN
+}
+
+export function multiplySceneOpacity(left: number, right: number): number {
+  return left === 0 || right === 0 ? 0 : left * right
+}
 function textPaints(hasText: boolean, paint: MarkPaint): boolean {
   return hasText && Number(paint.opacity ?? 1) !== 0 && (!absentPaint(paint.fill) || paint.stroke !== undefined && !absentPaint(paint.stroke) && Number.parseFloat(paint.strokeWidth ?? '1') !== 0)
 }
 
-/** The paint a shape's surface shows: a compound shape with per-piece paints
- * fills wherever any piece fills, so the first filled piece stands for it. */
+/** A representative paint for inspection display. Compound fill coverage and
+ * opacity must be checked per emitted child; this is not their union proof. */
 export function shapeSurfacePaint(node: Pick<ShapeMark, 'paint' | 'childPaints'>): MarkPaint {
   return node.childPaints?.find(paint => !absentPaint(paint.fill) && Number(paint.opacity ?? 1) !== 0) ?? node.paint
 }
@@ -205,7 +219,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       owner: native && ancestors.includes(owner) ? owner : ownerSnapshot(owner),
       ancestors,
       order: primitives.length, coverage: status,
-      ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
+      ...(conditional || node.visibility === 'conditional' || !Number.isFinite(groupOpacity) ? { visibility: 'conditional' as const } : {}),
       ...(groupOpacity < 1 ? { groupOpacity } : {}),
       ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
       ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
@@ -265,7 +279,7 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails): ScenePaintGeom
       const key = `${prefix}.${index}`
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), Object.freeze([...ancestors, ownerSnapshot(own)]), conditional || node.visibility === 'conditional', multiplySceneOpacity(groupOpacity, sceneGroupOpacity(node.paint?.opacity)))
       } else recorder.leaf(node, key, parent, ancestors, conditional, groupOpacity)
     })
   }
