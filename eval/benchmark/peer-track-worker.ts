@@ -3,7 +3,7 @@ import type { PeerConsumer, PeerPhase, PeerStatus, PeerTrackObservation, TrackIn
 
 type Render = (source: string) => unknown
 export interface TrackJob {
-  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; warmupMs?: number; warmupVariants?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
+  phase: PeerPhase; consumer: PeerConsumer; round: number; samples: number; allocationSamples: number; maxCaseMs: number; warmCalls?: number; warmupMs?: number; coldSamples?: number; coldProbe?: 'timing' | 'allocation' | 'diagnostic'
 }
 const firstLine = (error: unknown) => String(error instanceof Error ? error.message : error).split('\n')[0]!
 const unsupported = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|unsupported.*(?:diagram|Agentic)|diagram type is not supported/i
@@ -31,8 +31,9 @@ export async function measurePeerTrack(options: {
   let latest: TrackVariant | undefined
   const next = (domain: PeerVariantDomain): TrackVariant => {
     const ordinal = ++counters[domain]
-    const variant = domain === 'warmup' ? (ordinal - 1) % (track.warmupVariants ?? 20) + 1 : ordinal
-    return latest = peerTrackVariant(input, track.phase, variant, domain)
+    // Edit tracks prime fresh inputs just as they measure fresh inputs. Cycling
+    // a small working set would prime cache hits before a stream of misses.
+    return latest = peerTrackVariant(input, track.phase, ordinal, domain)
   }
   const invoke = async (variant: TrackVariant) => {
     const start = performance.now()
