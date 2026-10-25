@@ -781,12 +781,11 @@ export function renderState(body: StateBody): string {
   }
   const out: string[] = ['stateDiagram-v2']
   renderScope(body.states, body.transitions, body.direction, '  ', out, notesByScope)
-  // Notes last: colons and semicolons terminate Mermaid single-line notes,
-  // so punctuation-bearing or multiline text uses `note … end note`. Note text is canonical by construction
-  // (validNoteText): trimmed lines, no blank lines, no `end note` line.
+  // An inline note requires text. Empty, multiline and punctuation-bearing
+  // annotations use the block form; colons and semicolons end inline notes.
   for (const n of body.notes ?? []) {
     const text = writeStateText(n.text, n.textContent)
-    if (/[\n:;]/.test(n.text)) {
+    if (!text.trim() || /[\n:;]/.test(n.text)) {
       out.push(`  note ${n.side} of ${n.target}`)
       // Mermaid reads a block whose text starts with a colon, after any
       // blank lines, as a one-line note, and then rejects its `end note`;
@@ -860,12 +859,14 @@ function stateWriteProblem(body: StateBody): string | undefined {
   // composites use Mermaid's exclusive struct state, where these are IDs.
   const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
   let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
+  let invalidClassTarget = body.unresolvedClasses?.find(item => !portableStyleTarget(item.id))?.id
   let invalidBoundary = false
   let invalidStyle = Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name)) || Object.entries(body.classDefs ?? {}).some(([name, style]) => !portableClassLikeStyleProps(style, ownStyleDeclarations(body.classDefDeclarations, name))) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style, item.styleDeclarations))
   const visit = (states: StateNode[], transitions: StateTransition[]): void => {
     for (const state of states) {
       if (state.declarationBeforeTransition !== undefined && (!Number.isInteger(state.declarationBeforeTransition) || state.declarationBeforeTransition < 0 || state.declarationBeforeTransition > transitions.length)) invalidBoundary = true
       if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
+      if (state.className && !portableStyleTarget(state.id)) invalidClassTarget ??= state.id
       if (state.styleDeclarations && !state.style || state.style && !portableClassLikeStyleProps(state.style, state.styleDeclarations)) invalidStyle = true
       if (state.regions) for (const region of state.regions) visit(region.states, region.transitions)
       else if (state.states) visit(state.states, state.transitions ?? [])
@@ -873,6 +874,7 @@ function stateWriteProblem(body: StateBody): string | undefined {
   }
   visit(body.states, body.transitions)
   if (invalidBoundary) return 'State declaration boundary must be an integer within its owning transition sequence'
+  if (invalidClassTarget !== undefined) return `State class target "${invalidClassTarget}" cannot be written as a class assignment in pinned Mermaid; use a target containing only letters, digits, or underscore for typed class editing`
   if (invalidStyle) return 'State style contains text outside the supported SVG attribute domain'
   if (endpoint !== undefined) return `A top-level labeled State transition to "${endpoint}" cannot be written in pinned Mermaid because the destination and colon start an accessibility directive; rename the destination or remove the label for typed editing`
   return invalid === undefined ? undefined : `State style target "${invalid}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore`
@@ -1799,6 +1801,9 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     if (style && style[1]!.split(',').some(id => !portableStyleTarget(id.trim()))) {
       warn(statement, 'state_style_target', 'The style target is preserved in source. Pinned Mermaid accepts only letters, digits, and underscore in style targets, with no quoted alternative; use a portable target for typed editing.')
     }
+    const classShorthand = parseClassShorthandStatement(text)
+    const classTargets = matchStateClassAssignment(text)?.ids ?? (classShorthand ? [classShorthand.id] : [])
+    if (classTargets.some(id => !portableStyleTarget(id))) warn(statement, 'state_class_target', 'Class membership is preserved in source. Pinned Mermaid class assignments require targets containing only letters, digits, or underscore; repair the target before typed class editing.')
     const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
     if (keyword === 'cssClass') {
       warn(statement, 'state_css_class', '`cssClass` is read as `class`, and written so. Pinned Mermaid\'s State grammar has no `cssClass`: it reads the words of the line as states. Write `class A name`.')
