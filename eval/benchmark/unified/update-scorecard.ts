@@ -39,6 +39,9 @@ export interface ScorecardSelection {
   historicalPrs?: string
   currentInvocationRun?: string
   currentInvocationAssets?: string
+  currentDaveRun?: string
+  familyCorrection?: string
+  cliResourceRun?: string
   suiteRuns?: string[]
 }
 function args() {
@@ -50,7 +53,27 @@ function args() {
       continue
     }
     const v = process.argv[++i]
-    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run', '--additional-run', '--cli-native-proof', '--historical-prs', '--current-invocation-run', '--current-invocation-assets', '--suite-run'].includes(k) || !v)
+    if (
+      ![
+        '--run',
+        '--prs',
+        '--output',
+        '--community-run',
+        '--invocation-correction',
+        '--reference-correction',
+        '--current-run',
+        '--additional-run',
+        '--cli-native-proof',
+        '--historical-prs',
+        '--current-invocation-run',
+        '--current-invocation-assets',
+        '--current-dave-run',
+        '--family-correction',
+        '--cli-resource-run',
+        '--suite-run',
+      ].includes(k) ||
+      !v
+    )
       throw Error('Use --run DIRECTORY [--prs DIRECTORY] [--output FILE] [--community-run DIRECTORY] [--invocation-correction FILE] [--reference-correction FILE] [--current-run DIRECTORY] [--additional-run DIRECTORY]')
     if (k === '--suite-run') m.set(k, JSON.stringify([...JSON.parse(m.get(k) ?? '[]'), resolve(v)]))
     else m.set(k, resolve(v))
@@ -77,6 +100,9 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     ['--historical-prs', selection.historicalPrs],
     ['--current-invocation-run', selection.currentInvocationRun],
     ['--current-invocation-assets', selection.currentInvocationAssets],
+    ['--current-dave-run', selection.currentDaveRun],
+    ['--family-correction', selection.familyCorrection],
+    ['--cli-resource-run', selection.cliResourceRun],
   ])
     if (value) validationArgs.push(flag!, value)
   for (const directory of selection.suiteRuns ?? []) validationArgs.push('--suite-run', directory)
@@ -111,6 +137,11 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       if (rank.qualified && (rank.perRoundMs.length !== cli.rounds || rank.perRoundMs.some(v => typeof v !== 'number' || !Number.isFinite(v) || v <= 0) || typeof rank.medianMs !== 'number' || !Number.isFinite(rank.medianMs) || rank.medianMs <= 0)) throw Error('Supplemental CLI rank has invalid timing admission')
     scores.ranks = [...scores.ranks.filter(r => r.surface !== 'cli:end-to-end'), ...cli.ranks]
     scores.familyRanks = [...(scores.familyRanks ?? []).filter(r => r.surface !== 'cli:end-to-end'), ...(admission.cliSupplement?.familyRanks ?? [])]
+    if (admission.cliSupplement?.resourceCorrection) {
+      const resources = JSON.parse(readFileSync(join(admission.cliSupplement.resourceCorrection.directory, 'ranks.json'), 'utf8'))
+      cli.resourceRanks = resources.resourceRanks
+      cli.evidence.resourceObserver = resources.evidence.resourceObserver
+    }
   }
   const lines = [
     '# Mermaid community benchmark ranking',
@@ -120,7 +151,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     'This is a maintained snapshot requested by the project owner. Refresh it with:',
     '',
     '```sh',
-    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.allowCommunityTargetChange ? ' --allow-community-target-change' : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}${selection.currentRun ? ` --current-run ${selection.currentRun}` : ''}${selection.additionalRun ? ` --additional-run ${selection.additionalRun}` : ''}${selection.cliNativeProof ? ` --cli-native-proof ${selection.cliNativeProof}` : ''}${selection.historicalPrs ? ` --historical-prs ${selection.historicalPrs}` : ''}${selection.currentInvocationRun ? ` --current-invocation-run ${selection.currentInvocationRun}` : ''}${selection.currentInvocationAssets ? ` --current-invocation-assets ${selection.currentInvocationAssets}` : ''}${(selection.suiteRuns ?? []).map(directory => ` --suite-run ${directory}`).join('')}`,
+    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.allowCommunityTargetChange ? ' --allow-community-target-change' : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}${selection.currentRun ? ` --current-run ${selection.currentRun}` : ''}${selection.additionalRun ? ` --additional-run ${selection.additionalRun}` : ''}${selection.cliNativeProof ? ` --cli-native-proof ${selection.cliNativeProof}` : ''}${selection.historicalPrs ? ` --historical-prs ${selection.historicalPrs}` : ''}${selection.currentInvocationRun ? ` --current-invocation-run ${selection.currentInvocationRun}` : ''}${selection.currentInvocationAssets ? ` --current-invocation-assets ${selection.currentInvocationAssets}` : ''}${selection.currentDaveRun ? ` --current-dave-run ${selection.currentDaveRun}` : ''}${selection.familyCorrection ? ` --family-correction ${selection.familyCorrection}` : ''}${selection.cliResourceRun ? ` --cli-resource-run ${selection.cliResourceRun}` : ''}${(selection.suiteRuns ?? []).map(directory => ` --suite-run ${directory}`).join('')}`,
     '```',
     '',
     `The JSON community catalog enrolls **${scores.catalogNodes} nodes**, with **${scores.comparatorNodes} configured candidates**. Configuration is not a working-API claim. Actual acquisition, unsupported operations, host failures and source-evidence aliases remain visible; none become passing renderer results by enrollment alone.`,
@@ -167,6 +198,12 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     lines.push(
       '',
       `**Native CLI source binding:** a clean-source rebuild of ${escape(admission.cliSupplement.nativeBinding.sourceRevision)} reproduced the exact previously measured executable SHA256 ${escape(admission.cliSupplement.nativeBinding.executableSha256)}. The post-latency proof adds source provenance; no timing row changes. Proof: ${escape(admission.cliSupplement.nativeBinding.proofFile)}.`,
+      '',
+    )
+  if (admission.cliSupplement?.resourceCorrection)
+    lines.push(
+      '',
+      `**Explicit fixed-work CLI resource observation:** ${escape(admission.cliSupplement.resourceCorrection.policy)} ${escape(admission.cliSupplement.resourceCorrection.startedAt)} → ${escape(admission.cliSupplement.resourceCorrection.finishedAt)}; ${admission.cliSupplement.resourceCorrection.freshQualifiedResourceRanks} qualified resource cohorts. Actual observer ${escape(admission.cliSupplement.resourceCorrection.observer.path)} with recorded byte identity/version. Old missing-observer rows remain at their original paths.`,
       '',
     )
   const groups = new Map<string, Rank[]>()
@@ -402,6 +439,12 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     for (const f of family.familyCoverage) lines.push(`| ${escape(f.family)} | ${f.inputs} | ${f.passed} / ${f.failed} | ${f.observedOperations.length} / ${f.advertisedOperations.length} |`)
     lines.push('', 'Counts describe fresh executable evidence, not exhaustive language-feature coverage. Historical parser/layout assertions, output envelopes, negative cases and independent rendered-label correspondence retain their separate scopes; not-applicable observations are not failures.')
   }
+  if (admission.familyCorrection)
+    lines.push(
+      '',
+      `**Explicit latest family empty-fixture correction:** ${escape(admission.familyCorrection.policy)}. ${admission.familyCorrection.targets.reduce((sum: number, target: any) => sum + target.replacementCount, 0)} independently empty SVG observations across ${admission.familyCorrection.targets.length} targets become unscored N/A using exact fresh evidence. All other original functionality observations and every performance measurement remain unchanged. Manifest: ${escape(admission.familyCorrection.manifest)}.`,
+      '',
+    )
   for (const [campaignLabel, campaignDirectory] of [
     ['Active PR comparisons', prs],
     ['Historical full PR snapshot', selection.historicalPrs],
@@ -479,7 +522,9 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       for (const r of pr.ranks ?? []) {
         const load = (suite: string) => {
           const entry = r.coverage?.find(c => c.suite === suite)
-          return entry?.resultPath && existsSync(entry.resultPath) ? (JSON.parse(readFileSync(entry.resultPath, 'utf8')) as { observations: BenchmarkObservation[] }) : undefined
+          if (!entry?.resultPath || !existsSync(entry.resultPath)) return undefined
+          const correction = admission.familyCorrection?.targets.find((target: any) => realpathSync(target.originalResultPath) === realpathSync(entry.resultPath))
+          return JSON.parse(readFileSync(correction?.correctedResultPath ?? entry.resultPath, 'utf8')) as { observations: BenchmarkObservation[] }
         }
         const count = (suite: string) => {
           const result = load(suite)
@@ -578,6 +623,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       '## Additional maintained target-owned suites',
       '',
       `Completed ${escape(extra.startedAt)} → ${escape(extra.finishedAt)} against \`${escape(extra.targetRevision)}\`, archive SHA256 \`${escape(extra.candidateSha256)}\`. Actual owning source Git objects are verified. This separate ledger does not merge ranks, overwrite original statuses or relabel other suites as current.`,
+      `Actual qualification status: **${escape(extra.qualificationStatus)}**. ${escape(extra.qualificationPolicy)} Actual baseline ${escape(extra.baseline.version)} at ${escape(extra.baseline.revision)}, SHA256 ${escape(extra.baseline.sha256)}. The historical anchor constant does not identify this supplied baseline.`,
       '',
       '| Suite | Status | Complete wall time, s | Owning source Git blob | Observations passed / failed / blocked / N/A |',
       '|---|---|---:|---|---|',
@@ -587,6 +633,11 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
         `| ${escape(suite.id)} | ${escape(suite.status)} | ${typeof suite.elapsedMs === 'number' ? number(suite.elapsedMs / 1000, 1) : 'N/A'} | \`${escape(suite.sourceGitBlob)}\` | ${['passed', 'failed', 'blocked', 'not-applicable'].map(status => suite.observations.filter((row: any) => row.status === status).length).join(' / ')} |`,
       )
     for (const suite of extra.suites) {
+      if (suite.qualification)
+        lines.push(
+          '',
+          `Owning status **${escape(suite.qualification.status)}**, complete=${escape(suite.qualification.complete)}, performanceQualified=${escape(suite.gates?.performanceQualified)}; original outer ledger status ${escape(suite.recordedStatus)} is retained. A completed process is not calibrated qualification.`,
+        )
       const gates = suite.observations.filter((row: any) => row.operation === 'qualification-status')
       if (gates.length) lines.push('', `Actual qualification/completion evidence for **${escape(suite.id)}**:`, '', '```json', JSON.stringify(gates, null, 2), '```')
       if (suite.prerequisites?.length || suite.gaps?.length) lines.push('', ...[...(suite.prerequisites ?? []), ...(suite.gaps ?? [])].map((gap: unknown) => `- ${escape(gap)}`))
@@ -595,6 +646,12 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   }
   if (admission.currentInvocationRun) {
     const latest = admission.currentInvocationRun
+    if (latest.daveDisplayCorrection)
+      lines.push(
+        '',
+        `**Explicit latest Dave display correction:** ${escape(latest.daveDisplayCorrection.policy)} Original status ${escape(latest.daveDisplayCorrection.originalStatus)} at ${escape(latest.daveDisplayCorrection.originalDirectory)}; fresh Dave evidence ${escape(latest.daveDisplayCorrection.replacementDirectory)}.`,
+        '',
+      )
     lines.push(
       '',
       '## Independent latest invocation: ' + latest.attemptCensus.completeness,
@@ -710,6 +767,9 @@ if (import.meta.main) {
     historicalPrs: a.get('--historical-prs'),
     currentInvocationRun: a.get('--current-invocation-run'),
     currentInvocationAssets: a.get('--current-invocation-assets'),
+    currentDaveRun: a.get('--current-dave-run'),
+    familyCorrection: a.get('--family-correction'),
+    cliResourceRun: a.get('--cli-resource-run'),
     suiteRuns: JSON.parse(a.get('--suite-run') ?? '[]'),
   })
 }

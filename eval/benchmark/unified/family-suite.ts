@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { BUILTIN_FAMILY_METADATA } from '../../../src/agent/families.ts'
@@ -7,12 +8,71 @@ import type { Block, BlockBody } from '../../../src/block/types.ts'
 import { displayText } from '../../../src/multiline-utils.ts'
 import { qualifyOutput } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
-import { familyFeatureWorkloads, getWorkloadEvidence } from './workloads.ts'
+import { familyFeatureWorkloads, getWorkloadEvidence, type WorkloadEvidence } from './workloads.ts'
 
 type AgentApi = typeof import('../../../src/agent/core.ts')
 type ProbeResult = { findings?: string[]; bytes?: number; metrics?: BenchmarkObservation['metrics']; detail?: string; status?: BenchmarkObservation['status'] }
 const DRIVER_ROOT = resolve(import.meta.dir, '../../..')
 const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+
+/** Called only after strict XML/root validation reports a canvas-only failure. */
+function explicitZeroCanvas(output: string): { width: number; height: number; viewBox: string } | undefined {
+  type Parser = { on(event: 'opentag', callback: (tag: { attributes: Record<string, { value: string }> }) => void): void; write(source: string): Parser; close(): Parser }
+  const { SaxesParser } = createRequire(import.meta.url)('saxes') as { SaxesParser: new (options: { xmlns: true }) => Parser }
+  let attributes: Record<string, string> | undefined
+  try {
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      attributes ??= Object.fromEntries(Object.entries(tag.attributes).map(([name, value]) => [name, value.value]))
+    })
+    parser.write(output).close()
+  } catch {
+    return undefined
+  }
+  if (!attributes) return undefined
+  const length = (value: string): number => (/^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?:px|pt|pc|cm|mm|in|q)?$/i.test(value.trim()) ? Number.parseFloat(value) : NaN)
+  const width = attributes.width === undefined ? undefined : length(attributes.width),
+    height = attributes.height === undefined ? undefined : length(attributes.height)
+  if ([width, height].some(value => value !== undefined && (!Number.isFinite(value) || value < 0))) return undefined
+  const viewBox = attributes.viewBox
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number)
+  if (viewBox && (viewBox.length !== 4 || !viewBox.every(Number.isFinite) || viewBox[2]! < 0 || viewBox[3]! < 0)) return undefined
+  if ((width === 0 && height === 0) || (viewBox?.[2] === 0 && viewBox[3] === 0)) return { width: 0, height: 0, viewBox: attributes.viewBox ?? '' }
+  return undefined
+}
+
+export function qualifyFamilySvg(workload: UnifiedWorkload, output: string, evidence: WorkloadEvidence | undefined, observedLayout: { nodes: number; edges: number; groups: number } | undefined): ProbeResult {
+  const qualification = qualifyOutput(workload, output, 'svg')
+  const assertions = evidence?.assertions
+  const independentlyEmpty = assertions?.nodeCount === 0 && assertions.edgeCount === 0 && assertions.groupCount === 0 && !(assertions.minNodes || assertions.minEdges || assertions.minGroups || assertions.renderError) && !assertions.labelsContain?.length && !workload.expectedLabels?.length
+  const actuallyEmpty = observedLayout?.nodes === 0 && observedLayout.edges === 0 && observedLayout.groups === 0
+  const canvasOnly = qualification.findings.length === 1 && qualification.findings[0] === 'SVG has no positive finite viewBox or explicit canvas'
+  const zeroCanvas = canvasOnly && independentlyEmpty && actuallyEmpty ? explicitZeroCanvas(output) : undefined
+  if (zeroCanvas)
+    return {
+      status: 'not-applicable',
+      bytes: Buffer.byteLength(output),
+      metrics: {
+        qualificationScope: 'independently-empty-svg-positive-canvas-unmeasured',
+        explicitLabelExpectations: 0,
+        independentNodes: 0,
+        independentEdges: 0,
+        independentGroups: 0,
+        observedLayoutNodes: 0,
+        observedLayoutEdges: 0,
+        observedLayoutGroups: 0,
+        ownerProvenance: evidence!.origins.join('; '),
+        emptyCanvasWidth: zeroCanvas.width,
+        emptyCanvasHeight: zeroCanvas.height,
+        emptyCanvasViewBox: zeroCanvas.viewBox,
+      },
+      detail:
+        'Independent fixture assertions and actual owned layout both contain zero nodes, edges and groups, with no diagram-label expectations. XML/root namespace validation completed and an explicit finite zero canvas was independently read from root attributes; positive canvas fidelity is not applicable to this empty diagram. Parse, structure, verification, round-trip and layout observations remain separate. Universal SVG qualification is unchanged.',
+    }
+  return { findings: qualification.findings, bytes: Buffer.byteLength(output), metrics: { qualificationScope: qualification.scope, explicitLabelExpectations: workload.expectedLabels?.length ?? 0 } }
+}
 
 /** Mutation stimuli are keyed by operation, not a second family roster. A
  * schema-admitted operation must actually change the returned diagram and
@@ -235,6 +295,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
   for (const workload of workloads) {
     observedFamilies.add(workload.family)
     const evidence = getWorkloadEvidence(workload.id)
+    let observedLayout: { nodes: number; edges: number; groups: number } | undefined
     const parsed = api.parseRegisteredMermaid(workload.source)
     if (evidence?.diagnosticOnly) {
       observations.push({
@@ -286,6 +347,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
       if (evidence?.parserOnly) return { status: 'not-applicable', detail: 'Owner declares a parser-only fixture; successful scheduling/layout is not its contract.' }
       const layout = api.layoutMermaid(diagram),
         findings = independentAssertions(workload, diagram, layout)
+      observedLayout = { nodes: layout.nodes.length, edges: layout.edges.length, groups: layout.groups.length }
       if (layout.kind !== workload.family) findings.push(`Layout routed to ${layout.kind}`)
       for (const node of layout.nodes)
         for (const field of ['x', 'y', 'w', 'h'] as const) {
@@ -299,6 +361,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
         if (evidence?.parserOnly) return { status: 'not-applicable', detail: 'Owner declares a parser-only fixture; output success is unmeasured.' }
         const result = format === 'svg' ? api.renderMermaidSVG(diagram, { embedFontImport: false }) : api.renderMermaidASCII(diagram, { colorMode: 'none', useAscii: false })
         if (format === 'unicode' && !result.trim() && evidence?.emptyDiagramExpected) return { status: 'not-applicable', bytes: 0, metrics: { emptyOutput: true, declaredEmpty: true }, detail: 'Owner declares an empty model; nonempty terminal ink is not promised.' }
+        if (format === 'svg') return qualifyFamilySvg(workload, result, evidence, observedLayout)
         const qualification = qualifyOutput(workload, result, format)
         return { findings: qualification.findings, bytes: Buffer.byteLength(result), metrics: { qualificationScope: qualification.scope, explicitLabelExpectations: workload.expectedLabels?.length ?? 0 } }
       })

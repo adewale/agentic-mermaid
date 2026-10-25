@@ -59,7 +59,7 @@ describe('unified suite execution lifecycle', () => {
       for (const path of ['src/__tests__', 'docs/project', 'eval/mermaid-upstream-suite-bench', 'eval/agent-usage']) mkdirSync(join(directory, path), { recursive: true })
       writeFileSync(join(directory, 'docs/project/upstream-mermaid-policy.json'), JSON.stringify({ pin: { version: 'fixture', commit: 'fixture' } }))
       writeFileSync(join(directory, 'eval/mermaid-upstream-suite-bench/manifest.json'), JSON.stringify({ upstream: { revision: 'fixture' } }))
-      writeFileSync(join(directory, 'package.json'), JSON.stringify({ scripts: { 'bench:slow-fixture': 'bun run slow.ts', 'bench:after-fixture': 'bun run after.ts', 'bench:incomplete-fixture': 'bun run incomplete.ts' } }))
+      writeFileSync(join(directory, 'package.json'), JSON.stringify({ scripts: { 'bench:slow-fixture': 'bun run slow.ts', 'bench:after-fixture': 'bun run after.ts', 'bench:incomplete-fixture': 'bun run incomplete.ts', 'bench:uncalibrated-fixture': 'bun run uncalibrated.ts' } }))
       writeFileSync(join(directory, 'eval/agent-usage/live.ts'), 'throw new Error("blocked provider must never launch")\n')
       writeFileSync(join(directory, 'grandchild.ts'), 'setInterval(() => {}, 1000)\n')
       writeFileSync(
@@ -69,8 +69,9 @@ describe('unified suite execution lifecycle', () => {
           : 'setInterval(() => {}, 1000)\n',
       )
       writeFileSync(join(directory, 'incomplete.ts'), 'import{writeFileSync}from"node:fs";writeFileSync(process.env.AM_BENCH_SUITE_OUT+"/qualification-status.json",JSON.stringify({status:"incomplete"}))\n')
+      writeFileSync(join(directory, 'uncalibrated.ts'), 'import{writeFileSync}from"node:fs";writeFileSync(process.env.AM_BENCH_SUITE_OUT+"/qualification-status.json",JSON.stringify({status:"uncalibrated",complete:true}))\n')
       writeFileSync(join(directory, 'after.ts'), 'console.log("later suite completed")\n')
-      const options = parseOptions(['--out', join(directory, 'evidence'), '--suites', 'slow-fixture,agent-live,incomplete-fixture,after-fixture', '--timeout-ms', '800'])
+      const options = parseOptions(['--out', join(directory, 'evidence'), '--suites', 'slow-fixture,agent-live,incomplete-fixture,uncalibrated-fixture,after-fixture', '--timeout-ms', '800'])
       const report = await runUnified({ ...options, harnessRoot: directory, root: directory })
       const slow = report.suites.find(suite => suite.id === 'slow-fixture')!
       const after = report.suites.find(suite => suite.id === 'after-fixture')!
@@ -95,6 +96,10 @@ describe('unified suite execution lifecycle', () => {
       expect(incomplete.exitCode).toBe(0)
       expect(incomplete.status).toBe('blocked')
       expect(incomplete.result?.gaps.join(' ')).toContain('declares incomplete')
+      const uncalibrated = report.suites.find(suite => suite.id === 'uncalibrated-fixture')!
+      expect(uncalibrated.exitCode).toBe(0)
+      expect(uncalibrated.status).toBe('blocked')
+      expect(uncalibrated.result?.gaps.join(' ')).toContain('declares uncalibrated')
       expect(readFileSync(join(options.out, after.log!), 'utf8')).toContain('later suite completed')
       expect(existsSync(join(options.out, 'report.json'))).toBe(true)
       const cancelling = runUnified({ ...options, harnessRoot: directory, root: directory, out: join(directory, 'cancelled'), timeoutMs: 5000, selected: ['slow-fixture', 'after-fixture'] })

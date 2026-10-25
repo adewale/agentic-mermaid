@@ -173,7 +173,7 @@ function declaredReports(directory: string, notBefore: number) {
       if (value.status === 'failed' || value.ok === false || checks.length) {
         status = 'failed'
         gaps.push(`${name} declares failed qualification${checks.length ? ': ' + checks.map((check: any) => check.name ?? 'unnamed gate').join(', ') : ''}`)
-      } else if (['incomplete', 'running', 'started'].includes(value.status)) {
+      } else if (['incomplete', 'running', 'started', 'uncalibrated'].includes(value.status)) {
         status ??= 'blocked'
         gaps.push(`${name} declares ${value.status}; process completion is not complete benchmark evidence`)
       }
