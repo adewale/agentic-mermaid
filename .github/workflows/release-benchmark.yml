@@ -1,281 +1,43 @@
-name: Release benchmark
-
-# Performance, memory and correctness of the built package against a baseline
-# npm release, measured on one runner in interleaved fresh Node processes.
-# Called by publish.yml with its verified publication artifact; runnable on demand.
-
+# One-off evidence branch only. Root binds actual artifact inputs and reviews
+# this file before publication/one dispatch; never a maintained product PR.
+name: Exact release Sequence300 attribution
 on:
-  workflow_call:
-    inputs:
-      evidence-scope:
-        description: all runs current-main and semantic qualification; fixed runs only historical evidence
-        type: string
-        default: all
-      candidate-artifact:
-        description: Verified publication artifact from this workflow run (empty builds locally)
-        type: string
-        default: ''
-      baseline:
-        description: npm version or tag to compare against
-        type: string
-        default: latest
-      fixed-baseline-sha:
-        description: Optional immutable source baseline for additional fixed and peer evidence
-        type: string
-        default: ''
   workflow_dispatch:
     inputs:
-      evidence-scope:
-        description: Select complete qualification or historical fixed-anchor evidence only
-        type: choice
-        default: all
-        options: [all, fixed]
-      baseline:
-        description: npm version or tag to compare against
+      study-run-id:
+        description: Warm-A2 run containing the actual baseline package
         type: string
-        default: latest
-      fixed-baseline-sha:
-        description: Optional immutable source baseline for additional fixed and peer evidence
+        required: true
+        default: '40235414753'
+      package-artifact-id:
+        description: bounded-runtime-packages artifact ID from that run
         type: string
-        default: ''
-
-      baseline-ref:
-        description: Optional immutable Git commit instead of an npm baseline (on-demand only)
+        required: true
+        default: '12614488791'
+      archive-sha256:
+        description: Reviewed actual baseline/package/package.tgz SHA256
         type: string
-        default: ''
-      review-fixtures:
-        description: Optional space-separated existing visual review fixture IDs
+        required: true
+        default: '234fad0aea603fdda43e04c39bdeb5aa2e2b7c6a81940c4f86b15c689a3874f3'
+      archive-integrity:
+        description: Reviewed actual baseline tarball SHA512 SRI
         type: string
-        default: ''
-
+        required: true
+        default: 'sha512-K2kuQVxbLaWTx+w4RArvIF2eePDvVR0h2BWgzBo39zipbqhM1qqlZTlLlm85j8QcKet/ZB52u8fACCxE6Y5gyw=='
 permissions:
   contents: read
   actions: read
-
 jobs:
-  benchmark:
-    name: Benchmark against agentic-mermaid@${{ inputs.baseline }}
+  profile:
     runs-on: ubuntu-latest
-    timeout-minutes: 105
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Validate and record requested evidence scope
-        env:
-          EVIDENCE_SCOPE: ${{ inputs.evidence-scope }}
-          FIXED_BASELINE_SHA: ${{ inputs.fixed-baseline-sha }}
-        run: |
-          scope="${EVIDENCE_SCOPE:-all}"
-          case "$scope" in all|fixed) ;; *) echo 'evidence-scope must be all or fixed' >&2; exit 1 ;; esac
-          if [ "$scope" = fixed ]; then
-            [[ "$FIXED_BASELINE_SHA" =~ ^[a-fA-F0-9]{40}$ ]] || { echo 'fixed scope requires a full fixed-baseline-sha' >&2; exit 1; }
-          fi
-          mkdir -p bench-report
-          jq -n --arg scope "$scope" '{requestedScope:$scope,fullQualificationRequested:($scope == "all"),skippedLanes:(if $scope == "fixed" then ["current-baseline Node comparisons","browser scorecard","semantic cache-off and cache-on qualification"] else [] end)}' > bench-report/evidence-scope.json
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-          no-cache: true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: '24'
-          package-manager-cache: false
-
-      - name: Install frozen dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build the candidate package
-        if: inputs.candidate-artifact == ''
-        run: bun run build
-
-      - name: Install the pinned npm
-        run: |
-          npm install -g npm@11.18.0 --ignore-scripts
-          test "$(npm --version)" = "11.18.0"
-
-      - name: Build an immutable Git baseline
-        if: (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') && inputs.baseline-ref != ''
-        env:
-          BASELINE_REF: ${{ inputs.baseline-ref }}
-        run: |
-          [[ "$BASELINE_REF" =~ ^[a-f0-9]{40}$ ]]
-          git fetch --no-tags origin "$BASELINE_REF"
-          git worktree add --detach "$RUNNER_TEMP/benchmark-baseline" "$BASELINE_REF"
-          cd "$RUNNER_TEMP/benchmark-baseline"
-          bun install --frozen-lockfile
-          bun run build
-          mkdir -p "$GITHUB_WORKSPACE/benchmark-baseline"
-          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/benchmark-baseline"
-          mv "$GITHUB_WORKSPACE"/benchmark-baseline/*.tgz "$GITHUB_WORKSPACE/benchmark-baseline/package.tgz"
-
-      - name: Restore and resolve the immutable benchmark baseline
-        if: (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') && inputs.baseline-ref == ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BASELINE: ${{ inputs.baseline }}
-          BASELINE_ARTIFACT: release-benchmark-baseline-${{ github.run_id }}
-        run: |
-          mkdir -p benchmark-baseline
-          artifacts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-            --jq '.artifacts[] | select(.name == env.BASELINE_ARTIFACT and .expired == false) | .id')"
-          if [ -n "$artifacts" ]; then
-            gh run download "$GITHUB_RUN_ID" --name "$BASELINE_ARTIFACT" --dir benchmark-baseline
-          elif [ "$GITHUB_RUN_ATTEMPT" -gt 1 ] && ! [[ "$BASELINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
-            echo "The previous baseline artifact is unavailable. Start an on-demand run with an explicit previous npm version." >&2
-            exit 1
-          fi
-          bun run eval/benchmark/release-baseline.ts "$BASELINE" benchmark-baseline/baseline.json
-
-      - name: Persist the baseline before measuring
-        if: (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') && inputs.baseline-ref == ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: release-benchmark-baseline-${{ github.run_id }}
-          path: benchmark-baseline/baseline.json
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 30
-
-      - name: Pack and verify the candidate package
-        if: inputs.candidate-artifact == ''
-        run: bun run scripts/ci/verify-publish-package.ts --pack-destination release-artifact
-
-      - name: Download the verified publication artifact
-        if: inputs.candidate-artifact != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: ${{ inputs.candidate-artifact }}
-          path: release-artifact
-
-      - name: Verify the candidate artifact identity
-        run: |
-          test "$(find release-artifact -mindepth 1 -maxdepth 1 -exec printf x \; | wc -c)" -eq 3
-          for artifact_file in package.tgz package.sha256 package-manifest.json; do
-            test -f "release-artifact/$artifact_file"
-            test ! -L "release-artifact/$artifact_file"
-          done
-          test "$(jq -r '.schemaVersion' release-artifact/package-manifest.json)" = 1
-          test "$(jq -r '.filename' release-artifact/package-manifest.json)" = package.tgz
-          manifest_sha="$(jq -er '.sha256 | select(type == "string")' release-artifact/package-manifest.json)"
-          test "${#manifest_sha}" -eq 64
-          case "$manifest_sha" in *[!0-9a-f]*) exit 1;; esac
-          printf '%s  package.tgz\n' "$manifest_sha" | cmp --silent - release-artifact/package.sha256
-          actual_sha="$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)"
-          test "$actual_sha" = "$manifest_sha"
-          manifest_integrity="$(jq -er '.integrity | select(type == "string")' release-artifact/package-manifest.json)"
-          actual_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")"
-          test "$actual_integrity" = "$manifest_integrity"
-
-      - name: Record verified candidate provenance
-        env:
-          CANDIDATE_ARTIFACT: ${{ inputs.candidate-artifact }}
-        run: |
-          checkout_revision="$(git rev-parse HEAD)"
-          test "$checkout_revision" = "$GITHUB_SHA"
-          mkdir -p bench-report
-          jq -n --arg checkoutRevision "$checkout_revision" --arg eventRevision "$GITHUB_SHA" \
-            --arg workflowRevision "${GITHUB_WORKFLOW_SHA:-}" --arg workflowRef "${GITHUB_WORKFLOW_REF:-}" \
-            --arg candidateArtifact "$CANDIDATE_ARTIFACT" \
-            --arg packageSha256 "$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)" \
-            --arg packageIntegrity "$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")" \
-            '$ARGS.named + {artifactOrigin:(if $candidateArtifact == "" then "built in this job" else "provided verified publication artifact" end)}' > bench-report/candidate-provenance.json
-
-      - name: Retain the verified candidate for semantic gates and optional fixed evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: fixed-benchmark-candidate-${{ github.run_id }}
-          path: release-artifact/
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 30
-
-      - name: Record Git comparison provenance
-        if: (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') && inputs.baseline-ref != ''
-        env:
-          BASELINE_REF: ${{ inputs.baseline-ref }}
-        run: |
-          test "$(git -C "$RUNNER_TEMP/benchmark-baseline" rev-parse HEAD)" = "$BASELINE_REF"
-          mkdir -p bench-report
-          jq -n --arg baselineRevision "$BASELINE_REF" --arg candidateRevision "$GITHUB_SHA" \
-            --arg baselinePackageSha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" \
-            --arg candidatePackageSha256 "$(jq -er '.sha256' release-artifact/package-manifest.json)" \
-            --arg baselineEntrySha256 "$(sha256sum "$RUNNER_TEMP/benchmark-baseline/dist/index.js" | cut -d ' ' -f 1)" \
-            --arg candidateEntrySha256 "$(tar -xOf release-artifact/package.tgz package/dist/index.js | sha256sum | cut -d ' ' -f 1)" \
-            '$ARGS.named' > bench-report/build-provenance.json
-
-      - name: Generate requested visual review evidence
-        if: (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') && inputs.review-fixtures != '' && inputs.baseline-ref != ''
-        env:
-          BASELINE_REF: ${{ inputs.baseline-ref }}
-          REVIEW_FIXTURES: ${{ inputs.review-fixtures }}
-        run: |
-          read -r -a fixtures <<< "$REVIEW_FIXTURES"
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASELINE_REF" "$GITHUB_SHA" bench-report/visual "${fixtures[@]}"
-
-      - name: Benchmark candidate against the Git baseline
-        if: (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') && inputs.baseline-ref != ''
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" \
-            --baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" \
-            --runtime-source "$RUNNER_TEMP/benchmark-baseline" --out bench-report
-
-      - name: Benchmark candidate against the baseline release
-        if: (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') && inputs.baseline-ref == ''
-        env:
-          BASELINE: ${{ inputs.baseline }}
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --runtime-comparison normalized-npm-compound --out bench-report
-
-      - name: Install Chromium for the advisory browser scorecard
-        if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
-        continue-on-error: true
-        timeout-minutes: 5
-        # An unrelated apt repository can fail on the hosted image even when
-        # Chromium's libraries are already installed. Still fetch the pinned
-        # browser; the scorecard's real launch will verify its dependencies.
-        run: bunx playwright install --with-deps chromium || bunx playwright install chromium
-
-      - name: Measure exact-artifact browser and competitor performance
-        if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
-        continue-on-error: true
-        timeout-minutes: 13
-        env:
-          BASELINE_REF: ${{ inputs.baseline-ref }}
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          baseline_args=(--baseline-lock benchmark-baseline/baseline.json --runtime-comparison normalized-npm-compound)
-          if [ -n "$BASELINE_REF" ]; then
-            baseline_args=(--baseline-tarball benchmark-baseline/package.tgz --baseline-sha256 "$(sha256sum benchmark-baseline/package.tgz | cut -d ' ' -f 1)" --runtime-source "$RUNNER_TEMP/benchmark-baseline")
-          fi
-          timeout 12m bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" "${baseline_args[@]}" --out bench-report
-
-      - name: Upload the benchmark report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: release-benchmark-${{ github.sha }}
-          path: |
-            bench-report/
-            benchmark-baseline/baseline.json
-          if-no-files-found: warn
-          overwrite: true
-
-  # Repeated controls and candidate runs are serial within each cache-policy
-  # runner. Never combine timings between these jobs or with release medians.
-  semantic-baseline:
-    name: Pin and pack the semantic campaign baseline
-    needs: benchmark
-    if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: cc6fc54a322187c0b0e41408ca1bfe2e0724169b
+          path: selected-source
+          persist-credentials: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.2
@@ -284,416 +46,44 @@ jobs:
         with:
           node-version: '24.19.0'
           package-manager-cache: false
-      - name: Build one immutable comparison archive
-        env:
-          REQUESTED_REF: ${{ inputs.baseline-ref }}
+      - name: Install frozen tooling only; do not build a package
         run: |
+          bun install --frozen-lockfile --ignore-scripts
           npm install -g npm@11.18.0 --ignore-scripts
-          test "$(npm --version)" = "11.18.0"
-          mkdir -p semantic-baseline
-          if [ -n "$REQUESTED_REF" ]; then
-            [[ "$REQUESTED_REF" =~ ^[a-f0-9]{40}$ ]]
-            git fetch --no-tags origin "$REQUESTED_REF"
-            baseline_revision="$REQUESTED_REF"
-          else
-            git fetch --no-tags origin main
-            baseline_revision="$(git rev-parse FETCH_HEAD)"
-          fi
-          git worktree add --detach "$RUNNER_TEMP/semantic-main" "$baseline_revision"
-          printf '%s\n' "$baseline_revision" > semantic-baseline/source.sha
-          cp "$RUNNER_TEMP/semantic-main/bun.lock" semantic-baseline/source.bun.lock
-          cd "$RUNNER_TEMP/semantic-main"
-          bun install --frozen-lockfile
-          bun run build
-          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/semantic-baseline"
-          mv "$GITHUB_WORKSPACE"/semantic-baseline/*.tgz "$GITHUB_WORKSPACE/semantic-baseline/package.tgz"
-          cd "$GITHUB_WORKSPACE/semantic-baseline"
-          sha256sum package.tgz > package.sha256
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: semantic-baseline-${{ github.run_id }}
-          path: semantic-baseline/
-          if-no-files-found: error
-          retention-days: 30
-
-  semantic-performance:
-    name: Semantic ${{ matrix.cache }} / ${{ matrix.phase }} / ${{ matrix.consumer }}
-    needs: [benchmark, semantic-baseline]
-    if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 300
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix:
-        cache: ['off', 'on']
-        phase: ['first-use', 'warm-new-source', 'exact-repeat', 'label-edit']
-        consumer: ['svg-utf8', 'receipt-json-utf8']
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-          no-cache: true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: '24.19.0'
-          package-manager-cache: false
-
-      - name: Install frozen harness and pinned npm
-        run: |
-          bun install --frozen-lockfile
-          npm install -g npm@11.18.0 --ignore-scripts
-          test "$(npm --version)" = "11.18.0"
-
-      - name: Download the exact verified candidate
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: fixed-benchmark-candidate-${{ github.run_id }}
-          path: release-artifact
-
-      - name: Download the campaign's single baseline archive
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: semantic-baseline-${{ github.run_id }}
-          path: semantic-evidence/baseline
-
-      - name: Retain and verify baseline policy source
-        run: |
-          cd semantic-evidence/baseline
-          sha256sum --check package.sha256
-          baseline_revision="$(cat source.sha)"
-          [[ "$baseline_revision" =~ ^[a-f0-9]{40}$ ]]
-          git fetch --no-tags origin "$baseline_revision"
-          git worktree add --detach "$RUNNER_TEMP/semantic-main" "$baseline_revision"
-          cd "$GITHUB_WORKSPACE"
-          cp bun.lock semantic-evidence/candidate-source.bun.lock
-
-      - name: Calibrate twice and apply separate semantic performance scorecards
-        env:
-          CACHE_POLICY: ${{ matrix.cache }}
-          TRACK_PHASE: ${{ matrix.phase }}
-          TRACK_CONSUMER: ${{ matrix.consumer }}
-        run: |
-          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          printf '%s  release-artifact/package.tgz\n' "$candidate_sha" | sha256sum --check
-          baseline_sha="$(sha256sum semantic-evidence/baseline/package.tgz | cut -d ' ' -f 1)"
-          bun run bench:peers:qualify --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" \
-            --baseline-tarball semantic-evidence/baseline/package.tgz --baseline-sha256 "$baseline_sha" \
-            --runtime-source "$RUNNER_TEMP/semantic-main" --elk-cache "$CACHE_POLICY" --rounds 5 \
-            --phase "$TRACK_PHASE" --consumer "$TRACK_CONSUMER" --out semantic-evidence
-
-      - name: Retain all controls, failures, cache events and scorecards
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: semantic-performance-${{ github.sha }}-cache-${{ matrix.cache }}-phase-${{ matrix.phase }}-consumer-${{ matrix.consumer }}-${{ github.run_attempt }}
-          path: semantic-evidence/
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish qualification status
-        if: always()
-        run: |
-          if [ -f semantic-evidence/gates.md ]; then
-            cat semantic-evidence/gates.md >> "$GITHUB_STEP_SUMMARY"
-          else
-            printf 'Semantic performance incomplete: inspect retained setup and worker evidence.\n' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-
-  semantic-campaign:
-    name: Complete semantic campaign decision
-    needs: semantic-performance
-    if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-          no-cache: true
-      - run: bun install --frozen-lockfile
+          test "$(npm --version)" = '11.18.0'
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: semantic-performance-${{ github.sha }}-*
-          path: semantic-shards
-      - name: Require all16 paired and source-matched shards
-        run: bun run eval/benchmark/aggregate-semantic-performance.ts semantic-shards semantic-campaign
-      - name: Retain the full decision and per-runner provenance
+          artifact-ids: ${{ inputs.package-artifact-id }}
+          run-id: ${{ inputs.study-run-id }}
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: bound-packages
+      - name: Bind inputs and execute four serial diagnostics once
+        env:
+          STUDY_RUN: ${{ inputs.study-run-id }}
+          PACKAGE_ARTIFACT: ${{ inputs.package-artifact-id }}
+          ARCHIVE_SHA256: ${{ inputs.archive-sha256 }}
+          ARCHIVE_INTEGRITY: ${{ inputs.archive-integrity }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re, shutil
+          assert re.fullmatch(r'\d+', os.environ['STUDY_RUN'])
+          assert re.fullmatch(r'\d+', os.environ['PACKAGE_ARTIFACT'])
+          assert re.fullmatch(r'[a-f0-9]{64}', os.environ['ARCHIVE_SHA256'])
+          assert re.fullmatch(r'sha512-[A-Za-z0-9+/]+=*', os.environ['ARCHIVE_INTEGRITY'])
+          root = pathlib.Path.cwd()
+          helper = root / 'diagnostic/sequence300-profile'
+          config = {'sourceRevision':'cc6fc54a322187c0b0e41408ca1bfe2e0724169b','harnessRoot':str(root),'sourceRoot':str(root/'selected-source'),'artifactRoot':str(root/'bound-packages'),'buildHarnessRevision':'3217d187829f0dd337e33c6a846f03c8bdb8961b','profileHarnessParent':'075b79edf14c3645f1eac3f9b81cb6d3efa7ccba','artifactRunId':os.environ['STUDY_RUN'],'artifactId':os.environ['PACKAGE_ARTIFACT'],'archiveSha256':os.environ['ARCHIVE_SHA256'],'archiveIntegrity':os.environ['ARCHIVE_INTEGRITY'],'prefix':str(pathlib.Path(os.environ['RUNNER_TEMP'])/'sequence300-consumer'),'out':str(root/'profile-evidence'),'node':shutil.which('node'),'bun':shutil.which('bun')}
+          (helper/'job-config.json').write_text(json.dumps(config,indent=2))
+          PY
+          python3 diagnostic/sequence300-profile/acquire-and-profile.py diagnostic/sequence300-profile/job-config.json
+      - name: Retain raw profiles, witnesses, populations and failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: semantic-campaign-${{ github.sha }}-${{ github.run_attempt }}
-          path: semantic-campaign/
+          name: exact-sequence300-attribution-${{ github.run_id }}
+          path: |
+            profile-evidence/
+            diagnostic/sequence300-profile/
           if-no-files-found: error
           retention-days: 30
-      - name: Publish complete campaign status
-        if: always()
-        run: |
-          if [ -f semantic-campaign/campaign.md ]; then
-            cat semantic-campaign/campaign.md >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo 'Semantic campaign incomplete; no aggregate decision was produced.' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-
-  # A separate optional runner keeps the existing release job's 105-minute
-  # budget unchanged. Compare timings only within this job, never across jobs.
-  fixed-evidence:
-    name: Fixed baseline and pinned peer evidence
-    needs: benchmark
-    if: ${{ !cancelled() && inputs.fixed-baseline-sha != '' && (inputs.evidence-scope == 'fixed' || inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 105
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Initialize optional evidence and validate the fixed source pin
-        id: fixed_config
-        if: ${{ !cancelled() }}
-        env:
-          REQUESTED_SHA: ${{ inputs.fixed-baseline-sha }}
-          EVIDENCE_SCOPE: ${{ inputs.evidence-scope }}
-        run: |
-          mkdir -p fixed-evidence
-          jq -n --arg scope "${EVIDENCE_SCOPE:-all}" --arg sha "$REQUESTED_SHA" --arg candidate "$GITHUB_SHA" \
-            '{status:"incomplete", requestedScope:$scope, runtimeComparison:"historical-compound", isolatedProductionGain:false, requestedBaselineSha:$sha, candidateSourceSha:$candidate, timingScope:"this job only"}' > fixed-evidence/identity.json
-          [[ "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo 'fixed-baseline-sha must be one full 40-character commit SHA' >&2; exit 1; }
-          printf 'FIXED_BASELINE_SHA=%s\n' "${REQUESTED_SHA,,}" >> "$GITHUB_ENV"
-          jq -n '{fixed:{rounds:5,reps:3,budgetMs:1200000,corpus:"complete official and scaling/workflow inputs",cacheModes:["off","on"]},aa:{rounds:5,reps:3,budgetMs:1200000,corpus:"complete official and scaling/workflow inputs",cache:"off",identity:"same installed verified baseline package and runtime dependency tree"},peers:{rounds:5,timeoutSeconds:300,ids:["agentic","beautiful","zombie","pele"],cacheModes:["off","on"],advisory:true},sceneAssertions:"off"}' > fixed-evidence/config.json
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-          no-cache: true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: '24.19.0'
-          package-manager-cache: false
-
-      - name: Install the pinned npm and frozen harness dependencies
-        timeout-minutes: 5
-        run: |
-          npm install -g npm@11.18.0 --ignore-scripts
-          test "$(npm --version)" = "11.18.0"
-          bun install --frozen-lockfile
-          node -p 'JSON.stringify(process.versions, null, 2)' > fixed-evidence/runtime.json
-          bun --version > fixed-evidence/bun-version.txt
-          npm --version > fixed-evidence/npm-version.txt
-          cp bun.lock fixed-evidence/candidate-source.bun.lock
-
-      - name: Download the exact candidate retained before the normal gate
-        id: fixed_candidate
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: fixed-benchmark-candidate-${{ github.run_id }}
-          path: release-artifact
-
-      - name: Reverify the closed candidate artifact
-        id: fixed_candidate_identity
-        run: |
-          test "$(find release-artifact -mindepth 1 -maxdepth 1 -exec printf x \; | wc -c)" -eq 3
-          for artifact_file in package.tgz package.sha256 package-manifest.json; do
-            test -f "release-artifact/$artifact_file"
-            test ! -L "release-artifact/$artifact_file"
-          done
-          test "$(jq -r '.schemaVersion' release-artifact/package-manifest.json)" = 1
-          test "$(jq -r '.filename' release-artifact/package-manifest.json)" = package.tgz
-          candidate_sha="$(jq -er '.sha256 | select(type == "string")' release-artifact/package-manifest.json)"
-          [[ "$candidate_sha" =~ ^[0-9a-f]{64}$ ]]
-          printf '%s  package.tgz\n' "$candidate_sha" | cmp --silent - release-artifact/package.sha256
-          test "$(sha256sum release-artifact/package.tgz | cut -d ' ' -f 1)" = "$candidate_sha"
-          candidate_integrity="$(node -e "const {createHash}=require('node:crypto'); const {readFileSync}=require('node:fs'); process.stdout.write('sha512-'+createHash('sha512').update(readFileSync('release-artifact/package.tgz')).digest('base64'))")"
-          test "$(jq -er '.integrity' release-artifact/package-manifest.json)" = "$candidate_integrity"
-          cp release-artifact/package-manifest.json fixed-evidence/candidate-package-manifest.json
-          cp release-artifact/package.sha256 fixed-evidence/candidate-package.sha256
-          printf 'CANDIDATE_SHA256=%s\n' "$candidate_sha" >> "$GITHUB_ENV"
-
-      - name: Build and install the exact fixed-baseline package
-        id: fixed_baseline
-        timeout-minutes: 8
-        env:
-          EVIDENCE_SCOPE: ${{ inputs.evidence-scope }}
-        run: |
-          fixed_tree="$RUNNER_TEMP/agentic-mermaid-fixed-source"
-          fixed_pack="$RUNNER_TEMP/agentic-mermaid-fixed-pack"
-          fixed_prefix="$RUNNER_TEMP/agentic-mermaid-fixed-consumer"
-          git fetch --no-tags origin "$FIXED_BASELINE_SHA"
-          git worktree add --detach "$fixed_tree" "$FIXED_BASELINE_SHA"
-          test "$(git -C "$fixed_tree" rev-parse HEAD)" = "$FIXED_BASELINE_SHA"
-          (
-            cd "$fixed_tree"
-            bun install --frozen-lockfile
-            bun run build
-            bun run scripts/ci/verify-publish-package.ts --pack-destination "$fixed_pack"
-            git diff --exit-code
-          )
-          baseline_sha="$(jq -er '.sha256' "$fixed_pack/package-manifest.json")"
-          test "$(sha256sum "$fixed_pack/package.tgz" | cut -d ' ' -f 1)" = "$baseline_sha"
-          baseline_integrity="$(jq -er '.integrity' "$fixed_pack/package-manifest.json")"
-          bun run eval/benchmark/release-baseline.ts --install "$fixed_pack/package.tgz" --prefix "$fixed_prefix" \
-            --runtime-source "$fixed_tree" --out fixed-evidence/acquisition --label baseline --expected-integrity "$baseline_integrity"
-          test "$(jq -er '.packages["node_modules/agentic-mermaid"].integrity' "$fixed_prefix/package-lock.json")" = "$baseline_integrity"
-          printf '%s  release-artifact/package.tgz\n' "$CANDIDATE_SHA256" | sha256sum --check
-          bun run eval/benchmark/release-baseline.ts --install "$PWD/release-artifact/package.tgz" \
-            --prefix "$RUNNER_TEMP/agentic-mermaid-fixed-candidate-consumer" --runtime-source "$GITHUB_WORKSPACE" \
-            --out fixed-evidence/acquisition --label candidate \
-            --expected-integrity "$(jq -er '.integrity' release-artifact/package-manifest.json)" \
-            --runtime-comparison historical-compound --compare-runtime-source "$fixed_tree" \
-            --compare-root "$fixed_prefix/node_modules/agentic-mermaid"
-          cp "$fixed_tree/bun.lock" fixed-evidence/baseline-source.bun.lock
-          cp "$fixed_pack/package-manifest.json" fixed-evidence/baseline-package-manifest.json
-          cp "$fixed_pack/package.sha256" fixed-evidence/baseline-package.sha256
-          cp "$fixed_prefix/package-lock.json" fixed-evidence/baseline-runtime.package-lock.json
-          cp "$fixed_prefix/node_modules/.package-lock.json" fixed-evidence/baseline-runtime.installed-package-lock.json
-          jq -n --arg scope "${EVIDENCE_SCOPE:-all}" --arg source "$FIXED_BASELINE_SHA" --arg candidate "$GITHUB_SHA" --arg sha256 "$baseline_sha" --arg integrity "$baseline_integrity" \
-            '{status:"prepared",requestedScope:$scope,runtimeComparison:"historical-compound",isolatedProductionGain:false,fixedBaselineSha:$source,candidateSourceSha:$candidate,baselineTarballSha256:$sha256,baselineIntegrity:$integrity,timingScope:"this job only",baselineTarballRetained:false}' > fixed-evidence/identity.json
-          printf 'FIXED_BASELINE_PACKAGE=%s\n' "$fixed_prefix/node_modules/agentic-mermaid" >> "$GITHUB_ENV"
-          printf 'FIXED_RUNTIME_SOURCE=%s\n' "$fixed_tree" >> "$GITHUB_ENV"
-
-      - name: Measure exact-baseline A/A on the complete release population
-        id: fixed_aa
-        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
-        timeout-minutes: 21
-        run: bun run bench:release --runtime-source "$FIXED_RUNTIME_SOURCE" --baseline "$FIXED_BASELINE_PACKAGE" --candidate "$FIXED_BASELINE_PACKAGE" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/aa
-
-      - name: Compare the fixed baseline and candidate with ELK cache off
-        id: fixed_off
-        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
-        timeout-minutes: 21
-        run: bun run bench:release --runtime-source "$GITHUB_WORKSPACE" --baseline-runtime-source "$FIXED_RUNTIME_SOURCE" --runtime-comparison historical-compound --baseline "$FIXED_BASELINE_PACKAGE" --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/cache-off
-
-      - name: Compare the fixed baseline and candidate with ELK cache on
-        id: fixed_on
-        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
-        timeout-minutes: 21
-        run: bun run bench:release --runtime-source "$GITHUB_WORKSPACE" --baseline-runtime-source "$FIXED_RUNTIME_SOURCE" --runtime-comparison historical-compound --baseline "$FIXED_BASELINE_PACKAGE" --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache on --out fixed-evidence/cache-on
-
-      - name: Compare the packed candidate with pinned peers and ELK cache off
-        id: peers_off
-        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
-        continue-on-error: true
-        timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --runtime-source "$GITHUB_WORKSPACE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache off --json fixed-evidence/peers-off.json --markdown fixed-evidence/peers-off.md
-
-      - name: Compare the packed candidate with pinned peers and ELK cache on
-        id: peers_on
-        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
-        continue-on-error: true
-        timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --runtime-source "$GITHUB_WORKSPACE" --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
-
-      - name: Retain sequential CPU profiles of the exact installed packages
-        id: fixed_profiles
-        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
-        timeout-minutes: 3
-        run: |
-          cat > fixed-evidence/profile-recipe.sh <<'RECIPE'
-          #!/usr/bin/env bash
-          # Worker-wide CPU samples include import, correctness/ASCII checks and
-          # eight SVG repetitions; these are not the local SVG-only profiles.
-          set -euo pipefail
-          profile_out="$PWD/fixed-evidence/profiles"
-          candidate_prefix="$RUNNER_TEMP/agentic-mermaid-profile-consumer"
-          mkdir -p "$profile_out"
-          test ! -e "$candidate_prefix"
-          printf '%s  release-artifact/package.tgz\n' "$CANDIDATE_SHA256" | sha256sum --check
-          bun run eval/benchmark/release-baseline.ts --install "$PWD/release-artifact/package.tgz" --prefix "$candidate_prefix" \
-            --runtime-source "$GITHUB_WORKSPACE" --out "$profile_out/acquisition" --label candidate \
-            --expected-integrity "$(jq -er '.integrity' release-artifact/package-manifest.json)" \
-            --runtime-comparison historical-compound --compare-runtime-source "$FIXED_RUNTIME_SOURCE" --compare-root "$FIXED_BASELINE_PACKAGE"
-          test "$(jq -er '.packages["node_modules/agentic-mermaid"].integrity' "$candidate_prefix/package-lock.json")" = "$(jq -er '.integrity' release-artifact/package-manifest.json)"
-          cp "$candidate_prefix/package-lock.json" "$profile_out/candidate-runtime.package-lock.json"
-          cp "$candidate_prefix/node_modules/.package-lock.json" "$profile_out/candidate-runtime.installed-package-lock.json"
-          export PROFILE_OUT="$profile_out" BASELINE_ENTRY="$FIXED_BASELINE_PACKAGE/dist/index.js"
-          export CANDIDATE_ENTRY="$candidate_prefix/node_modules/agentic-mermaid/dist/index.js"
-          bun --eval '
-            const { MICRO_WORKLOADS } = await import("./eval/benchmark/micro-bench-cases.ts");
-            const { writeFileSync } = await import("node:fs");
-            const inputs = Object.entries(MICRO_WORKLOADS).map(([id, source]) => ({ id, source, family: "profile" }));
-            for (const [side, entry] of [["baseline", process.env.BASELINE_ENTRY], ["candidate", process.env.CANDIDATE_ENTRY]])
-              writeFileSync(process.env.PROFILE_OUT + "/" + side + "-job.json", JSON.stringify({ entry, mode: "time", reps: 8, inputs }));
-          '
-          for side in baseline candidate; do
-            AGENTIC_MERMAID_ELK_CACHE=0 AGENTIC_MERMAID_SCENE_ASSERTIONS=0 node --cpu-prof --cpu-prof-dir "$profile_out" --cpu-prof-name "$side.cpuprofile" \
-              eval/benchmark/release-bench-worker.ts "$profile_out/$side-job.json" "$profile_out/$side-result.json"
-            test -s "$profile_out/$side.cpuprofile"
-            test -s "$profile_out/$side-result.json"
-          done
-          RECIPE
-          timeout --kill-after=5s 120s bash fixed-evidence/profile-recipe.sh
-
-      - name: Record fixed evidence completion and advisory peer outcomes
-        if: always()
-        env:
-          EVIDENCE_SCOPE: ${{ inputs.evidence-scope }}
-          CONFIG: ${{ steps.fixed_config.outcome }}
-          CANDIDATE: ${{ steps.fixed_candidate.outcome }}
-          CANDIDATE_IDENTITY: ${{ steps.fixed_candidate_identity.outcome }}
-          BASELINE: ${{ steps.fixed_baseline.outcome }}
-          FIXED_OFF: ${{ steps.fixed_off.outcome }}
-          FIXED_ON: ${{ steps.fixed_on.outcome }}
-          FIXED_AA: ${{ steps.fixed_aa.outcome }}
-          PEERS_OFF: ${{ steps.peers_off.outcome }}
-          PEERS_ON: ${{ steps.peers_on.outcome }}
-          PROFILES: ${{ steps.fixed_profiles.outcome }}
-        run: |
-          mkdir -p fixed-evidence
-          node --input-type=module <<'JS'
-          import { readFileSync, writeFileSync } from 'node:fs'
-          const gates = Object.fromEntries(['CONFIG', 'CANDIDATE', 'CANDIDATE_IDENTITY', 'BASELINE', 'FIXED_OFF', 'FIXED_ON', 'FIXED_AA', 'PROFILES'].map(key => [key, process.env[key] ?? 'missing']))
-          const advisory = Object.fromEntries(['PEERS_OFF', 'PEERS_ON'].map(key => [key, process.env[key] ?? 'missing']))
-          const reports = Object.fromEntries(['cache-off/report.json', 'cache-on/report.json', 'aa/report.json', 'peers-off.json', 'peers-on.json'].map(path => {
-            try {
-              const report = JSON.parse(readFileSync('fixed-evidence/' + path, 'utf8'))
-              const peer = path.startsWith('peers-')
-              // Release owns its completeness decisions; peer coverage owns
-              // workload outcomes. Only missing/crashed workers are incomplete.
-              const required = report.checks?.filter(check => /\bmeasurements? completes?\b/.test(check.name)) ?? []
-              const workersComplete = report.processes?.length > 0 && report.processes.length === report.config?.rounds * report.config?.peers?.length &&
-                report.processes.every(worker => Number.isFinite(worker.importMs) && [worker.rssBytes, worker.peakRssBytes, worker.settledHeapBytes].every(bytes => Number.isFinite(bytes) && bytes >= 0) && worker.restarts === 0) &&
-                report.coverage?.every(row => row.missing === 0)
-              const complete = report.status === 'completed' && (peer ? workersComplete : required.length >= 2 && required.every(check => check.ok === true))
-              return [path, { status: report.status, ok: report.ok, complete }]
-            } catch { return [path, { status: 'missing', complete: false }] }
-          }))
-          const complete = gates.PROFILES === 'success' && Object.values(reports).every(report => report.complete) && Object.values(advisory).every(value => value === 'success')
-          const passed = complete && Object.values(gates).every(value => value === 'success')
-          writeFileSync('fixed-evidence/workflow-status.json', JSON.stringify({ status: complete ? 'completed' : 'incomplete', complete, passed, fullQualification: false, requestedScope: process.env.EVIDENCE_SCOPE || 'all', runtimeComparison: 'historical-compound', isolatedProductionGain: false, gates, advisory, reports, timingScope: 'this job only' }, null, 2) + '\n')
-          JS
-
-      - name: Upload all fixed baseline and peer evidence
-        id: fixed_upload
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: release-fixed-benchmark-${{ github.sha }}-${{ github.run_attempt }}
-          path: fixed-evidence/
-          if-no-files-found: error
-          overwrite: true
-          retention-days: 30
-
-      - name: Require complete fixed and peer evidence after retention
-        if: always()
-        run: |
-          node --input-type=module <<'JS'
-          import { readFileSync } from 'node:fs'
-          const receipt = JSON.parse(readFileSync('fixed-evidence/workflow-status.json', 'utf8'))
-          if (receipt.complete !== true) throw new Error('Required fixed or peer evidence is incomplete; inspect the retained workflow-status.json and raw reports')
-          JS
-
-      - name: Link the reviewable fixed evidence artifact
-        if: ${{ always() && steps.fixed_upload.outputs.artifact-url != '' }}
-        env:
-          ARTIFACT_URL: ${{ steps.fixed_upload.outputs.artifact-url }}
-        run: |
-          printf 'Fixed-baseline and pinned-peer raw evidence (timings compare only within this job): %s\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"
