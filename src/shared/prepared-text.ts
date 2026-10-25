@@ -77,10 +77,16 @@ function sameStyle(a: DisplayRun, b: DisplayRun): boolean {
 
 function coalesce(runs: readonly DisplayRun[]): DisplayRun[] {
   const result: DisplayRun[] = []
-  for (const run of runs.flatMap(run => (run as WrapGlyph).fragments ?? [run])) {
-    const prior = result.at(-1)
-    if (prior && sameStyle(prior, run)) result[result.length - 1] = { ...prior, text: prior.text + run.text, sourceEnd: run.sourceEnd }
-    else result.push({ ...run })
+  let prior: { -readonly [Key in keyof DisplayRun]: DisplayRun[Key] } | undefined
+  for (const run of runs.flatMap(run => (run as WrapGlyph).fragments ?? run)) {
+    if (prior && sameStyle(prior, run)) {
+      // Only the newly copied accumulator is mutable; input runs stay retained.
+      prior.text += run.text
+      prior.sourceEnd = run.sourceEnd
+    } else {
+      prior = { ...run }
+      result.push(prior)
+    }
   }
   return result
 }
@@ -88,8 +94,8 @@ function coalesce(runs: readonly DisplayRun[]): DisplayRun[] {
 function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number {
   if (runs.length === 0) return 0
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
-  const grouped = coalesce(runs)
-  const text = grouped.map(run => run.text).join('')
+  const grouped = runs.length === 1 && !(runs[0] as WrapGlyph).fragments ? runs : coalesce(runs)
+  const text = grouped.length === 1 ? grouped[0]!.text : grouped.map(run => run.text).join('')
   if ((options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(text)) return trackedBounds(grouped, options).width
   const width = options.monospace
     ? customTextMeasurementActive()
@@ -108,7 +114,9 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
     const orphanMarks = graphemes(text).filter(cluster => /\p{M}/u.test(cluster) && [...cluster].every(char => getCharWidth(char) === 0)).length
     return Math.max(width, naturalWidth + orphanMarks * options.fontSize * 1.2) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
   }
-  return (options.letterSpacing ?? 0) < 0 ? trackedBounds(grouped, options).width : Math.max(0, width + Math.max(0, graphemes(text).length - 1) * (options.letterSpacing ?? 0))
+  if ((options.letterSpacing ?? 0) < 0) return trackedBounds(grouped, options).width
+  const letterSpacing = options.letterSpacing ?? 0
+  return Math.max(0, width + (letterSpacing === 0 ? 0 : Math.max(0, graphemes(text).length - 1) * letterSpacing))
 }
 
 /** Positioned graphemes must be measured as the same graphemes that SVG will
@@ -287,7 +295,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
     runs.forEach(Object.freeze)
-    const ascii = !/[^\x20-\x7e]/u.test(runs.map(run => run.text).join(''))
+    const ascii = !/[^\x20-\x7e]/u.test(text)
     const styled = runs.some(run => run.bold || run.italic || run.underline || run.strikethrough)
     const allocation = ascii ? (options.letterSpacing ?? 0) !== 0 ? trackingLayout(runs, options) : styled ? styledRunLayout(runs, options) : undefined : undefined
     return Object.freeze({ runs: Object.freeze(runs), text, width: allocation?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: allocation?.originX ?? 0, ...(allocation ? { fragments: allocation.fragments } : {}) })
