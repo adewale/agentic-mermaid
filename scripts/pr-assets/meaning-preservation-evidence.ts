@@ -84,6 +84,14 @@ const stableRepresentativeCues = {
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  {
+    id: 'state-declaration-timing-edit',
+    title: 'An unrelated State edit retains scoped declaration timing',
+    source: 'stateDiagram-v2\nstate "Idle" as A\n[*] --> A\nstate "Other" as D\nA --> B',
+    mutation: { kind: 'rename_state', from: 'B', to: 'C' },
+    captureLayout: true,
+    cue: 'Both revisions rename B to C. Compare the resulting source and disconnected Other state beside the contextual start. The edited declaration remains after that start transition, preserving native creation order. This finite native-layout comparison does not use Mermaid as a layout oracle or promise unchanged placement for detached forward composites.',
+  },
   ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
     id: `compat-${sample.id.replaceAll('/', '-')}`,
     title: `${sample.id}: ownership and contextual endpoint baseline`,
@@ -890,6 +898,16 @@ const fixtures: Fixture[] = [
 ]
 const terminalFixtures = [
   {
+    id: 'terminal-local-bundle',
+    source: 'flowchart TD\nS --> A\nS --> B\nS --> C\nX --> Y\nY --> X',
+    cue: 'Inspect the shared stem leaving S. A separate reciprocal X/Y pair formerly caused global unbundling. Only the affected routing units now receive physical capacity; the S fan-out retains shared owned ink. All five relationships remain controls. The independent owning test follows emitted glyphs and endpoint markers; this diagram does not establish arbitrary routing completeness.',
+  },
+  {
+    id: 'terminal-local-labeled-trunk',
+    source: 'flowchart TD\nS -->|one| A\nS -->|two| B\nS -->|three| C\nC --> X\nX --> Y\nY --> X',
+    cue: 'This graph is connected through C/X. Inspect one shared S stem and the three complete branch labels beside the independently routed X/Y pair. The same connected-component membership cannot justify global unbundling. Owned-cell tests check the retained trunk, junctions and every actual relationship; font coverage remains a browser presentation limit.',
+  },
+  {
     id: 'terminal-block-protected-approaches',
     source: 'block\ncolumns 2\nblock:G\nA B\nend\nC\nA --> B\nB --> A\nA --> B\nA --> C\nC --> A',
     cue: 'The baseline refuses this nested parallel/reciprocal grid because its fixed gutter cannot hold the protected marker approaches. After, inspect all five connected routes and both composite and leaf frames. Cell spacing grows from the routing constraints; the unchanged authored columns and endpoints remain controls. The owning test checks emitted ink, rather than accepting port metadata as proof of connectivity.',
@@ -897,7 +915,7 @@ const terminalFixtures = [
   {
     id: 'terminal-state-distinct-contacts',
     source: 'stateDiagram-v2\nN1 --> N2\nstate Group {\nA\nnote "Inner #lt;b#gt;" as N1\nA --> N1\n}\nnote "Outer<br/>next" as N2\nN2 --> Group',
-    cue: 'Inspect the transition leaving Group and the incoming marker beside it. Before, a shared contact lets one marker erase another edge’s first owned stroke. After, incompatible marker meanings reserve separate contacts. Notes retain independent aliases and scope at both revisions; this PR does not add their support. The owning test follows actual edge-owned ink between physical ports. Mixed graphs may unbundle otherwise compatible routes when contact reservation is required.',
+    cue: 'Inspect the transition leaving Group and the incoming marker beside it. Before, a shared contact lets one marker erase another edge’s first owned stroke. After, incompatible marker meanings reserve separate contacts. Notes retain independent aliases and scope at both revisions; this PR does not add their support. The owning test follows actual edge-owned ink between physical ports. Separate locality witnesses check that compatible routes outside an affected unit keep their shared ink.',
   },
   {
     id: 'terminal-sequence-literal-runs',
