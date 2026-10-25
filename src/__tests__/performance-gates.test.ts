@@ -122,6 +122,7 @@ describe('calibrated semantic performance decisions', () => {
   test.each([
     ['consumption', 'indexed-utf8-checksum-v1'],
     ['warmupSources', 'fresh-edit-ordinals-v1'],
+    ['schedule', 'paired-cold-ordinal-v1'],
   ])('%s method changes invalidate saved controls', (setting, value) => {
     const { candidate, controls } = setup()
     candidate.tracksConfig![setting] = value

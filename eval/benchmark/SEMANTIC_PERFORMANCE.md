@@ -295,3 +295,16 @@ uncalibrated decisions remain in the aggregate JSON.
 Artifacts retain attempt numbers. Duplicate shards are rejected rather than
 silently selecting a favorable attempt. A complete campaign uses a fresh
 workflow run; partial controls from an interrupted run are not resumed.
+
+## First-use launch order
+
+`peer-bench --track-schedule paired-cold-ordinal-v1` groups selected peers at each
+first-use workload, probe and sample ordinal. Peer order reverses after each
+ordinal and round; two-sided controls are adjacent. Every timing, allocation and
+diagnostic call still uses its own fresh process. The default remains
+`peer-block-v1`.
+
+The schedule is part of the control fingerprint and reproduction command, so
+changing it requires fresh matching controls. Use the option in an explicit local
+measurement session. It changes acquisition order and makes no renderer
+performance claim.
