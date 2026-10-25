@@ -4,6 +4,43 @@ BUILD-20 ratchet for source-level cases and accounted exclusions harvested
 from Mermaid's parser/DB suites across every current Agentic Mermaid renderable
 family.
 
+## Accounting correction
+
+The checked-in ledger is a historical capture, not a freshly regenerated count.
+Its claimed 27 unextracted dynamic blocks included 21 regex matches inside test
+text and six actual omitted registrations. Those numbers do not describe 27
+missing native features. The audited public controls already parse, render and
+export; unused unknown Flowchart metadata still makes a whole body source-only.
+
+The harvester now uses TypeScript syntax nodes for registrations, callback
+boundaries and actual source arguments. The compiler binder resolves lexical
+scope; only direct constants and immutable local constant bindings (including
+closed concatenation/templates) are admitted. Mutable, external and tagged
+expressions remain extraction limits. It counts actual
+registration definitions (including skipped/todo definitions), not runtime
+expansions of table rows. Gantt registrations are counted from the same source;
+its separate deeper case corpus remains a companion, rather than supplying a
+case count disguised as registration blocks. Mindmap/GitGraph retain their
+separately declared historical provenance.
+
+An unrecovered constant source is an extraction limit. It is excluded with
+`source-extraction-limit`, without an inferred `WONTFIX` or private-API claim.
+The existing local-gap ratchet still refuses an unreviewed refresh. Inspect
+proposed outputs without overwriting this ledger:
+
+```sh
+# MERMAID_UPSTREAM_DIR must be at the historical revision below.
+bun eval/mermaid-upstream-suite-bench/harvest.ts --inventory-only
+MERMAID_HARVEST_OUTPUT_DIR=/tmp/mermaid-harvest-review \
+  bun eval/mermaid-upstream-suite-bench/harvest.ts
+```
+
+The second command writes proposed cases/exclusions/manifest to that directory
+before applying the existing ratchet. Directory identity checks and atomic
+file replacement protect the default ledger from symlink/alias preview paths. It can exit unsuccessfully while leaving
+those findings available for review. No ratchet ceiling is widened by this
+correction, and no new feature pass is credited to it.
+
 ## Provenance
 
 - Upstream repo: [`mermaid-js/mermaid`](https://github.com/mermaid-js/mermaid). The cross-family harvest is pinned to `a2d9686451df7c4644a3eeca20535bbd4c5776b0`; Mindmap/GitGraph compatibility is separately pinned to `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`.
@@ -92,7 +129,9 @@ interface ManifestFamily {
 - `unsupported-header` — upstream uses a header alias or neighboring-family syntax not routed to the expected Agentic Mermaid family.
 - `unsupported-syntax` — upstream syntax is real, but deliberately tracked by another implementation issue rather than BUILD-20.
 - `unsupported-structured-syntax` — the source parses/verifies/renders through the structured-or-opaque contract, but the family narrower does not yet expose that construct as structured data.
-- `unextracted-dynamic-source` — the pinned upstream count includes table-driven or dynamically built blocks that do not expose one portable source literal to the harvester.
+- `unextracted-dynamic-source` — historical aggregate from the old regex counter; it is not emitted by the syntax-based harvester.
+- `source-extraction-limit` — an actual registration has no recoverable constant Mermaid source; its public/private behavior remains unclassified.
+- `upstream-skipped` — an actual skipped/todo registration, kept distinct from passing executable cases.
 
 ## Definition of done enforced by the runner
 
