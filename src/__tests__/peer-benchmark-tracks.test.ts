@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { consumePeerOutput, finalizeTrackObservation, emptyTrackObservation, inspectPeerSemantics, parsePeerTracks, peerTrackVariant, peerRuntimeDependencyGraph, percentile, peerExecutionEnvironment } from '../../eval/benchmark/peer-tracks.ts'
+import * as protocol from '../../eval/benchmark/peer-tracks.ts'
 import { measurePeerTrack } from '../../eval/benchmark/peer-track-worker.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
@@ -53,6 +54,9 @@ describe('maintained consumed peer protocol', () => {
     expect(peerTrackVariant(input, 'exact-repeat', 10).source).toBe(input.source)
     expect(parsePeerTracks('label-edit,exact-repeat')).toEqual(['label-edit', 'exact-repeat'])
     expect(() => parsePeerTracks('cold')).toThrow('--tracks')
+    expect(protocol.parsePeerConsumers?.('receipt-json-utf8')).toEqual(['receipt-json-utf8'])
+    expect(protocol.parsePeerConsumers?.('svg-utf8,receipt-json-utf8')).toEqual(['svg-utf8', 'receipt-json-utf8'])
+    expect(() => protocol.parsePeerConsumers('receipt')).toThrow('--track-consumers')
   })
   test.each([
     { id: 'class80', source: 'classDiagram\n C0 <|-- C1', edited: 'classDiagram\n C0 <|-- C1 : q3', fresh: 'classDiagram\n v3_C0 <|-- v3_C1 : q3', from: 'C0', to: 'C1' },

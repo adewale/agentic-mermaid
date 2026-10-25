@@ -238,3 +238,28 @@ Source unit CI exercises fail-closed decisions with controlled observations.
 This integration does not revive the recipe interpreter or change native/ELK
 selection policy. The original early installed-State window and PNG allocation
 controls remain separate release evidence and are not replaced by these tracks.
+
+
+## Complete campaign execution
+
+The release workflow builds the pinned main baseline once, then runs one
+phase/consumer combination per runner in each cache lane (16 shards total).
+Each shard retains all14 Agentic workloads, the fixed seven-case peer cohort,
+and both doubled-size scaling cases. It runs its own two independent A/A
+reports and A/B report serially. Its ratios and seven-case means never cross
+runner boundaries. The90-minute report and300-minute job watchdogs, sample
+counts, rounds, numeric thresholds and historical anchor are unchanged.
+
+`qualify-peer-performance.ts --phase <phase> --consumer <consumer>` emits
+`scopeComplete`, but leaves global `complete` false. A shard cannot declare
+full performance qualification. `aggregate-semantic-performance.ts` requires
+all16 scoped evidence directories; it recomputes the decisions from each
+candidate and both controls, requires matching archive bytes, peer pins,
+harness revision, authored inputs and execution settings, and preserves each
+runner's provenance. Missing, duplicate, interrupted or incompatible evidence
+fails closed. No numeric ratios are pooled across hosts. All adverse and
+uncalibrated decisions remain in the aggregate JSON.
+
+Artifacts retain attempt numbers. Duplicate shards are rejected rather than
+silently selecting a favorable attempt. A complete campaign uses a fresh
+workflow run; partial controls from an interrupted run are not resumed.
