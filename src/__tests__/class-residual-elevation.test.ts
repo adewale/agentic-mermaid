@@ -9,6 +9,7 @@ import { layoutClassDiagram } from '../class/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { renderMermaidSVG as renderAgentSVG } from '../agent/core.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const lines = (source: string) => source.split('\n').map(line => line.trim()).filter(Boolean)
@@ -28,13 +29,38 @@ function apply(diagram: ClassValidDiagram, op: ClassMutationOp): ClassValidDiagr
 }
 
 describe('Class residual elevation (B08/B10)', () => {
-  test('models and renders classDef, class/cssClass, shorthand, and inline paint', () => {
+  test('preserves native classDef, class/cssClass, shorthand and lone hyphenated inline paint without claiming editable output', () => {
+    const source = `classDiagram
+      class A
+      B:::hot
+      classDef hot fill:#ff0000,stroke:#220000,color:#ffffff
+      cssClass A hot
+      style A stroke-width:4px`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    const native = parseClassDiagram(lines(source))
+    expect(native.classDefs.get('hot')).toEqual({ fill: '#ff0000', stroke: '#220000', color: '#ffffff' })
+    expect(native.classes.map(node => [node.id, node.className])).toEqual([['A', 'hot'], ['B', 'hot']])
+    expect(native.classes.find(node => node.id === 'A')?.inlineStyle).toEqual({ 'stroke-width': '4px' })
+    const svg = renderAgentSVG(parsed.value)
+    expect(svg).toBe(renderMermaidSVG(source))
+    expect(svg).toContain('class="class-node hot"')
+    expect(svg).toContain('fill="#ff0000"')
+    expect(svg).toContain('stroke-width="4"')
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text' }))
+    expect(mutate(parsed.value, { kind: 'set_css_class', class: 'B', className: 'cool' }).ok).toBe(false)
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+  })
+
+  test('models and renders classDef, class/cssClass, shorthand, and constructible inline paint', async () => {
     let diagram = classDiagram(`classDiagram
       class A
       B:::hot
       classDef hot fill:#ff0000,stroke:#220000,color:#ffffff
       cssClass A hot
-      style A stroke-width:4px`)
+      style A stroke-width:4px,fill:#112233`)
     expect(diagram.body.classDefs?.hot?.fill).toBe('#ff0000')
     expect(diagram.body.classes.find(item => item.id === 'A')?.className).toBe('hot')
     expect(diagram.body.classes.find(item => item.id === 'A')?.style?.['stroke-width']).toBe('4px')
@@ -42,7 +68,17 @@ describe('Class residual elevation (B08/B10)', () => {
     const svg = renderMermaidSVG(serializeMermaid(diagram))
     expect(svg).toContain('class="class-node hot"')
     expect(svg).toContain('fill="#ff0000"')
+    expect(svg).toContain('fill="#112233"')
     expect(svg).toContain('stroke-width="4"')
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.project(serializeMermaid(diagram), value => value.db.getData().nodes.map((node: { id: string; cssClasses: string; styles: string[] }) => ({ id: node.id, classes: node.cssClasses, styles: node.styles })))).toEqual({
+        ok: true, value: [
+          { id: 'A', classes: 'default hot', styles: ['fill:#ff0000', 'stroke:#220000', 'color:#ffffff', 'fill:#112233', 'stroke-width:4px'] },
+          { id: 'B', classes: 'default hot', styles: ['fill:#ff0000', 'stroke:#220000', 'color:#ffffff'] },
+        ],
+      })
+    } finally { upstream.close() }
 
     diagram = apply(diagram, { kind: 'define_class', name: 'cool', style: 'fill:#abcdef,stroke:#123456' })
     diagram = apply(diagram, { kind: 'set_css_class', class: 'B', className: 'cool' })
