@@ -57,19 +57,20 @@ rendered meaning or perceptual quality.
 | Area | Judgment | Why |
 | --- | --- | --- |
 | Invocation coverage | Broad, bounded by its declared cells | Actual installed entries, runtimes, browser/worker/editor paths, Node/native CLI and MCP transports execute. The latest independent run retained 62,941 observations, including three real watch failures. This is stronger than inferring coverage from export names. |
-| Language/reference coverage | Strong for the reviewed fixtures | Historical imported cases and current pinned Mermaid are kept distinct. Current same-case scoring checks independent criteria and records parser time separately. Negative, mocked/internal and disabled upstream cases retain explicit diagnostic scope. |
+| Language/reference coverage | Strong within each declared oracle | The current original-callback subset preserves upstream expectations. The older selected-input score uses limited portable criteria from a historically Agentic-admitted harvest, including Agentic-derived fields; it is not independent execution of all upstream assertions. Parser time and diagnostic cases retain separate scopes. |
 | Family breadth | Broad routing and stimulus coverage | The latest family corpus spans 23 families and 994 inputs. Existing owning tests add mutation, serialization, route and rendering assertions. Their passes are not automatically credited to every operation or transport. |
 | Community comparison | Useful within matched lanes | Catalog members, acquisition failures, source aliases and public boundaries stay visible. Fixed core inputs do not shrink to whichever inputs each tool happens to pass. CLI, browser and library timings have separate ranks. |
 | Regression qualification | Sound protocol, incomplete latest calibration | The maintained semantic protocol has two A/A controls, consumed outputs, exact archive/dependency admission, per-case gates and a bounded noise policy. The latest completed comparison was explicitly uncalibrated. |
 | Delivery evidence | Useful for deployment choices | Initial bytes, first interaction, full requested closure, compressed payload and compiled/interpreter scopes are distinguished. A tiny lazy entry cannot hide the cost of the first render. |
 | Failure/provenance handling | Useful and unusually explicit | Failed, unsupported, blocked, N/A and unavailable outcomes remain distinct. Repairs retain originals and identify exact replaced rows. Git revisions identify own source; hashes identify fetched or shipped bytes. |
 
-The strongest check on self-congratulation remains the pair of external
-comparisons. The latest Dave run accepted **823/1,095** cases for Agentic Mermaid,
-versus **1,063/1,095** for Pele. The reviewed pinned-Mermaid score was
-**2,479/2,607** criteria, versus **2,607/2,607** for Mermaid. These numbers expose
-different gaps: returning SVG is a weaker promise than retaining the checked
-meaning of a diagram. Neither number is a complete visual quality score.
+Historical **24 October 2026** reports provide two external reference points.
+Dave accepted **823/1,095** cases for Agentic Mermaid, versus **1,063/1,095** for
+Pele. The separately recorded selected-input pinned-Mermaid score was
+**2,479/2,607** portable criteria, versus **2,607/2,607** for Mermaid. These are
+dated observations, not results for the latest candidate. SVG acceptance and the
+selected text/native-model checks answer different questions; neither certifies
+complete diagram meaning or visual quality.
 
 ## What is missing or weak
 
@@ -220,8 +221,9 @@ and [#502](https://github.com/adewale/agentic-mermaid/issues/502). Source preser
 is not native parsing or rendering. A representative positive is not exhaustive
 functionality, and declared paint coverage remains incomplete.
 
-Entry startup now includes process/browser/server creation and necessary first
-initialization. Import/readiness and warmed rendering remain distinct clocks.
+Entry startup now includes process/browser creation, MCP-server startup and
+necessary first initialization. The browser fixture HTTP server is prepared
+before its startup clock. Import/readiness and warmed rendering remain distinct clocks.
 Resource passes use fresh controls and actual child exit status, with caller-held
 output and released-reference checkpoints distinguished. Main browser heap still
 excludes worker heaps, native/WASM/GPU allocations and process-tree peaks.

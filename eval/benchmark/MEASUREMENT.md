@@ -75,12 +75,21 @@ Fresh processes do not imply cold filesystem or operating-system caches. Artifac
 admission and discovery may warm shared file pages. Record configured persistent
 compile caches; do not call this a disk-cold measurement.
 
-Startup latency begins before the relevant fresh process/browser/server starts
+Startup latency begins before the relevant fresh process/browser or MCP server starts
 and ends after a valid first payload is fully consumed. Readiness and module
 import have their own timestamps; adding separate timer fragments is not an
 end-to-end measurement. Factory construction, lazy backend loading, registration,
 MCP initialization/listing and the first real tool call belong inside their
 specified workflow. Record harness-only resolution flags and actual runtimes.
+
+The browser fixture HTTP server is prepared before the browser startup clock.
+The full editor sample opens an empty editor in a fresh browser, dispatches eight
+input events in one browser turn, and waits for the latest labelled SVG, editor
+status, fresh receipt-authority flag and two animation frames. The intermediate
+inputs change an accessibility-title marker while preserving the graph. This is
+fresh-editor burst-to-latest-preview latency, not a single-keystroke preview or
+eight independently completed renders. The smoke profile dispatches one input.
+Animation-frame checkpoints do not certify GPU completion or perceptual quality.
 
 Warm API calls remain separate. Comment-varied source changes cache keys while
 preserving the same graph; it is not uncached-layout evidence. A reset/recovery
