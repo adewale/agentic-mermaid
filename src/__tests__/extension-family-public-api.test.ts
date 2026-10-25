@@ -647,12 +647,12 @@ descriptorUpgradeDiagram
     { name: 'plain source', source: 'detectorSnapshotDiagram\n  payload', scoped: false },
     {
       name: 'init and quoted accessibility-shaped payload',
-      source: '%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\ndetectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n}\naccTitle: Visible title',
+      source: '%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\ndetectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n%% agentic-mermaid accTitle: "Family &#10;payload"\n}\naccTitle: Visible title',
       scoped: true,
     },
     {
-      name: 'native accessibility and an encoded header',
-      source: `---\ntitle: Wrapper title\n---\n%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\n&#100;etectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n}\naccTitle: Visible title\n%% agentic-mermaid accDescr: ${JSON.stringify('  Exact\naccTitle: inside description  ')}`,
+      name: 'leading native transport text and an encoded header',
+      source: `---\ntitle: Wrapper title\n---\n%%{init: {"themeVariables":{"primaryColor":"#c0ffee"}}}%%\n%% agentic-mermaid accDescr: ${JSON.stringify('  Exact&#10;accTitle: inside description  ')}\n&#100;etectorSnapshotDiagram\npayload {\naccTitle: Owned payload\n&amp;amp;\n}\naccTitle: Visible title`,
       scoped: true,
     },
   ].flatMap(row => (row.scoped ? ['render', 'parse'] as const : ['render', 'parse', 'detect'] as const)
@@ -693,7 +693,7 @@ descriptorUpgradeDiagram
           expect(parsed.value.meta.accessibility?.title).toBe('Visible title')
           const fields = parsed.value.source.spans!.preserved.accessibilityDirectives!
             .map(span => source.slice(span.start.offset, span.end.offset).trimEnd())
-          expect(fields).toHaveLength(source.includes('%% agentic-mermaid') ? 2 : 1)
+          expect(fields).toHaveLength(source.includes('%% agentic-mermaid accDescr:') ? 2 : 1)
           expect(fields).toContain('accTitle: Visible title')
           expect(fields).not.toContain('accTitle: Owned payload')
           if (source.includes('&#100;')) {
@@ -713,8 +713,11 @@ descriptorUpgradeDiagram
         expect(normalized[0]!.familyBody).toContain(`accTitle: Owned payload\n${route === 'render' ? '&amp;' : '&amp;amp;'}`)
         if (route === 'render') expect(normalized[0]!.authoredFamilyBody).toContain('accTitle: Owned payload\n&amp;amp;')
         expect(normalized[0]!.familyBody).not.toContain('accTitle: Visible title')
-        if (source.includes('%% agentic-mermaid')) {
-          expect(normalized[0]!.accessibility.descr).toBe('  Exact\naccTitle: inside description  ')
+        if (source.includes('Family &#10;payload')) {
+          expect(normalized[0]!.familyBody).toContain(route === 'render' ? '%% agentic-mermaid accTitle: "Family \npayload"' : '%% agentic-mermaid accTitle: "Family &#10;payload"')
+        }
+        if (source.includes('%% agentic-mermaid accDescr:')) {
+          expect(normalized[0]!.accessibility.descr).toBe(route === 'render' ? '  Exact\naccTitle: inside description  ' : '  Exact&#10;accTitle: inside description  ')
           expect(normalized[0]!.wrapperSource).toStartWith('---\ntitle: Wrapper title\n---\n')
           if (route === 'render') expect(normalized[0]!.authoredHeader).toBe('&#100;etectorSnapshotDiagram')
         }

@@ -610,7 +610,11 @@ export function normalizeMermaidSource(
   view: 'authored' | 'render' = 'authored',
   resolveFamily?: RegisteredFamilyResolver,
 ): NormalizedMermaidSource {
-  const initialCleanup = cleanupMermaidSource(text)
+  // Native JSON before the header owns its encoded line breaks and directive
+  // lookalikes. Shield that envelope before discovering a transport-decoded
+  // header; family statement scope is applied to the complete source below.
+  const discoveryFields = nativeAccessibilityEdits(text, null)
+  const initialCleanup = cleanupMermaidSource(text, discoveryFields)
   // Detection is executable extension code. Capture its descriptor once, then
   // retain that same owner through cleanup, config and both grammar views.
   const firstLine = mermaidFirstLine(view === 'render' ? initialCleanup.text : initialCleanup.lineText)
@@ -618,7 +622,7 @@ export function normalizeMermaidSource(
     ? resolveFamily(firstLine, 'loose')
     : detectInstalledFamilyDescriptorFromFirstLine(view === 'authored' ? decodeXML(firstLine) : firstLine, 'loose')
   const nativeFields = nativeAccessibilityEdits(text, family)
-  const cleanup = nativeFields.length > 0 ? cleanupMermaidSource(text, nativeFields) : initialCleanup
+  const cleanup = discoveryFields.length > 0 || nativeFields.length > 0 ? cleanupMermaidSource(text, nativeFields) : initialCleanup
   return normalizeSource(text, baseConfig, view, cleanup, family)
 }
 
