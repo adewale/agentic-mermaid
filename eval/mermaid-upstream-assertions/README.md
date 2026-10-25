@@ -18,6 +18,11 @@ must match Mermaid 12.2.0 and parser 2.0.1. The normal reference setup uses jsdo
 26.1.0. Generated JSON, logs and the Markdown breakdown belong in the ignored
 `results/` directory or the chosen output directory.
 
+The existing semantic CI lane runs the same command and uploads the reports,
+per-case receipts and runner logs in `modern-mermaid-semantic-results`.
+Assertion failures remain diagnostic counts; provenance or runner execution
+errors fail the CI step.
+
 `inventory.ts` recursively inventories every `.spec`/`.test` JS/TS file in each
 supported family's source directory, plus its parser-package test file when
 present. Renderer and database-helper files are attempted too; they are not
