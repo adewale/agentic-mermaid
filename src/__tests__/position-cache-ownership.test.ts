@@ -195,8 +195,10 @@ for (const family of ['flowchart', 'state'] as const) {
       import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
       import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
       const family = ${JSON.stringify(family)}
+      // The fallback witness exceeds the unchanged private-rank limit.
       const source = ${JSON.stringify(backend)} === 'fallback'
-        ? 'flowchart TD\\nsubgraph CacheOwnerOuter\\nsubgraph CacheOwnerGroup\\nCacheOwnerA[Source] --> CacheOwnerB[Target]\\nend\\nend\\nCacheOwnerOuter --> CacheOwnerA'
+        ? ['flowchart LR', 'subgraph CacheOwnerOuter', ' CacheOwnerA[Leaf]', 'end',
+          'CacheOwnerOuter ' + '-'.repeat(2049) + '> CacheOwnerA'].join(String.fromCharCode(10))
         : family === 'flowchart'
         ? 'flowchart LR\\nsubgraph CacheOwnerGroup["Group"]\\nCacheOwnerA["wide 界 #35; text"] -->|first| CacheOwnerB["Tail"]\\nCacheOwnerA -->|second| CacheOwnerB\\nCacheOwnerB -->|return| CacheOwnerA\\nend'
         : 'stateDiagram-v2\\nstate CacheOwnerGroup {\\nstate "wide 界 #35; text" as CacheOwnerA\\nstate "Tail" as CacheOwnerB\\nCacheOwnerA --> CacheOwnerB: first\\nCacheOwnerA --> CacheOwnerB: second\\nCacheOwnerB --> CacheOwnerA: return\\n}\\n[*] --> CacheOwnerGroup'
