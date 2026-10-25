@@ -47,14 +47,12 @@ export function toHex(r: number, g: number, b: number): string {
  * `color-mix(in srgb, fg pct%, bg)`.
  */
 export function mixHex(fg: string, bg: string, pct: number): string {
-  const [r1, g1, b1] = parseHex(fg)
-  const [r2, g2, b2] = parseHex(bg)
+  return toHex(...mixedChannels(parseHex(fg), parseHex(bg), pct))
+}
+
+function mixedChannels(fg: readonly number[], bg: readonly number[], pct: number): [number, number, number] {
   const p = pct / 100
-  return toHex(
-    r1 * p + r2 * (1 - p),
-    g1 * p + g2 * (1 - p),
-    b1 * p + b2 * (1 - p),
-  )
+  return fg.map((channel, index) => Math.round(Math.max(0, Math.min(255, channel * p + bg[index]! * (1 - p))))) as [number, number, number]
 }
 
 /** sRGB channel (0..1) → linear light (the WCAG 2.x / CSS Color 4 transfer). */
@@ -98,30 +96,25 @@ export function ensureContrast(
   minimum: number,
   preferredFallback?: string,
 ): string {
-  const candidateLuminance = relativeLuminance(candidate)
-  const backgroundLuminance = relativeLuminance(background)
-  if (candidateLuminance === null || backgroundLuminance === null
-    || luminanceContrastRatio(candidateLuminance, backgroundLuminance) >= minimum) return candidate
+  const current = contrastRatio(candidate, background)
+  if (current === null || current >= minimum) return candidate
 
-  const blackRatio = luminanceContrastRatio(0, backgroundLuminance)
-  const whiteRatio = luminanceContrastRatio(1, backgroundLuminance)
-  const preferredLuminance = preferredFallback ? relativeLuminance(preferredFallback) : null
-  const preferredRatio = preferredLuminance === null ? 0 : luminanceContrastRatio(preferredLuminance, backgroundLuminance)
+  const blackRatio = contrastRatio('#000000', background) ?? 0
+  const whiteRatio = contrastRatio('#ffffff', background) ?? 0
+  const preferredRatio = preferredFallback ? contrastRatio(preferredFallback, background) ?? 0 : 0
   const fallback = preferredRatio >= minimum
     ? preferredFallback!
     : blackRatio >= whiteRatio ? '#000000' : '#ffffff'
-  if ((preferredRatio >= minimum ? preferredRatio : Math.max(blackRatio, whiteRatio)) < minimum) return candidate
+  if ((contrastRatio(fallback, background) ?? 0) < minimum) return candidate
 
-  const [fr, fg, fb] = parseHex(fallback)
-  const [cr, cg, cb] = parseHex(candidate)
+  const backgroundLuminance = relativeLuminance(background)!
+  const from = parseHex(fallback)
+  const to = parseHex(candidate)
   for (let fallbackPart = 1; fallbackPart <= 1000; fallbackPart++) {
-    const p = fallbackPart / 10 / 100
     // Match mixHex's serialized channels before measuring contrast. Testing
     // unrounded mixes would change the earliest passing trial and its color.
-    const r = Math.round(Math.max(0, Math.min(255, fr * p + cr * (1 - p))))
-    const g = Math.round(Math.max(0, Math.min(255, fg * p + cg * (1 - p))))
-    const b = Math.round(Math.max(0, Math.min(255, fb * p + cb * (1 - p))))
-    if (luminanceContrastRatio(srgbRelativeLuminance([r, g, b]), backgroundLuminance) >= minimum) return toHex(r, g, b)
+    const mixed = mixedChannels(from, to, fallbackPart / 10)
+    if (luminanceContrastRatio(srgbRelativeLuminance(mixed), backgroundLuminance) >= minimum) return toHex(...mixed)
   }
   return fallback
 }
