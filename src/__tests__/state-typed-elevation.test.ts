@@ -678,6 +678,57 @@ stateDiagram-v2
     expect(graph.linkStyles.get(0)?.stroke).toBe('#654321')
   })
 
+  test.each([
+    { fields: ['font:24px monospace!important', 'font:12px serif'] },
+    { fields: ['font:24px monospace', 'font:bogus'] },
+    { fields: ['font:10px serif', 'font-size:24px', 'font:12px serif'] },
+  ])('State retains repeated CSS across source, mutation and JSON: %j', async ({ fields }) => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const definition of [false, true]) {
+        const source = definition
+          ? `stateDiagram-v2\nA\nclass A hot\n${fields.map(field => `classDef hot ${field}`).join('\n')}`
+          : `stateDiagram-v2\nA\nstyle A ${fields.join(',')}`
+        const parsed = state(source)
+        const op: StateMutationOp = definition ? { kind: 'define_class', name: 'hot', style: fields.join(',') } : { kind: 'set_state_style', id: 'A', style: fields.join(',') }
+        const edited = apply(state('stateDiagram-v2\nA\nclass A hot'), op)
+        for (const diagram of [parsed, edited]) {
+          const synthesized = synthesizeFromGraph(JSON.parse(JSON.stringify({ kind: 'state', body: diagram.body })))
+          if (!synthesized.ok) throw new Error(JSON.stringify(synthesized.error))
+          const written = serializeMermaid(synthesized.value)
+          expect(serializeMermaid(state(written))).toBe(written)
+          const projection = await upstream.project(written, d => ({ node: d.db.getStates().get('A').styles, definitions: d.db.getClasses().get('hot')?.styles ?? [] }))
+          expect(projection).toEqual({ ok: true, value: { node: definition ? [] : fields, definitions: definition ? fields : [] } })
+          const renamed = apply(diagram, { kind: 'rename_state', from: 'A', to: 'B' })
+          expect(serializeMermaid(renamed)).toContain(fields.join(','))
+          const replaced = apply(diagram, { ...op, style: 'font:32px serif' })
+          expect(replaced.body.states[0]!.styleDeclarations).toBeUndefined()
+          expect(replaced.body.classDefDeclarations).toBeUndefined()
+          const body = structuredClone(diagram.body)
+          if (definition) body.classDefs!.hot!.font = '32px serif'
+          else body.states[0]!.style!.font = '32px serif'
+          expect(synthesizeFromGraph({ kind: 'state', body }).ok).toBe(false)
+        }
+      }
+    } finally { upstream.close() }
+  })
+
+  test('each State inline style replaces the preceding statement, including unresolved styles', async () => {
+    const source = 'stateDiagram-v2\nA\nstyle A font:24px monospace!important,font:12px serif\nstyle A margin:0'
+    const parsed = state(source)
+    expect(parsed.body.states[0]!.style).toEqual({ margin: '0' })
+    expect(parsed.body.states[0]!.styleDeclarations).toBeUndefined()
+    expect(parseRenderGraph(source).nodeStyles.get('A')).toEqual({ margin: '0' })
+    const pending = state(source.replaceAll('style A ', 'style B '))
+    const added = apply(pending, { kind: 'add_state', id: 'B' })
+    expect(added.body.states.find(node => node.id === 'B')!.style).toEqual({ margin: '0' })
+    expect(added.body.states.find(node => node.id === 'B')!.styleDeclarations).toBeUndefined()
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.project(serializeMermaid(parsed), d => d.db.getStates().get('A').styles)).toEqual({ ok: true, value: ['margin:0'] })
+    } finally { upstream.close() }
+  })
+
   test('State functional paints retain exact channel tokens and alpha through constructors and style consumers', async () => {
     const paints = [
       ['rgb(1,2,3)', 'rgb(1,2,3)'],

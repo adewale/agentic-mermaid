@@ -270,6 +270,8 @@ export interface ClassNode {
   className?: string
   /** Inline `style A ...` properties. */
   style?: Record<string, string>
+  /** Full ordered CSS when repeated properties cannot fit the query record. */
+  styleDeclarations?: import('../shared/style-props.ts').StyleDeclaration[]
   /** Sanitized inert class interaction URL. */
   href?: string
   /** Optional authored hover text for a safe inert class link. */
@@ -326,6 +328,7 @@ export interface ClassBody {
   namespaces?: ClassNamespaceDecl[]
   /** Typed classDef declarations keyed by class name. */
   classDefs?: Record<string, Record<string, string>>
+  classDefDeclarations?: Record<string, import('../shared/style-props.ts').StyleDeclaration[]>
 }
 
 // ---- ER body --------------------------------------------------------------
@@ -707,6 +710,8 @@ export interface StateNode {
   className?: string
   /** Inline state paint (`style A fill:#...`). */
   style?: Record<string, string>
+  /** Full ordered CSS when repeated properties cannot fit the query record. */
+  styleDeclarations?: import('../shared/style-props.ts').StyleDeclaration[]
   /** Optional per-composite layout direction. */
   direction?: import('../types.ts').Direction
 }
@@ -755,7 +760,7 @@ export interface StateBody {
   /** Class assignments awaiting an actual state declaration; they never create a state. */
   unresolvedClasses?: Array<{ id: string; className: string }>
   /** Inline styles awaiting an actual state declaration. */
-  unresolvedStyles?: Array<{ id: string; style: Record<string, string> }>
+  unresolvedStyles?: Array<{ id: string; style: Record<string, string>; styleDeclarations?: import('../shared/style-props.ts').StyleDeclaration[] }>
   kind: 'state'
   states: StateNode[]
   transitions: StateTransition[]
@@ -767,6 +772,7 @@ export interface StateBody {
   direction?: import('../types.ts').Direction
   /** Typed classDef declarations keyed by class name. */
   classDefs?: Record<string, Record<string, string>>
+  classDefDeclarations?: Record<string, import('../shared/style-props.ts').StyleDeclaration[]>
   /** Default edge paint (`linkStyle default ...`). */
   defaultTransitionStyle?: Record<string, string>
 }

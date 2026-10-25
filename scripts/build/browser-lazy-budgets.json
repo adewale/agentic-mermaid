@@ -83,7 +83,7 @@
       "requests": 32,
       "raw": 621000,
       "gzip": 202000,
-      "brotli": 177000
+      "brotli": 186000
     },
     "gitgraph": {
       "requests": 33,

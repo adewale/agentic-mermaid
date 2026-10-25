@@ -5,7 +5,8 @@ import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibil
 import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
-import { parseClassLikeStyleProps } from '../shared/class-like-style.ts'
+import { parseClassLikeStyleDeclarations, parseClassLikeStyleProps } from '../shared/class-like-style.ts'
+import { mergeStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { classInterfaceSide, createClassInterfaceAllocator } from './interface-occurrences.ts'
 import { classTextLabel, decodeClassText } from './text.ts'
@@ -405,12 +406,12 @@ type ClassSyntaxValue =
   | { kind: 'note'; text: string; reference?: ClassReference; escapedQuotes?: boolean }
   | { kind: 'direction'; direction: NonNullable<ReturnType<typeof parseDirectionStatement>> }
   | { kind: 'title'; text: string }
-  | { kind: 'classDef'; names: string[]; props: Record<string, string> }
+  | { kind: 'classDef'; names: string[]; props: Record<string, string>; declarations: import('../shared/style-props.ts').StyleDeclaration[] }
   /** A style class assigned to classes: `cssClass "A,B" c`, which Mermaid
    * applies only to classes that exist, or a form Mermaid reads otherwise
    * (`class A c`, unquoted `cssClass A c`, `A:::c` on its own). */
   | { kind: 'assignment'; references: ClassReference[]; name: string; form: 'cssClass' | 'cssClassUnquoted' | 'class' | 'shorthand' }
-  | { kind: 'style'; references: ClassReference[]; props: Record<string, string> }
+  | { kind: 'style'; references: ClassReference[]; props: Record<string, string>; declarations: import('../shared/style-props.ts').StyleDeclaration[] }
   | { kind: 'unknown'; reason: string }
   | { kind: 'source-only'; reason: string }
 
@@ -485,7 +486,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const classDef = text.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
   if (classDef) {
     const props = parseClassLikeStyleProps(withoutStyleComment(classDef[2]!))
-    if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props }
+    if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props, declarations: parseClassLikeStyleDeclarations(withoutStyleComment(classDef[2]!)) }
   }
   const assignment = text.match(/^(class|cssClass)\s+(.+?)\s+([\w-]+)$/)
   if (assignment && !text.includes('{') && !text.includes('[') && !text.includes(' as ')) {
@@ -506,7 +507,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   if (style) {
     const refs = references(style[1]!)
     const props = parseClassLikeStyleProps(withoutStyleComment(style[2]!))
-    if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props }
+    if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props, declarations: parseClassLikeStyleDeclarations(withoutStyleComment(style[2]!)) }
   }
   const annotation = parseClassAnnotationStatement(text)
   if (annotation?.opensBody) {
@@ -1163,7 +1164,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
         }
         case 'classDef':
           for (const name of value.names) {
-            diagram.classDefs.set(name, { ...value.props })
+            diagram.classDefs.set(name, mergeStyleProps(diagram.classDefs.get(name), value.props))
             if (parserObservationActive('class')) observeParserMutation('class', 'define-class', { name, props: value.props })
           }
           break
@@ -1180,7 +1181,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             }
             const cls = ensureClass(classMap, reference.id, reference.generic)
             if (value.kind === 'assignment') cls.className = value.name
-            else cls.inlineStyle = { ...cls.inlineStyle, ...value.props }
+            else cls.inlineStyle = mergeStyleProps(cls.inlineStyle, value.props)
             if (parserObservationActive('class')) observeParserMutation('class', value.kind === 'assignment' ? 'assign-class' : 'set-style', cls)
             claim(cls.id, path)
           }

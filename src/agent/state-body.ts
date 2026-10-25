@@ -152,8 +152,9 @@ export function parseStateBody(lines: string[]): StateBody | null {
   // Paint directives can target forward declarations, so apply them after the
   // complete state tree is known.
   const classDefs: Record<string, Record<string, string>> = {}
+  const classDefDeclarations: Record<string, StyleDeclaration[]> = {}
   const classAssignments: Array<{ id: string; className: string; scope: ParseScope }> = []
-  const inlineStyles: Array<{ id: string; props: Record<string, string>; scope: ParseScope }> = []
+  const inlineStyles: Array<{ id: string; props: Record<string, string>; declarations: StyleDeclaration[]; scope: ParseScope }> = []
   const pendingLinkStyles: Array<{ target: 'default' | number[]; props: Record<string, string> }> = []
   const transitionOrder: StateTransition[] = []
   // Notes, in source order (global list — state ids are global in mermaid).
@@ -234,9 +235,15 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- paint directives (shared renderer grammar) ---
     const classDef = line.match(STATE_CLASS_DEF_RE)
     if (classDef) {
-      const props = portableClassLikeStyleProps(parseClassLikeStyleProps(classDef[2]!))
+      const entries = compactStyleDeclarations(parseClassLikeStyleDeclarations(classDef[2]!))
+      const props = portableClassLikeStyleProps(projectStyleDeclarations(entries), entries)
       if (!props || Object.keys(props).length === 0) return null
-      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) setOwn(classDefs, name, { ...props })
+      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) {
+        const combined = compactStyleDeclarations([...(ownStyleDeclarations(classDefDeclarations, name) ?? Object.entries(classDefs[name] ?? {})), ...entries])
+        setOwn(classDefs, name, projectStyleDeclarations(combined))
+        const declarations = retainedStyleDeclarations(combined)
+        if (declarations) setOwn(classDefDeclarations, name, declarations)
+      }
       continue
     }
     const classLine = matchStateClassAssignment(line)
@@ -248,11 +255,12 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
     const styleLine = line.match(STATE_STYLE_RE)
     if (styleLine) {
-      const props = portableClassLikeStyleProps(parseClassLikeStyleProps(styleLine[2]!))
+      const declarations = compactStyleDeclarations(parseClassLikeStyleDeclarations(styleLine[2]!))
+      const props = portableClassLikeStyleProps(projectStyleDeclarations(declarations), declarations)
       if (!props || Object.keys(props).length === 0) return null
       for (const id of styleLine[1]!.split(',').map(value => value.trim()).filter(Boolean)) {
         if (!portableStyleTarget(id)) return null
-        inlineStyles.push({ id, props: { ...props }, scope })
+        inlineStyles.push({ id, props: { ...props }, declarations, scope })
       }
       continue
     }
@@ -460,10 +468,13 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (!state) { unresolvedClasses.push({ id, className }); continue }
     state.className = state.className === undefined ? className : `${state.className} ${className}`
   }
-  for (const { id, props } of inlineStyles) {
+  for (const { id, props, declarations } of inlineStyles) {
     const state = stateById.get(id)
-    if (!state) { unresolvedStyles.push({ id, style: { ...props } }); continue }
-    state.style = { ...state.style, ...props }
+    const retained = retainedStyleDeclarations(declarations)
+    if (!state) { unresolvedStyles.push({ id, style: { ...props }, ...(retained ? { styleDeclarations: retained } : {}) }); continue }
+    state.style = { ...props }
+    if (retained) state.styleDeclarations = retained
+    else delete state.styleDeclarations
   }
   let defaultTransitionStyle: Record<string, string> | undefined
   for (const directive of pendingLinkStyles) {
@@ -506,6 +517,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     ...(floatingNotes.length > 0 ? { floatingNotes } : {}),
     ...(root.direction !== undefined ? { direction: root.direction } : {}),
     ...(Object.keys(classDefs).length > 0 ? { classDefs } : {}),
+    ...(Object.keys(classDefDeclarations).length > 0 ? { classDefDeclarations } : {}),
     ...(defaultTransitionStyle ? { defaultTransitionStyle } : {}),
     ...(unresolvedClasses.length > 0 ? { unresolvedClasses } : {}),
     ...(unresolvedStyles.length > 0 ? { unresolvedStyles } : {}),
@@ -789,7 +801,7 @@ export function renderState(body: StateBody): string {
       out.push(`  note ${n.side} of ${n.target} : ${text}`)
     }
   }
-  for (const [name, style] of Object.entries(body.classDefs ?? {})) out.push(classLikeStyleStatement(`  classDef ${name} `, style))
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) out.push(classLikeStyleStatement(`  classDef ${name} `, style, undefined, ownStyleDeclarations(body.classDefDeclarations, name)))
   const styledStates: StateNode[] = []
   const transitions: StateTransition[] = []
   const collect = (states: StateNode[], scopeTransitions: StateTransition[]): void => {
@@ -803,10 +815,10 @@ export function renderState(body: StateBody): string {
   collect(body.states, body.transitions)
   for (const state of styledStates) {
     for (const className of graphClassNames(state.className)) out.push(`  class ${state.id} ${className}`)
-    if (state.style) out.push(classLikeStyleStatement(`  style ${state.id} `, state.style))
+    if (state.style) out.push(classLikeStyleStatement(`  style ${state.id} `, state.style, undefined, state.styleDeclarations))
   }
   for (const { id, className } of body.unresolvedClasses ?? []) out.push(`  class ${id} ${className}`)
-  for (const { id, style } of body.unresolvedStyles ?? []) out.push(classLikeStyleStatement(`  style ${id} `, style))
+  for (const { id, style, styleDeclarations } of body.unresolvedStyles ?? []) out.push(classLikeStyleStatement(`  style ${id} `, style, undefined, styleDeclarations))
   if (body.defaultTransitionStyle) out.push(`  linkStyle default ${serializeStyleProps(body.defaultTransitionStyle)}`)
   transitions.forEach((transition, index) => {
     if (transition.style) out.push(`  linkStyle ${index} ${serializeStyleProps(transition.style)}`)
@@ -849,12 +861,12 @@ function stateWriteProblem(body: StateBody): string | undefined {
   const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
   let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
   let invalidBoundary = false
-  let invalidStyle = Object.values(body.classDefs ?? {}).some(style => !portableClassLikeStyleProps(style)) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style))
+  let invalidStyle = Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name)) || Object.entries(body.classDefs ?? {}).some(([name, style]) => !portableClassLikeStyleProps(style, ownStyleDeclarations(body.classDefDeclarations, name))) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style, item.styleDeclarations))
   const visit = (states: StateNode[], transitions: StateTransition[]): void => {
     for (const state of states) {
       if (state.declarationBeforeTransition !== undefined && (!Number.isInteger(state.declarationBeforeTransition) || state.declarationBeforeTransition < 0 || state.declarationBeforeTransition > transitions.length)) invalidBoundary = true
       if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
-      if (state.style && !portableClassLikeStyleProps(state.style)) invalidStyle = true
+      if (state.styleDeclarations && !state.style || state.style && !portableClassLikeStyleProps(state.style, state.styleDeclarations)) invalidStyle = true
       if (state.regions) for (const region of state.regions) visit(region.states, region.transitions)
       else if (state.states) visit(state.states, state.transitions ?? [])
     }
@@ -873,8 +885,8 @@ function stateWriteProblem(body: StateBody): string | undefined {
 // projection — the exact graph the renderer would lay out.
 
 import { parseMermaid as parseLegacy, parseStyleProps } from '../parser.ts'
-import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
-import { classLikeStyleHasValueCommas, classLikeStyleStatement, parseClassLikeStyleProps, portableClassLikeStyleProps } from '../shared/class-like-style.ts'
+import { compactStyleDeclarations, ownStyleDeclarations, parseMutableStyleProps, parseStyleDeclarations, projectStyleDeclarations, retainedStyleDeclarations, serializeStyleProps, unsafeStylePaintError, type StyleDeclaration } from '../shared/style-props.ts'
+import { classLikeStyleHasValueCommas, classLikeStyleStatement, parseClassLikeStyleDeclarations, parseClassLikeStyleProps, portableClassLikeStyleProps } from '../shared/class-like-style.ts'
 import type { MermaidGraph } from '../types.ts'
 
 export function stateBodyToGraph(body: StateBody): MermaidGraph {
@@ -897,6 +909,7 @@ function cloneState(s: StateNode): StateNode {
     ...(s.stereotype !== undefined ? { stereotype: s.stereotype } : {}),
     ...(s.className !== undefined ? { className: s.className } : {}),
     ...(s.style !== undefined ? { style: { ...s.style } } : {}),
+    ...(s.styleDeclarations ? { styleDeclarations: structuredClone(s.styleDeclarations) } : {}),
     ...(s.direction !== undefined ? { direction: s.direction } : {}),
     ...(s.states !== undefined ? { states: s.states.map(cloneState) } : {}),
     ...(s.transitions !== undefined ? { transitions: s.transitions.map(cloneTransition) } : {}),
@@ -917,9 +930,10 @@ function cloneStateBody(b: StateBody): StateBody {
     ...(b.floatingNotes ? { floatingNotes: b.floatingNotes.map(note => ({ ...note, ...(note.scope ? { scope: { ...note.scope } } : {}) })) } : {}),
     ...(b.direction !== undefined ? { direction: b.direction } : {}),
     ...(b.classDefs !== undefined ? { classDefs: Object.fromEntries(Object.entries(b.classDefs).map(([name, style]) => [name, { ...style }])) } : {}),
+    ...(b.classDefDeclarations ? { classDefDeclarations: structuredClone(b.classDefDeclarations) } : {}),
     ...(b.defaultTransitionStyle !== undefined ? { defaultTransitionStyle: { ...b.defaultTransitionStyle } } : {}),
     ...(b.unresolvedClasses ? { unresolvedClasses: b.unresolvedClasses.map(item => ({ ...item })) } : {}),
-    ...(b.unresolvedStyles ? { unresolvedStyles: b.unresolvedStyles.map(item => ({ ...item, style: { ...item.style } })) } : {}),
+    ...(b.unresolvedStyles ? { unresolvedStyles: b.unresolvedStyles.map(item => ({ ...item, style: { ...item.style }, ...(item.styleDeclarations ? { styleDeclarations: structuredClone(item.styleDeclarations) } : {}) })) } : {}),
   }
 }
 
@@ -1044,7 +1058,7 @@ function parseStateStyle(style: string, field: string, portable = true): Result<
           : `${field} must contain at least one property:value pair`
     return err({ code: 'INVALID_OP', message })
   }
-  const value = portable ? portableClassLikeStyleProps(parsed.value) : parsed.value
+  const value = portable ? portableClassLikeStyleProps(parsed.value, parseStyleDeclarations(style)) : parsed.value
   return value ? ok(value) : err({ code: 'INVALID_OP', message: `${field} contains text outside the supported SVG attribute domain` })
 }
 
@@ -1342,6 +1356,9 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (!style.ok) return style
       if (!next.classDefs) next.classDefs = {}
       setOwn(next.classDefs, op.name, style.value)
+      const declarations = retainedStyleDeclarations(parseStyleDeclarations(op.style))
+      if (declarations) { next.classDefDeclarations ??= {}; setOwn(next.classDefDeclarations, op.name, declarations) }
+      else if (next.classDefDeclarations) { delete next.classDefDeclarations[op.name]; if (!Object.keys(next.classDefDeclarations).length) delete next.classDefDeclarations }
       break
     }
     case 'set_state_class': {
@@ -1357,11 +1374,13 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     case 'set_state_style': {
       const loc = locate(next, op.id)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
-      if (op.style === null) { delete loc.node.style; break }
+      if (op.style === null) { delete loc.node.style; delete loc.node.styleDeclarations; break }
       if (!portableStyleTarget(loc.node.id)) return err({ code: 'INVALID_OP', message: `State style target "${loc.node.id}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore` })
       const style = parseStateStyle(op.style, 'State inline style')
       if (!style.ok) return style
       loc.node.style = style.value
+      loc.node.styleDeclarations = retainedStyleDeclarations(parseStyleDeclarations(op.style))
+      if (!loc.node.styleDeclarations) delete loc.node.styleDeclarations
       break
     }
     case 'set_transition_style': {
@@ -1444,7 +1463,9 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     next.unresolvedStyles = next.unresolvedStyles.filter(item => {
       const target = locate(next, item.id)?.node
       if (!target) return true
-      target.style = { ...target.style, ...item.style }
+      target.style = { ...item.style }
+      if (item.styleDeclarations) target.styleDeclarations = structuredClone(item.styleDeclarations)
+      else delete target.styleDeclarations
       return false
     })
     if (next.unresolvedStyles.length === 0) delete next.unresolvedStyles

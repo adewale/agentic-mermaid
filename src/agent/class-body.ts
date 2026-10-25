@@ -39,7 +39,7 @@ import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
-import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { compactStyleDeclarations, ownStyleDeclarations, parseMutableStyleProps, parseStyleDeclarations, projectStyleDeclarations, retainedStyleDeclarations, unsafeStylePaintError, type StyleDeclaration } from '../shared/style-props.ts'
 import { classLikeStyleHasValueCommas, classLikeStyleStatement, portableClassLikeStyleProps } from '../shared/class-like-style.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -70,14 +70,15 @@ function writableFirstStyleProperty(property: string): boolean {
     && (property === 'style' || readsAsClassName(property, false, true))
 }
 
-function portableClassStyleProps(style: Readonly<Record<string, string>>): Record<string, string> | undefined {
-  const portable = portableClassLikeStyleProps(style)
+function portableClassStyleProps(style: Readonly<Record<string, string>>, declarations?: readonly StyleDeclaration[]): Record<string, string> | undefined {
+  const portable = portableClassLikeStyleProps(style, declarations)
   if (!portable) return
-  const entries = Object.entries(portable)
-  const first = entries.findIndex(([property]) => writableFirstStyleProperty(property))
-  if (first < 0) return
-  if (first > 0) entries.unshift(...entries.splice(first, 1))
-  return Object.fromEntries(entries)
+  if (!Object.keys(portable).some(writableFirstStyleProperty)) return
+  return portable
+}
+
+function classStyleStatement(prefix: string, style: Readonly<Record<string, string>>, declarations?: readonly StyleDeclaration[]): string {
+  return classLikeStyleStatement(prefix, style, Object.keys(style).find(writableFirstStyleProperty), declarations)
 }
 
 /** Inline STYLE requires ALPHA, unlike declarations and cssClass targets.
@@ -103,7 +104,7 @@ function classMemberWriteProblem(member: string): string | undefined {
 function classBodyWriteProblem(body: ClassBody): string | undefined {
   for (const node of body.classes) {
     if (node.style && !writableInlineStyleTarget(node.id)) return `Class inline style target ${JSON.stringify(node.id)} is not an ALPHA identifier in Mermaid's style grammar`
-    if (node.style && !portableClassStyleProps(node.style)) return `Class style on ${JSON.stringify(node.id)} has no supported lossless Mermaid property/value spelling`
+    if (node.style && !portableClassStyleProps(node.style, node.styleDeclarations)) return `Class style on ${JSON.stringify(node.id)} has no supported lossless Mermaid property/value spelling`
     if (node.id.startsWith('"')) return `Class id ${JSON.stringify(node.id)} starts with a double quote and has no supported lossless Mermaid spelling`
     for (const name of node.className?.split(/\s+/).filter(Boolean) ?? []) {
       if (!writableStyleClassName(name)) return `Class style reference ${JSON.stringify(name)} has no supported lossless Mermaid spelling`
@@ -113,9 +114,11 @@ function classBodyWriteProblem(body: ClassBody): string | undefined {
       if (problem) return problem
     }
   }
+  if (Object.keys(body.classDefDeclarations ?? {}).some(name => !Object.hasOwn(body.classDefs ?? {}, name))) return 'Ordered Class declarations require a matching property record'
+  for (const node of body.classes) if (node.styleDeclarations && !node.style) return 'Ordered Class declarations require a matching property record'
   for (const [name, style] of Object.entries(body.classDefs ?? {})) {
     if (!writableStyleClassName(name, true)) return `Class style definition ${JSON.stringify(name)} has no supported lossless Mermaid spelling`
-    if (!portableClassStyleProps(style)) return `Class style definition ${JSON.stringify(name)} has no supported lossless Mermaid property/value spelling`
+    if (!portableClassStyleProps(style, ownStyleDeclarations(body.classDefDeclarations, name))) return `Class style definition ${JSON.stringify(name)} has no supported lossless Mermaid property/value spelling`
   }
 }
 
@@ -283,10 +286,15 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           break
         }
         case 'classDef': {
-          const props = portableClassStyleProps(value.props)
+          const props = portableClassStyleProps(value.props, value.declarations)
           if (!props) return false
           body.classDefs ??= {}
-          for (const name of value.names) setOwn(body.classDefs, name, { ...props })
+          for (const name of value.names) {
+            const entries = compactStyleDeclarations([...(ownStyleDeclarations(body.classDefDeclarations, name) ?? Object.entries(body.classDefs[name] ?? {})), ...value.declarations])
+            setOwn(body.classDefs, name, projectStyleDeclarations(entries))
+            const declarations = retainedStyleDeclarations(entries)
+            if (declarations) { body.classDefDeclarations ??= {}; setOwn(body.classDefDeclarations, name, declarations) }
+          }
           break
         }
         case 'assignment':
@@ -303,9 +311,12 @@ export function parseClassBody(lines: string[]): ClassBody | null {
             const cls = upsert(reference.id, undefined, reference.generic)
             if (value.kind === 'assignment') cls.className = value.name
             else {
-              const props = portableClassStyleProps(value.props)
+              const props = portableClassStyleProps(value.props, value.declarations)
               if (!props) return false
-              cls.style = { ...cls.style, ...props }
+              const entries = compactStyleDeclarations([...(cls.styleDeclarations ?? Object.entries(cls.style ?? {})), ...value.declarations])
+              cls.style = projectStyleDeclarations(entries)
+              cls.styleDeclarations = retainedStyleDeclarations(entries)
+              if (!cls.styleDeclarations) delete cls.styleDeclarations
             }
             if (!claim(cls, path)) return false
           }
@@ -544,9 +555,9 @@ export function renderClass(body: ClassBody): string {
   }
   // The pinned Class DB copies definitions onto members only when it reads
   // classDef. Membership must already exist, and inline overrides come last.
-  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(classLikeStyleStatement(`  classDef ${name} `, portableClassStyleProps(style)!))
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(classStyleStatement(`  classDef ${name} `, style, ownStyleDeclarations(body.classDefDeclarations, name)))
   for (const c of body.classes) {
-    if (c.style) lines.push(classLikeStyleStatement(`  style ${quoteDirectiveTarget(c.id)} `, portableClassStyleProps(c.style)!))
+    if (c.style) lines.push(classStyleStatement(`  style ${quoteDirectiveTarget(c.id)} `, c.style, c.styleDeclarations))
     if (c.href) {
       lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
     }
@@ -570,9 +581,11 @@ function cloneClass(body: ClassBody): ClassBody {
       ...(c.labelContent ? { labelContent: c.labelContent } : {}),
       ...(c.className ? { className: c.className } : {}),
       ...(c.style ? { style: { ...c.style } } : {}),
+      ...(c.styleDeclarations ? { styleDeclarations: c.styleDeclarations.map(([key, value]) => [key, value] as StyleDeclaration) } : {}),
       ...(c.href ? { href: c.href } : {}),
       ...(c.tooltip !== undefined ? { tooltip: c.tooltip } : {}),
     })),
+    ...(body.classDefDeclarations ? { classDefDeclarations: structuredClone(body.classDefDeclarations) } : {}),
     relations: body.relations.map(r => ({ ...r })),
     notes: body.notes.map(n => ({ ...n })),
     ...(body.namespaces ? { namespaces: body.namespaces.map(n => ({ ...n })) } : {}),
@@ -715,9 +728,12 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
           message: style.reason === 'MULTILINE' ? 'classDef style must be a single-line CSS-like property list' : style.reason === 'UNSAFE_PAINT' ? unsafeStylePaintError(`define_class ${op.name}`, style.paint).message : 'classDef style must contain at least one property:value pair',
         })
       if (!b.classDefs) b.classDefs = {}
-      const portable = portableClassStyleProps(style.value)
+      const declarations = retainedStyleDeclarations(parseStyleDeclarations(op.style))
+      const portable = portableClassStyleProps(style.value, declarations)
       if (!portable) return err({ code: 'INVALID_OP', message: 'Class style has no supported lossless Mermaid property/value spelling' })
       setOwn(b.classDefs, op.name, portable)
+      if (declarations) { b.classDefDeclarations ??= {}; setOwn(b.classDefDeclarations, op.name, declarations) }
+      else if (b.classDefDeclarations) { delete b.classDefDeclarations[op.name]; if (!Object.keys(b.classDefDeclarations).length) delete b.classDefDeclarations }
       return ok(b)
     }
     case 'set_css_class': {
@@ -733,7 +749,7 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
     case 'set_class_style': {
       const c = findClass(op.class)
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
-      if (op.style === null) delete c.style
+      if (op.style === null) { delete c.style; delete c.styleDeclarations }
       else {
         if (!writableInlineStyleTarget(c.id)) return err({ code: 'INVALID_OP', message: `Class inline style target ${JSON.stringify(c.id)} is not an ALPHA identifier in Mermaid's style grammar` })
         const style = parseMutableStyleProps(op.style)
@@ -742,9 +758,12 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
             code: 'INVALID_OP',
             message: style.reason === 'MULTILINE' ? 'Class style must be a single-line CSS-like property list' : style.reason === 'UNSAFE_PAINT' ? unsafeStylePaintError(`set_class_style ${op.class}`, style.paint).message : 'Class style must contain at least one property:value pair',
           })
-        const portable = portableClassStyleProps(style.value)
+        const declarations = retainedStyleDeclarations(parseStyleDeclarations(op.style))
+        const portable = portableClassStyleProps(style.value, declarations)
         if (!portable) return err({ code: 'INVALID_OP', message: 'Class style has no supported lossless Mermaid property/value spelling' })
         c.style = portable
+        if (declarations) c.styleDeclarations = declarations
+        else delete c.styleDeclarations
       }
       return ok(b)
     }
@@ -999,9 +1018,9 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       // Before the first colon of `classDef` and `style`, Mermaid's class
       // grammar takes only ALPHA (`\w+`), `#`, `%` and commas; a colon then
       // starts a LABEL token, which reads on to the next colon.
-      if ((value.kind === 'classDef' || value.kind === 'style') && (!writableFirstStyleProperty(Object.keys(value.props)[0] ?? '') || /[^\w\s#%,]/.test(node.text.replace(/^\S+/, '').split(':')[0]!))) warnings.push({
+      if ((value.kind === 'classDef' || value.kind === 'style') && (!writableFirstStyleProperty(value.declarations[0]?.[0] ?? '') || /[^\w\s#%,]/.test(node.text.replace(/^\S+/, '').split(':')[0]!))) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text', line: header + 1 + node.source.line,
-        message: `\`${value.kind}\` is read with its names and CSS as written. Before the first colon, pinned Mermaid rejects hyphenated property names and reserved Class/accessibility tokens. The writer can put an existing ordinary property first, such as \`fill:#fff,stroke-width:2px\`; without one the source and native rendering are preserved but typed editing is unavailable.`,
+        message: `\`${value.kind}\` is read with its names and CSS as written. Before the first colon, pinned Mermaid rejects hyphenated property names and reserved Class/accessibility tokens. The writer can prefix a requested ordinary declaration before the complete original sequence, such as \`fill:#fff,stroke-width:2px,fill:#fff\`; without one the source and native rendering are preserved but typed editing is unavailable.`,
       })
       // Mermaid's class DB reads a member holding `)` as a method, and its
       // method split, `([#+~-])?(.+)\((.*)\)…`, leaves one it cannot split

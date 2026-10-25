@@ -595,7 +595,7 @@ identified below; this record does not excuse them as opaque preservation.
 | State name after `as` holding a space | **Keep rejection.** | Mermaid reads the rest of the line after `state "…" as` as one name (`X Y`), which no transition can refer to. Ours cannot hold such a name, so the source stays opaque and is not drawn, and the renderer says why. `state X as Y`, which Mermaid rejects, is rejected too. |
 | Class style-class assignment forms | **Keep the style class and warn (`class_style_assignment`, `class_css_class_before_class`); write `cssClass "A" c`.** | Implemented: Mermaid reads `class A c` as one class named `Ac`, rejects an unquoted `cssClass A c` and `A:::c` on a line of its own, and applies `cssClass "A" c` only to a class declared before it. Ours reads each as style class `c` on `A`, whatever the order, warns where Mermaid reads the source otherwise, declares no class for a cssClass (as Mermaid), reads a quoted cssClass's ids as written (`"my class"`), and writes `cssClass "A" c` after the class, which Mermaid reads as written. |
 | Class member text with `:` or `;` after `Class :` | **Keep reading and warn (`class_member_text`).** | Implemented: Mermaid's LABEL token (`":"[^:\n;]+`) ends at either, so `BankAccount : t : +String owner`, `A::B` and `A : x; y` are rejected. Ours reads the member whole and writes it in the class body, which Mermaid reads. A relationship label with a colon stays rejected, as it is upstream. |
-| Class `classDef` or `style` text before its first colon | **Keep reading and warn (`class_style_text`).** | Implemented: Mermaid takes only words, `#`, `%` and commas there, so it rejects `stroke-width:4px` first and accepts `fill:#fff,stroke-width:4px`. The writer moves an already requested ordinary property first; if none exists, the source stays opaque and typed writes refuse it. Keywords occupying other lexer productions are included in that admission rule. |
+| Class `classDef` or `style` text before its first colon | **Keep reading and warn (`class_style_text`).** | Implemented: Mermaid takes only words, `#`, `%` and commas there, so it rejects `stroke-width:4px` first and accepts `fill:#fff,stroke-width:4px`. The writer prefixes an already requested ordinary declaration before the complete original sequence, retaining CSS precedence; if none exists, the source stays opaque and typed writes refuse it. Keywords occupying other lexer productions are included in that admission rule. |
 | Class `{` in a class body member | **Keep rejecting it, on any line of the block.** | Implemented: Mermaid rejects it (OPEN_IN_STRUCT); the body stays opaque and the render is refused, as for a `{` on the block's own line. |
 | Class `%%{…}%%` directive inside a statement | **Read the statement without it, as Mermaid does.** | Implemented: Mermaid removes directives before lexing, so `class A {⏎+literal(%%{init: {}}%%)⏎}` parses and `A : +x %%{a}%%` reads `+x`. An init directive's configuration is applied wherever it stands (see the next row). The writer spells `%%{` in text as `%%#123;`; member edits holding a directive are refused. Elsewhere a directive other than init inside a statement (`%%{wrap}%%`) stays in the text, where Mermaid removes it. |
 | `%%{…}%%` directive inside a statement | **Remove it wherever it stands, in every family, as Mermaid does; apply `init`/`initialize` config and `wrap`.** | Implemented: the shared normaliser applies an `init` or `initialize` directive's configuration (also inside a `%%` comment line) and `wrap` (`wrap: true`) wherever it stands, applies nothing for `config` or other names, and removes each, so every family reads the statement without it (`A["x %%{init:…}%% y"]` reads `x  y`). The writer writes the applied directive before the header. Mermaid reads an unclosed `%%{…` to the end of the source; ours removes only closed directives. |
@@ -771,6 +771,16 @@ entity/marker text and directive-looking text. Encoding `direction` protects the
 whole statement from each lexer's earlier complete-line direction production.
 A syntax-space barrier on every property colon prevents a hex paint in one field
 from activating the global entity prepass against another field.
+
+Ordered `styleDeclarations` on Class/State nodes and `classDefDeclarations`
+on their bodies retain repeated properties when the query record cannot hold
+them. This preserves CSS priority and invalid-value fallbacks without evaluating
+the cascade. JSON synthesis refuses inconsistent record/list pairs. Class inline
+statements append, State inline statements replace, and repeated definitions
+append in both families; replacing a style through a mutation replaces its list.
+Earlier identical declarations can be removed because their later copy dominates
+them. Class's constructor prefixes a requested admissible declaration before the
+complete authored sequence instead of reordering that sequence.
 
 Class still needs an actually requested ordinary first property; a lone
 `stroke-width` or `font-family` cannot be repaired with invented paint. Its inline

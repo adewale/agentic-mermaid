@@ -74,7 +74,7 @@ describe('Class residual elevation (B08/B10)', () => {
     try {
       expect(await upstream.project(serializeMermaid(diagram), value => value.db.getData().nodes.map((node: { id: string; cssClasses: string; styles: string[] }) => ({ id: node.id, classes: node.cssClasses, styles: node.styles })))).toEqual({
         ok: true, value: [
-          { id: 'A', classes: 'default hot', styles: ['fill:#ff0000', 'stroke:#220000', 'color:#ffffff', 'fill:#112233', 'stroke-width:4px'] },
+          { id: 'A', classes: 'default hot', styles: ['fill:#ff0000', 'stroke:#220000', 'color:#ffffff', 'fill:#112233', 'stroke-width:4px', 'fill:#112233'] },
           { id: 'B', classes: 'default hot', styles: ['fill:#ff0000', 'stroke:#220000', 'color:#ffffff'] },
         ],
       })
