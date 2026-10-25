@@ -12,16 +12,14 @@ jobs:
       contents: read
       actions: write
     steps:
-      - name: Retain superseded evidence and dispatch complete cold-diagnostic gates
+      - name: Dispatch complete calibrated semantic campaign against pinned main
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          state="$(gh api repos/adewale/agentic-mermaid/actions/runs/40133210426 --jq .status)"
-          if [ "$state" != completed ]; then
-            gh api --method POST repos/adewale/agentic-mermaid/actions/runs/40133210426/cancel
-          fi
           head="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/cold-peer-calibration --jq .object.sha)"
-          test "$head" = 6792a2687d4c72c2ccf197099c0e3be69bc24396
+          test "$head" = 1da0ca7d91d351184eec56ff8c31b93496386a28
+          runtime="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/native-construction-performance --jq .object.sha)"
+          test "$runtime" = 2ad2d56da931d5aed16d3322c3f2220a0a70de46
           gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
-          {"ref":"codex/cold-peer-calibration","inputs":{"evidence-scope":"all","baseline-ref":"094257545d5ccd33406965c428a5094f7cec78a9","fixed-baseline-sha":"a9d1551da27ddab542a1ae96329464ad65725448"}}
+          {"ref":"codex/cold-peer-calibration","inputs":{"evidence-scope":"all","baseline-ref":"9b64b5f42a8260696052f8218fccfacd8ae44b80","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
           JSON
