@@ -18,6 +18,7 @@ import { chromium, type Browser, type BrowserContext, type CDPSession, type Page
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
+import { PIE_ENTITY_FIXTURES } from '../src/__tests__/helpers/pie-entity-fixtures.ts'
 
 const ROOT = join(import.meta.dir, '..')
 const PREFERRED_PORT = 4567
@@ -377,49 +378,31 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
 })
 
 describe('browser: live editor integration', () => {
-  it('matches pinned Mermaid 11.16 browser-visible Pie entity labels', async () => {
-    const oraclePage = await browser.newPage()
+  it('browser DOM retains independently authored Pie entity labels', async () => {
+    const labelPage = await browser.newPage()
     try {
-      await oraclePage.setContent('<div id="oracle"></div>')
-      await oraclePage.addScriptTag({ path: join(ROOT, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js') })
-      const sources = [
-        ...['&#35;', '&#65;', '&#128;', '&#x23;', '&#amp;', '&amp;'].map(ref => `pie\n  "A${ref}B" : 1`),
-        'pie\n  "A#60;br#62;B" : 1',
-        'pie\n  "A#60;b#62;X#60;/b#62;B" : 1',
-        'pie\n  "A&#60;b>B" : 1',
-        'pie\n  "A#\\35;B" : 1',
-        'pie\n  "A#copy;B" : 1',
-        'pie\n  "A#nbsp;B" : 1',
-        'pie\n  "A#unknown;B" : 1',
-        'pie\n  "A#constructor;B" : 1',
-        'pie\n  "A#__proto__;B" : 1',
-        'pie\n  "A#92;nB" : 1',
-        'pie\n  "A#92;rB" : 1',
-        'pie\n  "A#92;#114;B" : 1',
-        'pie\n  "A#92;XB" : 1',
-        'pie\n  "styleX:#35;" : 1',
-        'pie\n  "classDefX:#35;" : 1',
+      await labelPage.setContent('<div id="labels"></div>')
+      const fixtures = [
+        ...PIE_ENTITY_FIXTURES,
+        { sourceLabel: 'A#60;br#62;B', display: 'A<br>B' },
+        { sourceLabel: 'A#60;b#62;X#60;/b#62;B', display: 'A<b>X</b>B' },
+        { sourceLabel: 'A&#60;b>B', display: 'A&<b>B' },
+        { sourceLabel: 'A#\\35;B', display: 'A#35;B' },
+        { sourceLabel: 'A#92;nB', display: 'A\\nB' },
+        { sourceLabel: 'A#92;#114;B', display: 'A\\rB' },
+        { sourceLabel: 'styleX:#35;', display: 'styleX:#35' },
+        { sourceLabel: 'classDefX:#35;', display: 'classDefX:#35' },
       ]
-      for (const [index, source] of sources.entries()) {
-        const upstream = await oraclePage.evaluate(async ({ source, id }) => {
-          const mermaid = (globalThis as typeof globalThis & {
-            mermaid: { initialize(config: object): void; render(id: string, source: string): Promise<{ svg: string }> }
-          }).mermaid
-          mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })
-          const wrapper = document.createElement('div')
-          wrapper.innerHTML = (await mermaid.render(id, source)).svg
-          return [...wrapper.querySelectorAll('text')].at(-1)?.textContent
-        }, { source, id: `pie-entity-${index}` })
-        const agentic = await oraclePage.evaluate(svg => {
-          const wrapper = document.createElement('div')
+      for (const { sourceLabel, display } of fixtures) {
+        const actual = await labelPage.evaluate(svg => {
+          const wrapper = document.getElementById('labels')!
           wrapper.innerHTML = svg
           return wrapper.querySelector('.pie-legend-text')?.textContent
-        }, renderMermaidSVG(source))
-        if (upstream === undefined || upstream === null) throw new Error('Mermaid did not render a Pie legend')
-        expect(agentic?.startsWith(upstream)).toBe(true)
+        }, renderMermaidSVG(`pie\n  "${sourceLabel}" : 1\n`))
+        expect(actual, sourceLabel).toBe(`${display} (100.0%)`)
       }
     } finally {
-      await oraclePage.close()
+      await labelPage.close()
     }
   })
 
@@ -464,6 +447,7 @@ describe('browser: live editor integration', () => {
           remaining: viewBox.x + viewBox.width - box.x - box.width,
         }
       })
+      expect(await page.locator('.pie-legend-text').first().textContent()).toContain(label)
       expect(bounds.textRight).toBeLessThanOrEqual(bounds.canvasRight)
       expect(bounds.remaining).toBeGreaterThanOrEqual(1)
     }
@@ -887,6 +871,7 @@ pie showData
   }, 120_000)
 
   it('uses local theme registry entries in the editor theme dropdown', async () => {
+    await page.evaluate(() => { localStorage.removeItem('bm-editor-palette') })
     await gotoApp(`${BASE}/editor`)
     await page.waitForSelector('#code-editor', { timeout: 30_000 })
     await page.fill('#code-editor', 'graph TD\n  A[Theme] --> B[Render]')
@@ -898,6 +883,7 @@ pie showData
     )
     expect(typeof salmonBg).toBe('string')
     if (typeof salmonBg !== 'string') throw new Error('salmon style must define a background colour')
+    expect(await page.locator('#preview-inner svg').getAttribute('style')).not.toContain('--bg: ' + salmonBg)
 
     await page.click('#theme-dropdown-btn')
     await page.click('.theme-dropdown-item[data-theme="salmon"]')
@@ -993,6 +979,7 @@ pie showData
 
     const before = await page.locator('#dark-light-btn').boundingBox()
     const themeBefore = await page.locator('#theme-dropdown-btn').boundingBox()
+    const chromeBefore = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())
     await page.click('#dark-light-btn')
     const after = await page.locator('#dark-light-btn').boundingBox()
     const themeAfter = await page.locator('#theme-dropdown-btn').boundingBox()
@@ -1005,6 +992,7 @@ pie showData
     expect(after!.height).toBe(before!.height)
     expect(themeAfter!.width).toBe(themeBefore!.width)
     expect(themeAfter!.height).toBe(themeBefore!.height)
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--t-bg').trim())).not.toBe(chromeBefore)
   }, 60_000)
 
   it('loads source/config examples without overriding the selected theme', async () => {
