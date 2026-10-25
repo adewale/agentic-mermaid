@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, relative, resolve } from 'node:path'
 import { admitCurrentReference } from '../../mermaid-modern-compat/reference.ts'
@@ -18,16 +18,17 @@ const scope = 'Actual Vitest execution of pinned Mermaid source and unmodified o
 interface OriginalTask { title: string; fullName: string; status: string; failureMessages: string[]; location?: { line: number; column: number }; duration?: number }
 interface OriginalFile { name: string; status: string; message?: string; assertionResults: OriginalTask[]; startTime: number; endTime: number }
 interface OriginalVitestJson { success: boolean; startTime: number; numTotalTests: number; numPassedTests: number; numFailedTests: number; numPendingTests: number; numTodoTests: number; numTotalTestSuites: number; numPassedTestSuites: number; numFailedTestSuites: number; testResults: OriginalFile[] }
-const borrowedRuntime = (upstream: string) => {
-  const require = createRequire(join(upstream, 'package.json'))
-  return ['jison', 'js-yaml', 'ajv', 'esbuild', 'typescript', '@rollup/plugin-typescript', 'langium', 'jsdom'].map(name => {
-    let directory = dirname(require.resolve(name))
-    while (directory !== dirname(directory)) {
-      const manifest = join(directory, 'package.json')
-      if (existsSync(manifest) && JSON.parse(readFileSync(manifest, 'utf8')).name === name) return { name, files: deliveredArtifactIdentity(directory, true), dependencies: captureInstalledDependencyClosure(directory) }
-      directory = dirname(directory)
-    }
-    throw Error('Cannot bind actual source-transform runtime package ' + name)
+export function captureUpstreamTransformDependencies(upstream: string, names: readonly string[] = ['jison', 'js-yaml', 'ajv', 'esbuild', 'typescript', '@rollup/plugin-typescript', 'langium', 'jsdom']) {
+  return names.map(name => {
+    const importer = name === 'langium' ? join(upstream, 'packages/parser/package.json') : join(upstream, 'package.json')
+    const require = createRequire(importer)
+    // Resolve the installed package directory, not a CommonJS entry. Langium
+    // legitimately exposes only an ESM import condition; its bytes still bind.
+    const logical = require.resolve.paths(name)?.map(base => join(base, name)).find(directory => existsSync(join(directory, 'package.json')))
+    if (!logical) throw Error('Cannot locate installed source-transform package ' + name + ' from ' + importer)
+    const directory = realpathSync(logical), manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
+    if (manifest.name !== name) throw Error('Source-transform package name differs from the resolved directory: ' + name)
+    return { name, files: deliveredArtifactIdentity(directory, true), dependencies: captureInstalledDependencyClosure(directory) }
   })
 }
 const infrastructure = (message: string) => /^(?:Error: )?(?:Failed to resolve import \"|Cannot find (?:module|package) ['\"]|ERR_MODULE_NOT_FOUND|Failed to load url|Could not find module)/.test(message)
@@ -62,17 +63,20 @@ export async function runUpstreamOriginalSuite(options: UpstreamOriginalOptions)
   const inventory = inventoryOriginalDeclarations(upstream), sourceConfig = join(upstream, 'vite.config.ts'), requiredVersion = JSON.parse(readFileSync(join(upstream, 'package.json'), 'utf8')).devDependencies.vitest, actualRunnerVersion = JSON.parse(readFileSync(join(dirname(runner), 'package.json'), 'utf8')).version
   if (actualRunnerVersion !== requiredVersion.replace(/^[~^]/, '')) throw Error(`Original runner differs from pinned minimum tool version: declared=${requiredVersion}, actual=${actualRunnerVersion}`)
   return runRetainedSuite({ out: options.out, records: options.benchmarkRecordStore ?? join(options.out, 'records'), force: options.benchmarkForce,
-    identity: () => JSON.parse(JSON.stringify({ project: 'mermaid-js/mermaid', lane: 'upstream-original-core-runner', protocol: { version: 'actual-original-vitest-core-v1', pin, context: baselineMeasurementContext(root, node, ['eval/benchmark/unified/upstream-fidelity-original.ts']), sourceConfig: execFileSync('git', ['rev-parse', `${pin.commit}:vite.config.ts`], { cwd: upstream, encoding: 'utf8' }).trim(), selection: scope }, artifact: { sourceCommit: pin.commit, runnerVersion: actualRunnerVersion, runnerFiles: deliveredArtifactIdentity(dirname(runner), true), runnerDependencies: captureInstalledDependencyClosure(dirname(runner)), preparedRuntimeDependencies: captureInstalledDependencyClosure(runnerRoot), referenceDependencies: captureInstalledDependencyClosure(reference), sourceTransformDependencies: borrowedRuntime(upstream), generatedGrammar: deliveredArtifactIdentity(join(upstream, 'packages/parser/src/language/generated'), true), compiledElkPlugin: deliveredArtifactIdentity(join(upstream, 'packages/mermaid-layout-elk/dist'), true) }, measurement: { node: executableIdentity(node), workers: 1, snapshots: 'read-only; update not permitted' } })),
+    identity: () => JSON.parse(JSON.stringify({ project: 'mermaid-js/mermaid', lane: 'upstream-original-core-runner', protocol: { version: 'actual-original-vitest-core-v1', pin: admitCurrentReference(upstream, reference), context: baselineMeasurementContext(root, node, ['eval/benchmark/unified/upstream-fidelity-original.ts']), sourceConfig: execFileSync('git', ['rev-parse', `${pin.commit}:vite.config.ts`], { cwd: upstream, encoding: 'utf8' }).trim(), selection: scope }, artifact: { sourceCommit: pin.commit, runnerVersion: actualRunnerVersion, runnerFiles: deliveredArtifactIdentity(dirname(runner), true), runnerDependencies: captureInstalledDependencyClosure(dirname(runner)), preparedRuntimeDependencies: captureInstalledDependencyClosure(runnerRoot), referenceDependencies: captureInstalledDependencyClosure(reference), sourceTransformDependencies: captureUpstreamTransformDependencies(upstream), generatedGrammar: deliveredArtifactIdentity(join(upstream, 'packages/parser/src/language/generated'), true), compiledElkPlugin: deliveredArtifactIdentity(join(upstream, 'packages/mermaid-layout-elk/dist'), true) }, measurement: { node: executableIdentity(node), workers: 1, snapshots: 'Vitest CI mode: updateSnapshot none; no creation or updates', originalChildEnvironment: { CI: 'true' } } })),
     measure: async directory => {
       const collectionStartedAt = new Date().toISOString(), workspace = join(directory, 'core.workspace.mjs'), output = join(directory, 'vitest-original.json'), log = join(directory, 'vitest-original.log'), fontCache = join(directory, 'font-cache')
       mkdirSync(fontCache, { recursive: true })
       writeFileSync(workspace, `export default [${JSON.stringify(sourceConfig)}];\n`)
       const args = [runner, 'run', '--workspace', workspace, '--maxWorkers', '1', '--minWorkers', '1', '--includeTaskLocation', '--reporter', 'json', '--outputFile', output]
-      write(join(directory, 'invocation.json'), { executable: node, args, cwd: upstream, sourcePin: pin, runnerVersion: actualRunnerVersion, scope, environment: { XDG_CACHE_HOME: fontCache } })
-      const wall = performance.now(), child = spawnSync(node, args, { cwd: upstream, encoding: 'utf8', env: { ...process.env, XDG_CACHE_HOME: fontCache }, timeout: options.upstreamWorkerTimeoutMs ?? 900_000, maxBuffer: 16 * 1024 * 1024 }), workflowWallMs = performance.now() - wall
+      write(join(directory, 'invocation.json'), { executable: node, args, cwd: upstream, sourcePin: pin, runnerVersion: actualRunnerVersion, scope, environment: { XDG_CACHE_HOME: fontCache, CI: 'true' } })
+      const wall = performance.now(), child = spawnSync(node, args, { cwd: upstream, encoding: 'utf8', env: { ...process.env, XDG_CACHE_HOME: fontCache, CI: 'true' }, timeout: options.upstreamWorkerTimeoutMs ?? 900_000, maxBuffer: 16 * 1024 * 1024 }), workflowWallMs = performance.now() - wall
       writeFileSync(log, (child.stdout ?? '') + (child.stderr ?? ''))
       if (child.error || !existsSync(output)) throw Error(`Original upstream runner did not publish a complete JSON result: ${child.error?.message ?? child.stderr ?? child.status}`)
-      const raw = JSON.parse(readFileSync(output, 'utf8')) as OriginalVitestJson, summary = summarizeOriginalVitest(raw, upstream, inventory)
+      const raw = JSON.parse(readFileSync(output, 'utf8')) as OriginalVitestJson
+      const snapshots = (raw as unknown as { snapshot?: { added?: number; updated?: number; filesAdded?: number; filesUpdated?: number; didUpdate?: boolean } }).snapshot
+      if (snapshots && (snapshots.added || snapshots.updated || snapshots.filesAdded || snapshots.filesUpdated || snapshots.didUpdate)) throw Error('Original runner wrote snapshots despite the read-only CI snapshot contract')
+      const summary = summarizeOriginalVitest(raw, upstream, inventory)
       write(join(directory, 'upstream-original-summary.json'), { pin, runnerVersion: actualRunnerVersion, ...summary, subprocessExitCode: child.status, workflowWallMs })
       const observations: BenchmarkObservation[] = summary.callbacks.map((row, index) => ({ suite: 'upstream-original', surface: 'mermaid:original-source-vitest', runtime: 'Node + Vitest + jsdom', family: summary.declarations.find(declaration => declaration.path === row.path)?.family ?? '<shared>', caseId: `${row.path}:${row.line ?? 'unlocated'}:${index}`, operation: 'original-upstream-native-callback', format: 'assertions', mode: 'original-runner-functionality', status: row.status === 'unavailable' ? 'blocked' : row.status === 'skipped-upstream' ? 'not-applicable' : row.status === 'failed' ? 'failed' : 'passed', detail: row.failureMessages.join('\n').slice(0, 4000), metrics: { originalCallbackStatus: row.originalStatus, individualAssertionCountAvailable: false } }))
       for (const file of summary.files.filter(file => file.status === 'unavailable' && file.callbackCount === 0)) observations.push({ suite: 'upstream-original', surface: 'mermaid:original-source-vitest', runtime: 'Node + Vitest + jsdom', family: '<shared>', caseId: file.path, operation: 'original-module-collection', format: 'assertions', mode: 'original-runner-functionality', status: 'blocked', detail: file.message })
