@@ -606,6 +606,20 @@ function renderActivation<T>(marks: DrawingFactory<T>, activation: Activation, s
  * Wrapped in <g class="message"> with presentation metadata. The child
  * ConnectorMark is the sole authority for relation endpoints.
  */
+function messageConnectorSemantics(msg: PositionedMessage, startMarker: MarkerDescriptor | undefined, endMarker: MarkerDescriptor | undefined) {
+  return {
+    endpoints: { from: msg.from, to: msg.to },
+    relationship: {
+      kind: 'sequence-message',
+      direction: msg.isSelf ? 'self'
+        : startMarker && endMarker ? 'bidirectional'
+          : startMarker ? 'reverse' : endMarker ? 'forward' : 'undirected',
+    },
+    route: { ownership: 'layout' },
+    labels: msg.label ? [{ text: msg.label, ...(msg.labelContent ? { textContent: msg.labelContent } : {}) }] : [],
+  } as const
+}
+
 function renderMessage<T>(
   marks: DrawingFactory<T>,
   msg: PositionedMessage,
@@ -628,17 +642,11 @@ function renderMessage<T>(
     strokeWidth: String(style.lineWidth),
     ...(msg.lineStyle === 'dashed' ? { strokeDasharray: '6 4' } : {}),
   }
-  const connectorSemantics = {
-    endpoints: { from: msg.from, to: msg.to },
-    relationship: {
-      kind: 'sequence-message',
-      direction: msg.isSelf ? 'self'
-        : startMarker && endMarker ? 'bidirectional'
-          : startMarker ? 'reverse' : endMarker ? 'forward' : 'undirected',
-    },
-    route: { ownership: 'layout' },
-    labels: msg.label ? [{ text: msg.label, ...(msg.labelContent ? { textContent: msg.labelContent } : {}) }] : [],
-  } as const
+  const commandSink = lineSink && !msg.isSelf && msg.lineStyle === 'solid' && msg.startHead === 'none' && msg.endHead === 'filled'
+    && !msg.centralStart && !msg.centralEnd && endMarker?.id === 'seq-arrow' ? lineSink : undefined
+  // Legacy/custom factories still capture their fields eagerly at the same
+  // point. Proven private commands transfer the scalars directly instead.
+  const connectorSemantics = commandSink ? undefined : messageConnectorSemantics(msg, startMarker, endMarker)
 
   // Semantic wrapper with message metadata
   const open =
@@ -659,7 +667,7 @@ function renderMessage<T>(
         lineStyle: msg.lineStyle,
         paint: linePaint,
         markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
-        ...connectorSemantics,
+        ...(connectorSemantics ?? messageConnectorSemantics(msg, startMarker, endMarker)),
       }),
     })
     // Label to the right of the loop (supports multi-line)
@@ -684,9 +692,8 @@ function renderMessage<T>(
     // Normal message: horizontal arrow
     const p0 = msg.points[0]!
     const p1 = msg.points[msg.points.length - 1]!
-    const line = lineSink && msg.lineStyle === 'solid' && msg.startHead === 'none' && msg.endHead === 'filled'
-      && !msg.centralStart && !msg.centralEnd && endMarker?.id === 'seq-arrow'
-      ? lineSink({ id: `${sceneId}:line`, from: msg.from, to: msg.to,
+    const line = commandSink
+      ? commandSink({ id: `${sceneId}:line`, from: msg.from, to: msg.to,
         x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y,
         strokeColor: rawStroke, strokeWidth: linePaint.strokeWidth, label: msg.label,
         ...(msg.labelContent ? { labelContent: msg.labelContent } : {}),
@@ -700,7 +707,7 @@ function renderMessage<T>(
         lineStyle: msg.lineStyle,
         paint: linePaint,
         markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
-        ...connectorSemantics,
+        ...(connectorSemantics ?? messageConnectorSemantics(msg, startMarker, endMarker)),
       }),
     })
     // Label above the arrow, centered (supports multi-line)
