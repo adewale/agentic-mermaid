@@ -121,5 +121,11 @@ export async function measurePeerTrack(options: {
     if (priorObserver === undefined) delete global[observerKey]
     else global[observerKey] = priorObserver
   }
-  return finalizeTrackObservation(row)
+  finalizeTrackObservation(row)
+  const expected = track.phase === 'first-use' ? (track.coldProbe ?? 'timing') === 'timing' ? 1 : 0 : track.samples
+  if (row.status === 'ok' && row.callSamplesMs.length !== expected) {
+    row.status = 'error'
+    row.detail = `incomplete timing population: expected ${expected}, observed ${row.callSamplesMs.length}`
+  }
+  return row
 }
