@@ -308,31 +308,52 @@ describe('bounded final layout certification', () => {
     } finally { firstPass.run = run }
   })
 
-  test('a real crossing graph retains the lower-bend hierarchy and routing proposals', () => {
+  test('a real crossing graph compares hierarchy and routing proposals without losing zero-crossing ink', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
-    expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
+    expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'separate-hierarchy', attempts: 2, hardViolations: 0 })
     expect(preference).toMatchObject({
-      reason: 'totalBends', selectedScore: { edgeCrossings: 1, totalBends: 4 },
-      routing: { strategy: 'bundled', preference: { reason: 'totalBends' } },
+      reason: 'totalBends', selectedScore: { edgeCrossings: 0, totalBends: 4 },
+      routing: { strategy: 'without-generic-bundling', preference: { reason: 'edgeCrossings' } },
     })
     expect(preference.compared).toMatchObject([
       { strategy: 'default', score: { edgeCrossings: 1, totalBends: 4 } },
-      { strategy: 'separate-hierarchy', score: { edgeCrossings: 1, totalBends: 5 } },
+      { strategy: 'separate-hierarchy', score: { edgeCrossings: 1, totalBends: 3 } },
     ])
     expect(preference.routing!.preference.compared).toMatchObject([
-      { strategy: 'bundled', score: { edgeCrossings: 1, totalBends: 4 } },
-      { strategy: 'without-generic-bundling', score: { edgeCrossings: 1, totalBends: 8 } },
+      { strategy: 'bundled', score: { edgeCrossings: 1, totalBends: 3 } },
+      { strategy: 'without-generic-bundling', score: { edgeCrossings: 0, totalBends: 4 } },
     ])
-    expect(preference.selectedScore).toEqual(preference.compared[0]!.score)
+    expect(preference.routing!.preference.compared[0]!.score).toEqual(preference.compared[1]!.score)
     expect(preference.selectedScore).toEqual(preference.routing!.preference.selectedScore)
     expect(preference.selectedScore.nonCanonicalEndpointRate).toBeGreaterThan(preference.compared[1]!.score.nonCanonicalEndpointRate)
     const assessed = assessLayout(graph, positioned, resolveRenderStyle({}))
     expect(hardViolations(assessed)).toEqual([])
-    expect(assessed.metrics).toMatchObject({ edgeCrossings: 1, totalBends: 4 })
+    expect(assessed.metrics).toMatchObject({ edgeCrossings: 0, totalBends: 4 })
     expect(positioned.edges.toSorted((a, b) => a.edgeIndex! - b.edgeIndex!).map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(graph.edges.map((edge, index) => [index, edge.source, edge.target]))
     const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
     expect(positioned.edges.map(edge => invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target)))).toEqual(graph.edges.map(() => 0))
+    const a1 = nodes.get('a1')!
+    const repaired = positioned.edges.find(edge => edge.source === 'a1' && edge.target === 'a2')!
+    expect(repaired.points[0]).toEqual({ x: a1.x, y: a1.y + a1.height / 2 })
+    expect(repaired.routeCertificate).toMatchObject({ sourcePort: 'W', sourcePortAssignment: { side: 'W', port: 'W', slotIndex: 0, slotCount: 1 } })
+    const endpoints = new Map([...positioned.nodes, ...positioned.groups].map(endpoint => [endpoint.id, endpoint]))
+    const noise = 1e-6
+    for (const edge of positioned.edges) {
+      for (const [id, contact] of [[edge.source, edge.points[0]!], [edge.target, edge.points.at(-1)!]] as const) {
+        const endpoint = endpoints.get(id)!
+        const verticalFace = (Math.abs(contact.x - endpoint.x) < noise || Math.abs(contact.x - endpoint.x - endpoint.width) < noise) && contact.y >= endpoint.y - noise && contact.y <= endpoint.y + endpoint.height + noise
+        const horizontalFace = (Math.abs(contact.y - endpoint.y) < noise || Math.abs(contact.y - endpoint.y - endpoint.height) < noise) && contact.x >= endpoint.x - noise && contact.x <= endpoint.x + endpoint.width + noise
+        expect(verticalFace || horizontalFace).toBe(true)
+        for (let i = 1; i < edge.points.length; i++) {
+          const a = edge.points[i - 1]!, b = edge.points[i]!
+          const crosses = a.y === b.y
+            ? a.y > endpoint.y + noise && a.y < endpoint.y + endpoint.height - noise && Math.max(a.x, b.x) > endpoint.x + noise && Math.min(a.x, b.x) < endpoint.x + endpoint.width - noise
+            : a.x === b.x && a.x > endpoint.x + noise && a.x < endpoint.x + endpoint.width - noise && Math.max(a.y, b.y) > endpoint.y + noise && Math.min(a.y, b.y) < endpoint.y + endpoint.height - noise
+          expect(crosses).toBe(false)
+        }
+      }
+    }
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {
