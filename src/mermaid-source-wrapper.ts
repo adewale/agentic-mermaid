@@ -128,10 +128,11 @@ export function splitHeaderStatement(body: string): string {
   // State reader keeps the `;` as a separator and verify reports it. After a
   // header's `:` no space is needed (`gitGraph:commit`).
   const stateSemicolon = /^\s*stateDiagram/i.test(header[0]) && /^[^\S\r\n]*;/.test(statement)
+  const quadrantSemicolon = /^\s*quadrantChart/i.test(header[0]) && /^[^\S\r\n]*;/.test(statement)
   const separated = header[0].endsWith(':') ? /^[^\S\r\n]*(?!%%)\S/ : /^[^\S\r\n]+(?!%%)\S/
-  if (!stateSemicolon && !separated.test(statement)) return body
+  if (!stateSemicolon && !quadrantSemicolon && !separated.test(statement)) return body
   // A Mindmap root keeps its leading whitespace, which is its level.
-  lines.splice(at, 1, header[0], /^\s*mindmap/i.test(header[0]) ? statement.trimEnd() : statement.trim())
+  lines.splice(at, 1, header[0], /^\s*mindmap/i.test(header[0]) ? statement.trimEnd() : quadrantSemicolon ? statement.replace(/^[^\S\r\n]*;/, '').trim() : statement.trim())
   return lines.join('\n')
 }
 

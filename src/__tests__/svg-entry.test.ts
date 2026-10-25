@@ -127,7 +127,7 @@ describe('focused SVG entry', () => {
     const stages: RenderStageSample[] = []
     withRenderStageObserver(sample => stages.push(sample), () => focused('flowchart LR\n A -->|ELK control| B'))
     expect(stages.some(sample => sample.stage === 'elk')).toBe(true)
-    for (const source of ['classDiagram\n A <|-- B', 'erDiagram\n A ||--o{ B : has']) {
+    for (const source of ['classDiagram\n A <|-- B', 'classDiagram-v2\n A <|-- B', 'erDiagram\n A ||--o{ B : has']) {
       const samples: RenderStageSample[] = []
       withRenderStageObserver(sample => samples.push(sample), () => focused(source))
       expect(samples.filter(sample => sample.stage === 'elk').length).toBeGreaterThan(0)

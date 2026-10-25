@@ -7,7 +7,7 @@
 
 import './scene/default-backend.ts'
 
-import { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
+import { compactSvg, formatSvgNumbers, namespaceSvgIds } from './svg-postprocess.ts'
 import { fitUncalibratedSvgText } from './custom-font-geometry.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
@@ -187,7 +187,7 @@ function renderPositionedWithTextMeasurement(
     svg = injectAccessibility(svg, accessibility, idPrefix, fallbackName)
     assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
-  svg = scopeSvgStyles(svg)
+  svg = formatSvgNumbers(scopeSvgStyles(svg))
   assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split

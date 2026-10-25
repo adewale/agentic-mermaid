@@ -240,13 +240,6 @@ queues. Retired IDs are not reused.
   policy/inventory programme is superseded; no new audit registry or mutation
   score target is requested. The witness is deliberate fault injection, not an
   established ordinary-input producer defect.
-- [ ] **TEST-6 — Audit cross-family endpoint-marker and geometry authority**
-  (`todo`, [#258](https://github.com/adewale/agentic-mermaid/issues/258)).
-  Derive the marker-producing family inventory from the registry, characterize
-  Architecture and Journey contact intent before changing them, and require
-  separate shaft/surface and visible-marker/surface evidence. Inventory every
-  final endpoint writer per affected family; share family-owned production
-  geometry while keeping final verification independently derived.
 - [ ] **TEST-7 — Characterize tangential rectangle arrivals** (`todo`,
   [#259](https://github.com/adewale/agentic-mermaid/issues/259)). Add the
   independent final-geometry incidence metric and report ordinary curated cases
@@ -372,10 +365,7 @@ BUG-19/23/30/31/32 source/display work; its final checks and merge are tracked
 under REL-1.
 
 - [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
-- [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
-- [ ] **BUG-46 — SVG output carries unrounded floats** (`todo`). The default style emits `36.900000000000006` (state) and `4.199999999999999` (timeline, pie), and hand-drawn styles emit `stroke-width="2.0999999999999996"`. Round once where numbers become SVG text, shared by Scene and SVG; goldens that pin these values change with the fix.
 - [ ] **BUG-54 — Quote Quadrant text in its grammar context** (`todo`; #363). Clear keyword and semicolon labels draw, but some lack portability warnings and serialize to rejected source. Keep generous reading; finish canonical quoting and warnings at the Quadrant reader/writer.
-- [ ] **BUG-56 — Close accepted-source reader gaps** (`todo`; #363). `classDiagram-v2`, Quadrant statement separators and Architecture text icons remain unsupported or fail rendering. Compact Architecture edges, the checked Class style-comment case and empty far-axis Quadrant labels now pass; do not retain them as open witnesses. The lollipop case is already fixed by #410. Work belongs in the existing family readers; completed grammar-consolidation issues stay closed.
 - [ ] **BUG-58 — Enforce portable Quadrant style authoring** (`todo`; #363). Functional colors, variables, fractional radii and unknown properties can produce rejected structured output. Keep clear source extensions with warnings; refuse regeneration without a meaning-preserving portable spelling. The initial strict subset is supported hexadecimal colors and integer radii, as specified in the decision record; do not round, resolve page variables or drop fields.
 
 

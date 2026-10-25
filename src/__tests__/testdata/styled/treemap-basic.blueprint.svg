@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="532" viewBox="0 0 960 532" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-1yzgc2q19tvhqj">
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="532" viewBox="0 0 960 532" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-0liun5v1p3okt6">
 <style>
-  svg.am-1yzgc2q19tvhqj { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
-  svg.am-1yzgc2q19tvhqj {
+  svg.am-0liun5v1p3okt6 { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  svg.am-0liun5v1p3okt6 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #eaf2fb;
     --_text-sec:      #b8cfe6;
@@ -90,19 +90,19 @@
 <g data-id="treemap-0" data-role="group">
   <rect style="stroke:none" x="16" y="16" width="928" height="500" fill="#ffffff" stroke="#123a63" stroke-width="1" data-id="cell:treemap-0" data-role="bar" />
   <path d="M15.81 15.94 C329.73 16.25, 643.92 16.39, 944.1 15.92 M943.78 16.01 C944.04 128.21, 944.37 239.93, 943.71 516.22 M943.76 516.31 C634.27 516.01, 324.43 516.08, 15.82 516.03 M16.31 515.84 C16.13 319.61, 16.4 122.66, 16.14 16.13" fill="none" stroke="#123a63" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-  <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="480" y="31.1" text-anchor="middle" font-family="Share Tech Mono" font-size="14" font-weight="500" fill="#eaf2fb" data-prepared-text="true" dy="4.8999999999999995" textLength="53.172000000000004" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
-  <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="480" y="52" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="400" fill="#eaf2fb" data-prepared-text="true" dy="4.199999999999999" textLength="17.352" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">100</text>
+  <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="480" y="31.1" text-anchor="middle" font-family="Share Tech Mono" font-size="14" font-weight="500" fill="#eaf2fb" data-prepared-text="true" dy="4.9" textLength="53.172" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
+  <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="480" y="52" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="400" fill="#eaf2fb" data-prepared-text="true" dy="4.2" textLength="17.352" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">100</text>
   <g data-parent="treemap-0" data-id="treemap-1" data-role="node">
     <rect style="stroke:none" x="26" y="75.8" width="544.8" height="430.2" fill="#ffffff" stroke="#123a63" stroke-width="1" data-id="cell:treemap-1" data-role="bar" />
     <path d="M26.29 75.84 C224.85 75.97, 423.77 76, 570.69 76.03 M570.84 75.98 C570.89 206.02, 570.57 336.43, 570.5 505.89 M570.92 506.1 C398.95 506.01, 227.62 506.19, 26.21 506.32 M26.01 506.03 C25.8 401.8, 26.06 298.09, 25.78 75.9" fill="none" stroke="#123a63" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="298.4" y="90.89999999999999" text-anchor="middle" font-family="Share Tech Mono" font-size="14" font-weight="500" fill="#eaf2fb" data-prepared-text="true" dy="4.8999999999999995" textLength="80.304" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Engineering</text>
-    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="298.4" y="111.8" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="400" fill="#eaf2fb" data-prepared-text="true" dy="4.199999999999999" textLength="14.760000000000002" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">60</text>
+    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="298.4" y="90.9" text-anchor="middle" font-family="Share Tech Mono" font-size="14" font-weight="500" fill="#eaf2fb" data-prepared-text="true" dy="4.9" textLength="80.304" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Engineering</text>
+    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="298.4" y="111.8" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="400" fill="#eaf2fb" data-prepared-text="true" dy="4.2" textLength="14.76" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">60</text>
   </g>
   <g data-parent="treemap-0" data-id="treemap-2" data-role="node">
-    <rect style="stroke:none" x="570.8" y="75.8" width="363.20000000000005" height="430.19999999999993" fill="#ffffff" stroke="#123a63" stroke-width="1" data-id="cell:treemap-2" data-role="bar" />
+    <rect style="stroke:none" x="570.8" y="75.8" width="363.2" height="430.2" fill="#ffffff" stroke="#123a63" stroke-width="1" data-id="cell:treemap-2" data-role="bar" />
     <path d="M571.06 75.41 C696.86 75.99, 823.09 75.69, 933.99 75.41 M933.7 75.99 C933.8 195.09, 933.89 314.13, 934.12 506.23 M933.55 506.23 C812.87 505.41, 691.32 505.44, 571.27 505.76 M570.82 505.95 C570.88 380.15, 570.62 253.3, 570.79 75.84" fill="none" stroke="#123a63" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="752.4" y="90.89999999999999" text-anchor="middle" font-family="Share Tech Mono" font-size="14" font-weight="500" fill="#eaf2fb" data-prepared-text="true" dy="4.8999999999999995" textLength="46.78799999999999" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Design</text>
-    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="752.4" y="111.8" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="400" fill="#eaf2fb" data-prepared-text="true" dy="4.199999999999999" textLength="14.760000000000002" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">40</text>
+    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="752.4" y="90.9" text-anchor="middle" font-family="Share Tech Mono" font-size="14" font-weight="500" fill="#eaf2fb" data-prepared-text="true" dy="4.9" textLength="46.788" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Design</text>
+    <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="752.4" y="111.8" text-anchor="middle" font-family="Share Tech Mono" font-size="12" font-weight="400" fill="#eaf2fb" data-prepared-text="true" dy="4.2" textLength="14.76" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">40</text>
   </g>
 </g>
 </svg>
