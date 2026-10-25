@@ -222,6 +222,12 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
       if (coalesceRuntimePrimitives) {
+        const grammarPath = fileURLToPath(new URL('../../src/shared/grammar-text.ts', import.meta.url))
+        const syntaxPath = resolve(dirname(grammarPath), 'syntax-error.ts')
+        build.onResolve({ filter: /[\\/]syntax-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === syntaxPath ? { path: grammarPath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]shared[\\/]grammar-text\.ts$/ }, ({ path }) => path !== grammarPath ? undefined : ({
+          contents: `${readFileSync(path, 'utf8')}\n${readFileSync(syntaxPath, 'utf8')}`, loader: 'ts', resolveDir: dirname(path),
+        }))
         const backendPath = fileURLToPath(new URL('../../src/layout/backend.ts', import.meta.url))
         const errorPath = resolve(dirname(backendPath), 'certification-error.ts')
         const identityPath = resolve(dirname(backendPath), '../shared/generated-identity.ts')
