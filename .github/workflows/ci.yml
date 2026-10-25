@@ -234,6 +234,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Align the browser container session with its user
+        if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
+        # GitHub mounts a host-owned home. Firefox requires its owner to match
+        # the container user; Git also needs this exact checkout trusted.
+        run: |
+          chown "$(id -u):$(id -g)" "$HOME"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Install Bun in the browser environment
         if: ${{ matrix.suite == 'browser' || matrix.suite == 'browser-site' || matrix.suite == 'payload' }}
         # The image has Node/npm but no unzip, which setup-bun requires.
