@@ -24,8 +24,11 @@ peer, round, phase and consumer; third-party receipt APIs are not invented.
 
 `--tracks all` separates:
 
-- **First use:** one call in a fresh process for each case, consumer and round;
-  import is recorded separately. No earlier workload warms that process.
+- **First use:** 21 individually timed first renders, three allocation probes
+  and one untimed diagnostic render per case, consumer and round. Every render
+  has its own fresh process; no earlier render warms it. Allocation and
+  diagnostic calls never enter the timing distribution. Per-worker import/setup
+  receipts remain separate, with medians recorded in the aggregate.
 - **Warm new source:** warmed engine, real changed visible labels and renamed
   authored identifiers, with a new source variant for each observation.
 - **Exact repeat:** identical source bytes after priming.
@@ -113,9 +116,12 @@ to accommodate noise. Peer calibration additionally checks the dispersion of
 paired baseline/peer ratios across both controls. A calibrated missed budget is
 a blocking failure. Gate JSON records every control ratio and effective budget.
 
-First-use p95 has only one independent call per round in the default protocol,
-and cold allocation needs separate fresh-process probes. These remain explicitly
-unqualified. Uncalibrated checks are advisory until sufficient repeated controls
+First-use p95 requires at least 20 independent first-render workers per round,
+and allocation requires three separate fresh-process probes. The default
+protocol supplies 21 and three respectively; quick mode supplies only three
+timed workers and remains unqualified. Every worker failure is retained in the
+aggregate, rather than silently dropping a missing process. Old one-call cold
+reports remain insufficient and cannot calibrate the new sampling fingerprint. Uncalibrated checks are advisory until sufficient repeated controls
 exist, as requested by the owner. `ok:true` therefore means no blocking failure;
 only `performanceQualified:true` means all enrolled performance checks passed.
 The summary always distinguishes `failed`, `uncalibrated` and `passed`.
