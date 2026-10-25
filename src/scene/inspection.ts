@@ -277,6 +277,15 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       // Match certification's world→parent association, including signed zeros.
       const [ma, mb, mc, md, me, mf] = composeMatrices(matrix, inverseMatrix(IDENTITY_MATRIX)!)
       const paint = compiler.paint(command, parentTransform, { kind: 'matrix', a: ma, b: mb, c: mc, d: md, e: me, f: mf }, hidden)
+      for (const region of paint.regions) {
+        Object.freeze(region.anchor)
+        if (region.bounds) Object.freeze(region.bounds)
+        if (region.hull) {
+          for (const point of region.hull) Object.freeze(point)
+          Object.freeze(region.hull)
+        }
+        Object.freeze(region)
+      }
       const measured = !!paint.bounds && finite(paint.bounds)
       const primitive: ScenePaintGeometry = Object.freeze({ key, id: command.id, kind: 'connector', role: 'message',
         owner: ancestors.includes(owner) ? owner : ownerSnapshot(owner), ancestors,

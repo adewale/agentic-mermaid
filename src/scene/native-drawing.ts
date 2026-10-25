@@ -144,7 +144,7 @@ export function drawNative(
     },
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }
-  const releaseSink = privateSequence ? installSequenceLineSink(factory, input => {
+  const releaseSink = privateSequence ? installSequenceLineSink(factory, (input): Fragment | undefined => {
     if (!sequenceCompiler) return undefined
     const { command, svg } = sequenceCompiler.compile(input, validator)
     return { kind: 'sequence-line', command, compiler: sequenceCompiler, svg, nodeCount: 1, depth: 0, prepared: true }

@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
-import { certifyScenePaint } from '../scene/paint-certification.ts'
+import { certifyNativePaint, certifyScenePaint } from '../scene/paint-certification.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
@@ -10,7 +10,11 @@ import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../i
 import { lowerPositionedFamilyScene, renderedSvgDigest } from '../graphical-render.ts'
 import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
-import { inspectScenePrimitives, scenePrimitiveSource } from '../scene/inspection.ts'
+import { createOwnedNativePaintRecorder, inspectScenePrimitives, nativePaintAncestors, scenePrimitiveSource } from '../scene/inspection.ts'
+import { createSequenceLineCompiler } from '../scene/sequence-line-command.ts'
+import { createNativeSceneValidator } from '../scene/scene-validation.ts'
+import { withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
+import { tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
@@ -22,6 +26,47 @@ const label = () => {
   return marks.text({ id: 'text', role: 'label', text: 'Read', block, x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
 }
 const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
+
+test('private line paint occurrences preserve bounds, ownership, marker repaint and final certification', () => {
+  const header = { family: 'sequence', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' } }
+  const arrow = tipAnchoredArrow('seq-arrow', { width: 8, height: 6 }, 'end', { fill: '#111' })
+  const inputs = [
+    { id: 'line:one', from: 'A', to: 'B', x1: -3, y1: 15, x2: 40, y2: 15, strokeColor: '#111', strokeWidth: '1.5', label: 'one' },
+    { id: 'line:zero', from: 'C', to: 'D', x1: 42, y1: 34, x2: 42, y2: 34, strokeColor: '#222', strokeWidth: '2', label: '' },
+    { id: 'line:reverse', from: 'B', to: 'A', x1: 90, y1: 60, x2: 4, y2: 60, strokeColor: '#333', strokeWidth: '0.75', label: 'three' },
+  ]
+  for (const parent of [undefined, [1.2, 0.25, -0.1, 0.8, -5, 2] as const]) {
+    const compiler = createSequenceLineCompiler(arrow)
+    const validator = createNativeSceneValidator(header)
+    const ordinary = createOwnedNativePaintRecorder(header)
+    const compact = createOwnedNativePaintRecorder(header)
+    const ancestors = nativePaintAncestors(undefined, { id: 'messages', role: 'message' })
+    withDeferredTerminalProjections(() => {
+      const compiled = inputs.map(input => compiler.compile(input, validator))
+      for (const [index, input] of inputs.entries()) {
+        const full = marks.connector({ id: input.id, role: 'message', lineStyle: 'solid',
+          geometry: { kind: 'line', x1: input.x1, y1: input.y1, x2: input.x2, y2: input.y2 },
+          paint: { stroke: input.strokeColor, strokeWidth: input.strokeWidth }, endpoints: { from: input.from, to: input.to },
+          relationship: { kind: 'sequence-message', direction: 'forward' }, route: { ownership: 'layout' }, markers: { mid: [], end: arrow },
+          labels: input.label ? [{ text: input.label }] : [],
+        })
+        ordinary.leaf(full, `scene.${index}`, parent, ancestors, false, index === 1 ? 0 : 0.8)
+        compact.sequenceLine(compiled[index]!.command, compiler, `scene.${index}`, parent, ancestors, false, index === 1 ? 0 : 0.8)
+      }
+    })
+    const cover = surface()
+    ordinary.leaf(cover, 'scene.3')
+    compact.leaf(cover, 'scene.3')
+    const ordinaryPaint = ordinary.finish(), compactPaint = compact.finish()
+    expect(compactPaint).toEqual(ordinaryPaint)
+    const expected = certifyNativePaint(header, ordinaryPaint)
+    const actual = certifyNativePaint(header, compactPaint)
+    expect(actual).toEqual(expected)
+    expect(actual.checks.primitives).toBe(4)
+    expect(actual.checks.markers).toBe(3)
+    expect(compactPaint.primitives.map(primitive => primitive.id)).toEqual(['line:one', 'line:zero', 'line:reverse', 'cover'])
+  }
+})
 
 test('final paint order catches fully hidden text, including artwork with the same owner', () => {
   const text = label(), cover = surface()
