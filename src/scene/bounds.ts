@@ -171,14 +171,7 @@ export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
   }
 }
 
-function markerBoundsAt(
-  marker: MarkerDescriptor | undefined,
-  anchor: ScenePoint | undefined,
-  strokeWidth: number,
-  painted = false,
-  angle?: number,
-): AxisAlignedBox | undefined {
-  if (!marker || !anchor) return undefined
+function prepareMarkerBounds(marker: MarkerDescriptor, painted: boolean) {
   const geometry = marker.geometry ? geometryBounds(marker.geometry) : undefined
   if (painted && marker.geometry && !geometry) return undefined
   let local = marker.bounds
@@ -216,8 +209,30 @@ function markerBoundsAt(
     refY = y(refY)
   }
   // SVG's omitted markerUnits default is strokeWidth.
-  const unitScale = (marker.units ?? 'strokeWidth') === 'strokeWidth' ? strokeWidth : 1
-  const scale = Math.max(painted ? 1 : 0, marker.scale ?? 1) * unitScale
+  const strokeUnits = (marker.units ?? 'strokeWidth') === 'strokeWidth'
+  const scale = Math.max(painted ? 1 : 0, marker.scale ?? 1)
+  return { viewportLocal, refX, refY, strokeUnits, scale }
+}
+
+type PreparedMarkerBounds = ReturnType<typeof prepareMarkerBounds>
+interface PrivateMarkerBounds {
+  readonly marker: MarkerDescriptor
+  readonly painted: PreparedMarkerBounds
+}
+
+function markerBoundsAt(
+  marker: MarkerDescriptor | undefined,
+  anchor: ScenePoint | undefined,
+  strokeWidth: number,
+  painted = false,
+  angle?: number,
+  captured?: PrivateMarkerBounds,
+): AxisAlignedBox | undefined {
+  if (!marker || !anchor) return undefined
+  const prepared = captured?.marker === marker ? captured.painted : prepareMarkerBounds(marker, painted)
+  if (!prepared) return undefined
+  const { viewportLocal, refX, refY } = prepared
+  const scale = prepared.scale * (prepared.strokeUnits ? strokeWidth : 1)
   if (angle !== undefined) {
     const radians = angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians)
     const corners = [[viewportLocal.x0, viewportLocal.y0], [viewportLocal.x0, viewportLocal.y1], [viewportLocal.x1, viewportLocal.y0], [viewportLocal.x1, viewportLocal.y1]]
@@ -248,7 +263,7 @@ export interface ConnectorMarkerPaintRegion {
 }
 
 /** Individual marker occurrences from the native connector authority. */
-export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
+function markerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform, captured?: PrivateMarkerBounds): ConnectorMarkerPaintRegion[] {
   const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
   const mids = connectorMidpoints(geometry, node.route.closed)
   const transform = composedTransform(parentTransform, node.transform)
@@ -257,7 +272,7 @@ export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 
     if (!marker || !anchor) return
     const angle = typeof marker.orient === 'number' ? marker.orient : tangent ? Math.atan2(tangent.y, tangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
     const strokeWidth = numericStrokeWidth(node.stroke.width)
-    const local = markerBoundsAt(marker, anchor, strokeWidth, true, angle)
+    const local = markerBoundsAt(marker, anchor, strokeWidth, true, angle, captured)
     const matrix = transformMatrix(transform)
     // Equality is about the actual resource, orientation, unit scale and
     // composed linear transform, rather than an owner or resource count.
@@ -284,6 +299,25 @@ export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 
   if (node.markers.mid.length === 1) for (const anchor of mids) include('mid', node.markers.mid[0], anchor)
   else node.markers.mid.forEach((marker, index) => include('mid', marker, mids[index]))
   return result
+}
+
+export function connectorMarkerPaintRegions(node: Pick<ConnectorMark, 'route' | 'stroke' | 'markers' | 'transform'>, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
+  return markerPaintRegions(node, parentTransform)
+}
+
+/** Local facts belong to one non-escaping original resource, never a public cache. */
+export function privateConnectorPaintGeometry(marker: MarkerDescriptor) {
+  const captured: PrivateMarkerBounds = { marker, painted: prepareMarkerBounds(marker, true) }
+  return {
+    bounds(node: ConnectorMark, parent?: SceneTransform): AxisAlignedBox | undefined {
+      const transform = composedTransform(parent, node.transform)
+      if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
+      return connectorPaintBounds(node, transform, captured)
+    },
+    regions(node: ConnectorMark, parent?: SceneTransform): ConnectorMarkerPaintRegion[] {
+      return markerPaintRegions(node, parent, captured)
+    },
+  }
 }
 
 function numericStrokeWidth(width: string | number): number {
@@ -493,7 +527,7 @@ export function ribbonEndOvershoot(near: number, far: number, rise: number, half
   return Math.min(half, reach)
 }
 
-function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
+function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform, captured?: PrivateMarkerBounds): AxisAlignedBox | undefined {
   const geometry = node.route.geometry
   const local = geometryBounds(geometry)
   const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
@@ -513,7 +547,7 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
       : node.markers.mid.map((marker, index) => ({ marker, anchor: mids[index] }))),
   ]
   for (const { marker, anchor } of markers) {
-    const bounds = markerBoundsAt(marker, anchor, width, true)
+    const bounds = markerBoundsAt(marker, anchor, width, true, undefined, captured)
     const world = bounds && transformedBounds(bounds, transform)
     if (!world) return undefined
     result = unionSceneBounds(result, world)!

@@ -1,13 +1,52 @@
 import { describe, expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText } from '../scene/serialization.ts'
-import { validateSceneDoc } from '../scene/scene-validation.ts'
+import { createNativeSceneValidator, validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { prepareDisplayText } from '../shared/display-text.ts'
+import { createSequenceLineCompiler } from '../scene/sequence-line-command.ts'
+import { withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
+import { connectorMarkerPaintRegions, nodePaintBounds } from '../scene/bounds.ts'
+import { tipAnchoredArrow } from '../scene/marker-resources.ts'
 
 // The default backend writes shape, text and connector elements from their
 // typed fields, so paint certification, which reads those fields, describes
 // the bytes. Families add only inert hooks.
 describe('typed Scene SVG writer', () => {
+  test('private line occurrences retain earlier bytes, semantics and marker geometry after later submissions', () => {
+    const arrow = tipAnchoredArrow('seq-arrow', { width: 8, height: 6 }, 'end', { fill: '#123' })
+    const compiler = createSequenceLineCompiler(arrow)
+    const validator = createNativeSceneValidator({ family: 'sequence', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false })
+    const rich = '<b>Rich &amp; read</b>\nNext'
+    const inputs = [
+      { id: 'm:first', from: 'A', to: 'B', x1: 10, y1: 20, x2: 90, y2: 20, strokeColor: '#123', strokeWidth: '1.5', label: 'first' },
+      { id: 'm:zero', from: 'C', to: 'D', x1: 40, y1: 30, x2: 40, y2: 30, strokeColor: 'var(--_line)', strokeWidth: '2', label: '' },
+      { id: 'm:reverse', from: 'B', to: 'A', x1: 91, y1: 42, x2: -3, y2: 42, strokeColor: '#456', strokeWidth: '0.75', label: rich,
+        labelContent: { value: rich, prepared: prepareDisplayText(rich) } },
+    ]
+    const parent = { kind: 'matrix', a: 1.25, b: 0.2, c: -0.3, d: 0.8, e: -5, f: 6 } as const
+    withDeferredTerminalProjections(() => {
+      const compiled = inputs.map(input => compiler.compile(input, validator))
+      expect(compiled[0]!.svg).toBe('<line x1="10" y1="20" x2="90" y2="20" stroke="#123" stroke-width="1.5" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="m:first" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: first" />')
+      for (const [index, input] of inputs.entries()) {
+        const full = marks.connector({ id: input.id, role: 'message', lineStyle: 'solid',
+          geometry: { kind: 'line', x1: input.x1, y1: input.y1, x2: input.x2, y2: input.y2 },
+          paint: { stroke: input.strokeColor, strokeWidth: input.strokeWidth }, endpoints: { from: input.from, to: input.to },
+          relationship: { kind: 'sequence-message', direction: 'forward' }, route: { ownership: 'layout' }, markers: { mid: [], end: arrow },
+          labels: input.label ? [{ text: input.label, ...(input.labelContent ? { textContent: input.labelContent } : {}) }] : [],
+        })
+        expect(compiled[index]!.svg).toBe(sceneNodeSerialization(full))
+        const expected = { bounds: nodePaintBounds(full, parent), regions: connectorMarkerPaintRegions(full, parent) }
+        expect(compiler.paint(compiled[index]!.command, parent, parent)).toEqual(expected)
+      }
+      const firstPaint = compiler.paint(compiled[0]!.command, parent, parent)
+      const retained = structuredClone(firstPaint)
+      compiler.paint(compiled[2]!.command, undefined, parent)
+      expect(firstPaint).toEqual(retained)
+      expect(validator.finish().valid).toBe(true)
+    })
+  })
+
   test('proves prepared text only when no opaque fragment can introduce fallback text', () => {
     const block = preparePixelText('Prepared', { fontSize: 12, fontWeight: 400, letterSpacing: 0 })
     const text = marks.text({ id: 'label', role: 'label', text: block.text, block, x: 10, y: 10, fontSize: 12, anchor: 'start', paint: {} })

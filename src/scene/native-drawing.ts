@@ -9,6 +9,9 @@ import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.
 import { createOwnedNativePaintRecorder, nativePaintAncestors, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
+import { isPrivateSequenceNativeOperation } from './positioned.ts'
+import { installSequenceLineSink } from './sequence-line-sink.ts'
+import { createSequenceLineCompiler, type CheckedSequenceLine, type SequenceLineCompiler } from './sequence-line-command.ts'
 
 interface FragmentData {
   readonly svg: string
@@ -27,6 +30,7 @@ interface GroupFragment extends FragmentData {
   readonly opacity: number
 }
 type Fragment = (FragmentData & { readonly kind: 'leaf'; readonly node: LeafNode }) | GroupFragment
+  | (FragmentData & { readonly kind: 'sequence-line'; readonly command: CheckedSequenceLine; readonly compiler: SequenceLineCompiler })
 export interface NativeDrawing {
   readonly svg: string
   readonly paint: ScenePaintGeometryInspection
@@ -63,6 +67,8 @@ function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[])
         const owner = fragment.owner?.id === fragment.own.id && fragment.owner.role === fragment.own.role ? ancestors.at(-1) : fragment.owner
         visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
         groups.pop()
+      } else if (fragment.kind === 'sequence-line') {
+        recorder.sequenceLine(fragment.command, fragment.compiler, key, occurrence?.parentMatrix, occurrence?.ancestors, occurrence?.conditional, occurrence?.groupOpacity, occurrence?.owner)
       } else if (occurrence) {
         recorder.leaf(fragment.node, key, occurrence.parentMatrix, occurrence.ancestors, occurrence.conditional, occurrence.groupOpacity, fragment.node.owner ?? occurrence.owner)
       } else {
@@ -83,6 +89,8 @@ export function drawNative(
 ): NativeDrawing {
   const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
   const validator = createNativeSceneValidator(header)
+  const privateSequence = isPrivateSequenceNativeOperation(context, producer)
+  let sequenceCompiler: SequenceLineCompiler | undefined
   const leaf = (node: LeafNode): Fragment => {
     const svg = validator.node(node)
     return { kind: 'leaf', node, svg, nodeCount: 1, depth: 0,
@@ -96,7 +104,14 @@ export function drawNative(
     documentOpen: (fields, svg) => leaf(marks.documentOpen(fields, svg)),
     documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
     documentText: fields => leaf(marks.documentText(fields)),
-    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
+    definitions(fields, svg) {
+      const fragment = leaf(marks.definitions(fields, svg))
+      if (privateSequence) {
+        const marker = fields.markerResources?.find(resource => resource.id === 'seq-arrow')
+        if (marker) sequenceCompiler = createSequenceLineCompiler(marker)
+      }
+      return fragment
+    },
     documentClose: () => leaf(marks.documentClose()),
     group(fields) {
       let nodeCount = 1, characters = 0, depth = 1, prepared = true
@@ -129,7 +144,13 @@ export function drawNative(
     },
     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
   }
-  const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
+  const releaseSink = privateSequence ? installSequenceLineSink(factory, input => {
+    if (!sequenceCompiler) return undefined
+    const { command, svg } = sequenceCompiler.compile(input, validator)
+    return { kind: 'sequence-line', command, compiler: sequenceCompiler, svg, nodeCount: 1, depth: 0, prepared: true }
+  }) : undefined
+  let document: DrawingDocument<Fragment>
+  try { document = withDeferredTerminalProjections(() => producer(factory, context)) } finally { releaseSink?.() }
   const result = validator.finish()
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
   let nodeCount = 0, characters = -1, preparedText = true

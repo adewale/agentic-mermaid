@@ -253,6 +253,31 @@ function projectedMidMarkerId(id: string, geometry: ConnectorGeometry, closed: b
   return markers[0]!.id
 }
 
+/** The constructor and private reusable projection share display/identity rules. */
+export function connectorSemanticFields(
+  fields: Pick<ConnectorFields, 'id' | 'role' | 'labels' | 'identity'>,
+  endpoints: ConnectorEndpoints,
+): Pick<ConnectorMark, 'labels' | 'identity' | 'accessibility'> {
+  const labels = (fields.labels ?? []).map(label => {
+    const input = resolveLabelContent(label.text, label.textContent)
+    const text = sanitizeDisplayLines(label.text)
+    return { ...label, text, ...(typeof input !== 'string' ? { textContent: { ...label.textContent!, value: text } } : {}) }
+  })
+  const identity: SvgSemanticIdentity = {
+    id: fields.identity?.id ?? fields.id,
+    role: fields.role,
+    ...(fields.identity?.classNames ? { classNames: fields.identity.classNames } : {}),
+    ...(fields.identity?.from ?? endpoints.from ? { from: fields.identity?.from ?? endpoints.from } : {}),
+    ...(fields.identity?.to ?? endpoints.to ? { to: fields.identity?.to ?? endpoints.to } : {}),
+  }
+  const firstLabel = labels[0]
+  const accessibleLabel = firstLabel?.visual?.kind === 'inline'
+    ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
+    : firstLabel ? displayText(resolveLabelContent(firstLabel.text, firstLabel.textContent), firstLabel.display ?? 'literal') : undefined
+  const accessibility = relationAccessibility(identity, accessibleLabel)
+  return { labels, identity, ...(accessibility ? { accessibility } : {}) }
+}
+
 export function connector(fields: ConnectorFields): ConnectorMark {
   assertKnownConnectorFields(fields, CONNECTOR_FIELDS, 'connector')
   if (fields.markers !== undefined) assertKnownConnectorFields(fields.markers, CONNECTOR_MARKER_FIELDS, 'marker')
@@ -323,23 +348,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     kind: fields.relationship?.kind ?? fields.role,
     direction: fields.relationship?.direction ?? connectorDirection(endpoints, markerStart, markerEnd),
   }
-  const labels = (fields.labels ?? []).map(label => {
-    const input = resolveLabelContent(label.text, label.textContent)
-    const text = sanitizeDisplayLines(label.text)
-    return { ...label, text, ...(typeof input !== 'string' ? { textContent: { ...label.textContent!, value: text } } : {}) }
-  })
-  const identity: SvgSemanticIdentity = {
-    id: fields.identity?.id ?? fields.id,
-    role: fields.role,
-    ...(fields.identity?.classNames ? { classNames: fields.identity.classNames } : {}),
-    ...(fields.identity?.from ?? endpoints.from ? { from: fields.identity?.from ?? endpoints.from } : {}),
-    ...(fields.identity?.to ?? endpoints.to ? { to: fields.identity?.to ?? endpoints.to } : {}),
-  }
-  const firstLabel = labels[0]
-  const accessibleLabel = firstLabel?.visual?.kind === 'inline'
-    ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
-    : firstLabel ? displayText(resolveLabelContent(firstLabel.text, firstLabel.textContent), firstLabel.display ?? 'literal') : undefined
-  const accessibility = relationAccessibility(identity, accessibleLabel)
+  const { labels, identity, accessibility } = connectorSemanticFields(fields, endpoints)
   assertMarkAttributes(fields.id, fields.attributes)
   if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Connector "${fields.id}" takes its aria-label from typed relation accessibility`)
   for (const [index, label] of labels.entries()) {

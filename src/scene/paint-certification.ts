@@ -3,7 +3,7 @@ import { connectorMarkerPaintRegions, expandSceneBounds, paintedStrokeExtent, tr
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { resolveInlineColorAttribute } from '../theme.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
-import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
+import { inspectScenePaintGeometry, paintPrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintGeometryInspection, type NativeConnectorPaintSource, type NativePaintSource, type ScenePaintGeometry as ScenePaintPrimitive } from './inspection.ts'
 import type { Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
@@ -245,9 +245,12 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       endpointRoles.set(owner.id, roles)
     }
   }
-  const endpointRelation = (connector: NativeConnectorPaintSource, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
+  const endpointRelation = (connector: NativeConnectorPaintSource | Extract<NativePaintSource, { kind: 'sequence-line' }>, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
     let ambiguous = false
-    for (const [id, anchor] of [[connector.endpoints.from, connector.endpoints.start], [connector.endpoints.to, connector.endpoints.end]] as const) {
+    const endpoints = connector.kind === 'sequence-line'
+      ? [[connector.from, undefined], [connector.to, undefined]] as const
+      : [[connector.endpoints.from, connector.endpoints.start], [connector.endpoints.to, connector.endpoints.end]] as const
+    for (const [id, anchor] of endpoints) {
       if (id !== owner.id) continue
       if (anchor?.owner) {
         if (anchor.owner.id !== id) { ambiguous = true; continue }
@@ -328,12 +331,17 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
   const lastMarkers = new Map<string, MarkerTarget>()
   for (const primitive of inspection.primitives) {
     const node = paintPrimitiveSource(primitive)
-    if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.visibility === 'conditional') continue
-    const ownInverse = inverseMatrix(transformMatrix(node.transform))
-    if (!ownInverse) continue
-    const [a, b, c, d, e, f] = composeMatrices(scenePrimitiveMatrix(primitive)!, ownInverse)
-    const parent: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
-    for (const marker of connectorMarkerPaintRegions(node, parent)) {
+    if (primitive.kind !== 'connector' || !node || node.kind !== 'connector' && node.kind !== 'sequence-line' || node.kind === 'connector' && node.lineStyle === 'invisible' || primitive.visibility === 'conditional') continue
+    let regions
+    if (node.kind === 'sequence-line') regions = node.regions
+    else {
+      const ownInverse = inverseMatrix(transformMatrix(node.transform))
+      if (!ownInverse) continue
+      const [a, b, c, d, e, f] = composeMatrices(scenePrimitiveMatrix(primitive)!, ownInverse)
+      const parent: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+      regions = connectorMarkerPaintRegions(node, parent)
+    }
+    for (const marker of regions) {
       if (!marker.bounds) { issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Endpoint marker has no painted footprint' }); continue }
       const key = JSON.stringify([primitive.owner.id, primitive.owner.role, marker.position, marker.resource, marker.anchor, marker.repaint])
       lastMarkers.set(key, { primitive, bounds: marker.bounds, hull: marker.hull, padding: marker.padding })
@@ -351,7 +359,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         continue
       }
       const connector = paintPrimitiveSource(target.primitive)
-      const attached = connector?.kind === 'connector' && endpointRelation(connector, surface.primitive.owner) === 'attached'
+      const attached = (connector?.kind === 'connector' || connector?.kind === 'sequence-line') && endpointRelation(connector, surface.primitive.owner) === 'attached'
       if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work)) continue
       issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
     }
