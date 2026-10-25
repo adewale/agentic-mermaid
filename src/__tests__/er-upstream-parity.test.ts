@@ -338,16 +338,22 @@ describe('typed ER attributes are written as Mermaid reads them', () => {
   // Keys parted by spaces or after the comment, which Mermaid rejects, are
   // written as its comma-parted key list before the comment. A comment that
   // runs across lines is written across them.
-  test.each<[string, unknown[]]>([
+  test.each<[string, [string, string, Array<'PK' | 'FK' | 'UK'>, string]]>([
     ['A {\n    int id PK FK\n  }', ['int', 'id', ['PK', 'FK'], '']],
     ['A { int id "c" PK }', ['int', 'id', ['PK'], 'c']],
     ['A {\n    int id pk fk "c"\n  }', ['int', 'id', ['PK', 'FK'], 'c']],
     ['A {\n    int id "line1\n    line2"\n  }', ['int', 'id', [], 'line1\nline2']],
     ['A { int id PK "a }\n    b" } B', ['int', 'id', ['PK'], 'a }\nb']],
+    ['A { string `geo.accuracy` PK "the comment" }', ['string', 'geo.accuracy', ['PK'], 'the comment']],
+    ['A { `my.type` address }', ['my.type', 'address', [], '']],
+    ['A { `my.type`? `geo.accuracy` UK "literal `ticks`" }', ['my.type?', 'geo.accuracy', ['UK'], 'literal `ticks`']],
   ])('%j', async (body, expected) => {
     const parsed = parseRegisteredMermaid(`erDiagram\n  ${body}`)
     if (!parsed.ok) throw new Error('fixture rejected')
     const source = serializeMermaid(parsed.value)
+    const nativeAttributes = parseErDiagram(normalizeMermaidSource(source).familyLines).entities
+      .flatMap(entity => entity.attributes.map(attribute => [attribute.type, attribute.name, attribute.keys, attribute.comment ?? '']))
+    expect(nativeAttributes).toEqual([expected])
     const json = await upstream.database(source)
     const attributes = json === undefined ? 'rejected' : (JSON.parse(json) as { getEntities: Array<[string, { attributes: Plain[] }]> }).getEntities
       .flatMap(([, entity]) => entity.attributes.map(attribute => [attribute.type, attribute.name, attribute.keys, attribute.comment]))
