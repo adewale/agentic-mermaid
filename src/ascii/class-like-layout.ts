@@ -70,6 +70,8 @@ function faceCounts(relations: readonly BoxRelation[], direction: DiagramDirecti
   }))
 }
 
+export { faceCounts as boxFaceDemands }
+
 function sealRoute(route: Omit<BoxRoute, typeof allocatedRoute | 'path'>): BoxRoute {
   const path = allocateTerminalRoute(route.relation.id,
     { ...route.source, nodeId: route.relation.from, end: 'start' },

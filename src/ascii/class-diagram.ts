@@ -7,12 +7,12 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
-import { allocateBoxRoutes, type BoxRelation, type BoxSide, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
+import { allocateBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { drawMultiBox } from './draw.ts'
 import { terminalIds } from './identity.ts'
 import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
-import { paintTerminalFrame } from './terminal-geometry.ts'
+import { faceSize, paintTerminalFrame } from './terminal-geometry.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -124,17 +124,21 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   let cycleLevel = Math.max(-1, ...level.values()) + 1
   for (const cls of diagram.classes) if (!level.has(cls.id)) level.set(cls.id, cycleLevel++)
   const placed = new Map<string, PlacedClass>()
+  // Each exterior approach occupies distance+1 blank cells. Opposing faces
+  // need one additional free row/column between those protected approaches.
+  const minimumRoutingGap = 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1
+  let routingGapPromoted = false
   const allocateCards = () => {
     placed.clear()
     let axis = 4
-    const mainGap = Math.max(8, ...relations.flatMap(rel => [rel.lines?.length ?? 0, rel.fromLines?.length ?? 0, rel.toLines?.length ?? 0]).map(count => count + 6))
+    const mainGap = Math.max(8, routingGapPromoted ? minimumRoutingGap : 0, ...relations.flatMap(rel => [rel.lines?.length ?? 0, rel.fromLines?.length ?? 0, rel.toLines?.length ?? 0]).map(count => count + 6))
     for (let index = 0; index <= Math.max(0, ...level.values()); index++) {
       let cross = 4,
         extent = 0
       for (const cls of diagram.classes.filter(item => (level.get(item.id) ?? 0) === index)) {
         const size = sizes.get(cls.id)!
         placed.set(cls.id, { id: cls.id, cls, sections: sections.get(cls.id)!, x: horizontal ? axis : cross, y: horizontal ? cross : axis, ...size })
-        cross += (horizontal ? size.height : size.width) + 6
+        cross += (horizontal ? size.height : size.width) + (routingGapPromoted ? minimumRoutingGap : 6)
         extent = Math.max(extent, horizontal ? size.width : size.height)
       }
       axis += extent + mainGap
@@ -169,85 +173,140 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   }
   const namespaceByClass = new Map<string, string>(),
     namespaces: PlacedNamespace[] = []
-  if (diagram.namespaces.length) {
-    const header = (ns: ClassNamespace) => prepared(ns.labelContent?.value === (ns.label ?? ns.name) ? ns.labelContent.prepared : normalizeBrTags(ns.label ?? ns.name))
-    // Keep normal port approaches and a free routing row inside each frame.
-    const frameClearance = 4
-    const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(ns => depthOf(ns.children, depth + 1)))
-    const headerHeight = (items: ClassNamespace[]): number => Math.max(1, ...items.flatMap(ns => [header(ns).length, headerHeight(ns.children)]))
-    const inset = depthOf(diagram.namespaces) * (headerHeight(diagram.namespaces) + frameClearance)
-    for (const box of placed.values()) {
-      box.x += inset
-      box.y += inset
-    }
-    let emptyY = Math.max(4, ...[...placed.values()].map(box => box.y + box.height + 4))
-    const visit = (ns: ClassNamespace, parentId?: string, depth = 1): PlacedNamespace | undefined => {
-      const id = parentId ? `${parentId}.${ns.name}` : ns.name
-      ns.classIds.forEach(member => namespaceByClass.set(member, id))
-      const children = ns.children.map(child => visit(child, id, depth + 1)).filter((child): child is PlacedNamespace => child !== undefined)
-      const members = ns.classIds.map(member => placed.get(member)).filter((member): member is PlacedClass => member !== undefined)
-      const bounds = [...children, ...members]
-      const labelLines = header(ns)
-      if (!bounds.length) {
-        const empty: PlacedNamespace = { id, parentId, depth, members: [], labelLines, x: 4, y: emptyY, width: Math.max(6, ...labelLines.map(line => visualWidth(line) + 4)), height: labelLines.length + 3 }
-        emptyY += empty.height + 4
-        namespaces.push(empty)
-        return empty
+  const allocateNamespaces = (): void => {
+    namespaceByClass.clear()
+    namespaces.length = 0
+    if (diagram.namespaces.length) {
+      const header = (ns: ClassNamespace) => prepared(ns.labelContent?.value === (ns.label ?? ns.name) ? ns.labelContent.prepared : normalizeBrTags(ns.label ?? ns.name))
+      // Keep normal port approaches and a free routing row inside each frame.
+      const frameClearance = 4
+      const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(ns => depthOf(ns.children, depth + 1)))
+      const headerHeight = (items: ClassNamespace[]): number => Math.max(1, ...items.flatMap(ns => [header(ns).length, headerHeight(ns.children)]))
+      const inset = depthOf(diagram.namespaces) * (headerHeight(diagram.namespaces) + frameClearance)
+      for (const box of placed.values()) {
+        box.x += inset
+        box.y += inset
       }
-      const x = Math.min(...bounds.map(box => box.x)) - frameClearance,
-        y = Math.min(...bounds.map(box => box.y)) - labelLines.length - frameClearance
-      const right = Math.max(...bounds.map(box => box.x + box.width + frameClearance - 1), x + Math.max(...labelLines.map(visualWidth)) + 4)
-      const bottom = Math.max(...bounds.map(box => box.y + box.height + frameClearance - 1))
-      const frame: PlacedNamespace = { id, parentId, depth, members: [...ns.classIds, ...children.map(child => child.id)], labelLines, x, y, width: right - x + 1, height: bottom - y + 1 }
-      namespaces.push(frame)
-      return frame
-    }
-    diagram.namespaces.forEach(ns => visit(ns))
-    // Header growth can make independently placed sibling namespaces overlap.
-    // Settle their complete envelopes, moving each contained subtree together.
-    const move = (box: PlacedClass | PlacedNamespace, dy: number): void => {
-      box.y += dy
-      if ('members' in box) {
-        namespaces.filter(child => child.parentId === box.id).forEach(child => move(child, dy))
-        for (const child of placed.values()) if (namespaceByClass.get(child.id) === box.id) move(child, dy)
-      }
-    }
-    const settle = (parentId?: string): void => {
-      const children = [...namespaces.filter(box => box.parentId === parentId), ...[...placed.values()].filter(box => namespaceByClass.get(box.id) === parentId)]
-      for (const child of children) if ('members' in child) settle(child.id)
-      const allocated: Array<PlacedClass | PlacedNamespace> = []
-      for (const child of children.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))) {
-        for (;;) {
-          const blockers = allocated.filter(other => child.x < other.x + other.width + frameClearance && other.x < child.x + child.width + frameClearance && child.y < other.y + other.height + frameClearance && other.y < child.y + child.height + frameClearance)
-          if (!blockers.length) break
-          move(child, Math.max(...blockers.map(other => other.y + other.height + frameClearance)) - child.y)
+      let emptyY = Math.max(4, ...[...placed.values()].map(box => box.y + box.height + 4))
+      const visit = (ns: ClassNamespace, parentId?: string, depth = 1): PlacedNamespace | undefined => {
+        const id = parentId ? `${parentId}.${ns.name}` : ns.name
+        ns.classIds.forEach(member => namespaceByClass.set(member, id))
+        const children = ns.children.map(child => visit(child, id, depth + 1)).filter((child): child is PlacedNamespace => child !== undefined)
+        const members = ns.classIds.map(member => placed.get(member)).filter((member): member is PlacedClass => member !== undefined)
+        const bounds = [...children, ...members]
+        const labelLines = header(ns)
+        if (!bounds.length) {
+          const empty: PlacedNamespace = { id, parentId, depth, members: [], labelLines, x: 4, y: emptyY, width: Math.max(6, ...labelLines.map(line => visualWidth(line) + 4)), height: labelLines.length + 3 }
+          emptyY += empty.height + 4
+          namespaces.push(empty)
+          return empty
         }
-        allocated.push(child)
+        const x = Math.min(...bounds.map(box => box.x)) - frameClearance,
+          y = Math.min(...bounds.map(box => box.y)) - labelLines.length - frameClearance
+        const right = Math.max(...bounds.map(box => box.x + box.width + frameClearance - 1), x + Math.max(...labelLines.map(visualWidth)) + 4)
+        const bottom = Math.max(...bounds.map(box => box.y + box.height + frameClearance - 1))
+        const frame: PlacedNamespace = { id, parentId, depth, members: [...ns.classIds, ...children.map(child => child.id)], labelLines, x, y, width: right - x + 1, height: bottom - y + 1 }
+        namespaces.push(frame)
+        return frame
       }
-      const parent = namespaces.find(box => box.id === parentId)
-      if (parent && children.length) {
-        parent.x = Math.min(...children.map(box => box.x)) - frameClearance
-        parent.y = Math.min(...children.map(box => box.y)) - parent.labelLines.length - frameClearance
-        parent.width = Math.max(...children.map(box => box.x + box.width + frameClearance), parent.x + Math.max(...parent.labelLines.map(visualWidth)) + 4) - parent.x
-        parent.height = Math.max(...children.map(box => box.y + box.height + frameClearance)) - parent.y
+      diagram.namespaces.forEach(ns => visit(ns))
+      // Header growth can make independently placed sibling namespaces overlap.
+      // Settle their complete envelopes, moving each contained subtree together.
+      const move = (box: PlacedClass | PlacedNamespace, dy: number): void => {
+        box.y += dy
+        if ('members' in box) {
+          namespaces.filter(child => child.parentId === box.id).forEach(child => move(child, dy))
+          for (const child of placed.values()) if (namespaceByClass.get(child.id) === box.id) move(child, dy)
+        }
+      }
+      const settle = (parentId?: string): void => {
+        const children = [...namespaces.filter(box => box.parentId === parentId), ...[...placed.values()].filter(box => namespaceByClass.get(box.id) === parentId)]
+        for (const child of children) if ('members' in child) settle(child.id)
+        const allocated: Array<PlacedClass | PlacedNamespace> = []
+        for (const child of children.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))) {
+          const separation = (other: PlacedClass | PlacedNamespace) => routingGapPromoted && !('members' in child) && !('members' in other) ? Math.max(frameClearance, minimumRoutingGap) : frameClearance
+          for (;;) {
+            const blockers = allocated.filter(other => child.x < other.x + other.width + separation(other) && other.x < child.x + child.width + separation(other) && child.y < other.y + other.height + separation(other) && other.y < child.y + child.height + separation(other))
+            if (!blockers.length) break
+            move(child, Math.max(...blockers.map(other => other.y + other.height + separation(other))) - child.y)
+          }
+          allocated.push(child)
+        }
+        const parent = namespaces.find(box => box.id === parentId)
+        if (parent && children.length) {
+          parent.x = Math.min(...children.map(box => box.x)) - frameClearance
+          parent.y = Math.min(...children.map(box => box.y)) - parent.labelLines.length - frameClearance
+          parent.width = Math.max(...children.map(box => box.x + box.width + frameClearance), parent.x + Math.max(...parent.labelLines.map(visualWidth)) + 4) - parent.x
+          parent.height = Math.max(...children.map(box => box.y + box.height + frameClearance)) - parent.y
+        }
+      }
+      settle()
+      // Empty nested frames can extend above or left of the first allocated
+      // child. Translate the complete layout before terminal coordinates/routing.
+      const boxes = [...placed.values(), ...namespaces]
+      const dx = Math.max(0, -Math.min(0, ...boxes.map(box => box.x)))
+      const dy = Math.max(0, -Math.min(0, ...boxes.map(box => box.y)))
+      if (dx || dy) for (const box of boxes) { box.x += dx; box.y += dy }
+    }
+  }
+  const allocateNotes = () => {
+    let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + Math.max(8, routingGapPromoted ? minimumRoutingGap : 0)
+    return notePlans.map(note => {
+      const size = faceSizes.get(note.id),
+        target = note.targetId ? placed.get(note.targetId) : undefined
+      const box = { ...note, x: target?.x ?? 2, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4), size?.width ?? 0), height: Math.max(note.lines.length + 2, size?.height ?? 0) }
+      noteY += box.height + (routingGapPromoted ? minimumRoutingGap : 4)
+      return box
+    })
+  }
+  let noteBoxes: ReturnType<typeof allocateNotes> = []
+  // Namespace packing can change a relation's physical faces after the first
+  // rank allocation. Recount those settled faces, including actual note sizes.
+  // Every growth reaches a new 3*k+2 threshold, k <= endpoint incident degree.
+  // Two dimensions and two endpoints per relation permit at most 4R growths,
+  // followed by at most one promotion of the render's routing separation.
+  const maximumGrowths = (relations.length + noteRelations.length) * 4 + 1
+  for (let pass = 0; pass <= maximumGrowths; pass++) {
+    allocateNamespaces()
+    noteBoxes = allocateNotes()
+    const boxes = [...placed.values(), ...noteBoxes]
+    const byId = new Map(boxes.map(box => [box.id, box]))
+    const demand = boxFaceDemands([...relations, ...noteRelations], direction, byId)
+    let changed = false
+    for (const [id, count] of demand) {
+      const size = faceSize(count)
+      const previous = faceSizes.get(id) ?? { width: 0, height: 0 }
+      faceSizes.set(id, { width: Math.max(previous.width, size.width), height: Math.max(previous.height, size.height) })
+      const box = byId.get(id)
+      if (!box || box.width >= size.width && box.height >= size.height) continue
+      const card = sizes.get(id)
+      if (card) {
+        card.width = Math.max(card.width, size.width)
+        card.height = Math.max(card.height, size.height)
+      }
+      changed = true
+    }
+    if (!changed && !routingGapPromoted) {
+      const deficient = (a: TerminalBox, b: TerminalBox): boolean => {
+        const first = demand.get(a.id), second = demand.get(b.id)
+        if (!first || !second) return false
+        const verticalGap = b.y - a.y - a.height, horizontalGap = b.x - a.x - a.width
+        return first.B > 0 && second.T > 0 && verticalGap >= 0 && verticalGap < minimumRoutingGap && a.x < b.x + b.width && b.x < a.x + a.width
+          || first.R > 0 && second.L > 0 && horizontalGap >= 0 && horizontalGap < minimumRoutingGap && a.y < b.y + b.height && b.y < a.y + a.height
+      }
+      for (let first = 0; first < boxes.length && !routingGapPromoted; first++) for (let second = first + 1; second < boxes.length; second++) {
+        if (!deficient(boxes[first]!, boxes[second]!) && !deficient(boxes[second]!, boxes[first]!)) continue
+        routingGapPromoted = true
+        changed = true
+        break
       }
     }
-    settle()
-    // Empty nested frames can extend above or left of the first allocated
-    // child. Translate the complete layout before terminal coordinates/routing.
-    const boxes = [...placed.values(), ...namespaces]
-    const dx = Math.max(0, -Math.min(0, ...boxes.map(box => box.x)))
-    const dy = Math.max(0, -Math.min(0, ...boxes.map(box => box.y)))
-    if (dx || dy) for (const box of boxes) { box.x += dx; box.y += dy }
+    if (!changed) break
+    if (pass === maximumGrowths) throw new Error('Terminal face capacity did not stabilize within its incident demand')
+    // Rebuild from rank coordinates; retaining translated namespace members
+    // would accumulate offsets and leave frame/header/note geometry stale.
+    allocateCards()
   }
-  let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + 8
-  const noteBoxes = notePlans.map(note => {
-    const size = faceSizes.get(note.id),
-      target = note.targetId ? placed.get(note.targetId) : undefined
-    const box = { ...note, x: target?.x ?? 2, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4), size?.width ?? 0), height: Math.max(note.lines.length + 2, size?.height ?? 0) }
-    noteY += box.height + 4
-    return box
-  })
   const routes = allocateBoxRoutes(
     [...placed.values(), ...noteBoxes],
     [...relations, ...noteRelations],
