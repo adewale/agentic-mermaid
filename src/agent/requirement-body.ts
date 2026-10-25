@@ -1,22 +1,24 @@
 import { formatUnknownOpMessage } from './unknown-op.ts'
-import { parseRequirementDiagram } from '../requirement/parser.ts'
+import { parseRequirementDiagram, type RequirementStyleDirective } from '../requirement/parser.ts'
 import { RequirementType, Relationships, RiskLevel, VerifyType } from '../requirement/db.ts'
 import type { RequirementBody, RequirementMutationOp, Requirement, RequirementElement } from '../requirement/types.ts'
 import type { Accessibility, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { parseMutableStyleProps, serializeStyleProps } from '../shared/style-props.ts'
+import { parseMutableStyleProps, parseStyleProps } from '../shared/style-props.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
+import { requirementStyleTextCanSerialize } from '../requirement/lexer.ts'
 
 export function parseRequirementBody(input: string[] | string, accessibility: Accessibility = {}): RequirementBody | null {
   try {
     const source = typeof input === 'string'
       ? input.replace(/^[^\r\n]*/, 'requirementDiagram')
       : ['requirementDiagram', ...input]
-    const body = parseRequirementDiagram(source)
-    if (requirementStyleProblem(body)) return null
+    const styles: RequirementStyleDirective[] = []
+    const body = parseRequirementDiagram(source, directive => styles.push(directive))
+    if (requirementStyleProblem(body, styles)) return null
     body.accessibilityTitle = accessibility.title ?? body.accessibilityTitle
     body.accessibilityDescription = accessibility.descr ?? body.accessibilityDescription
     return body
@@ -71,16 +73,36 @@ function requirementStyleHasEntity(prefix: string, styles: string[]): boolean {
   return /#\w+;/.test(mermaidEntityPrepass(prefix + styles.join(',')).slice(prefix.length))
 }
 
-function requirementStyleProblem(body: RequirementBody): string | undefined {
-  const definition = body.classDefs.find(def => requirementStyleHasEntity(`classDef ${def.id} `, def.styles))
-  const node = [...body.requirements, ...body.elements].find(item => requirementStyleHasEntity(`style ${quoted(item.name)} `, item.directStyles ?? []))
-  const target = definition ? `classDef ${definition.id}` : node ? `style ${node.name}` : undefined
-  return target && `Requirement ${target} contains an entity-like style token that pinned Mermaid cannot read, so the authored source must be preserved`
+function requirementStyleProblem(body: RequirementBody, authoredStyles?: RequirementStyleDirective[]): string | undefined {
+  const directives = authoredStyles ?? [
+    ...body.classDefs.map(def => ({ prefix: `classDef ${def.id} `, styles: def.styles })),
+    ...[...body.requirements, ...body.elements].map(node => ({ prefix: `style ${quoted(node.name)} `, styles: node.directStyles ?? [] })),
+  ]
+  for (const { prefix, styles } of directives) {
+    if (requirementStyleHasEntity(prefix, styles)) return `Requirement ${prefix.trim()} contains an entity-like style token that pinned Mermaid cannot read, so the authored source must be preserved`
+    const text = styles.join(',')
+    if (!requirementStyleTextCanSerialize(text)) return `Requirement ${prefix.trim()} contains style text that pinned Mermaid's styleComponent tokens cannot spell losslessly; the authored source must be preserved`
+    const problem = requirementStylePropertiesProblem(prefix, parseStyleProps(text))
+    if (problem) return problem
+  }
+  return undefined
+}
+
+function requirementStylePropertiesProblem(prefix: string, props: Readonly<Record<string, string>>): string | undefined {
+  for (const [name, value] of Object.entries(props)) {
+    if (/[,;:\s]/.test(name)) return `Requirement ${prefix.trim()} property name ${JSON.stringify(name)} cannot retain its field boundary in pinned Mermaid's style lexer; the authored source must be preserved`
+    if (!requirementStyleTextCanSerialize(`${name}:${value}`)) return `Requirement ${prefix.trim()} contains style text that pinned Mermaid's styleComponent tokens cannot spell losslessly; the authored source must be preserved`
+    if (value.includes(',')) return `Requirement ${prefix.trim()} style value ${JSON.stringify(value)} contains a comma that pinned Mermaid splits into separate fields; the authored source must be preserved`
+    if (/\s/.test(value)) return `Requirement ${prefix.trim()} style value ${JSON.stringify(value)} loses meaningful whitespace in pinned Mermaid's style lexer; the authored source must be preserved`
+  }
+  return undefined
 }
 
 export function requirementUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
   try {
-    const problem = requirementStyleProblem(parseRequirementDiagram(cleanupMermaidSource(source).authoredPayloadText))
+    const styles: RequirementStyleDirective[] = []
+    const body = parseRequirementDiagram(cleanupMermaidSource(source).authoredPayloadText, directive => styles.push(directive))
+    const problem = requirementStyleProblem(body, styles)
     return problem ? [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_style_token', message: problem }] : []
   } catch {
     return []
@@ -180,7 +202,9 @@ export function mutateRequirement(body: RequirementBody, op: RequirementMutation
         if (requirementStyleHasEntity(`classDef ${op.name} `, [op.style])) throw new Error('Requirement class style contains an entity-like token that pinned Mermaid cannot read')
         const parsed = parseMutableStyleProps(op.style)
         if (!parsed.ok) throw new Error(`Invalid style: ${parsed.reason}`)
-        const styles = serializeStyleProps(parsed.value).split(',')
+        const problem = requirementStylePropertiesProblem(`classDef ${op.name} `, parsed.value)
+        if (problem) throw new Error(problem)
+        const styles = Object.entries(parsed.value).map(([name, value]) => `${name}:${value}`)
         const old = next.classDefs.find(d => d.id === op.name)
         if (old) old.styles = styles
         else next.classDefs.push({ id: op.name, styles, textStyles: [] })
@@ -199,7 +223,9 @@ export function mutateRequirement(body: RequirementBody, op: RequirementMutation
           if (requirementStyleHasEntity(`style ${quoted(node.name)} `, [op.style])) throw new Error('Requirement node style contains an entity-like token that pinned Mermaid cannot read')
           const parsed = parseMutableStyleProps(op.style)
           if (!parsed.ok) throw new Error(`Invalid style: ${parsed.reason}`)
-          node.directStyles = serializeStyleProps(parsed.value).split(',')
+          const problem = requirementStylePropertiesProblem(`style ${quoted(node.name)} `, parsed.value)
+          if (problem) throw new Error(problem)
+          node.directStyles = Object.entries(parsed.value).map(([name, value]) => `${name}:${value}`)
         }
         break
       }

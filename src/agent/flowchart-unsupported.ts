@@ -1,11 +1,12 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { emptyFlowchartGraph, flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
-import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, flowchartStyleValueCanSerialize, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
+import { parseStyleProps } from '../shared/style-props.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
 
@@ -97,6 +98,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     if (/^(?:style|classDef|linkStyle)\s/.test(text) && scanFlowchart(text).separators.length > 0) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_style_semicolon', message: 'A `;` between style properties (fill:#f9f;stroke:#0a0) is read as separating them, as in CSS. Pinned Mermaid ends the statement at the `;` and reads the next property as a node (stroke:blue), or, after a `#` color, joins the two into one declaration that paints nothing; separate style properties with `,`.' })
     }
+    const style = /^(?:style|classDef)\s+\S+\s+(.+)$/.exec(text) ?? /^linkStyle\s+(?:default|[\d,\s]+)\s+(.+)$/.exec(text)
+    const unspellable = style && Object.entries(parseStyleProps(style[1]!)).find(([, value]) => !flowchartStyleValueCanSerialize(value, style[0].startsWith('classDef')))
+    if (unspellable) warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_style_value', message: `Flowchart style ${unspellable[0]}:${unspellable[1]} is read as native CSS, but pinned Mermaid's inline-style tokens cannot preserve it. The source and drawing are retained; typed style editing is unavailable.` })
     if (notes?.has('empty-string')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_empty_string', message: 'An empty quoted label (A[""], A -->|""| B, subgraph S[""]) is read as an empty label. Pinned Mermaid reads no empty string, and rejects this; put a blank between the quotes (A[" "]), which reads back as an empty label.' })
     }

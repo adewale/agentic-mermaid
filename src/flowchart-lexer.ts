@@ -529,14 +529,28 @@ const STYLE_STATEMENT_RE = /^(?:style|classDef|linkStyle)\s/
  * Scan in lexer order: `1class` is NUM then CLASS, while `xclass` is one
  * NODE_STRING. The appended colon supplies the actual declaration boundary. */
 function portableStyleProperty(name: string): boolean {
-  if (!name.trim() || /[\r\n:;,]/.test(name) || /direction\s+(?:TB|BT|RL|LR|TD)/.test(name)) return false
-  let rest = `${name}:`
-  while (rest !== ':') {
+  return !!name.trim() && !/[\r\n:;,]/.test(name) && portableStyleComponents(`${name}:`)
+}
+
+/** The inline style grammar consumes styleComponent tokens, not arbitrary
+ * CSS text. Parentheses introduce shape text there; even a valid CSS color
+ * function has no lossless inline-style spelling in this grammar. */
+export function flowchartStyleValueCanSerialize(value: string, classDefinition = false): boolean {
+  // Only classDef's DB constructor rejoins style fragments and resolves `\,`.
+  // Direct node/link styles retain the split fragments as separate properties.
+  const parts = classDefinition ? value.split(',') : [value]
+  return !!value.trim() && !/[\r\n]/.test(value) && parts.every(part => !!part.trim() && portableStyleComponents(part))
+}
+
+function portableStyleComponents(value: string): boolean {
+  if (/direction\s+(?:TB|BT|RL|LR|TD)/.test(value)) return false
+  let rest = value
+  while (rest) {
     // These earlier lexer rules produce statement/link/string tokens, which
     // styleComponent cannot consume. Accessibility requires its own colon;
     // `accTitle-color` is ordinary text, unlike `class-color`.
     if (/^(?:acc(?:Title|Descr)\s*:|(?:call|href|click)\s|(?:classDef|class|linkStyle|default|end|graph|flowchart|subgraph|swimlane-beta|interpolate|_self|_blank|_parent|_top|v)\b|["&*]|[xo]?(?:--|-\.)|[xo]?-?\.+-)/.test(rest)) return false
-    const token = /^(?:style\b|[0-9]+|#|[^\S\r\n]+)/.exec(rest)
+    const token = /^(?:style\b|[0-9]+|[:#]|[^\S\r\n]+)/.exec(rest)
       ?? /^(?:[A-Za-z0-9!"#$%&'*+.`?\\_/]|-(?=[^>\-.]))+/.exec(rest)
     if (!token) return false
     rest = rest.slice(token[0].length)

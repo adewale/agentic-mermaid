@@ -670,6 +670,65 @@ stateDiagram-v2
     expect(graph.linkStyles.get(0)?.stroke).toBe('#654321')
   })
 
+  test('State functional paints retain exact channel tokens and alpha through constructors and style consumers', async () => {
+    const paints = [
+      ['rgb(1,2,3)', 'rgb(1 2 3)'],
+      ['rgba(1.125,2.25,3.5,.375)', 'rgba(1.125 2.25 3.5 / .375)'],
+      ['hsl(.125turn,20.25%,30.5%)', 'hsl(.125turn 20.25% 30.5%)'],
+      ['hsla(10.125,20.25%,30.5%,37.5%)', 'hsla(10.125 20.25% 30.5% / 37.5%)'],
+      ['hsl(0 0% 0% / 0)', 'hsl(0 0% 0% / 0)'],
+      ['var(--brand)', 'var(--brand)'],
+    ] as const
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [input, expected] of paints) {
+        let diagram = state('stateDiagram-v2\nA')
+        for (const op of [
+          { kind: 'define_class', name: 'hot', style: `fill:${input}` },
+          { kind: 'set_state_class', id: 'A', className: 'hot' },
+          { kind: 'set_state_style', id: 'A', style: `stroke:${input}` },
+          { kind: 'set_state_label', id: 'A', label: 'Ready' },
+        ] as StateMutationOp[]) diagram = apply(diagram, op)
+        expect(diagram.body.classDefs?.hot?.fill).toBe(expected)
+        expect(diagram.body.states[0]!.style?.stroke).toBe(expected)
+        const written = serializeMermaid(diagram)
+        expect(await upstream.project(written, d => ({
+          definitions: d.db.getClasses().get('hot').styles,
+          inline: d.db.getStates().get('A').styles,
+          // compileStyles consumes these separate class and inline arrays,
+          // in that order, rather than folding inline into cssCompiledStyles.
+          rendered: d.db.getData().nodes.filter((node: { id: string }) => node.id === 'A').map((node: { cssCompiledStyles: string[]; cssStyles: string[] }) => ({ classes: node.cssCompiledStyles, inline: node.cssStyles })),
+        }))).toEqual({ ok: true, value: { definitions: [`fill:${expected}`], inline: [`stroke:${expected}`], rendered: [{ classes: [`fill:${expected}`], inline: [`stroke:${expected}`] }] } })
+        expect(state(written).body).toEqual(diagram.body)
+        expect(renderAgentSVG(diagram)).toBe(renderMermaidSVG(written))
+        const raw = state(`stateDiagram-v2\nA\nclassDef hot fill:${input}\nclass A hot\nstyle A stroke:${input}`)
+        expect(raw.body.classDefs?.hot?.fill).toBe(expected)
+        expect(raw.body.states[0]!.style?.stroke).toBe(expected)
+      }
+      const original = state('stateDiagram-v2\nA'), before = serializeMermaid(original)
+      expect(mutate(original, { kind: 'set_state_style', id: 'A', style: 'font-family:Inter\\,serif' }).ok).toBe(false)
+      expect(serializeMermaid(original)).toBe(before)
+      expect(synthesizeFromGraph({ kind: 'state', body: { ...original.body, classDefs: { hot: { 'font-family': 'Inter,serif' } } } }).ok).toBe(false)
+      const source = 'stateDiagram-v2\nA\nstyle A fill:red,font-family:Inter\\,serif\n'
+      const retained = parseMermaid(source)
+      if (!retained.ok) throw new Error(JSON.stringify(retained.error))
+      expect(retained.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(retained.value)).toBe(source)
+      expect(renderAgentSVG(retained.value)).toBe(renderMermaidSVG(source))
+      expect(verifyMermaid(retained.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_style_commas' }))
+    } finally { upstream.close() }
+  })
+
+  test('label construction replaces the bare declaration flag and removing a label restores it', () => {
+    const original = state('stateDiagram-v2\nA')
+    const labeled = apply(original, { kind: 'set_state_label', id: 'A', label: 'Ready' })
+    expect(labeled.body.states).toEqual([{ id: 'A', label: 'Ready' }])
+    expect(state(serializeMermaid(labeled)).body).toEqual(labeled.body)
+    const bare = apply(labeled, { kind: 'set_state_label', id: 'A', label: null })
+    expect(bare.body).toEqual(original.body)
+    expect(state(serializeMermaid(bare)).body).toEqual(bare.body)
+  })
+
   test('a state Mermaid cannot read alone is written so that Mermaid draws it', async () => {
     // A hyphen ends a Mermaid name, a keyword before a line break starts its
     // statement, and `state X` declares nothing upstream.

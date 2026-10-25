@@ -63,7 +63,7 @@ has no accessibility production.
 Floating State notes retain main's independent annotation namespace, containing
 scope and collision-safe rendered IDs. A note alias does not introduce or
 rename an ordinary state with the same name. All four imported floating-note
-cases already render on base `c727ed8c`; they are controls, not gains attributed
+cases already render on base `9b64b5f4`; they are controls, not gains attributed
 to this change. Mermaid's pinned grammar accepts the declaration but drops its
 semantic action; retaining the note is intentional.
 
@@ -76,6 +76,23 @@ Block edges and cross-scope State edges are checked against actual owned
 stroke/marker ink and frame contacts, independently of stored endpoint metadata.
 When contact allocation is required, the current global routing mode may
 unbundle otherwise compatible routes elsewhere in the graph.
+
+Style construction follows each family's grammar and consumer. Flowchart
+class definitions protect value commas and separate a trailing backslash from
+the following declaration; its direct node/link styles have no equivalent
+comma consumer. Functional CSS remains native-readable but source-only when
+Flowchart or Requirement cannot spell it losslessly. Their typed writes refuse
+unsupported values atomically, while native CSS validity stays independent.
+
+Class and State write legacy RGB/HSL colors with equivalent CSS Color 4
+space/slash separators, preserving channel tokens, units, percentages and alpha
+without numeric conversion. Unsupported comma lists remain a bounded native
+source extension. Class memberships precede definitions because its pinned DB
+copies styles eagerly; inline overrides follow definitions. A Class style moves
+an existing admissible property before the first colon or refuses typed
+authoring when none exists. No neutral property is invented. State label edits
+clear the mutually exclusive bare-declaration flag; removing a label restores
+the bare declaration.
 
 The approach takes lexer-state ideas from
 [Pele 1.10.0](https://github.com/obsidianmd/pele/tree/4eff76f98c73b6817800a05773517f35832e4e92),
@@ -95,24 +112,24 @@ method, including its sanitizer; it is a grammar contract, not equality with
 lossy sanitized HTML. Separate modern tests inspect the public runtime. These
 reference corrections are not additional native syntax capabilities.
 
-The public-parser replay against main `c727ed8cf9ecef045a5b7e2cc168df8e0f8f91e5`
-increases accepted typed canonical exports from 755 to 954: **199 additional
+The public-parser replay against main `9b64b5f42a8260696052f8218fccfacd8ae44b80`
+increases accepted typed canonical exports from 755 to 962: **207 additional
 inputs across 17 families**, with no acceptance regressions and no remaining
 crashes. This replaces the earlier comparison against `09425754`; changes
-already merged into main receive no credit here. All 199 gains reload as typed
-bodies. Facts match for 198; one wide Block spacer normalizes generated
+already merged into main receive no credit here. All 207 gains reload as typed
+bodies. Facts match for 206; one wide Block spacer normalizes generated
 occurrence names while retaining its two cells and authored nodes/endpoints.
 
 The output audit compares raw source, typed rendering and exported source.
-ASCII is identical in 198/199 cases; SVG strings are identical in 195/199.
+ASCII is identical in 206/207 cases; SVG strings are identical in 203/207.
 Four SVGs differ only in equivalent numeric/`px` stroke widths and generated
 metadata. One State serializer reorders declarations: SVG is identical, while
 a disconnected state and pseudostate exchange terminal positions. Its labels,
 identities, parents and endpoints are unchanged. Canonical serialization does
 not preserve every layout-sensitive declaration order.
 
-The candidate has 984 typed inputs, 258 source-only inputs and 41 explicit parse
-failures. No reference-accepted retained input loses typed admission. The 258
+The candidate has 992 typed inputs, 250 source-only inputs and 41 explicit parse
+failures. No reference-accepted retained input loses typed admission. The 250
 source-only inputs retain family statements and cannot accept typed edits,
 including edits to portable portions. One Radar input loses only adjacent empty
 frontmatter delimiters under the existing warned `empty_frontmatter` policy.
@@ -237,9 +254,12 @@ separate owning tests.
 
 Requirement preserves whitespace between authored `stroke-dasharray` lengths.
 The pinned parser concatenates style tokens, changing a two-length `5 5`
-pattern into the single length `55`; preserving the authored border pattern
-keeps source, typed edits and Scene paint in agreement. Other style token
-spelling remains canonical, and the serializer still emits accepted syntax.
+pattern into the single length `55`. The native reader also keeps meaningful
+whitespace in font families instead of concatenating `Foo Bar` into `FooBar`.
+These sources remain drawable and source-preserved, with a portability warning;
+typed writes refuse them atomically. Functional CSS and comma-valued lists
+likewise require a supported lossless spelling before typed construction can
+succeed. Portable word, hexadecimal and integer values remain editable.
 
 ### Determinism is structural, not seeded
 
@@ -529,7 +549,7 @@ identified below; this record does not excuse them as opaque preservation.
 | ER keyword spelled as an entity name | **Keep reading and warn (`er_keyword_name`); write the name quoted.** | Implemented: Mermaid's ER lexer reads `end`, `subgraph`, `style`, `class`, the cardinality words (`one`, `many`, `to`) and the parent marker `u-` before a name, so it rejects them bare. Ours reads the evident entity, warns, and quotes the name (and any name Mermaid would split, such as `2px`) on output, which Mermaid reads as that one name. A stray `end` after a misspelled `subgraph` therefore warns rather than drawing silently. |
 | ER names Mermaid's lexer splits | **Read the name whole; write it quoted.** | Implemented: Mermaid reads a bare name only as one UNICODE_TEXT token (letters of any script, digits, `_`, `-`, `*`, `.`) that no keyword, cardinality or leading number takes first. A name starting with a number is two names upstream (`1MANUFACTURER ||--|| ORDER` declares `1` and `MANUFACTURER`; `A ||--o{ 12f : x` is rejected). An alias and a subgraph id must be one such name, and each subgraph title word too (`CUSTOMER[Customer Account]`, `subgraph title1#`, `subgraph g [My (big) group]` are rejected). Ours reads each as written, without a warning, and writes the name, alias, subgraph id or title quoted, which Mermaid reads. A title of names and quoted names (`[a "b c"  d]`) keeps its quotes and blanks, where Mermaid joins the names one space apart. The warnings (`er_number_name`, `er_alias_text`, `er_subgraph_name`) and Mermaid's reading of such a title were removed: 0 of 106,252 real-world diagrams (2,285 ER) use these spellings. |
 | ER relationship spellings Mermaid rejects | **Read them; write Mermaid's spelling.** | Implemented: Mermaid takes an alias only on a declaration of its own (`A[x] ||--o{ B : r` is rejected); ours reads it as A's alias and writes it on A's declaration. Mermaid reads `|o` and `}o` only where a word ends, so `HOUSE ||--|oROOM` is rejected; ours reads the cardinality `|o` before `ROOM` and writes a space between them. Neither is reported: the warnings (`er_relation_alias`, `er_cardinality_space`) were removed, as 0 of 106,252 real-world diagrams use these spellings. |
-| ER style text Mermaid's style lexer rejects | **Read and draw it, and write it with entity codes.** | Implemented: Mermaid's ER `style` and `classDef` read only letters of any script, digits, `_`, `-`, `*`, `#`, `:`, `,`, `;` and blanks, so `stroke-width:0.5px`, `fill:rgb(1,2,3)` and `font-family:"Arial"` are lexical errors upstream. Ours draws them without a warning, and the writer spells each other character, and a comma inside a value, as a two-digit entity code (`stroke-width:0#46;5px;`), ending the line with `;` so Mermaid's entity prepass keeps the code; Mermaid's SVG resolves it. Ours reads such codes back. A character with no two-digit code (`{`, `\|`, `}`, `~`) has no spelling: an edit holding one is refused. The warning (`er_style_text`) was removed: 0 of 106,252 real-world diagrams have an ER `style` or `classDef` line. |
+| ER style text Mermaid's style lexer rejects or discards | **Read and draw it, and construct a lossless entity spelling.** | Implemented: Mermaid's ER `style` and `classDef` lexer skips whitespace and rejects punctuation used by CSS functions and quoted font names. Ours retains those fields. The writer protects field whitespace, delimiters and literal Mermaid entity/marker text with decimal entities whose two-, five- or seven-digit widths cannot be CSS hex colors. Readers classify the property-list grammar before decoding the protected fields. The complete style statement determines its semicolon padding through both global prepass rules, including keyword-like target/class names. `{`, `\|`, `}` and `~` are constructible; the previous two-digit-only refusal was an artificial limit and is removed. Exact functional-color numbers, font names and dash spacing survive typed/native reload and the real pinned DB after Mermaid's marker/HTML resolution. The existing generous CSS-semicolon reading remains. Invalid XML characters, lone surrogates and control characters whose HTML numeric references change their value are refused atomically rather than substituted; ordinary TAB, CR/LF field data and Unicode whitespace have entity spellings. |
 | C4 statements sharing a line | **Keep reading and warn; write a line break.** | Implemented: pinned Mermaid C4 needs a line break after each statement and after a boundary's `{` (only `}` may share the line before it), and its comment rule takes the line break after a comment. Ours reads `System_Boundary(b, "B") { Person(a, "A") }`, juxtaposed statements and a statement followed by a comment and another line, and reports each (`c4_statements_on_one_line`), as it reports `;` separators (`c4_semicolon_separator`). The C4 writer writes a line break after each such statement and in place of each `;`; a comment sharing the line moves to a line of its own, and a statement split out after a boundary's `{` goes one level deeper. Statements with no warning keep their exact bytes. A placement hint the layout cannot honour is reported as `c4_layout_conflict`. |
 | C4 unquoted argument text | **Read it as written, without a warning.** | Mermaid's attribute lexer reads unquoted text up to the next comma, so after the last comma it takes the `)` too (a single space before `)` as well), and `$name=` takes only a quoted value: it rejects `Person(a, Ann Lee)`, `"Ann" )` and `$descr=Banker`, or reads on into the next statement. Ours reads them as written and keeps the authored bytes. The warning (`c4_unquoted_argument`) was removed: 0 of 106,252 real-world diagrams use the construct. |
 | C4 arguments whose quotes Mermaid pairs otherwise | **Read them as written, without a warning.** | Text glued to a quote, a quote inside unquoted text, a `$` not followed by `name="…"`, or an unclosed quote: Mermaid rejects the diagram or, where a later comma, quote or `=` lets it read on into later statements, reads it otherwise. Ours reads the argument text as written (`"Ann"x` is the label `"Ann"x`), draws it and keeps the authored bytes. The refusal (`c4_argument_quoting`) was removed: 0 of 106,252 real-world diagrams use the construct. |
@@ -578,7 +598,7 @@ identified below; this record does not excuse them as opaque preservation.
 | Sequence local arrow spellings | **Keep reading them, warn (`sequence_local_arrow`), and write Mermaid's arrow.** | Implemented: ours reads twelve spellings Mermaid's lexer lacks (`-\|`, `-/`, `-\`, `\|-`, `/-`, `\-` and their dashed forms), each drawn as the Mermaid arrow with the same heads and line style (`-\|` as `-\\`, `-/` as `-//`, `\|-` as `\\-`, `/-` as `//-`). The writer writes the Mermaid arrow, including in lines a fragment or opaque block keeps verbatim. Where Mermaid's sender id runs past the spelling into one of its own arrows (`A\|-B->>C`), Mermaid reads a message from `A\|-B` to `C`; ours reads the spelling as the arrow, from `A` to `B->>C`, with no warning that Mermaid reads it otherwise. Reading Mermaid's message there was removed: 0 of 106,252 real-world diagrams use the construct. |
 | Sequence deactivating an inactive participant | **Keep drawing, ignore the deactivation, and warn (`sequence_inactive_deactivation`).** | Implemented: Mermaid counts activations and rejects a deactivation at zero. The writer keeps the `-`, so that output is still rejected. |
 | BUG-51: Sankey's `parseFloat` leniency | **Keep strict numeric rejection.** `12x` and `x12` do not specify an unambiguous valid flow value. | The reader retains source as opaque and rendering refuses the invalid value. Upstream accepting a prefix or NaN is not a product requirement. |
-| Timeline events on a section line | **Keep the line one period, drawing all its text, without a warning.** | Mermaid adds the events in `section X: event` to the latest period, which may be in an earlier section, and fails when there is none. The warning (`timeline_section_events`) was removed: 0 of 106,252 real-world diagrams use the construct. |
+| Timeline events on a section line | **Keep the section and attach events to the latest period.** | Implemented: the lexer classifies the section before its event tail. The preceding period retains the event even when it belongs to an earlier section. An event without a prior period is rejected instead of inventing one. |
 | Timeline line starting with the word `timeline` | **Read it as a period and warn (`timeline_header_in_body`).** | Implemented: Mermaid's lexer reads the header keyword there (any case) and rejects the line; `timelines` is a period to both. |
 | Sankey characters outside printable ASCII | **Keep the text and warn (`sankey_unsupported_character`).** | Implemented: Mermaid's CSV reader rejects a tab or a non-ASCII character in a row. It has no spelling for such a label, so the writer's output stays rejected: its entity prepass turns `#233;` (any `#name;`, after its `style`/`classDef` semicolon strip) into a non-ASCII placeholder its CSV reader rejects, so verify reports a row holding one too (`sankey_unsupported_character`); ours reads and draws the code as written. The same prepass first drops the last `;` of a line where `style` or `classDef` comes before a `:` and a `#` ahead of it, so Mermaid reads `style:x#a;` as `style:x#a`; ours keeps the `;`, verify reports the line (`mermaid_cleanup`), and Mermaid has no spelling that keeps it. `&eacute;` is drawn as literal text by both. A quote inside an unquoted field is refused, as text after a closing quote already was. |
 | Sankey spaces around a quoted field | **Trim them, without a warning.** | Mermaid's CSV reader rejects a blank after a comma before a quoted field, after a closing quote, or indenting a row that starts with one (trailing whitespace at the end of the source excepted, which it trims). Ours reads the field; the writer emits no such blanks. The warning (`sankey_quoted_field_spacing`) was removed: 0 of 106,252 real-world diagrams use the construct. |

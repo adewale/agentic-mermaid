@@ -35,10 +35,12 @@ const VALUES: readonly string[] = [
 function isStylePart(t: number): boolean {
   return t === T.ALPHA || t === T.COLON || t === T.BRKT || t === T.MINUS || t === T.SEMICOLON
 }
-export function parseRequirementDiagram(input: string | string[]): RequirementBody {
+export interface RequirementStyleDirective { prefix: string; styles: string[] }
+
+export function parseRequirementDiagram(input: string | string[], onStyle?: (directive: RequirementStyleDirective) => void): RequirementBody {
   const source = (Array.isArray(input) ? input.join('\n') : input).replace(/^[^\S\r\n]*requirement[^\S\r\n]*(?=\r\n?|\n|$)/i, 'requirementDiagram')
   const db = new Database()
-  parseRequirement(source.endsWith('\n') ? source : source + '\n', db)
+  parseRequirement(source.endsWith('\n') ? source : source + '\n', db, onStyle)
   for (const definition of db.classes.values()) checkedAuthoredStyle(parseStyleProps(definition.styles.join(',')), `classDef ${definition.id}`)
   for (const [id, styles] of db.authoredStyles) {
     checkedAuthoredStyle(parseStyleProps(styles.join(',')), `style ${id}`)
@@ -60,7 +62,7 @@ export function parseRequirementDiagram(input: string | string[]): RequirementBo
     accessibilityDescription: db.accDescr,
   }
 }
-export function parseRequirement(src: string, db: RequirementDb): void {
+export function parseRequirement(src: string, db: RequirementDb, onStyle?: (directive: RequirementStyleDirective) => void): void {
   const { types, texts, starts } = tokenize(src)
   let i = 0
   const fields: number[] = []
@@ -122,9 +124,11 @@ export function parseRequirement(src: string, db: RequirementDb): void {
       if (!isStylePart(types[i]!)) fail(T.ALPHA, T.SEMICOLON, T.MINUS, T.BRKT)
       let style = texts[i++]!
       while (isStylePart(types[i]!)) {
-        // Whitespace separates numeric dash lengths; removing it changes `5 5`
-        // into the single length `55`. Other style spelling stays canonical.
-        if (style.startsWith('stroke-dasharray:') && starts[i]! > starts[i - 1]! + texts[i - 1]!.length) style += ' '
+        // Value whitespace can separate numeric lengths or a font family.
+        // Preserve it before admission decides whether the strict writer can
+        // spell that meaning; property/colon spacing remains canonical.
+        const previousEnd = starts[i - 1]! + texts[i - 1]!.length
+        if (style.includes(':') && !style.endsWith(':') && starts[i]! > previousEnd) style += src.slice(previousEnd, starts[i]!)
         style += texts[i++]!
       }
       styles.push(style)
@@ -232,11 +236,17 @@ export function parseRequirement(src: string, db: RequirementDb): void {
     } else if (t === T.STYLE) {
       i++
       const ids = idList()
-      db.setCssStyle(ids, stylesOpt())
+      const prefix = src.slice(starts[begin]!, starts[i]!)
+      const styles = stylesOpt()
+      onStyle?.({ prefix, styles })
+      db.setCssStyle(ids, styles)
     } else if (t === T.CLASSDEF) {
       i++
       const ids = idList()
-      db.defineClass(ids, stylesOpt())
+      const prefix = src.slice(starts[begin]!, starts[i]!)
+      const styles = stylesOpt()
+      onStyle?.({ prefix, styles })
+      db.defineClass(ids, styles)
     } else if (t === T.CLASS) {
       i++
       const ids = idList()

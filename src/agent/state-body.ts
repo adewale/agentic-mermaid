@@ -224,8 +224,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- paint directives (shared renderer grammar) ---
     const classDef = line.match(STATE_CLASS_DEF_RE)
     if (classDef) {
-      const props = parseStyleProps(classDef[2]!)
-      if (Object.keys(props).length === 0) return null
+      const props = portableClassLikeStyleProps(parseStyleProps(classDef[2]!))
+      if (!props || Object.keys(props).length === 0) return null
       for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) setOwn(classDefs, name, { ...props })
       continue
     }
@@ -238,8 +238,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
     const styleLine = line.match(STATE_STYLE_RE)
     if (styleLine) {
-      const props = parseStyleProps(styleLine[2]!)
-      if (Object.keys(props).length === 0) return null
+      const props = portableClassLikeStyleProps(parseStyleProps(styleLine[2]!))
+      if (!props || Object.keys(props).length === 0) return null
       for (const id of styleLine[1]!.split(',').map(value => value.trim()).filter(Boolean)) {
         if (!portableStyleTarget(id)) return null
         inlineStyles.push({ id, props: { ...props }, scope })
@@ -720,7 +720,7 @@ export function renderState(body: StateBody): string {
       out.push(`  note ${n.side} of ${n.target} : ${text}`)
     }
   }
-  const styleText = (style: Record<string, string>): string => Object.entries(style).map(([key, value]) => `${key}:${value}`).join(',')
+  const styleText = (style: Record<string, string>): string => serializeStyleProps(portableClassLikeStyleProps(style)!)
   for (const [name, style] of Object.entries(body.classDefs ?? {})) out.push(`  classDef ${name} ${styleText(style)}`)
   const styledStates: StateNode[] = []
   const transitions: StateTransition[] = []
@@ -739,9 +739,9 @@ export function renderState(body: StateBody): string {
   }
   for (const { id, className } of body.unresolvedClasses ?? []) out.push(`  class ${id} ${className}`)
   for (const { id, style } of body.unresolvedStyles ?? []) out.push(`  style ${id} ${styleText(style)}`)
-  if (body.defaultTransitionStyle) out.push(`  linkStyle default ${styleText(body.defaultTransitionStyle)}`)
+  if (body.defaultTransitionStyle) out.push(`  linkStyle default ${serializeStyleProps(body.defaultTransitionStyle)}`)
   transitions.forEach((transition, index) => {
-    if (transition.style) out.push(`  linkStyle ${index} ${styleText(transition.style)}`)
+    if (transition.style) out.push(`  linkStyle ${index} ${serializeStyleProps(transition.style)}`)
   })
   const source = out.join('\n') + '\n'
   assertWrittenStateOwnership(body, source)
@@ -780,14 +780,17 @@ function stateWriteProblem(body: StateBody): string | undefined {
   // composites use Mermaid's exclusive struct state, where these are IDs.
   const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
   let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
+  let invalidStyle = Object.values(body.classDefs ?? {}).some(style => !portableClassLikeStyleProps(style)) || body.unresolvedStyles?.some(item => !portableClassLikeStyleProps(item.style))
   const visit = (states: StateNode[]): void => {
     for (const state of states) {
       if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
+      if (state.style && !portableClassLikeStyleProps(state.style)) invalidStyle = true
       if (state.regions) for (const region of state.regions) visit(region.states)
       else if (state.states) visit(state.states)
     }
   }
   visit(body.states)
+  if (invalidStyle) return 'State style has a comma value without a supported lossless Mermaid spelling'
   if (endpoint !== undefined) return `A top-level labeled State transition to "${endpoint}" cannot be written in pinned Mermaid because the destination and colon start an accessibility directive; rename the destination or remove the label for typed editing`
   return invalid === undefined ? undefined : `State style target "${invalid}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore`
 }
@@ -799,7 +802,7 @@ function stateWriteProblem(body: StateBody): string | undefined {
 // projection — the exact graph the renderer would lay out.
 
 import { parseMermaid as parseLegacy, parseStyleProps } from '../parser.ts'
-import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { parseMutableStyleProps, portableClassLikeStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import type { MermaidGraph } from '../types.ts'
 
 export function stateBodyToGraph(body: StateBody): MermaidGraph {
@@ -956,7 +959,7 @@ function isComposite(s: StateNode): boolean {
   return s.states !== undefined || s.transitions !== undefined || s.regions !== undefined
 }
 
-function parseStateStyle(style: string, field: string): Result<Record<string, string>, MutationError> {
+function parseStateStyle(style: string, field: string, portable = true): Result<Record<string, string>, MutationError> {
   const parsed = parseMutableStyleProps(style)
   if (!parsed.ok) {
     const message = parsed.reason === 'NOT_STRING'
@@ -968,7 +971,8 @@ function parseStateStyle(style: string, field: string): Result<Record<string, st
           : `${field} must contain at least one property:value pair`
     return err({ code: 'INVALID_OP', message })
   }
-  return ok(parsed.value)
+  const value = portable ? portableClassLikeStyleProps(parsed.value) : parsed.value
+  return value ? ok(value) : err({ code: 'INVALID_OP', message: `${field} has a comma value without a supported lossless Mermaid spelling` })
 }
 
 export function mutateState(body: StateBody, op: StateMutationOp): Result<StateBody, MutationError> {
@@ -1051,6 +1055,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const l = validLabel(op.label, 'label')
       if (!l.ok) return l
       loc.node.label = l.value
+      delete loc.node.declaredBare
       break
     }
     case 'add_transition': {
@@ -1272,7 +1277,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
         if (op.index !== undefined || op.parent !== undefined || op.region !== undefined) return err({ code: 'INVALID_OP', message: 'Default transition style is diagram-wide; omit index, parent, and region' })
         if (op.style === null) delete next.defaultTransitionStyle
         else {
-          const style = parseStateStyle(op.style, 'State transition style')
+          const style = parseStateStyle(op.style, 'State transition style', false)
           if (!style.ok) return style
           next.defaultTransitionStyle = style.value
         }
@@ -1285,7 +1290,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (!transition) return err({ code: 'TRANSITION_NOT_FOUND', message: `No transition at index ${op.index}` })
       if (op.style === null) delete transition.style
       else {
-        const style = parseStateStyle(op.style, 'State transition style')
+        const style = parseStateStyle(op.style, 'State transition style', false)
         if (!style.ok) return style
         transition.style = style.value
       }
@@ -1643,6 +1648,13 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
       warn(statement, 'state_class_definition_name', 'The class definition name is preserved in source. Pinned Mermaid accepts only letters, digits, and underscore in definition names except `default`, with no quoted alternative; class references have a different grammar.')
     }
     const style = text.match(STATE_STYLE_RE)
+    const paint = classDef?.[2] ?? style?.[2]
+    if (paint !== undefined) {
+      const props = parseStyleProps(paint)
+      if (Object.values(props).some(value => value.includes(','))) warn(statement, 'state_style_commas', portableClassLikeStyleProps(props)
+        ? 'Commas inside CSS colors are read as color channels here. Pinned Mermaid splits every comma into separate styles; the writer preserves channels and alpha with CSS space/slash notation.'
+        : 'This style contains a comma value without a supported lossless State spelling. Source and native rendering are preserved, but typed editing is unavailable.')
+    }
     if (style && style[1]!.split(',').some(id => !portableStyleTarget(id.trim()))) {
       warn(statement, 'state_style_target', 'The style target is preserved in source. Pinned Mermaid accepts only letters, digits, and underscore in style targets, with no quoted alternative; use a portable target for typed editing.')
     }

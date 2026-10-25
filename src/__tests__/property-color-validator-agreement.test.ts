@@ -322,7 +322,11 @@ describe('typed style ops and direct source agree on independently classified co
       }
       expect(direct.ok, `${op}: direct source with ${property}:${color}`).toBe(expected)
       const built = buildMermaid(family as never, ops as never)
-      expect(built.ok, `${op}: typed op must agree with direct source`).toBe(direct.ok)
+      // Flowchart styleComponent has no parenthesis token: CSS-valid
+      // functions remain native-readable, but cannot be written losslessly.
+      // Class/State accept these tokens; ER has its own constructive escaping.
+      const writable = expected && !(family === 'flowchart' && color.includes('('))
+      expect(built.ok, `${op}: typed op must preserve CSS meaning within its owning Mermaid grammar`).toBe(writable)
       if (!direct.ok) {
         expect(direct.message).toContain(`${JSON.stringify(color)} is not a CSS color`)
         if (!built.ok) {
@@ -331,9 +335,15 @@ describe('typed style ops and direct source agree on independently classified co
         }
         return
       }
+      expectFinitePaints(direct.svg)
+      if (!writable) {
+        if (built.ok) throw new Error('Unspellable Flowchart function was accepted')
+        expect(built.error.code).toBe('INVALID_OP')
+        expect(built.error.message).toContain('cannot be written losslessly')
+        return
+      }
       if (built.ok) {
         expect(() => renderMermaidSVG(serializeMermaid(built.value))).not.toThrow()
-        expectFinitePaints(direct.svg)
       }
     }), fcParameters({
       numRuns: RENDER_RUNS,
@@ -341,6 +351,8 @@ describe('typed style ops and direct source agree on independently classified co
         [op, 'fill', { color: '#abcd', valid: true }],
         [op, 'color', { color: 'constructor', valid: false }],
         [op, 'color', { color: 'none', valid: true }],
+        [op, 'fill', { color: 'hsl(0 0% 0% / 0)', valid: true }],
+        [op, 'stroke', { color: 'var(--brand)', valid: true }],
       ]),
     }))
   }, 120_000)

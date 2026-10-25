@@ -26,6 +26,7 @@ import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.
 import {
   erNameNeedsQuotes,
   writeErStyleText,
+  writeErStyleStatement,
   isErKeywordName,
   parseErAttribute,
   portableErAttributeText,
@@ -128,7 +129,7 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
 /** An edit's style that no ER style text Mermaid reads can spell. */
 function erStyleUnwritable(subject: string, style: Readonly<Record<string, string>>): Result<never, MutationError> | undefined {
   if (writeErStyleText(style) !== undefined) return undefined
-  return err({ code: 'INVALID_OP', message: `${subject}: ER style ${serializeStyleProps(style)} holds a character Mermaid's ER style lexer cannot read and no entity code spells there ({, |, } or ~); remove it` })
+  return err({ code: 'INVALID_OP', message: `${subject}: ER style ${serializeStyleProps(style)} contains a control character or unpaired surrogate that cannot be retained losslessly in Mermaid's SVG; remove it` })
 }
 
 /** Whether the serializer can write `id` as a Mermaid ER name: bare, or one
@@ -549,7 +550,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     for (const relation of body.relations) pushRelation(relation)
   }
 
-  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${writeErStyleText(style)}`)
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(writeErStyleStatement(`  classDef ${name}`, style)!)
   for (const entity of body.entities) {
     const reference = renderErEntityReference({ ...entity, label: undefined })
     const classes = entity.className?.trim().split(/[ \t]+/).join(',')
@@ -558,7 +559,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     // goes on the entity itself (`"one":::foo`).
     const classLine = classes === undefined ? undefined
       : !writableErClassName(entity.id) ? `  ${reference}:::${classes}` : `  class ${reference} ${classes}`
-    const styleLine = entity.style ? `  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference} ${writeErStyleText(entity.style)}` : undefined
+    const styleLine = entity.style ? writeErStyleStatement(`  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference}`, entity.style) : undefined
     if (styleLine) fold.style(entity.id)
     // `class` applies only to an entity that exists, so it follows the `style`
     // line that creates one.

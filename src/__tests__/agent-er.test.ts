@@ -79,10 +79,6 @@ describe('ER — parse', () => {
   })
 
   test.each([
-    ['erDiagram\nR{}classDef t |:s', 'er_style_text'],
-    ['erDiagram C{}classDef o |:0', 'er_style_text'],
-    ['erDiagram C{}classDef r |:#', 'er_style_text'],
-    ['erDiagram style 2 y:|', 'er_style_text'],
     ['erDiagram E:::end', 'er_class_name'],
     ['erDiagram\nA ||--|| B:::1 : owns\nclassDef 1 fill:#fff', 'er_class_name'],
   ])('keeps unspellable typed content as source with unchanged native output: %s', async (source, syntax) => {
@@ -98,18 +94,33 @@ describe('ER — parse', () => {
     expect(mutate(diagram, { kind: 'add_entity', id: 'Another' }).ok).toBe(false)
   })
 
-  test('strict mutations and payloads refuse unspellable classes and both style keys and values', async () => {
+  test.each(['erDiagram\nR{}classDef t |:s', 'erDiagram C{}classDef o |:0', 'erDiagram C{}classDef r |:#', 'erDiagram style 2 y:|'])('constructs formerly refused style punctuation without changing the native output: %s', async source => {
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+      const parsed = parse(source)
+      expect(parsed.body.kind).toBe('er')
+      const diagram = asEr(parsed)!
+      const written = serializeMermaid(diagram)
+      expect(await upstream.accepts(written)).toBe(true)
+      expect(asEr(parse(written))!.body).toEqual(diagram.body)
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    } finally { upstream.close() }
+  })
+
+  test('strict mutations and payloads refuse unspellable classes and style characters without a lossless SVG spelling', async () => {
     const diagram = asEr(parse('erDiagram\nA'))!
     for (const className of ['end', 'End', '1', '1a']) {
       expect(mutate(diagram, { kind: 'set_entity_class', entity: 'A', className }).ok).toBe(false)
       expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, entities: [{ id: 'A', attributes: [], className }] } }).ok).toBe(false)
     }
-    for (const style of ['|:s', 'y:|']) {
+    for (const style of ['content:A\u0000B', 'font-family:A\ud800B']) {
       expect(mutate(diagram, { kind: 'set_entity_style', entity: 'A', style }).ok).toBe(false)
       expect(mutate(diagram, { kind: 'define_class', name: 'bad', style }).ok).toBe(false)
     }
-    expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, classDefs: { bad: { '|': 's' } } } }).ok).toBe(false)
-    expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, entities: [{ id: 'A', attributes: [], style: { y: '|' } }] } }).ok).toBe(false)
+    expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, classDefs: { bad: { content: '\u0000' } } } }).ok).toBe(false)
+    expect(synthesizeFromGraph({ kind: 'er', body: { ...diagram.body, entities: [{ id: 'A', attributes: [], style: { content: '\ud800' } }] } }).ok).toBe(false)
     const upstream = startUpstreamMermaid()
     try {
       for (const className of ['endless', 'a1']) {

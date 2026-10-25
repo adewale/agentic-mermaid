@@ -45,7 +45,7 @@ function readGenerously(source: string, text: string): { typed: string; draws: b
 // [construct, source, text the render draws, syntax verify reports, its line]
 type GenerousRow = readonly [string, string, string, string, number]
 
-const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+const CLASS_READ_GENEROUSLY: ReadonlyArray<[...GenerousRow, ('class' | 'opaque')?]> = [
   ['a bare header', 'classDiagram', '<svg', 'class_empty_diagram', 1],
   ['a header followed only by a comment', 'classDiagram\n  %% nothing yet', '<svg', 'class_empty_diagram', 1],
   ['a frontmatter title over a bare header', '---\ntitle: Pets\n---\nclassDiagram', '<svg', 'class_empty_diagram', 4],
@@ -75,8 +75,8 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a method with no name in a member statement', 'classDiagram\n  class A\n  A : (x)', '(x)', 'class_member_parenthesis', 3],
   ['a second header inside a namespace', 'classDiagram\n  namespace Zoo {\n    classDiagram\n    class Animal\n  }', 'Animal', 'class_repeated_header', 3],
   // Before the first colon of a classDef or style, Mermaid's class grammar takes only words, `#`, `%` and commas.
-  ['a hyphen before the first colon of a classDef', 'classDiagram\n  class A:::thick\n  classDef thick stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3],
-  ['a hyphen before the first colon of a style', 'classDiagram\n  class A\n  style A stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3],
+  ['a hyphen before the first colon of a classDef', 'classDiagram\n  class A:::thick\n  classDef thick stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3, 'opaque'],
+  ['a hyphen before the first colon of a style', 'classDiagram\n  class A\n  style A stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3, 'opaque'],
 ]
 
 // Unquoted quadrant text Mermaid's quadrant lexer does not read as text.
@@ -406,9 +406,14 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
-  test.each(CLASS_READ_GENEROUSLY)('class: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+  test.each(CLASS_READ_GENEROUSLY)('class: %s is read, drawn and reported', async (_construct, source, text, syntax, line, typed = 'class') => {
     expect((await upstream.parse(source)).ok).toBe(false)
-    expect(readGenerously(source, text)).toEqual({ typed: 'class', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+    expect(readGenerously(source, text)).toEqual({ typed, draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+    if (typed === 'opaque') {
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    }
   })
 
   test.each(QUADRANT_READ_GENEROUSLY)('quadrant: %s is read, drawn and reported', (_construct, source, text, syntax, line, typed = 'quadrant') => {
