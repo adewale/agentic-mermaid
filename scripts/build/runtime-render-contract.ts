@@ -110,7 +110,8 @@ function runtimeLayoutBackendSource(source: string, path: string): string {
     || !ts.isFunctionDeclaration(identityFile.statements[1]!) || identityFile.statements[1]!.name?.text !== 'generatedIds') {
     throw new Error('Unsupported canonical generated identity declarations')
   }
-  return `${errors}\n${identities}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+  const gaps = readFileSync(resolve(dirname(path), 'link-rank-gap.ts'), 'utf8')
+  return `${errors}\n${identities}\n${gaps}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
 /** Pipeline prose is for Node-side inspection and generated documentation.
@@ -224,6 +225,8 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const backendPath = fileURLToPath(new URL('../../src/layout/backend.ts', import.meta.url))
         const errorPath = resolve(dirname(backendPath), 'certification-error.ts')
         const identityPath = resolve(dirname(backendPath), '../shared/generated-identity.ts')
+        const gapPath = resolve(dirname(backendPath), 'link-rank-gap.ts')
+        build.onResolve({ filter: /[\\/]link-rank-gap\.ts$/ }, args => resolve(args.resolveDir, args.path) === gapPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]generated-identity\.ts$/ }, args => resolve(args.resolveDir, args.path) === identityPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]certification-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === errorPath ? { path: backendPath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]layout[\\/]backend\.ts$/ }, ({ path }) => path !== backendPath ? undefined : ({

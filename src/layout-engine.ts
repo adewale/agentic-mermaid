@@ -45,6 +45,8 @@ import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/conf
 import { elkLayoutSync } from './elk-instance.ts'
 import { layoutAgenticCandidate, layoutAgenticPlacement } from './layout/agentic-layered.ts'
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
+import { edgeSelectorIndices } from './shared/edge-selectors.ts'
+import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupportedError } from './layout/backend.ts'
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
@@ -1971,6 +1973,8 @@ function layoutCandidate(
 
 export type AgenticGraphOptions = LayoutEngineOptions
 export type AgenticGraphBindings = {
+  edgeSelectorIndices: typeof edgeSelectorIndices
+  graphEdgeMarkerPaintRegions: typeof graphEdgeMarkerPaintRegions
   customTextMeasurementActive: typeof customTextMeasurementActive
   certifyCandidate: typeof certifyCandidate
   retainSelection: typeof retainSelection
@@ -1993,6 +1997,7 @@ export type AgenticGraphBindings = {
   unsupported: (reason: string) => never
 }
 const agenticGraphBindings: AgenticGraphBindings = {
+  edgeSelectorIndices, graphEdgeMarkerPaintRegions,
   customTextMeasurementActive, certifyCandidate, retainSelection, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, measureLabelConflicts,
   DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry,
   unsupported: reason => { throw new GraphLayoutUnsupportedError(reason) },

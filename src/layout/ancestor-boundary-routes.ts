@@ -5,7 +5,6 @@ import { createSparseVisibilityGraph, type SparseQueryWorkspacePool } from './co
 import { simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
 import { pointOnMeasuredSegment, segmentEntersMeasuredBox } from './measured-route-safety.ts'
 import { minimumLinkRankGap } from './link-rank-gap.ts'
-import { DEFAULTS } from './geometry.ts'
 import { assertPrivateRankSpan } from './minimum-span-ranks.ts'
 
 type MeasuredGroup = NonNullable<MeasuredGraph['groups']>[number]
@@ -50,7 +49,7 @@ export function planAncestorBoundaryConnections(
     const container = (source ? edge.source : edge.target) - leaves, original = groups[container]!
     const before = rows.get(container) ?? 0, contentHeight = Math.max(edge.label?.height ?? 0, edge.boundaryMarker?.height ?? 0)
     const height = contentHeight + 2 * clearance, labelInset = Math.max(2 * clearance, (edge.boundaryMarker?.inset ?? 0) + clearance)
-    const minimumLead = edge.minSpan > 1 ? Math.max(clearance, minimumLinkRankGap(edge.minSpan, DEFAULTS.layerSpacing)) : clearance
+    const minimumLead = edge.minSpan > 1 ? Math.max(clearance, minimumLinkRankGap(edge.minSpan)) : clearance
     if (--work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
     connections.set(index, { edge: index, container, interior: source ? edge.target : edge.source, containerEnd: source ? 'source' : 'target',
       rowOffset: original.padding.top + before + clearance + contentHeight / 2, labelInset, minimumLead,
