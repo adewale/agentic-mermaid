@@ -4,7 +4,11 @@ Updated from community evidence **2026-10-24T20:22:33.890Z → 2026-10-24T22:03:
 
 Original full-run ledger: **failed**, 2026-10-24T14:59:47.204Z → 2026-10-24T18:01:45.267Z; target `2cff725d219c75b75593b1d3e9bacd74cba7a08e`. Explicit scoped replays below do not rewrite that aggregate status.
 
-This is a maintained snapshot requested by the project owner. Refresh it with:
+This is a maintained history requested by the project owner. The current uniform
+Pele 1.9 set is in [the 25 October results](#docs-original-tests-required-families-and-startup-25-october-2026).
+The command below records the historical 24 October selection. It contains mixed
+peer releases and is not eligible for current-set composition; the version guard
+rejects it rather than relabelling historical measurements.
 
 ```sh
 bun run bench:scorecard -- --run /workspace/mermaid-unified-2026-10-24/all --prs /workspace/mermaid-unified-2026-10-24/prs-latest --community-run /workspace/mermaid-unified-2026-10-24/community-corrected/community --allow-community-target-change --invocation-correction /workspace/mermaid-unified-2026-10-24/invocation-corrected/invocation-corrected.json --reference-correction /workspace/mermaid-unified-2026-10-24/reference-correction/pinned-reference-score/reference-score-result.json --current-run /workspace/mermaid-unified-2026-10-24/current-main --additional-run /workspace/mermaid-unified-2026-10-24/late-matched-current --cli-native-proof /workspace/mermaid-unified-2026-10-24/prep/main-native-reproduction.json --historical-prs /workspace/mermaid-unified-2026-10-24/prs-current --current-invocation-run /workspace/mermaid-unified-2026-10-24/latest-main-full --current-invocation-assets /workspace/mermaid-unified-2026-10-24/prep/latest-main-invocation-assets.json --current-dave-run /workspace/mermaid-unified-2026-10-24/latest-main-dave --family-correction /workspace/mermaid-unified-2026-10-24/family-empty-correction/manifest.json --cli-resource-run /workspace/mermaid-unified-2026-10-24/cli-resources --suite-run /workspace/mermaid-unified-2026-10-24/corrections/browser-provisioned --suite-run /workspace/mermaid-unified-2026-10-24/corrections/family-owner --suite-run /workspace/mermaid-unified-2026-10-24/corrections/ownership --suite-run /workspace/mermaid-unified-2026-10-24/late-maintained
