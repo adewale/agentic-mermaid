@@ -342,7 +342,7 @@ export interface RoutePortAssignment {
 }
 
 export interface RouteBlocker {
-  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port'
+  kind: 'node' | 'label' | 'channel' | 'span' | 'crossing' | 'port' | 'group-header'
   id: string
 }
 

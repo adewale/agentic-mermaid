@@ -7,6 +7,7 @@ import { architectureToMermaidGraph, parseArchitectureDiagram } from '../archite
 import { convertToElkFormat } from '../layout-engine.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { measureMultilineText } from '../text-metrics.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 
 function parse(source: string) {
   return parseArchitectureDiagram(preprocessMermaidSource(source).lines)
@@ -421,4 +422,37 @@ describe('layoutArchitectureDiagram', () => {
     }
     expect(JSON.stringify(aligned)).not.toBe(JSON.stringify(plain))
   })
+})
+
+
+// The literal band/contacts below are independent of the route-obstacle helper.
+it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their own ancestor header in final SVG', backend => {
+  const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:T --> B:b'
+  const options = { graphLayout: { backend, fallback: 'none' as const } }
+  const positioned = layoutArchitectureDiagram(parse(source), options)
+  const group = positioned.groups[0]!, edge = positioned.edges[0]!
+  expect({ x: group.x, y: group.y, width: group.width, height: group.headerHeight }).toEqual({ x: 38, y: 124, width: 156, height: 28 })
+  expect(edge.source).toEqual({ id: 'a', boundary: 'item', side: 'T' })
+  expect(edge.target).toEqual({ id: 'b', boundary: 'item', side: 'B' })
+  expect(edge.points[0]).toEqual({ x: 116, y: 168 })
+  expect(edge.points.at(-1)).toEqual({ x: 116, y: 88 })
+  expect(edge.obstacleFree).toBe(true)
+  const rendered = renderMermaidSVGWithReceipt(source, { ...options, idPrefix: `owned-header-${backend}-` })
+  expect(rendered.svg).toContain('d="M38,124 H194 V152 H38 Z"')
+  const tag = [...rendered.svg.matchAll(/<polyline\b[^>]*>/g)].map(match => match[0]).find(value => value.includes('data-from="a"') && value.includes('data-to="b"'))!
+  expect(tag).toContain('data-from-side="T"')
+  expect(tag).toContain('data-to-side="B"')
+  expect(tag).toContain('data-from-boundary="item"')
+  expect(tag).toContain('data-to-boundary="item"')
+  expect(tag).toContain('marker-end="url(')
+  const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => { const [x, y] = value.split(',').map(Number); return { x: x!, y: y! } })
+  expect(points).toEqual(edge.points)
+  for (let index = 1; index < points.length; index++) {
+    const a = points[index - 1]!, b = points[index]!
+    const entersLiteralBand = Math.max(a.x, b.x) > 38 && Math.min(a.x, b.x) < 194
+      && Math.max(a.y, b.y) > 124 && Math.min(a.y, b.y) < 152
+    expect(entersLiteralBand).toBe(false)
+  }
+  expect(edge.points[1]).toEqual({ x: 116, y: 152 })
+  expect(edge.points.at(-2)).toEqual({ x: 116, y: 104 })
 })

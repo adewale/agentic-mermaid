@@ -58,7 +58,7 @@ import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, certifyLayoutPlacementCandidates, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -1035,7 +1035,7 @@ function subgraphToElk(
     elkNode.ports = ports.map(port => {
       const preferred = port.direction === 'in' ? flow.targetSide : flow.sourceSide
       const side = preferred === 'N' ? (port.direction === 'in' ? 'W' : 'E') : preferred
-      return { id: port.id, ...(avoidHeader ? { layoutOptions: { 'elk.port.side': elkPortSide(side) } } : {}) }
+      return { id: port.id, ...(avoidHeader && preferred === 'N' ? { layoutOptions: { 'elk.port.side': elkPortSide(side) } } : {}) }
     })
     if (avoidHeader) elkNode.layoutOptions!['elk.portConstraints'] = 'FIXED_SIDE'
   }
@@ -1859,6 +1859,17 @@ export function layoutGraphSync(
   return positioned
 }
 
+/** @internal ELK family placement keeps all relationship rank/order inputs.
+ * Generic routes are temporary and never returned as a family route proof. */
+export function layoutElkGraphPlacementSync(
+  graph: MermaidGraph, options: Omit<LayoutEngineOptions, 'graphLayout' | 'diagramTitle'> = {},
+): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+  assertMermaidGraphWork(graph)
+  const placed = layoutElkGraph(graph, options, 'placement')
+  retainGraphText({ ...placed, edges: [] }, resolveRenderStyle(options, undefined, options.styleFace))
+  return placed
+}
+
 /** @internal Architecture owns routes and its final family certificate. This
  * result is placement only and must never be exposed as a certified graph. */
 export function layoutNativeGraphPlacementSync(
@@ -2015,7 +2026,9 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
 
 /** Four deterministic strategy combinations, each with the existing bounded
  * ELK option degradation ladder. No recursive retry or process-env mutation. */
-function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph
+function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose: 'placement'): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'>
+function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose?: 'placement'): PositionedGraph | Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
   const compareRoutes = options.compareRoutePreferences !== false
@@ -2050,6 +2063,7 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): Posi
   // only for the selected placement, reusing its ELK result and certified score.
   // One preliminary forest, at most four ELK placements and one route pipeline;
   // the existing 16-ELK exceptional upper bound is unchanged.
+  if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, preliminary)
   return certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
     const makeRoute = routeAlternatives.get(placed)
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined

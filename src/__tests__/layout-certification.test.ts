@@ -3,7 +3,7 @@ import { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverl
 import { refineOwnedLayoutCandidate as refineNative, certifyOwnedLayoutCandidate as certifyNative } from '../layout/agentic-producer-core.ts'
 import '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyCandidate, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyCandidate, positionedGeometryViolations, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, GraphLayoutUnsupportedError } from '../layout/backend.ts'
@@ -17,7 +17,7 @@ import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { invalidEndpointApproaches } from '../route-contracts.ts'
-import type { MermaidGraph, PositionedGraph } from '../types.ts'
+import type { MermaidGraph, PositionedGraph, PositionedGroup } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
 
@@ -169,15 +169,15 @@ describe('bounded final layout certification', () => {
 
   test('readable container titles take precedence over a crossing reduction', () => {
     const graph = parseMermaid('flowchart LR\nsubgraph S[A deliberately long container heading whose complete readable text needs additional horizontal space]\nA --> B\nend\nC --> D')
-    const narrow = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [20, 20], D: [300, 220] }, [
-      [[60, 120], [260, 120]], [[40, 60], [40, 80], [320, 80], [320, 220]],
+    const narrow = routeWitness(graph, { A: [20, 140], B: [260, 140], C: [20, 20], D: [300, 220] }, [
+      [[60, 160], [260, 160]], [[40, 60], [40, 80], [320, 80], [320, 220]],
     ])
-    const wide = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
-      [[60, 120], [260, 120]], [[160, 60], [160, 220]],
+    const wide = routeWitness(graph, { A: [20, 140], B: [260, 140], C: [140, 20], D: [140, 220] }, [
+      [[60, 160], [260, 160]], [[180, 40], [890, 40], [890, 120], [160, 120], [160, 220]],
     ], 900)
     const title = graph.subgraphs[0]!.label, style = resolveRenderStyle({})
-    narrow.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 320, height: 80, children: [] }]
-    wide.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 880, height: 80, children: [] }]
+    narrow.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 320, height: 120, children: [] }]
+    wide.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 880, height: 120, children: [] }]
     const preferNext = (positioned: PositionedGraph) => positioned.groups[0]!.width < graphTextBlock(title, style, 'group').width + 24
     const selected = certifyLayoutCandidates(graph, style, [
       { strategy: 'narrow-clear', produce: () => narrow, preferNext },
@@ -391,7 +391,11 @@ describe('bounded final layout certification', () => {
   test('a real crossing graph bounds comparisons while retaining authored endpoints and zero-crossing ink', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), certification = positioned.certification!, preference = certification.preference
-    expect(certification).toMatchObject({ status: 'passed', attempts: 2, hardViolations: 0 })
+    expect(certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    // Rejected header-unsafe proposals consume the existing fallback budget;
+    // only certified placements appear in the comparison evidence below.
+    expect(certification.attempts).toBeLessThanOrEqual(MAX_LAYOUT_CANDIDATES)
+    expect(certification.attempts).toBeGreaterThanOrEqual(preference.compared.length)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
     expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label ?? null]).sort()).toEqual([
       ['a1', 'a2', null], ['b1', 'b2', null], ['c1', 'a2', null], ['c1', 'c2', null],
@@ -668,5 +672,60 @@ describe('bounded final layout certification', () => {
       ]),
     ).toThrow(error)
     expect(alternateCalls).toBe(0)
+  })
+})
+
+
+describe('final full group-header route geometry', () => {
+  test.each([
+    { name: 'unrelated root header', target: 'dst', points: [[80, 20], [80, 80]], hit: 'root' },
+    { name: 'nested header below the parent band', target: 'dst', points: [[70, 70], [70, 110]], hit: 'nested' },
+    { name: 'authored north exterior contact', target: 'root', points: [[80, 20], [80, 40]], hit: undefined },
+    { name: 'own endpoint approached through its header interior', target: 'root', points: [[80, 80], [80, 40]], hit: 'root' },
+    { name: 'border-only north contact', target: 'dst', points: [[30, 40], [130, 40]], hit: undefined },
+    { name: 'invisible route', target: 'dst', points: [[80, 20], [80, 80]], invisible: true, hit: undefined },
+    { name: 'concurrency region has no own header', target: 'dst', points: [[80, 20], [80, 80]], concurrency: true, hit: undefined },
+    { name: 'explicit zero header', target: 'dst', points: [[80, 20], [80, 80]], height: 0, hit: undefined },
+    { name: 'missing height retains measured band', target: 'dst', points: [[80, 20], [80, 75]], height: undefined, measured: true, hit: 'root' },
+    { name: 'missing height does not reserve the whole group', target: 'dst', points: [[80, 69], [80, 75]], height: undefined, measured: true, hit: undefined },
+  ])('$name', row => {
+    const nested: PositionedGroup = { id: 'nested', label: 'Nested', x: 50, y: 80, width: 60, height: 80, headerHeight: 10, nodeIds: [], children: [] }
+    const root: PositionedGroup = { id: 'root', label: 'Root', x: 30, y: 40, width: 100, height: 160, headerHeight: 'height' in row ? row.height : 20, nodeIds: [], children: [nested], ...('measured' in row ? { labelBlock: graphTextBlock('Root', resolveRenderStyle(), 'group') } : {}), ...('concurrency' in row ? { concurrencyRegion: true as const } : {}) }
+    const positioned: PositionedGraph = { width: 200, height: 240, nodes: [], groups: [root], edges: [{ source: 'src', target: row.target, style: 'invisible' in row ? 'invisible' : 'solid', hasArrowStart: false, hasArrowEnd: true, points: row.points.map(([x, y]) => ({ x: x!, y: y! })) }] }
+    const findings = positionedGeometryViolations(positioned, resolveRenderStyle()).filter(value => value.startsWith('group-header '))
+    expect(findings).toEqual(row.hit ? [`group-header ${row.hit}: edge src->${row.target} segment 1 enters reserved band`] : [])
+  })
+})
+
+
+describe('group headers gate completed candidate consumers', () => {
+  const witness = () => {
+    const graph = parseMermaid('flowchart TB\nsubgraph G[Group]\nX\nend\nA --> B')
+    const positioned = routeWitness(graph, { X: [130, 120], A: [0, 10], B: [80, 180] }, [[[40, 30], [220, 30], [220, 200], [120, 200]]], 260, 230)
+    positioned.groups = [{ id: 'G', label: 'Group', x: 60, y: 60, width: 120, height: 110, headerHeight: 28, nodeIds: ['X'], children: [] }]
+    const crossesHeader = structuredClone(positioned)
+    crossesHeader.edges[0]!.points = [{ x: 40, y: 30 }, { x: 100, y: 30 }, { x: 100, y: 180 }]
+    return { graph, positioned, crossesHeader, style: resolveRenderStyle() }
+  }
+
+  test('a clear shorter shaft cannot make a reserved-header candidate feasible', () => {
+    const { graph, positioned, crossesHeader, style } = witness()
+    expect(hardViolations(assessLayout(graph, crossesHeader, style))).toEqual([])
+    const rejected = certifyCandidate(graph, style, { strategy: 'crosses-header', produce: () => crossesHeader })
+    expect(rejected.certified).toBeUndefined()
+    expect(rejected.attempt.violations).toContain('group-header G: edge A->B segment 2 enters reserved band')
+    expect(certifyLayoutCandidates(graph, style, [
+      { strategy: 'crosses-header', produce: () => crossesHeader },
+      { strategy: 'clear-detour', produce: () => positioned },
+    ])).toBe(positioned)
+  })
+
+  test('a route alternative with fewer bends cannot overwrite a header-clear baseline', () => {
+    const { graph, positioned, crossesHeader, style } = witness()
+    const chosen = certifyLayoutWithRouteAlternative(graph, style,
+      [{ strategy: 'clear-detour', produce: () => positioned }],
+      () => ({ strategy: 'without-generic-bundling', produce: () => crossesHeader }))
+    expect(chosen).toBe(positioned)
+    expect(chosen.certification?.preference?.routing?.preference.reason).toBe('alternative-invalid')
   })
 })

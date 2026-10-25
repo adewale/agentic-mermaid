@@ -186,7 +186,7 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     edge.labelPosition = calculatePathMidpoint(edge.points)
   }
   const labelNodes = [...positioned.nodes, ...headerNodes], labelPositioned = { ...positioned, nodes: labelNodes }
-  const { ctx } = laneContextFor(labelNodes, edges, graph.direction, style)
+  const { ctx } = laneContextFor(labelNodes, edges, graph.direction, style, positioned.groups)
   ctx.finalLabelClearance = true
   for (const edge of edges) {
     if (!edge.label) continue

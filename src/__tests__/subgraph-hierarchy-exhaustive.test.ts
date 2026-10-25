@@ -304,9 +304,8 @@ describe('public hierarchy endpoints', () => {
   })
 })
 
-// A group's title may widen it (only SEPARATE hierarchy handling honors the
-// minimum width), but a title that fits must not change the INCLUDE_CHILDREN
-// layout: the group still holds exactly its padding around its content.
+// Titles and routing may select SEPARATE hierarchy handling. Configured
+// content padding remains a minimum when safe boundary routes need more room.
 const TITLED_GROUPS = `flowchart TD
   subgraph edge[Edge Layer]
     web[Web App]
@@ -319,15 +318,38 @@ const TITLED_GROUPS = `flowchart TD
   api --> db`
 
 describe('group titles and hierarchy handling', () => {
-  test('a group whose title fits holds exactly its bottom padding below its content, in every style', () => {
+  test('titled groups retain minimum content padding and clear header bands in every style', () => {
     for (const name of [undefined, ...knownStyles()]) {
       const { style, face } = resolveStyleStackWithFace(name)
       const options = { style, styleFace: face }
       const positioned = layoutGraphSync(parseMermaid(TITLED_GROUPS), options)
       const group = positioned.groups.find(candidate => candidate.id === 'edge')!
       const web = positioned.nodes.find(candidate => candidate.id === 'web')!
-      expect(group.y + group.height - (web.y + web.height), name ?? 'default')
-        .toBeCloseTo(resolveRenderStyle(options, undefined, face).groupPaddingY, 1)
+      const noise = 8 * Number.EPSILON * Math.max(1, positioned.width, positioned.height)
+      expect(group.y + group.height - (web.y + web.height) + noise, name ?? 'default')
+        .toBeGreaterThanOrEqual(resolveRenderStyle(options, undefined, face).groupPaddingY)
+      expect(positioned.nodes.map(node => [node.id, node.label]).sort()).toEqual([
+        ['api', 'API'], ['db', 'Postgres'], ['web', 'Web App'],
+      ])
+      expect(positioned.groups.map(value => [value.id, value.nodeIds?.toSorted()]).sort()).toEqual([
+        ['core', ['api', 'db']], ['edge', ['web']],
+      ])
+      expect(positioned.edges.toSorted((a, b) => a.edgeIndex! - b.edgeIndex!).map(edge => [
+        edge.source, edge.target, edge.hasArrowStart, edge.hasArrowEnd, edge.startMarker ?? null, edge.endMarker ?? null,
+      ])).toEqual([['web', 'api', false, true, null, 'arrow'], ['api', 'db', false, true, null, 'arrow']])
+      const headers = [...positioned.groups]
+      for (let index = 0; index < headers.length; index++) {
+        const header = headers[index]!, height = header.headerHeight!
+        headers.push(...header.children)
+        expect(Number.isFinite(height)).toBe(true)
+        expect(height).toBeGreaterThan(0)
+        for (const edge of positioned.edges) for (let i = 1; i < edge.points.length; i++) {
+          const a = edge.points[i - 1]!, b = edge.points[i]!
+          const enters = Math.max(a.x, b.x) > header.x + noise && Math.min(a.x, b.x) < header.x + header.width - noise
+            && Math.max(a.y, b.y) > header.y + noise && Math.min(a.y, b.y) < header.y + height - noise
+          expect(enters, `${name ?? 'default'} ${edge.source}->${edge.target} crosses ${header.id} header`).toBe(false)
+        }
+      }
     }
   })
 })

@@ -2,7 +2,7 @@ import { routeChannelMayBlock } from '../shared/route-channel-geometry.ts'
 import { nodeLaneIndexForQuery, nodeLaneCell } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
-import type { DiamondFacet, Direction, Point, PortSide, PositionedEdge, PositionedNode, RouteBlocker } from '../types.ts'
+import type { DiamondFacet, Direction, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker } from '../types.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { shapeRoutingProfile } from '../shape-outline.ts'
 import { countPointPairCrossings } from '../shared/edge-crossing-pair.ts'
@@ -234,6 +234,27 @@ function collectLaneBlockers(
         blockers!.push({ kind: 'node', id: node.id })
       }
     }
+  }
+
+  if (ctx.groups?.length && edge.style !== 'invisible') {
+    const headerBlocks = (group: PositionedGroup): boolean => {
+      // No text measurement or cached group geometry in a lane proof. If the
+      // retained band is absent, the whole frame remains a conservative block.
+      const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
+      const invalid = !Number.isFinite(height) || height < 0 || height > group.height
+      const crossLo = axis.cross === 'x' ? group.x : group.y
+      const crossHi = crossLo + (axis.cross === 'x' ? group.width : height)
+      const headerLo = axis.main === 'x' ? group.x : group.y
+      const headerHi = headerLo + (axis.main === 'x' ? group.width : height)
+      if (invalid || height > 0 && group.width > 0 && c > crossLo && c < crossHi
+        && Math.min(mainHi, headerHi) > Math.max(mainLo, headerLo)) {
+        if (firstOnly) return true
+        blockers!.push({ kind: 'group-header', id: group.id })
+      }
+      for (const child of group.children) if (headerBlocks(child)) return true
+      return false
+    }
+    for (const group of ctx.groups) if (headerBlocks(group)) return true
   }
 
   const channels = ctx.routeChannelGeometry
@@ -666,9 +687,15 @@ export function straightLaneFor(edge: PositionedEdge, source: PositionedNode, ta
  *  needs the diamond-vertex emit ranking, which the placement passes don't move
  *  onto. Exported so the placement passes can predict lanes without rebuilding
  *  the route-class/port-allocation machinery. */
-export function laneContextFor(nodes: PositionedNode[], edges: PositionedEdge[], direction: Direction, style: LabelMetricsStyle): { ctx: LaneContext; axis: Axis } {
+export function laneContextFor(
+  nodes: PositionedNode[],
+  edges: PositionedEdge[],
+  direction: Direction,
+  style: LabelMetricsStyle,
+  groups?: readonly PositionedGroup[],
+): { ctx: LaneContext; axis: Axis } {
   const axis = axisFor(direction)
-  return { ctx: { nodes, edges, axis, style }, axis }
+  return { ctx: { nodes, edges, groups, axis, style }, axis }
 }
 
 /**

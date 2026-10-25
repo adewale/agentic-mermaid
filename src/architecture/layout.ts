@@ -1,10 +1,10 @@
 import { architectureIconFallbackBlock } from './icon-layout.ts'
 import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
-import { layoutGraphSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
-import { withGraphLayoutDecisionObserver } from '../layout/backend.ts'
+import { layoutElkGraphPlacementSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
 import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -143,10 +143,9 @@ export function layoutArchitectureDiagram(
   let nativePlacement = false
   const positioned = runMeasuredGraphBackend(options,
     () => layoutNativeGraphPlacementSync(graph, placementOptions),
-    () => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
+    () => layoutElkGraphPlacementSync(graph, {
       ...placementOptions, preserveSubgraphChildOrder: true,
-      ...(options.graphLayout ? { graphLayout: { backend: 'elk' } } : {}),
-    })), false, (_result, decision) => { nativePlacement = decision.selected === 'agentic' })
+    }), false, (_result, decision) => { nativePlacement = decision.selected === 'agentic' })
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
@@ -315,6 +314,16 @@ export function layoutArchitectureDiagram(
       y: service.y + service.height / 2,
     }
   }
+  // Route proposals are checked again after all side constraints, slot moves
+  // and title translations, against the actual final family header geometry.
+  const headers = [...flatGroups.values()].flatMap(group => {
+    const header = architectureHeaderObstacle(group)
+    return header ? [header] : []
+  })
+  const headerFailures = edges.flatMap(edge => headers
+    .filter(header => !routeClearsObstacles(edge.points, [header]))
+    .map(header => `edge ${edge.source.id}->${edge.target.id}: crosses group ${header.id} header`))
+  if (headerFailures.length) throw new LayoutCertificationError([{ strategy: 'architecture-final-headers', violations: headerFailures }])
   return {
     width,
     height,
@@ -920,17 +929,26 @@ function routeArchitectureEdge(
 
 interface RouteObstacle extends Bounds {
   id: string
-  kind: 'service' | 'junction' | 'group'
+  kind: 'service' | 'junction' | 'group' | 'group-header'
 }
 
 const ROUTE_CLEARANCE = 6
 const ROUTE_EPSILON = 0.001
 
+/** The family renderer uses this retained measured band verbatim. */
+function architectureHeaderObstacle(group: PositionedArchitectureGroup): RouteObstacle | undefined {
+  const height = group.headerHeight
+  if (height === undefined || !Number.isFinite(height) || height < 0 || height > group.height) {
+    throw new LayoutCertificationError([{ strategy: 'architecture-final-headers', violations: [`group ${group.id}: missing or invalid measured header height`] }])
+  }
+  return height > 0 ? { id: group.id, kind: 'group-header', x: group.x, y: group.y, width: group.width, height } : undefined
+}
+
 /**
  * Node cards, junctions, and unrelated group interiors are hard route
- * obstacles. Ancestor groups of either endpoint are excluded: an item-level
- * edge must be able to leave its own container, while `{group}` endpoints are
- * anchored to that container boundary explicitly.
+ * obstacles. An endpoint ancestor keeps its measured header as an obstacle:
+ * an item-level edge may leave the body but cannot traverse its title band.
+ * A `{group}` north exterior contact touches only the open band boundary.
  */
 function architectureRouteObstacles(
   edge: ArchitectureDiagram['edges'][number],
@@ -969,8 +987,10 @@ function architectureRouteObstacles(
     obstacles.push(inflate(junction.id, 'junction', junction))
   }
   for (const group of groups.values()) {
-    if (excludedGroups.has(group.id)) continue
-    obstacles.push(inflate(group.id, 'group', group))
+    if (excludedGroups.has(group.id)) {
+      const header = architectureHeaderObstacle(group)
+      if (header) obstacles.push(header)
+    } else obstacles.push(inflate(group.id, 'group', group))
   }
   return obstacles
 }
@@ -991,7 +1011,20 @@ function routeClearsObstacles(points: Point[], obstacles: RouteObstacle[]): bool
   return true
 }
 
-function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: Bounds): boolean {
+function segmentCrossesObstacleInterior(a: Point, b: Point, obstacle: RouteObstacle): boolean {
+  if (obstacle.kind === 'group-header') {
+    let low = 0, high = 1
+    for (const [start, delta, min, max] of [
+      [a.x, b.x - a.x, obstacle.x, obstacle.x + obstacle.width],
+      [a.y, b.y - a.y, obstacle.y, obstacle.y + obstacle.height],
+    ]) {
+      if (delta === 0) { if (start! <= min! || start! >= max!) return false; continue }
+      const first = (min! - start!) / delta!, last = (max! - start!) / delta!
+      low = Math.max(low, Math.min(first, last)); high = Math.min(high, Math.max(first, last))
+      if (low >= high) return false
+    }
+    return low < high
+  }
   if (Math.abs(a.y - b.y) <= ROUTE_EPSILON) {
     return a.y > obstacle.y + ROUTE_EPSILON
       && a.y < obstacle.y + obstacle.height - ROUTE_EPSILON
@@ -1070,9 +1103,11 @@ function routeOrthogonalAroundObstacles(
   const points: Point[] = []
   const indexByCoordinate = new Map<string, number>()
   const key = (x: number, y: number): string => `${x}\u0000${y}`
-  const insideObstacle = (x: number, y: number): boolean => obstacles.some(obstacle =>
-    x > obstacle.x + ROUTE_EPSILON && x < obstacle.x + obstacle.width - ROUTE_EPSILON
-      && y > obstacle.y + ROUTE_EPSILON && y < obstacle.y + obstacle.height - ROUTE_EPSILON)
+  const insideObstacle = (x: number, y: number): boolean => obstacles.some(obstacle => {
+    const inset = obstacle.kind === 'group-header' ? 0 : ROUTE_EPSILON
+    return x > obstacle.x + inset && x < obstacle.x + obstacle.width - inset
+      && y > obstacle.y + inset && y < obstacle.y + obstacle.height - inset
+  })
 
   for (const y of ys) {
     for (const x of xs) {

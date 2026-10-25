@@ -380,6 +380,8 @@ export function anchorMain(node: PositionedNode, c: number, axis: Axis, facing: 
 // ============================================================================
 
 export interface LaneContext {
+  /** Caller-owned live frames; every lane proof reads current nested headers. */
+  groups?: readonly PositionedGroup[]
   nodes: PositionedNode[]
   edges: PositionedEdge[]
   axis: Axis
@@ -474,7 +476,7 @@ export function allocateRoutePorts(
  * by the diamond vertex policy, so both callers must remove the same endpoints
  * from the allocator's semantic-side occupancy. */
 export function buildRouteLaneContext(
-  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[] },
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups?: readonly PositionedGroup[] },
   graph: MermaidGraph,
   style: LabelMetricsStyle,
   classes: RouteClass[],
@@ -501,7 +503,7 @@ export function buildRouteLaneContext(
 
   return {
     axis,
-    ctx: { nodes: positioned.nodes, edges: positioned.edges, axis, style, classes, sideUse, finalLabelClearance,
+    ctx: { nodes: positioned.nodes, edges: positioned.edges, groups: positioned.groups, axis, style, classes, sideUse, finalLabelClearance,
       nodeLaneIndexes: customTextMeasurementActive() ? undefined : {},
       routeChannelGeometry: customTextMeasurementActive() ? undefined : new WeakMap() },
   }

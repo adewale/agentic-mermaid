@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -263,6 +263,60 @@ describe('route proposal crossing consistency', () => {
     expect(segmentThroughShape(points[0]!, points[1]!, card)).toBe(false)
     expect(auditRouteContracts({ nodes: [card], edges: [edge], groups: [] }, graph).some(
       finding => finding.code === 'ROUTE_STALE_AFTER_NODE_MOVE' && finding.node === 'C')).toBe(false)
+  })
+
+  it.each(['LR', 'TB', 'BT'] as const)('uses live group headers in %s lane prediction, production and hitch closure', direction => {
+    const horizontal = direction === 'LR', ancestor = direction === 'BT'
+    const graph = parseMermaid(ancestor ? 'flowchart BT\nsubgraph G\nA\nC\nend\nA-->B' : `flowchart ${direction}\nA-->B\nsubgraph G\nC\nend`)
+    const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 20, height: 20 })
+    const source = horizontal ? node('A', 0, 100) : node('A', 110, ancestor ? 150 : 0)
+    const target = horizontal ? node('B', 300, 100) : node('B', 110, ancestor ? 0 : 300)
+    const child = horizontal ? node('C', 120, 150) : node('C', 140, 150)
+    const group: PositionedGroup = { id: 'G', label: 'G', x: 100, y: 100, width: 80, height: ancestor ? 120 : 80, headerHeight: 28, children: [], nodeIds: ancestor ? ['A', 'C'] : ['C'] }
+    const pairs = horizontal ? [[20, 110], [80, 110], [80, 90], [280, 90], [280, 110], [300, 110]]
+      : ancestor ? [[120, 150], [120, 140], [90, 140], [90, 30], [120, 30], [120, 20]]
+        : [[120, 20], [120, 80], [90, 80], [90, 280], [120, 280], [120, 300]]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: pairs.map(([x, y]) => ({ x: x!, y: y! })) }
+    const nodes = [source, target, child], groups = [group], edges = [edge], style = resolveRenderStyle()
+    const positioned = { nodes, groups, edges }, original = structuredClone(edge.points)
+    const { ctx, axis } = laneContextFor(nodes, edges, direction, style, groups)
+    const lane = horizontal ? 110 : 120, high = ancestor ? 150 : 300
+    const blocked = () => directLaneBlockers(edge, lane, 20, high, ctx, axis)
+    expect(blocked()).toContainEqual({ kind: 'group-header', id: 'G' })
+    expect(straightLaneFor(edge, source, target, ctx, axis)).toBeNull()
+    // Exact exterior contact and a lane on the header boundary stay legal.
+    expect(directLaneBlockers(edge, horizontal ? group.y : group.x, 20, high, ctx, axis)).toEqual([])
+    expect(directLaneBlockers(edge, lane, 80, 100, ctx, axis)).toEqual([])
+    if (!ancestor) {
+      const dx = horizontal ? 0 : 300, dy = horizontal ? 100 : 0
+      group.x += dx; group.y += dy; child.x += dx; child.y += dy
+      expect(straightLaneFor(edge, source, target, ctx, axis)).toBe(lane)
+      group.x -= dx; group.y -= dy; child.x -= dx; child.y -= dy
+      expect(straightLaneFor(edge, source, target, ctx, axis)).toBeNull()
+    }
+    group.headerHeight = 0
+    expect(blocked()).toEqual([])
+    group.headerHeight = 28; group.concurrencyRegion = true
+    expect(blocked()).toEqual([])
+    delete group.concurrencyRegion
+    // A headerless concurrency parent cannot exempt a nested child's band.
+    groups.splice(0, 1, { id: 'Parent', label: 'Parent', x: 0, y: 0, width: 500, height: 400, headerHeight: 100, concurrencyRegion: true, children: [group] })
+    expect(blocked()).toContainEqual({ kind: 'group-header', id: 'G' })
+    groups.splice(0, 1, group)
+    delete group.headerHeight
+    expect(blocked()).toContainEqual({ kind: 'group-header', id: 'G' })
+    group.headerHeight = 28
+    applyRouteContracts(positioned, graph, new Set(), style)
+    closeRouteContracts(positioned, graph, style)
+    expect(edge.points).toEqual(original)
+    expect(findRouteHitches(positioned, graph, style)).toEqual([])
+    expect([edge.source, edge.target, edge.hasArrowStart, edge.hasArrowEnd, edge.endMarker]).toEqual(['A', 'B', false, true, 'arrow'])
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      const enters = Math.max(a.x, b.x) > 100 && Math.min(a.x, b.x) < 180
+        && Math.max(a.y, b.y) > 100 && Math.min(a.y, b.y) < 128
+      expect(enters).toBe(false)
+    }
   })
 
   it('keeps settled reciprocal labels as obstacles in the final closure and its auditor', () => {

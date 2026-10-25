@@ -150,7 +150,7 @@ export function alignLabeledSourcePort(
     // feasible lane, so iterate to a fixed point (converges in 1-2 rounds; the
     // candidate set is discrete). Probe on a CLONE of S so the search never
     // mutates committed geometry; commit only the converged delta.
-    const { ctx, axis } = laneContextFor(nodes, edges, direction, style)
+    const { ctx, axis } = laneContextFor(nodes, edges, direction, style, groups)
     let delta = 0
     let converged = false
     const probe = { ...S }

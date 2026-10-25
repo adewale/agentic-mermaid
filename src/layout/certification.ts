@@ -1,13 +1,14 @@
 import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup } from '../types.ts'
+import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup, Point } from '../types.ts'
 import { LayoutPassContractError } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
+import { graphTextBlock } from '../graph-text.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
@@ -194,8 +195,45 @@ function retainAuthoredMembership(graph: MermaidGraph, positioned: PositionedGra
   retain(positioned.groups)
 }
 
+/** Internal final-route proof. The entire measured header band is reserved,
+ * independently of title glyph ink. Exterior group endpoint contact never
+ * enters this open rectangle; endpoint identity grants no route exemption. */
+export function positionedHeaderRouteViolations(positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
+  const failures: string[] = []
+  const enters = (a: Point, b: Point, group: PositionedGroup, height: number): boolean => {
+    let low = 0, high = 1
+    for (const [start, delta, min, max] of [
+      [a.x, b.x - a.x, group.x, group.x + group.width],
+      [a.y, b.y - a.y, group.y, group.y + height],
+    ]) {
+      if (delta === 0) { if (start! <= min! || start! >= max!) return false; continue }
+      const first = (min! - start!) / delta!, last = (max! - start!) / delta!
+      low = Math.max(low, Math.min(first, last)); high = Math.min(high, Math.max(first, last))
+      if (low >= high) return false
+    }
+    return low < high
+  }
+  const visit = (group: PositionedGroup): void => {
+    if (!group.concurrencyRegion) {
+      const block = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
+      const height = group.headerHeight ?? style.groupHeaderFontSize + 16 + block.height - block.lineHeight
+      if (!Number.isFinite(height) || height < 0 || height > group.height) failures.push(`group-header ${group.id}: invalid retained height`)
+      else if (height > 0 && group.width > 0) for (const edge of positioned.edges) {
+        if (edge.style === 'invisible') continue
+        for (let index = 1; index < edge.points.length; index++) if (enters(edge.points[index - 1]!, edge.points[index]!, group, height)) {
+          failures.push(`group-header ${group.id}: edge ${edge.source}->${edge.target} segment ${index} enters reserved band`)
+          break
+        }
+      }
+    }
+    group.children.forEach(visit)
+  }
+  positioned.groups.forEach(visit)
+  return failures
+}
+
 /** Bounds are checked on final retained geometry, independently of ELK's success flag. */
-export function positionedGeometryViolations(positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
+function positionedGeometryBaseViolations(positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
   const failures: string[] = []
   const finite = (values: number[]) => values.every(Number.isFinite)
   if (!finite([positioned.width, positioned.height]) || positioned.width < 0 || positioned.height < 0) return ['non-finite or negative canvas']
@@ -225,6 +263,12 @@ export function positionedGeometryViolations(positioned: PositionedGraph, style:
     box('diagram title', title.x - block.width / 2, title.y - block.height / 2, block.width, block.height)
   }
   return failures
+}
+
+/** Final graph geometry includes the reserved header routing contract. */
+export function positionedGeometryViolations(positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
+  const failures = positionedGeometryBaseViolations(positioned, style)
+  return failures.length ? failures : positionedHeaderRouteViolations(positioned, style)
 }
 
 function preferenceScore(positioned: PositionedGraph, metrics: RubricMetrics, preferNext: boolean): LayoutPreferenceScore {
@@ -264,7 +308,12 @@ interface CertifiedSelection {
   attempts: number
 }
 
-export function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, strictProducer = false): {
+/** Final candidates cannot opt out of any final geometry contract. */
+export function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, strictProducer = false): ReturnType<typeof certifyCandidateForPurpose> {
+  return certifyCandidateForPurpose(graph, style, candidate, strictProducer)
+}
+
+function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, strictProducer = false, purpose: 'final' | 'placement' = 'final'): {
   certified?: CertifiedCandidate
   attempt: LayoutCertificationAttempt
 } {
@@ -272,7 +321,7 @@ export function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle
     const positioned = candidate.produce()
     const correspondence = correspondenceViolations(graph, positioned, style)
     if (strictProducer && correspondence.length) throw new TypeError(`Owned layout changed authored meaning: ${correspondence.join('; ')}`)
-    const violations = [...correspondence, ...positionedGeometryViolations(positioned, style)]
+    const violations = [...correspondence, ...(purpose === 'placement' ? positionedGeometryBaseViolations(positioned, style) : positionedGeometryViolations(positioned, style))]
     const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
     if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
     const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
@@ -300,7 +349,7 @@ function preferredCandidate(first: CertifiedCandidate, alternative: CertifiedCan
   return { selected: first, reason: 'candidate-order' }
 }
 
-function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate): CertifiedSelection {
+function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate, purpose: 'final' | 'placement' = 'final'): CertifiedSelection {
   const attempts: LayoutCertificationAttempt[] = []
   // A conditional producer must not evict the fourth established fallback.
   const fallbacks = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
@@ -317,7 +366,7 @@ function selectCertifiedCandidates(graph: MermaidGraph, style: ResolvedRenderSty
       observeFallback('layout-candidate', 'candidate-rejected', attempts.length + 1)
       rejected = false
     }
-    const result = certifyCandidate(graph, style, candidate)
+    const result = certifyCandidateForPurpose(graph, style, candidate, false, purpose)
     attempts.push(result.attempt)
     const certified = result.certified
     if (certified) {
@@ -354,6 +403,15 @@ export function retainSelection(graph: MermaidGraph, selection: CertifiedSelecti
     preference: { selectedScore: selected.score, reason, compared },
   }
   return selected.positioned
+}
+
+/** @internal Family placement retains every authored relationship's influence
+ * but returns no generic routes or route certificate for a family to misuse. */
+export function certifyLayoutPlacementCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+  const { selected } = selectCertifiedCandidates(graph, style, candidates, preliminary, 'placement')
+  retainAuthoredMembership(graph, selected.positioned)
+  const { width, height, nodes, groups } = selected.positioned
+  return { width, height, nodes, groups }
 }
 
 /** Hard feasibility gates every candidate. One additional certified alternative

@@ -20,14 +20,16 @@ function findGroupsContainingPoint(
 
 /**
  * Bundle contract (docs/design/system/route-contracts.md): a rebuilt trunk/branch
- * path may not pass through any node other than the edge's own endpoints.
- * The half-pixel tolerance lets a path graze a border without counting.
+ * path may not pass through any node other than the edge's own endpoints,
+ * or any reserved group header band. Nodes retain the half-pixel border
+ * tolerance; full header bands use their strict interior.
  */
 function bundlePathClear(
   points: Point[],
   nodes: PositionedNode[],
   sourceId: string,
   targetId: string,
+  groups: readonly PositionedGroup[],
 ): boolean {
   for (const n of nodes) {
     if (n.id === sourceId || n.id === targetId) continue
@@ -40,7 +42,16 @@ function bundlePathClear(
       }
     }
   }
-  return true
+  const headerClear = (group: PositionedGroup): boolean => {
+    const height = group.concurrencyRegion ? 0 : group.headerHeight ?? group.height
+    for (let i = 1; height > 0 && i < points.length; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      if (Math.max(a.x, b.x) > group.x && Math.min(a.x, b.x) < group.x + group.width
+        && Math.max(a.y, b.y) > group.y && Math.min(a.y, b.y) < group.y + height) return false
+    }
+    return group.children.every(headerClear)
+  }
+  return groups.every(headerClear)
 }
 
 /**
@@ -192,7 +203,7 @@ export function bundleEdgePaths(
         }
       }
 
-      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target, groups))
       if (clear.length === members.length) {
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
@@ -284,7 +295,7 @@ export function bundleEdgePaths(
         }
       }
 
-      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target))
+      const clear = members.filter(m => bundlePathClear(candidates.get(m.edge)!, nodes, m.edge.source, m.edge.target, groups))
       if (clear.length === members.length) {
         for (const { edge } of members) {
           edge.points = candidates.get(edge)!
