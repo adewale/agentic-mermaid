@@ -28,13 +28,19 @@ The [package guide](README.md) covers installation, updates and extraction seams
 changes, selection bias, warmup, missing cases and overfitting. Public docs and
 public tests are external validation, not a secret holdout.
 
+Browser startup includes browser launch; its fixture HTTP server is prepared
+before the clock. The full editor sample measures a fresh editor followed by an
+eight-input burst through the latest verified DOM preview. It does not measure
+eight completed renders or a single-keystroke preview; the measurement rules
+describe the marker, receipt-authority and animation-frame checks.
+
 ## The layers
 
 | Layer | Question | Main suites | Evidence and limits |
 | --- | --- | --- | --- |
 | Public invocation | Can a real caller use the shipped entry or transport? | `invocation`, browser/editor and distribution contracts | Installed entries, Node/Bun, global/lazy/worker browser paths, Node/native CLI and MCP transports. An entry-point pass is not a witness for every function or feature. |
 | Family functionality | Does an operation preserve authored meaning? | `family`, family contracts/functionality, operation witnesses | Independently expected parse, write, rejected-write, source, layout and output behavior. Advertised operations without a witness remain visible. |
-| Mermaid reference | How much reviewed Mermaid input and meaning do we preserve? | Dave, pinned-reference score, semantic/grammar/operation corpora, historical imported cases | Same inputs and independent criteria retain their exact reference pins. SVG acceptance, semantic criteria and parser time are distinct measures. Mermaid geometry is not Agentic Mermaid's pixel specification. |
+| Mermaid reference | How much reviewed Mermaid input and meaning do we preserve? | Dave, pinned-reference score, semantic/grammar/operation corpora, historical imported cases | Original assertions and independently authored criteria retain their pins; the older selected-input harvest retains its Agentic-derived fields and selection limits. SVG acceptance, semantic criteria and parser time are distinct measures. Mermaid geometry is not Agentic Mermaid's pixel specification. |
 | Community comparison | How do tools behave at the same public boundary? | Community API/browser/CLI, portable project campaign, peer/release comparisons | Matched workloads, real artifact acquisition, scoped fidelity checks, timings and delivery. Unsupported or failed cases do not become cheap successful renders. |
 | Cost and attribution | Where is execution or download cost paid? | Micro, pipeline, render stages, renderer profiles, editor sessions/delivery | First use, warm work, consumed receipts, imports, observed requests, bundles, CPU and scoped memory. Instrumented stage clocks remain separate from public API latency. |
 | Own output quality | Is our drawing usable and internally consistent? | Layout, routes, visual rubric, styles, sketch, heuristic tracker and ugly audit | Connectivity, ownership, geometry and contrast at the owning surface. A heuristic score is not independent human or perceptual judgment. |

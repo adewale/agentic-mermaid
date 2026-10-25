@@ -47,6 +47,9 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
   const fd = openSync(lock, 'wx')
   let cancelled: string | undefined
   let published = false
+  let pendingAttempt: string | undefined
+  let attemptDirectory: string | undefined
+  let stage: 'collection' | 'publication' = 'collection'
   const interrupt = () => { cancelled = 'SIGINT' }
   const terminate = () => { cancelled = 'SIGTERM' }
   const active = () => { if (cancelled) throw Error(`Benchmark cancelled by ${cancelled}; no completed attempt may be published`) }
@@ -72,13 +75,16 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
     let raw: UnifiedSuiteResult
     if (options.resumeAttempt) {
       if (resolve(options.resumeAttempt) !== directory) throw Error('Recovery attempt must belong to the selected project output directory')
-      const cache = read(join(options.out, 'cache.json')) as { project?: string; lane?: string; state?: string; published?: boolean; error?: string }
-      if (cache.project !== identity.project || cache.lane !== identity.lane || cache.state !== 'incomplete' || cache.published !== false || cache.error !== 'Error: Invalid benchmark record store: duplicate observation identity') throw Error('Recovery requires a completed attempt rejected only by the observation identity publication guard')
+      const cache = read(join(options.out, 'cache.json')) as { project?: string; lane?: string; state?: string; published?: boolean; pendingAttempt?: string; error?: string }
+      const receipt = existsSync(join(directory, 'publication-failure.json')) ? read(join(directory, 'publication-failure.json')) as Record<string, unknown> : undefined
+      if (cache.project !== identity.project || cache.lane !== identity.lane || cache.state !== 'incomplete' || cache.published !== false || cache.pendingAttempt !== id || !receipt || receipt.attempt !== id || receipt.stage !== 'publication' || receipt.state !== 'incomplete' || receipt.error !== cache.error || stableValue(receipt.identity) !== stableValue(identity)) throw Error('Recovery requires an attempt-bound publication failure receipt; cancelled or unbound evidence cannot recover')
       if (stableValue(read(join(directory, 'identity.json'))) !== stableValue(identity)) throw Error('Recovery measurement identity differs from the current requested identity')
       raw = read(join(directory, existsSync(join(directory, 'raw-result.json')) ? 'raw-result.json' : 'result.json')) as UnifiedSuiteResult
       if (!['passed', 'failed', 'blocked'].includes(raw.status) || !Array.isArray(raw.observations) || !raw.observations.length || !Number.isFinite(Date.parse(raw.startedAt)) || Date.parse(raw.finishedAt) < Date.parse(raw.startedAt) || !Number.isFinite(Date.parse(raw.finishedAt))) throw Error('Recovery requires a completed sampler result with ordered timestamps')
     } else {
       mkdirSync(directory, { recursive: true })
+      pendingAttempt = id
+      attemptDirectory = directory
       write(join(directory, 'identity.json'), identity)
       write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, state: 'running', pendingAttempt: id, published: false })
       write(join(options.out, 'result.json'), { status: 'running', project: identity.project, pendingAttempt: id })
@@ -93,6 +99,9 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
     const current = options.identity()
     active()
     if (stableValue(current) !== stableValue(identity)) throw Error('Measurement identity changed; retaining the attempt without publishing a reusable record')
+    pendingAttempt = id
+    attemptDirectory = directory
+    stage = 'publication'
     write(join(directory, 'result.json'), result)
     const files = (path: string): string[] => readdirSync(join(directory, path), { withFileTypes: true }).flatMap(entry => {
       const child = path ? `${path}/${entry.name}` : entry.name
@@ -118,7 +127,9 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
     write(join(options.out, 'result.json'), result)
     return result
   } catch (error) {
-    write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, state: cancelled ? 'cancelled' : 'incomplete', published, error: String(error) })
+    const state = cancelled ? 'cancelled' : 'incomplete'
+    if (attemptDirectory && !published) write(join(attemptDirectory, 'publication-failure.json'), { attempt: pendingAttempt, identity, stage, state, error: String(error) })
+    write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, pendingAttempt, state, published, error: String(error) })
     write(join(options.out, 'result.json'), { status: cancelled ? 'cancelled' : 'incomplete', project: identity.project, published, error: String(error) })
     throw error
   } finally {

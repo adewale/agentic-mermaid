@@ -43,13 +43,18 @@ test('explicit recovery publishes completed matching raw evidence without measur
   const reset = (state = 'incomplete') => {
     writeFileSync(join(attempt, 'identity.json'), JSON.stringify(identity))
     writeFileSync(join(attempt, 'result.json'), rawBytes)
-    writeFileSync(join(out, 'cache.json'), JSON.stringify({ project: 'pele', lane: 'startup', state, published: false, error: 'Error: Invalid benchmark record store: duplicate observation identity' }))
+    const error = 'Error: Invalid benchmark record store: duplicate observation identity'
+    writeFileSync(join(out, 'cache.json'), JSON.stringify({ project: 'pele', lane: 'startup', pendingAttempt: 'completed', state, published: false, error }))
+    writeFileSync(join(attempt, 'publication-failure.json'), JSON.stringify({ attempt: 'completed', identity, stage: 'publication', state, error }))
   }
   const options = { out, records: join(root, 'records'), resumeAttempt: attempt, identity: () => identity, measure: async () => { throw Error('Must not remeasure') } }
   reset('cancelled')
-  await expect(runRetainedSuite(options)).rejects.toThrow('rejected only by')
+  await expect(runRetainedSuite(options)).rejects.toThrow('attempt-bound')
   reset()
-  await expect(runRetainedSuite({ ...options, identity: () => ({ ...identity, artifact: 'changed' }) })).rejects.toThrow('identity differs')
+  writeFileSync(join(attempt, 'publication-failure.json'), JSON.stringify({ attempt: 'different', identity, stage: 'publication', state: 'incomplete', error: 'Error: Invalid benchmark record store: duplicate observation identity' }))
+  await expect(runRetainedSuite(options)).rejects.toThrow('attempt-bound')
+  reset()
+  await expect(runRetainedSuite({ ...options, identity: () => ({ ...identity, artifact: 'changed' }) })).rejects.toThrow('attempt-bound')
   expect(existsSync(join(root, 'records/current.json'))).toBe(false)
   reset()
   const recovered = await runRetainedSuite(options)
