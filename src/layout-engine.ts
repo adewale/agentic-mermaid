@@ -305,7 +305,6 @@ interface ElkGraphNode extends ElkNode {
 interface HierarchyPort {
   id: string
   direction: 'in' | 'out'
-  avoidHeader: boolean
 }
 
 interface RoutePortHint {
@@ -505,10 +504,10 @@ function mermaidToElk(
     reservedIds.add(id)
     return id
   }
-  const boundaryPort = (group: string, index: number, direction: 'in' | 'out', avoidHeader: boolean): string => {
+  const boundaryPort = (group: string, index: number, direction: 'in' | 'out'): string => {
     const id = allocateId(`${group}_${direction}_${index}`)
     const ports = subgraphPorts.get(group) ?? []
-    ports.push({ id, direction, avoidHeader })
+    ports.push({ id, direction })
     subgraphPorts.set(group, ports)
     return id
   }
@@ -521,11 +520,9 @@ function mermaidToElk(
     const targetScopes = targetIsAncestor ? subgraphAncestors.get(edge.target)! : endpointAncestors(edge.target)
     const host = deepestCommonAncestor(sourceScopes, targetScopes)
     const commonDepth = host ? sourceScopes.indexOf(host) + 1 : 0
-    const avoidHeader = sourceIsAncestor || targetIsAncestor
-      || sourceScopes.length - commonDepth > 1 || targetScopes.length - commonDepth > 1
-    let source = sourceIsAncestor ? boundaryPort(edge.source, index, 'in', avoidHeader)
+    let source = sourceIsAncestor ? boundaryPort(edge.source, index, 'in')
       : routePortHints.byEndpoint.get(endpointKey(index, 'source'))?.portId ?? edge.source
-    const target = targetIsAncestor ? boundaryPort(edge.target, index, 'out', avoidHeader)
+    const target = targetIsAncestor ? boundaryPort(edge.target, index, 'out')
       : routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target
     let order = 0
     const segment = (scope: string | undefined, from: string, to: string, central = false): void => {
@@ -537,11 +534,11 @@ function mermaidToElk(
       crossEdgesByHost.set(scope ?? null, edges)
     }
     for (const scope of sourceScopes.slice(commonDepth).reverse()) {
-      const port = boundaryPort(scope, index, 'out', avoidHeader)
+      const port = boundaryPort(scope, index, 'out')
       segment(scope, source, port)
       source = port
     }
-    const targetChain = targetScopes.slice(commonDepth).map(scope => ({ scope, port: boundaryPort(scope, index, 'in', avoidHeader) }))
+    const targetChain = targetScopes.slice(commonDepth).map(scope => ({ scope, port: boundaryPort(scope, index, 'in') }))
     segment(host, source, targetChain[0]?.port ?? target, true)
     for (let i = 0; i < targetChain.length; i++) {
       const entry = targetChain[i]!
@@ -1027,10 +1024,11 @@ function subgraphToElk(
   // Add hierarchical ports for cross-hierarchy edges (when using SEPARATE)
   const ports = subgraphPorts.get(sg.id) ?? []
   if (ports.length > 0) {
-    // Newly traversed intermediate scopes and ancestor endpoints need an
-    // interior path clear of the title-bearing north face. Existing single-
-    // boundary routes retain ELK's free-side policy.
-    const avoidHeader = groupHeaderHeight > 0 && ports.some(port => port.avoidHeader)
+    // Every hierarchical port continues inside its scope, even when the edge
+    // traverses only one boundary. Keep that interior section off the title-
+    // bearing north face. An authored group endpoint uses the group itself,
+    // so its legitimate exterior north-face contact is unaffected.
+    const avoidHeader = groupHeaderHeight > 0
     const flow = layoutFlow(graph.direction)
     elkNode.ports = ports.map(port => {
       const preferred = port.direction === 'in' ? flow.targetSide : flow.sourceSide

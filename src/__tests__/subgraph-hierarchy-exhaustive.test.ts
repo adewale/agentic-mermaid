@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 
-import { knownStyles, renderMermaidSVG } from '../index.ts'
+import { knownStyles, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
@@ -58,7 +58,7 @@ function nestedGraph(withDirectionOverride: boolean, from: string, to: string): 
   ${from} --> ${to}`
 }
 
-function assertCleanHierarchyCase(source: string, from: string, to: string): void {
+function assertCleanHierarchyCase(source: string, from: string, to: string) {
   const graph = parseMermaid(source)
   const positioned = layoutGraphSync(graph)
   const edge = positioned.edges.find(e => e.source === from && e.target === to)
@@ -67,6 +67,7 @@ function assertCleanHierarchyCase(source: string, from: string, to: string): voi
   expect(edge!.points.every(pt => Number.isFinite(pt.x) && Number.isFinite(pt.y))).toBe(true)
   expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
   expect(auditRouteContracts(positioned, graph)).toEqual([])
+  return positioned
 }
 
 describe('bounded hierarchy endpoint model', () => {
@@ -102,8 +103,55 @@ describe('public hierarchy endpoints', () => {
     }
   }
 
+  test('a single traversed boundary keeps the inherited-direction comparison title readable', () => {
+    const source = `flowchart LR
+      subgraph subgraph1
+        direction TB
+        top1[top] --> bottom1[bottom]
+      end
+      subgraph subgraph2
+        direction TB
+        top2[top] --> bottom2[bottom]
+      end
+      outside --> subgraph1
+      outside ---> top2`
+    const options = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const }, embedFontImport: false }
+    const positioned = assertCleanHierarchyCase(source, 'outside', 'top2')
+    const layout = layoutMermaidWithReceipt(source, { ...options, debug: true }).layout
+    expect(layout.edges.map(edge => ({ from: edge.from, to: edge.to })))
+      .toEqual([{ from: 'outside', to: 'subgraph1' }, { from: 'outside', to: 'top2' }, { from: 'top1', to: 'bottom1' }, { from: 'top2', to: 'bottom2' }])
+    const rendered = renderMermaidSVGWithReceipt(source, options), svg = rendered.svg
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    const headers = measureRenderedText(svg).texts.filter(text => ['subgraph1', 'subgraph2'].includes(text.content))
+    expect(headers).toHaveLength(2)
+    for (const carrier of scanSvgStartTags(svg).filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')) {
+      expect(decodedSvgAttributeValue(carrier, 'marker-end')).toBeDefined()
+      const coordinates = decodedSvgAttributeValue(carrier, 'points')!.trim().split(/[\s,]+/).map(Number)
+      for (const text of headers) {
+        expect(text.box, `${text.content} has visible glyphs`).toBeDefined()
+        const box = text.box!
+        for (let i = 2; i < coordinates.length; i += 2) {
+          const x1 = coordinates[i - 2]!, y1 = coordinates[i - 1]!, x2 = coordinates[i]!, y2 = coordinates[i + 1]!
+          const clear = Math.max(x1, x2) <= box.x || Math.min(x1, x2) >= box.x + box.width
+            || Math.max(y1, y2) <= box.y || Math.min(y1, y2) >= box.y + box.height
+          expect(clear, `emitted shaft crosses ${text.content}`).toBe(true)
+        }
+      }
+      for (const group of positioned.groups) {
+        const height = group.headerHeight!
+        expect(height).toBeGreaterThan(0)
+        for (let i = 2; i < coordinates.length; i += 2) {
+          const x1 = coordinates[i - 2]!, y1 = coordinates[i - 1]!, x2 = coordinates[i]!, y2 = coordinates[i + 1]!
+          const clear = Math.max(x1, x2) <= group.x || Math.min(x1, x2) >= group.x + group.width
+            || Math.max(y1, y2) <= group.y || Math.min(y1, y2) >= group.y + height
+          expect(clear, `emitted shaft crosses ${group.id} header band`).toBe(true)
+        }
+      }
+    }
+  })
+
   for (const direction of ['LR', 'RL', 'TB', 'BT']) {
-    for (const [from, to] of [['X', 'B'], ['B', 'Outer'], ['Outer', 'B']] as const) {
+    for (const [from, to] of [['X', 'B'], ['B', 'Outer'], ['Outer', 'B'], ['X', 'Outer'], ['Outer', 'X']] as const) {
       test(`${direction} ${from}->${to} retains its labeled edge through three scopes`, () => {
         const source = `flowchart ${direction}
           X[Client]
@@ -132,6 +180,10 @@ describe('public hierarchy endpoints', () => {
           const normal = (verticalFace && Math.abs(endpoint[1] - neighbour[1]) < 1e-5)
             || (horizontalFace && Math.abs(endpoint[0] - neighbour[0]) < 1e-5)
           expect(normal, `${group.id} connection must meet its border normally`).toBe(true)
+          if (direction === 'TB' && from === 'X' && to === 'Outer' || direction === 'BT' && from === 'Outer' && to === 'X') {
+            expect(endpoint[1], 'an exterior group endpoint may still use its north face').toBeCloseTo(group.y, 5)
+            expect(neighbour[1]).toBeLessThan(group.y)
+          }
         }
         expect(renderMermaidSVG(source)).toContain('request')
       })
@@ -146,19 +198,35 @@ describe('public hierarchy endpoints', () => {
         sign_in_worker[Worker]
       end
       ${from} -->|reply| ${to}`
-    assertCleanHierarchyCase(source, from, to)
+    const positioned = assertCleanHierarchyCase(source, from, to)
     for (const backend of ['elk', 'agentic'] as const) {
       const options = { graphLayout: { backend, fallback: 'none' as const } }
       const layout = layoutMermaidWithReceipt(source, { ...options, debug: true }).layout
       expect(layout.nodes.map(node => node.id).sort()).toEqual(['Box_out_0', 'sign_in_worker'])
       expect(layout.edges.map(edge => ({ from: edge.from, to: edge.to })))
         .toEqual([{ from, to }])
+      expect(layout.edges[0]!.label?.text).toBe('reply')
       const svg = renderMermaidSVG(source, options)
       expect(svg).toContain('reply')
       const carrier = scanSvgStartTags(svg).find(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')!
+      expect(decodedSvgAttributeValue(carrier, 'marker-end')).toBeDefined()
       const coordinates = decodedSvgAttributeValue(carrier, 'points')!.trim().split(/[\s,]+/).map(Number)
       const points: Array<[number, number]> = Array.from({ length: coordinates.length / 2 }, (_, i) => [coordinates[i * 2]!, coordinates[i * 2 + 1]!])
       expect(points).toEqual(layout.edges[0]!.path)
+      const header = measureRenderedText(svg).texts.find(text => text.content === 'Box')!
+      expect(header.box, `${backend} Box has visible title glyphs`).toBeDefined()
+      const group = layout.groups.find(group => group.id === 'Box')!
+      const headerHeight = positioned.groups.find(group => group.id === 'Box')!.headerHeight!
+      expect(headerHeight).toBeGreaterThan(0)
+      for (let i = 1; i < points.length; i++) {
+        const [x1, y1] = points[i - 1]!, [x2, y2] = points[i]!, box = header.box!
+        const clear = Math.max(x1, x2) <= box.x || Math.min(x1, x2) >= box.x + box.width
+          || Math.max(y1, y2) <= box.y || Math.min(y1, y2) >= box.y + box.height
+        expect(clear, `${backend} emitted shaft crosses Box title glyphs`).toBe(true)
+        const headerClear = Math.max(x1, x2) <= group.x || Math.min(x1, x2) >= group.x + group.w
+          || Math.max(y1, y2) <= group.y || Math.min(y1, y2) >= group.y + headerHeight
+        expect(headerClear, `${backend} emitted shaft crosses Box header band`).toBe(true)
+      }
       for (const [id, start] of [[from, true], [to, false]] as const) {
         const node = layout.nodes.find(node => node.id === id)!
         const path = start ? points : points.toReversed()
