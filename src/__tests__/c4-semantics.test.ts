@@ -90,6 +90,30 @@ describe('C4 authored semantics', () => {
     expect(renderC4(body)).toBe(source)
   })
 
+  test.each(['Person', 'Person_Ext'])('%s keeps named fields occupying the label slot through a label edit', async macro => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [name, value, fields] of [
+        ['sprite', 'users', { sprite: 'users' }],
+        ['link', 'https://example.com', { link: 'https://example.com' }],
+        ['tags', 'one+two', { tags: ['one', 'two'] }],
+      ] as const) {
+        const source = `C4Context\n${macro}(p, $${name}="${value}")`
+        const body = readC4Source(source)
+        expect(body.elements[0]).toMatchObject({ id: 'p', label: '', ...fields })
+        expect(renderC4(body)).toBe(source)
+        const parsed = parseRegisteredMermaid(source)
+        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+        expect(parsed.value.body.kind).toBe('c4')
+        const result = mutateC4(body, { kind: 'update_element', id: 'p', changes: { label: 'Edited' } })
+        if (!result.ok) throw new Error(result.error.message)
+        const written = renderC4(result.value)
+        expect(readC4Source(written).elements[0]).toMatchObject({ id: 'p', label: 'Edited', ...fields })
+        expect(await upstream.accepts(written), written).toBe(true)
+      }
+    } finally { upstream.close() }
+  })
+
   test('all boundary macros nest independently, including deployment alignment and empty groups', () => {
     const source = `C4Deployment
 Enterprise_Boundary(e, "Enterprise") {
