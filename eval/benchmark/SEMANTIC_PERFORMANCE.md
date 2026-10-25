@@ -46,8 +46,13 @@ Those peers retain label-checked timings but cannot pass semantic numeric gates.
 These checks do not prove attachment geometry, edge multiplicity or aesthetics.
 
 Warm tracks prime at least 20 real calls and 1,000 ms of elapsed warmup, then
-record 31 individual call durations and
-three independent V8 allocation probes, subject to the recorded case deadline.
+record 201 individual call durations and three independent V8 allocation
+probes. The 180-second measurement budget accommodates the complete population
+on fresh large meshes; it does not change renderer resource limits. The worker
+no-progress cap remains 300 seconds, the report watchdog 90 minutes and the job
+watchdog 300 minutes. A completed indexed-consumer report must contain its whole
+declared timing population; deadline truncation cannot qualify a different
+source population on one side.
 Actual warmup calls, elapsed time and completion are retained per observation.
 A failed or incomplete warmup remains an error; it cannot supply a numeric pass.
 Warmup, timing, allocation and diagnostics have separate ordinal counters and
@@ -60,6 +65,16 @@ warm source cannot prime a measured new-source/edit input. Allocation and
 diagnostic inputs also stay identical across sides when timing hits a deadline.
 Exact-repeat and first-use deliberately retain original bytes in every stream.
 Raw calls record their domain; the domain policy enters the control fingerprint.
+The privately created UTF-8 Buffer is consumed by indexed reads. Earlier
+for-of traversal could retain about one iterator-result allocation per byte,
+depending on V8 optimization, producing a 3.82 MB same-package artifact in
+Mesh full-receipt profiles. The indexed loop preserves exact bytes, checksum
+and getter order. API bindings, default font/measurer options, XML-validation
+font options and the actual source-freshness mechanism enter report metadata.
+The frozen Pele lane remains version 1.6.0; later source research at 1.10.0
+does not silently update that pin or turn a public SVG API into browser mount
+timing. Neither fresh identities nor one authored label edit means every
+unchanged label receives fresh text preparation.
 They do not report a percentile of batch averages as call p95. A minimum of 20
 complete calls per warm case is required for tail qualification. Quick mode is a
 functional smoke policy, never performance qualification. Legacy `bench:peers`
@@ -142,6 +157,16 @@ The summary always distinguishes `failed`, `uncalibrated` and `passed`.
 Allocation is a V8 GC-boundary estimate, excluding native/WASM memory. Zero
 observations are retained, but never discarded to manufacture a finite favorable
 ratio. Short operations may be too noisy to qualify.
+
+The repaired consumer and larger population improve calibration without
+changing numerical ceilings. They do not establish steady-state execution:
+ordered-window drift and fresh-process uncertainty remain visible. A local
+two-control preflight calibrated all four allocation cells and 11/12 total
+cells; Sequence p95 remained uncalibrated. Longer priming alone, forced-GC
+boundaries, a different allocation estimator and a separate validation heap
+did not close that remaining problem and are excluded. No GC policy, affinity
+or validation-heap change is selected. Method effects are not renderer gains;
+fresh complete controls must qualify any candidate under this new fingerprint.
 
 ## Immutable historical anchors
 
@@ -247,8 +272,9 @@ phase/consumer combination per runner in each cache lane (16 shards total).
 Each shard retains all14 Agentic workloads, the fixed seven-case peer cohort,
 and both doubled-size scaling cases. It runs its own two independent A/A
 reports and A/B report serially. Its ratios and seven-case means never cross
-runner boundaries. The90-minute report and300-minute job watchdogs, sample
-counts, rounds, numeric thresholds and historical anchor are unchanged.
+runner boundaries. The90-minute report and300-minute job watchdogs, rounds,
+numeric thresholds and historical anchor remain unchanged. Warm populations
+are now201 calls; cold timing remains21 independent first-render workers.
 
 `qualify-peer-performance.ts --phase <phase> --consumer <consumer>` emits
 `scopeComplete`, but leaves global `complete` false. A shard cannot declare
