@@ -107,12 +107,25 @@ describe('parseMermaid – graph header', () => {
 // ============================================================================
 
 describe('parseMermaid – node shapes (original)', () => {
-  it('parses rectangle nodes: A[Label]', () => {
-    const g = parseMermaid('graph TD\n  A[Hello World]')
+  it.each([
+    ['Hello World', 'Hello World'],
+    ['é 家 👨‍👩‍👧', 'é 家 👨‍👩‍👧'],
+    ['<b>bold</b><br/>tail', '<b>bold</b>\ntail'],
+    ['#amp;', '&'],
+    ['ﬂ°°65¶ß', 'A'],
+    ['ﬂ°amp¶ß', '&'],
+    ['ﬂ°°', 'ﬂ°°'],
+    ['ﬂ°bad¶', 'ﬂ°bad¶'],
+  ])('parses rectangle label %s', (authored, label) => {
+    const g = parseMermaid(`graph TD\n  A["${authored}"]`)
     const node = g.nodes.get('A')
     expect(node).toBeDefined()
     expect(node!.shape).toBe('rectangle')
-    expect(node!.label).toBe('Hello World')
+    expect(node!.label).toBe(label)
+  })
+
+  it.each(['#1;', 'ﬂ°°1¶ß'])('refuses rectangle label entity %s that projects a terminal control', authored => {
+    expect(() => parseMermaid(`graph TD\n  A["${authored}"]`)).toThrow('projects a terminal control character')
   })
 
   it('parses rounded nodes: A(Label)', () => {

@@ -24,8 +24,11 @@ peer, round, phase and consumer; third-party receipt APIs are not invented.
 
 `--tracks all` separates:
 
-- **First use:** one call in a fresh process for each case, consumer and round;
-  import is recorded separately. No earlier workload warms that process.
+- **First use:** 21 individually timed first renders, three allocation probes
+  and one untimed diagnostic render per case, consumer and round. Every render
+  has its own fresh process; no earlier render warms it. Allocation and
+  diagnostic calls never enter the timing distribution. Per-worker import/setup
+  receipts remain separate, with medians recorded in the aggregate.
 - **Warm new source:** warmed engine, real changed visible labels and renamed
   authored identifiers, with a new source variant for each observation.
 - **Exact repeat:** identical source bytes after priming.
@@ -42,8 +45,42 @@ endpoint observability is explicitly unavailable, not semantic equivalence.
 Those peers retain label-checked timings but cannot pass semantic numeric gates.
 These checks do not prove attachment geometry, edge multiplicity or aesthetics.
 
-Warm tracks prime three real calls, then record 31 individual call durations and
-three independent V8 allocation probes, subject to the recorded case deadline.
+Warm tracks prime at least 20 real calls and 1,000 ms of elapsed warmup, then
+record 201 individual call durations and three independent V8 allocation
+probes. The 180-second measurement budget accommodates the complete population
+on fresh large meshes; it does not change renderer resource limits. The worker
+no-progress cap remains 300 seconds, the report watchdog 90 minutes and the job
+watchdog 300 minutes. A completed indexed-consumer report must contain its whole
+declared timing population; deadline truncation cannot qualify a different
+source population on one side.
+Actual warmup calls, elapsed time and completion are retained per observation.
+A failed or incomplete warmup remains an error; it cannot supply a numeric pass.
+Warmup, timing, allocation and diagnostics have separate ordinal counters and
+short authored-label/identifier namespaces. New-source and label-edit warmup
+advance fresh ordinals on every call, exercising the same source-miss path as
+timing instead of priming repeated hits on a 20-variant working set. Faster
+priming can therefore consume more distinct warmup inputs; its actual call count
+remains recorded. Independent counters ensure that timed source `q1`/`v1_*`
+starts identically across peers regardless of how many warm calls fit in the
+elapsed interval. Warmup uses `w*`, allocation `a*`, and diagnostics `d*`, so a
+warm source cannot prime a measured new-source/edit input. Allocation and
+diagnostic inputs also stay identical across sides when timing hits a deadline.
+Exact-repeat and first-use deliberately retain original bytes in every stream.
+Raw calls record their domain; the domain policy and
+`warmupSources: fresh-edit-ordinals-v1` enter the control fingerprint. Controls
+from the earlier cyclic priming policy cannot qualify this method. This fixes
+the priming workload mismatch; it does not establish stationary tails or claim
+that calibration is resolved.
+The privately created UTF-8 Buffer is consumed by indexed reads. Earlier
+for-of traversal could retain about one iterator-result allocation per byte,
+depending on V8 optimization, producing a 3.82 MB same-package artifact in
+Mesh full-receipt profiles. The indexed loop preserves exact bytes, checksum
+and getter order. API bindings, default font/measurer options, XML-validation
+font options and the actual source-freshness mechanism enter report metadata.
+The frozen Pele lane remains version 1.6.0; later source research at 1.10.0
+does not silently update that pin or turn a public SVG API into browser mount
+timing. Neither fresh identities nor one authored label edit means every
+unchanged label receives fresh text preparation.
 They do not report a percentile of batch averages as call p95. A minimum of 20
 complete calls per warm case is required for tail qualification. Quick mode is a
 functional smoke policy, never performance qualification. Legacy `bench:peers`
@@ -113,9 +150,12 @@ to accommodate noise. Peer calibration additionally checks the dispersion of
 paired baseline/peer ratios across both controls. A calibrated missed budget is
 a blocking failure. Gate JSON records every control ratio and effective budget.
 
-First-use p95 has only one independent call per round in the default protocol,
-and cold allocation needs separate fresh-process probes. These remain explicitly
-unqualified. Uncalibrated checks are advisory until sufficient repeated controls
+First-use p95 requires at least 20 independent first-render workers per round,
+and allocation requires three separate fresh-process probes. The default
+protocol supplies 21 and three respectively; quick mode supplies only three
+timed workers and remains unqualified. Every worker failure is retained in the
+aggregate, rather than silently dropping a missing process. Old one-call cold
+reports remain insufficient and cannot calibrate the new sampling fingerprint. Uncalibrated checks are advisory until sufficient repeated controls
 exist, as requested by the owner. `ok:true` therefore means no blocking failure;
 only `performanceQualified:true` means all enrolled performance checks passed.
 The summary always distinguishes `failed`, `uncalibrated` and `passed`.
@@ -123,6 +163,16 @@ The summary always distinguishes `failed`, `uncalibrated` and `passed`.
 Allocation is a V8 GC-boundary estimate, excluding native/WASM memory. Zero
 observations are retained, but never discarded to manufacture a finite favorable
 ratio. Short operations may be too noisy to qualify.
+
+The repaired consumer and larger population improve calibration without
+changing numerical ceilings. They do not establish steady-state execution:
+ordered-window drift and fresh-process uncertainty remain visible. A local
+two-control preflight calibrated all four allocation cells and 11/12 total
+cells; Sequence p95 remained uncalibrated. Longer priming alone, forced-GC
+boundaries, a different allocation estimator and a separate validation heap
+did not close that remaining problem and are excluded. No GC policy, affinity
+or validation-heap change is selected. Method effects are not renderer gains;
+fresh complete controls must qualify any candidate under this new fingerprint.
 
 ## Immutable historical anchors
 
@@ -179,14 +229,16 @@ layout candidates. Events contain scalar owner/outcome/reason fields, never
 source strings, cache keys or retained user objects. Observer exceptions cannot
 change rendering, and no public package export is added.
 
-The observer is absent during timing and allocation. Separate successful warm
+The observer is absent during timing and allocation. Separate successful
 replays collect hits, misses, bypasses, skipped stores and fallback reasons.
 Hit rate is `hits/(hits+misses)`, excluding bypasses. Positioned-cache events
 count one logical lookup: the private borrowed probe and any following cloned
 public probe do not count as two misses for one lookup. A graphical support event
 and successful complete replay establish observation; a scope event followed by
-an exception does not. Cold diagnostic replay and uninstrumented peers/baselines
-remain **unobserved**, never inferred zero hits. No fallback event during a
+an exception does not. Cold diagnostics use their own fresh first-render workers.
+Every successful candidate observation, including cold, requires a complete
+observed diagnostic replay to qualify. Uninstrumented peers/baselines remain
+**unobserved**, never inferred zero hits. No fallback event during a
 successful observed replay means zero observed fallbacks at the instrumented
 owners; this is not universal coverage of font/parser/routing fallbacks.
 
@@ -217,3 +269,29 @@ Source unit CI exercises fail-closed decisions with controlled observations.
 This integration does not revive the recipe interpreter or change native/ELK
 selection policy. The original early installed-State window and PNG allocation
 controls remain separate release evidence and are not replaced by these tracks.
+
+
+## Complete campaign execution
+
+The release workflow builds the pinned main baseline once, then runs one
+phase/consumer combination per runner in each cache lane (16 shards total).
+Each shard retains all14 Agentic workloads, the fixed seven-case peer cohort,
+and both doubled-size scaling cases. It runs its own two independent A/A
+reports and A/B report serially. Its ratios and seven-case means never cross
+runner boundaries. The90-minute report and300-minute job watchdogs, rounds,
+numeric thresholds and historical anchor remain unchanged. Warm populations
+are now201 calls; cold timing remains21 independent first-render workers.
+
+`qualify-peer-performance.ts --phase <phase> --consumer <consumer>` emits
+`scopeComplete`, but leaves global `complete` false. A shard cannot declare
+full performance qualification. `aggregate-semantic-performance.ts` requires
+all16 scoped evidence directories; it recomputes the decisions from each
+candidate and both controls, requires matching archive bytes, peer pins,
+harness revision, authored inputs and execution settings, and preserves each
+runner's provenance. Missing, duplicate, interrupted or incompatible evidence
+fails closed. No numeric ratios are pooled across hosts. All adverse and
+uncalibrated decisions remain in the aggregate JSON.
+
+Artifacts retain attempt numbers. Duplicate shards are rejected rather than
+silently selecting a favorable attempt. A complete campaign uses a fresh
+workflow run; partial controls from an interrupted run are not resumed.

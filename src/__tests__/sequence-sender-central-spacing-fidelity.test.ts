@@ -54,14 +54,18 @@ test('native and agent retain sender-spaced central messages and exactly two act
 })
 
 test('spaced central-start parsing stays bounded on malformed long tails', () => {
-  // Judge input-size growth, not parser throughput relative to an unrelated
-  // character loop. Both space runs must still be rejected at every size.
+  // Keep the original 128K-character rejection witness as the small input.
+  // Long actor tokens can switch the regex engine's execution strategy; a
+  // constant-factor comparison with a plain scan then rejects linear work.
+  // Compare two long inputs in that same regime: quadratic backtracking grows
+  // by 256x at this helper's 16x factor, beyond its existing 64x ceiling.
   const growth = measureGrowth(size => {
     const line = `Alice ${' '.repeat(size)}() ${' '.repeat(size)}:missing`
-    expect(parseSequenceMessageLine(line)).toBeNull()
-  }, 1_024)
+    const parsed = parseSequenceMessageLine(line)
+    expect(parsed).toBeNull()
+    return parsed
+  }, 64_000)
   expect(growth.ratio).toBeLessThan(LINEAR_GROWTH_CEILING)
-  expect(parseSequenceMessageLine(`Alice ${' '.repeat(64_000)}() ${' '.repeat(64_000)}:missing`)).toBeNull()
 })
 
 test('sender-spaced central fallback does not accept forms Mermaid rejects', async () => {

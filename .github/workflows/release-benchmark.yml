@@ -268,16 +268,67 @@ jobs:
 
   # Repeated controls and candidate runs are serial within each cache-policy
   # runner. Never combine timings between these jobs or with release medians.
-  semantic-performance:
-    name: Calibrated semantic, tail and allocation gates (cache ${{ matrix.cache }})
+  semantic-baseline:
+    name: Pin and pack the semantic campaign baseline
     needs: benchmark
+    if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - name: Build one immutable comparison archive
+        env:
+          REQUESTED_REF: ${{ inputs.baseline-ref }}
+        run: |
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(npm --version)" = "11.18.0"
+          mkdir -p semantic-baseline
+          if [ -n "$REQUESTED_REF" ]; then
+            [[ "$REQUESTED_REF" =~ ^[a-f0-9]{40}$ ]]
+            git fetch --no-tags origin "$REQUESTED_REF"
+            baseline_revision="$REQUESTED_REF"
+          else
+            git fetch --no-tags origin main
+            baseline_revision="$(git rev-parse FETCH_HEAD)"
+          fi
+          git worktree add --detach "$RUNNER_TEMP/semantic-main" "$baseline_revision"
+          printf '%s\n' "$baseline_revision" > semantic-baseline/source.sha
+          cp "$RUNNER_TEMP/semantic-main/bun.lock" semantic-baseline/source.bun.lock
+          cd "$RUNNER_TEMP/semantic-main"
+          bun install --frozen-lockfile
+          bun run build
+          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/semantic-baseline"
+          mv "$GITHUB_WORKSPACE"/semantic-baseline/*.tgz "$GITHUB_WORKSPACE/semantic-baseline/package.tgz"
+          cd "$GITHUB_WORKSPACE/semantic-baseline"
+          sha256sum package.tgz > package.sha256
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: semantic-baseline-${{ github.run_id }}
+          path: semantic-baseline/
+          if-no-files-found: error
+          retention-days: 30
+
+  semantic-performance:
+    name: Semantic ${{ matrix.cache }} / ${{ matrix.phase }} / ${{ matrix.consumer }}
+    needs: [benchmark, semantic-baseline]
     if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
       fail-fast: false
+      max-parallel: 8
       matrix:
         cache: ['off', 'on']
+        phase: ['first-use', 'warm-new-source', 'exact-repeat', 'label-edit']
+        consumer: ['svg-utf8', 'receipt-json-utf8']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -305,45 +356,42 @@ jobs:
           name: fixed-benchmark-candidate-${{ github.run_id }}
           path: release-artifact
 
-      - name: Build and retain the pinned current-main calibration baseline
-        env:
-          REQUESTED_REF: ${{ inputs.baseline-ref }}
+      - name: Download the campaign's single baseline archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: semantic-baseline-${{ github.run_id }}
+          path: semantic-evidence/baseline
+
+      - name: Retain and verify baseline policy source
         run: |
-          mkdir -p semantic-evidence/baseline
-          if [ -n "$REQUESTED_REF" ]; then
-            [[ "$REQUESTED_REF" =~ ^[a-f0-9]{40}$ ]]
-            git fetch --no-tags origin "$REQUESTED_REF"
-            baseline_revision="$REQUESTED_REF"
-          else
-            git fetch --no-tags origin main
-            baseline_revision="$(git rev-parse FETCH_HEAD)"
-          fi
+          cd semantic-evidence/baseline
+          sha256sum --check package.sha256
+          baseline_revision="$(cat source.sha)"
+          [[ "$baseline_revision" =~ ^[a-f0-9]{40}$ ]]
+          git fetch --no-tags origin "$baseline_revision"
           git worktree add --detach "$RUNNER_TEMP/semantic-main" "$baseline_revision"
-          printf '%s\n' "$baseline_revision" > semantic-evidence/baseline/source.sha
-          cp "$RUNNER_TEMP/semantic-main/bun.lock" semantic-evidence/baseline/source.bun.lock
+          cd "$GITHUB_WORKSPACE"
           cp bun.lock semantic-evidence/candidate-source.bun.lock
-          cd "$RUNNER_TEMP/semantic-main"
-          bun install --frozen-lockfile
-          bun run build
-          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/semantic-evidence/baseline"
-          mv "$GITHUB_WORKSPACE"/semantic-evidence/baseline/*.tgz "$GITHUB_WORKSPACE/semantic-evidence/baseline/package.tgz"
 
       - name: Calibrate twice and apply separate semantic performance scorecards
         env:
           CACHE_POLICY: ${{ matrix.cache }}
+          TRACK_PHASE: ${{ matrix.phase }}
+          TRACK_CONSUMER: ${{ matrix.consumer }}
         run: |
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
           printf '%s  release-artifact/package.tgz\n' "$candidate_sha" | sha256sum --check
           baseline_sha="$(sha256sum semantic-evidence/baseline/package.tgz | cut -d ' ' -f 1)"
           bun run bench:peers:qualify --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" \
             --baseline-tarball semantic-evidence/baseline/package.tgz --baseline-sha256 "$baseline_sha" \
-            --runtime-source "$RUNNER_TEMP/semantic-main" --elk-cache "$CACHE_POLICY" --rounds 5 --out semantic-evidence
+            --runtime-source "$RUNNER_TEMP/semantic-main" --elk-cache "$CACHE_POLICY" --rounds 5 \
+            --phase "$TRACK_PHASE" --consumer "$TRACK_CONSUMER" --out semantic-evidence
 
       - name: Retain all controls, failures, cache events and scorecards
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: semantic-performance-${{ github.sha }}-cache-${{ matrix.cache }}-${{ github.run_attempt }}
+          name: semantic-performance-${{ github.sha }}-cache-${{ matrix.cache }}-phase-${{ matrix.phase }}-consumer-${{ matrix.consumer }}-${{ github.run_attempt }}
           path: semantic-evidence/
           if-no-files-found: error
           retention-days: 30
@@ -355,6 +403,43 @@ jobs:
             cat semantic-evidence/gates.md >> "$GITHUB_STEP_SUMMARY"
           else
             printf 'Semantic performance incomplete: inspect retained setup and worker evidence.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+  semantic-campaign:
+    name: Complete semantic campaign decision
+    needs: semantic-performance
+    if: ${{ !cancelled() && (inputs.evidence-scope == 'all' || inputs.evidence-scope == '') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: semantic-performance-${{ github.sha }}-*
+          path: semantic-shards
+      - name: Require all16 paired and source-matched shards
+        run: bun run eval/benchmark/aggregate-semantic-performance.ts semantic-shards semantic-campaign
+      - name: Retain the full decision and per-runner provenance
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: semantic-campaign-${{ github.sha }}-${{ github.run_attempt }}
+          path: semantic-campaign/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish complete campaign status
+        if: always()
+        run: |
+          if [ -f semantic-campaign/campaign.md ]; then
+            cat semantic-campaign/campaign.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Semantic campaign incomplete; no aggregate decision was produced.' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
