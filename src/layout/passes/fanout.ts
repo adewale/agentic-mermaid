@@ -3,6 +3,7 @@ import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { graphReachability, layoutFlow, nodeCrossCenter, nodeMainStart, rectsOverlap } from '../geometry.ts'
 import { positionedEdgeForwardish, sameFlowLayer, nodeInsideGroups, flattenPositionedGroups, expandGroupsForMainShift, sourceEmissionPort, targetFlowPort, symmetricOffsets, doglegBetween, routeClearOfNodes } from './shared.ts'
 import { terminalLabelRunLength, terminalLabelCorridorLength, assignBundledFanoutLabels } from './bundled-labels.ts'
+import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 
 export function reassignBundledSiblingLabels(
   nodes: PositionedNode[],
@@ -175,8 +176,8 @@ export function applySymmetricFanoutEmissions(
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.routeCertificate = undefined
-      bundled.add(edge)
     }
+    retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
     assignBundledFanoutLabels(proposed, nodes, graph.direction, style)
   }
 }

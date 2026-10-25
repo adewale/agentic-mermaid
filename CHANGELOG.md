@@ -31,6 +31,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- A copied or stale `bundle` route certificate can no longer hide a hitch.
+  Exemptions remain bound to the routes constructed by the shared-trunk,
+  symmetric-convergence and parallel-lane producers.
 - Losing cosmetic centering proposals retain the previous feasible geometry.
   Straight-route repairs retain canonical ports unless higher-priority conflicts
   improve. Four generated valid-flowchart failures now render.

@@ -232,19 +232,14 @@ queues. Retired IDs are not reused.
   migration. Do not recreate removed reports, receipts or mandatory review gates.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
-- [ ] **TEST-5 — Make route-verification policy executable and retire the stale
-  score target** (`todo`,
-  [#265](https://github.com/adewale/agentic-mermaid/issues/265); supersedes the historical framing in
-  [#35](https://github.com/adewale/agentic-mermaid/issues/35)). Treat 50.69% as
-  a historical diagnostic, not a quality gate. Resolve whether
-  `offOutlineEndpoints` is hard or cosmetic, enroll final rendered-endpoint
-  diagnostics in `audit:ugly` if that public command should own them (the
-  independent diagnostic is now enforced by `auditRouteContracts` and the
-  layout rubric), extract an independent certificate consistency audit, and
-  make production pipeline invariant checks explicit.
-  Use retained public route contracts and representative final-output witnesses
-  to prove named behaviors. The removed mutation/sabotage lanes are not
-  prerequisites; do not restore them or a broad percentage chase.
+- [ ] **TEST-5 — Bind bundle exemptions to their constructed routes** (`todo`,
+  [#265](https://github.com/adewale/agentic-mermaid/issues/265)). An editable
+  certificate label must not exempt an unrelated or changed route from hitch
+  checks. Preserve shared trunks, symmetric convergence and separated parallel
+  lanes, and measure the cost on ordinary render/verify workloads. The former
+  policy/inventory programme is superseded; no new audit registry or mutation
+  score target is requested. The witness is deliberate fault injection, not an
+  established ordinary-input producer defect.
 - [ ] **TEST-6 — Audit cross-family endpoint-marker and geometry authority**
   (`todo`, [#258](https://github.com/adewale/agentic-mermaid/issues/258)).
   Derive the marker-producing family inventory from the registry, characterize

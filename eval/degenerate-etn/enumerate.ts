@@ -13,7 +13,7 @@ import { performance } from 'node:perf_hooks'
 import { assessLayout, hardViolations } from '../../src/layout-rubric.ts'
 import { layoutGraphSync } from '../../src/layout-engine.ts'
 import { parseMermaid } from '../../src/parser.ts'
-import { auditRouteContracts, findRouteHitches } from '../../src/route-contracts.ts'
+import { auditRouteContracts, findRouteHitches, hasBundleRouteExemption } from '../../src/route-contracts.ts'
 import type { Point, PositionedEdge } from '../../src/types.ts'
 import { DEGENERATE_ROUTE_GENERATORS } from './generators.ts'
 
@@ -64,6 +64,7 @@ function certificateFindings(edge: PositionedEdge): string[] {
   const certificate = edge.routeCertificate
   if (!certificate) return ['missing-certificate']
   const findings: string[] = []
+  if (certificate.invariant === 'bundle' && !hasBundleRouteExemption(edge)) findings.push('stale-bundle-exemption')
   if (edge.edgeIndex !== certificate.edgeIndex) findings.push('edge-index-mismatch')
   if (certificate.bendCount !== geometricBendCount(edge.points)) findings.push('bend-count-mismatch')
   if (certificate.sourcePortAssignment?.port !== certificate.sourcePort &&

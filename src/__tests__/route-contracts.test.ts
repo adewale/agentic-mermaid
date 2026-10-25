@@ -3,8 +3,8 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
-import { countEdgeCrossings, onShapeOutline } from '../layout-rubric.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, recertifyReroutedEdge, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
+import { assessLayout, countEdgeCrossings, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -541,6 +541,69 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
     const before = JSON.stringify(positioned.edges.map(e => e.points))
     findRouteHitches(positioned, graph)
     expect(JSON.stringify(positioned.edges.map(e => e.points))).toBe(before)
+  })
+})
+
+describe('bundle exemptions belong to constructed routes (#265)', () => {
+  it('a caller-provided membership set cannot certify an unrelated dogleg as a bundle', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B'), positioned = layoutGraphSync(graph), edge = positioned.edges[0]!
+    const [a, b] = edge.points as [Point, Point]
+    edge.points = [a, { x: a.x + 16, y: a.y }, { x: a.x + 16, y: a.y + 12 }, { x: b.x - 16, y: a.y + 12 }, { x: b.x - 16, y: b.y }, b]
+    applyRouteContracts(positioned, graph, new Set([edge]), resolveRenderStyle())
+    expect(edge.points).toHaveLength(2)
+    expect(edge.routeCertificate?.invariant).toBe('straight')
+  })
+
+  it.each(['LR', 'RL', 'TD', 'BT'] as const)('%s: an editable certificate cannot hide a lone four-bend hitch', direction => {
+    const graph = parseMermaid(`flowchart ${direction}\nA[Start] --> B[Done]`)
+    const positioned = layoutGraphSync(graph), edge = positioned.edges[0]!
+    const a = edge.points[0]!, b = edge.points.at(-1)!
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const first = horizontal ? a.x + (b.x - a.x) / 3 : a.y + (b.y - a.y) / 3
+    const second = horizontal ? a.x + (b.x - a.x) * 2 / 3 : a.y + (b.y - a.y) * 2 / 3
+    edge.points = horizontal
+      ? [a, { x: first, y: a.y }, { x: first, y: a.y + 12 }, { x: second, y: a.y + 12 }, { x: second, y: b.y }, b]
+      : [a, { x: a.x, y: first }, { x: a.x + 12, y: first }, { x: a.x + 12, y: second }, { x: b.x, y: second }, b]
+    const { straightened: _straightened, ...saved } = edge.routeCertificate!
+    edge.routeCertificate = { ...saved, invariant: 'bundle', bendCount: 4 }
+    expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B' }))
+    const assessment = assessLayout(graph, positioned)
+    expect(hardViolations(assessment)).toContainEqual(expect.objectContaining({ metric: 'hitches' }))
+    expect(assessment.metrics.totalBends).toBe(4)
+    expect(measureRubricMetrics(graph, positioned, ['bends'], resolveRenderStyle(), new Set([edge])).bends).toBe(4)
+  })
+
+  it.each([
+    ['shared fan-out', 'A --> B\nA --> C'],
+    ['shared fan-in', 'A --> C\nB --> C'],
+    ['separated parallel lanes', 'A --> B\nA --> B'],
+  ])('%s: whole-graph translation preserves justified bends', (_name, body) => {
+    const graph = parseMermaid(`flowchart LR\n${body}`), positioned = layoutGraphSync(graph)
+    expect(positioned.edges.some(edge => edge.routeCertificate?.invariant === 'bundle')).toBe(true)
+    for (const node of positioned.nodes) { node.x += 13; node.y += 17 }
+    for (const edge of positioned.edges) for (const point of edge.points) { point.x += 13; point.y += 17 }
+    expect(assessLayout(graph, positioned).metrics.totalBends).toBe(0)
+    expect(findRouteHitches(positioned, graph)).toEqual([])
+  })
+
+  it('a copied bundle certificate cannot grant ownership to a different route', () => {
+    const bundle = layoutGraphSync(parseMermaid('flowchart LR\nA --> B\nA --> B'))
+    const graph = parseMermaid('flowchart LR\nA --> B'), positioned = layoutGraphSync(graph), edge = positioned.edges[0]!
+    const [a, b] = edge.points as [Point, Point]
+    edge.points = [a, { x: a.x + 16, y: a.y }, { x: a.x + 16, y: a.y + 12 }, { x: b.x - 16, y: a.y + 12 }, { x: b.x - 16, y: b.y }, b]
+    const { straightened: _straightened, ...copied } = bundle.edges[0]!.routeCertificate!
+    edge.routeCertificate = { ...copied, invariant: 'bundle', edgeIndex: edge.edgeIndex!, bendCount: 4 }
+    expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B' }))
+  })
+
+  it('reissuing a certificate cannot inherit a bundle exemption after changing its lane', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nA --> C'), positioned = layoutGraphSync(graph)
+    const edge = positioned.edges.find(edge => edge.points.length > 2)!, saved = edge.routeCertificate!
+    expect(saved.invariant).toBe('bundle')
+    for (let i = 1; i < edge.points.length - 1; i++) edge.points[i]!.x += 6
+    expect(assessLayout(graph, positioned).metrics.totalBends).toBeGreaterThan(0)
+    recertifyReroutedEdge(edge, saved, positioned.nodes.find(node => node.id === edge.source), positioned.nodes.find(node => node.id === edge.target))
+    expect(edge.routeCertificate?.invariant).toBe('explained-detour')
   })
 })
 

@@ -39,6 +39,7 @@ import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { countPolylineCrossings } from './shared/edge-crossings.ts'
 import { countOpposingRouteOverlaps } from './shared/edge-overlaps.ts'
 import { LABEL_PILL_PADDING, labelRect, pillRect } from './shared/edge-label-geometry.ts'
+import { bundleRouteBeforeRewrite, hasConstructedBundleRoute, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 
 export { labelRect } from './shared/edge-label-geometry.ts'
 
@@ -46,6 +47,12 @@ type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'
   invariant: RouteInvariant
   /** Internal draft bit; finalized public certificates only keep this for straight routes. */
   straightened?: true
+}
+
+/** Bundle exemptions belong to the constructed route, including separated
+ * parallel lanes. Uniform translation and label-only changes preserve it. */
+export function hasBundleRouteExemption(edge: PositionedEdge): boolean {
+  return edge.routeCertificate?.invariant === 'bundle' && hasConstructedBundleRoute(edge)
 }
 
 /** Two coordinates within this distance are the same point. */
@@ -1329,7 +1336,7 @@ export function applyRouteContracts(
     graph,
     style,
     classes,
-    edge => bundled.has(edge),
+    edge => bundled.has(edge) && hasConstructedBundleRoute(edge),
     false,
   )
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
@@ -2245,7 +2252,9 @@ export function applyRouteContracts(
 
   const retry: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   for (const edge of positioned.edges) {
+    const bundle = bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
     edge.points = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
+    retainBundleRouteAfterRewrite(edge, bundle)
 
     const edgeIndex = edge.edgeIndex ?? -1
     const routeClass: RouteClass = classes[edgeIndex] ?? 'primary-forward'
@@ -2256,7 +2265,7 @@ export function applyRouteContracts(
       invariant: 'straight',
     }
 
-    if (bundled.has(edge)) {
+    if (bundled.has(edge) && hasConstructedBundleRoute(edge)) {
       cert.invariant = 'bundle'
     } else if (routeClass === 'self-loop') {
       const side = repairSelfLoopArc(edge)
@@ -2330,10 +2339,12 @@ export function applyRouteContracts(
   }
 
   for (const edge of positioned.edges) {
+    const bundle = bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
     const sourceNode = nodeMap.get(edge.source)
     const targetNode = nodeMap.get(edge.target)
     if (sourceNode) repairRectLikeEndpointOverflow(edge, sourceNode, true)
     if (targetNode) repairRectLikeEndpointOverflow(edge, targetNode, false)
+    retainBundleRouteAfterRewrite(edge, bundle)
   }
 
   const certificates: RouteCertificate[] = []
@@ -2412,7 +2423,7 @@ export function recertifyReroutedEdge(
   }
   edge.routeCertificate = {
     ...base,
-    invariant: saved.invariant === 'straight' ? 'explained-detour' : saved.invariant,
+    invariant: saved.invariant === 'straight' || (saved.invariant === 'bundle' && !hasConstructedBundleRoute(edge)) ? 'explained-detour' : saved.invariant,
   }
 }
 
@@ -2463,7 +2474,7 @@ function scanRouteHitches(
     graph,
     style,
     classes,
-    edge => edge.routeCertificate?.invariant === 'bundle',
+    hasBundleRouteExemption,
     true,
   )
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
@@ -2473,7 +2484,7 @@ function scanRouteHitches(
 
   for (const edge of positioned.edges) {
     const cert = edge.routeCertificate
-    if (!cert || cert.invariant === 'bundle') continue
+    if (!cert || hasBundleRouteExemption(edge)) continue
     if (cert.routeClass !== 'primary-forward' && cert.routeClass !== 'feedback') continue
     const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
     const points = simplifyPolyline(edge.points)

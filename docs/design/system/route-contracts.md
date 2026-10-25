@@ -254,6 +254,14 @@ before they are assigned; a blocked member falls out of the bundle (keeping
 its ELK route, which the route-contract pass then straightens or explains),
 and the junction is re-derived from the members that remain.
 
+Bundle exemptions also cover symmetric convergence and separated parallel
+lanes. Their bounded producers retain ownership of the actual related routes;
+the public `bundle` certificate label cannot create it. Clipping and polyline
+normalization preserve existing ownership, as do label-only edits and uniform
+translation. A later lane change loses the exemption, and ordinary certificate
+reissuance cannot restore it. The existing hitch/rubric checks and corpus
+certificate observations consume this construction-bound evidence (#265).
+
 **Feedback routing (issue #25 §8.1/§11.3, literature-grounded):** feedback
 edges no longer compete with their forward partner for the same
 flow-facing side. `elk.layered.feedbackEdges: true` (the option issue #25
