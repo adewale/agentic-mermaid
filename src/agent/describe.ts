@@ -382,6 +382,7 @@ function describeState(body: import('./types.ts').StateBody): string {
   if ((body.notes ?? []).length > 0) {
     s += ` Notes: ${body.notes!.map(note => `${note.side} of ${note.target}: ${note.text}`).join('; ')}.`
   }
+  if (body.floatingNotes?.length) s += ` Floating notes: ${body.floatingNotes.map(note => `${note.id}${note.scope ? ` in ${note.scope.parent}${note.scope.region !== undefined ? ` region ${note.scope.region}` : ''}` : ''}: ${note.text}`).join('; ')}.`
   if (transStr.length > 0) s += ` Transitions: ${transStr.join('; ')}.`
   if (starts.length > 0) s += ` Initial: ${starts.join(', ')}.`
   return s

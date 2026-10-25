@@ -750,6 +750,8 @@ export interface StateBody {
   transitions: StateTransition[]
   /** Notes in source order; absent when the diagram has none. */
   notes?: StateNote[]
+  /** Named, unattached annotations; scoped independently of state identity. */
+  floatingNotes?: StateFloatingNote[]
   /** Optional top-level layout direction. */
   direction?: import('../types.ts').Direction
   /** Typed classDef declarations keyed by class name. */
@@ -757,6 +759,8 @@ export interface StateBody {
   /** Default edge paint (`linkStyle default ...`). */
   defaultTransitionStyle?: Record<string, string>
 }
+
+export type StateFloatingNote = import('../state/types.ts').FloatingStateNote
 
 // ---- Mindmap body ---------------------------------------------------------
 
@@ -1415,6 +1419,9 @@ export type StateMutationOp =
   | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }
   | { kind: 'remove_note'; index: number }
   | { kind: 'set_note_text'; index: number; text: string }
+  | { kind: 'add_floating_note'; id: string; text: string; parent?: string | null; region?: number }
+  | { kind: 'remove_floating_note'; id: string }
+  | { kind: 'set_floating_note_text'; id: string; text: string }
   // State paint uses the same parser-owned CSS property grammar as flowchart.
   | { kind: 'define_class'; name: string; style: string }
   | { kind: 'set_state_class'; id: string; className: string | null }

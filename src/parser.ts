@@ -1,5 +1,6 @@
 import { scanStateComments } from './state/comment.ts'
 import { readStateLabel, readStateText } from './state/text.ts'
+import { resolveStateIdentities, type StateIdentities } from './state/identity.ts'
 import type { LabelContent } from './shared/display-text.ts'
 import { parseFlowchartLabel, unquoteFlowchartLabel } from './flowchart-labels.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
@@ -14,13 +15,13 @@ import {
   isConcurrencySeparator,
   isNoteEnd,
   matchHistoryEndpoint,
-  matchNoteLine, matchNoteOpen,
+  matchNoteLine, matchNoteOpen, matchFloatingNote,
   matchStateClassAssignment, matchStateDeclarationLine, matchStateLayoutDirective,
   matchStereotypeDecl, matchTransitionLine, readStateStatements,
   STATE_ALIAS_RE,
   STATE_CLASS_DEF_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_DIRECTION_RE,
-  STATE_LINK_STYLE_RE, STATE_STYLE_RE,
+  STATE_LINK_STYLE_RE, STATE_STYLE_RE, type StateStatement,
 } from './state/parse-core.ts'
 import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, MermaidNode, MermaidSubgraph, NodeShape } from './types.ts'
 
@@ -723,10 +724,9 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   // State ids are global: a composite's id names the composite wherever it
   // is mentioned, before or after its block, never a second, simple state
   // (as in the typed body, parseStateBody).
-  const compositeStateIds = new Set(statements.flatMap(statement => {
-    const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
-    return open ? [open[2]!] : []
-  }))
+  const identities = resolveStateIdentities(statements)
+  if (identities.issue) throw new Error(identities.issue)
+  const compositeStateIds = identities.compositeIds
   const composites = new Map<string, MermaidSubgraph>()
   let stateGroupCount = 0
   const labeledStateIds = new Set<string>()
@@ -742,21 +742,6 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     labeledStateIds.add(id)
     const group = composites.get(id)
     if (group) Object.assign(group, stateLabel(group, pieces))
-  }
-  // A [*] pseudostate is numbered within the composite it is written in
-  // (`_start`, `_start2` at the top level; `X_start`, … inside X), so its id
-  // never depends on where another scope's statements fall. A generated id
-  // skips any token an author wrote, so a state named `_start` is never taken
-  // for a `[*]`.
-  const authoredTokens = new Set(lines.join('\n').split(/-->|[\s;:,{}"]+/))
-  const pseudostateCounts = new Map<string, number>()
-  const pseudostateId = (kind: 'start' | 'end'): string => {
-    const enclosing = [...compositeStack].reverse().find(sg => !sg.concurrencyRegion)
-    const base = `${enclosing?.id ?? ''}_${kind}`
-    let next = (pseudostateCounts.get(base) ?? 0) + 1
-    while (authoredTokens.has(`${base}${next > 1 ? next : ''}`)) next++
-    pseudostateCounts.set(base, next)
-    return `${base}${next > 1 ? next : ''}`
   }
   // Per-composite region counter (for stable region ids `X__r1`, `X__r2`, …).
   const regionCounts = new Map<string, number>()
@@ -790,13 +775,14 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // id is (or later becomes) a composite, which the composite opener handles.
     if (!compositeStateIds.has(target)) ensureStateNode(graph, compositeStack, target)
   }
+  const floatingNoteIds = new Set<string>()
 
   /** Resolve a transition endpoint: `[*]` pseudostates, `[H]`/`X[H]` history
    *  pseudostates (registered as state-history nodes), composites, and plain
    *  states. Returns the graph node id to wire the edge to. */
-  const resolveEndpoint = (raw: string, endpoint: 'source' | 'target'): string => {
+  const resolveEndpoint = (raw: string, endpoint: 'source' | 'target', statement: StateStatement): string => {
     if (raw === '[*]') {
-      const id = pseudostateId(endpoint === 'source' ? 'start' : 'end')
+      const id = identities.pseudostateId(endpoint === 'source' ? 'start' : 'end', statement)
       registerStateNode(graph, compositeStack, { id, label: '', shape: endpoint === 'source' ? 'state-start' : 'state-end' })
       return id
     }
@@ -832,6 +818,25 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     if (!line) continue
+
+    const floating = matchFloatingNote(line)
+    if (floating) {
+      if (floatingNoteIds.has(floating.id)) throw new Error(`Duplicate floating State note "${floating.id}"`)
+      floatingNoteIds.add(floating.id)
+      const { text, content } = readStateText(floating.text)
+      const scope = identities.scopeOf(statement)
+      const nodeId = identities.floatingNoteId(floating.id)
+      const note = { id: floating.id, text, ...(content ? { textContent: content } : {}), ...(scope ? { scope } : {}), nodeId }
+      if (!graph.floatingStateNotes) graph.floatingStateNotes = []
+      graph.floatingStateNotes.push(note)
+      assertGraphNodeInsertion(graph)
+      graph.nodes.set(nodeId, { id: nodeId, label: text, ...(content ? { labelContent: content } : {}), shape: 'state-note', floatingNoteId: floating.id })
+      if (parserObservationActive('state')) {
+        observeParserMutation('state', 'add-floating-note', note)
+        observeParserMutation('state', 'add-node', graph.nodes.get(nodeId))
+      }
+      continue
+    }
 
     // Comment-only source carries no drawing content. Keep note text above
     // literal; opaque parsing preserves slash comments and layout directives.
@@ -953,7 +958,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         assertDiagramWorkLimit('nodes', graph.nodes.size + ++stateGroupCount)
         graphContainerCounts.set(graph, stateGroupCount)
         const first: MermaidSubgraph = {
-          id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
+          id: identities.regionId(composite.id, nextRegion(regionCounts, composite.id) - 1),
           label: '',
           nodeIds: composite.nodeIds.splice(0),
           children: composite.children.splice(0),
@@ -966,7 +971,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       assertDiagramWorkLimit('nodes', graph.nodes.size + ++stateGroupCount)
       graphContainerCounts.set(graph, stateGroupCount)
       const next: MermaidSubgraph = {
-        id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
+        id: identities.regionId(composite.id, nextRegion(regionCounts, composite.id) - 1),
         label: '',
         nodeIds: [],
         children: [],
@@ -1059,8 +1064,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- transition: `s1 --> s2 [: label]`, endpoints may be [*] or history ---
     const transition = matchTransitionLine(line)
     if (transition) {
-      const sourceId = resolveEndpoint(transition.from, 'source')
-      const targetId = resolveEndpoint(transition.to, 'target')
+      const sourceId = resolveEndpoint(transition.from, 'source', statement)
+      const targetId = resolveEndpoint(transition.to, 'target', statement)
       if (transition.fromClass) {
         appendGraphClass(graph.classAssignments, sourceId, transition.fromClass)
       if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: sourceId, name: transition.fromClass })
@@ -1157,7 +1162,51 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   // An unterminated block note still lands (lenient, like a stray `}`).
   if (openNote) addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
 
+  applyStateGraphOwnership(graph, composites, identities)
   return graph
+}
+
+function applyStateGraphOwnership(graph: MermaidGraph, composites: ReadonlyMap<string, MermaidSubgraph>, identities: StateIdentities): void {
+  const scopes = new Map(composites)
+  for (const group of composites.values()) {
+    for (const region of group.children.filter(child => child.concurrencyRegion)) scopes.set(region.id, region)
+  }
+  for (const scope of scopes.values()) {
+    scope.nodeIds = scope.nodeIds.filter(id => !identities.authored.has(id))
+    scope.children = scope.children.filter(group => !group.stateComposite)
+    if (parserObservationActive('state')) observeParserMutation('state', 'reset-scope-membership', { id: scope.id, members: scope.nodeIds, children: scope.children.map(child => child.id) })
+  }
+  graph.subgraphs = []
+  for (const group of composites.values()) {
+    const owner = identities.ownerOf(group.id)
+    const parent = owner ? scopes.get(identities.scopeId(owner)) : undefined
+    if (owner && !parent) throw new Error(`Missing State scope for ${group.id}`)
+    if (parent) parent.children.push(group)
+    else graph.subgraphs.push(group)
+    if (parserObservationActive('state')) observeParserMutation('state', 'resolve-group-owner', { id: group.id, parent: parent?.id })
+  }
+  for (const id of identities.ownedIds()) {
+    if (!graph.nodes.has(id)) continue
+    const owner = identities.ownerOf(id)
+    if (!owner) continue
+    const scope = scopes.get(identities.scopeId(owner))
+    if (!scope) throw new Error(`Missing State scope for ${id}`)
+    scope.nodeIds.push(id)
+    if (parserObservationActive('state')) observeParserMutation('state', 'resolve-member-owner', { id, parent: scope.id })
+  }
+  for (const note of graph.floatingStateNotes ?? []) {
+    if (!note.scope) continue
+    const scope = scopes.get(identities.scopeId(note.scope))
+    if (!scope) throw new Error(`Missing State scope for floating note ${note.id}`)
+    scope.nodeIds.push(note.nodeId)
+    if (parserObservationActive('state')) observeParserMutation('state', 'resolve-member-owner', { id: note.nodeId, parent: scope.id })
+  }
+  const pending = graph.subgraphs.map(group => ({ group, depth: 1 }))
+  while (pending.length) {
+    const { group, depth } = pending.pop()!
+    assertDiagramWorkLimit('nesting', depth)
+    for (const child of group.children) pending.push({ group: child, depth: depth + 1 })
+  }
 }
 
 function nextRegion(counts: Map<string, number>, compositeId: string): number {

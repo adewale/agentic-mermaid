@@ -255,6 +255,9 @@ function factsState(out: string[], body: StateBody): void {
   for (const [index, note] of (body.notes ?? []).entries()) {
     add(out, `note#${index} ${note.side} of ${clean(note.target)} : ${clean(note.text)}`)
   }
+  for (const note of body.floatingNotes ?? []) {
+    add(out, `floating note ${clean(note.id)}${note.scope ? ` in ${clean(note.scope.parent)}${note.scope.region !== undefined ? ` region ${note.scope.region}` : ''}` : ''} : ${clean(note.text)}`)
+  }
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {

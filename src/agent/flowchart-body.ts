@@ -569,6 +569,7 @@ function renderShape(node: MermaidNode): string {
     case 'state-join':
     case 'state-choice':
     case 'state-history': return ''
+    case 'state-note': throw new Error('Floating State notes require the State serializer')
   }
 }
 

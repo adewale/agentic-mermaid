@@ -99,6 +99,13 @@ export function matchNoteOpen(line: string): StateNoteOpenMatch | null {
   return { side: m[1]!.toLowerCase() as StateNoteSide, target: m[2]! }
 }
 
+/** The quoted payload can span physical lines; readStateStatements has
+ * already joined the string without interpreting its note-like contents. */
+export function matchFloatingNote(line: string): { id: string; text: string } | null {
+  const match = /^note\s+"([^"]*)"\s+as\s+([\w\p{L}-]+)\s*$/iu.exec(line)
+  return match ? { id: match[2]!, text: match[1]! } : null
+}
+
 
 /** `end note` — closes a block note. */
 export function isNoteEnd(line: string): boolean {

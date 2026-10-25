@@ -87,6 +87,7 @@ describe('native parser observation', () => {
     const groups = (kind: string) => events.filter(event => event.kind === kind).map(event => [(event.value as { id: string }).id, (event.value as { parent?: string }).parent])
     expect(groups('open-group')).toEqual([['P', undefined], ['A', 'P'], ['A', 'P'], ['Q', undefined], ['P', undefined]])
     expect(groups('close-group')).toEqual([['A', 'P'], ['P', undefined], ['A', 'P'], ['P', undefined], ['Q', undefined]])
+    expect(groups('resolve-group-owner')).toEqual([['P', undefined], ['A', 'P'], ['Q', undefined]])
   })
 
   test('records Sequence builder calls with both marker sides, labels and block parentage', () => {

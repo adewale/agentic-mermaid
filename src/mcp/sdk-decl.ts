@@ -631,7 +631,8 @@ interface StateNode { id: string; label?: string; labelContent?: LabelContent; d
 interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateTransition { from: string; to: string; fromClass?: string; toClass?: string; label?: string; labelContent?: LabelContent; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]'); fromClass/toClass class such an endpoint ('[*]:::c --> A')
 interface StateNote { target: string; side: 'left' | 'right'; text: string; textContent?: LabelContent }
-interface StateBody { unresolvedClasses?: Array<{ id: string; className: string }>; unresolvedStyles?: Array<{ id: string; style: Record<string,string> }>; kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
+interface StateFloatingNote { id: string; text: string; textContent?: LabelContent; scope?: { parent: string; region?: number } }
+interface StateBody { floatingNotes?: StateFloatingNote[]; unresolvedClasses?: Array<{ id: string; className: string }>; unresolvedStyles?: Array<{ id: string; style: Record<string,string> }>; kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 interface SeqParticipant { id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
@@ -808,6 +809,9 @@ type StateMutationOp =
   | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }   // side defaults to 'right'
   | { kind: 'remove_note'; index: number }
   | { kind: 'set_note_text'; index: number; text: string }
+  | { kind: 'add_floating_note'; id: string; text: string; parent?: string | null; region?: number }
+  | { kind: 'remove_floating_note'; id: string }
+  | { kind: 'set_floating_note_text'; id: string; text: string }
   | { kind: 'define_class'; name: string; style: string }
   | { kind: 'set_state_class'; id: string; className: string | null }
   | { kind: 'set_state_style'; id: string; style: string | null }

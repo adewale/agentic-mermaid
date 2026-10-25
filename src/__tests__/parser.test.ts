@@ -1053,13 +1053,14 @@ describe('parseMermaid – state diagrams', () => {
     expect(g.edges[0]!.target).toBe('_end')
   })
 
-  it('assigns unique IDs to multiple [*] pseudostates', () => {
+  it('shares a contextual start node across transitions in the same scope', () => {
     const g = parseMermaid(`stateDiagram-v2
       [*] --> A
       [*] --> B`)
-    // First [*] source → _start, second → _start2
+    // Both references name the same initial node in this scope.
     expect(g.nodes.has('_start')).toBe(true)
-    expect(g.nodes.has('_start2')).toBe(true)
+    expect(g.nodes.has('_start2')).toBe(false)
+    expect(g.edges[0]!.source).toBe(g.edges[1]!.source)
   })
 
   it('parses state description: s1 : Description', () => {
@@ -1138,6 +1139,8 @@ describe('parseMermaid – state diagrams', () => {
       .toEqual([{ id: 'A', nodeIds: [], children: [{ id: 'A__r1', nodeIds: ['a1', 'a2'], children: [] }, { id: 'A__r2', nodeIds: ['b1', 'b2'], children: [] }] }])
     // One-line blocks reopen the same way.
     expect(members('stateDiagram-v2\n  state A { x }\n  state A { y }')).toEqual([{ id: 'A', nodeIds: ['x', 'y'], children: [] }])
+    expect(members('stateDiagram-v2\nstate A { x }\nstate P { state A { y } }'))
+      .toEqual([{ id: 'A', nodeIds: ['x', 'y'], children: [] }, { id: 'P', nodeIds: [], children: [] }])
     // A label in a later block, or a description or alias between blocks,
     // labels the one composite; a second label is another line of it, as a
     // description under a label is. The first block to set a direction keeps it.
