@@ -195,3 +195,39 @@ The most useful next benchmark work is to improve direct operation and semantic
 oracles, then qualify a small representative performance cohort with sufficient
 independent controls. Another large count of weakly checked renders would leave
 the current correctness and attribution gaps intact.
+
+## Primary-contract corrections, 25 October 2026
+
+The docs-rendering, original-assertion, required-family, startup and resource
+questions now have separate owning lanes; see [the overview](OVERVIEW.md) and
+[measurement rules](MEASUREMENT.md). The earlier selected-input reference score
+retains its useful same-input parser comparison but cannot certify all original
+upstream assertions. Its harvest selection and Agentic-derived fields are now
+explicit.
+
+The added original-callback lane retains current upstream expectations, including
+an empty-tag expectation that differed from the historical adapted JSON.
+Mindmap/GitGraph public-model adapters are still a subset. The full monorepo
+inventory includes unprojected parser, rendering and integration declarations;
+literal replay does not turn any of them into assertion passes. Exact diagnostic
+wording differences remain strict assertion failures, without automatically
+becoming visible rendering bugs.
+
+Required-family admission now uses actual public render results rather than
+metadata. Event Modeling and ZenUML remain required pending review of conflicting
+maturity evidence, with detailed product issues [#501](https://github.com/adewale/agentic-mermaid/issues/501)
+and [#502](https://github.com/adewale/agentic-mermaid/issues/502). Source preservation
+is not native parsing or rendering. A representative positive is not exhaustive
+functionality, and declared paint coverage remains incomplete.
+
+Entry startup now includes process/browser/server creation and necessary first
+initialization. Import/readiness and warmed rendering remain distinct clocks.
+Resource passes use fresh controls and actual child exit status, with caller-held
+output and released-reference checkpoints distinguished. Main browser heap still
+excludes worker heaps, native/WASM/GPU allocations and process-tree peaks.
+
+No secret holdout or universal feature score has been added. Per-project reuse
+now covers the new entry/resource, required-family and original-assertion lanes;
+not every older source-stage/paired evaluation has incremental caching. The
+startup source controller still reaches shared invocation/family helpers in the
+checkout, although its target consumers import only supplied public artifacts.

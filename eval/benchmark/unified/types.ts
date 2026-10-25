@@ -4,6 +4,16 @@ export interface UnifiedRunOptions {
   root: string
   harnessRoot?: string
   packageRoot?: string
+  mermaidDir?: string
+  referenceDir?: string
+  benchmarkRecordStore?: string
+  benchmarkForce?: boolean
+  startupSamples?: number
+  startupSurfaces?: readonly ('library' | 'cli' | 'mcp' | 'browser')[]
+  nodeExecutable?: string
+  bunExecutable?: string
+  observerExecutable?: string
+  nativeExecutable?: string
   communityArtifacts?: string
   /** Limit acquisition and execution before preparing any unrelated project. */
   communityProjects?: string[]

@@ -146,6 +146,7 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
     return { id: 'pinned-reference-score', status: 'blocked', startedAt, finishedAt: new Date().toISOString(), observations, gaps: [`Reference eligibility identity unavailable: ${String(error)}`] }
   }
   const historical = JSON.parse(readFileSync(join(driver, 'eval/mermaid-upstream-suite-bench/manifest.json'), 'utf8')) as unknown
+  const historicalExclusions = JSON.parse(readFileSync(join(driver, 'eval/mermaid-upstream-suite-bench/exclusions.json'), 'utf8')) as Array<{ reason: string; blockCount?: number; upstream?: { blocks?: string[] } }>
   const corpus = reviewedUpstreamCases(driver),
     firstByFamily = new Map<string, ReviewedUpstreamCase>()
   for (const input of corpus) if (!firstByFamily.has(input.family)) firstByFamily.set(input.family, input)
@@ -168,6 +169,15 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
       rounds: options.rounds,
       currentReference: provenance,
       historicalFixtureProvenance: historical,
+      historicalSourceSelection: {
+        fullUpstreamAssertionSuite: false,
+        importedSourceCases: corpus.length,
+        importedSourceBlocks: corpus.reduce((sum, input) => sum + input.upstream.blocks.length, 0),
+        excludedMainHarvestBlocks: Object.fromEntries([...new Set(historicalExclusions.map(input => input.reason))].map(reason => [reason, historicalExclusions.filter(input => input.reason === reason).reduce((sum, input) => sum + (input.blockCount ?? input.upstream?.blocks?.length ?? 1), 0)])),
+        selection: 'Historical harvester admitted source after Agentic parse, family routing, verification, layout and stable roundtrip succeeded. The denominator is this selected source portfolio, not all upstream tests.',
+        assertionOrigin: 'Historical node/edge/group counts and label expectations were recorded from Agentic layout, with retained reviewed corrections. Portable parser criteria do not execute original upstream assertion callbacks.',
+        independentAssertionLane: 'upstream-test-assertions executes the declared original Mindmap/GitGraph callback subset separately; wider test declarations and source replay remain explicitly unprojected.',
+      },
       frozenFixture,
       target: {
         root: options.root,
@@ -270,6 +280,7 @@ export async function runReferenceScoreSuite(options: UnifiedRunOptions): Promis
     'Reviewed diagnostic-only fixtures still execute and retain raw replies/API timings in separate artifacts. Positive scores and positive all-attempt portfolios exclude them by upstream scope fixed before either engine ran; this is a protocol correction, not a product improvement.',
     'Historical layout-count/render-error criteria remain explicitly unscored in this paired parser score. The actual target owning tests execute their layout contracts separately; no Mermaid geometry equivalence is asserted.',
     'This portable score is not the full upstream repository test suite. Current pinned independent grammar/native-operation suites and retained historical imported suites execute separately.',
+    'This denominator is a historically Agentic-admitted source portfolio. Its recorded layout/label assertions are not the original upstream test expectations; use the separately scoped original-assertion lane and full upstream census to assess independent coverage.',
     'Semantic text matches are existential field/identifier retention, not identity, multiplicity, rendered visibility or complete parser equivalence. An unmatched text cue can require projection review; raw source/replies remain available.',
     'Rejected parses retain their attempted API timings. Failure-short-circuit time is not a successful-render speedup; compare score and shared-success timing cohorts alongside total attempt cost.',
   )

@@ -171,3 +171,58 @@ workflow; their recorded observations are unchanged.
 
 The [inventory](INVENTORY.md) lists all suites and standalone evaluations. The
 [assessment](ASSESSMENT.md) separates measured coverage from remaining gaps.
+
+## Docs, original assertions, startup and memory
+
+Start with the [overview](OVERVIEW.md#primary-questions) and
+[measurement rules](MEASUREMENT.md). The original Dave comparison measures all
+official docs fence occurrences. The existing selected-input reference score is
+not a run of all original Mermaid assertions. `upstream-test-assertions` adds
+current original Mindmap/GitGraph callbacks and a full tracked-test census,
+retaining every unprojected declaration and unscored source replay separately.
+
+Use a frozen installed candidate and selected peer artifact. For example:
+
+```sh
+bun run bench --profile full \
+  --suites stable-support,entry-startup \
+  --projects adewale/agentic-mermaid,obsidianmd/pele \
+  --package-root /path/to/installed/agentic-mermaid \
+  --portable-project obsidianmd/pele --portable-artifact-root /path/to/pele \
+  --rounds 5 --startup-samples 5 \
+  --startup-observer /path/to/GNU-time --native-executable /path/to/am \
+  --executable /path/to/chromium \
+  --benchmark-records /path/to/records --out /path/to/report
+
+bun run bench --profile full --suites upstream-test-assertions \
+  --projects adewale/agentic-mermaid,obsidianmd/pele,mermaid-js/mermaid \
+  --package-root /path/to/installed/agentic-mermaid \
+  --portable-project obsidianmd/pele --portable-artifact-root /path/to/pele \
+  --mermaid-dir /path/to/pinned/source --reference-dir /path/to/reference \
+  --benchmark-records /path/to/records --out /path/to/assertion-report
+```
+
+These commands can legitimately report required-family or original-assertion
+failures; they do not turn an unsupported product feature into a passed gate.
+Repeat unchanged to reuse each selected project's immutable attempt. `--projects`
+also aliases the existing community filter; `--community-projects` remains
+supported, but do not pass both. `--benchmark-force` explicitly creates another
+attempt for these new lanes. Original paired Dave/release/PR experiments still
+execute their own controls when explicitly selected.
+
+Startup samples are fresh processes/browsers/servers, with fully consumed first
+results. Resource passes default to one fresh pair per round, separately from the
+five latency samples per round. The requested sample count, actual phase names,
+child lifecycle, native executable and compiled website assets remain in the
+record. A source-hosted/deployed service without a bound artifact remains blocked.
+Browser document heap does not stand in for whole-browser or worker/native/GPU
+peak memory. For a smaller invocation request use `--startup-surfaces library,cli`
+and retain its narrower scope.
+
+The source benchmark install requires its development dependencies, including
+TypeScript and the optional MCP client SDK. Startup-only SDK/Playwright lookup is
+anchored to this private package; their actual installed bytes are recorded.
+The established community runtime dependency closure is unchanged by the new
+optional SDK declaration. The compiled portable SVG runner still runs without a
+source checkout. New source-stage invocation helpers retain an explicit checkout
+seam; they are not represented as a fully standalone artifact.

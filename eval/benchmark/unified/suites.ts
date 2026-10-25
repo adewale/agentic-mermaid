@@ -59,6 +59,9 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
   const browserMissing = options.executable && !existsSync(options.executable) ? [`Browser executable missing: ${options.executable}`] : []
   const suites: SuiteDefinition[] = [
     { id: 'family', title: 'All-family functionality and feature evidence', kind: 'internal', smoke: true, source: 'eval/benchmark/unified/family-suite.ts', prerequisites: [], policy: 'Fresh executable evidence; stored descriptor witness declarations are not new passes.' },
+    { id: 'stable-support', title: 'Required Mermaid family admission', kind: 'internal', smoke: true, source: 'eval/benchmark/unified/stable-support-run.ts', prerequisites: built ? (existsSync(join(upstream, 'packages/mermaid/package.json')) ? [] : ['Pinned Mermaid source missing']) : ['Built target package missing'], pin: json(join(root, 'docs/project/upstream-mermaid-policy.json')).pin, policy: 'All policy-stable families plus conservatively required unresolved exclusions. Actual public SVG/label admission is a hard complete-comparison gate; beta/experimental supplements and incomplete fidelity stay distinct. Per-project retained records.' },
+    { id: 'entry-startup', title: 'Fresh public entry startup and paired memory diagnostics', kind: 'internal', smoke: false, source: 'eval/benchmark/unified/entry-startup.ts', prerequisites: built ? (!options.startupSurfaces || options.startupSurfaces.includes('browser') ? browserMissing : []) : ['Built target package missing'], policy: 'Derive shipped entries and actual public operations; measure fresh process through complete first consumption, readiness/import separately, then fresh paired resource passes. Use --rounds 5 --startup-samples 5 for 25 samples per interface; incomplete tails and unavailable native/hosted/worker memory stay explicit. Per-project reuse precedes operation discovery.' },
+    { id: 'upstream-test-assertions', title: 'Original pinned Mermaid assertions and full test census', kind: 'internal', smoke: false, source: 'eval/benchmark/unified/upstream-test-score.ts', prerequisites: referenceMissing, pin: json(join(root, 'docs/project/upstream-mermaid-policy.json')).pin, policy: 'Execute current original Mindmap/GitGraph assertions through reviewed public-model adapters. Retain all other test declarations, skips/private assertions and diagnostic source replay without pass credit; workflow time is not an equivalent original-runner speed score. Per-project retained records.' },
     {
       id: 'invocation',
       title: 'Public invocation matrix',
@@ -70,7 +73,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     },
     {
       id: 'pinned-reference-score',
-      title: 'Paired pinned Mermaid same-case score and public parse timings',
+      title: 'Selected historical inputs: pinned Mermaid score and parse timings',
       kind: 'internal',
       smoke: false,
       source: 'eval/benchmark/unified/reference-score.ts',
