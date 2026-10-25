@@ -1,6 +1,13 @@
+import { appendNativeAccessibilityLines, parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import type { Accessibility, DiagramBody } from './types.ts'
 
 export class AccessibilityTextError extends Error {}
+
+/** JSON-comment fields have no physical-line grammar restriction. */
+export function nativeAccessibilityText(value: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new AccessibilityTextError('Accessibility metadata must be non-empty text')
+  return value.trim()
+}
 
 export function accessibilityTitleText(value: string): string {
   if (typeof value !== 'string' || !value.trim() || /[\r\n]/.test(value)) throw new AccessibilityTextError('Accessibility title must be non-empty single-line text')
@@ -17,6 +24,7 @@ export function accessibilityDescriptionText(value: string): string {
 /** Canonicalize the same physical lines the envelope parser consumes before
  * publishing a mutated body or deriving comments and source locations. */
 export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
+  if (body.kind === 'mindmap' || body.kind === 'ishikawa' || body.kind === 'block') return body
   const fields = accessibilityFromBody(body)
   if (!fields) return body
   const title = fields.title === undefined ? undefined : accessibilityTitleText(fields.title)
@@ -45,12 +53,21 @@ export function appendAccessibilityLines(lines: string[], value: { accessibility
 /** Add envelope-owned accessibility directives to a canonical structured
  * family serialization when that body serializer does not model them. */
 export function ensureAccessibilityLines(source: string, accessibility: Accessibility): string {
-  const missing: string[] = []
-  if (accessibility.title !== undefined && !/^\s*accTitle(?:\s*:|\s+)/im.test(source)) {
-    appendAccessibilityLines(missing, { accessibilityTitle: accessibility.title })
+  const header = source.split(/\r?\n/).find(line => line.trim() && !line.trimStart().startsWith('%%'))?.trim() ?? ''
+  const native = /^(?:block(?:-beta)?|sankey(?:-beta)?|mindmap|ishikawa(?:-beta)?)(?:\s|$)/i.test(header)
+  const present = new Set<string>()
+  const physical = source.split(/\r?\n/)
+  for (let index = 0; index < physical.length; index++) {
+    const directive = parseAccessibilityDirective(physical, index)
+    if (directive) { present.add(directive.title ? 'title' : 'descr'); index = directive.endIndex }
   }
-  if (accessibility.descr !== undefined && !/^\s*accDescr(?:\s*:|\s*\{)/im.test(source)) {
-    appendAccessibilityLines(missing, { accessibilityDescription: accessibility.descr })
+  const missing: string[] = []
+  const append = native ? appendNativeAccessibilityLines : appendAccessibilityLines
+  if (accessibility.title !== undefined && !present.has('title')) {
+    append(missing, { accessibilityTitle: accessibility.title })
+  }
+  if (accessibility.descr !== undefined && !present.has('descr')) {
+    append(missing, { accessibilityDescription: accessibility.descr })
   }
   if (missing.length === 0) return source
 

@@ -11,7 +11,7 @@
 // silently merge two nodes' flows). Parallel duplicate rows are legal and
 // addressed by (source, target, occurrence).
 //
-// Structured-or-opaque: accTitle/accDescr and any unmodeled/malformed line
+// Structured-or-opaque: any unmodeled/malformed row
 // returns null so the caller falls back to a lossless opaque body. The
 // serializer emits a canonical CSV form the renderer parser re-parses
 // identically, quoting only when a label demands it. The canonical header is
@@ -37,11 +37,10 @@ function formatNumber(n: number): string {
 
 /**
  * Construct the typed body only after the renderer parser has fully recognized
- * the source. Accessibility remains source-preserved/opaque, and model states
- * that cannot uphold link addressing stay opaque.
+ * the source. The shared envelope owns accessibility; model states that
+ * cannot uphold link addressing stay opaque.
  */
-export function parseSankeyBody(lines: string[], accessibility: Accessibility = {}): SankeyBody | null {
-  if (accessibility.title !== undefined || accessibility.descr !== undefined) return null
+export function parseSankeyBody(lines: string[], _accessibility: Accessibility = {}): SankeyBody | null {
   if (lines.some(raw => /^\s*acc(?:Title|Descr)\b/i.test(raw))) return null
   const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['sankey-beta', ...lines]
   try {
@@ -280,14 +279,15 @@ export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authore
   const warnings: LayoutWarning[] = []
   for (let index = header + 1; index <= last; index++) {
     const trimmed = lines[index]!.trim()
-    if (!trimmed || trimmed.startsWith('%%')) continue
+    if (!trimmed) continue
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
     if (directive) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_accessibility', line: index + 1, message: 'Sankey accessibility metadata is rendered and preserved as authored. Pinned Mermaid has no Sankey accessibility statement, so this source cannot accept typed edits.' })
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_accessibility', line: index + 1, message: 'Sankey accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.' })
       index = directive.endIndex
       continue
     }
+    if (trimmed.startsWith('%%')) continue
     // Mermaid trims whitespace from the end of the source.
     const raw = authoredLine?.(index + 1) ?? lines[index]!
     const row = index === last ? raw.trimEnd() : raw

@@ -82,14 +82,38 @@ const stableRepresentativeCues = {
   block:
     'Seven components occupy four authored composite groups, including nested Delivery/Persistence inside a two-column Gateway plane span, two empty cells and durable queue/store artwork. Follow six complete labeled connections; Batch enters Ingress from the west while Enqueue leaves south, preserving distinct physical contacts.',
 } as const
-const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
+const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/flowchart/98', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  {
+    id: 'flowchart-cosmetic-circle-approach',
+    title: 'Layer alignment preserves the circle’s reserved outward shaft',
+    source: 'flowchart BT\nP0{a longer label goes here} --> H1["hub one"]\nP1((x)) -->|warnings| H1["hub one"]\nQ1 --> P1\nP2(["errors"]) --> H1["hub one"]\nH1 -->|done| H2["hub two"]\nR0((done)) --> H2\nR1(["same word ok"]) --> H2\nR2[/"errors"/] -->|a longer label goes here| H2\nR3["warnings"] --> H2\nH2 --> Z["end"]',
+    captureLayout: true,
+    cue: 'Follow R0-to-H2 from the done circle. A cosmetic layer snap previously consumed its reserved outward stub, leaving a tangent at its north point. Compare the complete source approach and all other authored nodes, labels, groups and markers in the geometry sidecar; preserving the original stagger is an intentional correctness trade-off.',
+  },
+  {
+    id: 'flowchart-peer-label-capacity',
+    title: 'Peer equalization preserves the actual label and arrow corridor',
+    source: 'flowchart RL\nS0["a longer label goes here"] --> H["hub"]\nU0_0["ok"] --> S0\nU0_1["same word ok"] --> U0_0\nU0_2["a longer label goes here"] -->|a longer label goes here| U0_1\nS1["x"] --> H["hub"]\nS2["errors"] --> H["hub"]\nU2_0["a longer label goes here"] -->|ok| S2\nU2_1["x"] -->|same word ok| U2_0\nH --> T["t"]',
+    captureLayout: true,
+    cue: 'Inspect the ok link from U2_0 to S2. Widening a peer used its label and arrow space while the cards still did not overlap. The accepted geometry must keep the complete label halo and marker clear of both endpoint cards. Unequal peer widths are allowed; unchanged semantic identities and measured paint bounds are the controls.',
+  },
+  {
+    id: 'flowchart-feedback-outward-contact',
+    title: 'Feedback shortening retains the capsule’s outward source shaft',
+    source: 'flowchart LR\nA[ok]\nB[ok]\nC[ok]\nD[warnings]\nE([process the input])\nA-->B\nB-->C\nA-->D\nC-->E\nB-->|yes|C\nE-->|no|A',
+    captureLayout: true,
+    cue: 'Follow the no feedback edge from E. Before, shortening replaces its rightward source stub with a vertical tangent to the rounded cap. After, the existing outward stub and exterior route remain. All five authored nodes, six edge identities, labels and markers must remain; inspect the geometry sidecar alongside the render. This proves the shown shortening case, not arbitrary routing completeness.',
+  },
+
   ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
     id: `compat-${sample.id.replaceAll('/', '-')}`,
     title: `${sample.id}: ownership and contextual endpoint baseline`,
     source: sample.source,
     captureLayout: true as const,
-    cue: sample.family === 'flowchart'
+    cue: sample.id === 'corpus/flowchart/98'
+      ? 'Inspect outside-to-top2 and both top-to-bottom links at their real exterior source contacts. Hidden prefixes formerly entered their own cards; clipping keeps the existing exterior shafts. All nodes, groups, edge identities, labels and markers remain controls; compare geometry sidecars.'
+      : sample.family === 'flowchart'
       ? 'Inspect the complete subgraph membership after earlier references, with unchanged authored edges. Added members change container sizes and placement; this is an intentional topology correction.'
       : 'Inspect one contextual start/end per scope, all authored transitions, and separate concurrent regions. Generated endpoint names now include the region; unchanged names are not a paint contract.',
   })),
@@ -415,7 +439,7 @@ const fixtures: Fixture[] = [
     captureLayout: true,
     cue: 'Inspect both complete transition labels and all six arrowheads entering the Off states. Label separation must retain each label on its own route while clearing its own and neighboring marker artwork. Compare final label coordinates and unchanged routes in the sidecars; marker-resource and strict-certification assertions provide the geometry evidence.',
   },
-  ...['AI', 'AJ'].map(
+  ...['AI', 'AJ', 'AN'].map(
     (letter): Fixture => ({
       id: `native-priority-${letter.toLowerCase()}`,
       title: `Route priorities: contact sheet ${letter}`,
@@ -424,7 +448,9 @@ const fixtures: Fixture[] = [
       cue:
         letter === 'AI'
           ? 'Inspect the existing C-to-D straight canonical contact. Cosmetic lane alignment must preserve an already valid contact without a higher-priority geometry repair. All labels and endpoints are controls.'
-          : 'Inspect both complete long labels and their actual routes. Crossing prevention outranks symmetric outer lanes, and retained text plus actual pill halos determine clearance. Compare crossings and label coordinates in the sidecars; this is one deterministic topology.',
+          : letter === 'AJ'
+            ? 'Inspect D-to-B (label 14): its old terminal run entered Beta and ended from inside. The new contact stops at the actual west boundary crossing. Both long labels and all directed relationships remain; compare actual path/label sidecars and the independent hard checks, not only appearance.'
+            : 'Inspect all three intermediate hubs and their complete fan-in and merge approaches. Retaining ELK’s stagger preserves their outward shafts instead of forcing equal y coordinates. All eleven nodes and ten directed relationships remain controls; compare real endpoint approaches and the geometry sidecars.',
     }),
   ),
   {
@@ -890,6 +916,27 @@ const fixtures: Fixture[] = [
 ]
 const terminalFixtures = [
   {
+    id: 'terminal-approach-envelopes',
+    source: 'flowchart LR\nsubgraph Outer[Outer 日本<br>complete]\nsubgraph Inner[Inner 👩‍💻]\ndirection TD\nA[First 界界👩‍💻 é]\nB[Last]\nend\nX[Outside wide track 日本語]\nend\nsubgraph Sibling[Sibling é<br>wide 日本]\nC[Sibling card]\nend\nA -->|one界| X\nA -->|two| X\nX -->|return| A\nX -->|back| B\nX -->|branch| C\nB -->|self| B',
+    cue: 'Before, X to B is an owned endpoint summary because its selected approach intersects A before path search starts. After, inspect the complete back route and marker tail, clear sibling cards, all six relationships and complete wide/multiline labels. Capacity reserves the measured approach through the same relative face projection used by painting. The owning test checks actual directional ink and strict certification in all four directions and both formats; this one source does not prove arbitrary routing completeness.',
+  },
+  {
+    id: 'terminal-state-declaration-timing',
+    source: 'stateDiagram-v2\nstate "Idle" as A\nstate "Other" as D\n[*] --> A\nA --> B',
+    mutation: { kind: 'rename_state', from: 'B', to: 'C' },
+    cue: 'Both revisions rename B to C. Inspect Other and the contextual start marker: the original declaration precedes that transition, and the typed writer now retains that boundary instead of exchanging their columns. Source and exact terminal output accompany the pair. Identities and endpoints remain controls; this does not claim stable placement after topology changes or for detached forward composites.',
+  },
+  {
+    id: 'terminal-local-bundle',
+    source: 'flowchart TD\nS --> A\nS --> B\nS --> C\nX --> Y\nY --> X',
+    cue: 'Inspect the shared stem leaving S. A separate reciprocal X/Y pair formerly caused global unbundling. Only the affected routing units now receive physical capacity; the S fan-out retains shared owned ink. All five relationships remain controls. The independent owning test follows emitted glyphs and endpoint markers; this diagram does not establish arbitrary routing completeness.',
+  },
+  {
+    id: 'terminal-local-labeled-trunk',
+    source: 'flowchart TD\nS -->|one| A\nS -->|two| B\nS -->|three| C\nC --> X\nX --> Y\nY --> X',
+    cue: 'This graph is connected through C/X. Inspect one shared S stem and the three complete branch labels beside the independently routed X/Y pair. The same connected-component membership cannot justify global unbundling. Owned-cell tests check the retained trunk, junctions and every actual relationship; font coverage remains a browser presentation limit.',
+  },
+  {
     id: 'terminal-block-protected-approaches',
     source: 'block\ncolumns 2\nblock:G\nA B\nend\nC\nA --> B\nB --> A\nA --> B\nA --> C\nC --> A',
     cue: 'The baseline refuses this nested parallel/reciprocal grid because its fixed gutter cannot hold the protected marker approaches. After, inspect all five connected routes and both composite and leaf frames. Cell spacing grows from the routing constraints; the unchanged authored columns and endpoints remain controls. The owning test checks emitted ink, rather than accepting port metadata as proof of connectivity.',
@@ -897,7 +944,7 @@ const terminalFixtures = [
   {
     id: 'terminal-state-distinct-contacts',
     source: 'stateDiagram-v2\nN1 --> N2\nstate Group {\nA\nnote "Inner #lt;b#gt;" as N1\nA --> N1\n}\nnote "Outer<br/>next" as N2\nN2 --> Group',
-    cue: 'Inspect the transition leaving Group and the incoming marker beside it. Before, a shared contact lets one marker erase another edge’s first owned stroke. After, incompatible marker meanings reserve separate contacts. Notes retain independent aliases and scope at both revisions; this PR does not add their support. The owning test follows actual edge-owned ink between physical ports. Mixed graphs may unbundle otherwise compatible routes when contact reservation is required.',
+    cue: 'Inspect the transition leaving Group and the incoming marker beside it. Before, a shared contact lets one marker erase another edge’s first owned stroke. After, incompatible marker meanings reserve separate contacts. Notes retain independent aliases and scope at both revisions; this PR does not add their support. The owning test follows actual edge-owned ink between physical ports. Separate locality witnesses check that compatible routes outside an affected unit keep their shared ink.',
   },
   {
     id: 'terminal-sequence-literal-runs',
@@ -1151,10 +1198,18 @@ function renderRevision(sha: string): RevisionEvidence {
       }
       for (const fixture of ${JSON.stringify(terminalFixtures)}) {
         try {
-          const plain = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'none', useAscii: true })
-          const colored = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'html', useAscii: false })
+          let input = fixture.source
+          if (fixture.mutation) {
+            const parsed = parseRegisteredMermaid(input)
+            if (!parsed.ok) throw new Error('Terminal edit witness did not parse')
+            const edited = mutate(parsed.value, fixture.mutation)
+            if (!edited.ok) throw new Error(edited.error.message)
+            input = serializeMermaid(edited.value)
+          }
+          const plain = renderMermaidASCIIWithMeta(input, { colorMode: 'none', useAscii: true })
+          const colored = renderMermaidASCIIWithMeta(input, { colorMode: 'html', useAscii: false })
           const failure = [...plain.warnings, ...colored.warnings].find(warning => warning.code === 'ASCII_RENDER_FAILED')
-          terminals[fixture.id] = { ascii: plain.ascii, html: colored.ascii, ...(failure ? { error: failure.message } : {}), meta: { ascii: plain.regions, unicode: colored.regions, warnings: colored.warnings } }
+          terminals[fixture.id] = { ascii: plain.ascii, html: colored.ascii, ...(failure ? { error: failure.message } : {}), meta: { source: input, ascii: plain.regions, unicode: colored.regions, warnings: colored.warnings } }
         } catch (error) { terminals[fixture.id] = { error: String(error) } }
       }
       const parsed = parseRegisteredMermaid('classDiagram\\nnamespace N {\\nclass A\\n}\\nclass B')

@@ -5,3 +5,5 @@ website/src/generated/execute-harness.js.txt -whitespace
 # Rectangular terminal goldens preserve meaningful trailing display cells.
 src/__tests__/testdata/ascii/*.txt -whitespace
 src/__tests__/testdata/unicode/*.txt -whitespace
+# The README hero fingerprint also retains its rectangular terminal canvas.
+assets/hero.fingerprint.txt -whitespace

@@ -112,6 +112,86 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
     expect(throughNode).toBe(false)
   })
 
+  const rotate = (point: Point, turns: number): Point => {
+    let { x, y } = point
+    for (let i = 0; i < turns; i++) [x, y] = [500 - y, x]
+    return { x, y }
+  }
+  const rotatedNode = (node: PositionedNode, turns: number): PositionedNode => {
+    const a = rotate(node, turns), b = rotate({ x: node.x + node.width, y: node.y + node.height }, turns)
+    return { ...node, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
+  }
+  for (const [turns, direction] of [[0, 'BT'], [1, 'LR'], [2, 'TD'], [3, 'RL']] as const) {
+    for (const reversed of [false, true]) for (const stub of [6, 12]) {
+      it(`${direction}: declines the whole layer when a ${reversed ? 'target' : 'source'} normal stub would ${stub === 12 ? 'collapse' : 'reverse'}`, () => {
+        const nodes = [
+          { ...mkNode('S', 100, 100, 40, 40), shape: 'circle' as const },
+          mkNode('peer', 300, 76, 40, 40), mkNode('T', 200, 0, 40, 40),
+        ].map(node => rotatedNode(node, turns))
+        const points = [{ x: 120, y: 100 }, { x: 120, y: 100 - stub }, { x: 220, y: 100 - stub }, { x: 220, y: 40 }].map(point => rotate(point, turns))
+        const edge: PositionedEdge = { ...mkEdge('S', 'T', points), id: 'authored', edgeIndex: 7,
+          label: 'keep this label', labelPosition: rotate({ x: 170, y: 100 - stub }, turns),
+          hasArrowStart: true, startMarker: 'cross', endMarker: 'circle' }
+        if (reversed) { [edge.source, edge.target] = [edge.target, edge.source]; points.reverse() }
+        const beforeNodes = structuredClone(nodes), beforeEdge = structuredClone(edge)
+        alignLayerNodes(nodes, [edge], direction)
+        expect(nodes).toEqual(beforeNodes)
+        expect(edge).toEqual(beforeEdge)
+        // Independent circle normal, including the first nonzero point after
+        // a collapsed prefix: the visible shaft must still leave its paint.
+        const route = reversed ? [...edge.points].reverse() : edge.points
+        const p = route[0]!, q = route.find(point => point.x !== p.x || point.y !== p.y)!
+        const owner = nodes[0]!, cx = owner.x + 20, cy = owner.y + 20
+        expect((p.x - cx) * (q.x - p.x) + (p.y - cy) * (q.y - p.y)).toBeGreaterThan(0)
+      })
+    }
+  }
+
+  it('CONTROL: admits a layer snap when the complete projected shaft retains exterior clearance', () => {
+    const source = { ...mkNode('S', 100, 100, 40, 40), shape: 'circle' as const }
+    const peer = mkNode('peer', 300, 76, 40, 40), target = mkNode('T', 200, 0, 40, 40)
+    const edge = { ...mkEdge('S', 'T', [{ x: 120, y: 100 }, { x: 120, y: 76 }, { x: 220, y: 76 }, { x: 220, y: 40 }]),
+      label: 'unchanged', labelPosition: { x: 170, y: 76 } }
+    alignLayerNodes([source, peer, target], [edge], 'BT')
+    expect(source.y).toBe(88)
+    expect(peer.y).toBe(88)
+    expect(edge.points).toEqual([{ x: 120, y: 88 }, { x: 120, y: 76 }, { x: 220, y: 76 }, { x: 220, y: 40 }])
+    expect(edge.labelPosition).toEqual({ x: 170, y: 76 })
+  })
+
+  it('does not treat an exposed diagonal after a collapsed prefix as an outward proof', () => {
+    const source = { ...mkNode('S', 100, 100, 40, 40), shape: 'circle' as const }
+    const peer = mkNode('peer', 300, 76, 40, 40), target = mkNode('T', 200, 0, 40, 40)
+    const edge = mkEdge('S', 'T', [{ x: 120, y: 100 }, { x: 120, y: 88 }, { x: 220, y: 70 }, { x: 220, y: 40 }])
+    const before = structuredClone(edge.points)
+    alignLayerNodes([source, peer, target], [edge], 'BT')
+    expect(source.y).toBe(100)
+    expect(peer.y).toBe(76)
+    expect(edge.points).toEqual(before)
+  })
+
+  it('preserves the unmoved endpoint when translating a two-point shaft would move both contacts', () => {
+    const source = { ...mkNode('S', 100, 100, 40, 40), shape: 'circle' as const }
+    const peer = mkNode('peer', 300, 76, 40, 40), target = { ...mkNode('T', 200, 100, 40, 40), shape: 'circle' as const }
+    const edge = mkEdge('S', 'T', [{ x: 140, y: 120 }, { x: 200, y: 120 }])
+    const before = structuredClone(edge.points)
+    alignLayerNodes([source, peer, target], [edge], 'TD')
+    expect(source.y).toBe(100)
+    expect(peer.y).toBe(76)
+    expect(target.y).toBe(100)
+    expect(edge.points).toEqual(before)
+  })
+
+  it('end-to-end: chained hubs keep a circular spoke normal when its layer snap would consume the route channel', () => {
+    const source = 'flowchart BT\nP0{a longer label goes here} --> H1["hub one"]\nP1((x)) -->|warnings| H1["hub one"]\nQ1 --> P1\nP2(["errors"]) --> H1["hub one"]\nH1 -->|done| H2["hub two"]\nR0((done)) --> H2\nR1(["same word ok"]) --> H2\nR2[/"errors"/] -->|a longer label goes here| H2\nR3["warnings"] --> H2\nH2 --> Z["end"]'
+    const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const node = positioned.nodes.find(node => node.id === 'R0')!, edge = positioned.edges.find(edge => edge.source === 'R0' && edge.target === 'H2')!
+    const p = edge.points[0]!, q = edge.points.find(point => point.x !== p.x || point.y !== p.y)!
+    expect((p.x - node.x - node.width / 2) * (q.x - p.x) +
+      (p.y - node.y - node.height / 2) * (q.y - p.y)).toBeGreaterThan(0)
+    expect(assessLayout(graph, positioned).metrics.endpointApproaches).toBe(0)
+  })
+
   it('end-to-end: a real flowchart battery keeps edgeThroughNode at zero', () => {
     // Black-box backstop through the public pipeline: a fan-in/fan-out shape
     // (the family the audit names as exercising layer alignment) must still

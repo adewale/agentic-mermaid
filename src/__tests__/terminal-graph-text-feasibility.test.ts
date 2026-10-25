@@ -397,3 +397,24 @@ B --> C[Finish]`
     })
   })
 }
+
+for (const useAscii of [false, true]) for (const connected of [false, true]) for (const labeled of [false, true]) {
+  test(`contact conflicts retain an unrelated shared routing unit (ASCII=${useAscii}, connected=${connected}, labeled=${labeled})`, () => {
+    for (const returnEdge of ['', '\nY --> X']) {
+      const fanout = labeled ? 'S -->|one| A\nS -->|two| B\nS -->|three| C' : 'S --> A\nS --> B\nS --> C'
+      const source = `flowchart TD\n${fanout}\n${connected ? 'C --> X\n' : ''}X --> Y${returnEdge}`
+      const relationships: RelationshipWitness[] = [
+        ['S', 'A', labeled ? 'one' : undefined], ['S', 'B', labeled ? 'two' : undefined], ['S', 'C', labeled ? 'three' : undefined],
+        ...(connected ? [['C', 'X'] as RelationshipWitness] : []), ['X', 'Y'], ...(returnEdge ? [['Y', 'X'] as RelationshipWitness] : []),
+      ]
+      witness(source, useAscii, ['S', 'A', 'B', 'C', 'X', 'Y'].map(id => [id, id]), relationships, document => {
+        const shared = [...document.entries()].filter(([, , cell]) => cell.kind === 'stroke' && cell.owners.filter(owner => owner.kind === 'edge' && owner.from === 'S').length > 1)
+        expect(shared.length, 'retained fan-out must still paint shared owned ink').toBeGreaterThan(0)
+        for (const [, , cell] of shared) {
+          const owners = cell.owners.filter(owner => owner.kind === 'edge')
+          expect(owners.every(owner => owner.bundle === owners[0]!.bundle && owner.bundle !== undefined)).toBe(true)
+        }
+      })
+    }
+  })
+}

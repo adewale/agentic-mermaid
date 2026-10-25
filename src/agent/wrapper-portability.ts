@@ -1,102 +1,49 @@
-import { mergeFrontmatterMaps, mermaidInitDirectiveConfig, type MermaidFrontmatterMap } from '../mermaid-source.ts'
-import { tryParseCssColor } from '../shared/color-math.ts'
+import { mergeFrontmatterMaps, mermaidAuthoredFrontmatter, mermaidInitDirectiveLayer, type MermaidFrontmatterMap, type MermaidConfigDirectiveLayer } from '../mermaid-source.ts'
+import { validateConfig, validateConfigSource } from '../shared/pinned-mermaid-config/runtime.js'
+import { mergeConfigSource, configDirective } from '../shared/pinned-mermaid-config/merge.js'
+import { pinnedMermaidDiagramType } from '../shared/pinned-mermaid-diagram-type.ts'
 import type { ValidDiagramMeta } from './types.ts'
 
-/** Canonical output owns configuration values. Verbatim wrapper output owns
- * authored bytes, including invalid bytes a caller may still need to repair. */
-export function canonicalWrapperConfig(meta: ValidDiagramMeta, family?: string): MermaidFrontmatterMap {
-  let effective = mergeFrontmatterMaps({}, meta.frontmatter ?? {})
-  for (const directive of meta.initDirectives) {
-    if (mermaidInitDirectiveConfig(directive.raw) === undefined) {
-      throw new Error('Cannot export canonical Mermaid: init directive payload must be a configuration object; repair the directive or use verbatim wrapper mode to preserve its source')
-    }
-    effective = mergeFrontmatterMaps(effective, directive.parsed)
-  }
-  if (effective.themeVariables !== undefined && effective.themeVariables !== null) {
-    const vars = effective.themeVariables
-    if (!vars || typeof vars !== 'object' || Array.isArray(vars)) {
-      throw new Error('Cannot export canonical Mermaid: themeVariables must be a configuration object; repair its value or use verbatim wrapper mode to preserve its source')
-    }
-    // Member names are case-sensitive. A raw value alone cannot establish
-    // runtime rejection: directive sanitization and theme derivation own that.
-    for (const [key, value] of Object.entries(vars)) {
-      if (!/^(?:git[0-7]|cScale(?:[0-9]|1[01])|background|primaryColor|secondaryColor|tertiaryColor|noteBkgColor)$/.test(key)) continue
-      if (typeof value === 'string' && tryParseCssColor(value) !== null) {
-        vars[key] = value.trim()
-        continue
-      }
-      if (derivedThemes(effective, family).some(theme => themeRequiresColor(theme, key, vars))) {
-        throw new Error(`Cannot export canonical Mermaid: themeVariables.${key} must be a concrete CSS color; repair its value or use verbatim wrapper mode to preserve its source`)
-      }
-    }
-  }
-  return effective
+interface CanonicalWrapper {
+  metadata: MermaidFrontmatterMap
+  config: MermaidFrontmatterMap
+  directives: MermaidConfigDirectiveLayer[]
 }
 
-/** The pinned appearance resolver chooses a usable diagram-scoped theme before
- * a global one. These diagram defaults differ from the site's default theme,
- * so they trigger derivation even when the document never names a theme. */
-function derivedThemes(config: MermaidFrontmatterMap, family: string | undefined): unknown[] {
-  const section = family === 'xychart' ? 'xyChart' : family
-  const scoped = section && config[section]
-  const scopedTheme = scoped && typeof scoped === 'object' && !Array.isArray(scoped) ? scoped.theme : undefined
-  const themes = ['base', 'default', 'forest', 'dark', 'neutral', 'neo', 'neo-dark', 'redux', 'redux-dark', 'redux-color', 'redux-dark-color', 'null']
-  const selected = [scopedTheme, config.theme].find(value => typeof value === 'string' && themes.includes(value))
-    ?? (['flowchart', 'class', 'state', 'er', 'sequence', 'requirement', 'swimlane', 'agentflow', 'usecase', 'venn'].includes(family ?? '') ? 'redux-color' : 'default')
-  // With no global theme request and no change from the initialized default,
-  // Mermaid merges overrides without rerunning theme color calculations.
-  const active = config.theme || selected !== 'default' ? selected : undefined
-  // Public parse clears the diagram scope in finally. A global request is
-  // derived there too, even when the diagram-scoped theme superseded it.
-  return [...new Set([active, config.theme])]
-}
-
-/** The pinned directive sanitizer removes nulls and neutralizes strings outside
- * its theme-value vocabulary. Preserve the authored value in canonical source;
- * this view is only for deciding whether a known derivation will fail. */
-function directiveThemeValue(vars: MermaidFrontmatterMap, key: string): unknown {
-  const value = vars[key]
-  if (value === null || value === undefined) return undefined
-  return typeof value === 'string' && !/^[\d "#%(),.;A-Za-z]+$/.test(value) ? '' : value
-}
-
-/** Sufficient preconditions for known pinned theme calculations, not a full
- * configuration schema. Reject only when a calculation consumes the override;
- * an unused or explicitly replaced value does not require a concrete color. */
-function themeRequiresColor(theme: unknown, key: string, vars: MermaidFrontmatterMap): boolean {
-  if (!['base', 'default', 'forest', 'dark', 'neutral', 'redux-color'].includes(String(theme))) return false
-  const value = directiveThemeValue(vars, key)
-  if (value === undefined) return false
-  const needs = (derived: string): boolean => !directiveThemeValue(vars, derived)
-  if (/^git[0-7]$/.test(key)) return theme !== 'dark' && theme !== 'neutral' && Boolean(value)
-  const scale = /^cScale(\d+)$/.exec(key)
-  if (scale) {
-    const index = Number(scale[1])
-    if (!value || !(Number(directiveThemeValue(vars, 'THEME_COLOR_LIMIT') ?? 12) > index)) return false
-    return theme !== 'dark' && theme !== 'neutral' && theme !== 'redux-color' || needs(`cScaleInv${index}`) || needs(`cScalePeer${index}`)
+/** Canonical output owns configuration values; verbatim output owns authored
+ * bytes. Multiple init layers must stay separate: sanitize-before-merge and
+ * type-preserving assignment cannot be reconstructed from the folded map. */
+export function canonicalWrapperConfig(meta: ValidDiagramMeta, family?: string): CanonicalWrapper {
+  const captured = meta.wrapperSource !== undefined
+  const raw = captured ? mermaidAuthoredFrontmatter(meta.wrapperSource!) : mergeFrontmatterMaps({}, meta.frontmatter ?? {})
+  const top: MermaidFrontmatterMap = {}
+  for (const key of ['title', 'displayMode']) {
+    if (raw[key] !== undefined) { top[key] = raw[key]!; delete raw[key] }
   }
-  if (theme === 'redux-color') {
-    const reset = (derived: string): boolean => directiveThemeValue(vars, derived) !== undefined && needs(derived)
-    if (key === 'background') return needs('lineColor') || needs('arrowheadColor') || needs('rectBkgColor')
-    // Redux-color constructs these two paints before applying overrides.
-    if (key === 'primaryColor') return needs('secondaryColor') || reset('tertiaryColor') || reset('primaryBorderColor')
-    if (key === 'secondaryColor') return needs('secondaryBorderColor') || needs('secondaryTextColor') || needs('activationBorderColor')
-      || Boolean(directiveThemeValue(vars, 'darkMode')) && (needs('edgeLabelBackground') || needs('relationLabelBackground'))
-    if (key === 'tertiaryColor') return needs('tertiaryBorderColor') || needs('tertiaryTextColor')
-    return key === 'noteBkgColor' && reset('noteBorderColor')
+  const configRoot = captured && raw.config && typeof raw.config === 'object' && !Array.isArray(raw.config) ? raw.config : {}
+  if (captured) delete raw.config
+  const authored = mergeFrontmatterMaps(configRoot, raw)
+  const directives = meta.initDirectives.map(directive => {
+    const layer = mermaidInitDirectiveLayer(directive.raw)
+    if (layer === undefined) throw new Error('Cannot export canonical Mermaid: init directive payload must be a configuration object or a valid JSON no-op; repair the directive or use verbatim wrapper mode to preserve its source')
+    return layer
+  })
+  const payloads = directives.filter(layer => layer.kind === 'init').map(layer => layer.payload)
+  const type = pinnedMermaidDiagramType(family ?? '')
+  try {
+    const code = directives.map(layer => configDirective(layer.kind, layer.payload, layer.hasArgs)).join('\n')
+    if (payloads.length > 1 || (top.displayMode && payloads.length) || directives.some(layer => layer.kind !== 'init' && layer.kind !== 'wrap')) {
+      validateConfigSource(authored, code, type, top)
+      return { metadata: top, config: authored, directives }
+    }
+    // Keep the original payload through directive processing: scalars reject
+    // wrap assignment, while the pinned merge ignores array own properties.
+    validateConfigSource(authored, code, type, top)
+    const config = mergeConfigSource(authored, code, type) as MermaidFrontmatterMap
+    validateConfig(config, [], type, top)
+    return { metadata: top, config, directives: [] }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'MermaidConfigWorkLimitError') throw new Error(`Cannot export canonical Mermaid: ${error.message}; reduce the config's work before retrying. This is a validation resource limit, not a pinned syntax rejection.`)
+    throw new Error(`Cannot export canonical Mermaid: pinned configuration processing rejects this value (${error instanceof Error ? error.message : String(error)}); repair the config or use verbatim wrapper mode to preserve its source`)
   }
-  if (theme !== 'base') {
-    // These themes calculate fillType2/fillType3 unconditionally. Dark also
-    // derives its event/ER backgrounds unless those paints were supplied.
-    if (key === 'primaryColor' || key === 'secondaryColor') return true
-    if (key === 'background' && theme === 'dark') return needs('emSwimlaneBackgroundOdd') || needs('emSwimlaneBackgroundStroke') || needs('attributeBackgroundColorOdd') || needs('attributeBackgroundColorEven')
-    if (key === 'tertiaryColor' && theme === 'forest') return needs('cScalePeer2')
-    return false
-  }
-  if (key === 'primaryColor') return needs('secondaryColor') || needs('tertiaryColor') || needs('primaryBorderColor')
-  if (key === 'secondaryColor') return needs('secondaryBorderColor') || needs('secondaryTextColor') || needs('activationBorderColor')
-  if (key === 'tertiaryColor') return needs('tertiaryBorderColor') || needs('tertiaryTextColor')
-  if (key === 'noteBkgColor') return needs('noteBorderColor')
-  if (key === 'background') return needs('lineColor') || needs('arrowheadColor')
-  return false
 }

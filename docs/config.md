@@ -7,9 +7,30 @@ byte-verbatim — `parseRegisteredMermaid → serializeMermaid` and every `mutat
 the original frontmatter/directives/leading comments untouched, so a
 `config.layout`/`config.look` request written for Mermaid survives an
 Agentic Mermaid edit loop. Canonical wrapper synthesis (config-nested
-frontmatter, directives folded) is opt-in via
+frontmatter with ordered init layers retained when folding would change their
+meaning) is opt-in via
 `serializeMermaid(d, { wrapper: 'canonical' })` or `am format
 --canonical-wrapper`.
+
+Canonical config validation executes the pinned pure appearance/theme program,
+including conditional color calculations. It does not impose a guessed color-key
+list or reject unknown extension keys. A single object init layer can fold into
+frontmatter; multiple init layers retain their order because Mermaid sanitizes
+them before merging. Truthy `displayMode` metadata also keeps init layers separate
+so frontmatter injection occurs in its original phase. Init and wrap directives
+remain distinct, and legacy init `config` is scoped to the detected diagram.
+The pinned selector also recognizes names such as `preinit` and repeated
+`nowrap`; canonical export retains those names and counts rather than folding
+them into an init/wrap flag. Separated closing delimiters are read generously
+and diagnosed; canonical export emits contiguous `}%%`.
+
+Native effective config is separate from authored layers. Parsed diagrams retain
+raw YAML in `meta.wrapperSource` and each directive in `meta.initDirectives`;
+`parsed` retains an object's authored scope. When constructing explicit JSON
+config changes, omit `wrapperSource` to request synthesis from `meta.frontmatter`.
+Verbatim mode retains invalid wrappers for repair. Canonical validation has a
+100000-loop execution budget, reported separately from pinned syntax/config
+rejection, and discards all evaluation state after each call.
 
 ## Explicit config
 
