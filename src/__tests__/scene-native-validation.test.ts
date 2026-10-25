@@ -4,6 +4,8 @@ import { createNativeSceneValidator, SCENE_VALIDATION_LIMITS, SceneValidationErr
 import { deferredTerminalProjectionInput, withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
 import type { LinearGradientDescriptor, MarkerDescriptor, SceneDoc } from '../scene/ir.ts'
+import { createSequenceLineCompiler } from '../scene/sequence-line-command.ts'
+import type { SequenceLineInput } from '../scene/sequence-line-sink.ts'
 
 const header: Omit<SceneDoc, 'parts'> = { family: 'flowchart', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false }
 const shape = (id = 'A') => marks.shape({ id, role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
@@ -145,6 +147,66 @@ test('native marker quotas preserve shared point arrays while charging each reso
   expect(validator.finish().diagnostics).toEqual([
     { code: 'SCENE_BOUNDS', path: 'scene.parts[2].markers.end.ref', message: 'Scene points exceed the aggregate 50000-point limit' },
   ])
+})
+
+const commandMarker = (): MarkerDescriptor => ({ id: 'seq-arrow', shape: 'arrow', size: { width: 10, height: 10 },
+  ref: { x: 10, y: 5 }, orient: 'auto-start-reverse',
+  geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 10, y: 5 }, { x: 0, y: 10 }] }, paint: { fill: '#111' } })
+const commandInput = (fields: Partial<SequenceLineInput> = {}): SequenceLineInput => ({ id: 'first', from: 'A', to: 'B',
+  x1: 10, y1: 10, x2: 20, y2: 10, strokeColor: '#111', strokeWidth: '1', label: 'first label', ...fields })
+const commandMark = (input: SequenceLineInput, marker: MarkerDescriptor) => marks.connector({ id: input.id, role: 'message', lineStyle: 'solid',
+  geometry: { kind: 'line', x1: input.x1, y1: input.y1, x2: input.x2, y2: input.y2 },
+  paint: { stroke: input.strokeColor, strokeWidth: input.strokeWidth }, endpoints: { from: input.from, to: input.to },
+  relationship: { kind: 'sequence-message', direction: 'forward' }, route: { ownership: 'layout' }, markers: { end: marker },
+  labels: input.label ? [{ text: input.label, ...(input.labelContent ? { textContent: input.labelContent } : {}) }] : [] })
+
+test('private Sequence admission retains earlier and later subject identities after frame rebinding', () => withDeferredTerminalProjections(() => {
+  const marker = commandMarker(), compiler = createSequenceLineCompiler(marker)
+  const compact = createNativeSceneValidator(header), full = createNativeSceneValidator(header)
+  const inputs = [commandInput(), commandInput({ id: 'middle', from: 'B', to: 'A', x2: 10, label: '' }),
+    commandInput({ id: 'last', from: 'C', to: 'D', x1: 30, x2: -5, label: 'last & final' })]
+  for (const validator of [compact, full]) for (const id of ['first', 'last']) validator.node(marks.shape({
+    id: `owned:${id}`, role: 'chrome', owner: { id, role: 'message' }, geometry: { kind: 'rect', x: 0, y: 0, width: 1, height: 1 }, paint: { fill: '#111' },
+  }))
+  for (const input of inputs) expect(compiler.compile(input, compact).svg).toBe(full.node(commandMark(input, marker)))
+  expect(compact.finish()).toEqual({ valid: true, diagnostics: [] })
+  expect(compact.finish()).toEqual(full.finish())
+}))
+
+test('private Sequence admission charges cumulative points across nonzero, zero and reversed commands', () => withDeferredTerminalProjections(() => {
+  const marker = commandMarker(), compiler = createSequenceLineCompiler(marker)
+  const compact = createNativeSceneValidator(header), full = createNativeSceneValidator(header)
+  for (const validator of [compact, full]) {
+    validator.node(marks.shape({ id: 'budget', role: 'chrome',
+      geometry: { kind: 'polyline', points: Array.from({ length: SCENE_VALIDATION_LIMITS.maxPoints - 18 }, () => ({ x: 0, y: 0 })) }, paint: { stroke: '#111' } }))
+    validator.node(marks.definitions({ id: 'resources', markerResources: [marker] }, '<defs/>'))
+  }
+  for (const input of [commandInput(), commandInput({ id: 'zero', x2: 10, label: '' })]) {
+    expect(compiler.compile(input, compact).svg).toBe(full.node(commandMark(input, marker)))
+  }
+  const reversed = commandInput({ id: 'reversed', from: 'B', to: 'A', x2: -5 })
+  expect(() => full.node(commandMark(reversed, marker))).toThrow(SceneValidationError)
+  expect(() => compiler.compile(reversed, compact)).toThrow(SceneValidationError)
+  expect(compact.finish()).toEqual(full.finish())
+  expect(compact.finish().diagnostics).toEqual([
+    { code: 'SCENE_BOUNDS', path: 'scene.parts[4].endpoints.start.point', message: 'Scene points exceed the aggregate 50000-point limit' },
+  ])
+}))
+
+test('private Sequence admission preserves complete ordered diagnostics after a valid prior command', () => {
+  for (const invalid of [
+    commandInput({ id: '', from: '', x1: Number.NaN, y1: Number.POSITIVE_INFINITY, x2: SCENE_VALIDATION_LIMITS.maxExtent + 1, strokeColor: 'url(https://bad.test/paint)', strokeWidth: '-2' }),
+    commandInput({ id: 'invalid-stroke', x2: 10, strokeWidth: 'Infinity', strokeColor: 'url(https://bad.test/paint)' }),
+  ]) withDeferredTerminalProjections(() => {
+    const marker = commandMarker(), compiler = createSequenceLineCompiler(marker)
+    const compact = createNativeSceneValidator(header), full = createNativeSceneValidator(header)
+    compiler.compile(commandInput(), compact)
+    full.node(commandMark(commandInput(), marker))
+    expect(() => full.node(commandMark(invalid, marker))).toThrow(SceneValidationError)
+    expect(() => compiler.compile(invalid, compact)).toThrow(SceneValidationError)
+    expect(compact.finish().diagnostics.length).toBeGreaterThan(1)
+    expect(compact.finish()).toEqual(full.finish())
+  })
 })
 
 test('native admission enforces per-fragment and aggregate serialization limits', () => {

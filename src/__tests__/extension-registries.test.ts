@@ -114,10 +114,15 @@ test('Sequence custom factories observe mutable shared marker resources without 
         return marks.connector(fields)
       },
     }
-    const factory = new Proxy(methods, { get(target, key, receiver) {
-      if (!(key in target)) throw new Error('unexpected factory probe: ' + String(key))
-      return Reflect.get(target, key, receiver)
-    } })
+    const factory = new Proxy(methods, {
+      get(target, key, receiver) {
+        if (!(key in target)) throw new Error('unexpected factory probe: ' + String(key))
+        return Reflect.get(target, key, receiver)
+      },
+      has() { throw new Error('unexpected factory membership probe') },
+      ownKeys() { throw new Error('unexpected factory enumeration') },
+      getOwnPropertyDescriptor() { throw new Error('unexpected factory descriptor probe') },
+    })
     const drawing = lowerSequenceDrawing(factory, { positioned: layout.positioned,
       colors: request.appearance.colors, resolved: resolvedFamilyRenderContextOf(request) })
     assert.ok(drawing.parts.length > 0)
@@ -208,6 +213,22 @@ test('Sequence geometry captured by a replaced native producer cannot poison lat
       assert.deepEqual(reads, [])
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('Sequence keeps a modified default backend observable after enrollment', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { DefaultBackend } from './src/scene/backend.ts'
+    const originalRender = DefaultBackend.render
+    DefaultBackend.render = (doc, context) => originalRender(doc, context).replace('<svg ', '<svg data-host-drawing="observed" ')
+    const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
+    const source = 'sequenceDiagram\\nA->>B: host backend\\nB->>A: return'
+    const first = renderMermaidSVGWithReceipt(source, { embedFontImport: false })
+    assert.ok(first.svg.includes('data-host-drawing="observed"'))
+    assert.deepEqual(renderMermaidSVGWithReceipt(source, { embedFontImport: false }), first)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
 })
