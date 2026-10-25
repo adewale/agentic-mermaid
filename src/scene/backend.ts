@@ -12,7 +12,7 @@ import { observeCache } from '../performance-observations.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import { indentLines } from './marks.ts'
 import type { StyleSpec } from './style-registry.ts'
-import { runBackendConformance } from './backend-conformance.ts'
+import { backendWithAdmittedConformanceFixture, runBackendConformance } from './backend-conformance.ts'
 import type { BackendConformanceReport } from './backend-conformance.ts'
 import {
   ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
@@ -149,6 +149,18 @@ export const DefaultBackend: StyleBackend = {
 }
 
 const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([DefaultBackend.render])
+const ORIGINAL_DEFAULT_FIELDS = Object.getOwnPropertyDescriptors(DefaultBackend)
+
+/** Only our unchanged own-data implementation may reuse the private fixture.
+ * Check identity first so custom backends and Proxies observe no new reads. */
+function hasOriginalDefaultImplementation(backend: StyleBackend): boolean {
+  if (backend !== DefaultBackend) return false
+  for (const field of ['id', 'capabilities', 'drawNode', 'render'] as const) {
+    const descriptor = Object.getOwnPropertyDescriptor(backend, field)
+    if (!descriptor || !('value' in descriptor) || descriptor.value !== ORIGINAL_DEFAULT_FIELDS[field]!.value) return false
+  }
+  return true
+}
 
 /** A replacement method must use the checked backend path. */
 export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
@@ -186,7 +198,7 @@ interface BuiltInConformance {
  * render may never use. A built-in's report is computed once, on its first
  * draw or render or the first read of its descriptor, inside the same
  * mutation guard as a registration. */
-function lazyBuiltInConformance(backend: StyleBackend, id: string): BuiltInConformance {
+function lazyBuiltInConformance(backend: StyleBackend, id: string, originalDefault: boolean): BuiltInConformance {
   let report: BackendConformanceReport | undefined
   let running = false
   return {
@@ -197,7 +209,7 @@ function lazyBuiltInConformance(backend: StyleBackend, id: string): BuiltInConfo
       backendConformanceCandidate = id
       running = true
       try {
-        report = runBackendConformance(backend, id)
+        report = runBackendConformance(originalDefault ? backendWithAdmittedConformanceFixture(backend) : backend, id)
       } finally {
         running = false
         backendConformanceCandidate = outer
@@ -429,8 +441,9 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     backendConformanceCandidate = id
     const existingInput = BACKEND_INPUT_NAMES.get(inputName)
     if (existingInput !== undefined) throw new Error(`Backend input name "${inputName}" already selects "${existingInput}"`)
+    const originalDefault = hasOriginalDefaultImplementation(backend)
     validateBackendCapabilities(backend, id)
-    const conformance = lazyBuiltInConformance(backend, id)
+    const conformance = lazyBuiltInConformance(backend, id, originalDefault)
     const frozen = freezeBuiltInBackend(refuseUntilConforming(backend, inputName, conformance))
     registerExtension(BACKENDS, {
       identity: backendIdentity(id, {
