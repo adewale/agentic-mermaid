@@ -233,3 +233,56 @@ now covers the new entry/resource, required-family and original-assertion lanes;
 not every older source-stage/paired evaluation has incremental caching. The
 startup source controller still reaches shared invocation/family helpers in the
 checkout, although its target consumers import only supplied public artifacts.
+
+## Is the suite sufficient for a Mermaid-baseline ranking?
+
+It is useful for scoped regression decisions and capability comparisons. It is
+not a complete independent conformance, visual-quality or production-cost
+assessment. Pinned Mermaid 12.2.0 is now the explicit baseline for comparable
+operations; that makes the missing comparisons and oracle weaknesses easier to
+see rather than making them disappear.
+
+The current Dave observations allow direct cost ratios on the same 821 inputs
+that all three engines accepted in every round. Against Mermaid at 1, Agentic
+cost is 0.143497 and Pele 0.006840. These are three-round render-call portfolios,
+not startup or complete visual-fidelity scores. Full documentation acceptance
+is still 823/1,095, 1,063/1,095 and 1,061/1,095 respectively. A faster shared
+subset cannot erase missing inputs.
+
+The broader historical community corpus also fails a useful self-check:
+Mermaid passes admission for 855/963 entries. Thirty Gantt entries explicitly
+promise parsing rather than browser rendering; other failures include syntax
+divergences and SVG/XML/label qualification. Agentic's higher count in that
+authored corpus is not proof of better Mermaid fidelity. The reporter preserves
+these different corpora, failures and measurement dates separately.
+
+The added browser baseline covers 53 authored workflows drawn from family,
+scaling, interaction, negative and edit cases, with repeated same-artifact
+Mermaid controls. It checks returned SVG structure, canvas and labels, not every
+relationship, font, clipping or painted feature. The Node baseline covers 74
+bindings through 51 unique public parser invocations; Mermaid's required DOM
+host is part of its named startup stack. Its validation/type/config return and
+the other tools' richer models are different output contracts, so those clocks
+are not a pure-AST parser contest.
+
+The remaining limits are material:
+
+- Original upstream callbacks cover 99 declarations in two files out of 3,995
+  inventoried declarations. Literal source replay receives no assertion credit.
+- Older community speed ranks cover six core inputs across five families;
+  broad functional enrollment does not establish all-family performance.
+- Independent native/paint projections, cross-feature interactions, typography,
+  accessibility, configuration and perceptual quality remain incomplete.
+- Browser document V8 heap and Node process RSS omit other relevant domains;
+  small retention diagnostics do not establish absence of leaks or production
+  capacity. Dollar costs require actual rates or provider usage.
+- Four of the 88 current catalog projects lack the historical measurements.
+  Editor applications, terminal interfaces and core-Mermaid-absent CLI, MCP and
+  typed editing operations have no invented common baseline.
+- Public corpora provide no secret holdout. Cache state, startup, configured
+  workflows and consumed-return scopes must remain explicit.
+
+A tool can be lower cost and less complete at the same time. Reports therefore
+compare each matched measure against Mermaid, show coverage differences, and
+retain unresolved repeatability bands and unavailable operations as unranked.
+They do not collapse the suite into an overall winner.

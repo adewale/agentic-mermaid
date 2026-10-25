@@ -31,6 +31,8 @@ pinned-reference input comparisons:
 | `stable-support` | [stable-support-run.ts](unified/stable-support-run.ts) | Runtime required-family SVG/label admission, policy maturity review and separate supplements; per-project retained results. |
 | `upstream-test-assertions` | [upstream-test-score.ts](unified/upstream-test-score.ts) | Original current-pinned Mindmap/GitGraph assertions, full monorepo declaration census, separate unscored literal replay; per-project retained results. |
 | `entry-startup` | [entry-startup.ts](unified/entry-startup.ts) | Manifest-derived public entries and real operations; fresh first-result latency plus separate paired memory/CPU diagnostics; per-project retained results. |
+| `mermaid-baseline-browser` | [baseline-browser.ts](unified/baseline-browser.ts) | Pinned Mermaid browser SVG reference, five renderer rounds with A/A controls, 25 fresh startups and five separate document-heap passes; same authored cases across tools. |
+| `mermaid-baseline-compatibility` | [mermaid-baseline-compatibility.ts](unified/mermaid-baseline-compatibility.ts) | Public parser admission, explicit required DOM host for Mermaid, 25 first-result processes and five child resource passes; existing original-assertion records retained. |
 
 ## Performance and delivery suites
 
