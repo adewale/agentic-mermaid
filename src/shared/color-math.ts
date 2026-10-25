@@ -98,20 +98,30 @@ export function ensureContrast(
   minimum: number,
   preferredFallback?: string,
 ): string {
-  const current = contrastRatio(candidate, background)
-  if (current === null || current >= minimum) return candidate
+  const candidateLuminance = relativeLuminance(candidate)
+  const backgroundLuminance = relativeLuminance(background)
+  if (candidateLuminance === null || backgroundLuminance === null
+    || luminanceContrastRatio(candidateLuminance, backgroundLuminance) >= minimum) return candidate
 
-  const blackRatio = contrastRatio('#000000', background) ?? 0
-  const whiteRatio = contrastRatio('#ffffff', background) ?? 0
-  const preferredRatio = preferredFallback ? contrastRatio(preferredFallback, background) ?? 0 : 0
+  const blackRatio = luminanceContrastRatio(0, backgroundLuminance)
+  const whiteRatio = luminanceContrastRatio(1, backgroundLuminance)
+  const preferredLuminance = preferredFallback ? relativeLuminance(preferredFallback) : null
+  const preferredRatio = preferredLuminance === null ? 0 : luminanceContrastRatio(preferredLuminance, backgroundLuminance)
   const fallback = preferredRatio >= minimum
     ? preferredFallback!
     : blackRatio >= whiteRatio ? '#000000' : '#ffffff'
-  if ((contrastRatio(fallback, background) ?? 0) < minimum) return candidate
+  if ((preferredRatio >= minimum ? preferredRatio : Math.max(blackRatio, whiteRatio)) < minimum) return candidate
 
+  const [fr, fg, fb] = parseHex(fallback)
+  const [cr, cg, cb] = parseHex(candidate)
   for (let fallbackPart = 1; fallbackPart <= 1000; fallbackPart++) {
-    const mixed = mixHex(fallback, candidate, fallbackPart / 10)
-    if ((contrastRatio(mixed, background) ?? 0) >= minimum) return mixed
+    const p = fallbackPart / 10 / 100
+    // Match mixHex's serialized channels before measuring contrast. Testing
+    // unrounded mixes would change the earliest passing trial and its color.
+    const r = Math.round(Math.max(0, Math.min(255, fr * p + cr * (1 - p))))
+    const g = Math.round(Math.max(0, Math.min(255, fg * p + cg * (1 - p))))
+    const b = Math.round(Math.max(0, Math.min(255, fb * p + cb * (1 - p))))
+    if (luminanceContrastRatio(srgbRelativeLuminance([r, g, b]), backgroundLuminance) >= minimum) return toHex(r, g, b)
   }
   return fallback
 }
