@@ -457,9 +457,6 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     validateBackendCapabilities(backend, id)
     const conformance = lazyBuiltInConformance(backend, id, originalDefault)
     const frozen = freezeBuiltInBackend(refuseUntilConforming(backend, inputName, conformance))
-    if (originalDefault && backend === DefaultBackend && !enrolledOriginalDefaultFields) {
-      enrolledOriginalDefaultFields = Object.getOwnPropertyDescriptors(frozen)
-    }
     registerExtension(BACKENDS, {
       identity: backendIdentity(id, {
         version: CORE_BACKEND_VERSION,
@@ -470,6 +467,9 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     })
     BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
+    if (originalDefault && backend === DefaultBackend && !enrolledOriginalDefaultFields) {
+      enrolledOriginalDefaultFields = Object.getOwnPropertyDescriptors(frozen)
+    }
     selectionSnapshot = undefined
   } finally {
     backendConformanceCandidate = null
