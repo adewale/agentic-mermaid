@@ -8,13 +8,14 @@ let nextFamilyId = 0
 interface PositionedSnapshot { result: FamilyLayoutResult; projection?: FamilyPositionedView }
 const MAX_WEIGHT = 16 * 1024 * 1024
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT)
+const retainedResults = new WeakSet<object>()
 function isolatedKey(family: object, key: string): string {
   let id = familyIds.get(family)
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
   return `${id}:${key}`
 }
 /** Copies remain private until provenance needed by prepared text is restored. */
-function clonePositioned<T>(source: T): T {
+export function clonePositioned<T>(source: T): T {
   const copy = structuredClone(source)
   const seen = new WeakSet<object>()
   const visit = (a: unknown, b: unknown): void => {
@@ -34,6 +35,8 @@ function clonePositioned<T>(source: T): T {
   visit(source, copy)
   return copy
 }
+/** Membership records an actual private cache snapshot, never a caller brand. */
+export function isRetainedPositionedSnapshot(result: object): boolean { return retainedResults.has(result) }
 export function cachedPositioned(family: object, key: string, alreadyObserved = false): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
@@ -66,4 +69,5 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
     }
   }
   results.set(isolatedKey(family, key), retained, weight)
+  retainedResults.add(retained.result)
 }
