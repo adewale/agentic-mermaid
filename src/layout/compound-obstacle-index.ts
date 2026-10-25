@@ -12,6 +12,24 @@ export interface CompoundObstacleQueries {
   entersSegment: (ax: number, ay: number, bx: number, by: number, beforeComparison?: () => void) => boolean
 }
 
+const obstacleQueryOwners = new WeakMap<CompoundObstacleQueries, {
+  boxes: readonly Readonly<RoutingBox>[]
+  containsPoint: CompoundObstacleQueries['containsPoint']
+  entersSegment: CompoundObstacleQueries['entersSegment']
+  projectPoint: CompoundObstacleQueries['projectPoint']
+}>()
+
+/** Internal proof authority only; wrappers, changed methods and another solid
+ * array retain their original query behavior. Do not invoke custom getters. */
+export function isCompoundObstacleIndexFor(queries: CompoundObstacleQueries | undefined, boxes: readonly Readonly<RoutingBox>[]): boolean {
+  if (!queries) return false
+  const owner = obstacleQueryOwners.get(queries)
+  if (!owner || owner.boxes !== boxes) return false
+  return Object.getOwnPropertyDescriptor(queries, 'containsPoint')?.value === owner.containsPoint
+    && Object.getOwnPropertyDescriptor(queries, 'entersSegment')?.value === owner.entersSegment
+    && Object.getOwnPropertyDescriptor(queries, 'projectPoint')?.value === owner.projectPoint
+}
+
 /** One immutable, internally owned rectangle scope. The inclusive lane index
  * is only a broad phase; every candidate keeps the original strict predicate.
  * Index metadata capacity uses arcs, comparisons use pairs, without refunds. */
@@ -51,7 +69,7 @@ export function createCompoundObstacleIndex(boxes: readonly Readonly<RoutingBox>
       if (box.y + box.height <= y) result.top = Math.max(result.top, box.y + box.height)
     }
   }
-  return {
+  const queries: CompoundObstacleQueries = {
     projectPoint(x, y, bounds, result) {
       charge(4)
       result.left = bounds.x; result.right = bounds.x + bounds.width
@@ -95,6 +113,11 @@ export function createCompoundObstacleIndex(boxes: readonly Readonly<RoutingBox>
       return false
     },
   }
+  // One ownership entry plus the three original method references. Methods
+  // remain mutable; changed providers simply lose this proof authority.
+  chargeIndex(4, 'capacity')
+  obstacleQueryOwners.set(queries, { boxes, containsPoint: queries.containsPoint, entersSegment: queries.entersSegment, projectPoint: queries.projectPoint })
+  return queries
 }
 
 

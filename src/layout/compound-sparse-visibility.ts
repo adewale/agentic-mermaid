@@ -2,7 +2,7 @@ import type { Point } from '../types.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import { segmentEntersMeasuredBox } from './measured-route-safety.ts'
 import { simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
-import type { CompoundObstacleQueries, CompoundProjection } from './compound-obstacle-index.ts'
+import { isCompoundObstacleIndexFor, type CompoundObstacleQueries, type CompoundProjection } from './compound-obstacle-index.ts'
 
 type TransitionGuard = (a: Point, b: Point, arrivalAxis: number, nextAxis: number) => boolean
 interface QueryWorkspace {
@@ -136,6 +136,19 @@ export function createSparseVisibilityGraph(
     charge()
     return box.x <= right && box.x + box.width >= bounds.x && box.y <= bottom && box.y + box.height >= bounds.y
   })
+  // A collapsed rectangle can remain a barrier under the strict segment
+  // predicate even though its point interior is empty. Keep those scopes on
+  // the original solid queries rather than infer free merged intervals.
+  // Empty scopes have no solid-query work to remove, so retain their original
+  // query path as well (including interruption and adjacency-lease cleanup).
+  charge()
+  let reuseFreeRays = relevant.length > 0
+  for (const box of relevant) {
+    charge(8)
+    const east = box.x + box.width, south = box.y + box.height
+    if (!Number.isFinite(box.x) || !Number.isFinite(box.y) || !Number.isFinite(east) || !Number.isFinite(south)
+      || east <= box.x || south <= box.y) { reuseFreeRays = false; break }
+  }
   const points: Point[] = [], identities = new Map<string, number>()
   let index: CompoundObstacleQueries | undefined
   const key = (p: Point): string => `${p.x},${p.y}`
@@ -299,7 +312,7 @@ export function createSparseVisibilityGraph(
     }
     return { coordinates: [...lines.keys()].sort(compare), lines }
   }
-  const intersections = (terminalRays: readonly Ray[], others: readonly Ray[], horizontal: boolean): void => {
+  const intersections = (terminalRays: readonly Ray[], others: readonly Ray[], horizontal: boolean): ReturnType<typeof mergedRays> => {
     const candidates = mergedRays(others), starts = mergedRays(terminalRays)
     for (const line of starts.lines.values()) for (const start of line) {
       let lower = 0, upper = candidates.coordinates.length
@@ -320,14 +333,21 @@ export function createSparseVisibilityGraph(
         }
       }
     }
+    return candidates
   }
   // A terminal ray crossing another clear ray needs a vertex to turn there.
   // Index only these geometric intersections, rather than every X/Y pair.
-  intersections(terminalHorizontal, verticalRays, true)
-  intersections(terminalVertical, horizontalRays, false)
+  const allVertical = intersections(terminalHorizontal, verticalRays, true)
+  const allHorizontal = intersections(terminalVertical, horizontalRays, false)
   let adjacency: AdjacencyStorage | undefined
   try {
     adjacency = adjacencyStorage?.acquire(points.length, charge)
+    if (reuseFreeRays && obstacleQueries) {
+      // Query presence, ownership lookup, scope identity and three original
+      // data-method identities; callbacks/getters remain on the strict path.
+      charge(10)
+      reuseFreeRays = isCompoundObstacleIndexFor(index, obstacles)
+    }
     const neighbors: { node: number; axis: number; distance: number }[][] | undefined = adjacency ? undefined : points.map(() => [])
     const clearSegment = (a: Point, b: Point): boolean => {
       if (obstacleQueries) return !(index ??= obstacleQueries()).entersSegment(a.x, a.y, b.x, b.y)
@@ -345,6 +365,13 @@ export function createSparseVisibilityGraph(
         line.push(index); lines.set(coordinate, line)
       })
       for (const line of lines.values()) {
+        // These merged ALL-ray maps were already built for intersections.
+        // Each ray stops at the nearest original solid or domain boundary;
+        // one connected interval therefore certifies its contained segments.
+        if (reuseFreeRays) charge()
+        const firstPoint = points[line[0]!]!
+        const free = reuseFreeRays ? (axis === 1 ? allHorizontal : allVertical).lines.get(axis === 1 ? firstPoint.y : firstPoint.x) : undefined
+        let freeCursor = 0
         line.sort((a, b) => {
           if (--work.swaps < 0) fail('agentic local cross-hierarchy coordinate-sort limit')
           return axis === 1 ? points[a]!.x - points[b]!.x : points[a]!.y - points[b]!.y
@@ -356,7 +383,25 @@ export function createSparseVisibilityGraph(
             if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
           }
           const a = line[index - 1]!, b = line[index]!
-          if (!clearSegment(points[a]!, points[b]!)) continue
+          const lower = axis === 1 ? points[a]!.x : points[a]!.y, upper = axis === 1 ? points[b]!.x : points[b]!.y
+          let certificate: Ray | undefined
+          while (reuseFreeRays) {
+            charge()
+            if (!free || freeCursor >= free.length) break
+            const interval = free[freeCursor]!
+            charge()
+            if (interval.upper >= lower) { certificate = interval; break }
+            charge(); freeCursor++
+          }
+          let covered = false
+          if (certificate) {
+            charge()
+            if (certificate.lower <= lower) {
+              charge()
+              covered = upper <= certificate.upper
+            }
+          }
+          if (!covered && !clearSegment(points[a]!, points[b]!)) continue
           const distance = Math.abs(points[a]!.x - points[b]!.x) + Math.abs(points[a]!.y - points[b]!.y)
           if (adjacency) {
             const forward = a * 4 + (axis === 1 ? 1 : 3), backward = b * 4 + (axis === 1 ? 0 : 2)
