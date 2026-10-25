@@ -48,7 +48,7 @@ export interface FamilyDetectionDiagnostic {
   help: string
 }
 
-function sourceLineStarts(source: string): readonly number[] {
+export function sourceLineStarts(source: string): readonly number[] {
   const starts = [0]
   for (let index = 0; index < source.length; index++) {
     if (source.charCodeAt(index) === 13) {
@@ -59,7 +59,7 @@ function sourceLineStarts(source: string): readonly number[] {
   return starts
 }
 
-function sourcePointAt(lineStarts: readonly number[], offset: number): SourceSpanPoint {
+export function sourcePointAt(lineStarts: readonly number[], offset: number): SourceSpanPoint {
   let low = 0
   let high = lineStarts.length
   while (low < high) {
@@ -71,7 +71,7 @@ function sourcePointAt(lineStarts: readonly number[], offset: number): SourceSpa
   return Object.freeze({ offset, line: lineIndex + 1, col: offset - lineStarts[lineIndex]! + 1 })
 }
 
-function sourceSpan(lineStarts: readonly number[], start: number, end: number): SourceSpan {
+export function sourceSpan(lineStarts: readonly number[], start: number, end: number): SourceSpan {
   return Object.freeze({ start: sourcePointAt(lineStarts, start), end: sourcePointAt(lineStarts, end) })
 }
 

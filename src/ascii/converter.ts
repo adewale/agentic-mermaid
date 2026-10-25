@@ -77,7 +77,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, c
   // In Go, a node belongs only to the subgraph where it was FIRST DEFINED.
   // The TS parser adds referenced nodes to all subgraphs they appear in,
   // which causes incorrect bounding boxes when nodes span subgraph boundaries.
-  deduplicateSubgraphNodes(parsed.subgraphs, subgraphs, nodeMap, parsed)
+  deduplicateSubgraphNodes(parsed.subgraphs, subgraphs)
 
   // Empty containers still need a placeable cell envelope and real ports.
   // Their private anchors participate in allocation only; they never paint or
@@ -273,8 +273,6 @@ function convertSubgraph(
 function deduplicateSubgraphNodes(
   mermaidSubgraphs: MermaidSubgraph[],
   asciiSubgraphs: AsciiSubgraph[],
-  nodeMap: Map<string, AsciiNode>,
-  parsed: MermaidGraph,
 ): void {
   // Build a map from MermaidSubgraph to its corresponding AsciiSubgraph.
   // The ordering matches since we convert them in the same order.
@@ -317,11 +315,7 @@ function deduplicateSubgraphNodes(
   // A node should remain in: its owner subgraph + all ancestors of the owner.
   for (const asciiSg of asciiSubgraphs) {
     asciiSg.nodes = asciiSg.nodes.filter(node => {
-      // Find this node's ID in the nodeMap
-      let nodeId: string | undefined
-      for (const [id, n] of nodeMap) {
-        if (n === node) { nodeId = id; break }
-      }
+      const nodeId = node.name
       if (!nodeId) return false
 
       const owner = nodeOwner.get(nodeId)

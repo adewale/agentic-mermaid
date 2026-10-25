@@ -43,6 +43,10 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
   const direction = diagram.direction ?? 'LR', horizontal = direction === 'LR' || direction === 'RL'
   const prepared = (value: DisplayTextInput) => wrapText(displayText(value), targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined)
   const relations: BoxRelation[] = diagram.relationships.map((rel, index) => ({ id: generated(`relationship:${index}`), from: rel.entity1, to: rel.entity2, ...(rel.label ? { lines: prepared(resolveLabelContent(rel.label, rel.labelContent)) } : {}) }))
+  const relationshipById = new Map<string, (typeof diagram.relationships)[number]>()
+  relations.forEach((relation, index) => {
+    if (!relationshipById.has(relation.id)) relationshipById.set(relation.id, diagram.relationships[index]!)
+  })
   const faceSizes = boxFaceSizes(relations, direction)
   const sections = new Map(diagram.entities.map(entity => {
     const header = wrapText(displayText(resolveLabelContent(entity.label, entity.labelContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined)
@@ -148,7 +152,7 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     doc.scope(owner, () => group.labelLines.forEach((line, row) => doc.text(group.x + 2, group.y + row, line)))
   }
   for (const route of routes) {
-    const rel = diagram.relationships[relations.findIndex(relation => relation.id === route.relation.id)]!
+    const rel = relationshipById.get(route.relation.id)!
     const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.entity1, to: rel.entity2 })
     paintBoxRoute(doc, route, owner, config.useAscii, !rel.identifying)
     for (const [end, port, card] of [['start', route.source, rel.cardinality1], ['end', route.target, rel.cardinality2]] as const) {
