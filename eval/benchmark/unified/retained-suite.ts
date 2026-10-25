@@ -25,7 +25,7 @@ export interface RetainedSuiteOptions {
 export function publicationResult(raw: UnifiedSuiteResult, project: string): UnifiedSuiteResult {
   const seen = new Set<string>()
   return { ...raw, observations: raw.observations.map((row, index) => {
-    if (row.samplesMs?.length) {
+    if (row.samplesMs?.length || row.operation === 'heap-checkpoint' || row.mode.includes('resource')) {
       const coordinate = stableValue([row.suite, row.surface, row.runtime, row.family, row.caseId, row.operation, row.format, row.mode,
         ...['round', 'sample', 'requestedOperation', 'resourcePass', 'checkpoint'].map(key => row.metrics?.[key] ?? null)])
       if (seen.has(coordinate)) throw Error('Duplicate measured sample coordinates; row IDs cannot qualify repeated clocks')
@@ -127,6 +127,9 @@ export async function runRetainedSuite(options: RetainedSuiteOptions): Promise<U
     write(join(options.out, 'result.json'), result)
     return result
   } catch (error) {
+    // A rejected recovery request must not erase the eligible attempt's receipt
+    // or pointer; the user can correct its path/settings and retry publication.
+    if (options.resumeAttempt && !attemptDirectory) throw error
     const state = cancelled ? 'cancelled' : 'incomplete'
     if (attemptDirectory && !published) write(join(attemptDirectory, 'publication-failure.json'), { attempt: pendingAttempt, identity, stage, state, error: String(error) })
     write(join(options.out, 'cache.json'), { project: identity.project, lane: identity.lane, pendingAttempt, state, published, error: String(error) })
