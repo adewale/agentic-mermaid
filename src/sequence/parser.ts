@@ -8,7 +8,7 @@ import { MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
 import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
-import { readSequenceLabel } from './text.ts'
+import { readSequenceLabel, splitSequenceTextControl } from './text.ts'
 import { concatDisplayText, prepareDisplayText, resolveLabelContent, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
 import { isCssColorToken, sequenceRectColor } from './colors.ts'
 import { type ParticipantEvent, SequenceParticipantFold } from './participants.ts'
@@ -87,6 +87,7 @@ export interface ParsedSequenceMessageLine {
   localArrow?: string
   activationMark?: string
   label: string
+  wrap?: boolean
   centralStart: boolean
   centralEnd: boolean
 }
@@ -155,7 +156,7 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   const to = tail.slice(0, colon).trimEnd()
   // The text may be empty (`A->>B:`), as upstream's; so it is when a `#`
   // comment follows the colon (`A->>B: #a#`).
-  const label = tail.slice(colon + 1).trimStart()
+  const { text: label, wrap } = splitSequenceTextControl(tail.slice(colon + 1))
   if (!to || /\s/.test(to)) return null
   if (spacedMatch && (
     /[+<>]/.test(to)
@@ -176,6 +177,7 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   return {
     from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark,
     to, label, centralStart: Boolean(match[2]), centralEnd,
+    ...(wrap === undefined ? {} : { wrap }),
     ...(LOCAL_ARROW_ALIASES.has(arrow) ? { localArrow: arrow } : {}),
   }
 }
@@ -221,7 +223,7 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
  * the caller knows where its lines were authored (see authoredSequenceLine),
  * else its position in `lines`.
  */
-export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean; authoredLine?: (index: number) => number | undefined } = {}): SequenceDiagram {
+export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean; wrap?: boolean; authoredLine?: (index: number) => number | undefined } = {}): SequenceDiagram {
   const spans = scanSequenceStatementLines(lines)
   const accessibility = scanAccessibilityDirectives(spans.map(span => span.raw))
   const kept = accessibility.familyLines.flatMap((line, index) => line.trim() ? [{ text: line.trim(), origin: spans[accessibility.familyOrigins[index]!]!.line }] : [])
@@ -256,7 +258,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   const boundaryIssue = source.issues.find(issue => issue.syntax === 'sequence_block_boundary')
   if (boundaryIssue) throw new Error(`SEQUENCE_BLOCK_BOUNDARY: line ${lineOf(boundaryIssue.line + 1)}: ${boundaryIssue.message}`)
   // Render data is keyed by shared statement identity, not another scope parser.
-  const blocks = new Map<number, { type: Block['type']; label: string; labelContent?: LabelContent; color?: string; startIndex: number; dividers: Block['dividers']; dividerNoteIndices: number[]; parent?: number; parentSection: number; noteIndices: number[]; childBlockIndices: number[]; childSectionIndices: number[] }>()
+  const blocks = new Map<number, { type: Block['type']; wrap?: boolean; label: string; labelContent?: LabelContent; color?: string; startIndex: number; dividers: Block['dividers']; dividerNoteIndices: number[]; parent?: number; parentSection: number; noteIndices: number[]; childBlockIndices: number[]; childSectionIndices: number[] }>()
   const boundaries: Array<Omit<SequenceBlockBoundary, 'blockIndex'> & { blockId: number }> = []
   const blockIndexById = new Map<number, number>()
   // Visibility is independent of the message counter. Hiding or enabling it
@@ -274,6 +276,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       from,
       to,
       ...readSequenceLabel(message.label.trim()),
+      ...((message.wrap ?? opts.wrap) === undefined ? {} : { wrap: message.wrap ?? opts.wrap }),
       lineStyle: endpoint.lineStyle,
       startHead: endpoint.startHead,
       endHead: endpoint.endHead,
@@ -379,7 +382,11 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
           label = rest.slice(firstWord.length).trim()
         }
       }
-      if (label) Object.assign(box, readSequenceLabel(label))
+      if (label) {
+        const control = splitSequenceTextControl(label)
+        Object.assign(box, readSequenceLabel(control.text))
+        if ((control.wrap ?? opts.wrap) !== undefined) box.wrap = control.wrap ?? opts.wrap
+      }
       // Boxes never nest; the fold places the actors of the statements
       // inside (upstream's `currentBox`).
       diagram.boxes!.push(box)
@@ -402,6 +409,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       diagram.notes.push({
         actorIds: note.actorIds,
         text: text.label,
+        ...((note.wrap ?? opts.wrap) === undefined ? {} : { wrap: note.wrap ?? opts.wrap }),
         ...(text.labelContent ? { textContent: text.labelContent } : {}),
         position: note.position,
         afterIndex: diagram.messages.length - 1,
@@ -429,6 +437,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       blocks.set(index, {
         type: blockType,
         ...text,
+        ...((opener.wrap ?? opts.wrap) === undefined ? {} : { wrap: opener.wrap ?? opts.wrap }),
         ...(color ? { color } : {}),
         startIndex: diagram.messages.length,
         dividers: [],
@@ -450,7 +459,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (top) {
         boundaries.push({ kind: 'divider', blockId: entry.parent!, messageIndex: diagram.messages.length, noteIndex: diagram.notes.length, dividerIndex: top.dividers.length })
         top.dividerNoteIndices.push(diagram.notes.length)
-        top.dividers.push({ index: diagram.messages.length, ...readSequenceLabel(statement.continuation.label) })
+        top.dividers.push({ index: diagram.messages.length, ...readSequenceLabel(statement.continuation.label), ...((statement.continuation.wrap ?? opts.wrap) === undefined ? {} : { wrap: statement.continuation.wrap ?? opts.wrap }) })
           if (parserObservationActive('sequence')) observeParserMutation('sequence', 'divide-block', { parent: entry.parent, divider: top.dividers.at(-1), type: statement.continuation.type })
       }
       break
@@ -467,6 +476,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         const blockObj: Block = {
           type: completed.type,
           label: completed.label,
+          ...(completed.wrap === undefined ? {} : { wrap: completed.wrap }),
           ...(completed.labelContent ? { labelContent: completed.labelContent } : {}),
           ...(completed.color ? { color: completed.color } : {}),
           startIndex: completed.startIndex,
@@ -511,8 +521,9 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     }
   }
 
-  diagram.actors = participants.list().map(({ id, label, type, links, box }) => ({
+  diagram.actors = participants.list().map(({ id, label, type, links, box, wrap }) => ({
     id, ...readSequenceLabel(label), type,
+    ...((wrap ?? opts.wrap) === undefined ? {} : { wrap: wrap ?? opts.wrap }),
     ...(links ? { links } : {}),
     ...(box !== undefined ? { box } : {}),
     ...(createdAt.has(id) ? { createMessageIndex: createdAt.get(id)! } : {}),
@@ -556,7 +567,7 @@ export function authoredSequenceLine(source: Pick<NormalizedMermaidSource, 'fami
  * the typed body both read. Context (which block is open) is the caller's. */
 export type SequenceStatementSyntax =
   | { kind: 'declaration'; declaration: ParsedActorDeclaration }
-  | { kind: 'create'; declaration: Pick<Actor, 'id' | 'label' | 'type'> }
+  | { kind: 'create'; declaration: Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> }
   | { kind: 'destroy'; actorId: string }
   | { kind: 'links'; actorId: string; links: Record<string, string> }
   /** `properties A: {…}` / `details A: <element id>`: actor data the
@@ -565,9 +576,9 @@ export type SequenceStatementSyntax =
   | { kind: 'title'; text: string }
   | { kind: 'autonumber'; numbering: { next?: number; step?: number } | null }
   | { kind: 'box'; text: string }
-  | { kind: 'note'; note: Pick<Note, 'actorIds' | 'text' | 'position'> }
-  | { kind: 'block'; opener: { type: Exclude<SequenceBlockOpener, 'box'>; label: string } }
-  | { kind: 'continuation'; continuation: { type: SequenceBlockContinuation; label: string } }
+  | { kind: 'note'; note: Pick<Note, 'actorIds' | 'text' | 'position' | 'wrap'> }
+  | { kind: 'block'; opener: { type: Exclude<SequenceBlockOpener, 'box'>; label: string; wrap?: boolean } }
+  | { kind: 'continuation'; continuation: { type: SequenceBlockContinuation; label: string; wrap?: boolean } }
   | { kind: 'end' }
   | { kind: 'message'; message: ParsedSequenceMessageLine }
   | { kind: 'activation'; actorId: string; activate: boolean }
@@ -675,7 +686,7 @@ export function parseSequenceStatement(line: string): SequenceStatementSyntax | 
   const note = parseSequenceNoteLine(line)
   if (note) return { kind: 'note', note }
   const opener = parseSequenceBlockOpener(line)
-  if (opener && opener.type !== 'box') return { kind: 'block', opener: { type: opener.type, label: opener.label } }
+  if (opener && opener.type !== 'box') return { kind: 'block', opener: { type: opener.type, label: opener.label, ...(opener.wrap === undefined ? {} : { wrap: opener.wrap }) } }
   const continuation = parseSequenceBlockContinuation(line)
   if (continuation) return { kind: 'continuation', continuation }
   if (line === 'end') return { kind: 'end' }
@@ -693,13 +704,13 @@ export function parseSequenceStatement(line: string): SequenceStatementSyntax | 
 export function participantEventsOf(statement: SequenceStatementSyntax | null): ParticipantEvent[] {
   switch (statement?.kind) {
     case 'declaration': {
-      const { id, label, type, keyword, aliased } = statement.declaration
-      return [{ kind: 'declare', id, keyword, type, ...(aliased ? { label } : {}) }]
+      const { id, label, type, keyword, aliased, wrap } = statement.declaration
+      return [{ kind: 'declare', id, keyword, type, ...(aliased ? { label } : {}), ...(wrap === undefined ? {} : { wrap }) }]
     }
     case 'create': {
       // Creating a known participant is an upstream error, never a rename.
-      const { id, label, type } = statement.declaration
-      return [{ kind: 'declare', id, keyword: type === 'actor' ? 'actor' : 'participant', type, label, create: true }]
+      const { id, label, type, wrap } = statement.declaration
+      return [{ kind: 'declare', id, keyword: type === 'actor' ? 'actor' : 'participant', type, label, ...(wrap === undefined ? {} : { wrap }), create: true }]
     }
     case 'links':
       return [{ kind: 'mention', id: statement.actorId }, { kind: 'links', id: statement.actorId, links: statement.links },
@@ -726,7 +737,7 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
 /** A `participant`/`actor` declaration. `aliased` records whether it names the
  *  actor (`as …` or a metadata alias): Mermaid lets only a naming declaration
  *  change an actor that already exists. */
-export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
+export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
 
 function clearSequenceParticipantId(id: string): boolean {
   // Mermaid protects entity tokens before lexing. Their terminator is not
@@ -771,7 +782,8 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
       })
     }
     // `as` with no text names the actor "" upstream; keep that line unmodeled.
-    const asText = naming ? naming[1]?.trim() || null : undefined
+    const control = naming ? splitSequenceTextControl(naming[1] ?? '') : undefined
+    const asText = control ? control.text || null : undefined
     if (asText === null) return null
     const { entries } = block
     const requestedType = entries.get('type')
@@ -785,6 +797,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     const unmodeledMetadata = [...entries.keys()].filter(key => key !== 'type' && key !== 'alias')
     return {
       id, label: alias ?? id, type, keyword: baseType, aliased: alias !== undefined,
+      ...(control?.wrap === undefined ? {} : { wrap: control.wrap }),
       ...(unmodeledMetadata.length ? { unmodeledMetadata } : {}),
     }
   }
@@ -794,20 +807,23 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
   const id = ordinary[2]!
   assertSequenceParticipantId(id)
   const keyword = ordinary[1]!.toLowerCase() as 'participant' | 'actor'
+  const control = ordinary[4] === undefined ? undefined : splitSequenceTextControl(ordinary[4])
   return {
-    id, label: ordinary[4]?.trim() ?? id, type: keyword, keyword, aliased: ordinary[4] !== undefined,
+    ...(control?.wrap === undefined ? {} : { wrap: control.wrap }),
+    id, label: control?.text ?? id, type: keyword, keyword, aliased: ordinary[4] !== undefined,
     ...(ordinary[3] === '' ? { unspacedAlias: true } : {}),
   }
 }
 
 /** One `create participant|actor X [as Label]` grammar shared by renderer and
  *  agent parsers. */
-export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label' | 'type'> | null {
+export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> | null {
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null
   const id = match[2]!
   assertSequenceParticipantId(id)
-  return { id, label: match[3]?.trim() ?? id, type: match[1]!.toLowerCase() as 'participant' | 'actor' }
+  const control = match[3] === undefined ? undefined : splitSequenceTextControl(match[3])
+  return { id, label: control?.text ?? id, type: match[1]!.toLowerCase() as 'participant' | 'actor', ...(control?.wrap === undefined ? {} : { wrap: control.wrap }) }
 }
 
 export function parseActorLinks(line: string): { actorId: string; links: Record<string, string> } | null {
@@ -828,13 +844,13 @@ export function parseActorLinks(line: string): { actorId: string; links: Record<
 
 /** One note-line grammar shared by renderer and agent parsers:
  *  "Note left of A: text" / "Note right of A: text" / "Note over A,B: text". */
-export function parseSequenceNoteLine(line: string): Pick<Note, 'actorIds' | 'text' | 'position'> | null {
+export function parseSequenceNoteLine(line: string): Pick<Note, 'actorIds' | 'text' | 'position' | 'wrap'> | null {
   const match = line.match(/^Note\s+(left of|right of|over)\s+([^:]+):\s*(.*)$/i)
   if (!match) return null
   const placement = match[1]!.toLowerCase()
   return {
     actorIds: match[2]!.trim().split(',').map(id => id.trim()),
-    text: match[3]!.trim(),
+    ...splitSequenceTextControl(match[3]!),
     position: placement === 'left of' ? 'left' : placement === 'right of' ? 'right' : 'over',
   }
 }

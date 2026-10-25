@@ -39,6 +39,7 @@ export type SequenceActorType = 'participant' | 'actor' | 'boundary' | 'control'
 export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-top' | 'half-bottom' | 'stick-top' | 'stick-bottom'
 
 export interface Actor {
+  wrap?: boolean
   id: string
   label: string
   labelContent?: LabelContent
@@ -60,6 +61,7 @@ export interface Actor {
 
 /** A `box … end` group of participants. */
 export interface SequenceBoxGroup {
+  wrap?: boolean
   /** Title text drawn at the top of the box (may be absent). */
   label?: string
   labelContent?: LabelContent
@@ -80,6 +82,8 @@ export interface SequenceActivationEvent {
 }
 
 export interface Message {
+  /** Effective soft-wrap control; absent retains the renderer's default. */
+  wrap?: boolean
   from: string
   to: string
   label: string
@@ -101,6 +105,7 @@ export interface Message {
 }
 
 export interface Block {
+  wrap?: boolean
   /** Block type keyword */
   type: 'loop' | 'alt' | 'opt' | 'par' | 'par_over' | 'critical' | 'break' | 'rect'
   /** Label for the block header */
@@ -113,10 +118,11 @@ export interface Block {
   /** Index of the last message inside this block (inclusive) */
   endIndex: number
   /** For alt/par blocks: indices where "else"/"and" dividers appear (message indices) */
-  dividers: Array<{ index: number; label: string; labelContent?: LabelContent }>
+  dividers: Array<{ index: number; label: string; labelContent?: LabelContent; wrap?: boolean }>
 }
 
 export interface Note {
+  wrap?: boolean
   /** Which actor(s) the note is attached to */
   actorIds: string[]
   /** Note text content */

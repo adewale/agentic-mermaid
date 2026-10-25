@@ -56,6 +56,7 @@ export type FamilyId = DiagramKind | ExternalFamilyId
 export type SequenceParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 
 export interface SequenceParticipant {
+  wrap?: boolean
   id: string
   label: string
   labelContent?: LabelContent
@@ -115,6 +116,8 @@ export type SequenceMessageArrow =
   | '\\--'
 
 export interface SequenceMessage {
+  /** Authored wrap control; absent inherits the diagram configuration. */
+  wrap?: boolean
   from: string
   to: string
   text: string
@@ -130,12 +133,14 @@ export interface SequenceMessage {
 
 export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
 export interface SequenceFragmentBranch {
+  wrap?: boolean
   /** `else` / `and` caption. The first branch normally omits it. */
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
 }
 export interface SequenceFragment {
+  wrap?: boolean
   fragmentKind: SequenceFragmentKind
   label?: string
   labelContent?: LabelContent
@@ -1282,9 +1287,10 @@ export type SequenceMutationOp =
   // index = optional TOP-LEVEL insert position (same addressing as
   // remove_message/set_message_text; fragment messages have their own
   // explicit fragment-addressed ops); omitted = append.
-  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
+  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; wrap?: boolean; style?: SequenceMessageStyle; index?: number }
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
+  | { kind: 'set_message_wrap'; index: number; wrap: boolean | null }
   // Source order IS the interaction timeline, so reorder is a first-class
   // edit (journey move_task precedent); from/to are top-level indices.
   | { kind: 'move_message'; from: number; to: number }
@@ -1294,9 +1300,10 @@ export type SequenceMutationOp =
   | { kind: 'set_fragment_label'; index: number; label: string | null }
   | { kind: 'add_fragment_branch'; fragmentIndex: number; label?: string }
   | { kind: 'set_fragment_branch_label'; fragmentIndex: number; branchIndex: number; label: string | null }
-  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
+  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: ParticipantId; to: ParticipantId; text: string; wrap?: boolean; style?: SequenceMessageStyle; index?: number }
   | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
   | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
+  | { kind: 'set_fragment_message_wrap'; fragmentIndex: number; branchIndex?: number; index: number; wrap: boolean | null }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }

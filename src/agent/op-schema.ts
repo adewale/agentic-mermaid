@@ -159,9 +159,10 @@ const STATE_SCHEMA: Record<string, OpSpec> = {
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   add_participant: { fields: { id: str(), label: str(false), participantKind: oneOf(PARTICIPANT_KINDS, false) } },
   remove_participant: { fields: { id: str() } },
-  add_message: { fields: { from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'top-level insert position; default: append') } },
+  add_message: { fields: { from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'top-level insert position; default: append') } },
   remove_message: { fields: { index: num() } },
   set_message_text: { fields: { index: num(), text: str() } },
+  set_message_wrap: { fields: { index: num(), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
   move_message: { fields: { from: withNote(num(), 'top-level message index'), to: withNote(num(), 'top-level target position') } },
   set_participant_label: { fields: { id: str(), label: str() } },
   add_fragment: { fields: { fragmentKind: oneOf(SEQUENCE_FRAGMENT_KINDS), label: str(false), index: withNote(num(false), 'fragment insert position; default: append') } },
@@ -169,9 +170,10 @@ const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   set_fragment_label: { fields: { index: num(), label: strOrNull() } },
   add_fragment_branch: { fields: { fragmentIndex: num(), label: str(false) } },
   set_fragment_branch_label: { fields: { fragmentIndex: num(), branchIndex: num(), label: strOrNull() } },
-  add_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'message insert position; default: append') } },
+  add_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'message insert position; default: append') } },
   remove_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num() } },
   set_fragment_message_text: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num(), text: str() } },
+  set_fragment_message_wrap: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num(), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
 }
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {

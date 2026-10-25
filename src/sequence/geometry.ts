@@ -25,6 +25,9 @@ export const SEQUENCE_SELF_LOOP = {
   labelPadding: 8,
 } as const
 
+/** Pixel layout owns its wrap width; terminal output owns a cell budget. */
+export const SEQUENCE_TEXT_WRAP_WIDTH = 240
+
 export interface MeasuredSequenceLabel extends PositionedSequenceLabel {
   metrics: MultilineMetrics
 }
@@ -108,7 +111,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
   const letterSpacing = roleStyle?.letterSpacing ?? style.nodeLetterSpacing
   const paddingX = roleStyle?.paddingX ?? style.nodePaddingX
   const paddingY = roleStyle?.paddingY ?? style.nodePaddingY
-  const block = preparePixelText(resolveLabelContent(actor.label, actor.labelContent), { transform, fontSize, fontWeight, letterSpacing })
+  const block = preparePixelText(resolveLabelContent(actor.label, actor.labelContent), { transform, fontSize, fontWeight, letterSpacing, ...(actor.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
   const displayLabel = block.text
   const labelMetrics = block
   const width = Math.max(labelMetrics.width + paddingX * 2, minActorWidth)
@@ -219,7 +222,7 @@ export interface SequenceMessageGeometrySpec {
 export function measureSequenceMessageSpec(message: Message, style: ResolvedRenderStyle, activationWidth: number): SequenceMessageGeometrySpec {
   const label = displayMessageLabel(message)
   const labelContent = Object.freeze({ value: label, prepared: prepareDisplayText(displayMessageContent(message)) })
-  const block = preparePixelText(labelContent.prepared, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+  const block = preparePixelText(labelContent.prepared, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, ...(message.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
   const displayLabel = block.text
   const defaultLineHeight = style.edgeLabelFontSize * LINE_HEIGHT_RATIO
   const labelMetrics: MultilineMetrics = label ? block : { width: 0, height: 0, lines: [], lineHeight: defaultLineHeight }
@@ -408,7 +411,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
   const header = block.type === 'rect' ? '' : block.label
     ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']'])
     : block.type
-  const prepared = preparePixelText(header, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
+  const prepared = preparePixelText(header, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, ...(block.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
   const headerText = prepared.text
   const defaultHeaderLineHeight = style.groupHeaderFontSize * LINE_HEIGHT_RATIO
   const headerMetrics: MultilineMetrics = headerText ? prepared : { width: 0, height: 0, lines: [], lineHeight: defaultHeaderLineHeight }
@@ -421,7 +424,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
   const enclosingHeaderStep = block.type === 'rect' ? style.groupPaddingY : tabHeight + style.groupPaddingY
 
   const dividers: SequenceDividerGeometrySpec[] = block.dividers.map(d => {
-    const prepared = preparePixelText(d.label ? concatDisplayText(['[', prepareDisplayText(resolveLabelContent(d.label, d.labelContent)), ']']) : '', { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+    const prepared = preparePixelText(d.label ? concatDisplayText(['[', prepareDisplayText(resolveLabelContent(d.label, d.labelContent)), ']']) : '', { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, ...(d.wrap ? { maxWidth: SEQUENCE_TEXT_WRAP_WIDTH } : {}) })
     const displayLabel = prepared.text
     const metrics: MultilineMetrics = d.label ? prepared : { width: 0, height: 0, lines: [], lineHeight: edgeTextHeight }
     const firstLineOffset = Math.max(14, Math.ceil(metrics.lineHeight / 2 + 6))
