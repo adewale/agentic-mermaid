@@ -2,8 +2,12 @@ These two synchronous programs are built from Mermaid 12.2.0 source
 `1fb7869866dd619168d840291c9c54b4f129758b`, Khroma 2.1.0 and es-toolkit 1.53.0.
 They contain no Mermaid parser, renderer, DOM or Node runtime dependency.
 
-`merge.js` owns init-layer sanitization, nonclobbering bounded assignment,
-legacy diagram scoping and frontmatter merge. Native normalization uses that
+`merge.js` owns directive argument tokens, init-layer sanitization, nonclobbering
+bounded assignment, legacy diagram scoping, wrap processing and frontmatter
+merge. Its directive lexer, detectInit and processDirectives are copied from
+trusted pinned TypeScript initializers rather than approximated by hand. The
+argument constructor checks complete token consumption and argument type; it
+preserves negative zero and shields source-global preprocessing. Native normalization uses that
 program, retaining authored strings that Mermaid neutralizes. Invalid consumed
 config remains readable for repair; its fallback is not canonical admission.
 

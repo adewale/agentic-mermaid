@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { gzipSync, brotliCompressSync } from 'node:zlib'
 import { parse } from 'acorn'
+import ts from 'typescript'
 
 const root = resolve(import.meta.dir, '../..')
 const upstream = resolve(process.env.MERMAID_UPSTREAM_DIR ?? join(root, '../mermaid'))
@@ -42,12 +43,27 @@ const captured = Bun.spawn(['node', '--input-type=module', '-e', capture], { std
 const defaults = await new Response(captured.stdout).text()
 if (await captured.exited !== 0) throw new Error('Could not read reference defaults')
 const src = join(upstream, 'packages/mermaid/src')
+// Copy owned function initializers from trusted pinned TypeScript, avoiding a
+// hand-maintained approximation of directive lexing and preprocessing phases.
+async function declarations(file: string, names: string[]): Promise<string> {
+  const source = ts.createSourceFile(file, await readFile(file, 'utf8'), ts.ScriptTarget.Latest, true)
+  return names.map(name => {
+    for (const statement of source.statements) if (ts.isVariableStatement(statement)) {
+      for (const item of statement.declarationList.declarations) if (ts.isIdentifier(item.name) && item.name.text === name && item.initializer) return `const ${name}=${item.initializer.getText(source)};`
+    }
+    throw new Error(`Missing pinned declaration ${name} in ${file}`)
+  }).join('\n')
+}
+const directivePrograms = await declarations(join(src, 'utils.ts'), ['directiveWithoutOpen', 'detectDirective', 'detectInit', 'removeDirectives'])
+const directiveRegex = await declarations(join(src, 'diagram-api/regexes.ts'), ['directiveRegex'])
+const directivePhase = await declarations(join(src, 'preprocess.ts'), ['processDirectives'])
 const mergeEntry = `
-import assign from ${JSON.stringify(join(src, 'assignWithDepth.ts'))};
-import {sanitizeDirective} from ${JSON.stringify(join(src, 'utils/sanitizeDirective.ts'))};
+import assignWithDepth from ${JSON.stringify(join(src, 'assignWithDepth.ts'))};
+import {sanitizeDirective as pinnedSanitize} from ${JSON.stringify(join(src, 'utils/sanitizeDirective.ts'))};
 import {merge} from ${JSON.stringify(join(reference, 'node_modules/es-toolkit/dist/compat/object/merge.mjs'))};
-// Native display keeps authored strings that the pin neutralizes. Structural
-// removal, null handling and type assignment still belong to the actual policy.
+const log={debug(){},error(){}};
+let activeDiagramType='',preserveStrings=false;
+const detectType=()=>activeDiagramType;
 function restoreText(raw,clean){
  if(!raw||!clean||typeof raw!=='object'||typeof clean!=='object')return;
  for(const key of Object.keys(clean)){
@@ -55,14 +71,25 @@ function restoreText(raw,clean){
   else restoreText(raw[key],clean[key]);
  }
 }
+function sanitizeDirective(value){const raw=preserveStrings?structuredClone(value):undefined;pinnedSanitize(value);if(raw)restoreText(raw,value);}
+${directiveRegex}
+${directivePrograms}
+const utils={detectInit,detectDirective};
+${directivePhase}
+export function initDirective(payload){
+ const json=(Object.is(payload,-0)?'-0':JSON.stringify(payload)).replace(/[&<>#%'\\u2028\\u2029]/g,character=>'\\\\u'+character.charCodeAt(0).toString(16).padStart(4,'0'));
+ const code='%%{init: '+json+'}%%';
+ directiveRegex.lastIndex=0;const match=directiveRegex.exec(code);directiveRegex.lastIndex=0;
+ const parsed=detectDirective(code,'init');
+ if(!match||match[0]!==code||!Object.is(typeof parsed.args,typeof payload))throw new Error('init argument has no complete pinned scalar token');
+ return code;
+}
 export function mergeConfig(frontmatter,directives,diagramType,wrap=false,preserveText=false){
- let result={};
- if(directives.length>1){const args=structuredClone(directives);sanitizeDirective(args);if(preserveText)restoreText(directives,args);result=assign(result,args);}
- else if(directives.length)result=structuredClone(directives[0]);
- if(result&&result.config!==undefined){result[diagramType==='flowchart-v2'?'flowchart':diagramType]=result.config;delete result.config;}
- result=result??{};
- if(wrap)result.wrap=true;
- return merge({},structuredClone(frontmatter),result??{});
+ activeDiagramType=diagramType;preserveStrings=preserveText;
+ try{
+  const code=directives.map(initDirective).join('\\n')+(wrap?'\\n%%{wrap}%%':'');
+  return merge({},structuredClone(frontmatter),processDirectives(code).directive);
+ }finally{preserveStrings=false;}
 }
 `
 const runtimeEntry = mergeEntry + `

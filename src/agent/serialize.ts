@@ -1,3 +1,4 @@
+import { initDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { restoreBodyComments } from './body-comments.ts'
 // ============================================================================
@@ -166,10 +167,7 @@ export function renderMeta(meta: ValidDiagramMeta, family?: string): string {
   }
   for (const layer of canonical.directives) {
     if (layer.kind === 'wrap') { parts.push('%%{wrap}%%\n'); continue }
-    // The directive scanner runs before JSON decoding; reserve its delimiter
-    // and the apostrophe normalization performed by detectDirective.
-    const json = JSON.stringify(layer.payload).replace(/%/g, '\\u0025').replace(/'/g, '\\u0027')
-    parts.push(`%%{init: ${json}}%%\n`)
+    parts.push(initDirective(layer.payload) + '\n')
   }
   return parts.join('')
 }

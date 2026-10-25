@@ -512,6 +512,32 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     } finally { pin.close() }
   })
 
+  test('retained init arguments use complete pinned tokens and the actual falsy-init phase', async () => {
+    const pin = startUpstreamMermaid()
+    try {
+      for (const metadata of ['', '---\ndisplayMode: compact\n---\n']) {
+        for (const argument of ['""', '-0', '-0.0', '-0e0']) {
+          const source = metadata + `%%{init:${argument}}%%\n%%{wrap}%%\nflowchart LR\nA --> B`
+          const parsed = parseMermaid(source)
+          if (!parsed.ok) throw new Error('Expected repairable config')
+          const written = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+          expect(await pin.project(source, d => !!d.db.getData().config.wrap)).toEqual({ ok: true, value: true })
+          expect(await pin.project(written, d => !!d.db.getData().config.wrap)).toEqual({ ok: true, value: true })
+        }
+      }
+      for (const suffix of ['', '\n%%{init:{}}%%']) {
+        const source = '---\ndisplayMode: compact\n---\n%%{init:1.2}%%' + suffix + '\nflowchart LR\nA --> B'
+        expect(await pin.publicAccepts(source)).toBe(false)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected source available for repair')
+        expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('complete pinned scalar token')
+        const control = parseMermaid(source.replace('init:1.2', 'init:-1.2'))
+        if (!control.ok) throw new Error('Expected negative scalar control')
+        expect(await pin.publicAccepts(serializeMermaid(control.value, { wrapper: 'canonical' }))).toBe(true)
+      }
+    } finally { pin.close() }
+  })
+
   test('config evaluation has an explicit work budget and a failed evaluation cannot poison the next write', () => {
     const oversized = parseMermaid(`%%{init:${JSON.stringify({ themeCSS: 'a'.repeat(100001) })}}%%\nflowchart LR\nA --> B`)
     if (!oversized.ok) throw new Error('Expected source available for repair')
