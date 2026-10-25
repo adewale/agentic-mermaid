@@ -24,9 +24,11 @@ interface PrivateSequenceOperation {
   readonly request: ResolvedRenderRequest
   readonly layout: FamilyLayoutResult
   readonly producer: DrawingProducer
+  context?: object
 }
-const sequenceOperations = new WeakMap<ResolvedRenderRequest, PrivateSequenceOperation>()
-const sequenceContexts = new WeakMap<object, PrivateSequenceOperation>()
+// The graphical pipeline is synchronous. Nested renders replace and finally
+// restore this exact invocation record, never an unqualified enabled flag.
+let sequenceOperation: PrivateSequenceOperation | undefined
 
 function originalSequenceProducer(request: ResolvedRenderRequest): DrawingProducer | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
@@ -42,9 +44,8 @@ function originalSequenceProducer(request: ResolvedRenderRequest): DrawingProduc
 /** Only the closed positioning/consumption entry below can establish this
  * association. Public positioned values and factories have no grant surface. */
 export function isPrivateSequenceNativeOperation(context: object, producer: object): boolean {
-  const operation = sequenceContexts.get(context)
-  return !!operation && operation.producer === producer
-    && sequenceOperations.get(operation.request) === operation
+  const operation = sequenceOperation
+  return !!operation && operation.context === context && operation.producer === producer
     && !sceneAssertionsEnabled(operation.request)
     && originalSequenceProducer(operation.request) === producer
 }
@@ -63,13 +64,12 @@ export function prepareNativePositionedForRender(request: ResolvedRenderRequest)
   const producer = originalSequenceProducer(request)
   if (!producer) return { layout }
   const operation: PrivateSequenceOperation = { request, layout, producer }
-  const previous = sequenceOperations.get(request)
-  sequenceOperations.set(request, operation)
+  const previous = sequenceOperation
+  sequenceOperation = operation
   try {
     return { layout, native: { drawing: measureRenderStage('drawing', () => retainedNativeDrawing(request, layout)) } }
   } finally {
-    if (previous) sequenceOperations.set(request, previous)
-    else sequenceOperations.delete(request)
+    sequenceOperation = previous
   }
 }
 
@@ -124,14 +124,19 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const context = { positioned: positionedForNativeProducer(layout, producer!), colors, resolved: resolvedFamilyRenderContextOf(request) }
-  const operation = sequenceOperations.get(request)
-  if (operation?.layout === layout && operation.producer === producer) sequenceContexts.set(context, operation)
+  const active = sequenceOperation
+  const operation = active?.request === request && active.layout === layout && active.producer === producer ? active : undefined
+  const previousContext = operation?.context
+  if (operation) operation.context = context
   let drawing: NativeDrawing
   try {
     drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
       context, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   } finally {
-    sequenceContexts.delete(context)
+    if (operation) {
+      if (previousContext === undefined) delete operation.context
+      else operation.context = previousContext
+    }
   }
   requests.set(request, { drawing })
   return drawing

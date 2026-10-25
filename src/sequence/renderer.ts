@@ -1,4 +1,4 @@
-import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
+import { sceneLowering, sequenceLineSinkOf, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedBlockHeader, PositionedNote, PositionedBoxGroup, LifelineCross, SequenceBounds } from './types.ts'
 import { boxColorToHex } from './colors.ts'
 import { contrastTextColor, toneOnFill } from '../color-resolver.ts'
@@ -17,7 +17,7 @@ import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { messageLabelOcclusion, type VisibleSpan } from './label-occlusion.ts'
 import { semanticChildId } from '../scene/identity.ts'
-import { sequenceLineSinkOf } from '../scene/sequence-line-sink.ts'
+import { createSequenceLineCompiler } from '../scene/sequence-line-command.ts'
 
 
 // ============================================================================
@@ -1044,4 +1044,4 @@ function renderNote<T>(marks: DrawingFactory<T>, note: PositionedNote, style: Re
   })
 }
 
-export const lowerSequenceScene = sceneLowering<PositionedSequenceDiagram>(lowerSequenceDrawing)
+export const lowerSequenceScene = sceneLowering<PositionedSequenceDiagram>(lowerSequenceDrawing, createSequenceLineCompiler)
