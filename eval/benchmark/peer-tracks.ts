@@ -53,6 +53,13 @@ export function parsePeerTracks(value: string | undefined): PeerPhase[] {
   return selected as PeerPhase[]
 }
 
+export function parsePeerConsumers(value: string | undefined): PeerConsumer[] {
+  if (value === undefined || value === 'all') return [...PEER_CONSUMERS]
+  const selected = [...new Set(value.split(',').map(item => item.trim()))]
+  if (!selected.length || selected.some(item => !(PEER_CONSUMERS as readonly string[]).includes(item))) throw new Error(`--track-consumers must be all or a list of ${PEER_CONSUMERS.join(',')}`)
+  return selected as PeerConsumer[]
+}
+
 /** Real edits of visible text; relationship edits preserve graph identity.
  * New-source additionally renames the seven graph fixtures' authored IDs.
  * Other families change a real label, never a comment/cache-busting suffix. */
