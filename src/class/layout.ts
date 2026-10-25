@@ -17,8 +17,8 @@ export { memberToString } from './text.ts'
  *   2. Attributes section
  *   3. Methods section
  *
- * The native producer places independent namespace scopes from measured frames.
- * Cross-namespace leaf routes retain an explicit capability decline.
+ * The native producer places namespace scopes from measured frames and retains
+ * authored leaf endpoints when routing across their boundaries.
  * ELK namespaces lay out as compound nodes (the flowchart-subgraph pattern):
  * member classes are children of their namespace's compound, the compound
  * reserves a header band for the label via top padding, and relationships are
@@ -259,15 +259,25 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, class
     ;(host ? elkByPath.get(host)! : elkGraph).children!.push(leaf)
   }
 
+  // ELK treats a compound with no children as a leaf and ignores its padding.
+  // Supply the measured frame instead of losing an authored empty namespace.
+  for (const info of namespaces) {
+    const compound = elkByPath.get(info.path)!
+    if (compound.children!.length) continue
+    const block = classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group')
+    compound.width = block.width + 2 * Math.max(style.groupLabelPaddingX, style.groupPaddingX + 8)
+    compound.height = namespaceHeaderHeight(style, titles.get(info.path) ?? block.text) + 2 * style.groupPaddingY + 8
+  }
+
   // Host each relationship on the lowest common ancestor compound so its
   // section coordinates come back in that compound's frame (extraction adds
   // the compound's absolute offset — the flowchart INCLUDE_CHILDREN pattern).
+  const parentByPath = new Map(namespaces.map(info => [info.path, info.parentPath]))
   const ancestorsOf = (classId: string): string[] => {
-    const path = namespaceOfClass.get(classId)
-    if (!path) return []
-    if (!hierarchicalNamespaces) return [path]
-    const segments = path.split('.')
-    return segments.map((_, i) => segments.slice(0, i + 1).join('.'))
+    const chain: string[] = []
+    for (let path = namespaceOfClass.get(classId); path !== undefined; path = parentByPath.get(path)) chain.push(path)
+    // Quoted namespace segments can contain dots without declaring ancestors.
+    return chain.reverse()
   }
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
@@ -607,7 +617,7 @@ function placeClassCardinalityLabels(relationships: PositionedClassRelationship[
 export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions = {}, styleFace?: Readonly<InternalStyleFace>): PositionedClassDiagram {
   assertClassDiagramWork(diagram)
   const style = resolveRenderStyle(options, CLASS_STYLE_DEFAULTS, styleFace)
-  if (diagram.classes.length === 0 && (!diagram.namespaces.length || options.graphLayout?.backend !== 'agentic')) {
+  if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
     return runMeasuredGraphBackend(options, empty, empty)
   }

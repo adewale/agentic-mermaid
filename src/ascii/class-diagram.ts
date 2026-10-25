@@ -51,7 +51,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   const diagram = parseClassDiagram(lines(text), authoredText === undefined ? undefined : lines(authoredText))
   diagram.title ??= config.title
   checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
-  if (!diagram.classes.length && !diagram.namespaces.length) {
+  if (!diagram.classes.length && !diagram.namespaces.length && !diagram.notes.length) {
     const lines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
     const empty = new TerminalDocument(Math.max(0, ...lines.map(visualWidth)), lines.length)
     empty.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => empty.text(0, row, line)))
@@ -233,6 +233,12 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       }
     }
     settle()
+    // Empty nested frames can extend above or left of the first allocated
+    // child. Translate the complete layout before terminal coordinates/routing.
+    const boxes = [...placed.values(), ...namespaces]
+    const dx = Math.max(0, -Math.min(0, ...boxes.map(box => box.x)))
+    const dy = Math.max(0, -Math.min(0, ...boxes.map(box => box.y)))
+    if (dx || dy) for (const box of boxes) { box.x += dx; box.y += dy }
   }
   let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + 8
   const noteBoxes = notePlans.map(note => {
