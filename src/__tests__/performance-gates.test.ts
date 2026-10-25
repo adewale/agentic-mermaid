@@ -193,9 +193,9 @@ describe('calibrated semantic performance decisions', () => {
     }
   })
 
-  test('an observed scope cannot qualify a diagnostic replay that fails after the support signal', () => {
+  test.each(['first-use', 'exact-repeat'])('%s observed scope cannot qualify a diagnostic replay that fails after the support signal', phase => {
     const { candidate, controls } = setup()
-    const row = candidate.tracks.observations.find(o => o.peer === 'agentic' && o.phase === 'exact-repeat')!
+    const row = candidate.tracks.observations.find(o => o.peer === 'agentic' && o.phase === phase)!
     row.diagnostics = { status: 'observed', complete: false, counts: { 'scope:graphical': 1 } }
     const result = performanceScorecard(candidate, controls)
     expect(result.ok).toBe(false)
