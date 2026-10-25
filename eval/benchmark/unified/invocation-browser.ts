@@ -11,7 +11,7 @@ import { assertInvocationReceipt } from './invocation-receipt.ts'
 
 export async function runInvocationBrowser(options: InvocationOptions & StartupInvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
   const root = options.packageRoot ?? options.root,
-    site = join(options.root, 'website/public'),
+    site = options.site ?? join(options.root, 'website/public'),
     out = join(options.out, 'browser')
   mkdirSync(out, { recursive: true })
   const rows: BenchmarkObservation[] = [],

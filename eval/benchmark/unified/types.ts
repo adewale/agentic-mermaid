@@ -4,6 +4,7 @@ export interface UnifiedRunOptions {
   root: string
   harnessRoot?: string
   packageRoot?: string
+  site?: string
   mermaidDir?: string
   referenceDir?: string
   benchmarkRecordStore?: string
