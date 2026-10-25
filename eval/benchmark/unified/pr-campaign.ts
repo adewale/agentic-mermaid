@@ -12,8 +12,8 @@ import { normalizeMermaidSource } from '../../../src/mermaid-source.ts'
 import { MICRO_WORKLOADS } from '../micro-bench-cases.ts'
 import { agentEditCase } from '../release-bench-fidelity.ts'
 import { childCommand, entryImport } from './invocation.ts'
+import { compactNativeArtifact, type NativeStorageProof, releaseNativeArtifact, restoreNativeArtifact } from './native-storage.ts'
 import { withReferenceLabels } from './qualification.ts'
-import { compactNativeArtifact, restoreNativeArtifact, releaseNativeArtifact, type NativeStorageProof } from './native-storage.ts'
 import type { UnifiedWorkload } from './types.ts'
 
 export const CORE_CASE_IDS = ['flow5', 'tree50', 'seq20', 'class80', 'er40', 'state80'] as const
@@ -31,6 +31,10 @@ interface Options {
   prs?: number[]
   prepareOnly: boolean
   compactNative: boolean
+  apiOnly?: boolean
+  coreMetrics?: string[]
+  extraCoreCases?: string[]
+  snapshotFile?: string
   dependencyPolicy: 'strict' | 'main-overrides'
 }
 interface Target {
@@ -59,10 +63,16 @@ interface Target {
   emittedRuntimeIdentity?: { path: string; sha256: string }[]
   buildError?: string
   nativeStorage?: NativeStorageProof
+  selectedPreparation?: { site: 'selected' | 'not-selected'; native: 'selected' | 'not-selected' }
 }
 interface Campaign {
   measurementDriver?: { capturedAt: string; head: string; dirty: boolean; status: string[]; xdgCacheHome?: string | null }
-  measurementConfig?: { core: { profile: 'smoke' | 'full'; rounds: number }; family: { profile: 'smoke' | 'full'; rounds: number }; invocation: { profile: 'smoke' | 'full'; rounds: number }; policy: string }
+  measurementConfig?: {
+    core: { profile: 'smoke' | 'full'; rounds: number; metrics?: string[]; extraCases?: string[]; receiptValidation?: string }
+    family: { profile: 'smoke' | 'full'; rounds: number; requestedRounds?: number }
+    invocation: { profile: 'smoke' | 'full'; rounds: number; status?: string }
+    policy: string
+  }
   installationComplete?: boolean
   preparedAt?: string
   schemaVersion: number
@@ -73,11 +83,16 @@ interface Campaign {
   rounds: number
   profile: 'smoke' | 'full'
   dependencyPolicy: Options['dependencyPolicy']
+  apiOnly?: boolean
+  coreMetrics?: string[]
+  extraCoreCases?: string[]
+  snapshot?: { file: string; checkedAt: string }
   openPRs: any[]
   targets: Target[]
   policy: string
 }
 interface CoreResult {
+  extraCases?: string[]
   rows: Array<{ id: string; family: string; metric: string; status: string; samplesMs?: number[]; bytes?: number; error?: string }>
   runtime: string
   memory: unknown
@@ -86,17 +101,20 @@ const read = (path: string) => JSON.parse(readFileSync(path, 'utf8'))
 const git = (root: string, args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const stamp = () => new Date().toISOString()
-function parse(argv: string[]): Options {
+export function parsePrCampaignOptions(argv: string[]): Options {
   const values = new Map<string, string>()
-  const flags = new Set(['prepare-only', 'run', 'compact-native'])
-  const allowed = new Set(['root', 'repo', 'out', 'rounds', 'profile', 'invocation-profile', 'invocation-rounds', 'prs', 'dependency-policy'])
-  let prepareOnly = false, compactNative = false
+  const flags = new Set(['prepare-only', 'run', 'compact-native', 'api-only'])
+  const allowed = new Set(['root', 'repo', 'out', 'rounds', 'profile', 'invocation-profile', 'invocation-rounds', 'prs', 'dependency-policy', 'core-metrics', 'extra-core-cases', 'snapshot-file'])
+  let prepareOnly = false,
+    compactNative = false,
+    apiOnly = false
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
     if (!argv[i]!.startsWith('--')) throw Error(`Invalid argument ${argv[i]}`)
     if (flags.has(key)) {
       if (key === 'prepare-only') prepareOnly = true
       if (key === 'compact-native') compactNative = true
+      if (key === 'api-only') apiOnly = true
       continue
     }
     const value = argv[++i]
@@ -111,7 +129,15 @@ function parse(argv: string[]): Options {
     prs = values.get('prs')?.split(',').map(Number)
   if (!Number.isSafeInteger(rounds) || rounds < 1 || !['smoke', 'full'].includes(profile) || !['smoke', 'full'].includes(invocationProfile) || !Number.isSafeInteger(invocationRounds) || invocationRounds < 1 || !['strict', 'main-overrides'].includes(dependencyPolicy) || prs?.some(n => !Number.isSafeInteger(n) || n < 1))
     throw Error('Invalid rounds/profile/dependency-policy/PR selection')
+  const coreMetrics = values.get('core-metrics')?.split(',')
+  if (coreMetrics && (!coreMetrics.length || new Set(coreMetrics).size !== coreMetrics.length || coreMetrics.some(metric => ![...CORE_DEFAULT_METRICS, ...CORE_FULL_METRICS].includes(metric as any)))) throw Error('Invalid --core-metrics selection')
+  const extraCoreCases = values.get('extra-core-cases')?.split(',')
+  if (extraCoreCases && (new Set(extraCoreCases).size !== extraCoreCases.length || extraCoreCases.some(id => !extraCoreSource(id)))) throw Error('Invalid --extra-core-cases selection')
   return {
+    apiOnly,
+    coreMetrics,
+    extraCoreCases,
+    snapshotFile: values.get('snapshot-file') ? resolve(values.get('snapshot-file')!) : undefined,
     root: resolve(values.get('root') ?? DRIVER),
     repo: values.get('repo'),
     out: resolve(values.get('out') ?? 'bench-report/active-prs'),
@@ -130,6 +156,25 @@ async function command(command: string, args: string[], cwd: string, log: string
   writeFileSync(log, result.stdout.toString() + result.stderr)
   if (result.code !== 0) throw Error(`${command} ${args.join(' ')} exited ${result.code}; see ${log}`)
   return result
+}
+export function selectedCoreMetrics(options: Pick<Options, 'coreMetrics' | 'profile'>): string[] {
+  return options.coreMetrics ?? [...CORE_DEFAULT_METRICS, ...(options.profile === 'full' ? CORE_FULL_METRICS : [])]
+}
+function extraCoreSource(id: string): string | undefined {
+  if (id === 'gitGraph20') return ['gitGraph', ...Array.from({ length: 20 }, (_, i) => `  commit id: "benchmark-${i}"${i % 5 === 0 ? ` tag: "v${i / 5}"` : ''}`)].join('\n')
+  return CORE_CASE_IDS.includes(id as any) ? undefined : (MICRO_WORKLOADS as Record<string, string>)[id]
+}
+export function frozenPrSnapshot(file: string, repo = 'adewale/agentic-mermaid') {
+  const snapshot = read(file)
+  if (
+    !/^[a-f0-9]{40}$/.test(snapshot.main) ||
+    !snapshot.checkedAt ||
+    !Array.isArray(snapshot.openPRs) ||
+    new Set(snapshot.openPRs.map((pr: any) => pr.number)).size !== snapshot.openPRs.length ||
+    snapshot.openPRs.some((pr: any) => !Number.isSafeInteger(pr.number) || pr.number < 1 || !/^[a-f0-9]{40}$/.test(pr.headRefOid))
+  )
+    throw Error('Invalid frozen PR snapshot')
+  return { repo, main: snapshot.main, prs: snapshot.openPRs, checkedAt: snapshot.checkedAt }
 }
 function metadata(root: string, repo?: string) {
   const args = repo ? ['--repo', repo] : []
@@ -206,8 +251,10 @@ async function build(options: Options, target: Target, mainRoot: string) {
   const out = join(options.out, 'builds', target.id)
   mkdirSync(out, { recursive: true })
   try {
+    delete target.buildError
     await targetDependencies(options, target, mainRoot)
-    for (const script of ['build', 'website']) {
+    target.selectedPreparation = { site: options.apiOnly ? 'not-selected' : 'selected', native: options.apiOnly ? 'not-selected' : 'selected' }
+    for (const script of options.apiOnly ? ['build'] : ['build', 'website']) {
       const scripts = read(join(target.root, 'package.json')).scripts ?? {}
       if (!scripts[script]) {
         writeFileSync(join(out, `${script.replaceAll(':', '-')}.log`), 'Script unavailable on this historical target\n')
@@ -238,7 +285,7 @@ async function build(options: Options, target: Target, mainRoot: string) {
     if (existsSync(browserBundle)) target.browserBundleGzipBytes = gzipSync(readFileSync(browserBundle), { level: 9 }).length
     target.buildStatus = 'passed'
     if (existsSync(nativeSaved)) renameSync(nativeSaved, native)
-    else if (read(join(target.root, 'package.json')).scripts?.['build:binary']) {
+    else if (!options.apiOnly && read(join(target.root, 'package.json')).scripts?.['build:binary']) {
       try {
         await command(process.env.BUN_BIN ?? (process.versions.bun ? process.execPath : 'bun'), ['run', 'build:binary'], target.root, join(out, 'build-binary.log'))
       } catch (error) {
@@ -256,10 +303,11 @@ export async function preparePrCampaign(options: Options): Promise<Campaign> {
   let campaign: Campaign
   if (existsSync(file)) {
     campaign = read(file) as Campaign
-    if (campaign.rounds !== options.rounds || campaign.profile !== options.profile || campaign.dependencyPolicy !== options.dependencyPolicy) throw Error('Existing immutable campaign profile differs; choose another --out or reuse its original options')
+    if (campaign.rounds !== options.rounds || campaign.profile !== options.profile || campaign.dependencyPolicy !== options.dependencyPolicy || !!campaign.apiOnly !== !!options.apiOnly || !equal(campaign.coreMetrics, options.coreMetrics) || !equal(campaign.extraCoreCases, options.extraCoreCases))
+      throw Error('Existing immutable campaign profile differs; choose another --out or reuse its original options')
     if (campaign.preparedAt && campaign.targets.every(target => target.buildStatus !== 'passed' || (!!target.packageRoot && existsSync(join(target.packageRoot, 'dist/index.js'))))) return campaign
   } else {
-    const frozen = metadata(options.root, options.repo),
+    const frozen = options.snapshotFile ? frozenPrSnapshot(options.snapshotFile, options.repo) : metadata(options.root, options.repo),
       prs = frozen.prs.filter((pr: any) => !options.prs || options.prs.includes(pr.number))
     if (options.prs?.some(n => !prs.some((pr: any) => pr.number === n))) throw Error('A requested PR is not currently open')
     const prefix = `refs/benchmark/unified/${Date.now()}`
@@ -270,6 +318,10 @@ export async function preparePrCampaign(options: Options): Promise<Campaign> {
     const main: Target = { id: 'main', title: 'Frozen main', head: frozen.main, revision: frozen.main, main: frozen.main, root: mainRoot, integration: 'main', conflicts: [], sourceObjects: [], sourceContract: {} }
     campaign = {
       schemaVersion: 1,
+      apiOnly: !!options.apiOnly,
+      coreMetrics: options.coreMetrics,
+      extraCoreCases: options.extraCoreCases,
+      snapshot: options.snapshotFile ? { file: options.snapshotFile, checkedAt: (frozen as any).checkedAt } : undefined,
       frozenAt: stamp(),
       repo: frozen.repo,
       main: frozen.main,
@@ -280,7 +332,8 @@ export async function preparePrCampaign(options: Options): Promise<Campaign> {
       openPRs: prs,
       targets: [main],
       policy:
-        'Current open heads and main frozen before preparation. Canonical per-target build/site and npm packs; optional native binary built separately after packing. Runtime dependencies use one frozen-main installation. Timing jobs execute sequentially with paired same-main controls. Source identities use Git object IDs; only compiled/shipped archive bytes are hashed. Source conflicts are measured as heads plus own bases, excluded from current-main integration rank. No merge-readiness claim.',
+        (options.apiOnly ? 'Explicit API-only profile: canonical library build and npm pack; site/native builds and broad invocation are not selected. ' : 'Canonical per-target build/site and npm packs; optional native binary built separately after packing. ') +
+        'Current open heads and main frozen before preparation. Runtime dependencies use one frozen-main installation. Timing jobs execute sequentially with paired same-main controls. Source identities use Git object IDs; only compiled/shipped archive bytes are hashed. Source conflicts are measured as heads plus own bases, excluded from current-main integration rank. No merge-readiness claim.',
     }
     writeFileSync(file, JSON.stringify(campaign, null, 2))
   }
@@ -359,20 +412,20 @@ export async function preparePrCampaign(options: Options): Promise<Campaign> {
   return campaign
 }
 
-const CORE_WORKER = `import fs from 'node:fs';import{pathToFileURL}from'node:url';
+export const PR_CORE_WORKER = `import fs from 'node:fs';import{pathToFileURL}from'node:url';
 const job=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-const rows=[],encode=new TextEncoder();
+const rows=[],encode=new TextEncoder(),selected=new Set(job.metrics);
 const coldStart=performance.now(),api=await import(pathToFileURL(job.index)),importMs=performance.now()-coldStart;
 const firstStart=performance.now(),firstSvg=api.renderMermaidSVG(job.workloads[0].source),firstBytes=encode.encode(firstSvg),firstMs=performance.now()-firstStart,processStartupToFirstArtifactMs=performance.now();globalThis.__coldSink=firstBytes;
-const{qualifyOutput}=await import(pathToFileURL(job.qualifier));const{renderAgentEdit,agentEditCase}=await import(pathToFileURL(job.workflow));const{assertInvocationReceipt}=await import(pathToFileURL(job.receiptValidator));
-const coldQualification=qualifyOutput(job.workloads[0],firstSvg,'svg');for(const[metric,ms]of[['cold',importMs+firstMs],['import',importMs],['firstSvg',firstMs]])rows.push({id:'cold:first-svg',family:job.workloads[0].family,metric,status:coldQualification.ok?'passed':'failed',samplesMs:[ms],bytes:firstBytes.length,importMs,firstMs,processStartupToFirstArtifactMs,phase:'fresh-root-import-first-consumed-svg',error:coldQualification.findings.join('; ')});
-let agent={};try{agent=await import(pathToFileURL(job.agent))}catch{};
-const definitions=[['svg','svg',api.renderMermaidSVG],['svgReceipt','svg',api.renderMermaidSVGWithReceipt],['ascii','ascii',s=>api.renderMermaidASCII(s,{useAscii:true,colorMode:'none'})],['asciiReceipt','ascii',s=>api.renderMermaidASCIIWithReceipt(s,{useAscii:true,colorMode:'none'})],['unicode','unicode',s=>api.renderMermaidASCII(s,{useAscii:false,colorMode:'none'})],['unicodeReceipt','unicode',s=>api.renderMermaidASCIIWithReceipt(s,{useAscii:false,colorMode:'none'})],...(job.full?[['png','png',agent.renderMermaidPNG],['pngReceipt','png',agent.renderMermaidPNGWithReceipt],['layoutReceipt','layout',agent.layoutMermaidWithReceipt]]:[])];
-const consume=(value,receiptRequired=false,format)=>{if(receiptRequired)assertInvocationReceipt(value?.receipt,format);const artifact=value?.svg??value?.text??value?.png??value?.layout??value;const bytes=artifact instanceof Uint8Array?artifact:encode.encode(typeof artifact==='string'?artifact:JSON.stringify(artifact));const receipt=value?.receipt?encode.encode(JSON.stringify(value.receipt)):undefined;globalThis.__coreSink=[bytes,receipt];return{artifact,bytes:bytes.length+(receipt?.length??0)}};
-async function measure(w,metric,format,fn){const row={id:w.id,family:w.family,metric,status:'passed'};try{if(typeof fn!=='function'){row.status='unsupported';row.error='Public API unavailable';rows.push(row);return}let value=consume(await fn(w.source),metric.endsWith('Receipt'),format);let check=qualifyOutput(w,value.artifact,format);if(!check.ok)throw Error(check.findings.join('; '));let n=0,start=performance.now();do{value=consume(await fn(w.source),metric.endsWith('Receipt'),format);n++}while(n<3||performance.now()-start<75);const per=(performance.now()-start)/n,iterations=Math.max(1,Math.min(256,Math.ceil(15/Math.max(.001,per))));row.samplesMs=[];for(let sample=0;sample<5;sample++){start=performance.now();for(let i=0;i<iterations;i++)value=consume(await fn(w.source),metric.endsWith('Receipt'),format);row.samplesMs.push((performance.now()-start)/iterations)}check=qualifyOutput(w,value.artifact,format);if(!check.ok)throw Error(check.findings.join('; '));row.bytes=value.bytes;row.iterations=iterations;row.qualification=check.scope}catch(error){row.status='failed';row.error=String(error)}rows.push(row)}
-for(const[metric,format,fn]of definitions)for(const w of job.workloads)await measure(w,metric,format,fn);
-await measure({...agentEditCase,expectedLabels:agentEditCase.expectedSvgLabels,features:['verified-edit-workflow'],provenance:'existing release benchmark agent edit case'},'agent','svg',source=>renderAgentEdit(agent,source));
-globalThis.gc?.();fs.writeFileSync(job.out,JSON.stringify({runtime:process.version,rows,memory:{...process.memoryUsage(),peakRssBytes:process.resourceUsage().maxRSS*1024},policy:'Fresh Node worker; root import plus first UTF8-consumed SVG recorded before native agent/PNG and qualification modules load; excludes process startup and cold-filesystem guarantees. Warm metrics: at least3 calls and75ms warm-up;5 calibrated samplemeans targeting15ms. Receipt cases include JSON/UTF8 consumption; validation outside clocks. Six fixed inputs across five families; all six are used for each terminal portfolio (community terminal uses a different three-input cohort). Plain and receipt clocks both consume output UTF8; receipt clocks additionally serialize receipts. This differs from community API-return clocks and raw medians must not be mixed. Paired same-source controls bracket every candidate.'},null,2));`
+const{qualifyOutput}=await import(pathToFileURL(job.qualifier));let renderAgentEdit,agentEditCase;if(selected.has('agent'))({renderAgentEdit,agentEditCase}=await import(pathToFileURL(job.workflow)));const{assertInvocationReceipt}=await import(pathToFileURL(job.receiptValidator));
+const coldQualification=qualifyOutput(job.workloads[0],firstSvg,'svg');for(const[metric,ms]of[['cold',importMs+firstMs],['import',importMs],['firstSvg',firstMs]])if(selected.has(metric))rows.push({id:'cold:first-svg',family:job.workloads[0].family,metric,status:coldQualification.ok?'passed':'failed',samplesMs:[ms],bytes:firstBytes.length,importMs,firstMs,processStartupToFirstArtifactMs,phase:'fresh-root-import-first-consumed-svg',error:coldQualification.findings.join('; ')});
+let agent={};if(job.metrics.some(m=>['agent','png','pngReceipt','layoutReceipt'].includes(m)))try{agent=await import(pathToFileURL(job.agent))}catch{};
+const definitions=[['svg','svg',api.renderMermaidSVG],['svgReceipt','svg',api.renderMermaidSVGWithReceipt],['ascii','ascii',s=>api.renderMermaidASCII(s,{useAscii:true,colorMode:'none'})],['asciiReceipt','ascii',s=>api.renderMermaidASCIIWithReceipt(s,{useAscii:true,colorMode:'none'})],['unicode','unicode',s=>api.renderMermaidASCII(s,{useAscii:false,colorMode:'none'})],['unicodeReceipt','unicode',s=>api.renderMermaidASCIIWithReceipt(s,{useAscii:false,colorMode:'none'})],...(job.metrics.some(m=>['png','pngReceipt','layoutReceipt'].includes(m))?[['png','png',agent.renderMermaidPNG],['pngReceipt','png',agent.renderMermaidPNGWithReceipt],['layoutReceipt','layout',agent.layoutMermaidWithReceipt]]:[])];
+const consume=(value,receiptRequired=false,format)=>{if(receiptRequired&&job.receiptValidation!=='pre-post-outside-clocks')assertInvocationReceipt(value?.receipt,format);const artifact=value?.svg??value?.text??value?.png??value?.layout??value;const bytes=artifact instanceof Uint8Array?artifact:encode.encode(typeof artifact==='string'?artifact:JSON.stringify(artifact));const receipt=value?.receipt?encode.encode(JSON.stringify(value.receipt)):undefined;globalThis.__coreSink=[bytes,receipt];return{artifact,receipt:value?.receipt,bytes:bytes.length+(receipt?.length??0)}};
+async function measure(w,metric,format,fn){const row={id:w.id,family:w.family,metric,status:'passed'};try{if(typeof fn!=='function'){row.status='unsupported';row.error='Public API unavailable';rows.push(row);return}let value=consume(await fn(w.source),metric.endsWith('Receipt'),format);if(metric.endsWith('Receipt')&&job.receiptValidation==='pre-post-outside-clocks')assertInvocationReceipt(value.receipt,format);let check=qualifyOutput(w,value.artifact,format);if(!check.ok)throw Error(check.findings.join('; '));let n=0,start=performance.now();do{value=consume(await fn(w.source),metric.endsWith('Receipt'),format);n++}while(n<3||performance.now()-start<75);const per=(performance.now()-start)/n,iterations=Math.max(1,Math.min(256,Math.ceil(15/Math.max(.001,per))));row.samplesMs=[];for(let sample=0;sample<5;sample++){start=performance.now();for(let i=0;i<iterations;i++)value=consume(await fn(w.source),metric.endsWith('Receipt'),format);row.samplesMs.push((performance.now()-start)/iterations)}if(metric.endsWith('Receipt')&&job.receiptValidation==='pre-post-outside-clocks')assertInvocationReceipt(value.receipt,format);check=qualifyOutput(w,value.artifact,format);if(!check.ok)throw Error(check.findings.join('; '));row.bytes=value.bytes;row.iterations=iterations;row.qualification=check.scope}catch(error){row.status='failed';row.error=String(error)}rows.push(row)}
+for(const[metric,format,fn]of definitions)if(selected.has(metric))for(const w of job.workloads)if(!job.extraCases.includes(w.id)||['svg','svgReceipt'].includes(metric))await measure(w,metric,format,fn);
+if(selected.has('agent'))await measure({...agentEditCase,expectedLabels:agentEditCase.expectedSvgLabels,features:['verified-edit-workflow'],provenance:'existing release benchmark agent edit case'},'agent','svg',source=>renderAgentEdit(agent,source));
+globalThis.gc?.();fs.writeFileSync(job.out,JSON.stringify({runtime:process.version,selectedMetrics:job.metrics,receiptValidation:job.receiptValidation??'includes-external-receipt-validation',coreCases:job.coreCases,extraCases:job.extraCases,rows,memory:{...process.memoryUsage(),peakRssBytes:process.resourceUsage().maxRSS*1024},policy:'Fresh Node worker; root import plus first UTF8-consumed SVG recorded before native agent/PNG and qualification modules load; excludes process startup and cold-filesystem guarantees. Warm metrics: at least3 calls and75ms warm-up;5 calibrated samplemeans targeting15ms. Receipt cases include JSON/UTF8 consumption. Receipt validation clock placement is declared separately in receiptValidation; default historical full calls include external receipt validation. Six fixed inputs across five families; all six are used for each terminal portfolio (community terminal uses a different three-input cohort). Plain and receipt clocks both consume output UTF8; receipt clocks additionally serialize receipts. This differs from community API-return clocks and raw medians must not be mixed. Paired same-source controls bracket every candidate.'},null,2));`
 interface CoreJob {
   key: string
   target: string
@@ -389,9 +442,15 @@ const med = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b)
   return sorted.length % 2 ? sorted[(sorted.length - 1) / 2]! : ((sorted[sorted.length / 2 - 1] ?? 0) + (sorted[sorted.length / 2] ?? 0)) / 2
 }
-export function prCorePortfolio(result: CoreResult, metric: string): number | undefined {
-  const rows = result.rows.filter(row => row.metric === metric)
-  const expected: readonly string[] = metric === 'agent' ? [agentEditCase.id] : ['cold', 'import', 'firstSvg'].includes(metric) ? ['cold:first-svg'] : CORE_CASE_IDS
+export function completePrControlRounds(evidence: Array<{ key: string; round: number }>, rounds: number): boolean {
+  return evidence.length > 0 && new Set(evidence.map(row => row.key)).size === evidence.length && evidence.every(row => Number.isSafeInteger(row.round) && row.round >= 1 && row.round <= rounds) && new Set(evidence.map(row => row.round)).size === rounds
+}
+export function prCorePortfolio(result: CoreResult, metric: string, caseIds: readonly string[] = CORE_CASE_IDS): number | undefined {
+  const metricRows = result.rows.filter(row => row.metric === metric)
+  const isPortfolio = !['cold', 'import', 'firstSvg', 'agent'].includes(metric)
+  if (isPortfolio && metricRows.some(row => ![...CORE_CASE_IDS, ...(result.extraCases ?? [])].includes(row.id as any))) return undefined
+  const rows = metricRows.filter(row => !isPortfolio || caseIds.includes(row.id))
+  const expected: readonly string[] = metric === 'agent' ? [agentEditCase.id] : ['cold', 'import', 'firstSvg'].includes(metric) ? ['cold:first-svg'] : caseIds
   if (rows.length !== expected.length || new Set(rows.map(row => row.id)).size !== expected.length || expected.some(id => !rows.some(row => row.id === id)) || rows.some(row => row.status !== 'passed' || !row.samplesMs?.length || row.samplesMs.some(value => !Number.isFinite(value) || value <= 0))) return undefined
   return rows.reduce((sum, row) => sum + med(row.samplesMs!), 0)
 }
@@ -417,6 +476,10 @@ async function coreJob(options: Options, campaign: Campaign, target: Target, ref
         receiptValidator: join(options.root, 'eval/benchmark/unified/invocation-receipt.ts'),
         workloads,
         full: options.profile === 'full',
+        metrics: selectedCoreMetrics(options),
+        receiptValidation: options.apiOnly ? 'pre-post-outside-clocks' : 'includes-external-receipt-validation',
+        coreCases: CORE_CASE_IDS,
+        extraCases: options.extraCoreCases ?? [],
         out,
       }),
     )
@@ -438,23 +501,27 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
       own = jobs.filter(job => job.target === evidenceTarget),
       isControl = evidenceTarget === 'main' || target.integration === 'branch-base'
     const metrics = new Set<string>(own.flatMap(job => (existsSync(job.candidate) ? (read(job.candidate) as CoreResult).rows.map(row => row.metric) : [])))
-    for (const metric of [...CORE_DEFAULT_METRICS, ...(options.profile === 'full' ? CORE_FULL_METRICS : [])]) metrics.add(metric)
+    for (const metric of selectedCoreMetrics(options)) metrics.add(metric)
     if (isControl) for (const job of jobs) if (job.reference === evidenceTarget && existsSync(job.before)) for (const row of (read(job.before) as CoreResult).rows) metrics.add(row.metric)
     for (const cache of options.profile === 'full' ? ['1', '0'] : ['1'])
-      for (const metric of metrics) {
+      for (const selection of [...metrics].flatMap(metric => [{ metric, caseId: undefined as string | undefined }, ...(['svg', 'svgReceipt'].includes(metric) ? (options.extraCoreCases ?? []).map(caseId => ({ metric, caseId })) : [])])) {
+        const { metric, caseId } = selection,
+          portfolio = (result: CoreResult) => prCorePortfolio(result, metric, caseId ? [caseId] : CORE_CASE_IDS)
         const selected = own.filter(job => job.cache === cache),
           samples: number[] = [],
           ratios: number[] = [],
           controls: number[] = [],
+          admittedRounds: Array<{ key: string; round: number }> = [],
           errors: string[] = []
         if (isControl)
           for (const job of jobs.filter(job => job.reference === evidenceTarget && job.cache === cache)) {
-            const before = existsSync(job.before) ? prCorePortfolio(read(job.before), metric) : undefined,
-              after = existsSync(job.after) ? prCorePortfolio(read(job.after), metric) : undefined
+            const before = existsSync(job.before) ? portfolio(read(job.before)) : undefined,
+              after = existsSync(job.after) ? portfolio(read(job.after)) : undefined
             if (before !== undefined && after !== undefined) {
               samples.push((before + after) / 2)
               ratios.push(1)
               controls.push(after / before)
+              admittedRounds.push({ key: job.key, round: job.round })
             }
           }
         else
@@ -463,9 +530,9 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
               errors.push('Worker process failed')
               continue
             }
-            const before = prCorePortfolio(read(job.before), metric),
-              candidate = prCorePortfolio(read(job.candidate), metric),
-              after = prCorePortfolio(read(job.after), metric)
+            const before = portfolio(read(job.before)),
+              candidate = portfolio(read(job.candidate)),
+              after = portfolio(read(job.after))
             if (before === undefined || candidate === undefined || after === undefined) {
               errors.push(...(read(job.candidate) as CoreResult).rows.filter(row => row.metric === metric && row.status !== 'passed').map(row => `${row.id}: ${row.error ?? row.status}`))
               if (!errors.length) errors.push('Reference or candidate portfolio did not qualify')
@@ -474,12 +541,14 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
             samples.push(candidate)
             ratios.push(candidate / Math.sqrt(before * after))
             controls.push(after / before)
+            admittedRounds.push({ key: job.key, round: job.round })
           }
-        const complete = target.buildStatus === 'passed' && samples.length > 0 && (isControl || samples.length === options.rounds),
+        const complete = target.buildStatus === 'passed' && samples.length > 0 && completePrControlRounds(admittedRounds, options.rounds) && (isControl || samples.length === options.rounds),
           band = { low: Math.min(0.97, 1, ...controls, ...controls.map(r => 1 / r)), high: Math.max(1.03, 1, ...controls, ...controls.map(r => 1 / r)) },
           ratio = complete ? med(ratios) : undefined
         records.push({
           target: target.id,
+          caseId,
           sourceEvidence: evidenceTarget,
           integration: target.integration,
           metric,
@@ -503,7 +572,11 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
     targets: campaign.targets,
     measurementDriver: campaign.measurementDriver,
     measurementConfig: campaign.measurementConfig,
-    core: records,
+    core: records.filter(row => !row.caseId),
+    extraCore: records.filter(row => row.caseId),
+    selectedCoreMetrics: selectedCoreMetrics(options),
+    extraCoreCases: options.extraCoreCases ?? [],
+    apiOnly: !!options.apiOnly,
     coverage,
     jobs,
     policy: campaign.policy,
@@ -512,8 +585,10 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
       'Source-equivalent docs/test changes reuse only core-renderer timing evidence; broad family/invocation suites execute every actual candidate, and package footprints remain separate.',
       'Conflicting old heads and own bases are exploratory, never presented as an integration benefit on current main.',
       'Family/transport broad coverage and fixed-core latency have different scopes; they are never multiplied into an invented overall score.',
-      `Resolved measurement coverage: core ${options.profile}/${options.rounds} rounds; family ${options.profile}/${options.rounds} rounds; invocation ${options.invocationProfile}/${options.invocationRounds} rounds. Invocation overrides are intentional independent coverage cost choices, never hidden downsampling.`,
+      ...(options.apiOnly ? ['Explicit API-only selection omits site/native builds and transport invocation; family functionality at the declared campaign profile remains selected. Only declared core metrics execute. Supplemental case records are outside the six-input aggregate.'] : []),
+      `Resolved measurement coverage: core ${options.profile}/${options.rounds} rounds; family ${options.profile}/${options.apiOnly ? 'one functionality pass' : `${options.rounds} requested rounds`}; invocation ${options.apiOnly ? 'not selected (API-only)' : `${options.invocationProfile}/${options.invocationRounds} rounds`}. Invocation overrides are intentional independent coverage cost choices, never hidden downsampling.`,
       'Prepared artifacts may be reused, but every campaign invocation reruns all measurements; old timing and broad-suite results are never admitted through existence-only resume checks.',
+      `Receipt validation protocol: ${options.apiOnly ? 'first/final external validation excluded from measured calls' : 'includes external receipt validation in measured receipt calls (historical full protocol)'}.`,
       'Core plain APIs include output UTF8 consumption. Receipt APIs additionally include receipt JSON. Six terminal inputs differ from community three-input terminal cohort; raw cross-protocol medians cannot be mixed.',
     ],
   }
@@ -524,7 +599,10 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
     protocols: {
       coreCases: [...CORE_CASE_IDS],
       families: 5,
-      agentCases: [agentEditCase.id],
+      agentCases: selectedCoreMetrics(options).includes('agent') ? [agentEditCase.id] : [],
+      selectedMetrics: selectedCoreMetrics(options),
+      receiptValidation: options.apiOnly ? 'pre-post-outside-clocks' : 'includes-external-receipt-validation',
+      supplementalCases: options.extraCoreCases ?? [],
       cache: '1 = explicit repeated-input result reuse;0 = result-cache flag off; other default caches retain artifact policy',
       paired: 'candidate / geometric mean of fresh same-source controls before and after; median over paired rounds',
     },
@@ -542,8 +620,8 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
       packageGzipBytes: target.packageGzipBytes,
       browserBundleGzipBytes: target.browserBundleGzipBytes,
       entryGzipBytes: target.entryGzipBytes,
-      metrics: Object.fromEntries(records.filter(row => row.target === target.id && row.cache === '1').map(row => [row.metric, row])),
-      metricsByCache: Object.fromEntries(['1', '0'].map(cache => [cache, Object.fromEntries(records.filter(row => row.target === target.id && row.cache === cache).map(row => [row.metric, row]))])),
+      metrics: Object.fromEntries(records.filter(row => !row.caseId && row.target === target.id && row.cache === '1').map(row => [row.metric, row])),
+      metricsByCache: Object.fromEntries(['1', '0'].map(cache => [cache, Object.fromEntries(records.filter(row => !row.caseId && row.target === target.id && row.cache === cache).map(row => [row.metric, row]))])),
       coverage: coverage.filter(row => row.target === target.id),
     })),
   }
@@ -552,7 +630,7 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
   const lines = [
     '# Active PR benchmark stack ranks',
     '',
-    `Frozen ${campaign.frozenAt}; main \`${campaign.main}\`. Core/family ${options.profile}, ${options.rounds} rounds; invocation ${options.invocationProfile}, ${options.invocationRounds} rounds.`,
+    `Frozen ${campaign.frozenAt}; main \`${campaign.main}\`. Core ${options.profile}, ${options.rounds} rounds; family ${options.profile}, ${options.apiOnly ? 'one functionality pass' : `${options.rounds} requested rounds`}; invocation ${options.apiOnly ? 'not selected (API-only)' : `${options.invocationProfile}, ${options.invocationRounds} rounds`}.`,
     `Measurement driver \`${campaign.measurementDriver?.head ?? 'unrecorded'}\`; dirty: ${campaign.measurementDriver?.dirty ?? 'unrecorded'}. Preparation driver remains separately recorded.`,
     '',
     campaign.policy,
@@ -562,14 +640,14 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
     '| Candidate | SVG batch | Paired ratio | Interpretation | Package tarball |',
     '|---|---:|---:|---|---:|',
   ]
-  const primary = records.filter(row => row.metric === 'svg' && row.cache === '1' && !['conflicting-head', 'branch-base'].includes(row.integration)).sort((a, b) => (a.pairedRatio ?? Infinity) - (b.pairedRatio ?? Infinity))
+  const primary = records.filter(row => !row.caseId && row.metric === 'svg' && row.cache === '1' && !['conflicting-head', 'branch-base'].includes(row.integration)).sort((a, b) => (a.pairedRatio ?? Infinity) - (b.pairedRatio ?? Infinity))
   for (const row of primary) {
     const target = campaign.targets.find(t => t.id === row.target)!
     lines.push(`| ${row.target}${target.draft ? ' (draft)' : ''} | ${row.medianMs?.toFixed(2) ?? 'unavailable'} ms | ${row.pairedRatio?.toFixed(3) ?? '—'}× | ${row.classification} | ${target.packageGzipBytes ? (target.packageGzipBytes / 1024).toFixed(1) + ' KiB' : 'unavailable'} |`)
   }
   for (const metric of [...new Set(records.map(row => row.metric))].filter(metric => metric !== 'svg')) {
     lines.push('', `## ${metric} · default repeated inputs`, '', '| Candidate | Portfolio ms | Paired ratio | Interpretation |', '|---|---:|---:|---|')
-    for (const row of records.filter(row => row.metric === metric && row.cache === '1' && !['conflicting-head', 'branch-base'].includes(row.integration)).sort((a, b) => (a.pairedRatio ?? Infinity) - (b.pairedRatio ?? Infinity)))
+    for (const row of records.filter(row => !row.caseId && row.metric === metric && row.cache === '1' && !['conflicting-head', 'branch-base'].includes(row.integration)).sort((a, b) => (a.pairedRatio ?? Infinity) - (b.pairedRatio ?? Infinity)))
       lines.push(`| ${row.target} | ${row.medianMs?.toFixed(2) ?? 'unavailable'} | ${row.pairedRatio?.toFixed(3) ?? '—'}× | ${row.classification} |`)
   }
   lines.push('', '## Every frozen target', '', '| Candidate | PR head | Measured source | Integration | Build | Runtime equivalence |', '|---|---|---|---|---|---|')
@@ -582,6 +660,16 @@ function reportCampaign(options: Options, campaign: Campaign, jobs: CoreJob[], c
     '',
     'Their per-metric observations and paired own-base ratios are retained in `scores.json`. No current-main rank is assigned.',
     '',
+    ...(options.extraCoreCases?.length
+      ? [
+          '## Supplemental cases (outside six-core aggregate)',
+          '',
+          '| Candidate | Case | Metric | Cache | ms | Paired ratio |',
+          '|---|---|---|---|---:|---:|',
+          ...records.filter(row => row.caseId).map(row => `| ${row.target} | ${row.caseId} | ${row.metric} | ${row.cache} | ${row.medianMs?.toFixed(3) ?? 'unavailable'} | ${row.pairedRatio?.toFixed(3) ?? '—'} |`),
+          '',
+        ]
+      : []),
     ...report.notes.map(note => '- ' + note),
     '',
     'Full errors, output qualification and declared gaps remain in per-target raw artifacts. No PR is certified merge-ready by these timings.',
@@ -603,7 +691,13 @@ export function revalidatePrCampaign(options: Pick<Options, 'out'>, campaign: Ca
         for (const file of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
           const path = prefix + file.name
           if (file.isDirectory()) visit(join(directory, file.name), path + '/')
-          else if (file.isFile() && /\.(?:[cm]?js|wasm)$/.test(file.name)) target.emittedRuntimeIdentity!.push({ path, sha256: createHash('sha256').update(readFileSync(join(directory, file.name))).digest('hex') })
+          else if (file.isFile() && /\.(?:[cm]?js|wasm)$/.test(file.name))
+            target.emittedRuntimeIdentity!.push({
+              path,
+              sha256: createHash('sha256')
+                .update(readFileSync(join(directory, file.name)))
+                .digest('hex'),
+            })
         }
       }
       if (!existsSync(dist)) throw Error(`Prepared target ${target.id} has no shipped dist directory`)
@@ -626,10 +720,12 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
   const driverStatus = git(options.root, ['status', '--porcelain=v1', '--untracked-files=all']).split('\n').filter(Boolean)
   campaign.measurementDriver = { capturedAt: stamp(), head: git(options.root, ['rev-parse', 'HEAD']), dirty: driverStatus.length > 0, status: driverStatus, xdgCacheHome: process.env.XDG_CACHE_HOME ?? null }
   campaign.measurementConfig = {
-    core: { profile: options.profile, rounds: options.rounds },
-    family: { profile: options.profile, rounds: options.rounds },
-    invocation: { profile: options.invocationProfile, rounds: options.invocationRounds },
-    policy: 'Core/family preserve campaign profile and rounds; only broad invocation uses explicit independent overrides. All admitted family representatives and actual runtimes/transports remain enrolled according to the selected invocation profile.',
+    core: { profile: options.profile, rounds: options.rounds, metrics: selectedCoreMetrics(options), extraCases: options.extraCoreCases ?? [], receiptValidation: options.apiOnly ? 'pre-post-outside-clocks' : 'includes-external-receipt-validation' },
+    family: { profile: options.profile, rounds: options.apiOnly ? 1 : options.rounds, ...(options.apiOnly ? { requestedRounds: options.rounds } : {}) },
+    invocation: { profile: options.invocationProfile, rounds: options.apiOnly ? 0 : options.invocationRounds, status: options.apiOnly ? 'not-selected' : 'selected' },
+    policy: options.apiOnly
+      ? 'Explicit API-only: invocation/site/native not selected. Family functionality executes one pass at the declared profile; core performance preserves the requested rounds and selected metrics. Requested family rounds are retained separately from actual pass count.'
+      : 'Core/family preserve campaign profile and rounds; only broad invocation uses explicit independent overrides. All admitted family representatives and actual runtimes/transports remain enrolled according to the selected invocation profile.',
   }
   revalidatePrCampaign(options, campaign)
   const main = campaign.targets.find(target => target.id === 'main')!,
@@ -637,13 +733,13 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
     coreDir = join(options.out, 'core')
   mkdirSync(coreDir, { recursive: true })
   const worker = join(coreDir, 'worker.mjs')
-  writeFileSync(worker, CORE_WORKER)
-  const ids = CORE_CASE_IDS,
+  writeFileSync(worker, PR_CORE_WORKER)
+  const ids = [...CORE_CASE_IDS, ...(options.extraCoreCases ?? [])],
     workloads: UnifiedWorkload[] = ids.map(id => {
-      const source = MICRO_WORKLOADS[id],
+      const source = (MICRO_WORKLOADS as Record<string, string>)[id] ?? extraCoreSource(id)!,
         classification = classifyMermaidFamilyFromFirstLine(normalizeMermaidSource(source).firstLine)
       if (classification.kind !== 'registered') throw Error(`Unregistered core case ${id}`)
-      return { id, family: classification.familyId, source, features: ['fixed-core-performance'], provenance: 'eval/benchmark/micro-bench-cases.ts' }
+      return { id, family: classification.familyId, source, features: ['fixed-core-performance'], provenance: id === 'gitGraph20' ? 'authored twenty-commit/four-tag GitGraph supplemental case; separate from six-core aggregate' : 'eval/benchmark/micro-bench-cases.ts' }
     }),
     enriched = await withReferenceLabels(workloads, { root: options.root })
   writeFileSync(join(options.out, 'core-inputs.json'), JSON.stringify(enriched, null, 2))
@@ -662,7 +758,8 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
   // Broad suites run after all core clocks. Each target/suite gets its own process.
   for (const target of campaign.targets) {
     if (target.buildStatus !== 'passed') continue
-    for (const suite of ['family', 'invocation']) {
+    if (options.apiOnly) coverage.push({ target: target.id, suite: 'invocation', status: 'not-selected', profile: options.invocationProfile, rounds: 0, reason: 'Explicit --api-only; no site/native/transport invocation selection' })
+    for (const suite of options.apiOnly ? ['family'] : ['family', 'invocation']) {
       // Storage preparation is outside the fresh invocation subprocess and
       // its clocks. The restored executable has its original path and bytes.
       const out = join(options.out, 'targets', target.id, suite),
@@ -671,7 +768,7 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
       mkdirSync(attempt, { recursive: true })
       const job = join(attempt, 'job.json'),
         profile = suite === 'invocation' ? options.invocationProfile : options.profile,
-        rounds = suite === 'invocation' ? options.invocationRounds : options.rounds
+        rounds = suite === 'invocation' ? options.invocationRounds : options.apiOnly ? 1 : options.rounds
       writeFileSync(job, JSON.stringify({ root: target.root, harnessRoot: options.root, packageRoot: target.packageRoot, out: attempt, rounds, profile, resultPath }))
       try {
         if (suite === 'invocation' && target.nativeStorage) restoreNativeArtifact(target.nativeStorage)
@@ -711,11 +808,11 @@ export async function runPrCampaign(options: Options, campaign: Campaign) {
 export async function main(argv = process.argv.slice(2)) {
   if (argv.includes('--help')) {
     console.log(
-      'bun run eval/benchmark/unified/pr-campaign.ts --out DIR [--prepare-only|--run] [--compact-native] [--prs N,N] [--rounds N] [--profile smoke|full] [--invocation-profile smoke|full] [--invocation-rounds N] [--repo owner/name] [--root DRIVER] [--dependency-policy strict|main-overrides]\nPreparation freezes main and all selected open PR heads, builds canonical artifacts and actual npm packs. --compact-native stores candidate executables losslessly and verifies/restores their original bytes and paths before each invocation subprocess, outside clocks; main remains materialized. --run reuses the frozen prepared artifacts but always reruns all measurements in new attempt directories; existing timing/coverage results are never automatically reused. Invocation profile/rounds default to the campaign settings; explicit overrides affect only broad invocation coverage and are recorded in evidence. Package-only conflicts are resolved only under explicit main-overrides policy; source conflicts remain exploratory.',
+      'bun run eval/benchmark/unified/pr-campaign.ts --out DIR [--prepare-only|--run] [--compact-native] [--api-only] [--core-metrics svg,svgReceipt,firstSvg,import] [--extra-core-cases gitGraph20] [--snapshot-file FILE] [--prs N,N] [--rounds N] [--profile smoke|full] [--invocation-profile smoke|full] [--invocation-rounds N] [--repo owner/name] [--root DRIVER] [--dependency-policy strict|main-overrides]\nPreparation freezes main and all selected open PR heads, builds canonical artifacts and actual npm packs. --compact-native stores candidate executables losslessly and verifies/restores their original bytes and paths before each invocation subprocess, outside clocks; main remains materialized. --api-only skips site/native builds and broad invocation while preserving selected core and declared-profile family coverage; --core-metrics chooses actual measured APIs; --extra-core-cases adds separately reported SVG cases without changing the fixed six aggregate; --snapshot-file freezes supplied exact main/open heads without rediscovery. --run reuses the frozen prepared artifacts but always reruns all measurements in new attempt directories; existing timing/coverage results are never automatically reused. Invocation profile/rounds default to the campaign settings; explicit overrides affect only broad invocation coverage and are recorded in evidence. Package-only conflicts are resolved only under explicit main-overrides policy; source conflicts remain exploratory.',
     )
     return
   }
-  const options = parse(argv),
+  const options = parsePrCampaignOptions(argv),
     campaign = await preparePrCampaign(options)
   if (options.compactNative) {
     const directory = join(options.out, 'native-storage')

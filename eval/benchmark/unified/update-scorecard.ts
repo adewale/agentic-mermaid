@@ -36,6 +36,10 @@ export interface ScorecardSelection {
   currentRun?: string
   additionalRun?: string
   cliNativeProof?: string
+  historicalPrs?: string
+  currentInvocationRun?: string
+  currentInvocationAssets?: string
+  suiteRuns?: string[]
 }
 function args() {
   const m = new Map<string, string>()
@@ -46,9 +50,10 @@ function args() {
       continue
     }
     const v = process.argv[++i]
-    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run', '--additional-run', '--cli-native-proof'].includes(k) || !v)
+    if (!['--run', '--prs', '--output', '--community-run', '--invocation-correction', '--reference-correction', '--current-run', '--additional-run', '--cli-native-proof', '--historical-prs', '--current-invocation-run', '--current-invocation-assets', '--suite-run'].includes(k) || !v)
       throw Error('Use --run DIRECTORY [--prs DIRECTORY] [--output FILE] [--community-run DIRECTORY] [--invocation-correction FILE] [--reference-correction FILE] [--current-run DIRECTORY] [--additional-run DIRECTORY]')
-    m.set(k, resolve(v))
+    if (k === '--suite-run') m.set(k, JSON.stringify([...JSON.parse(m.get(k) ?? '[]'), resolve(v)]))
+    else m.set(k, resolve(v))
   }
   if (!m.has('--run')) throw Error('--run is required')
   if (m.has('--allow-community-target-change') && !m.has('--community-run')) throw Error('--allow-community-target-change requires --community-run')
@@ -69,8 +74,12 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     ['--current-run', selection.currentRun],
     ['--additional-run', selection.additionalRun],
     ['--cli-native-proof', selection.cliNativeProof],
+    ['--historical-prs', selection.historicalPrs],
+    ['--current-invocation-run', selection.currentInvocationRun],
+    ['--current-invocation-assets', selection.currentInvocationAssets],
   ])
     if (value) validationArgs.push(flag!, value)
+  for (const directory of selection.suiteRuns ?? []) validationArgs.push('--suite-run', directory)
   const admission = JSON.parse(execFileSync(process.env.PYTHON_BINARY ?? 'python3', validationArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 16 * 1024 * 1024 }))
   if (admission.protocol !== 'unified-report-selection-v1') throw Error('Unknown shared report-selection admission protocol')
   const ledger = JSON.parse(readFileSync(join(run, 'report.json'), 'utf8'))
@@ -106,12 +115,12 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
   const lines = [
     '# Mermaid community benchmark ranking',
     '',
-    `Updated from fresh run **${scores.startedAt} → ${results.finishedAt}**.`,
+    `Updated from community evidence **${scores.startedAt} → ${results.finishedAt}**. Separate measurement and composition windows are identified below.`,
     '',
     'This is a maintained snapshot requested by the project owner. Refresh it with:',
     '',
     '```sh',
-    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.allowCommunityTargetChange ? ' --allow-community-target-change' : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}${selection.currentRun ? ` --current-run ${selection.currentRun}` : ''}${selection.additionalRun ? ` --additional-run ${selection.additionalRun}` : ''}`,
+    `bun run bench:scorecard -- --run ${run}${prs ? ` --prs ${prs}` : ''}${selection.communityRun ? ` --community-run ${selection.communityRun}` : ''}${selection.allowCommunityTargetChange ? ' --allow-community-target-change' : ''}${selection.invocationCorrection ? ` --invocation-correction ${selection.invocationCorrection}` : ''}${selection.referenceCorrection ? ` --reference-correction ${selection.referenceCorrection}` : ''}${selection.currentRun ? ` --current-run ${selection.currentRun}` : ''}${selection.additionalRun ? ` --additional-run ${selection.additionalRun}` : ''}${selection.cliNativeProof ? ` --cli-native-proof ${selection.cliNativeProof}` : ''}${selection.historicalPrs ? ` --historical-prs ${selection.historicalPrs}` : ''}${selection.currentInvocationRun ? ` --current-invocation-run ${selection.currentInvocationRun}` : ''}${selection.currentInvocationAssets ? ` --current-invocation-assets ${selection.currentInvocationAssets}` : ''}${(selection.suiteRuns ?? []).map(directory => ` --suite-run ${directory}`).join('')}`,
     '```',
     '',
     `The JSON community catalog enrolls **${scores.catalogNodes} nodes**, with **${scores.comparatorNodes} configured candidates**. Configuration is not a working-API claim. Actual acquisition, unsupported operations, host failures and source-evidence aliases remain visible; none become passing renderer results by enrollment alone.`,
@@ -393,73 +402,104 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     for (const f of family.familyCoverage) lines.push(`| ${escape(f.family)} | ${f.inputs} | ${f.passed} / ${f.failed} | ${f.observedOperations.length} / ${f.advertisedOperations.length} |`)
     lines.push('', 'Counts describe fresh executable evidence, not exhaustive language-feature coverage. Historical parser/layout assertions, output envelopes, negative cases and independent rendered-label correspondence retain their separate scopes; not-applicable observations are not failures.')
   }
-  lines.push('', '## Active PR comparisons', '')
-  const prFile = prs ? ['pr-ranks.json', 'rankings.json', 'report.json', 'campaign.json'].map(n => join(prs, n)).find(existsSync) : undefined
-  if (prFile) {
-    const pr = JSON.parse(readFileSync(prFile, 'utf8')) as {
-      frozenAt?: string
-      main?: string
-      ranks?: Array<{
-        id: string
-        label?: string
-        head?: string
-        integration: string
-        draft?: boolean
-        sourceEvidence?: string
-        buildStatus?: string
-        packageGzipBytes?: number
-        browserBundleGzipBytes?: number
-        coverage?: { suite: string; profile?: string; rounds?: number; status: string; resultPath: string }[]
-        metrics: Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }>
-        metricsByCache?: Record<string, Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }>>
-      }>
-    }
-    lines.push(
-      `Frozen ${escape(pr.frozenAt)} against main \`${escape(pr.main)}\`. Rows use the same six-case fully consumed artifact protocol; community plain-API timings above are a different boundary.`,
-      '',
-      'The result-cache flag is explicit: **0 = result reuse off**, **1 = result reuse enabled**; other artifact/cache defaults remain unchanged. Flag 0 is not a cold process, cold OS cache or fully uncached renderer. Receipt/edit columns use flag 1.',
-      '',
-      '| Candidate | Frozen head | State | SVG ratio: reuse off (0) | SVG ratio: reuse enabled (1) | SVG receipt ratio (1) | Unicode receipt ratio (1) | Verified edit ratio (1) | npm tarball, KiB | Shipped browser gzip, KiB |',
-      '|---|---|---|---:|---:|---:|---:|---:|---:|---:|',
-    )
-    const ratio = (m: { pairedRatio?: number; classification?: string } | undefined) => (typeof m?.pairedRatio !== 'number' || !Number.isFinite(m.pairedRatio) ? 'N/A' : number(m.pairedRatio, 3) + '×' + (m.classification?.includes('variation') ? ' (tie)' : ''))
-    for (const r of [...(pr.ranks ?? [])].sort((a, b) => (a.metrics.svg?.pairedRatio ?? Infinity) - (b.metrics.svg?.pairedRatio ?? Infinity))) {
-      const exploratory = ['conflicting-head', 'branch-base'].includes(r.integration)
+  for (const [campaignLabel, campaignDirectory] of [
+    ['Active PR comparisons', prs],
+    ['Historical full PR snapshot', selection.historicalPrs],
+  ] as const) {
+    if (!campaignDirectory && campaignLabel !== 'Active PR comparisons') continue
+    lines.push('', '## ' + campaignLabel, '')
+    const prFile = campaignDirectory ? ['pr-ranks.json', 'rankings.json', 'report.json', 'campaign.json'].map(n => join(campaignDirectory, n)).find(existsSync) : undefined
+    if (prFile) {
+      const pr = JSON.parse(readFileSync(prFile, 'utf8')) as {
+        frozenAt?: string
+        selectedCoreMetrics?: string[]
+        apiOnly?: boolean
+        extraCore?: any[]
+        measurementConfig?: { core?: { receiptValidation?: string } }
+        main?: string
+        ranks?: Array<{
+          id: string
+          label?: string
+          head?: string
+          integration: string
+          draft?: boolean
+          sourceEvidence?: string
+          buildStatus?: string
+          packageGzipBytes?: number
+          browserBundleGzipBytes?: number
+          coverage?: { suite: string; profile?: string; rounds?: number; status: string; resultPath: string }[]
+          metrics: Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }>
+          metricsByCache?: Record<string, Record<string, { medianMs?: number; pairedRatio?: number; classification?: string; status?: string }>>
+        }>
+      }
       lines.push(
-        `| ${escape(r.label ?? r.id)} | \`${escape(r.head?.slice(0, 12))}\` | ${escape(r.integration)}${r.draft ? ' · draft' : ''}${r.sourceEvidence && r.sourceEvidence !== r.id ? ' · evidence ' + escape(r.sourceEvidence) : ''} | ${exploratory ? 'Exploratory' : ratio(r.metricsByCache?.['0']?.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metricsByCache?.['1']?.svg ?? r.metrics.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svgReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.unicodeReceipt)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.agent)} | ${r.packageGzipBytes ? number(r.packageGzipBytes / 1024, 1) : 'N/A'} | ${r.browserBundleGzipBytes ? number(r.browserBundleGzipBytes / 1024, 1) : 'N/A'} |`,
+        `Frozen ${escape(pr.frozenAt)} against main \`${escape(pr.main)}\`. SVG/receipt portfolios use the same six fully consumed artifacts; import and first-SVG retain their distinct worker boundaries. Community plain-API timings above are a different boundary.`,
+        '',
+        'The result-cache flag is explicit: **0 = result reuse off**, **1 = result reuse enabled**; other artifact/cache defaults remain unchanged. Flag 0 is not a cold process, cold OS cache or fully uncached renderer. Receipt/edit columns use flag 1.',
+        '',
+        pr.apiOnly
+          ? '| Candidate | Frozen head | State | SVG ratio: reuse off (0) | SVG ratio: reuse enabled (1) | SVG receipt ratio (1) | First SVG ratio (1) | Import ratio (1) | npm tarball, KiB | Shipped browser gzip, KiB |'
+          : '| Candidate | Frozen head | State | SVG ratio: reuse off (0) | SVG ratio: reuse enabled (1) | SVG receipt ratio (1) | Unicode receipt ratio (1) | Verified edit ratio (1) | npm tarball, KiB | Shipped browser gzip, KiB |',
+        '|---|---|---|---:|---:|---:|---:|---:|---:|---:|',
       )
-    }
-    lines.push(
-      '',
-      '### Candidate functionality and editor delivery',
-      '',
-      'Lifecycle and invocation counts describe their own checks; they are not portable-parser fidelity scores. N/A observations are excluded from the scored denominator. Initial editor bytes are an observed requested-file closure compressed with gzip, distinct from the complete shipped IIFE.',
-      '',
-      '| Candidate | Family lifecycle passed / scored | Invocation passed / scored | Invocation profile / rounds | Initial editor gzip, KiB | Through-family editor gzip, KiB |',
-      '|---|---:|---:|---|---:|---:|',
-    )
-    for (const r of pr.ranks ?? []) {
-      const load = (suite: string) => {
-        const entry = r.coverage?.find(c => c.suite === suite)
-        return entry && existsSync(entry.resultPath) ? (JSON.parse(readFileSync(entry.resultPath, 'utf8')) as { observations: BenchmarkObservation[] }) : undefined
+      const ratio = (m: { pairedRatio?: number; classification?: string } | undefined) => (typeof m?.pairedRatio !== 'number' || !Number.isFinite(m.pairedRatio) ? 'N/A' : number(m.pairedRatio, 3) + '×' + (m.classification?.includes('variation') ? ' (tie)' : ''))
+      lines.splice(
+        lines.length - 2,
+        0,
+        `Receipt assertion boundary: ${escape(pr.measurementConfig?.core?.receiptValidation ?? 'includes-external-receipt-validation (historical worker)')}. Historical and latest receipt clocks have different assertion boundaries, so these separate snapshots do not establish a direct product cost trend. Family functionality runs once; historical rounds3 metadata records a request, not three executed functionality passes.`,
+        '',
+      )
+      if (pr.apiOnly)
+        lines.splice(
+          lines.length - 2,
+          0,
+          `Focused API-only campaign. Selected metrics: ${escape(pr.selectedCoreMetrics?.join(', '))}. Omitted terminal/edit/PNG metrics and broad invocation suites were not executed; no full thirteen-metric comparison is implied. Family functionality executes one pass; three performance rounds were requested separately. Historical family metadata also requested three rounds but did not repeat functionality checks.`,
+          '',
+        )
+      for (const r of [...(pr.ranks ?? [])].sort((a, b) => (a.metrics.svg?.pairedRatio ?? Infinity) - (b.metrics.svg?.pairedRatio ?? Infinity))) {
+        const exploratory = ['conflicting-head', 'branch-base'].includes(r.integration)
+        lines.push(
+          `| ${escape(r.label ?? r.id)} | \`${escape(r.head?.slice(0, 12))}\` | ${escape(r.integration)}${r.draft ? ' · draft' : ''}${r.sourceEvidence && r.sourceEvidence !== r.id ? ' · evidence ' + escape(r.sourceEvidence) : ''} | ${exploratory ? 'Exploratory' : ratio(r.metricsByCache?.['0']?.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metricsByCache?.['1']?.svg ?? r.metrics.svg)} | ${exploratory ? 'Exploratory' : ratio(r.metrics.svgReceipt)} | ${exploratory ? 'Exploratory' : ratio(pr.apiOnly ? r.metrics.firstSvg : r.metrics.unicodeReceipt)} | ${exploratory ? 'Exploratory' : ratio(pr.apiOnly ? r.metrics.import : r.metrics.agent)} | ${r.packageGzipBytes ? number(r.packageGzipBytes / 1024, 1) : 'N/A'} | ${r.browserBundleGzipBytes ? number(r.browserBundleGzipBytes / 1024, 1) : 'N/A'} |`,
+        )
       }
-      const count = (suite: string) => {
-        const result = load(suite)
-        if (!result) return 'N/A'
-        const scored = result.observations.filter(row => row.status !== 'not-applicable' && row.status !== 'skipped')
-        return `${scored.filter(row => row.status === 'passed').length} / ${scored.length}`
+      if (pr.extraCore?.length) {
+        lines.push('', '### Supplemental cases outside the six-core aggregate', '', '| Candidate | State | Case | Metric | Result reuse flag | Status | Paired ratio |', '|---|---|---|---|---:|---|---:|')
+        for (const row of pr.extraCore) lines.push(`| ${escape(row.target)} | ${escape(row.integration)} | ${escape(row.caseId)} | ${escape(row.metric)} | ${escape(row.cache)} | ${escape(row.status)} | ${ratio(row)} |`)
+        lines.push('', 'These separately paired source cases can reveal work hidden by the common core. They do not change its cohort, denominator or aggregate stack rank.')
       }
-      const invocation = load('invocation'),
-        configuration = r.coverage?.find(c => c.suite === 'invocation'),
-        delivery = invocation?.observations.filter(row => row.surface === 'browser:editor' && row.operation === 'download-closure' && row.status === 'passed') ?? []
-      const payload = (key: string) => {
-        const values = delivery.map(row => row.metrics?.[key]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0)
-        return values.length ? number(median(values) / 1024, 1) : 'N/A'
+      lines.push(
+        '',
+        '### Candidate functionality and editor delivery',
+        '',
+        'Lifecycle and invocation counts describe their own checks; they are not portable-parser fidelity scores. N/A observations are excluded from the scored denominator. Initial editor bytes are an observed requested-file closure compressed with gzip, distinct from the complete shipped IIFE.',
+        '',
+        '| Candidate | Family lifecycle passed / scored | Invocation passed / scored | Invocation profile / rounds | Initial editor gzip, KiB | Through-family editor gzip, KiB |',
+        '|---|---:|---:|---|---:|---:|',
+      )
+      for (const r of pr.ranks ?? []) {
+        const load = (suite: string) => {
+          const entry = r.coverage?.find(c => c.suite === suite)
+          return entry?.resultPath && existsSync(entry.resultPath) ? (JSON.parse(readFileSync(entry.resultPath, 'utf8')) as { observations: BenchmarkObservation[] }) : undefined
+        }
+        const count = (suite: string) => {
+          const result = load(suite)
+          if (!result) return 'Not selected / unavailable'
+          const harness = result.observations.filter(row => String(row.detail ?? '').includes('Strict SVG XML qualification requires the saxes benchmark dependency'))
+          const scored = result.observations.filter(row => row.status !== 'not-applicable' && row.status !== 'skipped' && !harness.includes(row))
+          return `${scored.filter(row => row.status === 'passed').length} / ${scored.length}${harness.length ? '; ' + harness.length + ' harness-blocked/unscored' : ''}`
+        }
+        const invocation = load('invocation'),
+          configuration = r.coverage?.find(c => c.suite === 'invocation'),
+          delivery = invocation?.observations.filter(row => row.surface === 'browser:editor' && row.operation === 'download-closure' && row.status === 'passed') ?? []
+        const payload = (key: string) => {
+          const values = delivery.map(row => row.metrics?.[key]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0)
+          return values.length ? number(median(values) / 1024, 1) : 'N/A'
+        }
+        lines.push(`| ${escape(r.label ?? r.id)} | ${count('family')} | ${count('invocation')} | ${escape(configuration?.profile)} / ${configuration?.rounds ?? '—'} | ${payload('initialGzipBytes')} | ${payload('gzipBytes')} |`)
       }
-      lines.push(`| ${escape(r.label ?? r.id)} | ${count('family')} | ${count('invocation')} | ${escape(configuration?.profile)} / ${configuration?.rounds ?? '—'} | ${payload('initialGzipBytes')} | ${payload('gzipBytes')} |`)
-    }
-    lines.push('', `Full per-metric rows, fresh bracketing controls, broad family/invocation results and artifact identities: [PR campaign evidence](${escape(relative(dirname(output), prFile))}). Source-conflicting heads and own bases stay exploratory; no merge readiness is implied.`)
-  } else lines.push('No PR campaign supplied to this snapshot. Refresh with `--prs` after running `bench:prs`; historical PR scores are not relabeled as current.')
+      lines.push('', `Full per-metric rows, fresh bracketing controls, broad family/invocation results and artifact identities: [PR campaign evidence](${escape(relative(dirname(output), prFile))}). Source-conflicting heads and own bases stay exploratory; no merge readiness is implied.`)
+    } else lines.push('No PR campaign supplied to this snapshot. Refresh with `--prs` after running `bench:prs`; historical PR scores are not relabeled as current.')
+  }
   lines.push(
     '',
     '## Original suite ledger',
@@ -553,6 +593,92 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     }
     lines.push('', `Full owning reports, gates and artifacts: [additional suite ledger](${escape(relative(dirname(output), join(selection.additionalRun, 'report.md')))}). Missing or insufficient qualification stays explicit; process completion alone is not a passing gate.`)
   }
+  if (admission.currentInvocationRun) {
+    const latest = admission.currentInvocationRun
+    lines.push(
+      '',
+      '## Independent latest invocation: ' + latest.attemptCensus.completeness,
+      '',
+      `Target ${escape(latest.targetRevision)}; ${escape(latest.startedAt)} → ${escape(latest.finishedAt)}, full profile / three rounds. Actual target archive SHA256 ${escape(latest.candidateSha256)}. ${escape(latest.policy)}`,
+      '',
+      '| Representative inputs | Observations | Passed | Failed | Blocked | N/A | Result |',
+      '|---:|---:|---:|---:|---:|---:|---|',
+      `| ${latest.representativeCases} | ${latest.observations} | ${latest.counts.passed ?? 0} | ${latest.counts.failed ?? 0} | ${latest.counts.blocked ?? 0} | ${latest.counts['not-applicable'] ?? 0} | ${escape(latest.resultStatus)} |`,
+      '',
+      `Actual repaired library XML qualifier: ${escape(latest.qualificationDependencies.nodeXmlParser.name)} ${escape(latest.qualificationDependencies.nodeXmlParser.version)}. This latest target is independent from the older community/Dave/parser snapshots and original corrected invocation counts. Raw evidence: ${escape(latest.resultFile)}.`,
+    )
+  }
+  if (admission.currentInvocationRun) {
+    const latest = admission.currentInvocationRun
+    lines.push(
+      '',
+      `Separately built native/site source proof: ${escape(latest.assetsProof.file)}. Native executable SHA256 ${escape(latest.assetsProof.native.sha256)}; ${latest.assetsProof.websiteFiles} admitted built website files. npm archive identity alone does not identify the compiled executable.`,
+      '',
+      '### Latest pinned Dave and parser evidence',
+      '',
+      '| Dave engine | Accepted / identical occurrences | Median full attempt cost, ms |',
+      '|---|---:|---:|',
+    )
+    lines.push(
+      '',
+      `Actual execution census: **${escape(latest.attemptCensus.completeness)}**. ${escape(latest.attemptCensus.scope)} Public function exports without direct operation witnesses remain explicitly unmeasured: ${latest.attemptCensus.publicFunctionsWithoutDirectWitness.length} export/runtime/round groups; full names are retained in admitted chart data.`,
+      '',
+      ...latest.attemptCensus.gaps.map((gap: unknown) => `- ${escape(gap)}`),
+    )
+    const dave = JSON.parse(readFileSync(latest.daveFile, 'utf8'))
+    for (const engine of dave.engines) lines.push(`| ${escape(engine.label)} | ${engine.accepted} / ${engine.population} | ${number(median(engine.attemptMs))} |`)
+    lines.push('', '| Dave matched comparator | Identical shared-qualified occurrences | Candidate / comparator median ratio |', '|---|---:|---:|')
+    for (const row of dave.matched ?? []) lines.push(`| ${escape(row.comparator)} | ${row.inputIds?.length ?? 'N/A'} | ${number(row.medianRatio, 3)}× |`)
+    lines.push(
+      '',
+      'Dave attempt costs include each engine’s own accepted/rejected workload. Only matched-pair portfolios support a speed ratio. Dave keeps historical Pele1.6/Mermaid12.2/Bezel pins; the wider community measures separate versions and clocks.',
+      '',
+      '| Parser | Portable criteria passed / scored in each round | Eligible positive cases |',
+      '|---|---|---:|',
+    )
+    const reference = JSON.parse(readFileSync(latest.referenceScore.resultFile, 'utf8')) as { observations: BenchmarkObservation[] }
+    const rounds = [...new Set(reference.observations.map(row => Number(row.metrics?.round)))].sort()
+    const engines = [...new Set(reference.observations.map(row => String(row.metrics?.implementation)))]
+    const cases = [...new Set(reference.observations.map(row => row.caseId))]
+    const shared = cases.filter(id => engines.every(engine => rounds.every(round => reference.observations.some(row => row.caseId === id && row.metrics?.implementation === engine && row.metrics?.round === round && row.status === 'passed' && row.samplesMs?.length))))
+    for (const engine of engines) {
+      const scored = rounds.map(round => {
+        const rows = reference.observations.filter(row => row.metrics?.implementation === engine && row.metrics?.round === round)
+        return `${rows.reduce((sum, row) => sum + Number(row.metrics?.passed ?? 0), 0)} / ${rows.reduce((sum, row) => sum + Number(row.metrics?.criteria ?? 0), 0)}`
+      })
+      lines.push(`| ${escape(engine)} | ${scored.join('; ')} | ${latest.referenceScore.evidence.eligibleInputCount} |`)
+    }
+    lines.push('', `Shared-qualified parser cohort: ${shared.length} identical positive cases, both engines and every round.`, '', '| Parser | Median public parse portfolio, ms |', '|---|---:|')
+    for (const engine of engines) {
+      const costs = rounds.map(round => reference.observations.filter(row => row.metrics?.implementation === engine && row.metrics?.round === round && shared.includes(row.caseId)).reduce((sum, row) => sum + median(row.samplesMs!), 0))
+      lines.push(`| ${escape(engine)} | ${shared.length ? number(median(costs)) : 'N/A'} |`)
+    }
+    lines.push(
+      '',
+      `Retained raw inputs ${latest.referenceScore.evidence.rawInputCount}; reviewed diagnostics ${latest.referenceScore.evidence.diagnosticInputCount} remain outside positive scoring. Current Mermaid reference ${escape(latest.referenceScore.evidence.currentReference.version)} at ${escape(latest.referenceScore.evidence.currentReference.commit)}. Imported historical fixture pins remain separate. Parser timing uses shared-qualified cases separately from assertions/semantic scoring; see the latest standalone charts and raw result.`,
+    )
+  }
+  if (admission.suiteRuns?.length) {
+    lines.push(
+      '',
+      '## Independent owning and environment corrections',
+      '',
+      'These ledgers preserve their actual driver/target revision, fixture scope, statuses and process wall times. They do not overwrite the original suite ledger or change comparative ranks.',
+      '',
+      '| Suite | Driver revision | Target revision | Status | Process wall, s | Owning tests pass / fail / skip |',
+      '|---|---|---|---|---:|---|',
+    )
+    for (const extra of admission.suiteRuns) {
+      for (const suite of extra.suites) {
+        const counts = suite.owningTests?.[0]
+        lines.push(
+          `| ${escape(suite.id)} | ${escape(extra.driverRevision)}${extra.driverDirty ? ' (dirty harness recorded)' : ''} | ${escape(extra.targetRevision)} | ${escape(suite.status)} | ${number(suite.elapsedMs / 1000, 1)} | ${counts ? `${escape(counts.passed)} / ${escape(counts.failed)} / ${escape(counts.skipped)}` : 'N/A'} |`,
+        )
+      }
+      if (extra.fixture) lines.push('', `Frozen ownership fixture: ${escape(extra.fixture.directory)}. ${escape(extra.fixture.scope)}. Page artifact identities remain in the admitted report metadata.`)
+      lines.push('', `Raw independent ledger: ${escape(extra.directory)}; ${escape(extra.startedAt)} → ${escape(extra.finishedAt)}.`)
+    }
+  }
   const actualGaps = [...new Set([...scores.gaps, ...results.gaps])]
   lines.push(
     '',
@@ -581,5 +707,9 @@ if (import.meta.main) {
     currentRun: a.get('--current-run'),
     additionalRun: a.get('--additional-run'),
     cliNativeProof: a.get('--cli-native-proof'),
+    historicalPrs: a.get('--historical-prs'),
+    currentInvocationRun: a.get('--current-invocation-run'),
+    currentInvocationAssets: a.get('--current-invocation-assets'),
+    suiteRuns: JSON.parse(a.get('--suite-run') ?? '[]'),
   })
 }

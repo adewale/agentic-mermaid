@@ -333,7 +333,24 @@ try {
     caseId: 'process-memory',
     metrics: { round: job.round, rssBytes: process.memoryUsage().rss, heapUsedBytes: process.memoryUsage().heapUsed, peakRssBytes: process.resourceUsage().maxRSS * 1024, scope: 'after all enrolled operations; includes harness/qualification; forced GC, not allocation or leak proof' },
   })
-  writeFileSync(job.out, JSON.stringify({ rows, importMs, runtime: process.versions.bun ? `bun:${process.versions.bun}` : `node:${process.versions.node}`, nodeCompatibility: process.versions.node }, null, 2))
+  writeFileSync(
+    job.out,
+    JSON.stringify(
+      {
+        rows,
+        importMs,
+        runtime: process.versions.bun ? `bun:${process.versions.bun}` : `node:${process.versions.node}`,
+        nodeCompatibility: process.versions.node,
+        publicFunctionExports: Object.keys(api)
+          .filter(name => typeof api[name] === 'function')
+          .sort(),
+        exercisedOperations: [...new Set(rows.map(row => row.operation))].sort(),
+        exportWitnessScope: 'Missing direct operation witnesses do not establish never-called APIs: helpers may run during preparation. Owning functionality suites remain separate.',
+      },
+      null,
+      2,
+    ),
+  )
 } catch (e) {
   writeFileSync(job.out, JSON.stringify({ rows, error: String(e) }, null, 2))
   process.exitCode = 1

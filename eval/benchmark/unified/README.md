@@ -325,6 +325,43 @@ suite ledger, records replay provenance, and separates diagnostic memory by
 runtime, output, round, worker attempt and portfolio scope. Its per-operation
 status tables preserve unsupported, blocked and not-applicable outcomes.
 
+Use `--prs LATEST_DIR --historical-prs OLDER_DIR` to retain a separately labeled
+older full campaign alongside the latest focused open-head snapshot. Each needs
+its completed target/job marker. An API-only campaign publishes only its actual
+`selectedCoreMetrics`; omitted terminal/edit/PNG metrics and invocation suites
+are unmeasured. Supplemental GitGraph cases stay outside the fixed six-input
+portfolio and retain separate paired ratios, cache flags and integration state.
+Known exact missing-saxes qualifier errors in older invocation rows are shown
+as harness-blocked/unscored, preserving raw failure statuses and paths. This
+classification does not repair or rerun the affected historical partition.
+
+`--current-invocation-run DIRECTORY --current-invocation-assets FILE` selects an
+independent completed latest target invocation/Dave/pinned-reference campaign:
+full/three-round ledger, actual Git/archive/package
+bytes, unchanged representative sources and pinned reference, and repaired
+library qualifier/dependency provenance. The explicit clean-source public-build
+proof separately binds compiled native and website assets omitted from the npm
+archive. It gets separate coverage, Dave/parser views and
+target/count table; it does not replace older invocation, community or pinned
+Dave/parser evidence. Repeat `--suite-run DIRECTORY` for completed owning or
+environment correction ledgers. Their driver source Git objects, statuses,
+process walls and test counts remain independent; historical ownership pages
+retain their external fixture scope rather than establishing current-main speed.
+The latest invocation reader checks executed library import/end checkpoints
+for every installed executable export × Node22/Node24/Bun × three rounds,
+actual representative-family transport rows, and render/watch round sidecars.
+It labels missing bootstrap/cohort attempts incomplete while retaining genuine
+failed operations. A completed process/full-profile option is not a complete
+attempt census. Actual callable exports without direct operation witnesses
+remain separate gaps; helpers may run during preparation, so this does not
+assert that they were never called. Common CLI helper verbs run once by design.
+Family functionality executes one pass; historical requested rounds3 metadata
+does not establish three passes. Latest focused receipt assertions run before
+and after timed samples; historical receipt costs include those assertions.
+Receipt timing comparisons across these protocol versions cannot establish a
+product improvement. PR worker RSS remains scoped to its selected APIs/cases;
+focused four-metric and older thirteen-metric snapshots do not share equal work.
+
 If the community campaign measures a newer Agentic revision, both reporting
 commands additionally require `--allow-community-target-change`. This admits
 only an explicit `targetAdvance.from`/`to` manifest matching the original and
