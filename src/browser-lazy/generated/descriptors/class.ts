@@ -7,7 +7,8 @@ const descriptorData = Object.freeze({
   "maturity": "stable",
   "label": "Class",
   "headers": [
-    "classDiagram"
+    "classDiagram",
+    "classDiagram-v2"
   ],
   "aliases": [],
   "config": {
@@ -245,8 +246,8 @@ const descriptorData = Object.freeze({
   ],
   "example": "classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account \"1\" o-- \"*\" Transaction : logs"
 } as const),
-  detect: (line: string) => /^classdiagram\s*$/.test(line),
-  detectLoose: (line: string) => /^classdiagram(?:\s|$)/.test(line),
+  detect: (line: string) => /^classdiagram(?:-v2)?\s*$/.test(line),
+  detectLoose: (line: string) => /^classdiagram(?:-v2)?(?:\s|$)/.test(line),
 })
 
 export default descriptorData

@@ -10,8 +10,28 @@ import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
+import { extractEdgesRecursively, type ElkHierarchySegment } from '../layout/passes/elk-edges.ts'
+import type { PositionedEdge } from '../types.ts'
 
 beforeAll(renderedTextReady)
+
+test.each([
+  ['horizontal subdivision', [[0, 0], [10, 0]], [[15, 0], [20, 0]], [[0, 0], [10, 0], [20, 0]]],
+  ['vertical subdivision', [[0, 0], [0, 10]], [[0, 15], [0, 20]], [[0, 0], [0, 10], [0, 20]]],
+  ['shared endpoint', [[0, 0], [10, 0]], [[10, 0], [20, 0]], [[0, 0], [10, 0], [20, 0]]],
+  ['real corner', [[0, 0], [10, 0]], [[10, 5], [20, 5]], [[0, 0], [10, 0], [10, 5], [20, 5]]],
+  ['reversal', [[0, 0], [10, 0]], [[15, 0], [5, 0]], [[0, 0], [10, 0], [15, 0], [5, 0]]],
+  ['backtracking overlap', [[0, 0], [10, 0]], [[5, 0], [20, 0]], [[0, 0], [10, 0], [5, 0], [20, 0]]],
+] as const)('hierarchy extraction preserves ink at a %s', (_name, first, second, expected) => {
+  const graph = parseMermaid('flowchart LR\nA-->B')
+  const segments: ElkHierarchySegment[] = [first, second].map((points, order) => ({
+    id: `part-${order}`, sources: ['A'], targets: ['B'], hierarchySegment: { edgeIndex: 0, order },
+    sections: [{ id: `section-${order}`, startPoint: { x: points[0][0], y: points[0][1] }, endPoint: { x: points[1][0], y: points[1][1] } }],
+  }))
+  const edges: PositionedEdge[] = []
+  extractEdgesRecursively({ id: 'root', edges: segments }, graph, edges, 0, 0)
+  expect(edges[0]!.points.map(point => [point.x, point.y])).toEqual(expected.map(point => [...point]))
+})
 
 // The whole bounded model: every ordered pair of distinct endpoints among a
 // top-level node (X), a node in Outer (A), a node in Inner (B), and the two

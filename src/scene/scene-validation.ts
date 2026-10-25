@@ -108,6 +108,10 @@ const MAX_FINAL_SVG_BYTES = SCENE_VALIDATION_LIMITS.maxFinalSvgBytes
 const EXTERNAL_ID = /^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/
 const NAMESPACED_ROLE = /^[a-z0-9][a-z0-9._/-]*:[a-z0-9][a-z0-9._/-]*$/i
 const SAFE_DASH = /^(?:none|[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?(?:[\s,]+[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)*)$/
+const CONTROL_CHARACTER = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/
+const NUMERIC_CSS_LENGTH = /^([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)(?:px)?$/
+const NUMERIC_CSS_VALUE = /^([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)$/
+const NUMERIC_CSS_REFERENCE = /^var\(--[a-z0-9_-]+(?:,\s*[-+]?\d*\.?\d+)?\)$/i
 const SVG_PATH_COMMANDS = 'MmLlHhVvCcSsQqTtAaZz'
 const SVG_PATH_ARITY: Readonly<Record<string, number>> = Object.freeze({
   M: 2, m: 2, L: 2, l: 2, H: 1, h: 1, V: 1, v: 1,
@@ -271,7 +275,7 @@ function boundedString(
   }
   if (!options.empty && value.length === 0) add(diagnostics, 'SCENE_ID', path, 'must not be empty')
   if (value.length > (options.max ?? 256)) add(diagnostics, 'SCENE_ID', path, 'is too long')
-  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)) add(diagnostics, 'SCENE_ID', path, 'contains a control character')
+  if (CONTROL_CHARACTER.test(value)) add(diagnostics, 'SCENE_ID', path, 'contains a control character')
   if (options.externalId && !EXTERNAL_ID.test(value)) add(diagnostics, 'SCENE_ID', path, 'must use the safe external id grammar')
   return true
 }
@@ -288,12 +292,10 @@ function numericCss(
     return
   }
   const text = typeof value === 'string' ? value.trim() : undefined
-  const numericMatch = text?.match(options.length
-    ? /^([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)(?:px)?$/
-    : /^([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)$/)
+  const numericMatch = text?.match(options.length ? NUMERIC_CSS_LENGTH : NUMERIC_CSS_VALUE)
   const parsed = typeof value === 'number' ? value : numericMatch ? Number(numericMatch[1]) : Number.NaN
   if (!Number.isFinite(parsed)) {
-    if (typeof value === 'string' && /^var\(--[a-z0-9_-]+(?:,\s*[-+]?\d*\.?\d+)?\)$/i.test(value.trim())) return
+    if (typeof value === 'string' && NUMERIC_CSS_REFERENCE.test(value.trim())) return
     add(diagnostics, 'SCENE_PAINT', path, `must be a finite number or safe numeric custom-property reference (received ${JSON.stringify(value)})`)
   } else if (options.nonNegative && parsed < 0) {
     add(diagnostics, 'SCENE_PAINT', path, 'must be non-negative')

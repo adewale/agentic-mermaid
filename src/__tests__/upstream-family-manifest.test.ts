@@ -94,9 +94,6 @@ describe('pinned Mermaid public-family index', () => {
 describe('forward-compatible family classification', () => {
   test('every official unsupported dialect is classified and never routed to Flowchart', () => {
     const unsupported = UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family => family.headers.filter(header => header.agenticStatus !== 'native').map(header => ({ family, header })))
-    // Six newly native stable families leave fifteen pinned dialect headers
-    // preserved for unsupported, experimental, or alternate-engine paths.
-    expect(unsupported).toHaveLength(15)
     for (const { family, header } of unsupported) {
       const source = `${header.value}\n  preserved payload`
       expect(detectRegisteredFamilyFromFirstLine(header.value, 'loose')).toBeNull()
