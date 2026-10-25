@@ -254,7 +254,7 @@ async function main() {
       ? assertNormalizedNpmRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, candidate.identity.runtime!)
       : (assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!)), { mode: 'matched' as const })
     writeFileSync(join(out, 'browser-runtime-comparison.json'), `${JSON.stringify(runtimeComparison, null, 2)}\n`)
-    engines.push(install('pele@1.6.0', 'pele', 'pele', temporary), install('mermaid@12.2.0', 'mermaid', 'mermaid', temporary))
+    engines.push(install('pele@1.9.0', 'pele', 'pele', temporary), install('mermaid@12.2.0', 'mermaid', 'mermaid', temporary))
     if (bezel) engines.push(bezel)
     if (diagnostics.dart) {
       const root = join(temporary, 'dart')
