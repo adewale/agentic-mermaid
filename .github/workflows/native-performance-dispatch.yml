@@ -1,26 +1,25 @@
-name: Retain obsolete-base benchmark evidence
+name: Dispatch current-main semantic qualification
 on:
   push:
     branches: [codex/performance-dispatch-20261024]
 permissions:
   contents: read
 jobs:
-  retire-obsolete-base:
+  dispatch:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
       actions: write
     steps:
-      - name: Stop only superseded c7fa0ad after retaining its complete release reports
+      - name: Verify all current heads and dispatch the exact combined candidate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          head="$(gh api repos/adewale/agentic-mermaid/actions/runs/40167575588 --jq .head_sha)"
-          test "$head" = c7fa0ad3384157032dd65b60ca22a246658c00e0
-          main="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/main --jq .object.sha)"
-          test "$main" = 1c151890eb371b7d4bcaf98b1d8c2dc59f149cc8
-          state="$(gh api repos/adewale/agentic-mermaid/actions/runs/40167575588 --jq .status)"
-          if [ "$state" != completed ]; then
-            gh api --method POST repos/adewale/agentic-mermaid/actions/runs/40167575588/cancel
-          fi
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/main --jq .object.sha)" = 1c151890eb371b7d4bcaf98b1d8c2dc59f149cc8
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-qualification-20261025 --jq .object.sha)" = 50dbc27d2cdf3b9ae5cacbe48c759668e7da7846
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-search-reuse-20261025 --jq .object.sha)" = 217f794c4f108340a9cfa8131344787859f9342e
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/cold-peer-calibration --jq .object.sha)" = 3680874b0afa878754d517bce0884aaa4a5989ec
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/contrast-qualification-20261025","inputs":{"evidence-scope":"all","baseline-ref":"1c151890eb371b7d4bcaf98b1d8c2dc59f149cc8","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          JSON
