@@ -148,9 +148,12 @@ export function portableMarkdown(report: { project: string; version: string; sta
     '',
     '## Scaling',
     '',
-    '| Family | Size | Warm repeat median (ms) | First-use p95 (ms) |',
-    '|---|---:|---:|---:|',
-    ...summary.timing.filter(row => row.cohort === 'scaling' && row.track === 'warm-repeat').map(row => `| ${row.family} | ${row.scale} | ${row.medianMs?.toFixed(4) ?? 'unavailable'} | ${summary.timing.find(cold => cold.caseId === row.caseId && cold.track === 'first-use')?.p95Ms?.toFixed(4) ?? 'unavailable'} |`),
+    '| Family | Size | Warm repeat median (ms) | Warm calibrated | First-use p95 (ms) | First-use calibrated |',
+    '|---|---:|---:|---|---:|---|',
+    ...summary.timing.filter(row => row.cohort === 'scaling' && row.track === 'warm-repeat').map(row => {
+      const cold = summary.timing.find(candidate => candidate.caseId === row.caseId && candidate.track === 'first-use')
+      return `| ${row.family} | ${row.scale} | ${row.medianMs?.toFixed(4) ?? 'unavailable'} | ${row.calibration.status === 'calibrated'} | ${cold?.p95Ms?.toFixed(4) ?? 'unavailable'} | ${cold?.calibration.status === 'calibrated'} |`
+    }),
     '',
     '## Individual cases and fidelity',
     '',
