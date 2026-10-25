@@ -15,6 +15,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { synthesizeFromGraph, renderMermaidASCII, layoutMermaidWithReceipt } from '../agent/core.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { mutate } from '../agent/mutate.ts'
 import { graphGeometryWarnings, verifyMermaid } from '../agent/verify.ts'
 import { positionFamilyArtifact } from '../agent/family-layouts.ts'
@@ -214,6 +215,11 @@ describe('state round-trip identity', () => {
     ['labels declared before use around one between', 'state "s" as S\nstate "x" as X\nstate "z" as Z\nS --> Z'],
     ['a fork declared after use', 'A --> f\nstate f <<fork>>\nf --> B\nf --> C'],
     ['[*] in concurrency regions', '[*] --> P\nstate P {\n[*] --> a\na --> [*]\n--\n[*] --> b\nb --> [*]\n}\nP --> [*]'],
+    ['cross-scope leaves after their frames', 'state One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff'],
+    ['a fresh root endpoint before its target frame', 'X --> A : enter\nstate Frame {\nA --> B\n}'],
+    ['a fresh root endpoint after its target frame', 'state Frame {\nA --> B\n}\nX --> A : enter'],
+    ['an existing root endpoint before its target frame', 'X --> Y\nY --> A\nstate Frame {\nA --> B\n}'],
+    ['an existing root endpoint after its target frame', 'X --> Y\nstate Frame {\nA --> B\n}\nY --> A'],
   ])('%s: the parsed and the written diagram lay out as the source does', (_name, body) => {
     const source = `stateDiagram-v2\n${body}`
     const geometry = (input: Parameters<typeof layoutMermaidWithReceipt>[0]) => {
@@ -230,6 +236,13 @@ describe('state round-trip identity', () => {
     const drawn = geometry(source)
     expect(geometry(parsed)).toEqual(drawn)
     expect(geometry(serializeMermaid(parsed))).toEqual(drawn)
+    for (const backend of ['elk', 'agentic'] as const) {
+      const options = { graphLayout: { backend } }
+      const original = renderMermaidSVGWithReceipt(source, options)
+      const roundtrip = renderMermaidSVGWithReceipt(parsed, options)
+      expect(roundtrip.svg).toBe(original.svg)
+      expect(roundtrip.receipt.layoutCertification).toEqual(original.receipt.layoutCertification)
+    }
   })
 
   test('standalone alias with label equal to id stays renderable', () => {
@@ -341,8 +354,14 @@ describe('state mutation — happy paths', () => {
   test('set_state_label sets and clears', () => {
     let d = apply(state(), { kind: 'set_state_label', id: 'Idle', label: 'Waiting Room' })
     expect(d.body.states.find(s => s.id === 'Idle')?.label).toBe('Waiting Room')
+    const labeled = renderMermaidSVGWithReceipt(d)
+    expect(labeled.svg).toContain('Waiting Room')
+    expect(labeled.svg).toBe(renderMermaidSVGWithReceipt(serializeMermaid(d)).svg)
     d = apply(d, { kind: 'set_state_label', id: 'Idle', label: null })
     expect(d.body.states.find(s => s.id === 'Idle')?.label).toBeUndefined()
+    const cleared = renderMermaidSVGWithReceipt(d)
+    expect(cleared.svg).not.toContain('Waiting Room')
+    expect(cleared.svg).toBe(renderMermaidSVGWithReceipt(serializeMermaid(d)).svg)
   })
 
   test('remove_transition by from/to and by index', () => {
