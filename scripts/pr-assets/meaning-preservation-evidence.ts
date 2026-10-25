@@ -84,6 +84,15 @@ const stableRepresentativeCues = {
 } as const
 const ownershipGoldenIds = new Set(['corpus/flowchart/94', 'corpus/flowchart/95', 'corpus/flowchart/96', 'corpus/state/0', 'corpus/state/1', 'corpus/state/8', 'corpus/state/14', 'corpus/state/16', 'corpus/state/17', 'corpus/state/18', 'corpus/state/19'])
 const fixtures: Fixture[] = [
+  {
+    id: 'flowchart-hierarchy-endpoint-repair',
+    title: 'Seven-edge compound Flowchart: crossing choice and actual endpoint contacts',
+    source: "flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2",
+    renderOptions: { embedFontImport: false },
+    captureLayout: true,
+    pngScale: 2,
+    cue: 'Trace a1 to a2 against c1 to c2: base default has one crossing and clean incident shafts; repaired default has zero crossings and a1 to a2 exits the west face with matching W port facts. All 14 node/group boundary contacts remain valid. This crossing preference trades larger area (190523.6 to 216382.4) and fewer designated node-port contacts (7/9 to 4/9); noncanonical contacts remain attached. Inspect raw SVGs and debug layout sidecars, not preview size, for geometry. This one fixture does not establish a global layout invariant or performance gain.',
+  },
   ...corpusSamples.filter(sample => ownershipGoldenIds.has(sample.id)).map(sample => ({
     id: `compat-${sample.id.replaceAll('/', '-')}`,
     title: `${sample.id}: ownership and contextual endpoint baseline`,
@@ -1145,7 +1154,7 @@ function renderRevision(sha: string): RevisionEvidence {
             png: Buffer.from(host ? createMermaidPNGRenderer(host).renderMermaidPNG(input, fixtureOptions[fixture.id].png) : renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
             ...(fixture.classMutation || fixture.mutation ? { source: input } : {}),
             ...(edit ? { edit } : {}),
-            ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
+            ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true, debug: true }).layout } : {}),
           }
         } catch (error) { renders[fixture.id] = { error: String(error) } }
       }
