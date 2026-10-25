@@ -257,24 +257,28 @@ function projectedMidMarkerId(id: string, geometry: ConnectorGeometry, closed: b
 export function connectorSemanticFields(
   fields: Pick<ConnectorFields, 'id' | 'role' | 'labels' | 'identity'>,
   endpoints: ConnectorEndpoints,
+  owned?: Pick<ConnectorMark, 'identity' | 'accessibility'>,
 ): Pick<ConnectorMark, 'labels' | 'identity' | 'accessibility'> {
   const labels = (fields.labels ?? []).map(label => {
     const input = resolveLabelContent(label.text, label.textContent)
     const text = sanitizeDisplayLines(label.text)
     return { ...label, text, ...(typeof input !== 'string' ? { textContent: { ...label.textContent!, value: text } } : {}) }
   })
-  const identity: SvgSemanticIdentity = {
-    id: fields.identity?.id ?? fields.id,
-    role: fields.role,
-    ...(fields.identity?.classNames ? { classNames: fields.identity.classNames } : {}),
-    ...(fields.identity?.from ?? endpoints.from ? { from: fields.identity?.from ?? endpoints.from } : {}),
-    ...(fields.identity?.to ?? endpoints.to ? { to: fields.identity?.to ?? endpoints.to } : {}),
-  }
+  const id = fields.identity?.id ?? fields.id, role = fields.role
+  const identity: SvgSemanticIdentity = owned?.identity ?? { id, role }
+  identity.id = id
+  identity.role = role
+  if (fields.identity?.classNames) identity.classNames = fields.identity.classNames
+  else delete identity.classNames
+  if (fields.identity?.from ?? endpoints.from) identity.from = fields.identity?.from ?? endpoints.from
+  else delete identity.from
+  if (fields.identity?.to ?? endpoints.to) identity.to = fields.identity?.to ?? endpoints.to
+  else delete identity.to
   const firstLabel = labels[0]
   const accessibleLabel = firstLabel?.visual?.kind === 'inline'
     ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
     : firstLabel ? displayText(resolveLabelContent(firstLabel.text, firstLabel.textContent), firstLabel.display ?? 'literal') : undefined
-  const accessibility = relationAccessibility(identity, accessibleLabel)
+  const accessibility = relationAccessibility(identity, accessibleLabel, owned?.accessibility)
   return { labels, identity, ...(accessibility ? { accessibility } : {}) }
 }
 

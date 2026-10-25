@@ -20,16 +20,23 @@ export interface SvgSemanticAccessibility {
 export function relationAccessibility(
   identity: SvgSemanticIdentity,
   label?: string,
+  owned?: SvgSemanticAccessibility,
 ): SvgSemanticAccessibility | undefined {
   if (!sceneRoleTraits(identity.role).relation) return undefined
   if (identity.from === undefined || identity.to === undefined) return undefined
-  const relation: SvgRelationSemantics = {
-    from: identity.from,
-    to: identity.to,
-    ...(label ? { label } : {}),
+  const from = identity.from, to = identity.to
+  const relation: SvgRelationSemantics = owned?.relation ?? { from, to }
+  relation.from = from
+  relation.to = to
+  if (label) relation.label = label
+  else delete relation.label
+  const description = `${relation.from} to ${relation.to}${relation.label ? `: ${relation.label}` : ''}`
+  if (owned) {
+    owned.label = description
+    return owned
   }
   return {
-    label: `${relation.from} to ${relation.to}${relation.label ? `: ${relation.label}` : ''}`,
+    label: description,
     role: 'graphics-symbol',
     roleDescription: 'relation',
     relation,

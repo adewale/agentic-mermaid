@@ -89,9 +89,9 @@ export function createSequenceLineCompiler(marker: MarkerDescriptor) {
         const node = geometry(input)
         const semantics = connectorSemanticFields({ id: input.id, role: 'message',
           labels: input.label ? [{ text: input.label, ...(input.labelContent ? { textContent: input.labelContent } : {}) }] : [],
-        }, node.endpoints)
-        Object.assign(node.identity!, semantics.identity)
-        Object.assign(node.accessibility!, semantics.accessibility)
+        }, node.endpoints, node)
+        if (semantics.accessibility === undefined) delete node.accessibility
+        else node.accessibility = semantics.accessibility
         labels.length = 0
         labels.push(...semantics.labels)
       }
