@@ -287,10 +287,10 @@ afterAll(async () => {
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
   // Paired macOS/Bun 1.4.2 builds against f8a2437b:
-  // raw 4,129,457 → 4,413,644; gzip 1,281,591 → 1,327,414.
-  // The pinned directive/config/theme programs add the measured cost. The
+  // raw 4,129,457 → 4,415,772; gzip 1,281,591 → 1,328,243.
+  // The pinned config programs and geometry contracts add the measured cost. The
   // module graph contains no upstream parser/renderer; one embedded program
-  // serves both main and worker realms. Remaining headroom is ~7 KB raw / 1.5 KB gzip;
+  // serves both main and worker realms. Remaining headroom is ~5 KB raw / 0.7 KB gzip;
   // single-engine graph and relative payload gates also apply.
   expect(html.byteLength).toBeLessThanOrEqual(4_421_000)
   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_329_000)
