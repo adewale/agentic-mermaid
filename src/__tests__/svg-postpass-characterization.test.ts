@@ -2,7 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { namespaceSvgIds } from '../renderer.ts'
 import { prepareSvgForPngRasterization } from '../png-contract.ts'
-import { inlineFontVarForRaster, inlineResolvedColors } from '../theme.ts'
+import { inlineFontVarForRaster, inlineResolvedColors, resolveInlineColorAttribute, type DiagramColors } from '../theme.ts'
+import { escapeAttr } from '../multiline-utils.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 
 const SOURCE = `flowchart TD
   accTitle: Post pass contract
@@ -11,6 +13,51 @@ const SOURCE = `flowchart TD
   click A "https://example.com/private"`
 
 describe('SVG post-pass interaction contract', () => {
+  test('scalar Scene paints retain CSS expressions, fallbacks and XML attribute values', () => {
+    const colors = { bg: '#fff', fg: '#000', accent: 'var(--brand, #0ff)' }
+    const cases = [
+      ['#fff8', '#fff8'],
+      ['red', 'red'],
+      ['rgba(1,2,3,0.5)', 'rgba(1,2,3,0.5)'],
+      ['var(--fg)', '#000'],
+      ['var(--missing, #abc)', '#abc'],
+      ['var(--missing, var(--fg))', '#000'],
+      ['color-mix(in srgb, var(--fg) 50%, var(--bg))', '#808080'],
+      ['color-mix(in srgb, #000000 50%, transparent)', '#808080'],
+      ['var(--brand, #f00)', 'var(--brand, #f00)'],
+      ['var(--font, #abc)', 'var(--font, #abc)'],
+      ['var( --fg )', 'var( --fg )'],
+      ['var(--missing, &#35;fff)', '&#35;fff'],
+      ['var(--missing, #abc\n)', '#abc\n'],
+      ['"<&\t\r\n', '"<&\t\r\n'],
+    ] as const
+    for (const [paint, expected] of cases) {
+      expect(resolveInlineColorAttribute(paint, colors), paint).toBe(expected)
+      const svg = inlineResolvedColors(`<rect fill="${escapeAttr(paint)}"/>`, colors)
+      expect(decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill'), paint).toBe(expected)
+    }
+
+    // Literal RGB pages normalize for mixing; a host-controlled page keeps
+    // every reference live, even an otherwise resolvable authored fallback.
+    expect(resolveInlineColorAttribute('color-mix(in srgb, var(--fg) 50%, var(--bg))', { bg: 'white', fg: 'rgb(0 0 0)' })).toBe('#808080')
+    expect(resolveInlineColorAttribute('var(--missing, #abc)', { bg: 'var(--page)', fg: '#000' })).toBe('var(--missing, #abc)')
+  })
+
+  test('scalar resolution observes each palette call and retains unusual substituted attribute bytes', () => {
+    const colors: DiagramColors = { bg: '#fff', fg: '#000' }
+    expect(resolveInlineColorAttribute('var(--fg)', colors)).toBe('#000')
+    colors.fg = '#112233'
+    expect(resolveInlineColorAttribute('var(--fg)', colors)).toBe('#112233')
+    for (const muted of ['var(--missing, #abc)', '"', '<style>.x{fill:var(--fg)}</style>']) {
+      colors.muted = muted
+      const paint = 'var(--_text-sec)'
+      const outcome = (run: () => unknown) => { try { return { value: run() } } catch (error) { return { error: (error as Error).message } } }
+      const svg = () => inlineResolvedColors(`<rect fill="${escapeAttr(paint)}"/>`, colors)
+      expect(outcome(() => resolveInlineColorAttribute(paint, colors)))
+        .toEqual(outcome(() => decodedSvgAttributeValue(scanSvgStartTags(svg())[0]!, 'fill')))
+    }
+  })
+
   test('CSS substitutions preserve tag-like text inside a CDATA style body', () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"><style><![CDATA[.x{content:\'<g fill="red">\';fill:var(--fg)}]]></style><rect class="x" width="10" height="10"/></svg>'
     expect(inlineResolvedColors(svg, { bg: '#ffffff', fg: '#112233' }))
