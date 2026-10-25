@@ -4,6 +4,16 @@ BUILD-20 ratchet for source-level cases and accounted exclusions harvested
 from Mermaid's parser/DB suites across every current Agentic Mermaid renderable
 family.
 
+## Reconciliation contract
+
+Registration definitions, recovered source witnesses, distinct executable cases
+and companion cases are different units. Reconciliation must retain the old
+source fixtures and their independent assertions, resolve source arguments
+through syntax-owned call paths, and report extraction limits without inferring
+missing product features. No generated fixture refresh or floor reduction is
+authorized by a lower extractor count. The proposed outputs and receipts remain
+local until their provenance and changed denominators have been reviewed.
+
 ## Accounting correction
 
 The checked-in ledger is a historical capture, not a freshly regenerated count.
