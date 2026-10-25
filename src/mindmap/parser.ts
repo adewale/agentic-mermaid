@@ -1,5 +1,5 @@
 import { readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
-import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { encodeMermaidEntities, mermaidEntityPrepass, protectMermaidEntityPrepass, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import type { MindmapDiagram, MindmapNode, MindmapShape } from './types.ts'
@@ -343,9 +343,9 @@ function markdownToInlineTags(value: string): string {
     .replace(/\*([\s\S]+?)\*/g, '<i>$1</i>')
 }
 
-function writeMindmapText(value: string, mode: 'bare' | 'quoted' | 'unquoted' | 'markdown'): string {
+function writeMindmapText(value: string, mode: 'bare' | 'quoted' | 'unquoted' | 'markdown', additionalReserved = ''): string {
   const text = (part: string) => {
-    const reserved = '#&*' + (mode === 'bare' ? '()[]{}"`' : mode === 'unquoted' ? '' : '"`') + (part.includes('%%{') || mode === 'bare' && /^%%/.test(value) ? '%' : '')
+    const reserved = (mode === 'bare' ? '*()[{}' : '#&*' + (mode === 'unquoted' ? '' : '"`')) + additionalReserved + (part.includes('%%{') || mode === 'bare' && /^%%/.test(value) ? '%' : '')
     let written = encodeMermaidEntities(mode === 'markdown' ? part : part.replace(/\n/g, '<br/>'), reserved)
     if (mode === 'bare' && /^mindmap\b/i.test(written)) written = `#${written.codePointAt(0)!};${written.slice(1)}`
     return written
@@ -359,10 +359,28 @@ function plainLabel(value: string): string {
   return value.replace(/<\/?(?:b|i)>/gi, '').trim()
 }
 
+function writeMindmapNode(node: MindmapNode): string {
+  const markdown = node.markdown
+  const mode = markdown ? 'markdown' : node.shape === 'default' ? 'bare' : /[()\]}]/.test(node.label) || node.label.startsWith('"') ? 'quoted' : 'unquoted'
+  const id = node.id === plainLabel(node.label) && (/[()[\]{}\r\n]/.test(node.id) || node.id.includes('%%{') || !NODE_ID_TEXT.test(node.id)) ? '' : node.id
+  return protectMermaidEntityPrepass(reserved => {
+    const payload = writeMindmapText(node.label, mode, reserved)
+    const label = markdown ? `"\`${payload}\`"` : mode === 'quoted' ? `"${payload}"` : payload
+    return node.shape === 'default' ? label
+      : node.shape === 'rect' ? `${id}[${label}]`
+      : node.shape === 'rounded' ? `${id}(${label})`
+      : node.shape === 'circle' ? `${id}((${label}))`
+      : node.shape === 'hexagon' ? `${id}{{${label}}}`
+      : node.shape === 'cloud' ? `${id})${label}(`
+      : `${id}))${label}((`
+  })
+}
+
 /** Decorations and explicit identities use different lexer states from text.
  * Anonymous shaped nodes derive their logical identity after label decoding. */
-export function mindmapSerializationProblem(diagram: MindmapDiagram): string | undefined {
+export function mindmapSerializationProblem(diagram: MindmapDiagram, authoredSource?: string): string | undefined {
   const visit = (node: MindmapNode): string | undefined => {
+    if (node.shape === 'default' && (writeMindmapNode(node) !== node.label.replace(/\n/g, '<br/>') || cleanLabel(node.label).label !== node.label)) return `Mindmap default node "${node.id}" needs text escapes that would change its identity; choose a bordered shape with an explicit identity before editing this text`
     const anonymous = node.shape !== 'default' && node.id === plainLabel(node.label)
     if ((!anonymous && node.id.includes('%%{')) || [node.icon, node.className].some(value => value?.includes('%%{'))) {
       return `Mindmap node "${node.id}" has an explicit identity or decoration containing a directive opener; rename that identity before editing its text`
@@ -370,7 +388,27 @@ export function mindmapSerializationProblem(diagram: MindmapDiagram): string | u
     for (const child of node.children) { const problem = visit(child); if (problem) return problem }
     return undefined
   }
-  return visit(diagram.root)
+  const problem = visit(diagram.root)
+  if (problem || authoredSource === undefined) return problem
+  const lines = authoredSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
+  const scanned = scanAccessibilityDirectives(lines, mindmapStatementEnds(lines))
+  for (const { raw } of mindmapStatements(scanned.familyLines, header + 1)) {
+    const text = raw.trim()
+    if (!text || text.startsWith('%%') || text.startsWith('::')) continue
+    const node = readNode(text)?.node
+    if (!node || node.shape !== 'default') continue
+    // A bare node has one token for both identity and label. XML decoding or
+    // formatting may give us a clear display value without retaining that
+    // token. Preserve the source when its lexical identity cannot be rebuilt.
+    // The pinned DB's HTML sanitizer canonicalizes each actual br tag to
+    // <br>. Entity tokens stay protected and cannot become a tag here.
+    const tokenIdentity = (value: string): string => toEntityMarkers(mermaidEntityPrepass(value)).replace(/<br\s*\/?>/gi, '<br>')
+    const originalIdentity = tokenIdentity(text)
+    const writtenIdentity = tokenIdentity(writeMindmapNode({ ...node, children: [] }))
+    if (writtenIdentity !== originalIdentity) return `Mindmap default node "${node.id}" has an authored identity that cannot be reconstructed without changing its token; its source remains preserved`
+  }
+  return undefined
 }
 
 /** Inspect statements independently of indentation: verifier input may be
@@ -388,7 +426,7 @@ export function mindmapNonportableTextLines(source: string): Array<{ line: numbe
     const unprotectedText = text.includes('%%{') || payload !== undefined && /^"[\s\S]*"$/.test(payload)
       && /["`]/.test(payload.slice(payload.startsWith('"`') ? 2 : 1, payload.endsWith('`"') ? -2 : -1))
     const problem = unprotectedText ? 'Mindmap label delimiters need grammar escapes for pinned Mermaid; the writer preserves their literal text'
-      : node ? mindmapSerializationProblem({ root: { ...node, children: [] } })
+      : node ? mindmapSerializationProblem({ root: { ...node, children: [] } }, `mindmap\n${text}`)
       : /^::/.test(text) && text.includes('%%{') ? 'Mindmap decoration contains a directive opener with no portable spelling that preserves its text' : undefined
     if (problem) problems.push({ line: start + 1, message: problem })
   }
@@ -411,20 +449,7 @@ export function serializeMindmap(diagram: MindmapDiagram): string {
   }
   const visit = (node: MindmapNode, depth: number): void => {
     const indent = '  '.repeat(depth + 1)
-    const markdown = node.markdown
-    const mode = markdown ? 'markdown' : node.shape === 'default' ? 'bare' : /[()\]}]/.test(node.label) || node.label.startsWith('"') ? 'quoted' : 'unquoted'
-    const payload = writeMindmapText(node.label, mode)
-    const label = markdown ? `"\`${payload}\`"` : mode === 'quoted' ? `"${payload}"` : payload
-    // A label-derived identity stays anonymous if it cannot be an ID token.
-    // Escaping the text never silently creates a different public identity.
-    const id = node.id === plainLabel(node.label) && (/[()[\]{}\r\n]/.test(node.id) || node.id.includes('%%{') || !NODE_ID_TEXT.test(node.id)) ? '' : node.id
-    const text = node.shape === 'default' ? label
-      : node.shape === 'rect' ? `${id}[${label}]`
-      : node.shape === 'rounded' ? `${id}(${label})`
-      : node.shape === 'circle' ? `${id}((${label}))`
-      : node.shape === 'hexagon' ? `${id}{{${label}}}`
-      : node.shape === 'cloud' ? `${id})${label}(`
-      : `${id}))${label}((`
+    const text = writeMindmapNode(node)
     lines.push(indent + text)
     if (node.icon) lines.push(`${indent}  ::icon(${node.icon})`)
     if (node.className) lines.push(`${indent}  :::${node.className}`)

@@ -42,7 +42,7 @@ export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, option
     const parsed = model.parsed()
     const regions: AsciiRegion[] = document?.regions() ?? []
     if (parsed.ok) for (const region of regions) {
-      const declaration = region.kind === 'node' || region.kind === 'note' ? parsed.value.source.nodes.get(region.id) : parsed.value.source.groups.get(region.id)
+      const declaration = region.kind === 'node' ? parsed.value.source.nodes.get(region.id) : parsed.value.source.groups.get(region.id)
       if (region.sourceLine === undefined && declaration) region.sourceLine = declaration.line
     }
     const actions = parsed.ok ? collectActionRecords(parsed.value).map(sanitizeAction) : []

@@ -26,6 +26,9 @@ export interface MermaidGraph {
    *  Placed by a post-layout pass (layout-engine placeStateNotes); flowcharts
    *  never populate this. */
   stateNotes?: StateNoteSpec[]
+  /** Floating annotations remain distinct from states and attached notes;
+   * their physical node participates in ordinary scoped layout. */
+  floatingStateNotes?: Array<import('./state/types.ts').FloatingStateNote & { nodeId: string }>
 }
 
 /** A state-diagram note (`note left of X : text` / block form). ONE grammar
@@ -48,12 +51,13 @@ export type Direction = 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
 
 export interface MermaidNode {
   id: string
-  semanticRole?: 'note'
   label: string
   labelContent?: LabelContent
   /** Runtime pixel wrapping; the authored label and its display runs stay intact. */
   labelBlock?: PixelTextBlock
   shape: NodeShape
+  /** Authored note identity when this physical node is a floating annotation. */
+  floatingNoteId?: string
   /** Mermaid v11 `@{ shape: ... }` semantic shape, normalized to the canonical
    *  short name (e.g. 'sl-rect' for `manual-input`). Set only for
    *  metadata-declared nodes; `shape` stays the rendering geometry
@@ -102,6 +106,7 @@ export type NodeShape =
   | 'state-join'     // <<join>> — filled bar (same geometry as fork)
   | 'state-choice'   // <<choice>> — small unlabeled diamond
   | 'state-history'  // [H] / <<history>> — circle containing H (H* when deep)
+  | 'state-note'     // named floating annotation, distinct from a state
 
 export interface MermaidEdge {
   source: string
@@ -217,13 +222,13 @@ export interface PositionedStateNote {
 }
 
 export interface PositionedNode {
-  semanticRole?: 'note'
   labelBlock?: PixelTextBlock
   iconFallbackBlock?: PixelTextBlock
   id: string
   label: string
   labelContent?: LabelContent
   shape: NodeShape
+  floatingNoteId?: string
   /** Mermaid v11 semantic shape id when the node was declared via
    *  `@{ shape: ... }` metadata — emitted as the SVG data-semantic-shape. */
   semanticShape?: string

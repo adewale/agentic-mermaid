@@ -65,7 +65,6 @@ export type Canvas = TerminalDocument
 
 /** A node in the ASCII graph, positioned on the grid. */
 export interface AsciiNode {
-  semanticRole?: 'note'
   /** Unique identity key — the original node ID from the parser (e.g. "A", "B"). */
   name: string
   /** Human-readable label for rendering inside the box (e.g. "Web Server"). */

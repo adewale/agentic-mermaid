@@ -45,7 +45,7 @@ describe('tracked Unicode timeline titles', () => {
 })
 
 describe('renderMermaidSVG – timeline diagrams', () => {
-  it.each(['Timeline redesign', 'timeline', 'TIMELINE release'])('keeps a period named %s through parse, export and rendering', label => {
+  it.each(['Timeline redesign', 'timeline', 'TIMELINE release', 'section', 'SECTION'])('keeps a period named %s through parse, export and rendering', label => {
     const source = `timeline\n2020 : A\n${label} : Ship`
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))

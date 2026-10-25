@@ -251,15 +251,20 @@ test('concurrent State labels retain visible own and neighboring endpoint marker
   const positioned = positionResolvedFamily(resolvedRenderExecutionPlanOf(request).family.id, request)
   const primitives = inspectScenePrimitives(lowerPositionedFamilyScene(request, positioned)).primitives
   const halos = primitives.filter(part => part.id.endsWith(':halo'))
-  for (const id of ['edge:Active_start->NumLockOff#0', 'edge:NumLockOn->NumLockOff#0', 'edge:Active_start2->CapsLockOff#0', 'edge:CapsLockOn->CapsLockOff#0', 'edge:Active_start3->ScrollLockOff#0', 'edge:ScrollLockOn->ScrollLockOff#0']) {
-    const edge = scenePrimitiveSource(primitives.find(part => part.id === id)!)!
+  const incoming = ['NumLockOff', 'CapsLockOff', 'ScrollLockOff'].flatMap(target => {
+    const edges = primitives.filter(part => part.id.startsWith('edge:') && part.id.endsWith(`->${target}#0`))
+    expect(edges).toHaveLength(2) // contextual start and the paired authored On state
+    return edges
+  })
+  for (const primitive of incoming) {
+    const edge = scenePrimitiveSource(primitive)!
     expect(edge.kind).toBe('connector')
     if (edge.kind !== 'connector') throw new Error('Expected the retained native connector')
     const marker = connectorMarkerPaintRegions(edge).find(region => region.position === 'end')!
     expect(marker.hull).toBeDefined()
     for (const halo of halos) {
       const a = marker.bounds!, b = halo.bounds!
-      expect(a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0, `${id} hidden by ${halo.id}`).toBe(false)
+      expect(a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0, `${primitive.id} hidden by ${halo.id}`).toBe(false)
     }
   }
 })

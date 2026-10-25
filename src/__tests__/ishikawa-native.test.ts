@@ -9,6 +9,27 @@ const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
 describe('native Ishikawa', () => {
+  test('accessibility line endings cannot create fishbone nodes or escape the Result contract', async () => {
+    const parsed = parseRegisteredMermaid('ishikawa\nEffect\n  Child')
+    if (!parsed.ok || parsed.value.body.kind !== 'ishikawa') throw new Error('Expected typed Ishikawa')
+    const before = serializeMermaid(parsed.value)
+    for (const description of ['one\rtwo', 'one\r\ntwo', 'one\n  two']) {
+      const edited = mutate(parsed.value, { kind: 'set_accessibility_description', description })
+      expect(edited.ok).toBe(true)
+      if (!edited.ok || edited.value.body.kind !== 'ishikawa') continue
+      expect(edited.value.body.accessibilityDescription).toBe('one\ntwo')
+      expect(edited.value.body.nodes).toEqual(parsed.value.body.nodes)
+      const written = serializeMermaid(edited.value)
+      const reloaded = parseRegisteredMermaid(written)
+      expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
+      expect(verifyMermaid(written).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_accessibility' }))
+    }
+    for (const title of ['one\rtwo', 'one\r\ntwo', 'one\ntwo', '']) {
+      expect(mutate(parsed.value, { kind: 'set_accessibility_title', title })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    }
+    expect(serializeMermaid(parsed.value)).toBe(before)
+  })
+
   test('keyword labels retain their literal cause tree through portable typed spelling', async () => {
     for (const source of ['ishikawa\nishikawa', 'ishikawa\nProblem\n  ISHIKAWA-beta guide\n    Detail']) {
       expect(await upstream.accepts(source)).toBe(false)

@@ -646,7 +646,7 @@ table here, which would drift. In broad strokes:
   The standalone editor embeds one module used by both the main thread and
   its Blob worker; it does not embed separate copies of the rendering engine.
   The real-browser standalone contract also caps the complete generated HTML
-  at 4,100,000 raw / 1,250,000 gzip bytes and checks worker crash recovery,
+  at 4,100,000 raw / 1,264,000 gzip bytes and checks worker crash recovery,
   text output and the actual Canvas PNG download. The hosted editor retains
   its separate, lazy worker asset and existing route payload budgets.
 

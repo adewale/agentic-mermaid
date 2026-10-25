@@ -126,6 +126,15 @@ describe('sequence identities survive portable structured writing', () => {
     'sequenceDiagram\nactor @',
     'sequenceDiagram\nparticipant :@',
     'sequenceDiagram\nparticipant >@{ "type": "database", "alias": "Store" }',
+  ])('damaged or unportable declarations require repair before typed admission: %s', async source => {
+    expect(await upstream.accepts(source)).toBe(false)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED', message: expect.stringContaining('Sequence participant ID') }))
+    expect(await upstream.publicAccepts('sequenceDiagram\nparticipant Control as Valid')).toBe(true)
+  })
+
+  test.each([
     'sequenceDiagram\nJ->%:',
     'sequenceDiagram J->accDescr:',
     'sequenceDiagram\nalt retry\nJ->>accTitle: reply\nend',

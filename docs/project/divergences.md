@@ -60,19 +60,22 @@ literal stars through native rendering, export and typed edits. Mindmap
 accessibility remains a warned native extension because the pinned grammar
 has no accessibility production.
 
-Floating State notes are addressable note nodes, with their own aliases,
-containing scope, text and connected endpoints. SVG and terminal regions carry
-the note role; they are not anchored to invented states. Forward references
-cannot create competing placeholders. Four imported upstream floating-note
-cases (two upstream test blocks with two input variants each) now require
-structured rendering and visible note text instead of
-asserting an unsupported-syntax error. Mermaid's pinned grammar accepts the
-declaration but drops its semantic action; retaining the note is intentional.
+Floating State notes retain main's independent annotation namespace, containing
+scope and collision-safe rendered IDs. A note alias does not introduce or
+rename an ordinary state with the same name. All four imported floating-note
+cases already render on base `c727ed8c`; they are controls, not gains attributed
+to this change. Mermaid's pinned grammar accepts the declaration but drops its
+semantic action; retaining the note is intentional.
 
 Block terminal cards reserve actual face demand before routing, growing
-monotonically until allocated ports fit. Reciprocal/parallel Block edges and
-cross-scope floating-note edges are checked against actual owned stroke/marker
-ink and frame contacts, independently of stored endpoint metadata.
+monotonically until allocated ports fit. Nested grid gutters derive from the
+router's protected approach distance and retain a free channel. Shared terminal
+faces reserve distinct contacts when marker meanings conflict; compound or
+parallel classification alone cannot establish safety. Reciprocal/parallel
+Block edges and cross-scope State edges are checked against actual owned
+stroke/marker ink and frame contacts, independently of stored endpoint metadata.
+When contact allocation is required, the current global routing mode may
+unbundle otherwise compatible routes elsewhere in the graph.
 
 The approach takes lexer-state ideas from
 [Pele 1.10.0](https://github.com/obsidianmd/pele/tree/4eff76f98c73b6817800a05773517f35832e4e92),
@@ -92,46 +95,60 @@ method, including its sanitizer; it is a grammar contract, not equality with
 lossy sanitized HTML. Separate modern tests inspect the public runtime. These
 reference corrections are not additional native syntax capabilities.
 
-The public-parser replay increases accepted typed canonical exports from 726
-on base `09425754` to 1,031: **305 additional inputs across 18 families**,
-including all three former crashes. The final shortcut-removal pass accounts
-for 71 of those gains. No previously accepted export regresses. All 305 reload
-as typed bodies; facts match for 304. One Block spacer normalizes generated
+The public-parser replay against main `c727ed8cf9ecef045a5b7e2cc168df8e0f8f91e5`
+increases accepted typed canonical exports from 755 to 954: **199 additional
+inputs across 17 families**, with no acceptance regressions and no remaining
+crashes. This replaces the earlier comparison against `09425754`; changes
+already merged into main receive no credit here. All 199 gains reload as typed
+bodies. Facts match for 198; one wide Block spacer normalizes generated
 occurrence names while retaining its two cells and authored nodes/endpoints.
 
-The stronger output audit compares raw source, typed rendering and exported
-source. ASCII is identical in 304/305 cases; SVG strings are identical in
-300/305. Four SVGs differ only in equivalent numeric/`px` stroke widths. One
-State serializer reorders declarations: SVG node geometry is retained, while
+The output audit compares raw source, typed rendering and exported source.
+ASCII is identical in 198/199 cases; SVG strings are identical in 195/199.
+Four SVGs differ only in equivalent numeric/`px` stroke widths and generated
+metadata. One State serializer reorders declarations: SVG is identical, while
 a disconnected state and pseudostate exchange terminal positions. Its labels,
 identities, parents and endpoints are unchanged. Canonical serialization does
-not promise to preserve layout-sensitive declaration order.
+not preserve every layout-sensitive declaration order.
 
-The remaining 221 source-only inputs preserve authored statements and lose
-typed mutation. None was accepted by the pinned parser, and none counts as a
-repair. This remains a coarse capability boundary: portable parts of an
-unsupported diagram cannot be edited independently. Invalid identifiers,
-unknown statement structure and unavailable accessibility grammar are not
-silently renamed, dropped or replaced to manufacture a typed pass.
+The candidate has 984 typed inputs, 258 source-only inputs and 41 explicit parse
+failures. No reference-accepted retained input loses typed admission. The 258
+source-only inputs retain family statements and cannot accept typed edits,
+including edits to portable portions. One Radar input loses only adjacent empty
+frontmatter delimiters under the existing warned `empty_frontmatter` policy.
+Source preservation is not a portability certificate. Invalid identifiers and
+unknown statement structure are not silently renamed or discarded to create a
+portable typed result.
 
-Another 31 typed inputs have malformed init payloads or invalid theme config.
-Canonical export now rejects them with a repair message instead of emitting a
-known-invalid wrapper. Empty init payloads are no-ops; null theme variables
-remain valid, and concrete palette colors normalize surrounding whitespace.
-Verbatim wrapper mode deliberately retains authored bytes for repair, including
-44 additional wrapper spellings that canonical mode can repair. Source
-preservation is not a portability certificate. Three GitGraph bodies require
-their configured main branch; their complete canonical documents pass.
+Timeline sections retain the latest period: a same-line event after a section
+belongs to that period in its earlier section. Without a prior period, the
+reader rejects the orphan event instead of inventing a period. An explicit
+empty trimmed section remains native-readable but source-only for typed editing
+because the current writer cannot preserve that lexical category.
 
-The 124 original modern tests already passed on base. Fourteen added modern
-regressions fail there and pass on the candidate; the complete modern gate has
-138 passes. Four existing imported State cases are now proper rendering passes
-rather than expected failures. Historical/docs/property suites retain 1,079
-passes and 12 existing skips. These are separate measurements, not a claim that
-all upstream tests now pass. A continuation audit adds four discriminating
-C4/Mindmap construction regressions; it leaves the retained-input counts
-unchanged. Final local validation, publishing provenance and
-any exact-head CI limitations belong in the PR description.
+All emitted typed canonical documents in the replay are reference-accepted.
+Thirty typed inputs and one source-only Mindmap input have malformed init
+payloads or invalid theme configuration; canonical export rejects them with a
+repair message. Admission follows case-sensitive keys, effective family/theme
+precedence, sanitizer-neutralized values and the actual derived-color inputs.
+It is bounded evidence for these observed classes, not a full config-schema
+proof. Another 28 typed documents need canonical wrapper mode to repair their
+verbatim wrapper spelling. Three GitGraph bodies require their configured main
+branch; their complete documents pass.
+
+Accessibility descriptions normalize physical CR/CRLF to logical newlines before
+refolding. A successful mutation must retain the normalized fields in body,
+metadata and reloaded source. Values a family writer cannot spell without
+closing a description block or creating a directive return `INVALID_OP`
+atomically. Block, Mindmap, Sankey and Ishikawa accessibility remain warned
+native extensions. The pinned Ishikawa parser reads these lines as fishbone
+nodes, even when it accepts the source, so parse acceptance does not establish
+metadata support.
+
+Pinned-suite counts, red/green discrimination, the combined adversarial audit,
+exact-head CI results and publishing evidence belong in the PR description.
+These retained-input counts are separate from upstream test counts and do not
+claim complete Mermaid support.
 
 ### Practical reader fixes checked against Mermaid 12.2.0
 
@@ -245,11 +262,20 @@ Repeated `subgraph` IDs merge their members into one group, retaining the first 
 
 A later `state A { … }` block adds its states to the one composite A, as Mermaid 12.2 does; the body stays source-preserved. Three readings differ from Mermaid's, each chosen so the drawing keeps what the author wrote, as repeated Flowchart groups keep their first declaration:
 
-- **Placement.** A stays where its first block is. Mermaid moves A into the composite holding its last nested block, and a block at the top level never moves it back: `state A {…}` followed by `state P { state A {…} }` draws A inside P there and at the top level here.
+- **Placement.** A retains its first established scope: its first reference inside a composite, or its first block if no such reference preceded it. A root reference alone establishes no parent. Mermaid moves A into the composite holding its last nested block, and a block at the top level never moves it back: `state A {…}` followed by `state P { state A {…} }` draws A inside P there and at the top level here.
 - **Regions.** A block reopening a composite split by `--` continues its last region. Mermaid draws the reopened states directly in A, beside its regions.
 - **Direction.** The first block that sets a `direction` sets A's. Mermaid also keeps the first block's, but ignores a direction set only in a later block, which ours draws. In a composite split by `--`, the later block's direction sets the region it continues, as a direction written after the last `--` does.
 
-Labels follow the rule for a composite mentioned outside its block: a label in a later block, or a description or alias between blocks, labels A, and several are joined into its label and reported (`state_composite_description`), where Mermaid rejects them. A state reopened inside itself is still the author's duplicate identity, which layout refuses.
+Labels follow the rule for a composite mentioned outside its block: a label in a later block, or a description or alias between blocks, labels A, and several are joined into its label and reported (`state_composite_description`), where Mermaid rejects them. A state reopened inside itself is still the author's duplicate identity, which native parsing refuses; the editable API preserves its source as opaque.
+
+### Floating State notes retain their authored content
+
+Mermaid 12.2 accepts `note "text" as N` but drops it from its State database.
+We preserve N, its text and its composite or concurrent-region scope as a
+floating annotation. A note and a state with the same name remain separate
+identities. The typed body, edits, writer, SVG and terminal output retain the
+annotation; it participates in layout as a scoped object without an invented
+attachment to a state. Serialization uses the accepted quoted-note syntax.
 
 ### Mutation surface is intentionally narrower than Mermaid syntax
 
@@ -681,3 +707,14 @@ Those validation items remain in `TODO.md`.
 Valid empty Gantt templates render an explicit empty state while verification retains `EMPTY_DIAGRAM`. This deliberately differs from legacy imported no-task render-error expectations and does not fabricate a schedule. Repeated GitGraph commit labels retain all occurrences using separate public identities; source references resolve to the latest preceding occurrence, and an unexpressible typed cherry-pick is rejected. Explicit duplicate merge IDs remain errors. Strict rendering continues to reject raw Mermaid `themeCSS`, whose selectors can alter document geometry outside declarative Style and certified paint.
 
 State class/style assignments to undeclared targets remain pending authored directives and never create phantom nodes; later declarations and typed additions apply them. Lollipop Class endpoints retain independent interface occurrences and authored labels, distinct from ordinary classes with the same spelling. These repairs preserve source meaning rather than reproducing accidental data loss or inventing new diagram syntax.
+
+### Sequence wrapping geometry
+
+`wrap:` / `nowrap:` and the diagram wrap default are semantic controls, not
+displayed text. Agentic retains them through parsing and typed edits, including
+participant aliases, messages, notes, groups and fragment captions. The controls
+are read before entity decoding, so encoded control-looking text stays literal.
+Soft wrapping is measured in the output adapter: SVG uses a 240-pixel text budget
+and terminal rendering a 40-cell budget (or a smaller requested target). Authored
+line breaks survive `nowrap:`. Mermaid's renderer geometry is not the layout
+contract; text, explicit controls and their inheritance are.

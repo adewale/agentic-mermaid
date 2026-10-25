@@ -19,6 +19,7 @@ import { parseErDiagram } from '../er/parser.ts'
 import { layoutErDiagram } from '../er/layout.ts'
 import { lowerErScene } from '../er/renderer.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
+import { parseRegisteredMermaid, serializeMermaid, mutate, renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
 
 /** Lower `A <glyphs> B : x` and return the marker geometry at entity1's end. */
 function markerFor(glyphs: string): { lines: number; circles: number; category: string } {
@@ -39,6 +40,31 @@ function markerFor(glyphs: string): { lines: number; circles: number; category: 
 }
 
 describe('crow\'s-foot marker vocabulary (upstream reference)', () => {
+  it('the parent endpoint remains distinct through parsing, editing, writing and both renderers', () => {
+    const source = 'erDiagram\nPROJECT u--o{ TEAM_MEMBER : "parent"'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'er') throw new Error('Expected structured ER')
+    expect(parsed.value.body.relations[0]).toMatchObject({ leftCard: 'parent', rightCard: 'zero-or-many' })
+    const renamed = mutate(parsed.value, { kind: 'rename_entity', from: 'PROJECT', to: 'RELEASE' })
+    if (!renamed.ok) throw new Error('rename failed')
+    const written = serializeMermaid(renamed.value)
+    const native = parseErDiagram(toMermaidLines(written))
+    expect(native.relationships[0]).toMatchObject({ entity1: 'RELEASE', cardinality1: 'parent', cardinality2: 'zero-many' })
+    const scene = lowerErScene({ positioned: layoutErDiagram(native), colors: { bg: '#ffffff', fg: '#27272A' }, resolved: { renderOptions: {} } })
+    const marker = scene.parts.find(part => part.kind === 'shape' && part.role === 'cardinality' && part.id.endsWith(':1'))
+    if (!marker || marker.kind !== 'shape' || marker.geometry.kind !== 'compound') throw new Error('Expected parent geometry')
+    expect(marker.channels?.category).toBe('parent')
+    expect(marker.geometry.children.map(piece => piece.kind)).toEqual(['polygon'])
+    expect(renderMermaidSVG(written)).toContain('data-cardinality1="parent"')
+    expect(renderMermaidASCII(written, { colorMode: 'none' })).toContain('◇')
+    const added = mutate(renamed.value, { kind: 'add_relation', from: 'RELEASE', to: 'TEAM_MEMBER', leftCard: 'parent', rightCard: 'one-only', label: 'owns' })
+    if (!added.ok) throw new Error('add parent relation failed')
+    expect(parseErDiagram(toMermaidLines(serializeMermaid(added.value))).relationships[1]).toMatchObject({ cardinality1: 'parent', cardinality2: 'one' })
+    expect(mutate(renamed.value, { kind: 'add_relation', from: 'RELEASE', to: 'TEAM_MEMBER', leftCard: 'one-only', rightCard: 'parent', label: 'invalid' } as never)).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(parseErDiagram(toMermaidLines('erDiagram\nMenu'))!.entities[0]?.id).toBe('Menu')
+    expect(() => parseErDiagram(toMermaidLines('erDiagram\nPROJECTu--o{ TEAM_MEMBER : x'))).toThrow()
+  })
+
   it('|| (exactly one) draws two ticks, no circle', () => {
     expect(markerFor('||--|| ')).toEqual({ lines: 2, circles: 0, category: 'one' })
   })

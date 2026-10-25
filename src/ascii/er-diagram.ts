@@ -20,6 +20,7 @@ const attributeText = (attr: ErAttribute) => `${attr.keys.length ? attr.keys.joi
 
 /** Family-owned crow's-foot projection, measured along the port's normal. */
 function cardinalityMarkers(card: Cardinality, port: BoxPort, ascii: boolean): TerminalMarker[] {
+  if (card === 'parent') return [{ shape: 'hollow-diamond', direction: port.side, ascii }]
   const marker: TerminalMarker = { shape: card === 'one' || card === 'zero-one' ? 'cardinality-one' : 'cardinality-many', direction: port.side, ascii }
   return card === 'zero-one' || card === 'zero-many' ? [marker, { shape: 'circle', ascii }] : [marker]
 }

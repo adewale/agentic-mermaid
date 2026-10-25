@@ -4,7 +4,7 @@ import { parseTreemapDiagram } from '../treemap/parser.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { appendAccessibilityLines } from './accessibility-envelope.ts'
+import { accessibilityDescriptionText, accessibilityTitleText, appendAccessibilityLines } from './accessibility-envelope.ts'
 import { hierarchyDescendants, validateHierarchy } from '../shared/hierarchy-model.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import { writeGrammarText } from '../shared/grammar-text.ts'
@@ -78,10 +78,10 @@ export function mutateTreemap(body: TreemapBody, op: TreemapMutationOp): Result<
         next.title = op.title ?? undefined
         break
       case 'set_accessibility_title':
-        next.accessibilityTitle = op.title ?? undefined
+        next.accessibilityTitle = op.title == null ? undefined : accessibilityTitleText(op.title)
         break
       case 'set_accessibility_description':
-        next.accessibilityDescription = op.description ?? undefined
+        next.accessibilityDescription = op.description == null ? undefined : accessibilityDescriptionText(op.description)
         break
       case 'add_node': {
         if (op.parentId && find(op.parentId).value !== undefined) throw new Error('A leaf cannot contain children')

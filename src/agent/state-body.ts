@@ -4,8 +4,8 @@
 // ops and a real `asState` narrower).
 //
 // Modeled grammar (the state parse core, src/state/parse-core.ts, is shared
-// with the legacy renderer parser, src/parser.ts parseStateDiagram — one
-// grammar, two consumers, so the surfaces cannot drift):
+// with the renderer parser, src/parser.ts parseStateDiagram. Both projections
+// also consume the shared identity/scope resolver in src/state/identity.ts:
 //   stateDiagram-v2 | stateDiagram
 //   state "Description" as id            — aliased simple state
 //   id : Description                     — bare state description
@@ -18,6 +18,8 @@
 //   state id <<fork|join|choice|history|H|deephistory|H*>> — pseudostate decl
 //   note left|right of id : text         — single-line note
 //   note left|right of id … end note     — block note
+//   note "text" as id                    — independently identified floating note
+//   --                                  — concurrent region separator
 //   direction TD|TB|LR|BT|RL             — top-level or per-composite direction
 //
 // `[*]` is NOT a state node: it is modeled CONTEXTUALLY as the reserved
@@ -30,22 +32,19 @@
 //
 // Structured-or-opaque: any statement (readStateStatements) that is NOT one of
 // the modeled forms returns null so the caller falls back to a lossless opaque
-// body. Deliberately UNMODELED: concurrency separators `--` (regions render
-// via the legacy parser, but a structured region model is deferred — repo
-// #118 does not list it), `classDef`/`class`/`:::` styling, bare `stateId`
-// lines, and composite ids containing hyphens (the legacy composite regex
-// rejects them). Each of those keeps the whole body opaque so it round-trips
-// verbatim.
+// body. Reopened composite declarations remain source-preserved rather than
+// acquiring multiple editable identities. Paint directives and bare states
+// are modeled alongside the forms above.
 //
 // Canonical serialization emits state DEFINITIONS before transitions, keeping
-// labels beside their declarations. Notes serialize LAST (they are annotations
-// over already-declared states).
+// labels beside their declarations. Floating notes serialize in their owning
+// scope; attached notes follow the state declarations they annotate.
 // ============================================================================
 
 import { scanStateComments } from '../state/comment.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  StateBody, StateNode, StateNote, StateRegion, StateTransition, StateMutationOp,
+  StateBody, StateNode, StateNote, StateFloatingNote, StateRegion, StateTransition, StateMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -55,7 +54,7 @@ import { keepStateTextFromPrepass, readStateLabel, readStateText, writeStateDesc
 import type { LabelContent } from '../shared/display-text.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
-  matchFloatingNote, matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
+  matchNoteLine, matchNoteOpen, matchFloatingNote, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, readStateStatements, stateStatementEnds, lexedStateText, isConcurrencySeparator, type StateStatement, isHistoryEndpoint, matchHistoryEndpoint,
   isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
@@ -63,6 +62,9 @@ import {
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
+import { resolveStateIdentities, type StateIdentities } from '../state/identity.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
+import type { StateScope } from '../state/types.ts'
 
 /** `record[key] = value` as an own key: a class may be named `__proto__`,
  *  which an assignment would take as the record's prototype. */
@@ -92,8 +94,8 @@ interface ParseScope {
   direction?: StateNode['direction']
 }
 
-function newScope(): ParseScope {
-  return { states: [], transitions: [], byId: new Map() }
+function newScope(byId: Map<string, StateNode>): ParseScope {
+  return { states: [], transitions: [], byId }
 }
 
 /** Ensure a non-pseudo state node exists in the scope; create a bare one if
@@ -117,7 +119,16 @@ function ensureState(scope: ParseScope, id: string): StateNode {
  */
 export function parseStateBody(lines: string[]): StateBody | null {
   const { statements } = readStateStatements(scanStateComments(lines))
-  const root = newScope()
+  let identities: StateIdentities
+  try { identities = resolveStateIdentities(statements) } catch (error) {
+    // A source beyond the host budget stays source-preserved. The renderer
+    // reports its work-limit refusal through verify's normal diagnostics.
+    if (error instanceof DiagramWorkLimitError) return null
+    throw error
+  }
+  if (identities.issue) return null
+  const stateById = new Map<string, StateNode>()
+  const root = newScope(stateById)
   const stack: ParseScope[] = [root]
   // Discover composite declarations before materializing transition endpoints.
   // Mermaid state IDs are global even when the declaration is nested, so a
@@ -131,9 +142,6 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (compositeIds.has(id)) return null
     compositeIds.add(id)
   }
-  const floatingDeclarations = statements.flatMap(statement => { const note = statement.noteBody ? null : matchFloatingNote(statement.text); return note ? [note.id] : [] })
-  const floatingIds = new Set(floatingDeclarations)
-  if (floatingIds.size !== floatingDeclarations.length) return null
   const pendingCompositeLabels = new Map<string, readonly string[]>()
   // The composites opened so far. Ids are global, so a later mention in any
   // scope names the composite; one before its block waits in
@@ -150,6 +158,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
   const transitionOrder: StateTransition[] = []
   // Notes, in source order (global list — state ids are global in mermaid).
   const notes: StateNote[] = []
+  const floatingNotes: StateFloatingNote[] = []
+  const floatingIds = new Set<string>()
   // Open block note (`note left of X` … `end note`), collecting body lines.
   let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
 
@@ -167,7 +177,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const { text, content } = readStateText(authored)
     notes.push({ target, side, text, ...(content ? { textContent: content } : {}) })
     // A note on an undeclared state declares it (mirrors the render parser).
-    if (!compositeIds.has(target) && !floatingIds.has(target)) ensureState(scope, target)
+    if (!compositeIds.has(target)) ensureState(scope, target)
   }
 
   for (const statement of statements) {
@@ -188,16 +198,18 @@ export function parseStateBody(lines: string[]): StateBody | null {
 
     if (!line) continue
 
-    // --- notes (before the ::: gate: note TEXT may legally contain :::) ---
     const floating = matchFloatingNote(line)
     if (floating) {
-      if (compositeIds.has(floating.id)) return null
-      const node = ensureState(scope, floating.id)
-      if (node.kind === 'note' || node.declaredBare || node.label !== undefined) return null
-      node.kind = 'note'
-      labelState(node, [floating.text])
+      if (floatingIds.has(floating.id)) return null
+      floatingIds.add(floating.id)
+      const { text, content } = readStateText(floating.text)
+      if (!validFloatingNoteText(text).ok) return null
+      const scope = identities.scopeOf(statement)
+      floatingNotes.push({ id: floating.id, text, ...(content ? { textContent: content } : {}), ...(scope ? { scope } : {}) })
       continue
     }
+
+    // --- notes (before the ::: gate: note TEXT may legally contain :::) ---
     const noteLine = matchNoteLine(line)
     if (noteLine) {
       pushNote(scope, noteLine.target, noteLine.side, noteLine.text)
@@ -254,11 +266,11 @@ export function parseStateBody(lines: string[]): StateBody | null {
           owner.node.direction = scope.direction
           delete scope.direction
         }
-        const nextRegion = newScope()
+        const nextRegion = newScope(stateById)
         owner.regions = [scope, nextRegion]
         stack[stack.length - 1] = nextRegion
       } else {
-        const nextRegion = newScope()
+        const nextRegion = newScope(stateById)
         owner.regions.push(nextRegion)
         stack[stack.length - 1] = nextRegion
       }
@@ -275,7 +287,6 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- pseudostate stereotype: `state f1 <<fork>>` (also history forms) ---
     const stereo = matchStereotypeDecl(line)
     if (stereo) {
-      if (floatingIds.has(stereo.id)) return null
       if (!isCompositeId(stereo.id) || (compositeIds.has(stereo.id) && !scope.byId.has(stereo.id))) return null
       const node = ensureState(scope, stereo.id)
       node.stereotype = stereo.stereotype
@@ -289,18 +300,14 @@ export function parseStateBody(lines: string[]): StateBody | null {
       const id = open[2]!
       if (!isCompositeId(id)) return null
       const pieces = open[1] !== undefined ? [open[1]] : pendingCompositeLabels.get(id)
-      const child = newScope()
-      const node: StateNode = { id, states: child.states, transitions: child.transitions }
+      const child = newScope(stateById)
+      const prior = stateById.get(id)
+      const node: StateNode = prior ?? { id }
+      node.states = child.states
+      node.transitions = child.transitions
       if (pieces !== undefined) labelState(node, pieces)
-      // Reuse any existing node slot (a prior transition may have referenced it),
-      // but the legacy parser deletes the simple node and makes it a composite.
-      const prior = scope.byId.get(id)
-      if (prior) {
-        const ix = scope.states.indexOf(prior)
-        if (ix >= 0) scope.states.splice(ix, 1, node)
-      } else {
-        scope.states.push(node)
-      }
+      // A prior reference and its later block share one editable object.
+      if (!prior) scope.states.push(node)
       scope.byId.set(id, node)
       composites.set(id, node)
       pending.push({ parent: scope, node })
@@ -336,7 +343,6 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const alias = line.match(STATE_ALIAS_RE)
     if (alias) {
       const id = alias[2]!
-      if (floatingIds.has(id)) return null
       const pieces = [alias[1]!]
       const composite = composites.get(id)
       if (composite) {
@@ -367,8 +373,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
       if (tr.toClass && !contextual(to)) classAssignments.push({ id: to, className: tr.toClass, scope })
       // Only materialize simple-state nodes for non-pseudo, non-history,
       // non-composite ids (pseudostates are contextual endpoint strings).
-      if (!contextual(from) && !compositeIds.has(from) && !floatingIds.has(from)) ensureState(scope, from)
-      if (!contextual(to) && !compositeIds.has(to) && !floatingIds.has(to)) ensureState(scope, to)
+      if (!contextual(from) && !compositeIds.has(from)) ensureState(scope, from)
+      if (!contextual(to) && !compositeIds.has(to)) ensureState(scope, to)
       const transition: StateTransition = {
         from, to,
         ...(tr.fromClass && contextual(from) ? { fromClass: tr.fromClass } : {}),
@@ -392,7 +398,6 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const desc = line.match(STATE_DESCRIPTION_RE)
     if (desc) {
       const id = desc[1]!
-      if (floatingIds.has(id)) return null
       const piece = desc[2]!.trim()
       if (compositeIds.has(id) && !composites.has(id)) {
         pendingCompositeLabels.set(id, [...(pendingCompositeLabels.get(id) ?? []), piece])
@@ -408,7 +413,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const declaredId = matchStateDeclarationLine(line)
     if (declaredId !== null) {
       // A composite's id names the composite, which a mention adds nothing to.
-      if (compositeIds.has(declaredId) || floatingIds.has(declaredId)) continue
+      if (compositeIds.has(declaredId)) continue
       const node = ensureState(scope, declaredId)
       node.declaredBare = true
       continue
@@ -426,15 +431,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   // concurrency regions. Canonical serialization emits paint directives after
   // blocks, so resolve an existing nested target globally; use the captured
   // directive scope only when the paint line is the target's declaration.
-  const stateById = new Map<string, StateNode>()
-  const indexStates = (states: StateNode[]): void => {
-    for (const state of states) {
-      stateById.set(state.id, state)
-      if (state.regions) for (const region of state.regions) indexStates(region.states)
-      else if (state.states) indexStates(state.states)
-    }
-  }
-  indexStates(root.states)
+  if (!applyStateBodyOwnership(root.states, stateById, identities)) return null
   const unresolvedClasses: NonNullable<StateBody['unresolvedClasses']> = []
   const unresolvedStyles: NonNullable<StateBody['unresolvedStyles']> = []
   // A state takes every class assigned to it, in order, as in Mermaid.
@@ -464,7 +461,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     for (const state of states) {
       if (state.regions) for (const region of state.regions) unlabelBare(region.states)
       else if (state.states) unlabelBare(state.states)
-      else if (state.kind !== 'note' && state.stereotype === undefined && state.label === state.id && !hasBareSpelling(state.id)) {
+      else if (state.stereotype === undefined && state.label === state.id && !hasBareSpelling(state.id)) {
         delete state.label
         delete state.labelContent
         state.declaredBare = true
@@ -478,13 +475,40 @@ export function parseStateBody(lines: string[]): StateBody | null {
     states: root.states,
     transitions: root.transitions,
     ...(notes.length > 0 ? { notes } : {}),
+    ...(floatingNotes.length > 0 ? { floatingNotes } : {}),
     ...(root.direction !== undefined ? { direction: root.direction } : {}),
     ...(Object.keys(classDefs).length > 0 ? { classDefs } : {}),
     ...(defaultTransitionStyle ? { defaultTransitionStyle } : {}),
     ...(unresolvedClasses.length > 0 ? { unresolvedClasses } : {}),
     ...(unresolvedStyles.length > 0 ? { unresolvedStyles } : {}),
   }
-  return stateWriteProblem(body) ? null : body
+  if (stateWriteProblem(body)) return null
+  preserveOrphanedImplicitStates(body)
+  try { renderState(body) } catch (error) {
+    if (error instanceof StateOwnershipError) return null
+    throw error
+  }
+  return body
+}
+
+function applyStateBodyOwnership(root: StateNode[], states: ReadonlyMap<string, StateNode>, identities: StateIdentities): boolean {
+  const scopes = new Map<string, StateNode[]>()
+  for (const state of states.values()) {
+    if (state.regions) state.regions.forEach((region, index) => scopes.set(identities.regionId(state.id, index), region.states))
+    else if (state.states) scopes.set(state.id, state.states)
+  }
+  root.length = 0
+  for (const scope of scopes.values()) scope.length = 0
+  for (const state of states.values()) if (!identities.ownerOf(state.id)) root.push(state)
+  for (const id of identities.ownedIds()) {
+    const state = states.get(id)
+    const owner = identities.ownerOf(id)
+    if (!state || !owner) continue
+    const scope = scopes.get(identities.scopeId(owner))
+    if (!scope) return false
+    scope.push(state)
+  }
+  return true
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -594,7 +618,7 @@ function scopeWriteOrder(states: StateNode[], transitions: StateTransition[]): {
   return { steps, created: [...created] }
 }
 
-function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
+function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[], notes: ReadonlyMap<string, readonly StateFloatingNote[]>, scope?: StateScope): void {
   if (direction !== undefined) out.push(`${indent}direction ${direction}`)
   // Each state where its scope first creates it, so a scope lays out in the
   // order it was authored.
@@ -612,9 +636,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
       continue
     }
     const s = step.state
-    if (s.kind === 'note') {
-      out.push(`${indent}note "${serializeStateLabel(s.label ?? '', s.labelContent, '"')}" as ${s.id}`)
-    } else if (isComposite(s)) {
+    if (isComposite(s)) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
       const separateDescription = describedApart(s)
       if (separateDescription) out.push(describe(`${indent}${s.id}: `, s.label!, s.labelContent))
@@ -623,11 +645,11 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
       if (s.regions) {
         if (s.direction !== undefined) out.push(`${indent}  direction ${s.direction}`)
         s.regions.forEach((region, index) => {
-          renderScope(region.states, region.transitions, region.direction, indent + '  ', out)
+          renderScope(region.states, region.transitions, region.direction, indent + '  ', out, notes, { parent: s.id, region: index })
           if (index < s.regions!.length - 1) out.push(`${indent}  --`)
         })
       } else {
-        renderScope(s.states ?? [], s.transitions ?? [], s.direction, indent + '  ', out)
+        renderScope(s.states ?? [], s.transitions ?? [], s.direction, indent + '  ', out, notes, { parent: s.id })
       }
       out.push(`${indent}}`)
     } else if (s.stereotype !== undefined) {
@@ -645,13 +667,39 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
       out.push(`${indent}${hasBareSpelling(s.id) ? s.id + (/^as$/i.test(s.id) ? '%%' : '') : `state "${s.id}" as ${s.id}`}`)
     }
   }
+  for (const note of notes.get(stateScopeKey(scope)) ?? []) {
+    out.push(`${indent}note "${serializeStateLabel(note.text, note.textContent, '"')}" as ${note.id}`)
+  }
+}
+
+function stateScopeKey(scope: StateScope | undefined): string {
+  return JSON.stringify([scope?.parent ?? null, scope?.region ?? 0])
 }
 
 export function renderState(body: StateBody): string {
   const problem = stateWriteProblem(body)
   if (problem) throw new Error(problem)
+  const noteIds = new Set<string>()
+  const notesByScope = new Map<string, StateFloatingNote[]>()
+  for (const note of body.floatingNotes ?? []) {
+    if (!isStateNodeId(note.id) || noteIds.has(note.id)) throw new Error(`Invalid or duplicate floating State note identity "${note.id}"`)
+    noteIds.add(note.id)
+    const text = validFloatingNoteText(note.text)
+    if (!text.ok) throw new Error(`Floating State note "${note.id}": ${text.error.message}`)
+    if (note.scope) {
+      const parent = locate(body, note.scope.parent)?.node
+      if (!parent || !isComposite(parent)
+        || (parent.regions ? !Number.isInteger(note.scope.region ?? 0) || !parent.regions[note.scope.region ?? 0] : note.scope.region !== undefined)) {
+        throw new Error(`Invalid scope for floating State note "${note.id}"`)
+      }
+    }
+    const key = stateScopeKey(note.scope)
+    const notes = notesByScope.get(key) ?? []
+    notes.push(note)
+    notesByScope.set(key, notes)
+  }
   const out: string[] = ['stateDiagram-v2']
-  renderScope(body.states, body.transitions, body.direction, '  ', out)
+  renderScope(body.states, body.transitions, body.direction, '  ', out, notesByScope)
   // Notes last: colons and semicolons terminate Mermaid single-line notes,
   // so punctuation-bearing or multiline text uses `note … end note`. Note text is canonical by construction
   // (validNoteText): trimmed lines, no blank lines, no `end note` line.
@@ -695,7 +743,31 @@ export function renderState(body: StateBody): string {
   transitions.forEach((transition, index) => {
     if (transition.style) out.push(`  linkStyle ${index} ${styleText(transition.style)}`)
   })
-  return out.join('\n') + '\n'
+  const source = out.join('\n') + '\n'
+  assertWrittenStateOwnership(body, source)
+  return source
+}
+
+class StateOwnershipError extends Error {}
+
+/** A successful structured edit must have a Mermaid spelling with the same
+ * ownership. Cross-scope references can claim a moved state before its new
+ * declaration; checking the emitted statements prevents a silent move back. */
+function assertWrittenStateOwnership(body: StateBody, source: string): void {
+  const { statements } = readStateStatements(scanStateComments(source.split('\n')))
+  const identities = resolveStateIdentities(statements)
+  if (identities.issue) throw new StateOwnershipError(identities.issue)
+  const visit = (states: StateNode[], scope?: StateScope): void => {
+    for (const state of states) {
+      const actual = identities.ownerOf(state.id)
+      if (!identities.authored.has(state.id) || stateScopeKey(actual) !== stateScopeKey(scope)) {
+        throw new StateOwnershipError(`State '${state.id}' cannot retain its requested scope in Mermaid source. Move or remove transitions that claim it in another scope before changing its ownership.`)
+      }
+      if (state.regions) state.regions.forEach((region, index) => visit(region.states, { parent: state.id, region: index }))
+      else if (state.states) visit(state.states, { parent: state.id })
+    }
+  }
+  visit(body.states)
 }
 
 const portableStyleTarget = (id: string): boolean => /^\w+$/.test(id)
@@ -708,17 +780,14 @@ function stateWriteProblem(body: StateBody): string | undefined {
   // composites use Mermaid's exclusive struct state, where these are IDs.
   const endpoint = body.transitions.find(item => item.label !== undefined && /^acc(?:Title|Descr)$/i.test(item.to))?.to
   let invalid = body.unresolvedStyles?.find(item => !portableStyleTarget(item.id))?.id
-  let invalidNote: string | undefined
   const visit = (states: StateNode[]): void => {
     for (const state of states) {
-      if (state.kind !== undefined && state.kind !== 'note' || state.kind === 'note' && (isComposite(state) || state.stereotype !== undefined)) invalidNote ??= state.id
       if (state.style && !portableStyleTarget(state.id)) invalid ??= state.id
       if (state.regions) for (const region of state.regions) visit(region.states)
       else if (state.states) visit(state.states)
     }
   }
   visit(body.states)
-  if (invalidNote !== undefined) return `State node "${invalidNote}" has an invalid category: a floating note cannot be a composite or pseudostate`
   if (endpoint !== undefined) return `A top-level labeled State transition to "${endpoint}" cannot be written in pinned Mermaid because the destination and colon start an accessibility directive; rename the destination or remove the label for typed editing`
   return invalid === undefined ? undefined : `State style target "${invalid}" cannot be written in pinned Mermaid; style targets must contain only letters, digits, or underscore`
 }
@@ -746,7 +815,6 @@ function cloneTransition(transition: StateTransition): StateTransition {
 function cloneState(s: StateNode): StateNode {
   return {
     id: s.id,
-    ...(s.kind !== undefined ? { kind: s.kind } : {}),
     ...(s.label !== undefined ? { label: s.label } : {}),
     ...(s.labelContent !== undefined ? { labelContent: s.labelContent } : {}),
     ...(s.declaredBare ? { declaredBare: true as const } : {}),
@@ -770,6 +838,7 @@ function cloneStateBody(b: StateBody): StateBody {
     states: b.states.map(cloneState),
     transitions: b.transitions.map(cloneTransition),
     ...(b.notes !== undefined ? { notes: b.notes.map(n => ({ ...n })) } : {}),
+    ...(b.floatingNotes ? { floatingNotes: b.floatingNotes.map(note => ({ ...note, ...(note.scope ? { scope: { ...note.scope } } : {}) })) } : {}),
     ...(b.direction !== undefined ? { direction: b.direction } : {}),
     ...(b.classDefs !== undefined ? { classDefs: Object.fromEntries(Object.entries(b.classDefs).map(([name, style]) => [name, { ...style }])) } : {}),
     ...(b.defaultTransitionStyle !== undefined ? { defaultTransitionStyle: { ...b.defaultTransitionStyle } } : {}),
@@ -780,18 +849,18 @@ function cloneStateBody(b: StateBody): StateBody {
 
 /** Find a state node by id, searching the whole tree. Returns the node and the
  *  scope (states + transitions arrays) that contains it. */
-interface Located { node: StateNode; siblings: StateNode[]; transitions: StateTransition[] }
+interface Located { node: StateNode; siblings: StateNode[]; transitions: StateTransition[]; scope?: StateScope }
 function locate(body: StateBody, id: string): Located | null {
-  const search = (states: StateNode[], transitions: StateTransition[]): Located | null => {
+  const search = (states: StateNode[], transitions: StateTransition[], scope?: StateScope): Located | null => {
     for (const s of states) {
-      if (s.id === id) return { node: s, siblings: states, transitions }
+      if (s.id === id) return { node: s, siblings: states, transitions, ...(scope ? { scope } : {}) }
       if (s.regions) {
-        for (const region of s.regions) {
-          const inner = search(region.states, region.transitions)
+        for (const [index, region] of s.regions.entries()) {
+          const inner = search(region.states, region.transitions, { parent: s.id, region: index })
           if (inner) return inner
         }
       } else if (s.states !== undefined) {
-        const inner = search(s.states, s.transitions ?? [])
+        const inner = search(s.states, s.transitions ?? [], { parent: s.id })
         if (inner) return inner
       }
     }
@@ -868,6 +937,14 @@ function validNoteText(value: unknown): Result<string, MutationError> {
   return ok(lines.join('\n'))
 }
 
+function validFloatingNoteText(value: unknown): Result<string, MutationError> {
+  if (typeof value !== 'string' || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value)) {
+    return err({ code: 'INVALID_OP', message: 'Floating note text must be a string without control characters' })
+  }
+  if (value.length === 0) return err({ code: 'INVALID_OP', message: 'Floating note text must be non-empty; use remove_floating_note to remove the annotation' })
+  return ok(normalizeBrTags(value).replace(/\r\n?/g, '\n'))
+}
+
 /** Validate a note side; omitted defaults to 'right' (upstream's most common). */
 function validNoteSide(value: unknown): Result<'left' | 'right', MutationError> {
   if (value === undefined || value === null) return ok('right')
@@ -926,7 +1003,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     case 'remove_state': {
       const loc = locate(next, op.id)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
-      const nonEmpty = isComposite(loc.node) && compositeScopes(loc.node).some(scope => scope.states.length > 0 || scope.transitions.length > 0)
+      const nonEmpty = isComposite(loc.node) && (compositeScopes(loc.node).some(scope => scope.states.length > 0 || scope.transitions.length > 0)
+        || (next.floatingNotes ?? []).some(note => note.scope?.parent === op.id))
       if (nonEmpty && op.recursive !== true) {
         return err({ code: 'INVALID_OP', message: `Refusing to remove non-empty composite '${op.id}'; remove its children first, or pass recursive: true to remove the whole subtree` })
       }
@@ -943,6 +1021,10 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
         next.notes = next.notes.filter(n => !removedIds.has(n.target))
         if (next.notes.length === 0) delete next.notes
       }
+      if (next.floatingNotes) {
+        next.floatingNotes = next.floatingNotes.filter(note => !note.scope || !removedIds.has(note.scope.parent))
+        if (!next.floatingNotes.length) delete next.floatingNotes
+      }
       break
     }
     case 'rename_state': {
@@ -958,6 +1040,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       for (const n of next.notes ?? []) {
         if (n.target === op.from) n.target = to.value
       }
+      for (const note of next.floatingNotes ?? []) if (note.scope?.parent === op.from) note.scope.parent = to.value
       break
     }
     case 'set_state_label': {
@@ -1083,6 +1166,41 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const scopes = compositeScopes(loc.node)
       loc.siblings.splice(ix, 1, ...scopes.flatMap(scope => scope.states))
       loc.transitions.push(...scopes.flatMap(scope => scope.transitions))
+      for (const note of next.floatingNotes ?? []) if (note.scope?.parent === op.id) {
+        if (loc.scope) note.scope = { ...loc.scope }
+        else delete note.scope
+      }
+      break
+    }
+    case 'add_floating_note': {
+      const id = validId(op.id, 'floating note id')
+      if (!id.ok) return id
+      if (next.floatingNotes?.some(note => note.id === id.value)) return err({ code: 'INVALID_OP', message: `Floating note '${id.value}' already exists` })
+      const text = validFloatingNoteText(op.text)
+      if (!text.ok) return text
+      const scope = resolveScope(next, op.parent, op.region)
+      if (!scope.ok) return scope
+      const parent = op.parent ? locate(next, op.parent)!.node : undefined
+      const note: StateFloatingNote = { id: id.value, text: text.value,
+        ...(op.parent ? { scope: { parent: op.parent, ...(parent?.regions ? { region: op.region ?? 0 } : {}) } } : {}) }
+      if (!next.floatingNotes) next.floatingNotes = []
+      next.floatingNotes.push(note)
+      break
+    }
+    case 'remove_floating_note': {
+      const index = next.floatingNotes?.findIndex(note => note.id === op.id) ?? -1
+      if (index < 0) return err({ code: 'NOTE_NOT_FOUND', message: `Floating note '${op.id}' not found` })
+      next.floatingNotes!.splice(index, 1)
+      if (!next.floatingNotes!.length) delete next.floatingNotes
+      break
+    }
+    case 'set_floating_note_text': {
+      const note = next.floatingNotes?.find(note => note.id === op.id)
+      if (!note) return err({ code: 'NOTE_NOT_FOUND', message: `Floating note '${op.id}' not found` })
+      const text = validFloatingNoteText(op.text)
+      if (!text.ok) return text
+      note.text = text.value
+      delete note.textContent
       break
     }
     case 'add_note': {
@@ -1237,33 +1355,27 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
   preserveOrphanedImplicitStates(next)
   canonicalizeStateOrder(next.states, next.transitions)
   const writeProblem = stateWriteProblem(next)
-  return writeProblem ? err({ code: 'INVALID_OP', message: writeProblem }) : ok(next)
+  if (writeProblem) return err({ code: 'INVALID_OP', message: writeProblem })
+  try { renderState(next) } catch (error) {
+    if (error instanceof StateOwnershipError) return err({ code: 'INVALID_OP', message: error.message })
+    throw error
+  }
+  return ok(next)
 }
 
 /**
  * Transition endpoints are allowed to introduce states implicitly, but an
- * implicit state has no standalone serializer form. If a mutation removes its
- * last transition, promote the surviving state to a bare declaration before
- * serialization so the typed body cannot silently lose it on reparse.
+ * implicit state has no standalone serializer form. When no transition in
+ * its own scope creates it, emit a bare declaration there. A reference in a
+ * different scope preserves the identity but cannot establish this ownership.
  */
 function preserveOrphanedImplicitStates(body: StateBody): void {
-  const referenced = new Set<string>()
-  const collectReferences = (states: StateNode[], transitions: StateTransition[]): void => {
+  const promote = (states: StateNode[], transitions: StateTransition[]): void => {
+    const referenced = new Set<string>()
     for (const transition of transitions) {
       referenced.add(transition.from)
       referenced.add(transition.to)
     }
-    for (const state of states) {
-      if (state.regions) {
-        for (const region of state.regions) collectReferences(region.states, region.transitions)
-      } else if (state.states) {
-        collectReferences(state.states, state.transitions ?? [])
-      }
-    }
-  }
-  collectReferences(body.states, body.transitions)
-
-  const promote = (states: StateNode[]): void => {
     for (const state of states) {
       if (
         state.label === undefined
@@ -1273,13 +1385,13 @@ function preserveOrphanedImplicitStates(body: StateBody): void {
         && !referenced.has(state.id)
       ) state.declaredBare = true
       if (state.regions) {
-        for (const region of state.regions) promote(region.states)
+        for (const region of state.regions) promote(region.states, region.transitions)
       } else if (state.states) {
-        promote(state.states)
+        promote(state.states, state.transitions ?? [])
       }
     }
   }
-  promote(body.states)
+  promote(body.states, body.transitions)
 }
 
 /** List each scope's states in the order its serialization creates them, so
@@ -1509,7 +1621,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
       if (text === '}') depth = Math.max(0, depth - 1)
       else if (statement.opens) depth++
     }
-    if (text.includes('%%{') && (statement.noteBody || matchNoteLine(text) || text.match(STATE_ALIAS_RE) || text.match(STATE_COMPOSITE_OPEN_RE) || text.match(STATE_DESCRIPTION_RE) || matchTransitionLine(text)?.label !== undefined)) {
+    if (text.includes('%%{') && (statement.noteBody || matchFloatingNote(text) || matchNoteLine(text) || text.match(STATE_ALIAS_RE) || text.match(STATE_COMPOSITE_OPEN_RE) || text.match(STATE_DESCRIPTION_RE) || matchTransitionLine(text)?.label !== undefined)) {
       warn(statement, 'state_text_directive', 'The directive-looking text is preserved as text. Pinned Mermaid preprocesses `%%{` even inside text; the writer escapes the percent sign as `#37;`.')
     }
     if (statement.noteBody) {
@@ -1637,7 +1749,7 @@ export function verifyOpaqueState(source: string): LayoutWarning[] {
 
 export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  if (body.states.length === 0 && body.transitions.length === 0 && (body.notes ?? []).length === 0) {
+  if (body.states.length === 0 && body.transitions.length === 0 && (body.notes ?? []).length === 0 && !body.floatingNotes?.length) {
     return [{ code: 'EMPTY_DIAGRAM' }]
   }
   const overflow = labelOverflowCollector(warnings, opts)
@@ -1712,5 +1824,6 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
     }
     overflow(`note#${i}`, n.text)
   })
+  for (const note of body.floatingNotes ?? []) overflow(`floating note ${note.id}`, note.text)
   return warnings
 }

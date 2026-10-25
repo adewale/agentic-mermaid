@@ -668,14 +668,18 @@ semantic('Treemap quoted text retains hierarchy and quantities through delimiter
   for (const line of label.split('\n')) expect(am.renderMermaidASCII(edited.value)).toContain(line)
 })
 
-semantic('Floating State notes are addressable note nodes with retained scope and connected endpoints', 'packages/mermaid/src/diagrams/state/parser/stateDiagram.jison: note NOTE_TEXT AS ID (upstream drops its semantic action)', async () => {
+semantic('Floating State annotations retain independent identities and scope beside connected states', 'packages/mermaid/src/diagrams/state/parser/stateDiagram.jison: note NOTE_TEXT AS ID (upstream drops its semantic action)', async () => {
   const source = 'stateDiagram-v2\nN1 --> N2\nstate Group {\nA\nnote "Inner #lt;b#gt;" as N1\nA --> N1\n}\nnote "Outer<br/>next" as N2\nN2 --> Group'
   await accepted(source)
   const parsed = am.parseRegisteredMermaid(source)
   if (!parsed.ok || parsed.value.body.kind !== 'state') throw new Error('Expected editable State')
   expect(parsed.value.body.states).toEqual([
-    expect.objectContaining({ id: 'Group', states: [expect.objectContaining({ id: 'A' }), expect.objectContaining({ id: 'N1', kind: 'note', label: 'Inner <b>' })] }),
-    expect.objectContaining({ id: 'N2', kind: 'note', label: 'Outer\nnext' }),
+    expect.objectContaining({ id: 'N2' }),
+    expect.objectContaining({ id: 'Group', states: [expect.objectContaining({ id: 'A' }), expect.objectContaining({ id: 'N1' })] }),
+  ])
+  expect(parsed.value.body.floatingNotes).toEqual([
+    expect.objectContaining({ id: 'N1', text: 'Inner <b>', scope: { parent: 'Group' } }),
+    expect.objectContaining({ id: 'N2', text: 'Outer\nnext' }),
   ])
   const changed = am.mutate(parsed.value, { kind: 'rename_state', from: 'N1', to: 'Memo' })
   if (!changed.ok) throw new Error(changed.error.message)
@@ -683,28 +687,29 @@ semantic('Floating State notes are addressable note nodes with retained scope an
   await accepted(written)
   const reload = am.parseRegisteredMermaid(written)
   if (!reload.ok || reload.value.body.kind !== 'state') throw new Error('Expected editable State reload')
-  expect(reload.value.body.states[0]).toMatchObject({ id: 'Group', states: [expect.objectContaining({ id: 'A' }), expect.objectContaining({ id: 'Memo', kind: 'note', label: 'Inner <b>' })], transitions: [{ from: 'A', to: 'Memo' }] })
+  expect(reload.value.body.states.find(state => state.id === 'Group')).toMatchObject({ id: 'Group', states: [expect.objectContaining({ id: 'A' }), expect.objectContaining({ id: 'Memo' })], transitions: [{ from: 'A', to: 'Memo' }] })
   expect(reload.value.body.transitions).toEqual([{ from: 'Memo', to: 'N2' }, { from: 'N2', to: 'Group' }])
+  expect(reload.value.body.floatingNotes).toEqual(parsed.value.body.floatingNotes)
   const svg = am.renderMermaidSVG(changed.value)
   expect(svg).toContain('data-id="Memo"')
-  expect(svg).toContain('data-note-kind="floating"')
+  expect(svg).toContain('data-floating-note-id="N1"')
   expect(svgLabels(svg)).toContain('Inner <b>')
   const terminal = am.renderMermaidASCIIWithMeta(changed.value, { useAscii: true, colorMode: 'none' })
   expect(terminal.warnings.filter(warning => warning.code === 'ASCII_RENDER_FAILED')).toEqual([])
-  expect(terminal.regions.filter(region => region.kind === 'note').sort((a, b) => a.id.localeCompare(b.id)).map(region => [region.id, region.parentId, region.projectedText])).toEqual([
-    ['Memo', 'Group', 'Inner <b>'], ['N2', undefined, 'Outer\nnext'],
+  expect(terminal.regions.filter(region => region.id.startsWith('note:')).sort((a, b) => a.id.localeCompare(b.id)).map(region => [region.id, region.parentId, region.projectedText])).toEqual([
+    ['note:N1', 'Group', 'Inner <b>'], ['note:N2', undefined, 'Outer\nnext'],
   ])
   expect(terminal.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual(expect.arrayContaining([['A', 'Memo'], ['Memo', 'N2'], ['N2', 'Group']]))
   const receipt = terminalApi.renderMermaidASCIIWithReceipt(written, { useAscii: true, colorMode: 'none' })
   const document = terminalModel.terminalDocumentOf(receipt)
   if (!document) throw new Error('Expected retained terminal document')
-  const entries = [...document.entries()], rows = receipt.text.split('\n')
+  const entries = [...document.entries()]
   for (const edge of document.regions().filter(region => region.kind === 'edge')) {
     const start = edge.ports?.find(port => port.end === 'start'), end = edge.ports?.find(port => port.end === 'end')
     if (!start || !end) throw new Error(`Missing ports for ${edge.id}`)
-    const ink = new Set(entries.filter(([x, y, cell]) => /stroke|marker/.test(cell.kind ?? '')
+    const ink = new Set(entries.filter(([, , cell]) => /stroke|marker/.test(cell.kind ?? '')
       && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)
-      && rows[y]?.[x] && rows[y]![x] !== ' ').map(([x, y]) => `${x},${y}`))
+      && cell.glyph.trim()).map(([x, y]) => `${x},${y}`))
     const contacts = (port: typeof start) => [...ink].filter(key => {
       const [x, y] = key.split(',').map(Number)
       return Math.abs(x! - port.x) + Math.abs(y! - port.y) <= 1

@@ -134,7 +134,7 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
   const box = mkCanvas(Math.max(from.x, to.x), Math.max(from.y, to.y))
 
   const parent = graph.subgraphs.filter(group => group.nodes.includes(node)).at(-1)
-  return box.scope({ id: node.name, kind: node.semanticRole ?? 'node', ...(parent ? { parent: { id: parent.id, kind: graph.containerKind ?? 'subgraph' } } : {}) }, () => {
+  return box.scope({ id: node.name, kind: 'node', ...(parent ? { parent: { id: parent.id, kind: graph.containerKind ?? 'subgraph' } } : {}) }, () => {
   box.fill(1, 1, Math.max(0, w - 1), Math.max(0, h - 1))
   // Get corner characters for this shape type
   const corners = getCorners(node.shape, useAscii)
@@ -1615,7 +1615,7 @@ export function drawGraph(graph: AsciiGraph): Canvas {
   document.overlay(drawConcurrencyRegionSeparators(graph, containerKind))
   for (const node of graph.nodes) {
     if (!node.drawn && node.drawingCoord && node.drawing) {
-      const owner = { id: node.name, kind: node.semanticRole ?? 'node' as const, ...(parentFor.has(node.name) ? { parent: { id: parentFor.get(node.name)!, kind: containerKind } } : {}) }
+      const owner = { id: node.name, kind: 'node' as const, ...(parentFor.has(node.name) ? { parent: { id: parentFor.get(node.name)!, kind: containerKind } } : {}) }
       document.overlay(node.drawing.attribute(owner, { role: 'border' }), node.drawingCoord.x, node.drawingCoord.y)
       node.drawn = true
     }

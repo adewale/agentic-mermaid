@@ -1,7 +1,7 @@
-import { encodeMermaidEntities, TERMINAL_CONTROL_RE } from '../shared/mermaid-entities.ts'
+import { encodeMermaidEntities, protectMermaidEntityPrepass, TERMINAL_CONTROL_RE } from '../shared/mermaid-entities.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import {
-  C4_VARIANTS, c4ArgumentFields, c4ArgumentsArePortable, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveArgumentsArePortable, c4DirectiveCategory, c4DirectiveFields, c4ElementFields,
+  C4_VARIANTS, C4AmbiguousArgumentError, c4ArgumentFields, c4ArgumentsArePortable, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveArgumentsArePortable, c4DirectiveCategory, c4DirectiveFields, c4ElementFields,
   c4RecordSignature, c4RelationshipFields, emptyC4Body, readC4Source, resolveC4Directives,
 } from '../c4/parser.ts'
 import type {
@@ -21,14 +21,17 @@ export function parseC4Body(lines: string[] | string, accessibility: Accessibili
     if (accessibility.title !== undefined) body.accessibilityTitle = accessibility.title
     if (accessibility.descr !== undefined) body.accessibilityDescription = accessibility.descr
     return body
-  } catch { return null }
+  } catch (error) {
+    if (error instanceof C4AmbiguousArgumentError) throw error
+    return null
+  }
 }
 
-function quote(value: string): string {
+function quote(value: string, reserved = ''): string {
   // C4's official lexer has no backslash escape. Entity encoding also protects
   // literal entity spellings. Shield directive openers after encoding: the
   // public Mermaid prepass reads them even inside a quoted argument.
-  return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\').replace(/%%\{/g, '%#37;{'))}"`
+  return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\' + reserved).replace(/%%\{/g, '%#37;{'))}"`
 }
 
 /** Mermaid's C4 grammar, and ours, trim each argument, so whitespace at
@@ -38,22 +41,24 @@ function edgeWhitespace(text: string): string {
   return text.replace(/^\s+|\s+$/g, run => [...run].map(character => TERMINAL_CONTROL_RE.test(character) ? character : `#${character.codePointAt(0)};`).join(''))
 }
 
-function alias(value: string): string {
-  return /^[A-Za-z_][A-Za-z_0-9]*$/.test(value) ? value : quote(value)
+function alias(value: string, reserved = ''): string {
+  return /^[A-Za-z_][A-Za-z_0-9]*$/.test(value) ? value : quote(value, reserved)
 }
-function displayQuote(value: string): string { return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\<>').replace(/%%\{/g, '%#37;{').replace(/\r\n?|\n/g, '<br/>'))}"` }
+function displayQuote(value: string, reserved = ''): string { return `"${edgeWhitespace(encodeMermaidEntities(value, '"\\<>' + reserved).replace(/%%\{/g, '%#37;{').replace(/\r\n?|\n/g, '<br/>'))}"` }
 
 function call(name: string, fields: Record<string, string | undefined>, slots: readonly string[], required: number): string {
-  const args: string[] = []
-  for (let index = 0; index < required; index++) {
-    const key = slots[index]!, value = fields[key] ?? ''
-    args.push(key === 'alias' || key === 'from' || key === 'to' || key === 'index' ? alias(value) : displayQuote(value))
-  }
-  for (let index = required; index < slots.length; index++) {
-    const key = slots[index]!, value = fields[key]
-    if (value !== undefined && value !== '') args.push(`$${key}=${['techn', 'descr', 'type'].includes(key) ? displayQuote(value) : quote(value)}`)
-  }
-  return `${name}(${args.join(', ')})`
+  return protectMermaidEntityPrepass(reserved => {
+    const args: string[] = []
+    for (let index = 0; index < required; index++) {
+      const key = slots[index]!, value = fields[key] ?? ''
+      args.push(key === 'alias' || key === 'from' || key === 'to' || key === 'index' ? alias(value, reserved) : displayQuote(value, reserved))
+    }
+    for (let index = required; index < slots.length; index++) {
+      const key = slots[index]!, value = fields[key]
+      if (value !== undefined && value !== '') args.push(`$${key}=${['techn', 'descr', 'type'].includes(key) ? displayQuote(value, reserved) : quote(value, reserved)}`)
+    }
+    return `${name}(${args.join(', ')})`
+  })
 }
 
 export function renderC4Element(record: C4Element): string {
@@ -76,23 +81,25 @@ export function renderC4Relationship(record: C4Relationship): string {
 }
 function renderDirective(record: C4Directive): string {
   if (record.name === 'direction') return `direction ${record.args[0]?.value ?? 'TB'}`
-  const slots = c4DirectiveFields(record.name)
-  if (slots) {
-    const fields = c4ArgumentFields(record.args, slots)
-    if (record.name === 'UpdateLayoutConfig') {
-      // The DB ignores names here. An empty positional value leaves the
-      // current setting untouched; the grammar still requires one attribute.
-      const last = fields.c4BoundaryInRow !== undefined ? 2 : 1
-      return `${record.name}(${slots.slice(0, last).map(key => quote(fields[key] ?? '')).join(', ')})`
+  return protectMermaidEntityPrepass(reserved => {
+    const slots = c4DirectiveFields(record.name)
+    if (slots) {
+      const fields = c4ArgumentFields(record.args, slots)
+      if (record.name === 'UpdateLayoutConfig') {
+        // The DB ignores names here. An empty positional value leaves the
+        // current setting untouched; the grammar still requires one attribute.
+        const last = fields.c4BoundaryInRow !== undefined ? 2 : 1
+        return `${record.name}(${slots.slice(0, last).map(key => quote(fields[key] ?? '', reserved)).join(', ')})`
+      }
+      const required = record.name === 'UpdateElementStyle' ? 1 : 2
+      const args = slots.slice(0, required).map(key => quote(fields[key] ?? '', reserved))
+      for (const key of slots.slice(required)) {
+        if (fields[key] !== undefined && fields[key] !== '') args.push(`$${key}=${quote(fields[key]!, reserved)}`)
+      }
+      return `${record.name}(${args.join(', ')})`
     }
-    const required = record.name === 'UpdateElementStyle' ? 1 : 2
-    const args = slots.slice(0, required).map(key => quote(fields[key] ?? ''))
-    for (const key of slots.slice(required)) {
-      if (fields[key] !== undefined && fields[key] !== '') args.push(`$${key}=${quote(fields[key]!)}`)
-    }
-    return `${record.name}(${args.join(', ')})`
-  }
-  return `${record.name}(${record.args.map(arg => `${arg.name ? `$${arg.name}=` : ''}${quote(arg.value)}`).join(', ')})`
+    return `${record.name}(${record.args.map(arg => `${arg.name ? `$${arg.name}=` : ''}${quote(arg.value, reserved)}`).join(', ')})`
+  })
 }
 
 function newStatement(body: C4Body, kind: C4Statement['kind'], entityId?: string, raw = ''): C4Statement {
@@ -135,7 +142,7 @@ function canonicalStatements(body: C4Body): C4Statement[] {
 const RESPELLED_C4_EXTENSIONS = new Set([
   'c4_multiline_arguments', 'c4_empty_named_argument', 'c4_space_before_arguments',
   'c4_quoted_string_extension', 'c4_relindex_positional_metadata',
-  'c4_empty_layout_arguments',
+  'c4_empty_layout_arguments', 'c4_unquoted_argument', 'c4_entity_prepass',
 ])
 
 /** Unchanged statements retain exact raw bytes. A typed edit rewrites only its
@@ -166,7 +173,7 @@ function renderC4Unchecked(body: C4Body, portable = false): string {
     else if (statement.kind === 'trivia' && canonical.has(statement.id)) current = 'UpdateLayoutConfig("")'
     else if (statement.kind === 'title') {
       if (body.title === undefined) continue
-      current = `title ${encodeMermaidEntities(body.title, '#;<>').replace(/%%\{/g, '%#37;{').replace(/\r\n?|\n/g, '<br/>')}`; signature = body.title
+      current = protectMermaidEntityPrepass(reserved => `title ${encodeMermaidEntities(body.title!, '#;<>' + reserved).replace(/%%\{/g, '%#37;{').replace(/\r\n?|\n/g, '<br/>')}`); signature = body.title
     } else if (statement.kind === 'accessibility') {
       const value = statement.entityId === 'title' ? body.accessibilityTitle : body.accessibilityDescription
       if (value === undefined) continue

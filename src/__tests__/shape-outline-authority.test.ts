@@ -31,7 +31,7 @@ const ENVELOPE_SHAPES = new Set([
 const GEOMETRIC_SHAPES = Object.keys({
   rectangle: 1, service: 1, rounded: 1, diamond: 1, stadium: 1, circle: 1, ellipse: 1, subroutine: 1, doublecircle: 1,
   hexagon: 1, cylinder: 1, asymmetric: 1, trapezoid: 1, 'trapezoid-alt': 1, 'lean-r': 1, 'lean-l': 1,
-  'state-start': 1, 'state-end': 1, 'state-fork': 1, 'state-join': 1, 'state-choice': 1, 'state-history': 1,
+  'state-start': 1, 'state-end': 1, 'state-fork': 1, 'state-join': 1, 'state-choice': 1, 'state-history': 1, 'state-note': 1,
 } satisfies Record<NodeShape, 1>) as NodeShape[]
 
 describe('canonical shape outline authority', () => {

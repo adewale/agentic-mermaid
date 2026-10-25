@@ -3,7 +3,7 @@ import { describeMermaidFacts } from '../agent/facts.ts'
 import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
-import { renderMermaidSVG as renderAgentSVG, renderMermaidASCII as renderAgentASCII } from '../agent/core.ts'
+import { renderMermaidSVG as renderAgentSVG, renderMermaidASCII as renderAgentASCII, renderMermaidASCIIWithMeta } from '../agent/core.ts'
 import { asState, type StateMutationOp, type StateValidDiagram } from '../agent/types.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -41,6 +41,29 @@ function expectRetainedComment(diagram: StateValidDiagram, fragment: string): st
 }
 
 describe('typed State residual elevation (B07)', () => {
+  test('class shorthand and floating notes retain separate global identities and declared scopes', () => {
+    const source = 'stateDiagram-v2\nstate Other {\nN:::hot\n}\nstate Outer {\nnote "Floating" as N\nA --> N\n}\nclassDef hot fill:red'
+    const diagram = state(source)
+    expect(diagram.body.states).toEqual([
+      { id: 'Other', states: [{ id: 'N', declaredBare: true, className: 'hot' }], transitions: [] },
+      { id: 'Outer', states: [{ id: 'A' }], transitions: [{ from: 'A', to: 'N' }] },
+    ])
+    expect(diagram.body.floatingNotes).toEqual([{ id: 'N', text: 'Floating', scope: { parent: 'Outer' } }])
+    const written = serializeMermaid(diagram)
+    expect(state(written).body).toEqual(diagram.body)
+    for (const input of [source, written]) {
+      const graph = parseRenderGraph(input), note = graph.floatingStateNotes?.[0]
+      if (!note) throw new Error('Expected independently identified floating annotation')
+      expect(note.nodeId).not.toBe('N')
+      expect([...graph.nodes.keys()]).toHaveLength(3)
+      expect(graph.subgraphs.find(group => group.id === 'Other')?.nodeIds).toEqual(['N'])
+      expect(graph.subgraphs.find(group => group.id === 'Outer')?.nodeIds).toEqual(['A', note.nodeId])
+      expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'N']])
+    }
+    const renamed = apply(diagram, { kind: 'rename_state', from: 'N', to: 'Target' })
+    expect(renamed.body.floatingNotes).toEqual(diagram.body.floatingNotes)
+    expect(state(serializeMermaid(renamed)).body).toEqual(renamed.body)
+  })
   test('quoted pseudostate-looking labels preserve literal text and nested identity through portable export', async () => {
     const upstream = startUpstreamMermaid()
     try {
@@ -115,6 +138,7 @@ describe('typed State residual elevation (B07)', () => {
       for (const source of [
         'stateDiagram state "%%{1" as n',
         'stateDiagram-v2\nstate "Small State%%{1" as n',
+        'stateDiagram-v2\nnote "%%{1" as n',
         'stateDiagram-v2\nstate "Group %%{literal" as Group {\nA --> B : label %%{literal\n}\nnote right of A\nfirst line\nend note nside the note e text\nend note',
         'stateDiagram-v2\nState1\nnote right of State1\nthis sentence contains\nA:::c --> B\nend note as part of the note text\nend note\nState1 --> State2',
       ]) {
@@ -129,12 +153,14 @@ describe('typed State residual elevation (B07)', () => {
       let edited = apply(state('stateDiagram-v2\nA --> B'), { kind: 'set_state_label', id: 'A', label: '%%{title}%%' })
       edited = apply(edited, { kind: 'set_transition_label', index: 0, label: '%%{edge}%%' })
       edited = apply(edited, { kind: 'add_note', target: 'A', side: 'right', text: '%%{first}%%\nEND NOTE still text' })
+      edited = apply(edited, { kind: 'add_floating_note', id: 'A', text: '%%{floating}%%' })
       const written = serializeMermaid(edited)
       expect(await upstream.publicAccepts(written)).toBe(true)
       const reloaded = state(written)
       expect(reloaded.body.states.find(node => node.id === 'A')?.label).toBe('%%{title}%%')
       expect(reloaded.body.transitions[0]?.label).toBe('%%{edge}%%')
       expect(reloaded.body.notes?.[0]?.text).toBe('%%{first}%%\nEND NOTE still text')
+      expect(reloaded.body.floatingNotes).toMatchObject([{ id: 'A', text: '%%{floating}%%' }])
       expect(describeMermaidFacts(reloaded)).toEqual(describeMermaidFacts(edited))
       expect(renderAgentSVG(reloaded)).toBe(renderAgentSVG(edited))
       expect(renderAgentASCII(reloaded)).toBe(renderAgentASCII(edited))
@@ -200,7 +226,14 @@ describe('typed State residual elevation (B07)', () => {
         expect(state(written).meta.accessibility).toEqual({ title: 'Accessible title', descr: 'Accessible description' })
         expect(written).toContain('%% retained comment')
         expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
-        expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+        // Canonical declaration order can change terminal placement. The
+        // terminal projection must retain identities, parents, text and edges.
+        const terminalMeaning = (input: string) => {
+          const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+          expect(terminal.warnings.filter(warning => warning.code === 'ASCII_RENDER_FAILED')).toEqual([])
+          return terminal.regions.map(({ id, kind, parentId, from, to, projectedText }) => ({ id, kind, parentId, from, to, projectedText })).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+        }
+        expect(terminalMeaning(written)).toEqual(terminalMeaning(source))
         const projected = await upstream.projectAll([source, written], d => d.db.getData().edges.map((edge: any) => ({ from: edge.start, to: edge.end, label: edge.label })))
         expect(projected[1]).toEqual(projected[0])
       }

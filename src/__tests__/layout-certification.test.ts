@@ -298,7 +298,7 @@ describe('bounded final layout certification', () => {
       expect(calls).toBe(1)
       expect(crossing.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
       calls = 0
-      const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1-->a2\nend\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc1-->c2\nend\none --> two\nthree --> two\ntwo --> c2'))
+      const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2'))
       // A distinct route proposal may reuse the same placement even when no
       // distinct hierarchy strategy is eligible.
       expect(calls).toBe(2)
@@ -307,7 +307,7 @@ describe('bounded final layout certification', () => {
   })
 
   test('a real small crossing graph compares one alternate hierarchy and records its routing trade-off', () => {
-    const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1-->a2\nend\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc1-->c2\nend\none --> two\nthree --> two\ntwo --> c2')
+    const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
     expect(positioned.certification).toMatchObject({ strategy: 'separate-hierarchy', attempts: 2 })
     expect(preference).toMatchObject({

@@ -18,7 +18,7 @@ import { asEr, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMe
 import type { ErCardinality, ErMutationOp, ErValidDiagram, ParsedDiagram } from '../agent/types.ts'
 
 type ModelEntity = { label?: string; attributes: string[]; group?: string; className?: string; styled?: true }
-type ModelRelation = { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
+type ModelRelation = { from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed: boolean; label?: string }
 /** Entities in body order; no op adds, removes or moves a subgraph. */
 type Model = { entities: Map<string, ModelEntity>; relations: ModelRelation[] }
 type Real = { diagram: ErValidDiagram }
@@ -184,7 +184,7 @@ const attribute = fc
     fc.constantFrom('', ' "note"', ' "a longer comment"'),
   )
   .map(([type, name, keys, comment]) => `${type} ${name}${keys}${comment}`)
-const cardinality = fc.constantFrom<ErCardinality>('one-only', 'zero-or-one', 'zero-or-many', 'one-or-many')
+const cardinality = fc.constantFrom<Exclude<ErCardinality, 'parent'>>('one-only', 'zero-or-one', 'zero-or-many', 'one-or-many')
 const index = fc.nat({ max: 4 })
 
 const commands = [
@@ -195,7 +195,7 @@ const commands = [
   fc.tuple(ids, fc.option(words, { nil: null })).map(([entity, label]) => new ErCommand({ kind: 'set_entity_label', entity, label })),
   fc.tuple(ids, attribute).map(([entity, text]) => new ErCommand({ kind: 'add_attribute', entity, text })),
   fc.tuple(ids, index).map(([entity, at]) => new ErCommand({ kind: 'remove_attribute', entity, index: at })),
-  fc.record({ from: ids, to: ids, leftCard: cardinality, rightCard: cardinality, dashed: fc.boolean(), label: fc.option(words, { nil: undefined }) })
+  fc.record({ from: ids, to: ids, leftCard: fc.oneof(cardinality, fc.constant('parent' as const)), rightCard: cardinality, dashed: fc.boolean(), label: fc.option(words, { nil: undefined }) })
     .map(({ label, ...relation }) => new ErCommand({ kind: 'add_relation', ...relation, ...(label ? { label } : {}) })),
   index.map(at => new ErCommand({ kind: 'remove_relation', index: at })),
   fc.tuple(ids, fc.option(fc.constantFrom('hot', 'cold-1'), { nil: null })).map(([entity, className]) => new ErCommand({ kind: 'set_entity_class', entity, className })),

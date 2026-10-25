@@ -63,6 +63,37 @@ function structured(source: string) {
   if (!narrowed) throw Error('Block must retain a native body')
   return narrowed
 }
+function expectOwnedTerminalRoutes(source: string, expected: ReadonlyArray<readonly [string, string]>): void {
+  for (const useAscii of [false, true]) {
+    const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+    const document = terminalDocumentOf(rendered)
+    if (!document) throw new Error('Expected retained terminal document')
+    const entries = [...document.entries()], edges = document.regions().filter(region => region.kind === 'edge')
+    expect(edges.map(edge => [edge.from, edge.to]).sort()).toEqual(expected.map(pair => [...pair]).sort())
+    const ports = edges.flatMap(edge => edge.ports ?? [])
+    expect(new Set(ports.map(port => `${port.x},${port.y}`)).size).toBe(expected.length * 2)
+    for (const edge of edges) {
+      const start = edge.ports?.find(port => port.end === 'start'), end = edge.ports?.find(port => port.end === 'end')
+      if (!start || !end) throw new Error(`Missing actual ports for ${edge.id}`)
+      const owned = entries.filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id))
+      const ink = new Set(owned.filter(([, , cell]) => /stroke|marker/.test(cell.kind ?? '') && cell.glyph.trim()).map(([x, y]) => `${x},${y}`))
+      for (const port of [start, end]) {
+        expect(ink.has(`${port.x},${port.y}`)).toBe(true)
+        expect(entries.some(([x, y, cell]) => Math.abs(x - port.x) + Math.abs(y - port.y) === 1
+          && /stroke|marker/.test(cell.kind ?? '') && cell.glyph.trim() && cell.owners.some(owner => owner.kind === 'node' && owner.id === port.nodeId))).toBe(true)
+      }
+      expect(owned.filter(([, , cell]) => cell.marker?.shape === 'arrow')).toHaveLength(1)
+      const queue = [`${start.x},${start.y}`], seen = new Set(queue)
+      for (let at = 0; at < queue.length; at++) {
+        const [x, y] = queue[at]!.split(',').map(Number)
+        for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
+          if (ink.has(next) && !seen.has(next)) { seen.add(next); queue.push(next) }
+        }
+      }
+      expect(seen.has(`${end.x},${end.y}`), `${edge.from}->${edge.to} has connected emitted ink`).toBe(true)
+    }
+  }
+}
 describe('native block', () => {
   for (const c of cases)
     test(c.id + ' retains pinned grid semantics through native surfaces', () => {
@@ -278,6 +309,22 @@ describe('native block', () => {
       }
     }
   })
+  test('all retained class and inline paints are admitted before output projection', () => {
+    for (const value of ['notacolor', 'rgb(x)', '#12345']) {
+      for (const directive of ['classDef unused', 'classDef hot', 'style A']) {
+        const source = `block\nA\n${directive} fill:${value}${directive === 'classDef hot' ? '\nclass A hot' : ''}`
+        const named = `${directive}: fill ${JSON.stringify(value)} is not a CSS color`
+        expect(() => renderMermaidSVG(source)).toThrow(named)
+        for (const useAscii of [true, false]) expect(() => renderMermaidASCII(source, { useAscii })).toThrow(named)
+        expect(verifyMermaid(source).warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named), origin: 'source' })
+      }
+    }
+    for (const value of ['rgb(1,2,3)', 'hsl(120 100% 50%)', 'var(--brand)']) {
+      const source = `block\nA\nclassDef hot fill:notacolor,fill:${value}\nclass A hot\nstyle A stroke:notacolor,stroke:#f96`
+      expect(renderMermaidSVG(source)).toContain(`fill="${value}"`)
+      expect(() => renderMermaidASCII(source)).not.toThrow()
+    }
+  })
   test('unknown statements remain opaque and missing endpoints block partial rendering', () => {
     const unknown = parse('block\nA\nunknown syntax {')
     expect(unknown.ok).toBe(true)
@@ -352,34 +399,19 @@ describe('native block', () => {
         }
       expect(verifyMermaid(source).ok).toBe(true)
       expect(renderMermaidSVG(source)).toContain('Write')
-      for (const useAscii of [false, true]) {
-        const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
-        const document = terminalDocumentOf(rendered)!, rows = rendered.text.split('\n')
-        const edges = document.regions().filter(region => region.kind === 'edge')
-        expect(edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], ['B', 'A'], ['A', 'B']])
-        const ports = edges.flatMap(edge => edge.ports ?? [])
-        expect(new Set(ports.map(port => `${port.x},${port.y}`)).size).toBe(6)
-        for (const edge of edges) {
-          const start = edge.ports!.find(port => port.end === 'start')!, end = edge.ports!.find(port => port.end === 'end')!
-          const ink = new Set([...document.entries()].filter(([x, y, cell]) => /stroke|marker/.test(cell.kind ?? '')
-            && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)
-            && rows[y]?.[x] && rows[y]![x] !== ' ').map(([x, y]) => `${x},${y}`))
-          for (const port of [start, end]) {
-            expect(ink.has(`${port.x},${port.y}`)).toBe(true)
-            expect([...document.entries()].some(([x, y, cell]) => Math.abs(x - port.x) + Math.abs(y - port.y) === 1
-              && /stroke|marker/.test(cell.kind ?? '') && cell.owners.some(owner => owner.kind === 'node' && owner.id === port.nodeId))).toBe(true)
-          }
-          const queue = [`${start.x},${start.y}`], seen = new Set(queue)
-          for (let i = 0; i < queue.length; i++) {
-            const [x, y] = queue[i]!.split(',').map(Number)
-            for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
-              if (ink.has(next) && !seen.has(next)) { seen.add(next); queue.push(next) }
-            }
-          }
-          expect(seen.has(`${end.x},${end.y}`), `${edge.from}->${edge.to} has connected emitted ink`).toBe(true)
-        }
-      }
+      expectOwnedTerminalRoutes(source, [['A', 'B'], ['B', 'A'], ['A', 'B']])
     }
+  })
+  test('nested reciprocal and parallel links leave a clear channel to cross-container endpoints', () => {
+    const source = 'block\ncolumns 2\nblock:outer["外側 👩🏽‍💻"]\nblock:inner["Inner"]\nA["甲 界 👨‍👩‍👧‍👦"] B["β"]\nend\nend\nblock_generated_1["Authored"]\nA --> B\nB --> A\nA --> B\nA --> block_generated_1\nblock_generated_1 --> A'
+    const diagram = structured(source), written = serializeMermaid(diagram), reload = structured(written)
+    expect(semantic(reload.body)).toEqual(semantic(diagram.body))
+    expect(diagram.body.root.children?.map(node => node.id)).toEqual(['outer', 'block_generated_1'])
+    expect(diagram.body.root.children?.[0]?.children?.[0]?.children?.map(node => node.id)).toEqual(['A', 'B'])
+    expect(renderMermaidSVG(diagram)).toContain('data-parent="inner"')
+    expectOwnedTerminalRoutes(source, [['A', 'B'], ['B', 'A'], ['A', 'B'], ['A', 'block_generated_1'], ['block_generated_1', 'A']])
+    expect(renderMermaidASCII(diagram)).toBe(renderMermaidASCII(source))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
   })
   test('diagonal cross-container input uses its near face instead of opposing a downstream output', () => {
     const source = readFileSync(new URL('../../eval/stable-families/fixtures/block.mmd', import.meta.url), 'utf8'),

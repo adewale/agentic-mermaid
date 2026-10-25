@@ -7,6 +7,7 @@ import { layoutFlow, nodeCrossSize, rectsOverlap } from '../geometry.ts'
 import { nodeInsideGroups, routeClearOfNodes } from './shared.ts'
 import { labelBoxAt, longestSegmentMidpoint, readableLabelGap, bundledLabelCandidates } from './bundled-labels.ts'
 import type { BundledLabelCandidate } from './bundled-labels.ts'
+import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 
 export function segmentIntersectsLabelBox(a: Point, b: Point, box: { x: number; y: number; w: number; h: number }, pad = 2): boolean {
   const x1 = box.x - pad, x2 = box.x + box.w + pad, y1 = box.y - pad, y2 = box.y + box.h + pad
@@ -152,8 +153,8 @@ export function applySymmetricParallelEdgeLanes(
         edge.points = points
         edge.labelPosition = label
         edge.routeCertificate = undefined
-        bundled.add(edge)
       }
+      retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
       break
     }
   }
@@ -341,9 +342,9 @@ export function applyParallelDuplicateLanes(
       edge.points = points
       edge.labelPosition = edge.label ? longestSegmentMidpoint(points) : undefined
       edge.routeCertificate = undefined
-      bundled.add(edge)
       preSeparated.add(edge)
     }
+    retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
     return true
   }
 
@@ -477,8 +478,8 @@ export function applyParallelDuplicateLanes(
       edge.points = points
       edge.labelPosition = undefined
       edge.routeCertificate = undefined
-      bundled.add(edge)
     }
+    retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
   }
 
   for (const bucket of fwdByTarget.values()) distribute(bucket, false)

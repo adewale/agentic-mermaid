@@ -113,6 +113,38 @@ describe('state structured parse', () => {
     expect(state(serializeMermaid(d)).body).toEqual(d.body)
   })
 
+  test('a later composite definition retains its first referenced scope through editing and writing', () => {
+    let d = state('stateDiagram-v2\nstate Outer {\n A --> Inner\n}\nstate Inner {\n B --> C\n}')
+    const outer = d.body.states.find(node => node.id === 'Outer')!
+    expect(d.body.states.map(node => node.id)).toEqual(['Outer'])
+    expect(outer.states?.find(node => node.id === 'Inner')?.states?.map(node => node.id)).toEqual(['B', 'C'])
+    d = apply(d, { kind: 'set_direction', state: 'Inner', direction: 'LR' })
+    const written = serializeMermaid(d)
+    expect(state(written).body).toEqual(d.body)
+    const graph = parseLegacy(written)
+    expect(graph.subgraphs[0]?.children.map(group => group.id)).toEqual(['Inner'])
+  })
+
+  test('a cross-scope reference never creates a second editable identity', () => {
+    const d = state('stateDiagram-v2\nstate First { Shared --> A }\nstate Second { Shared --> B }')
+    const first = d.body.states.find(node => node.id === 'First')!
+    const second = d.body.states.find(node => node.id === 'Second')!
+    expect(first.states?.map(node => node.id)).toEqual(['Shared', 'A'])
+    expect(second.states?.map(node => node.id)).toEqual(['B'])
+    expect(second.transitions).toEqual([{ from: 'Shared', to: 'B' }])
+    expect(state(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
+  test('self-containing composite identities are refused without dropping their source', () => {
+    const source = 'stateDiagram-v2\nstate A {\n state A { B }\n C\n}\n'
+    expect(() => parseLegacy(source)).toThrow('cannot contain itself')
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+  })
+
   test('top-level direction is modeled', () => {
     const d = state(`stateDiagram-v2
   direction LR

@@ -53,6 +53,7 @@ import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
+import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
@@ -1398,6 +1399,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => {
       const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
       for (const edge of c.edges) {
+        const bundle = c.bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
         // Remove zero-length shafts, but preserve every nonzero approach vector.
         edge.points = edge.points.filter((point, index, points) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y)
         const sourceNode = nodeMap.get(edge.source)
@@ -1405,6 +1407,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
         trimBoundaryEndpointRuns(edge, sourceNode, targetNode)
         if (sourceNode) edge.points = clipEdgeToShape(edge.points, sourceNode, true)
         if (targetNode) edge.points = clipEdgeToShape(edge.points, targetNode, false)
+        retainBundleRouteAfterRewrite(edge, bundle)
       }
     },
   },
@@ -1793,10 +1796,10 @@ function extractNodesAndGroups(
         nodes.push({
           id: child.id,
           label: mNode.label,
-          ...(mNode.semanticRole ? { semanticRole: mNode.semanticRole } : {}),
           ...(mNode.labelContent ? { labelContent: mNode.labelContent } : {}),
           ...(mNode.labelBlock ? { labelBlock: mNode.labelBlock } : {}),
           shape: mNode.shape,
+          ...(mNode.floatingNoteId !== undefined ? { floatingNoteId: mNode.floatingNoteId } : {}),
           ...(mNode.semanticShape !== undefined ? { semanticShape: mNode.semanticShape } : {}),
           x,
           y,

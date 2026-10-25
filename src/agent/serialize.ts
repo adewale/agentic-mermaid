@@ -17,6 +17,7 @@ import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
+import { matchMermaidFrontmatter } from '../mermaid-source-wrapper.ts'
 import {
   mermaidInitDirectiveIdentity,
   mermaidInitDirectives,
@@ -30,7 +31,8 @@ export interface SerializeOptions {
   /**
    * Wrapper emission policy. 'verbatim' (default) re-emits the leading source
    * wrapper (frontmatter, init directives, comments) byte-identically from
-   * `meta.wrapperSource`, then re-emits any init directive authored *after*
+   * `meta.wrapperSource`, except adjacent frontmatter delimiters with no content
+   * line, which Mermaid rejects. It then re-emits any init directive authored *after*
    * the family header that the serialized body does not already own — a
    * structured serializer receives directive-free grammar, so without this the
    * config would be lost. Such a directive therefore moves ahead of the
@@ -68,7 +70,7 @@ export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}):
   const meta = mode === 'canonical'
     ? { ...d.meta, initDirectives: [...d.meta.initDirectives, ...mermaidInitDirectives(preservedBody)] }
     : d.meta
-  return wrapperPrefix(meta, mode, bodySource) + bodySource
+  return wrapperPrefix(meta, mode, bodySource, d.kind) + bodySource
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
@@ -76,11 +78,18 @@ export function wrapperPrefix(
   meta: ValidDiagramMeta,
   mode: 'verbatim' | 'canonical' = 'verbatim',
   bodySource = '',
+  family?: string,
 ): string {
   if (mode === 'verbatim' && meta.wrapperSource !== undefined) {
-    return meta.wrapperSource + postWrapperInitDirectives(meta, bodySource)
+    const frontmatter = matchMermaidFrontmatter(meta.wrapperSource)
+    // Mermaid requires a content line between delimiters, even if blank.
+    // Adjacent delimiters carry no config; retain the rest of the wrapper.
+    const wrapper = frontmatter && frontmatter.yaml === ''
+      ? meta.wrapperSource.slice(frontmatter.source.length)
+      : meta.wrapperSource
+    return wrapper + postWrapperInitDirectives(meta, bodySource)
   }
-  return renderMeta(meta)
+  return renderMeta(meta, family)
 }
 
 /**
@@ -128,9 +137,9 @@ function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): 
  * Unparseable directives fail canonical export; verbatim mode preserves
  * their authored source for repair.
  */
-export function renderMeta(meta: ValidDiagramMeta): string {
+export function renderMeta(meta: ValidDiagramMeta, family?: string): string {
   const parts: string[] = []
-  const effectiveFrontmatter = canonicalWrapperConfig(meta)
+  const effectiveFrontmatter = canonicalWrapperConfig(meta, family)
   if (Object.keys(effectiveFrontmatter).length > 0) {
     const top: Record<string, unknown> = {}
     const config: Record<string, unknown> = {}

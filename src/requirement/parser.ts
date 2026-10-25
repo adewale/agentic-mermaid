@@ -6,6 +6,7 @@ import { syntaxError } from './errors.ts'
 import { tokenize } from './lexer.ts'
 import { T, TOKEN_NAMES } from './tokens.ts'
 import type { RequirementBody } from './types.ts'
+import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 
 // What the keyword tokens stand for, from REQUIREMENT to TRACES in token order.
 const VALUES: readonly string[] = [
@@ -38,6 +39,15 @@ export function parseRequirementDiagram(input: string | string[]): RequirementBo
   const source = (Array.isArray(input) ? input.join('\n') : input).replace(/^[^\S\r\n]*requirement[^\S\r\n]*(?=\r\n?|\n|$)/i, 'requirementDiagram')
   const db = new Database()
   parseRequirement(source.endsWith('\n') ? source : source + '\n', db)
+  for (const definition of db.classes.values()) checkedAuthoredStyle(parseStyleProps(definition.styles.join(',')), `classDef ${definition.id}`)
+  for (const [id, styles] of db.authoredStyles) {
+    checkedAuthoredStyle(parseStyleProps(styles.join(',')), `style ${id}`)
+  }
+  // An unknown target stops applying the rest of its target list, so the
+  // effective node declarations can differ from the final authored ones.
+  for (const node of [...db.requirements.values(), ...db.elements.values()]) {
+    checkedAuthoredStyle(parseStyleProps((node.directStyles ?? []).join(',')), `style ${node.name}`)
+  }
   return {
     kind: 'requirement',
     direction: db.direction as RequirementBody['direction'],

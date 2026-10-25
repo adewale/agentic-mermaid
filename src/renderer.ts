@@ -568,7 +568,7 @@ function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: str
   const userClasses = (node.classNames ?? [])
     .map(c => c.replace(/[^A-Za-z0-9_-]/g, ''))
     .filter(Boolean)
-  const classAttr = ['node', ...userClasses].join(' ')
+  const classAttr = ['node', ...(node.shape === 'state-note' ? ['state-note'] : []), ...userClasses].join(' ')
   const channels: SemanticChannels | undefined =
     node.shape === 'state-start' ? { status: 'start' } :
     node.shape === 'state-end' ? { status: 'end' } :
@@ -585,10 +585,11 @@ function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: str
   // even when the geometry is approximate (repo #44).
   const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
   const interaction = includeInteraction && node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
+  const floatingNote = node.floatingNoteId === undefined ? '' : ` data-floating-note-id="${escapeAttr(node.floatingNoteId)}"`
   return marks.group({
     id: `node:${node.id}`,
-    role: node.semanticRole ?? 'node',
-    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}" data-shape="${node.shape}"${node.semanticRole === 'note' ? ' data-note-kind="floating"' : ''}${semanticShape}${interaction}>`,
+    role: node.shape === 'state-note' ? 'note' : 'node',
+    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}" data-shape="${node.shape}"${semanticShape}${interaction}${floatingNote}>`,
     close: '</g>',
     children,
     channels,
@@ -646,7 +647,7 @@ function renderNodeShape<T>(marks: DrawingFactory<T>, node: PositionedNode, styl
 
   return marks.shape({
     id: `node-shape:${node.id}`,
-    role: node.semanticRole ?? 'node',
+    role: node.shape === 'state-note' ? 'note' : 'node',
     geometry: piece.geometry,
     paint: piece.paint,
     ...(piece.childPaints ? { childPaints: piece.childPaints } : {}),

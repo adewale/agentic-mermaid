@@ -5,6 +5,7 @@ import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { graphReachability, layoutDebug, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossStart, nodeMainStart } from '../geometry.ts'
 import { positionedEdgeForwardish, sameFlowLayer, packFlowLayerCrossAxis, nodeInsideGroups, symmetricOffsets, doglegBetween, routeClearOfNodes, shiftNodeSetCross, crossShiftSafe } from './shared.ts'
 import { assignBundledFanoutLabels } from './bundled-labels.ts'
+import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
 
 export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
   const reaches = graphReachability(graph.edges)
@@ -466,8 +467,8 @@ export function markCorankFanInBundles(
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.routeCertificate = undefined
-      bundled.add(edge)
     }
+    retainConstructedBundleRoutes(proposed.map(proposal => proposal.edge), bundled)
     // Re-home the labeled spokes' pills onto their rebuilt routes (the same
     // helper bundleEdgePaths-fed labeled fan-outs use), THEN re-centre them onto
     // the route's main-axis midpoint: the co-rank dogleg otherwise leaves the

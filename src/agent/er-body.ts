@@ -95,6 +95,10 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
       const classNames = syntax.kind === 'class' ? syntax.classNames : references.flatMap(reference => reference.className?.split(' ') ?? [])
       for (const name of classNames) if (!writableErClassName(name)) warn(header + entry.line + 1, 'er_class_name', `ER class name ${JSON.stringify(name)} has no supported lossless spelling`, 'the source and drawing are preserved, but typed editing is unavailable')
       if ((syntax.kind === 'style' || syntax.kind === 'class-def') && writeErStyleText(syntax.props) === undefined) warn(header + entry.line + 1, 'er_style_text', 'ER style text contains a property or value with no supported lossless spelling', 'the source and drawing are preserved, but typed editing is unavailable')
+      if (syntax.kind === 'entity' && syntax.reference.id === '1' && !syntax.reference.quoted) {
+        const remaining = [grammar[entry.line]!.slice(entry.column), ...grammar.slice(entry.line + 1)].join('\n').trimStart()
+        if (/^1\s+[A-Za-z_"'0-9]/.test(remaining)) warn(header + entry.line + 1, 'er_numeric_name', 'ER name 1 before another name is read as an entity, where Mermaid reads a cardinality', 'quote it ("1")')
+      }
       if (syntax.kind === 'attribute' && syntax.generous) warn(header + entry.line + 1, 'er_attribute_form', 'An attribute with keys apart or after its comment is read as its type, name, keys and comment', 'write its keys comma-separated before the comment (`int id PK, FK "c"`)')
       if (syntax.kind === 'relation' && syntax.relation.unreadLabel) {
         const { label } = syntax.relation
@@ -154,9 +158,9 @@ function erBodyWriteProblem(body: ErBody): string | undefined {
 
 // ---- Parser ---------------------------------------------------------------
 
-const AGENT_CARDINALITY: Record<NonNullable<ReturnType<typeof parseErCardinality>>, ErCardinality> = {
-  one: 'one-only', 'zero-one': 'zero-or-one', many: 'one-or-many', 'zero-many': 'zero-or-many',
-}
+const AGENT_CARDINALITY = {
+  one: 'one-only', 'zero-one': 'zero-or-one', many: 'one-or-many', 'zero-many': 'zero-or-many', parent: 'parent',
+} as const satisfies Record<NonNullable<ReturnType<typeof parseErCardinality>>, ErCardinality>
 
 /** Project the shared ER stream into the editable model. Unknown outer lines
  * remain ordered source; syntax that cannot be safely segmented stays opaque. */
@@ -242,7 +246,7 @@ function readErBody(lines: string[]): ErBody | null {
         const { relation } = statement
         const left = parseErCardinality(relation.leftToken)
         const right = parseErCardinality(relation.rightToken)
-        if (!left || !right) return null
+        if (!left || !right || right === 'parent') return null
         const relationIndex = body.relations.length
         body.relations.push({
           from: relation.entity1.id,
@@ -305,9 +309,9 @@ function readErBody(lines: string[]): ErBody | null {
 // ---- Serializer -----------------------------------------------------------
 
 const LEFT_GLYPH: Record<ErCardinality, string> = {
-  'one-only': '||', 'zero-or-one': '|o', 'zero-or-many': '}o', 'one-or-many': '}|',
+  'one-only': '||', 'zero-or-one': '|o', 'zero-or-many': '}o', 'one-or-many': '}|', parent: 'u',
 }
-const RIGHT_GLYPH: Record<ErCardinality, string> = {
+const RIGHT_GLYPH: Record<Exclude<ErCardinality, 'parent'>, string> = {
   'one-only': '||', 'zero-or-one': 'o|', 'zero-or-many': 'o{', 'one-or-many': '|{',
 }
 
@@ -408,6 +412,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     fold.relationEnd(relation.to)
     const left = LEFT_GLYPH[relation.leftCard]
     const right = RIGHT_GLYPH[relation.rightCard]
+    if (left === undefined || right === undefined) throw new Error('Invalid ER endpoint marker: parent is only writable before the relationship connector')
     const link = relation.dashed ? '..' : '--'
     const label = relation.label ?? ''
     // Mermaid reads an alias only on a declaration, never on a relation end.
@@ -710,6 +715,9 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       return ok(b)
     }
     case 'add_relation': {
+      if (!Object.hasOwn(LEFT_GLYPH, op.leftCard) || !Object.hasOwn(RIGHT_GLYPH, op.rightCard)) {
+        return err({ code: 'INVALID_OP', message: 'Invalid ER endpoint marker: parent is only writable on the left, before the relationship connector' })
+      }
       if (!find(op.from)) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.from} not found` })
       if (!find(op.to)) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.to} not found` })
       b.relations.push({ from: op.from, to: op.to, leftCard: op.leftCard, rightCard: op.rightCard, dashed: op.dashed ?? false, label: op.label })

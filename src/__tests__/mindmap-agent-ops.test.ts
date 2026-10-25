@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { mutateMindmap, parseMindmapBody, renderMindmapBody, verifyMindmap } from '../agent/mindmap-body.ts'
-import { parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import type { MindmapBody, MindmapMutationOp, MutationError, Result } from '../agent/types.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
 function body(): MindmapBody {
   return {
@@ -114,7 +115,7 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expectError({ kind: 'set_label', id: 'a', label: 'dest' }, 'DUPLICATE_NODE', "Mindmap node 'dest' already exists")
   })
 
-  test('literal default-node text is escaped independently of shape and decoration syntax', () => {
+  test('default-node edits refuse escapes that would rename their bare identity token', () => {
     const unstable = ['A[B]', 'A(B)', 'A((B))', 'A{{B}}', 'A)B(', 'A))B((', '**A**', '"A"', '%%']
     for (const value of unstable) {
       for (const op of [
@@ -122,9 +123,9 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
         { kind: 'set_label', id: 'a', label: value },
         { kind: 'add_node', id: value, label: value, parent: 'root' },
       ] as const) {
-        const next = apply(op)
-        expect(child(next, value)?.label).toBe(value)
-        expect(parseMindmapBody(renderMindmapBody(next))).toEqual(next)
+        const input = body()
+        expect(mutateMindmap(input, op).ok).toBe(false)
+        expect(input).toEqual(body())
       }
     }
 
@@ -231,6 +232,93 @@ describe('Mindmap grammar escapes keep identity and native drawing', () => {
   let upstream: ReturnType<typeof startUpstreamMermaid>
   beforeAll(() => { upstream = startUpstreamMermaid() })
   afterAll(() => upstream.close())
+
+  test('complete node productions protect style prepasses across identity and label fields', async () => {
+    for (const [id, originalLabel, label] of [
+      ['n', 'Child', 'style:a&'],
+      ['style', 'Child', 'a:&'],
+      ['classDef', 'Child', 'a:#35;'],
+      ['n', '"`Child`"', 'style:a&'],
+    ]) {
+      const input = parseMindmapBody(`mindmap\nroot(Root)\n  ${id}[${originalLabel}]`)
+      const next = apply({ kind: 'set_label', id: id!, label: label! }, input)
+      const written = renderMindmapBody(next)
+      expect(await upstream.publicAccepts('mindmap\nroot(Root)')).toBe(true)
+      const result = await upstream.project(written, diagram => {
+        const node = diagram.db.getMindmap().children[0]
+        return { id: node.nodeId, label: node.descr }
+      })
+      expect(result.ok).toBe(true)
+      if (!result.ok) throw new Error(result.error)
+      expect(result.value.id).toBe(id!)
+      expect(projectEntityMarkers(result.value.label)).toBe(label!)
+      expect(parseMindmapBody(written)).toEqual(next)
+    }
+  })
+
+  test('bare identity tokens retain benign ampersands and hashes without introducing entities', async () => {
+    for (const name of ['R & D', 'A #B', 'style:a&', 'A]B', 'Say "hi" `tick`']) {
+      const source = `mindmap\nroot\n  ${name}\n    Child`
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok || parsed.value.body.kind !== 'mindmap') throw new Error('Expected typed Mindmap')
+      const written = serializeMermaid(parsed.value)
+      for (const candidate of [source, written]) {
+        const result = await upstream.project(candidate, diagram => {
+          const node = diagram.db.getMindmap().children[0]
+          return { id: node.nodeId, label: node.descr, child: node.children[0].nodeId }
+        })
+        expect(result.ok).toBe(true)
+        if (!result.ok) throw new Error(result.error)
+        expect(result.value).toEqual({ id: name, label: name, child: 'Child' })
+      }
+      expect(parseMindmapBody(written)).toEqual(parsed.value.body)
+      expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    }
+  })
+
+  test('bare line-break tags keep their pinned identity through unrelated edits', async () => {
+    for (const tag of ['<br/>', '<br>', '<BR >']) {
+      const source = `mindmap\nroot(Root)\n  On effectiveness${tag}and features\n    Child\n    ::icon(fa fa-book)`
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok || parsed.value.body.kind !== 'mindmap') throw new Error('Expected typed Mindmap')
+      expect(parsed.value.body.root.children[0]).toMatchObject({ id: 'On effectiveness\nand features', label: 'On effectiveness\nand features' })
+      const edited = mutate(parsed.value, { kind: 'set_label', id: 'root', label: 'Edited root' })
+      if (!edited.ok || edited.value.body.kind !== 'mindmap') throw new Error('Expected typed edit')
+      const written = serializeMermaid(edited.value)
+      for (const candidate of [source, written]) {
+        const reference = await upstream.project(candidate, diagram => {
+          const node = diagram.db.getMindmap().children[0]
+          return { id: node.nodeId, label: node.descr, children: node.children.map((child: any) => ({ id: child.nodeId, icon: child.icon })) }
+        })
+        expect(reference.ok).toBe(true)
+        if (!reference.ok) throw new Error(reference.error)
+        expect(reference.value).toEqual({ id: 'On effectiveness<br>and features', label: 'On effectiveness<br>and features', children: [{ id: 'Child', icon: 'fa fa-book' }] })
+      }
+      expect(parseMindmapBody(written)).toEqual(edited.value.body)
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(edited.value))
+      expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(edited.value))
+    }
+  })
+
+  test('unreconstructable bare identities retain source and refuse typed renaming', async () => {
+    for (const name of ['R #35; D', 'R &amp; D', '**Bold**']) {
+      const source = `mindmap\nroot\n  ${name}\n`
+      expect(await upstream.publicAccepts(source)).toBe(true)
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(mutate(parsed.value, { kind: 'rename_node', from: 'root', to: 'Edited' }).ok).toBe(false)
+      expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mindmap_nonportable_text' }))
+      expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    }
+    for (const value of ['literal #35;', 'style:a# B;']) {
+      const result = mutateMindmap(body(), { kind: 'add_node', id: value, label: value, parent: 'root' })
+      expect(result.ok).toBe(false)
+    }
+  })
 
   test.each([
     'mindmap\n["```"]',

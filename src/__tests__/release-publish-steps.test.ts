@@ -366,8 +366,8 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
     expect(urls[0]).toMatch(/^https:\/\/github\.com\/modelcontextprotocol\/registry\/releases\/download\/v\d+\.\d+\.\d+\//)
   })
 
-  test('refuses to extract a download whose digest differs from the pin', () => {
-    const tampered = installWith(undefined)
+  test.each([undefined, '', '0'.repeat(64), 'not-a-digest'])('refuses to extract a download with a mismatched or malformed pin (%s)', pin => {
+    const tampered = installWith(pin)
     expect({ status: tampered.status === 0, extracted: tampered.extracted }).toEqual({ status: false, extracted: false })
   })
 

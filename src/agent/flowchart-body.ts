@@ -29,6 +29,7 @@ import {
   flowchartStatementSpans,
   flowchartTextArrowLabelRanges,
   scanFlowchart,
+  checkedFlowchartStyleProps,
 } from '../flowchart-lexer.ts'
 import { parseFlowchartLabel, writeFlowchartLabelText } from '../flowchart-labels.ts'
 import type { LabelContent } from '../shared/display-text.ts'
@@ -493,11 +494,8 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   const lines: string[] = [headerKind === 'state' ? 'stateDiagram-v2' : `flowchart ${graph.direction}`]
   const declaredInline = new Set<string>()
 
-  // Subgraph blocks MUST come before edges: the legacy parser associates a
-  // node with the subgraph in whose block it FIRST appears. If an edge at the
-  // top declared the node first, a later bare reference inside the subgraph is
-  // ignored and membership is lost on re-parse. Emitting members (with their
-  // shape declaration) inside the block first makes round-trip stable.
+  // Publish the resolved membership tree before its links. Edge endpoints
+  // must not claim a node for another block before its owning block closes.
   const membersDeclared = new Set<string>()
   const renderSubgraph = (sg: MermaidGraph['subgraphs'][number], indent: string) => {
     lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${escapeNodeLabel(sg.label, sg.labelContent)}]` : ''}`)
@@ -604,6 +602,7 @@ function renderShape(node: MermaidNode): string {
     case 'state-join':
     case 'state-choice':
     case 'state-history': return ''
+    case 'state-note': throw new Error('Floating State notes require the State serializer')
   }
 }
 
@@ -702,7 +701,7 @@ function markerChar(marker: 'arrow' | 'circle' | 'cross', isStart: boolean): str
 }
 
 function styleProps(props: Record<string, string>): string {
-  return Object.entries(props).map(([k, v]) => `${k}:${v}`).join(',')
+  return Object.entries(checkedFlowchartStyleProps(props)).map(([k, v]) => `${k}:${v}`).join(',')
 }
 
 // ---- Mutator ----------------------------------------------------------------
@@ -950,7 +949,11 @@ function resolveShapeValue(shape: string): ResolvedShapeValue | null {
  *  writing a directive the renderer would refuse. */
 function parseStylePropsForOp(style: string, subject: string, example: string): { value: Record<string, string> } | { message: string } {
   const parsed = parseMutableStyleProps(style)
-  if (parsed.ok) return portableStyle(parsed.value) ? { value: parsed.value } : { message: 'Flowchart style contains tokens that cannot be written as Mermaid style properties' }
+  if (parsed.ok) {
+    if (!portableStyle(parsed.value)) return { message: 'Flowchart style contains tokens that cannot be written as Mermaid style properties' }
+    try { return { value: checkedFlowchartStyleProps(parsed.value) } }
+    catch (error) { return { message: error instanceof Error ? error.message : String(error) } }
+  }
   if (parsed.reason === 'UNSAFE_PAINT') return { message: unsafeStylePaintError(subject, parsed.paint).message }
   return { message: `Style "${style}" parses to no properties — expected CSS-like pairs such as "${example}"` }
 }

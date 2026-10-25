@@ -627,18 +627,19 @@ interface FlowchartGraph {
   linkStyles: Map<number | 'default', Record<string, string>>
 }
 
-interface StateNode { id: string; kind?: 'note'; label?: string; labelContent?: LabelContent; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateNode { id: string; label?: string; labelContent?: LabelContent; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateTransition { from: string; to: string; fromClass?: string; toClass?: string; label?: string; labelContent?: LabelContent; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]'); fromClass/toClass class such an endpoint ('[*]:::c --> A')
 interface StateNote { target: string; side: 'left' | 'right'; text: string; textContent?: LabelContent }
-interface StateBody { unresolvedClasses?: Array<{ id: string; className: string }>; unresolvedStyles?: Array<{ id: string; style: Record<string,string> }>; kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
+interface StateFloatingNote { id: string; text: string; textContent?: LabelContent; scope?: { parent: string; region?: number } }
+interface StateBody { floatingNotes?: StateFloatingNote[]; unresolvedClasses?: Array<{ id: string; className: string }>; unresolvedStyles?: Array<{ id: string; style: Record<string,string> }>; kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
-interface SeqParticipant { id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
-interface SeqMessage { from: string; to: string; text: string; textContent?: LabelContent; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
+interface SeqParticipant { wrap?: boolean; id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
+interface SeqMessage { wrap?: boolean; from: string; to: string; text: string; textContent?: LabelContent; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
 type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
-interface SeqFragmentBranch { label?: string; labelContent?: LabelContent; messages: SeqMessage[] }
-interface SeqFragment { fragmentKind: SeqFragmentKind; label?: string; labelContent?: LabelContent; branches: SeqFragmentBranch[]; rawLines?: string[] }
+interface SeqFragmentBranch { wrap?: boolean; label?: string; labelContent?: LabelContent; messages: SeqMessage[] }
+interface SeqFragment { wrap?: boolean; fragmentKind: SeqFragmentKind; label?: string; labelContent?: LabelContent; branches: SeqFragmentBranch[]; rawLines?: string[] }
 // BUILD-18: ordered statement list. participant/message refs index into the
 // participants/messages arrays; direct-message common fragments are typed;
 // opaque-block carries all remaining unmodeled lines verbatim.
@@ -665,11 +666,11 @@ interface ClassNote { text: string; textContent?: LabelContent; for?: string }
 interface ClassNamespaceDecl { name: string; label?: string; labelContent?: LabelContent }
 interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[]; classDefs?: Record<string, Record<string, string>> }
 
-type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
+type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many' | 'parent'
 interface ErAttribute { text: string }
 interface ErEntity { id: string; label?: string; labelContent?: LabelContent; attributes: ErAttribute[]; className?: string; style?: Record<string, string>; groupId?: string }
 interface ErGroup { id: string; label: string; labelContent?: LabelContent; parentId?: string; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string; labelContent?: LabelContent }
+interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed: boolean; label?: string; labelContent?: LabelContent }
 type ErStatement = { kind: 'entity'; id: string } | { kind: 'relation'; ref: number } | { kind: 'direction'; groupId?: string } | { kind: 'group-open'; id: string } | { kind: 'group-close'; id: string } | { kind: 'opaque'; lines: string[] }
 interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[]; groups?: ErGroup[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; statements?: ErStatement[] }
 
@@ -808,6 +809,9 @@ type StateMutationOp =
   | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }   // side defaults to 'right'
   | { kind: 'remove_note'; index: number }
   | { kind: 'set_note_text'; index: number; text: string }
+  | { kind: 'add_floating_note'; id: string; text: string; parent?: string | null; region?: number }
+  | { kind: 'remove_floating_note'; id: string }
+  | { kind: 'set_floating_note_text'; id: string; text: string }
   | { kind: 'define_class'; name: string; style: string }
   | { kind: 'set_state_class'; id: string; className: string | null }
   | { kind: 'set_state_style'; id: string; style: string | null }
@@ -816,9 +820,10 @@ type StateMutationOp =
 type SequenceMutationOp =
   | { kind: 'add_participant'; id: string; label?: string; participantKind?: 'participant' | 'actor' }
   | { kind: 'remove_participant'; id: string }
-  | { kind: 'add_message'; from: string; to: string; text: string; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }   // index = top-level insert position; omitted = append
+  | { kind: 'add_message'; from: string; to: string; text: string; wrap?: boolean; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }   // index = top-level insert position; omitted = append
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
+  | { kind: 'set_message_wrap'; index: number; wrap: boolean | null }
   | { kind: 'move_message'; from: number; to: number }   // top-level indices
   | { kind: 'set_participant_label'; id: string; label: string }
   | { kind: 'add_fragment'; fragmentKind: SeqFragmentKind; label?: string; index?: number }
@@ -826,9 +831,10 @@ type SequenceMutationOp =
   | { kind: 'set_fragment_label'; index: number; label: string | null }
   | { kind: 'add_fragment_branch'; fragmentIndex: number; label?: string }
   | { kind: 'set_fragment_branch_label'; fragmentIndex: number; branchIndex: number; label: string | null }
-  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: string; to: string; text: string; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }
+  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: string; to: string; text: string; wrap?: boolean; style?: 'sync' | 'reply' | 'async' | 'async-dashed' | 'lost' | 'lost-dashed'; index?: number }
   | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
   | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
+  | { kind: 'set_fragment_message_wrap'; fragmentIndex: number; branchIndex?: number; index: number; wrap: boolean | null }
 
 type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -874,7 +880,7 @@ type ErMutationOp =
   | { kind: 'set_entity_label'; entity: string; label: string | null }
   | { kind: 'add_attribute'; entity: string; text: string }
   | { kind: 'remove_attribute'; entity: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
+  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'set_direction'; direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
   | { kind: 'define_class'; name: string; style: string }
@@ -1037,7 +1043,7 @@ type GanttMutationOp =
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN,
 // SCALE_RANGE_EXCLUDES_ZERO, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
-type RenderedRegionKind='node'|'note'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
+type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
 type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
 type LayoutRect={x:number;y:number;w:number;h:number}
 interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};cellSpans?:Array<{row:number;start:number;end:number}>;sourceLine?:number }

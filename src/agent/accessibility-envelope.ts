@@ -1,15 +1,44 @@
 import type { Accessibility, DiagramBody } from './types.ts'
 
+export class AccessibilityTextError extends Error {}
+
+export function accessibilityTitleText(value: string): string {
+  if (typeof value !== 'string' || !value.trim() || /[\r\n]/.test(value)) throw new AccessibilityTextError('Accessibility title must be non-empty single-line text')
+  return value.trim()
+}
+
+export function accessibilityDescriptionText(value: string): string {
+  if (typeof value !== 'string') throw new AccessibilityTextError('Accessibility description must be text')
+  const text = value.replace(/\r\n?/g, '\n').split('\n').map(line => line.trim()).join('\n').trim()
+  if (!text) throw new AccessibilityTextError('Accessibility description must be non-empty text')
+  return text
+}
+
+/** Canonicalize the same physical lines the envelope parser consumes before
+ * publishing a mutated body or deriving comments and source locations. */
+export function normalizeBodyAccessibility<T extends DiagramBody>(body: T): T {
+  const fields = accessibilityFromBody(body)
+  if (!fields) return body
+  const title = fields.title === undefined ? undefined : accessibilityTitleText(fields.title)
+  const descr = fields.descr === undefined ? undefined : accessibilityDescriptionText(fields.descr)
+  return title === fields.title && descr === fields.descr ? body : {
+    ...body,
+    ...(title !== undefined ? { accessibilityTitle: title } : {}),
+    ...(descr !== undefined ? { accessibilityDescription: descr } : {}),
+  }
+}
+
 /** Serialize universal Mermaid accessibility metadata for structured bodies. */
 export function appendAccessibilityLines(lines: string[], value: { accessibilityTitle?: string; accessibilityDescription?: string }): void {
-  if (value.accessibilityTitle !== undefined) lines.push(`  accTitle: ${value.accessibilityTitle}`)
+  if (value.accessibilityTitle !== undefined) lines.push(`  accTitle: ${accessibilityTitleText(value.accessibilityTitle)}`)
   if (value.accessibilityDescription === undefined) return
-  if (!value.accessibilityDescription.includes('\n')) {
-    lines.push(`  accDescr: ${value.accessibilityDescription}`)
+  const description = accessibilityDescriptionText(value.accessibilityDescription)
+  if (!description.includes('\n')) {
+    lines.push(`  accDescr: ${description}`)
     return
   }
   lines.push('  accDescr {')
-  for (const line of value.accessibilityDescription.split(/\r?\n/)) lines.push(`    ${line.trim()}`)
+  for (const line of description.split('\n')) lines.push(`    ${line}`)
   lines.push('  }')
 }
 
@@ -18,7 +47,7 @@ export function appendAccessibilityLines(lines: string[], value: { accessibility
 export function ensureAccessibilityLines(source: string, accessibility: Accessibility): string {
   const missing: string[] = []
   if (accessibility.title !== undefined && !/^\s*accTitle(?:\s*:|\s+)/im.test(source)) {
-    missing.push(`  accTitle: ${accessibility.title}`)
+    appendAccessibilityLines(missing, { accessibilityTitle: accessibility.title })
   }
   if (accessibility.descr !== undefined && !/^\s*accDescr(?:\s*:|\s*\{)/im.test(source)) {
     appendAccessibilityLines(missing, { accessibilityDescription: accessibility.descr })

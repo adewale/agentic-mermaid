@@ -89,13 +89,8 @@ describe('renderMermaidSVG — gantt', () => {
 
   it('rejects style-attr injection in the todayMarker payload', () => {
     const src = 'gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke:#0f0"onload="alert(1),opacity:0.5\n  A :a, 2024-01-01, 10d'
-    const svg = renderMermaidSVG(src, { ganttToday: '2024-01-05' })
-    expect(svg).not.toContain('onload')
-    expect(svg).not.toContain('alert(')
-    // The safe property still applies; the poisoned one is dropped whole.
-    const line = svg.match(/<line class="gantt-today-marker"[^>]*>/)![0]
-    expect(line).toContain('opacity="0.5"')
-    expect(line).not.toContain('#0f0')
+    expect(() => renderMermaidSVG(src, { ganttToday: '2024-01-05' }))
+      .toThrow('todayMarker: stroke "#0f0\\"onload=\\"alert(1)" is not a CSS color')
   })
 
   it('a plain todayMarker line stays byte-identical (no style attr)', () => {

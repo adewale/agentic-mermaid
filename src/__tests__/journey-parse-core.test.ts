@@ -70,7 +70,7 @@ describe('semicolon statement separation (diagnosed Agentic extension)', () => {
     expect(serializeMermaid(d)).toBe('journey\n  section S\n    Make tea: 5: Me\n    Go upstairs: 3: Me\n')
   })
 
-  test('HTML entities keep their semicolons through statement splitting', () => {
+  test('XML entities decode as text while real semicolons split statements', () => {
     const diagram = rendererParse('journey\n  Task A &amp; B: 3: Me; Task C: 4: Me')
     expect(diagram.sections[0]!.tasks.map(t => t.text)).toEqual(['Task A & B', 'Task C'])
   })

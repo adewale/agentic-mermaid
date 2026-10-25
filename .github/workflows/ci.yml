@@ -250,10 +250,10 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
-          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts; then
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- src/class src/pie src/journey src/gitgraph src/radar src/xychart src/sequence src/architecture src/agent/families-builtin.ts src/svg-family-hooks/flowchart.ts src/parser.ts src/state src/er src/ascii src/block; then
             exit 0
           fi
-          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation agent-flat-namespace agent-category-role agent-journey-visibility agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" bench-report/meaning-preservation compat-corpus-flowchart-94 compat-corpus-flowchart-95 compat-corpus-flowchart-96 compat-corpus-state-0 compat-corpus-state-1 compat-corpus-state-8 compat-corpus-state-14 compat-corpus-state-16 compat-corpus-state-17 compat-corpus-state-18 compat-corpus-state-19 compat-flowchart-membership compat-c4-named-label compat-state-floating-note compat-er-parent compat-sequence-wrap agent-flat-namespace agent-category-role agent-journey-visibility journey-literal-formatted-identity agent-gitgraph-rails agent-small-values compat-flowchart-block-label compat-sequence-spaced-metadata compat-class-identifiers compat-architecture-compact-edge compat-gitgraph-repeated-pick compat-ellipse compat-parallel-overlay compat-architecture-text-icon nightly-architecture-card-clearance terminal-block-protected-approaches terminal-state-distinct-contacts
 
       - name: Retain diagram review images
         if: ${{ matrix.suite == 'payload' && github.event_name == 'pull_request' }}

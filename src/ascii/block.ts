@@ -9,7 +9,7 @@ import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateBoxRoutes, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
+import { allocateBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
 import { frontmatterTitle, type MermaidFrontmatterMap } from '../mermaid-source.ts'
 
 interface BlockCell extends Cell {
@@ -44,7 +44,10 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
     .filter(c => c.block.type !== 'space')
     .map(c => ({ ...c, id: c.block.id, x: Math.round(c.x - c.w / 2) + 4, y: Math.round(c.y - c.h / 2) + 4, width: Math.round(c.w), height: Math.round(c.h), container: c.block.type === 'composite', headerHeight: c.head }))
   const relations: BoxRelation[] = model.edges.map(e => ({ id: e.id, from: e.start!, to: e.end!, ...(e.label ? { lines: wrapText(blockDisplayText(e.label), width ? Math.max(1, width - 8) : undefined) } : {}) }))
-  layoutGrid(root, 6)
+  // Opposing protected approaches must leave a transverse channel between
+  // cells. Without it, disjoint ports can close a pocket around another exit.
+  const gap = relations.length ? Math.max(6, 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1) : 6
+  layoutGrid(root, gap)
   let boxes = placedBoxes()
   const cells = new Map(all.map(cell => [cell.block.id, cell]))
   // Geometry determines the contacted faces. Grow before routing, then recount
@@ -58,13 +61,13 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
       if (!cell || !box) continue // The route allocator diagnoses missing endpoints.
       if (box.width < demand.width) { cell.nw = Math.max(cell.nw, demand.width); changed = true }
       if (box.height < demand.height) {
-        if (cell.children.length) cell.insetY = (cell.insetY ?? 6) + Math.ceil((demand.height - box.height) / 2)
+        if (cell.children.length) cell.insetY = (cell.insetY ?? gap) + Math.ceil((demand.height - box.height) / 2)
         else cell.nh = Math.max(cell.nh, demand.height)
         changed = true
       }
     }
     if (!changed) break
-    layoutGrid(root, 6)
+    layoutGrid(root, gap)
     boxes = placedBoxes()
   }
   const routes = allocateBoxRoutes(boxes, relations, 'TB'),

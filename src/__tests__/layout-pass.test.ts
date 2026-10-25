@@ -8,6 +8,7 @@ const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passCo
 import { LAYOUT_PIPELINE, convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { verifyMermaid } from '../agent/index.ts'
 import { withPerformanceExperiments } from '../experimental-performance.ts'
 import * as rubric from '../layout-rubric.ts'
 const { assessLayout, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } = rubric
@@ -36,6 +37,36 @@ describe('source-aware ELK child order', () => {
 })
 
 describe('declared pass budgets on actual native geometry', () => {
+  test.each(['LR', 'RL', 'TD', 'BT'] as const)('%s: final closure repairs a late false bundle certificate before public output', direction => {
+    withPerformanceExperiments(['text-spans', 'indexed-layout'], () => {
+      const source = `flowchart ${direction}\nA[Start] --> B[Done]`
+      const baseline = renderMermaidSVG(source, { embedFontImport: false })
+      const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'separateEdgeLabelPills')!, run = pass.run
+      let injected = 0
+      pass.run = context => {
+        run(context)
+        const edge = context.edges[0]!, a = edge.points[0]!, b = edge.points.at(-1)!
+        const horizontal = direction === 'LR' || direction === 'RL'
+        const first = horizontal ? a.x + (b.x - a.x) / 3 : a.y + (b.y - a.y) / 3
+        const second = horizontal ? a.x + (b.x - a.x) * 2 / 3 : a.y + (b.y - a.y) * 2 / 3
+        edge.points = horizontal
+          ? [a, { x: first, y: a.y }, { x: first, y: a.y + 12 }, { x: second, y: a.y + 12 }, { x: second, y: b.y }, b]
+          : [a, { x: a.x, y: first }, { x: a.x + 12, y: first }, { x: a.x + 12, y: second }, { x: b.x, y: second }, b]
+        const { straightened: _straightened, ...saved } = edge.routeCertificate!
+        edge.routeCertificate = { ...saved, invariant: 'bundle', bendCount: 4 }
+        injected++
+      }
+      try {
+        expect(renderMermaidSVG(source, { embedFontImport: false })).toBe(baseline)
+        const verified = verifyMermaid(source)
+        expect(verified.ok).toBe(true)
+        expect(verified.warnings).toEqual([])
+        expect(verified.layout.edges[0]!.path).toHaveLength(2)
+        expect(injected).toBeGreaterThanOrEqual(2)
+      } finally { pass.run = run }
+    })
+  })
+
   test.each([
     ['canonical reciprocal ports', `flowchart LR
 N0{{warnings}}

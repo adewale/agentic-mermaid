@@ -2,17 +2,22 @@ import { assertC4DiagramWork, assertDiagramWorkLimit } from '../shared/diagram-l
 import { observeParserMutation, observeParserStatement, observeParserToken, parserObservationActive } from '../shared/parser-observation.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { breakLineTags } from '../multiline-utils.ts'
 import { decodeXML } from 'entities'
 import { mermaidLineEnd } from '../shared/mermaid-cleanup.ts'
 import { c4ShapeOverride } from './config.ts'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import type {
   C4Argument, C4Body, C4Boundary, C4Diagnostic, C4Directive, C4Direction,
   C4Element, C4Relationship, C4Statement, C4Style, C4Variant,
 } from './types.ts'
 
 export const C4_VARIANTS: readonly C4Variant[] = ['C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment']
+
+export class C4AmbiguousArgumentError extends MermaidSyntaxError {}
+
 const ELEMENT = /^(Person|System|Container|Component)(Db|Queue)?(_Ext)?$/
 const BOUNDARIES: Readonly<Record<string, C4Boundary['kind']>> = {
   Boundary: 'boundary', Enterprise_Boundary: 'enterprise', System_Boundary: 'system',
@@ -178,7 +183,7 @@ export function parseC4Arguments(text: string): C4Argument[] {
  * This checks token structure, independently of a declaration's semantics. */
 export function c4ArgumentsArePortable(args: readonly C4Argument[], positionalFields: readonly string[] = []): boolean {
   return args.length > 0 && args.length >= positionalFields.length && args.every((arg, index) => {
-    if (arg.name && (index < positionalFields.length || positionalFields.includes(arg.name))) return false
+    if (arg.name && (positionalFields.includes(arg.name) || index < positionalFields.length && positionalFields[index] !== 'label')) return false
     if (arg.raw.includes('%%{')) return false
     const text = (arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw).trim()
     if (arg.name) return /^"[^"]+"$/.test(text)
@@ -186,6 +191,19 @@ export function c4ArgumentsArePortable(args: readonly C4Argument[], positionalFi
     if (arg.raw === '' && index < args.length - 1) return true
     return index < args.length - 1 && text.length > 0 && !/^[\$']|[()\r\n]/.test(text)
   })
+}
+
+function ambiguousNamedArgument(arg: C4Argument, index: number, args: readonly C4Argument[]): boolean {
+  // Mermaid's bare attribute token consumes everything through the next comma:
+  // embedded dollar text cannot start metadata inside that positional token.
+  // A quoted comma is still a delimiter to that lexer, unlike our reader's.
+  if (!arg.name && index < args.length - 1 && !/^["'$)]/.test(arg.raw.trim()) && !arg.raw.includes(',')) return false
+  const value = arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw
+  // Quoted text can literally describe `$link=...`. Outside quotes that
+  // spelling may be a missing comma or `=`, so choosing prose would lose
+  // the author's intended metadata.
+  for (const match of value.matchAll(/"[^"]*"|'[^']*'|(\$[A-Za-z_][A-Za-z_0-9]*\s*(?:=|["']))/g)) if (match[1]) return true
+  return false
 }
 
 export function c4ArgumentFields(args: readonly C4Argument[], names: readonly string[]): Record<string, string> {
@@ -217,6 +235,15 @@ function required(fields: Record<string, string>, field: string, macro: string):
   const value = fields[field]
   if (value === undefined || (field !== 'label' && !value.trim())) throw new Error(`C4: ${macro} requires ${field === 'label' ? 'a' : 'a non-empty'} ${field}`)
   return value
+}
+
+function argumentLabel(args: readonly C4Argument[], names: readonly string[], fields: Record<string, string>, macro: string): string {
+  const label = c4DisplayArgument(args, names, 'label')
+  if (label !== undefined) return label
+  // Named arguments address their field even in a positional label slot.
+  // Keep that field and an empty label, rather than coercing it into text.
+  if (args[names.indexOf('label')]?.name) return ''
+  return required(fields, 'label', macro)
 }
 
 /** Fields which affect authored source, excluding derived cascade/layout data. */
@@ -420,6 +447,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       if (parserObservationActive('c4')) observeParserMutation('c4', 'close-boundary', { id: parent })
       statement.entityId = parent; continue
     }
+    if (mermaidEntityPrepass(text) !== text) diagnostic(body, statement.id, 'c4_entity_prepass', 'The global Mermaid entity prepass changes this statement; the writer protects its text fields without changing their values')
     if (/^title\s/i.test(text)) {
       observeC4Statement(statement, 'title')
       body.title = decodeMermaidEntities(breakLineTags(text.replace(/^title\s+/i, '')))
@@ -468,6 +496,15 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     const element = ELEMENT.exec(macro)
     const mermaidMacro = Boolean(element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro)
     if (mermaidMacro && parents.length) boundaryStatements.add(parents.at(-1)!)
+    if (mermaidMacro && args.some(ambiguousNamedArgument)) throw new C4AmbiguousArgumentError(`C4 argument is ambiguous in ${text}: separate named arguments with commas and use $name="value", or quote the entire value when it is literal text`)
+    // A bare positional value consumes through the next comma in Mermaid's
+    // attribute lexer, including a closing `)` when it is the last argument.
+    // `$` instead enters named-argument syntax, whose value must be quoted.
+    if (mermaidMacro && args.some((arg, index) => {
+      const raw = arg.raw.trim()
+      if (arg.name) return !/^\$[A-Za-z_][A-Za-z_0-9]*\s*=\s*"/.test(raw) && arg.value !== ''
+      return raw.startsWith('$') || index === args.length - 1 && raw !== '' && !/^["']/.test(raw)
+    })) diagnostic(body, statement.id, 'c4_unquoted_argument', 'Unquoted C4 argument text is read literally here, but pinned Mermaid requires a quoted final argument and quoted named values; serialization writes those values in double quotes')
     // Mermaid's lexer enters a macro's state at its name and reads only `(` there.
     if (mermaidMacro && text[macro.length] !== '(') diagnostic(body, statement.id, 'c4_space_before_arguments', `Pinned Mermaid reads "(" only straight after ${macro} and rejects whitespace between them; ours reads the call. Write ${macro}( with no space`)
     if (element && !(element[1] === 'Person' && element[2])) {
@@ -480,7 +517,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       const record: C4Element = {
         id, macro, kind: element[1]!.toLowerCase() as C4Element['kind'], external: Boolean(element[3]),
         shape: element[1] === 'Person' ? 'person' : element[2] === 'Db' ? 'database' : element[2] === 'Queue' ? 'queue' : 'rectangle',
-        label: c4DisplayArgument(args, c4ElementFields(macro), 'label') ?? required(fields, 'label', macro),
+        label: argumentLabel(args, c4ElementFields(macro), fields, macro),
         technology: optional(c4DisplayArgument(args, c4ElementFields(macro), 'techn')), description: optional(c4DisplayArgument(args, c4ElementFields(macro), 'descr')),
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
       }
@@ -496,7 +533,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       if (ids.has(id)) throw new Error(`C4: duplicate declaration alias ${JSON.stringify(id)}`)
       ids.add(id)
       const record: C4Boundary = {
-        id, macro, kind: BOUNDARIES[macro]!, label: c4DisplayArgument(args, c4BoundaryFields(macro), 'label') ?? required(fields, 'label', macro),
+        id, macro, kind: BOUNDARIES[macro]!, label: argumentLabel(args, c4BoundaryFields(macro), fields, macro),
         type: optional(c4DisplayArgument(args, c4BoundaryFields(macro), 'type')), description: optional(c4DisplayArgument(args, c4BoundaryFields(macro), 'descr')),
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
         ...(macro === 'Node_L' ? { alignment: 'left' } : macro === 'Node_R' ? { alignment: 'right' } : {}),
@@ -515,7 +552,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       const reversed = macro === 'Rel_Back'
       const record: C4Relationship = {
         id: '', macro, from, to, source: reversed ? to : from, target: reversed ? from : to,
-        label: c4DisplayArgument(args, c4RelationshipFields(macro), 'label') ?? required(fields, 'label', macro),
+        label: argumentLabel(args, c4RelationshipFields(macro), fields, macro),
         technology: optional(c4DisplayArgument(args, c4RelationshipFields(macro), 'techn')), description: optional(c4DisplayArgument(args, c4RelationshipFields(macro), 'descr')),
         tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
         index: macro === 'RelIndex' ? required(fields, 'index', macro) : undefined,

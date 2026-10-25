@@ -56,6 +56,7 @@ export type FamilyId = DiagramKind | ExternalFamilyId
 export type SequenceParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 
 export interface SequenceParticipant {
+  wrap?: boolean
   id: string
   label: string
   labelContent?: LabelContent
@@ -115,6 +116,8 @@ export type SequenceMessageArrow =
   | '\\--'
 
 export interface SequenceMessage {
+  /** Authored wrap control; absent inherits the diagram configuration. */
+  wrap?: boolean
   from: string
   to: string
   text: string
@@ -130,12 +133,14 @@ export interface SequenceMessage {
 
 export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par' | 'par_over'
 export interface SequenceFragmentBranch {
+  wrap?: boolean
   /** `else` / `and` caption. The first branch normally omits it. */
   label?: string
   labelContent?: LabelContent
   messages: SequenceMessage[]
 }
 export interface SequenceFragment {
+  wrap?: boolean
   fragmentKind: SequenceFragmentKind
   label?: string
   labelContent?: LabelContent
@@ -204,21 +209,25 @@ export interface JourneyTask {
   /** Stable within one parse; recomputed each parse. Not a durable identifier. */
   id: string
   text: string
+  textContent?: LabelContent
   /** Satisfaction score, finite number 1..5 (Mermaid journey convention). */
   score: number
   actors: string[]
+  actorContents?: Array<LabelContent | undefined>
 }
 
 export interface JourneySection {
   id: string
   /** Undefined = implicit/ungrouped section. */
   label?: string
+  labelContent?: LabelContent
   tasks: JourneyTask[]
 }
 
 export interface JourneyBody {
   kind: 'journey'
   title?: string
+  titleContent?: LabelContent
   /** Optional accessibility title from Mermaid accTitle. */
   accessibilityTitle?: string
   /** Optional accessibility description from Mermaid accDescr. */
@@ -322,6 +331,7 @@ export interface ClassBody {
 // ---- ER body --------------------------------------------------------------
 
 export type ErCardinality =
+  | 'parent' // u, before a relationship connector
   | 'one-only' // ||
   | 'zero-or-one' // |o or o|
   | 'zero-or-many' // }o or o{
@@ -358,7 +368,7 @@ export interface ErRelation {
   from: string
   to: string
   leftCard: ErCardinality
-  rightCard: ErCardinality
+  rightCard: Exclude<ErCardinality, 'parent'>
   /** Solid (--) or dashed (..) line. */
   dashed: boolean
   label?: string
@@ -670,8 +680,6 @@ export interface GanttBody {
  */
 export interface StateNode {
   id: string
-  /** A floating, addressable note; omission denotes an ordinary state. */
-  kind?: 'note'
   /** Optional display label (`state "Label" as id` / `id : Label`), its
    *  Mermaid entity codes (`#35;`) read. */
   label?: string
@@ -749,6 +757,8 @@ export interface StateBody {
   transitions: StateTransition[]
   /** Notes in source order; absent when the diagram has none. */
   notes?: StateNote[]
+  /** Named, unattached annotations; scoped independently of state identity. */
+  floatingNotes?: StateFloatingNote[]
   /** Optional top-level layout direction. */
   direction?: import('../types.ts').Direction
   /** Typed classDef declarations keyed by class name. */
@@ -756,6 +766,8 @@ export interface StateBody {
   /** Default edge paint (`linkStyle default ...`). */
   defaultTransitionStyle?: Record<string, string>
 }
+
+export type StateFloatingNote = import('../state/types.ts').FloatingStateNote
 
 // ---- Mindmap body ---------------------------------------------------------
 
@@ -1276,9 +1288,10 @@ export type SequenceMutationOp =
   // index = optional TOP-LEVEL insert position (same addressing as
   // remove_message/set_message_text; fragment messages have their own
   // explicit fragment-addressed ops); omitted = append.
-  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
+  | { kind: 'add_message'; from: ParticipantId; to: ParticipantId; text: string; wrap?: boolean; style?: SequenceMessageStyle; index?: number }
   | { kind: 'remove_message'; index: number }
   | { kind: 'set_message_text'; index: number; text: string }
+  | { kind: 'set_message_wrap'; index: number; wrap: boolean | null }
   // Source order IS the interaction timeline, so reorder is a first-class
   // edit (journey move_task precedent); from/to are top-level indices.
   | { kind: 'move_message'; from: number; to: number }
@@ -1288,9 +1301,10 @@ export type SequenceMutationOp =
   | { kind: 'set_fragment_label'; index: number; label: string | null }
   | { kind: 'add_fragment_branch'; fragmentIndex: number; label?: string }
   | { kind: 'set_fragment_branch_label'; fragmentIndex: number; branchIndex: number; label: string | null }
-  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: ParticipantId; to: ParticipantId; text: string; style?: SequenceMessageStyle; index?: number }
+  | { kind: 'add_fragment_message'; fragmentIndex: number; branchIndex?: number; from: ParticipantId; to: ParticipantId; text: string; wrap?: boolean; style?: SequenceMessageStyle; index?: number }
   | { kind: 'remove_fragment_message'; fragmentIndex: number; branchIndex?: number; index: number }
   | { kind: 'set_fragment_message_text'; fragmentIndex: number; branchIndex?: number; index: number; text: string }
+  | { kind: 'set_fragment_message_wrap'; fragmentIndex: number; branchIndex?: number; index: number; wrap: boolean | null }
 
 export type TimelineMutationOp =
   | { kind: 'set_title'; title: string | null }
@@ -1341,7 +1355,7 @@ export type ErMutationOp =
   | { kind: 'set_entity_label'; entity: string; label: string | null }
   | { kind: 'add_attribute'; entity: string; text: string }
   | { kind: 'remove_attribute'; entity: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed?: boolean; label?: string }
+  | { kind: 'add_relation'; from: string; to: string; leftCard: ErCardinality; rightCard: Exclude<ErCardinality, 'parent'>; dashed?: boolean; label?: string }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'set_direction'; direction: import('../types.ts').Direction }
   | { kind: 'define_class'; name: string; style: string }
@@ -1414,6 +1428,9 @@ export type StateMutationOp =
   | { kind: 'add_note'; target: string; side?: 'left' | 'right'; text: string }
   | { kind: 'remove_note'; index: number }
   | { kind: 'set_note_text'; index: number; text: string }
+  | { kind: 'add_floating_note'; id: string; text: string; parent?: string | null; region?: number }
+  | { kind: 'remove_floating_note'; id: string }
+  | { kind: 'set_floating_note_text'; id: string; text: string }
   // State paint uses the same parser-owned CSS property grammar as flowchart.
   | { kind: 'define_class'; name: string; style: string }
   | { kind: 'set_state_class'; id: string; className: string | null }
@@ -1799,7 +1816,7 @@ export interface VerifyOptions {
  * compatibility fallback; built-in families use the more precise container
  * kinds wherever their layout model can prove one.
  */
-export type RenderedRegionKind = 'node' | 'note' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'
+export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'
 
 export interface RenderedRegion {
   id: string

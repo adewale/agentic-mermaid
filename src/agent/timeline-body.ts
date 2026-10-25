@@ -44,7 +44,11 @@ function normalizeTimelineText(value: string): string {
  * and keyword contexts without removing the author's typed structure. */
 export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
   try {
-    return { kind: 'timeline', ...parseTimelineDiagram(['timeline', ...lines], accessibility) }
+    const diagram = parseTimelineDiagram(['timeline', ...lines], accessibility)
+    // An explicit empty section is distinct from an implicit unnamed section.
+    // The current writer cannot spell it without source-order/trivia support.
+    if (diagram.sections.some(section => section.label === '')) return null
+    return { kind: 'timeline', ...diagram }
   } catch {
     return null
   }
@@ -78,11 +82,6 @@ export function timelineUnsupportedSyntaxWarnings(canonicalSource: string): Layo
     })
   }
   for (const [index, line] of lines.entries()) {
-    const period = line.trim().match(TIMELINE_PERIOD_RE)
-    if (index > header && period && /^section\s/i.test(period[1]!.trim())) warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_section_period', line: index + 1,
-      message: 'The section-like period is retained as period text. Pinned Mermaid reads its prefix as a section token; the writer protects that token with an entity code.',
-    })
     if (index > header && line.includes('%%{') && !isTimelineCommentLine(line)) warnings.push({
       code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_text_directive', line: index + 1,
       message: 'Directive-looking text is retained as text. Pinned Mermaid preprocesses this opener; the writer protects its percent signs with entity codes.',

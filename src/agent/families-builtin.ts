@@ -1,4 +1,4 @@
-import { parseC4Diagram } from '../c4/parser.ts'
+import { C4AmbiguousArgumentError, parseC4Diagram } from '../c4/parser.ts'
 import { buildC4SourceMap, lintC4, mutateC4, parseC4Body, renderC4 } from './c4-body.ts'
 import { withMutationDraft } from './mutation-draft.ts'
 import { STABLE_FAMILY_AGENT_HOOKS } from './stable-family-adapters.ts'
@@ -31,6 +31,7 @@ import { getFrontmatterScalar, normalizeMermaidSource } from '../mermaid-source.
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
+import { SequenceParticipantIdError } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
@@ -55,6 +56,7 @@ import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './san
 import { createSequenceMutationDraft, mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
 import { mutateState, parseStateBody, renderState, verifyOpaqueState, verifyState } from './state-body.ts'
+import { matchFloatingNote } from '../state/parse-core.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
 import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceLocation, SourceMap, XyChartBody } from './types.ts'
 import { err, ok } from './types.ts'
@@ -160,7 +162,10 @@ function extractStateLabels(source: string): ExtractedLabel[] {
     if (!raw || raw.startsWith('%%')) continue
     const target = `line${i + 1}`
     let m
-    if ((m = raw.match(/^state\s+"([^"]+)"\s+as\s+/i))) {
+    const floating = matchFloatingNote(raw)
+    if (floating) {
+      out.push({ text: floating.text, target })
+    } else if ((m = raw.match(/^state\s+"([^"]+)"\s+as\s+/i))) {
       out.push({ text: m[1]!.trim(), target })
     } else if (raw.includes('-->') && raw.includes(':')) {
       const colon = raw.indexOf(':')
@@ -233,8 +238,13 @@ export const SEQUENCE_AGENT_HOOKS = {
     // statement rather than silently discarding it with that first line.
     if (!/^sequenceDiagram$/i.test(expandedLines[0] ?? '')) return ok({ kind: 'opaque', family: 'sequence', source: opaqueSource })
     const rawBodyLines = sequenceRawBodyLines(source.familyBody, expandedLines)
-    const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
-    return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
+    try {
+      const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
+      return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
+    } catch (error) {
+      if (!(error instanceof SequenceParticipantIdError)) throw error
+      return err([{ code: 'PARSE_FAILED', message: error.message }])
+    }
   },
   serialize: body => {
     if (body.kind !== 'sequence') throw new Error(`sequence serializer received body kind ${body.kind}`)
@@ -1290,7 +1300,7 @@ export const MINDMAP_AGENT_HOOKS = {
     try {
       // The opaque source starts at the header, after the wrapper's lines.
       const body = parseMindmapBody(source.familyBody, opaqueSource)
-      return ok(mindmapSerializationProblem(body) ? { kind: 'opaque', family: 'mindmap', source: opaqueSource } : body)
+      return ok(mindmapSerializationProblem(body, opaqueSource) ? { kind: 'opaque', family: 'mindmap', source: opaqueSource } : body)
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
@@ -1424,7 +1434,13 @@ export const SANKEY_AGENT_HOOKS = {
 
 export const C4_AGENT_HOOKS = {
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
-  parse: ctx => ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }),
+  parse: ctx => {
+    try { return ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }) }
+    catch (error) {
+      if (!(error instanceof C4AmbiguousArgumentError)) throw error
+      return err([{ code: 'PARSE_FAILED', message: error.message }])
+    }
+  },
   serialize: body => {
     if (body.kind !== 'c4') throw new Error(`C4 serializer received body kind ${body.kind}`)
     return renderC4(body)

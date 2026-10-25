@@ -533,7 +533,7 @@ export class TerminalDocument {
     let projectionFeatures: Set<string> | undefined
     const frames = new Map<string, { kind: TerminalOwner['kind']; bounds: TerminalBounds }>()
     const includeFrame = (owner: TerminalOwner, bounds: TerminalBounds, declared = false) => {
-      if (!['node', 'note', 'group', 'cluster', 'subgraph'].includes(owner.kind ?? 'node')) return
+      if (!['node', 'group', 'cluster', 'subgraph'].includes(owner.kind ?? 'node')) return
       const previous = frames.get(owner.id)
       if (previous?.kind === 'node' && owner.kind !== 'node') return
       frames.set(owner.id, { kind: owner.kind, bounds: !declared && previous && previous.kind === owner.kind ? union(previous.bounds, bounds) : bounds })

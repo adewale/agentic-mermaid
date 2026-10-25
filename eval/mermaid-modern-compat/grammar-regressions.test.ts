@@ -211,6 +211,118 @@ test.each([
   results.push({ name: 'Flowchart derived identity collisions', family: 'flowchart', source, serialized, original, written })
 })
 
+// Generous reads and valid neighboring forms need a public-parser writer oracle:
+// reparsing with our reader alone would accept the same invalid output again.
+const generousWriters = [
+  { name: 'C4 bare final label', source: 'C4Context\nSystem(s,b)', expected: { getC4ShapeArray: [{ alias: 's', label: { text: 'b' } }] } },
+  { name: 'C4 literal dollar label', source: 'C4Context\nPerson(c,$)', expected: { getC4ShapeArray: [{ alias: 'c', label: { text: '$' } }] } },
+  { name: 'C4 comma-delimited dollar text', source: 'C4Context\nSystem(s,cost $currency=GBP,"description")', expected: { getC4ShapeArray: [{ alias: 's', label: { text: 'cost $currency=GBP' }, descr: { text: 'description' } }] } },
+  { name: 'ER numeric entity after an empty block', source: 'erDiagram\nu{}1\nR', expected: { getEntities: [['1', { label: '1' }], ['R', { label: 'R' }], ['u', { label: 'u' }]], getRelationships: [] } },
+  { name: 'Journey literal unknown entity', source: 'journey\ns:3:&mp;', expected: { getTasks: [{ task: 's', score: 3, people: ['&mp;'] }] } },
+  { name: 'Journey encoded comment and actor delimiter remain text', source: 'journey\n&#37;&#37;Task: 3: A&#44;B', expected: { getTasks: [{ task: '%%Task', score: 3, people: ['A,B'] }] } },
+  { name: 'Journey encoded keyword remains task text', source: 'journey\n&#116;itle T: 3: Alice', expected: { getTasks: [{ task: 'title T', score: 3, people: ['Alice'] }], getDiagramTitle: '' } },
+  { name: 'Timeline escaped break cannot introduce a section', source: 'timeline\nsection<br>A : event', expected: { getSections: [], getTasks: [{ task: 'section<br>A ', events: ['event'], section: '' }] } },
+  { name: 'Flowchart style token text remains literal across directives', source: 'flowchart TD\nA-->B\nstyle A stroke\\-width:2px,accTitle-color:red\nclassDef c font\\2d family:Arial\nlinkStyle 0 accDescr-width:3px', expected: {
+    getVertices: [['A', { styles: ['stroke\\-width:2px', 'accTitle-color:red'] }], ['B', { styles: [] }]],
+    getClasses: [['c', { styles: ['font\\2d family:Arial'] }]], getEdges: [{ start: 'A', end: 'B', style: ['accDescr-width:3px', 'fill:none'] }],
+  } },
+  { name: 'Journey original HTML entity actor', source: 'journey\n    title My working day\n    section Go to work\n      Make tea: 5: Me\n      Go upstairs: 3: Me&amp;\n      Do work: 1: Me, Cat\n    section Go home\n      Go downstairs: 5: Me\n      Sit down: 5: Me', expected: { getTasks: [
+    { task: 'Make tea', score: 5, people: ['Me'], section: 'Go to work' },
+    { task: 'Go upstairs', score: 3, people: ['Me&'], section: 'Go to work' },
+    { task: 'Do work', score: 1, people: ['Me', 'Cat'], section: 'Go to work' },
+    { task: 'Go downstairs', score: 5, people: ['Me'], section: 'Go home' },
+    { task: 'Sit down', score: 5, people: ['Me'], section: 'Go home' },
+  ] } },
+  { name: 'Treemap empty wrapper', source: '---\n---\ntreemap-beta\n"":5', expected: { getNodes: [{ name: '', value: 5 }] } },
+  { name: 'Treemap nonempty original wrapper control', source: '---\nconfig:\n    theme: \'forest\'\n---\ntreemap-beta\n"Category A"\n    "Item A1": 10\n    "Item A2": 20\n"Category B"\n \n    "Item B1": 15\n    "Item B2": 25', expected: { getRoot: { children: [
+    { name: 'Category A', children: [{ name: 'Item A1', value: 10 }, { name: 'Item A2', value: 20 }] },
+    { name: 'Category B', children: [{ name: 'Item B1', value: 15 }, { name: 'Item B2', value: 25 }] },
+  ] } } },
+]
+
+// Decode the reference's own entity placeholders for authored text assertions.
+// This is a database projection, not a second parser or a rendering oracle.
+function publicReferenceText(value: unknown): unknown {
+  if (typeof value === 'string') return decodeXML(value.replace(/ﬂ°°/g, '&#').replace(/ﬂ°/g, '&').replace(/¶ß/g, ';'))
+  if (Array.isArray(value)) return value.map(publicReferenceText)
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, publicReferenceText(entry)]))
+  return value
+}
+
+for (const witness of generousWriters) test(`strict writer: ${witness.name}`, async () => {
+  const parsed = am.parseRegisteredMermaid(witness.source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  for (const wrapper of ['verbatim', 'canonical'] as const) {
+    const serialized = am.serializeMermaid(parsed.value, { wrapper })
+    const after = await modern.parse(serialized)
+    results.push({ ...witness, wrapper, serialized, after })
+    expect(after.ok, serialized).toBe(true)
+    if (after.ok) expect(publicReferenceText(after.snapshot.data)).toMatchObject(witness.expected)
+  }
+})
+
+test.each(['\n', ' \t\n', '\r\n', '\r'])('supported blank YAML keeps its verbatim wrapper: %j', async content => {
+  const wrapper = `---\n${content}---\n`
+  const source = `${wrapper}treemap-beta\n"":5`
+  expect((await modern.parse(source)).ok).toBe(true)
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const serialized = am.serializeMermaid(parsed.value)
+  expect(serialized).toStartWith(wrapper)
+  expect((await modern.parse(serialized)).ok).toBe(true)
+  expect(am.verifyMermaid(source).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'empty_frontmatter')).toBe(false)
+})
+
+test('ER original numeric identities, endpoints and attributes survive strict writing', async () => {
+  const source = 'erDiagram\n              CUSTOMER ||--o{ 1 : places\n              1 ||--|{ u : contains\n              u {\n                string name\n                int quantity\n              }1\n              "2.5" ||--|| ORDER : processes\n              ORDER {\n                int id\n                date created\n              }'
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const serialized = am.serializeMermaid(parsed.value)
+  const after = await modern.parse(serialized)
+  expect(after.ok, serialized).toBe(true)
+  if (!after.ok) return
+  const entities = after.snapshot.data.getEntities as Array<[string, { id: string; attributes: Array<{ type: string; name: string }> }]>
+  const ids = new Map(entities.map(([name, entity]) => [entity.id, name]))
+  expect(entities.map(([name]) => name)).toEqual(['1', '2.5', 'CUSTOMER', 'ORDER', 'u'])
+  expect(entities.find(([name]) => name === 'u')?.[1].attributes).toMatchObject([{ type: 'string', name: 'name' }, { type: 'int', name: 'quantity' }])
+  expect(entities.find(([name]) => name === 'ORDER')?.[1].attributes).toMatchObject([{ type: 'int', name: 'id' }, { type: 'date', name: 'created' }])
+  const relationships = after.snapshot.data.getRelationships as Array<{ entityA: string; entityB: string; roleA: string }>
+  expect(relationships.map(edge => [ids.get(edge.entityA), ids.get(edge.entityB), edge.roleA])).toEqual([
+    ['CUSTOMER', '1', 'places'], ['1', 'u', 'contains'], ['2.5', 'ORDER', 'processes'],
+  ])
+  results.push({ name: 'ER original numeric identities', source, serialized, after })
+})
+
+test.each([
+  'C4Context\nSystem(s, "S", $tadb"cyl&inder")',
+  'C4Context\nPerson_Ext(customerA,b2 $link="https://github.com/mermaidjs")',
+  'sequenceDiagram\nparticipant :@',
+  'sequenceDiagram\n      participant title:C@{ "type" : "control" }\n      C->C: test',
+  'graph TD;style S background:#aaa;\nstyle T b] &   n4ackground:#bbb,border:1px solid red;',
+])('ambiguous source refuses instead of inventing a portable interpretation: %s', source => {
+  const parsed = am.parseRegisteredMermaid(source)
+  expect(parsed.ok).toBe(false)
+  if (!parsed.ok) expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED' }))
+  expect(am.verifyMermaid(source).ok).toBe(false)
+})
+
+test.each([
+  'timeline section a: v',
+  'timeline\n    section abc-123    task1: event1\n      task2: event2: event3\n           : event4: #ev#ent2# : event5',
+  'timeline\n      title ;my;title;\n      section ;a;bc-123;\n     section abc-456 ;ta;sk1;: ;ev;ent1; : ;ev;ent2; : ;ev;e3;',
+])('orphan Timeline events cannot invent a period: %s', async source => {
+  expect((await modern.parse(source)).ok).toBe(false)
+  const parsed = am.parseRegisteredMermaid(source)
+  if (parsed.ok) {
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(am.serializeMermaid(parsed.value).trim()).toBe(source.trim())
+  } else {
+    expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED' }))
+  }
+  expect(am.verifyMermaid(source).ok).toBe(false)
+  expect(() => am.renderMermaidSVG(source)).toThrow()
+})
+
 afterAll(() => {
   modern.close()
   grammar.close()

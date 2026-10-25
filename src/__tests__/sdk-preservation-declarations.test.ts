@@ -204,7 +204,7 @@ const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlo
           'interface SvgRenderOptions': 'extends SharedRenderOptions',
           'interface AsciiRenderOptions': 'extends SharedRenderOptions',
           'interface LayoutRenderOptions': 'extends SharedRenderOptions',
-          'type RenderedRegionKind': "'node' | 'note' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'",
+          'type RenderedRegionKind': "'node' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'",
           'type DiagramActionSecurity': "'safe' | 'unsafe' | 'source-only' | 'unsupported'",
           'RenderedRegion.kind': 'kind: RenderedRegionKind;',
           'RenderedRegion.bounds': 'bounds: { x: number; y: number; w: number; h: number; };',

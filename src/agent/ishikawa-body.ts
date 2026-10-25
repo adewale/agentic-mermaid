@@ -4,7 +4,8 @@ import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { appendAccessibilityLines } from './accessibility-envelope.ts'
+import { accessibilityDescriptionText, accessibilityTitleText, appendAccessibilityLines } from './accessibility-envelope.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { hierarchyChildren, hierarchyDescendants, validateHierarchy } from '../shared/hierarchy-model.ts'
 import { writeGrammarText } from '../shared/grammar-text.ts'
 
@@ -28,10 +29,18 @@ export function ishikawaUnsupportedSyntaxWarnings(source: string): LayoutWarning
   try {
     parseIshikawaDiagram(source)
     const lines = source.split(/\r?\n/), header = lines.findIndex(line => /^\s*ishikawa(?:-beta)?\s*$/i.test(line))
-    return lines.flatMap((line, index) => index > header && NONPORTABLE_LABEL.test(line.trim()) ? [{
+    const warnings: LayoutWarning[] = lines.flatMap((line, index) => index > header && NONPORTABLE_LABEL.test(line.trim()) ? [{
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'ishikawa_label', line: index + 1,
       message: `Ishikawa label "${line.trim()}" is read literally. The writer shields its keyword prefix for pinned Mermaid.`,
     }] : [])
+    for (let index = header + 1; index < lines.length; index++) {
+      const directive = parseAccessibilityDirective(lines, index)
+      if (!directive) continue
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_accessibility', line: index + 1,
+        message: 'Ishikawa accessibility is a native extension. Pinned Mermaid reads these directives as fishbone nodes instead of title or description metadata.' })
+      index = directive.endIndex
+    }
+    return warnings
   } catch { return [] }
 }
 
@@ -71,10 +80,10 @@ export function mutateIshikawa(body: IshikawaBody, op: IshikawaMutationOp): Resu
         else next.nodes.push({ id: 'effect', label: op.label })
         break
       case 'set_accessibility_title':
-        next.accessibilityTitle = op.title ?? undefined
+        next.accessibilityTitle = op.title == null ? undefined : accessibilityTitleText(op.title)
         break
       case 'set_accessibility_description':
-        next.accessibilityDescription = op.description ?? undefined
+        next.accessibilityDescription = op.description == null ? undefined : accessibilityDescriptionText(op.description)
         break
       case 'add_cause': {
         const parentId = op.parentId ?? next.nodes[0]?.id

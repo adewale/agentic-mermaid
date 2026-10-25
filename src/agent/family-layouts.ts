@@ -39,6 +39,7 @@ import { PaintLayoutCertificationError, retainRenderedPaintCertification } from 
 
 import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { AuthoredStyleColorError } from '../shared/style-props.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { positionResolvedFamily, retainedFamilyProjection } from '../positioning.ts'
 import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
@@ -260,7 +261,9 @@ export function ganttScheduleWarning(d: ValidDiagram): LayoutWarning | null {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     if (message.startsWith('GANTT_EMPTY')) return { code: 'EMPTY_DIAGRAM' }
-    return { code: 'UNRESOLVABLE_SCHEDULE', reason: message }
+    return e instanceof AuthoredStyleColorError
+      ? { code: 'RENDER_FAILED', reason: message, origin: 'source' }
+      : { code: 'UNRESOLVABLE_SCHEDULE', reason: message }
   }
 }
 

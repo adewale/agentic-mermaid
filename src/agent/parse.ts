@@ -395,7 +395,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
     // their bytes while retaining physical lines for the owning grammar.
     const blank = (directive: string): string => directive.replace(/[^\r\n]/g, ' ')
     const withoutDirectives = source.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), blank).replace(MERMAID_DIRECTIVE_REGEX, blank)
-    const lines = withoutDirectives.split(/\r?\n/).map(line => line.trim())
+    const lines = withoutDirectives.split(/\r\n?|\n/).map(line => line.trim())
     const comments = [...normalized.comments]
     const knownLines = new Set(comments.map(comment => comment.line))
     // These grammars either expose every real comment in envelope metadata,
@@ -461,7 +461,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
       visit(readClassStatements(lines, undefined, false).statements)
       return comments.sort((a, b) => a.line - b.line)
     }
-    const wrapperLines = (normalized.wrapperSource?.match(/\n/g) ?? []).length
+    const wrapperLines = (normalized.wrapperSource?.match(/\r\n?|\n/g) ?? []).length
     const ends = statementEnds && source.includes('%%') ? statementEnds(lines.map((line, index) => index < wrapperLines ? '' : line)) : undefined
     for (let index = 0; index < lines.length; index++) {
       const end = statementEndAt(ends, index, lines.length)

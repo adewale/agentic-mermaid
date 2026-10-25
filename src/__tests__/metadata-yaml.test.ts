@@ -108,14 +108,15 @@ describe('frontmatter whitespace survives authored and canonical wrappers', () =
     ['---\nconfig:\n  themeCSS: |+\n    before\n    ---\n    after\n\n---\n', { themeCSS: 'before\n---\nafter\n\n' }],
     ['---\nconfig:\n  items:\n    - text: |\n        line\n      flag: yes\n      ---\n', { items: [{ text: 'line\n', flag: 'yes' }] }],
     ['---\nconfig:\n  items:\n    - |\n      ---\n      line\n---\n', { items: ['---\nline\n'] }],
-  ])('wrapper boundary retains empty and indented documents: %j', (wrapper, frontmatter) => {
+  ])('wrapper boundary reads empty and retains supported indented documents: %j', (wrapper, frontmatter) => {
     const source = wrapper as string + 'flowchart TD\n  A --> B\n'
     expect(mermaidFirstLine(source)).toBe('flowchart td')
     expect(normalizeMermaidSource(source).frontmatter).toEqual(frontmatter)
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    expect(serializeMermaid(parsed.value)).toBe(source)
+    // Adjacent delimiters have no YAML content line and cannot be written as Mermaid.
+    expect(serializeMermaid(parsed.value)).toBe(wrapper === '---\n---\n' ? 'flowchart TD\n  A --> B\n' : source)
     const span = parsed.value.source.spans!.preserved.frontmatter!
     expect(source.slice(span.start.offset, span.end.offset)).toBe(wrapper)
     const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })

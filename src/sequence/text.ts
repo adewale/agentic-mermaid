@@ -7,6 +7,22 @@ import { prepareDisplayText, replaceDisplayTextTokens, writeDisplayText, type La
 const REFUSAL = { subject: 'Sequence text entity', example: 'A->>B: #35;' }
 const DISPLAY_ENTITY = new RegExp(`#\\w+;|${ENTITY_MARKER_RE.source}`, 'g')
 
+/** Controls are source syntax, read once before entity decoding. An encoded
+ * colon or prefix therefore remains literal authored text. */
+export function splitSequenceTextControl(authored: string): { text: string; wrap?: boolean } {
+  const text = authored.trim()
+  const control = /^:?(wrap|nowrap):/.exec(text)
+  return control ? { text: text.slice(control[0].length).trim(), wrap: control[1] === 'wrap' } : { text }
+}
+
+export function writeSequenceControlledText(value: string, content: LabelContent | undefined, wrap: boolean | undefined, prefix: string): string {
+  const control = wrap === undefined ? '' : wrap ? 'wrap: ' : 'nowrap: '
+  let written = writeSequenceText(value, content, prefix + control)
+  // A typed string is text, even when its first characters resemble a control.
+  if (!control && /^:?(?:no)?wrap:/.test(written)) written = `#${written.charCodeAt(0)};${written.slice(1)}`
+  return control + written
+}
+
 /** The body keeps authored formatting syntax, with entities read as text.
  * Display formatting runs are prepared before entities expand, so encoded
  * tags, emphasis and backslash-n never become new formatting instructions. */

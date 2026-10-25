@@ -600,18 +600,35 @@ describe('accept what pinned Mermaid accepts', () => {
     expect(actual).toEqual(expected)
   })
 
-  test('timeline: a continuation after a section header adds to the period before it, as Mermaid does', async () => {
-    const source = 'timeline\n  2001 : Alpha\n  section Later\n  : Beta\n  2002 : Gamma'
-    const mermaid = await upstream.project(source, diagram => ({
+  test.each<{
+    construct: string
+    source: string
+    expected: { sections: string[]; periods: [string, string, string[]][] }
+  }>([
+    {
+      construct: 'a continuation after a section header adds to the period before it',
+      source: 'timeline\n  2001 : Alpha\n  section Later\n  : Beta\n  2002 : Gamma',
+      expected: { sections: ['Later'], periods: [['', '2001', ['Alpha', 'Beta']], ['Later', '2002', ['Gamma']]] },
+    },
+    {
+      construct: 'section followed by at most one whitespace before a colon remains a period',
+      source: 'timeline\n  section Releases\n  2020 : Alpha\n  section: Compact\n  section : Beta\n  SECTION\t: Tab\n  sections X : Gamma',
+      expected: { sections: ['Releases'], periods: [['Releases', '2020', ['Alpha']], ['Releases', 'section', ['Compact']], ['Releases', 'section', ['Beta']], ['Releases', 'SECTION', ['Tab']], ['Releases', 'sections X', ['Gamma']]] },
+    },
+  ])('timeline: $construct, in authored and written source', async ({ source, expected }) => {
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'timeline') throw new Error('Expected a structured timeline')
+    const mermaid = await upstream.projectEach([source, serializeMermaid(parsed.value)], diagram => ({
       sections: diagram.db.getSections(),
       periods: diagram.db.getTasks().map((task: { section: string; task: string; events: string[] }) => [task.section, task.task.trim(), task.events]),
     }))
-    const parsed = parseRegisteredMermaid(source)
-    const body = parsed.ok && parsed.value.body.kind === 'timeline' ? parsed.value.body : undefined
-    expect({ mermaid, ours: body && {
+    const body = parsed.value.body
+    const displayed = JSON.parse(JSON.stringify(mermaid), (_key, value) => typeof value === 'string' ? projectEntityMarkers(value) : value)
+    expect(displayed).toEqual([{ ok: true, value: expected }, { ok: true, value: expected }])
+    expect({
       sections: body.sections.flatMap(section => section.label === undefined ? [] : [section.label]),
       periods: body.sections.flatMap(section => section.periods.map(period => [section.label ?? '', period.label, period.events.map(event => event.text)])),
-    } }).toEqual({ mermaid: { ok: true, value: { sections: ['Later'], periods: [['', '2001', ['Alpha', 'Beta']], ['Later', '2002', ['Gamma']]] } }, ours: { sections: ['Later'], periods: [['', '2001', ['Alpha', 'Beta']], ['Later', '2002', ['Gamma']]] } })
+    }).toEqual(expected)
   })
 
   // The typed serializer must write what Mermaid reads: text that is only

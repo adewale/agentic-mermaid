@@ -1,5 +1,7 @@
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { resolveLabelContent, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
+import { journeyActorKey } from './parse-core.ts'
 import type {
   JourneyDiagram,
   PositionedJourneyActor,
@@ -181,14 +183,14 @@ export function layoutJourneyDiagram(
   const style = resolveRenderStyle(options, appearance.styleDefaults, styleFace)
   const hasNamedSections = diagram.sections.some(section => !!section.label)
 
-  const titleBlock = diagram.title ? preparePixelText(diagram.title, { transform: style.groupTextTransform, fontSize: visual.titleFontSize, fontWeight: JY.titleFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: visual.titleFontFamily }) : undefined
+  const titleBlock = diagram.title ? preparePixelText(resolveLabelContent(diagram.title, diagram.titleContent), { transform: style.groupTextTransform, fontSize: visual.titleFontSize, fontWeight: JY.titleFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: visual.titleFontFamily }) : undefined
   const titleText = titleBlock?.text
   const titleMetrics = titleBlock
   const actorLabels = collectActors(diagram).map(actor => {
-    const block = preparePixelText(actor, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, maxWidth: visual.maxLabelWidth })
-    return { raw: actor, label: block.text, block }
+    const block = preparePixelText(resolveLabelContent(actor.value, actor.content), { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, maxWidth: visual.maxLabelWidth })
+    return { raw: actor.value, key: journeyActorKey(actor.value, actor.content), label: block.text, block }
   })
-  const actorIndex = new Map(actorLabels.map((actor, index) => [actor.raw, index]))
+  const actorIndex = new Map(actorLabels.map((actor, index) => [actor.key, index]))
   const legendLabelMetrics = actorLabels.map(actor => actor.block)
   const actorLegendTitle = preparePixelText('Actors', { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
   const scoreBlocks = [5, 4, 3, 2, 1].map(score => preparePixelText(String(score), { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing }))
@@ -210,12 +212,12 @@ export function layoutJourneyDiagram(
     const fontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const fontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
     const letterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
-    const block = section.label ? preparePixelText(section.label, { transform: semanticStyle?.textTransform ?? style.groupTextTransform, fontSize, fontWeight, letterSpacing, fontFamily: semanticStyle?.fontFamily ?? style.groupFont, maxWidth: visual.maxLabelWidth }) : undefined
+    const block = section.label ? preparePixelText(resolveLabelContent(section.label, section.labelContent), { transform: semanticStyle?.textTransform ?? style.groupTextTransform, fontSize, fontWeight, letterSpacing, fontFamily: semanticStyle?.fontFamily ?? style.groupFont, maxWidth: visual.maxLabelWidth }) : undefined
     const label = block?.text
     const labelMetrics = block
     const labelWidth = labelMetrics?.width ?? 0
     const labelHeight = labelMetrics?.height ?? 0
-    const tasks = section.tasks.map(task => measureTask(task.text, task.actors.length, style, visual))
+    const tasks = section.tasks.map(task => measureTask(resolveLabelContent(task.text, task.textContent), task.actors.length, style, visual))
     const emptyWidth = Math.max(visual.taskMinWidth, labelWidth + JY.sectionHeaderPadX * 2)
 
     return { category, label, block, labelWidth, labelHeight, tasks, emptyWidth }
@@ -350,6 +352,7 @@ export function layoutJourneyDiagram(
     const metric = legendLabelMetrics[index]!
     const positioned = {
       category: actor.raw,
+      key: actor.key,
       label: actor.label,
       block: actor.block,
       x: visual.paddingX + JY.legendDotRadius,
@@ -416,7 +419,7 @@ export function layoutJourneyDiagram(
 }
 
 function measureTask(
-  text: string,
+  text: DisplayTextInput,
   actorCount: number,
   style: ResolvedRenderStyle,
   visual: JourneyVisualConfig,
@@ -452,16 +455,17 @@ function measureTask(
   }
 }
 
-function collectActors(diagram: JourneyDiagram): string[] {
-  const labels: string[] = []
+function collectActors(diagram: JourneyDiagram): Array<{ value: string; content?: LabelContent }> {
+  const labels: Array<{ value: string; content?: LabelContent }> = []
   const seen = new Set<string>()
 
   for (const section of diagram.sections) {
     for (const task of section.tasks) {
-      for (const actor of task.actors) {
-        if (seen.has(actor)) continue
-        seen.add(actor)
-        labels.push(actor)
+      for (const [index, actor] of task.actors.entries()) {
+        const key = journeyActorKey(actor, task.actorContents?.[index])
+        if (seen.has(key)) continue
+        seen.add(key)
+        labels.push({ value: actor, content: task.actorContents?.[index] })
       }
     }
   }
@@ -490,7 +494,7 @@ function nonEmptyConfigString(value: unknown): string | undefined {
 }
 
 function positionActorDots(
-  task: { actors: string[] },
+  task: { actors: string[]; actorContents?: Array<LabelContent | undefined> },
   actorIndex: Map<string, number>,
   centerX: number,
   y: number,
@@ -501,10 +505,11 @@ function positionActorDots(
   const totalWidth = count * JY.actorDotRadius * 2 + (count - 1) * JY.actorDotGap
   let cursorX = centerX - totalWidth / 2 + JY.actorDotRadius
 
-  return task.actors.map(actor => {
+  return task.actors.map((actor, index) => {
     const dot = {
       label: actor,
-      colorIndex: actorIndex.get(actor) ?? 0,
+      key: journeyActorKey(actor, task.actorContents?.[index]),
+      colorIndex: actorIndex.get(journeyActorKey(actor, task.actorContents?.[index])) ?? 0,
       x: cursorX,
       y,
       r: JY.actorDotRadius,

@@ -198,6 +198,7 @@ export type {
   SourceSpan,
   SourceSpanPoint,
   StateBody,
+  StateFloatingNote,
   StateMutationOp,
   StateNode,
   StateTransition,

@@ -28,10 +28,10 @@ const ER_ENTITY_REFERENCE_RE = new RegExp(String.raw`^(${ER_ENTITY_ID_SOURCE})(?
 // cardinalities. This is the single lexer vocabulary for renderer and agent.
 // Keep the glyph-candidate fallback so malformed crow's-foot tokens still reach
 // parseErCardinality and raise the existing fail-loud error.
-const ER_CARDINALITY_SOURCE = String.raw`(?:one or zero|zero or one|one or more|one or many|zero or more|zero or many|only one|many\(0\)|many\(1\)|1\+|0\+|many|one|1|[|o}{]+)`
+const ER_CARDINALITY_SOURCE = String.raw`(?:one or zero|zero or one|one or more|one or many|zero or more|zero or many|only one|many\(0\)|many\(1\)|1\+|0\+|many|one|1|u(?=[.\-|])|[|o}{]+)`
 // A crow's-foot token needs no space to part it from a name (`id1||--||id2`);
 // a word or numeric alias does.
-const ER_GLYPH_SOURCE = String.raw`(?:\|\||\|o|o\||\}o|o\{|\}\||\|\{)`
+const ER_GLYPH_SOURCE = String.raw`(?:\|\||\|o|o\||\}o|o\{|\}\||\|\{|\bu(?=[.\-|]))`
 const ER_RELATIONSHIP_RE = new RegExp(
   `^(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]+(${ER_CARDINALITY_SOURCE})|(${ER_GLYPH_SOURCE}))` +
   `(?:([ \\t]*(?:--|\\.\\.|\\.-|-\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))` +
@@ -299,8 +299,8 @@ export function isErKeywordName(id: string): boolean {
  * name: a keyword name, or one that starts with a number, which Mermaid's
  * lexer takes first (`2px` reads as `2` and `px`). */
 export function erNameNeedsQuotes(id: string): boolean {
-  // The cardinality `1` looks across line breaks for the next entity name.
-  // Quote its identity even in a standalone declaration before another line.
+  // `1` becomes ONLY_ONE when whitespace (including a newline) separates it
+  // from another name. Quote it independently of the next emitted statement.
   return id === '1' || isErKeywordName(id) || (/^\d/.test(id) && !/^\d+(?:\.\d+)?$/.test(id))
 }
 
@@ -1081,6 +1081,7 @@ export function erContainsSubgraphConstruct(lines: string[]): boolean {
 /** Parse a cardinality notation string into a Cardinality type */
 export function parseErCardinality(str: string): Cardinality | null {
   switch (str.toLowerCase()) {
+    case 'u': return 'parent'
     case '||': case 'only one': case '1': case 'one': return 'one'
     case '|o': case 'o|': case 'one or zero': case 'zero or one': return 'zero-one'
     case '}|': case '|{': case 'one or more': case 'one or many': case 'many(1)': case '1+': return 'many'

@@ -643,7 +643,6 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
         'theme',
         'useMaxWidth',
         'useWidth',
-        'wrap',
         'wrapPadding',
       ],
     },

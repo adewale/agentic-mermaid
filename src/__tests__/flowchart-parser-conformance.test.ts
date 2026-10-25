@@ -539,7 +539,13 @@ test('Flowchart style token collisions preserve authored source across all style
     for (const declaration of ['classDef hot stroke-w(idth:4px', 'style A border:1px solid r==>ed', 'linkStyle 0 ==> stroke-width:1px', 'classDef hot font-family:"Quoted"', 'style A label:ndQ backgro/]und:#fff', 'classDef class fill:red', 'class A 1style']) {
       const source = `flowchart LR\nA --> B\n${declaration}\n`
       expect(await upstream.publicAccepts(source)).toBe(false)
-      const diagram = parseAgent(source)
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) {
+        expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED' }))
+        expect(() => renderMermaidSVG(source)).toThrow()
+        continue
+      }
+      const diagram = parsed.value
       expect(diagram.body.kind).toBe('opaque')
       expect(serializeMermaid(diagram)).toBe(source)
       expect(renderMermaidSVG(diagram)).toBe(renderMermaidSVG(source))

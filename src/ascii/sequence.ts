@@ -36,17 +36,17 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   const ascii = config.useAscii
   const actorIndex = new Map(diagram.actors.map((actor, index) => [actor.id, index]))
   const budget = targetWidth === undefined ? undefined : Math.max(1, Math.floor(targetWidth / 3))
-  const prepared = (value: DisplayTextInput) => wrapText(prepareDisplayText(value), budget)
+  const prepared = (value: DisplayTextInput, wrap?: boolean) => wrapText(prepareDisplayText(value), wrap === false ? undefined : wrap ? Math.min(budget ?? 40, 40) : budget)
   const actorLines = diagram.actors.map(actor => {
     const label = prepareDisplayText(resolveLabelContent(actor.label, actor.labelContent))
-    return prepared(actor.type === 'participant' || actor.type === 'actor' ? label : concatDisplayText([`«${actor.type}»\n`, label]))
+    return prepared(actor.type === 'participant' || actor.type === 'actor' ? label : concatDisplayText([`«${actor.type}»\n`, label]), actor.wrap)
   })
-  const messageLines = diagram.messages.map(message => prepared(displayMessageContent(message)))
-  const noteLines = diagram.notes.map(note => prepared(resolveLabelContent(note.text, note.textContent)))
-  const headerLines = diagram.blocks.map(block => prepared(block.label ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']']) : block.type))
-  const dividerLines = diagram.blocks.map(block => block.dividers.map(divider => divider.label ? prepared(concatDisplayText(['[', prepareDisplayText(resolveLabelContent(divider.label, divider.labelContent)), ']'])) : ['']))
+  const messageLines = diagram.messages.map(message => prepared(displayMessageContent(message), message.wrap))
+  const noteLines = diagram.notes.map(note => prepared(resolveLabelContent(note.text, note.textContent), note.wrap))
+  const headerLines = diagram.blocks.map(block => prepared(block.label ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']']) : block.type, block.wrap))
+  const dividerLines = diagram.blocks.map(block => block.dividers.map(divider => divider.label ? prepared(concatDisplayText(['[', prepareDisplayText(resolveLabelContent(divider.label, divider.labelContent)), ']']), divider.wrap) : ['']))
   const actorWidths = actorLines.map(lines => Math.max(0, ...lines.map(visualWidth)) + 4)
-  const boxHeaders = (diagram.boxes ?? []).map(box => box.label ? prepared(resolveLabelContent(box.label, box.labelContent)) : [])
+  const boxHeaders = (diagram.boxes ?? []).map(box => box.label ? prepared(resolveLabelContent(box.label, box.labelContent), box.wrap) : [])
   diagram.boxes?.forEach((box, index) => {
     const members = diagram.actors.flatMap((actor, ai) => actor.box === index ? [ai] : [])
     if (members.length !== 1) return

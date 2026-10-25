@@ -16,7 +16,8 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors, resolvedCo
 import { toneOnFill } from '../color-resolver.ts'
 import type { JourneyRequestAppearance, JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
+import { JOURNEY_ACTOR_COLOR_LIMIT, journeyActorKey } from './parse-core.ts'
+import { semanticNamespacedId } from '../scene/identity.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
 import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -406,7 +407,7 @@ function renderActorLegend<T>(marks: DrawingFactory<T>, actors: PositionedJourne
     children.push({
       indent: 2,
       node: marks.shape({
-        id: `actor-legend-dot:${actor.category}`,
+        id: semanticNamespacedId('actor-legend-dot', actor.category, ...actorIdentityParts(actor.category, actor.key)),
         role: 'actor',
         geometry: { kind: 'circle', cx: actor.x, cy: actor.y, r: JY.legendDotRadius },
         paint: { fill: actorFill(actor.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
@@ -418,7 +419,7 @@ function renderActorLegend<T>(marks: DrawingFactory<T>, actors: PositionedJourne
     children.push({
       indent: 2,
       node: marks.text({
-        id: `actor-legend-label:${actor.category}`,
+        id: semanticNamespacedId('actor-legend-label', actor.category, ...actorIdentityParts(actor.category, actor.key)),
         role: 'legend',
         text: actor.label,
         block: actor.block,
@@ -571,8 +572,12 @@ function renderTask<T>(marks: DrawingFactory<T>, task: PositionedJourneyTask, se
     { indent: 2, node: renderTaskLabel(marks, task, style, paints, channels) },
   ]
 
+  const actorOccurrences = new Map<string, number>()
   for (const dot of task.actorDots) {
-    children.push({ indent: 2, node: renderActorDot(marks, dot, task.id, paints) })
+    const key = dot.key ?? journeyActorKey(dot.label)
+    const occurrence = actorOccurrences.get(key) ?? 0
+    actorOccurrences.set(key, occurrence + 1)
+    children.push({ indent: 2, node: renderActorDot(marks, dot, task.id, occurrence, paints) })
   }
 
   children.push({ indent: 2, node: renderScoreMarker(marks, task.marker, task.id, paints, channels) })
@@ -636,9 +641,13 @@ function renderTaskLabel<T>(marks: DrawingFactory<T>, task: PositionedJourneyTas
   })
 }
 
-function renderActorDot<T>(marks: DrawingFactory<T>, dot: PositionedJourneyActorDot, taskId: string, paints: JourneyPaints): T {
+function actorIdentityParts(label: string, key?: string): string[] {
+  return key !== undefined && key !== journeyActorKey(label) ? [key] : []
+}
+
+function renderActorDot<T>(marks: DrawingFactory<T>, dot: PositionedJourneyActorDot, taskId: string, occurrence: number, paints: JourneyPaints): T {
   return marks.shape({
-    id: `actor-dot:${taskId}:${dot.label}`,
+    id: semanticNamespacedId('actor-dot', taskId, dot.label, ...actorIdentityParts(dot.label, dot.key), ...(occurrence > 0 ? [occurrence] : [])),
     role: 'actor',
     geometry: { kind: 'circle', cx: dot.x, cy: dot.y, r: dot.r },
     paint: { fill: actorFill(dot.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },

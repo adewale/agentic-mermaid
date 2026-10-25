@@ -77,7 +77,7 @@ const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
 const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
-const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many']
+const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many', 'parent']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
 const ARCH_BOUNDARIES: readonly ArchitectureEndpointBoundary[] = ['item', 'group']
 const SERIES_KINDS = ['bar', 'line'] as const
@@ -147,6 +147,9 @@ const STATE_SCHEMA: Record<string, OpSpec> = {
   add_note: { fields: { target: str(), side: withNote(oneOf(STATE_NOTE_SIDES, false), 'default: right'), text: withNote(str(), 'multi-line text serializes as a block note') } },
   remove_note: { fields: { index: num() } },
   set_note_text: { fields: { index: num(), text: str() } },
+  add_floating_note: { fields: { id: str(), text: str(), parent: strOrNull(false), region: num(false) } },
+  remove_floating_note: { fields: { id: str() } },
+  set_floating_note_text: { fields: { id: str(), text: str() } },
   define_class: { fields: { name: str(), style: withNote(str(), 'CSS-like pairs, e.g. "fill:#f96,stroke:#333"') } },
   set_state_class: { fields: { id: str(), className: strOrNull() } },
   set_state_style: { fields: { id: str(), style: withNote(strOrNull(), 'inline style pairs; null clears') } },
@@ -156,9 +159,10 @@ const STATE_SCHEMA: Record<string, OpSpec> = {
 const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   add_participant: { fields: { id: str(), label: str(false), participantKind: oneOf(PARTICIPANT_KINDS, false) } },
   remove_participant: { fields: { id: str() } },
-  add_message: { fields: { from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'top-level insert position; default: append') } },
+  add_message: { fields: { from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'top-level insert position; default: append') } },
   remove_message: { fields: { index: num() } },
   set_message_text: { fields: { index: num(), text: str() } },
+  set_message_wrap: { fields: { index: num(), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
   move_message: { fields: { from: withNote(num(), 'top-level message index'), to: withNote(num(), 'top-level target position') } },
   set_participant_label: { fields: { id: str(), label: str() } },
   add_fragment: { fields: { fragmentKind: oneOf(SEQUENCE_FRAGMENT_KINDS), label: str(false), index: withNote(num(false), 'fragment insert position; default: append') } },
@@ -166,9 +170,10 @@ const SEQUENCE_SCHEMA: Record<string, OpSpec> = {
   set_fragment_label: { fields: { index: num(), label: strOrNull() } },
   add_fragment_branch: { fields: { fragmentIndex: num(), label: str(false) } },
   set_fragment_branch_label: { fields: { fragmentIndex: num(), branchIndex: num(), label: strOrNull() } },
-  add_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), from: str(), to: str(), text: str(), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'message insert position; default: append') } },
+  add_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), from: str(), to: str(), text: str(), wrap: bool(false), style: withNote(oneOf(SEQUENCE_MESSAGE_STYLES, false), 'default: sync'), index: withNote(num(false), 'message insert position; default: append') } },
   remove_fragment_message: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num() } },
   set_fragment_message_text: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num(), text: str() } },
+  set_fragment_message_wrap: { fields: { fragmentIndex: num(), branchIndex: withNote(num(false), 'default: 0'), index: num(), wrap: withNote(boolOrNull(), 'null inherits the diagram configuration') } },
 }
 
 const TIMELINE_SCHEMA: Record<string, OpSpec> = {
@@ -234,7 +239,7 @@ const ER_SCHEMA: Record<string, OpSpec> = {
   set_entity_label: { fields: { entity: str(), label: strOrNull() } },
   add_attribute: { fields: { entity: str(), text: str() } },
   remove_attribute: { fields: { entity: str(), index: num() } },
-  add_relation: { fields: { from: str(), to: str(), leftCard: oneOf(ER_CARDINALITIES), rightCard: oneOf(ER_CARDINALITIES), dashed: bool(false), label: str(false) } },
+  add_relation: { fields: { from: str(), to: str(), leftCard: oneOf(ER_CARDINALITIES), rightCard: oneOf(ER_CARDINALITIES.filter(card => card !== 'parent')), dashed: bool(false), label: str(false) } },
   remove_relation: { fields: { index: num() } },
   set_direction: { fields: { direction: oneOf(STATE_DIRECTIONS) } },
   define_class: { fields: { name: str(), style: str() } },

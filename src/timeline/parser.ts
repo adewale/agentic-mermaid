@@ -12,7 +12,7 @@ import {
 import {
   TIMELINE_CONTINUATION_RE,
   TIMELINE_PERIOD_RE,
-  TIMELINE_SECTION_RE,
+  readTimelineSection,
   TIMELINE_TITLE_RE,
   isTimelineCommentLine,
   parseTimelineHeader,
@@ -112,18 +112,22 @@ export function parseTimelineDiagram(
       continue
     }
 
-    const sectionMatch = line.match(TIMELINE_SECTION_RE)
+    const sectionMatch = readTimelineSection(line)
     if (sectionMatch) {
       if (parserObservationActive('timeline')) observeParserStatement('timeline', 'section', line, { line: i + 1, unit: 'normalized' })
       currentSection = {
         id: `section-${sectionIndex++}`,
-        label: readTimelineText(sectionMatch[1]!.trim(), 'section'),
+        label: readTimelineText(sectionMatch.label.trim(), 'section'),
         periods: [],
       }
       diagram.sections.push(currentSection)
       if (parserObservationActive('timeline')) observeParserMutation('timeline', 'addSection', currentSection, { line: i + 1, unit: 'normalized' })
-      // A section does not end the latest period: Mermaid adds a continuation
-      // after it to that period, in the earlier section.
+      // A section changes only section ownership for future periods. Same-line
+      // events and later continuations retain the latest period in its old scope.
+      if (sectionMatch.eventSource) {
+        if (!currentPeriod) throw new Error('Timeline continuation found before any period was declared')
+        pushEvents(currentPeriod, splitTimelineEvents(sectionMatch.eventSource))
+      }
       continue
     }
 

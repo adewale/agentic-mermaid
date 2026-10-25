@@ -12,9 +12,10 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { asJourney } from '../agent/types.ts'
 import type { JourneyValidDiagram, JourneyMutationOp } from '../agent/types.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
-import { describeMermaidTree } from '../agent/describe.ts'
+import { describeMermaid, describeMermaidTree } from '../agent/describe.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
 const SRC = `journey
   title My working day
@@ -156,6 +157,8 @@ describe('journey structured parse', () => {
       Triage ticket: 2: Agent: Tier 1, Escalation: API`)
 
     expect(d.body.sections[0]!.tasks[0]!.actors).toEqual(['Agent: Tier 1', 'Escalation: API'])
+    expect(serializeMermaid(d)).toContain('Triage ticket: 2: Agent#58; Tier 1, Escalation#58; API')
+    expect(journey(serializeMermaid(d)).body.sections[0]!.tasks[0]!.actors).toEqual(['Agent: Tier 1', 'Escalation: API'])
     expect(journey(serializeMermaid(d)).body).toEqual(d.body)
   })
 })
@@ -235,6 +238,35 @@ describe('journey mutation ops', () => {
     d = apply(d, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 2 })
     d = apply(d, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['Us'] })
     expect(d.body.sections[0]!.tasks[0]).toMatchObject({ text: 'Brew coffee', score: 2, actors: ['Us'] })
+
+    const actors = journey('journey\nTask: 3: &lt;b&gt;Alice&lt;/b&gt;, <b>Alice</b>, Bob')
+    const reordered = apply(actors, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['Bob', '<b>Alice</b>', '<b>Alice</b>'] })
+    expect(renderMermaidASCII(serializeMermaid(reordered))).toContain('by Bob, Alice, <b>Alice</b>')
+    const literal = journey('journey\nTask: 3: &lt;b&gt;Alice&lt;/b&gt;')
+    const duplicated = apply(literal, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['<b>Alice</b>', '<b>Alice</b>'] })
+    expect(renderMermaidASCII(serializeMermaid(duplicated))).toContain('by <b>Alice</b>, <b>Alice</b>')
+    const ambiguous = mutate(actors, { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['<b>Alice</b>', '<b>Alice</b>', '<b>Alice</b>'] })
+    expect(ambiguous.ok).toBe(false)
+    if (!ambiguous.ok) expect(ambiguous.error.code).toBe('INVALID_OP')
+  })
+
+  test.each([
+    { authored: '&lt;br&gt;', value: '<br>' },
+    { authored: '&#42;X&#42;', value: '*X*' },
+    { authored: '&#92;n', value: '\\n' },
+  ])('setting retrieved $authored values preserves their literal interpretation', ({ authored, value }) => {
+    let d = journey(`journey\ntitle ${authored}\nsection ${authored}\n${authored}: 3: ${authored}`)
+    expect(d.body).toMatchObject({ title: value, sections: [{ label: value, tasks: [{ text: value, actors: [value] }] }] })
+    const before = serializeMermaid(d)
+    d = JSON.parse(JSON.stringify(d))
+    for (const op of [
+      { kind: 'set_title', title: value },
+      { kind: 'set_section_label', index: 0, label: value },
+      { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: value },
+      { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: [value] },
+      { kind: 'rename_actor', from: value, to: value },
+    ] as JourneyMutationOp[]) d = apply(d, op)
+    expect(serializeMermaid(d)).toBe(before)
   })
 
   test('rename_actor renames across all tasks', () => {
@@ -245,19 +277,21 @@ describe('journey mutation ops', () => {
     expect(d.body.sections[0]!.tasks[2]!.actors).toEqual(['Sam', 'Cat'])
   })
 
-  test('protects statement/actor delimiters through successful edits', () => {
-    const d = journey()
+  test('typed edits preserve literal delimiters through the strict writer', () => {
+    let d = journey('journey\nsection A&#58;B\nTask: 3: A&#44;B')
     for (const op of [
       { kind: 'set_title', title: 'A; B' },
-      { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'A; B' },
-      { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['A, B'] },
-      { kind: 'rename_actor', from: 'Me', to: 'A; B' },
+      { kind: 'set_section_label', index: 0, label: 'A:B; C' },
+      { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'title Pick: A; B' },
+      { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['A,B'] },
+      { kind: 'rename_actor', from: 'A,B', to: 'A,B; C' },
     ] as JourneyMutationOp[]) {
-      const result = mutate(d, op)
-      expect(result.ok).toBe(true)
-      if (result.ok) expect(journey(serializeMermaid(result.value)).body).toEqual(result.value.body)
+      d = apply(d, op)
     }
-    expect(apply(d, { kind: 'set_title', title: 'A & B' }).body.title).toBe('A & B')
+    const expected = { title: 'A; B', sections: [{ label: 'A:B; C', tasks: [{ text: 'title Pick: A; B', score: 3, actors: ['A,B; C'] }] }] }
+    expect(d.body).toMatchObject(expected)
+    expect(journey(serializeMermaid(d)).body).toMatchObject(expected)
+    expect(apply(d, { kind: 'set_title', title: 'A &amp; B' }).body.title).toBe('A &amp; B')
   })
 
   test('error paths: missing targets, invalid score, unknown actor', () => {
@@ -267,6 +301,9 @@ describe('journey mutation ops', () => {
       [{ kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 6 }, 'INVALID_OP'],
       [{ kind: 'add_section', label: '' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, text: '', score: 3 }, 'INVALID_OP'],
+      [{ kind: 'add_section', label: ' ' }, 'INVALID_OP'],
+      [{ kind: 'add_task', sectionIndex: 0, text: ' ', score: 3 }, 'INVALID_OP'],
+      [{ kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: [' '] }, 'INVALID_OP'],
       [{ kind: 'rename_actor', from: 'Nobody', to: 'Anyone' }, 'ACTOR_NOT_FOUND'],
     ]
     for (const [op, code] of cases) {
@@ -367,8 +404,6 @@ describe('journey ordering + accessibility ops', () => {
       [{ kind: 'add_task', sectionIndex: 0, text: 'X', score: 3, index: 99 }, 'INVALID_OP'],
       [{ kind: 'add_section', label: 'X', index: -1 }, 'INVALID_OP'],
       [{ kind: 'set_accessibility_title', title: '   ' }, 'INVALID_OP'],
-      // ';' terminates a journey statement and '{'/'}' delimit the accDescr
-      // block form — text carrying them would not survive serialize → re-parse.
     ]
     for (const [op, code] of cases) {
       const r = mutate(journey(), op)
@@ -399,6 +434,14 @@ describe('journey facts aggregates + describe model', () => {
     const labels = tree.nodes.map(n => n.label)
     expect(labels).toContain('Make tea (score 5; Me)')
     expect(labels).toContain('Do work (score 1; Me, Cat)')
+
+    const formatted = journey('journey\nFirst: 3: &lt;b&gt;Alice&lt;/b&gt;\nSecond: 4: <b>Alice</b>\nThird: 5: &lt;b&gt;Alice&lt;/b&gt;, <b>Alice</b>')
+    const facts = describeMermaidFacts(formatted)
+    expect(facts).toContain('journey actors 2')
+    expect(facts).toContain('journey actor <b>Alice</b> tasks 2')
+    expect(facts).toContain('journey actor Alice tasks 2')
+    expect(describeMermaid(formatted)).toContain('Actors: <b>Alice</b>, Alice.')
+    expect(describeMermaidTree(formatted).nodes.map(node => node.label)).toContain('Third (score 5; <b>Alice</b>, Alice)')
   })
 })
 
@@ -509,27 +552,39 @@ describe('Journey field escapes preserve literal text', () => {
   afterAll(() => upstream.close())
 
   test.each([
-    '%% Keep this task\njourney\n  Book #2: 3: Editor',
-    'journey journey:5',
-    'journey\n  journey review: 4: Me',
-    'journey\n  Review &amp; revise: 3: Me',
-    'journey\n  title &lt;',
-    'journey\n  section &mp;\n  Read: 4: Editor',
-    'journey\n  Read: 4: &lt;',
-  ])('retains literal native text through editable portable output: %s', async source => {
+    ['%% Keep this task\njourney\n  Book #2: 3: Editor', 'journey_nonportable_text', { title: '', sections: [], tasks: [{ text: 'Book #2', score: 3, actors: ['Editor'] }] }],
+    ['journey journey:5', 'journey_nonportable_text', { title: '', sections: [], tasks: [{ text: 'journey', score: 5, actors: [] }] }],
+    ['journey\n  journey review: 4: Me', 'journey_nonportable_text', { title: '', sections: [], tasks: [{ text: 'journey review', score: 4, actors: ['Me'] }] }],
+    ['journey\n  Review &amp; revise: 3: Me', 'journey_entity_semicolon', { title: '', sections: [], tasks: [{ text: 'Review & revise', score: 3, actors: ['Me'] }] }],
+    ['journey\n  title &lt;', 'journey_entity_semicolon', { title: '<', sections: [], tasks: [] }],
+    ['journey\n  section &mp;\n  Read: 4: Editor', 'journey_entity_semicolon', { title: '', sections: ['&mp;'], tasks: [{ text: 'Read', score: 4, actors: ['Editor'] }] }],
+    ['journey\n  Read: 4: &lt;', 'journey_entity_semicolon', { title: '', sections: [], tasks: [{ text: 'Read', score: 4, actors: ['<'] }] }],
+  ])('retains literal native text through editable portable output: %s', async (source, syntax, expected) => {
     expect(await upstream.accepts(source)).toBe(false)
+    expect(await upstream.publicAccepts('journey\nControl: 3: Actor')).toBe(true)
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     if (parsed.value.body.kind !== 'journey') throw new Error('Expected editable Journey')
     const written = serializeMermaid(parsed.value)
     expect(await upstream.publicAccepts(written), written).toBe(true)
+    const reference = await upstream.project(written, diagram => ({
+      title: diagram.db.getDiagramTitle(), sections: diagram.db.getSections(),
+      tasks: diagram.db.getTasks().map((task: any) => ({ text: task.task, score: task.score, actors: task.people })),
+    }))
+    expect(reference.ok).toBe(true)
+    if (!reference.ok) throw new Error(reference.error)
+    expect({
+      title: projectEntityMarkers(reference.value.title),
+      sections: reference.value.sections.map((label: string) => projectEntityMarkers(label)),
+      tasks: reference.value.tasks.map((task: { text: string; score: number; actors: string[] }) => ({ text: projectEntityMarkers(task.text), score: task.score, actors: task.actors.map(actor => projectEntityMarkers(actor)) })),
+    }).toEqual(expected)
     expect(journey(written).body).toEqual(parsed.value.body)
     expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
     expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
     expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
     expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
-    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'journey_nonportable_text' }))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax }))
     expect(mutate(parsed.value, { kind: 'set_title', title: 'Safe title' }).ok).toBe(true)
   })
 
@@ -564,5 +619,22 @@ describe('Journey field escapes preserve literal text', () => {
     expect(await upstream.accepts(written)).toBe(true)
     expect(journey(written).body).toEqual(parsed.body)
     expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(parsed))
+  })
+
+  test('multiline accessibility values protect literal entities and block delimiters on every line', async () => {
+    let parsed = journey('journey\naccDescr {\nLine &amp;amp;\nHash #35;35;\n}\nTask: 3: Me')
+    expect(parsed.body.accessibilityDescription).toBe('Line &amp;\nHash #35;')
+    parsed = apply(parsed, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4 })
+    expect(journey(serializeMermaid(parsed)).body).toEqual(parsed.body)
+    const description = 'First { literal }\nSecond; %%{ #35;'
+    parsed = apply(parsed, { kind: 'set_accessibility_description', description })
+    const written = serializeMermaid(parsed)
+    expect(journey(written).body).toEqual(parsed.body)
+    const reference = await upstream.project(written, diagram => diagram.db.getAccDescription())
+    expect(reference.ok).toBe(true)
+    if (!reference.ok) throw new Error(reference.error)
+    expect(projectEntityMarkers(reference.value).split(/\r?\n/).map(line => line.trim()).join('\n')).toBe(description)
+    expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(parsed))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(parsed))
   })
 })
