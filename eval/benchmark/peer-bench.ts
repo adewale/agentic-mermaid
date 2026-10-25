@@ -811,7 +811,7 @@ async function runTrackProcess(prepared: Prepared, workloads: readonly string[],
       workloads: group.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]!, svgLabelPrefixes: SVG_LABEL_PREFIXES[id] })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const receipts = `${context.rawSamples}.${key}.jsonl`
-    const run = await spawnWorker(['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts], receipts, { importMs: 120_000, workloadMs: Math.max(60_000, 10 * track.maxCaseMs) }, context.elkCache)
+    const run = await spawnWorker(['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts], receipts, { importMs: 120_000, workloadMs: Math.max(60_000, 10 * Math.min(track.maxCaseMs, 30_000)) }, context.elkCache)
     for (const line of run.lines) appendFileSync(context.rawSamples, `${JSON.stringify({ peer: prepared.peer.id, round: track.round, phase: track.phase, consumer: track.consumer, coldProbe: probe, coldSample: sample, ...line })}\n`)
     const completed = run.lines.flatMap(line => line.type === 'track' ? [line.observation] : [])
     const imported = run.lines.find(line => line.type === 'import')
@@ -996,13 +996,19 @@ async function main(): Promise<void> {
       if (selected.includes('tree50')) { scaling.push('tree100'); trackSources.tree100 = flowchartTree(100); trackExpected.tree100 = range('Node ', 100) }
       if (selected.includes('mesh50')) { scaling.push('mesh100'); trackSources.mesh100 = flowchartMesh(100, 40); trackExpected.mesh100 = range('label ', 40) }
     }
-    const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, warmupVariants: 20, samples: args.has('quick') ? 3 : 31, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 30_000 }
+    const trackSettings = { coldSamples: args.has('quick') ? 3 : 21, warmCalls: args.has('quick') ? 3 : 20, warmupMs: args.has('quick') ? 0 : 1000, warmupVariants: 20, samples: args.has('quick') ? 3 : 201, allocationSamples: 3, maxCaseMs: args.has('quick') ? timing.maxCaseMs : 180_000 }
     const tracks: PeerTrackReport = { schemaVersion: 1, contractVersion: 'semantic-peer-v1', cohort: PEER_FROZEN_COHORT, phases, consumers, scaling, observations: [] }
     const trackWorkloads = [...workloads.svg, ...scaling]
     const trackInputs = Object.fromEntries(trackWorkloads.map(id => [id, { source: trackSources[id], expected: trackExpected[id] }]))
     const harnessRevision = git(['rev-parse', 'HEAD'])
     const harnessDirty = git(['status', '--porcelain', '--', 'eval/benchmark']).length > 0
-    const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers, ...trackSettings, minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
+    const tracksConfig = { variantDomains: PEER_VARIANT_DOMAINS, phases, consumers, ...trackSettings, ...(phases.length ? {
+      consumption: 'indexed-utf8-checksum-v1',
+      apiBindings: prepared.map(({ peer }) => ({ peer: peer.id, svg: peer.svg ? { subpath: peer.svg.subpath, api: peer.svg.api } : null,
+        receipt: peer.id === 'agentic' || peer.id.startsWith('agentic-') ? 'renderMermaidSVGWithReceipt(source); availability is retained per observation' : null })),
+      rendererEnvironment: { host: 'Node public SVG API; no browser mount/adaptation', fontAndMeasurerOptions: 'pinned peer defaults; no overrides supplied', validation: 'Resvg(svg, {font:{loadSystemFonts:false}})' },
+      freshness: { firstUse: 'first API render in each fresh process after import/setup', exactRepeat: 'identical source bytes and repeated labels', warmNewSource: 'authored visible-label/relationship edits and graph-ID renaming where defined; unchanged labels may reuse typography caches', labelEdit: 'authored visible-label/relationship edit; graph IDs retained' },
+    } : {}), minimumTailCalls: 20, inputs: trackInputs, harnessRevision, harnessDirty }
     const processes: ProcessRecord[] = []
     for (let round = 0; round < rounds; round++) {
       for (const { prepared: entry, output } of phases.length ? [] : round % 2 === 0 ? jobs : [...jobs].reverse()) {

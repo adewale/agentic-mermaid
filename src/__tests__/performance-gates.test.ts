@@ -2,6 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { PERFORMANCE_POLICY as policy, performanceScorecard, type PerformanceReport, type PerformanceScope } from '../../eval/benchmark/performance-gates.ts'
 import * as campaignGates from '../../eval/benchmark/performance-gates.ts'
 import type { SemanticPerformanceShard } from '../../eval/benchmark/performance-gates.ts'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 const aggregateSemanticPerformance = (shards: readonly SemanticPerformanceShard[]) => campaignGates.aggregateSemanticPerformance(shards)
 
 const beforeSha = 'a'.repeat(64), afterSha = 'b'.repeat(64)
@@ -15,7 +18,7 @@ function report(id: string, aa = false, scope?: PerformanceScope): PerformanceRe
   return { status: 'completed', runId: id, config: { rounds: 5, timing: { warmupMs: 250 } }, policy: { elkCache: 'off', aplEnvironment: {}, executionEnvironment: { experiments: null, nodeOptions: null, bunOptions: null, nodeEnv: null, timezone: null } },
     environment: { node: '24.19.0', cpu: 'test', hostname: 'same-runner', platform: 'linux', arch: 'x64', logicalCpus: 4 },
     pins: [{ peer: 'agentic', runtimeDependencySha256: beforeSha, identity: { sha256: aa ? beforeSha : afterSha } }, { peer: 'agentic-baseline', runtimeDependencySha256: beforeSha, identity: { sha256: beforeSha } }, ...policy.competitivePeers.map(peer => ({ peer, runtimeDependencySha256: beforeSha, integrity: 'sha512-pinned', source: { version: '1' } }))],
-    tracksConfig: { samples: 31, allocationSamples: 3, harnessRevision: 'c'.repeat(40), harnessDirty: false,
+    tracksConfig: { samples: 31, coldSamples: 31, allocationSamples: 3, harnessRevision: 'c'.repeat(40), harnessDirty: false,
       inputs: Object.fromEntries([...policy.fullAgenticCoverage, ...policy.scaling].map(id => [id, { source: `fixture:${id}`, expected: [id] }])) },
     tracks: { phases: scope ? [scope.phase] : policy.phases, consumers: scope ? [scope.consumer] : policy.consumers, schemaVersion: 1, contractVersion: policy.version, cohort: policy.cohort, observations } }
 }
@@ -31,6 +34,34 @@ function campaign(): SemanticPerformanceShard[] {
 }
 
 describe('complete semantic campaign aggregation', () => {
+  test('large raw call inventories do not alter decisions or the original evidence', async () => {
+    const cli = await import('../../eval/benchmark/aggregate-semantic-performance.ts').catch(() => undefined)
+    expect(typeof cli?.readPerformanceReport).toBe('function')
+    if (!cli) return
+    const { readPerformanceReport } = cli
+    const dir = mkdtempSync(join(tmpdir(), 'semantic-report-view-'))
+    try {
+      const candidate = report('ab'), controls = [report('aa1', true), report('aa2', true)]
+      for (const r of [candidate, ...controls]) r.tracksConfig!.context = { calls: ['render(source)'] }
+      const first = candidate.tracks.observations[0]! as typeof candidate.tracks.observations[number] & { calls?: unknown[]; warmup?: { calls: number } }
+      first.calls = Array.from({ length: 31 }, () => ({ status: 'ok', elapsedMs: 1, consumedBytes: 123, checksum: 456 }))
+      first.warmup = { calls: 128 }
+      const path = join(dir, 'candidate.json'), bytes = JSON.stringify(candidate)
+      writeFileSync(path, bytes)
+      const loaded = readPerformanceReport(path)!
+      expect(readFileSync(path, 'utf8')).toBe(bytes)
+      expect((loaded.tracks.observations[0] as { calls?: unknown[] }).calls).toBeUndefined()
+      expect((loaded.tracks.observations[0] as { warmup?: { calls: number } }).warmup?.calls).toBe(128)
+      expect(loaded.tracksConfig!.context).toEqual({ calls: ['render(source)'] })
+      expect(loaded.tracks.observations[0]!.callSamplesMs).toHaveLength(31)
+      expect(performanceScorecard(loaded, controls).performanceQualified).toBe(true)
+      expect(performanceScorecard(loaded, controls)).toEqual(performanceScorecard(candidate, controls))
+      writeFileSync(join(dir, 'partial.json'), JSON.stringify({ status: 'incomplete' }))
+      expect(readPerformanceReport(join(dir, 'partial.json'))?.status).toBe('incomplete')
+      expect(readPerformanceReport(join(dir, 'absent.json'))).toBeUndefined()
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+
   test('separate runners qualify only when every cache, phase and consumer completes', () => {
     const shards = campaign(), first = shards[0]!
     const partial = performanceScorecard(first.candidate!, first.controls!, first.scope)
@@ -74,6 +105,28 @@ describe('complete semantic campaign aggregation', () => {
 })
 
 describe('calibrated semantic performance decisions', () => {
+  test('a measurement deadline cannot qualify a truncated indexed source population', () => {
+    for (const phase of ['first-use', 'warm-new-source'] as const) {
+      const scope = { phase, consumer: 'svg-utf8' } as const
+      const candidate = report('ab', false, scope), controls = [report('aa1', true, scope), report('aa2', true, scope)]
+      for (const r of [candidate, ...controls]) r.tracksConfig!.consumption = 'indexed-utf8-checksum-v1'
+      expect(performanceScorecard(candidate, controls, scope).scopeQualified).toBe(true)
+      candidate.tracks.observations.find(o => o.peer === 'agentic' && o.workload === 'seq20')!.callSamplesMs.pop()
+      const score = performanceScorecard(candidate, controls, scope)
+      expect(score.ok).toBe(false)
+      expect(score.scopeQualified).toBe(false)
+      expect(score.checks.find(c => c.name === 'Declared indexed timing populations complete')?.ok).toBe(false)
+    }
+  })
+
+  test('consumer implementation changes invalidate saved controls', () => {
+    const { candidate, controls } = setup()
+    candidate.tracksConfig!.consumption = 'indexed-utf8-checksum-v1'
+    expect(performanceScorecard(candidate, controls).calibration.validControls).toBe(false)
+    for (const control of controls) control.tracksConfig!.consumption = 'indexed-utf8-checksum-v1'
+    expect(performanceScorecard(candidate, controls).calibration.validControls).toBe(true)
+  })
+
   test('default feature selection is distinct from an explicitly empty legacy profile', () => {
     const { candidate, controls } = setup()
     candidate.policy.executionEnvironment!.experiments = ''
