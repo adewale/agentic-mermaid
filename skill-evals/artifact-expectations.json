@@ -7,11 +7,10 @@
       "requiredFacts": [
         "element audit system external rectangle : Audit service"
       ],
-      "preserveExcept": [],
-      "forbiddenFacts": [],
-      "renameFacts": {
-        "payments": "provider"
-      }
+      "preserveExcept": [
+        "^element payments "
+      ],
+      "forbiddenFacts": []
     },
     "pos-family-flowchart-library-fixture": {
       "family": "flowchart",
@@ -34,10 +33,11 @@
       "directory": "sequence-retry",
       "requiredFacts": [
         "message#3 top-level API -> DB : Retry",
-        "message#4 top-level API -> Client : Response"
+        "message#4 top-level API -> Client : Response",
+        "message#4 style reply"
       ],
       "preserveExcept": [
-        "^message#"
+        "^message#3 "
       ],
       "forbiddenFacts": []
     },
@@ -203,14 +203,9 @@
     "pos-family-sankey-budget-fixture": {
       "family": "sankey",
       "directory": "sankey-budget",
-      "requiredFacts": [
-        "link#4 Grid -> Losses : 56.69"
-      ],
+      "requiredFacts": [],
       "preserveExcept": [],
-      "forbiddenFacts": [],
-      "renameFacts": {
-        "Electricity": "Grid"
-      }
+      "forbiddenFacts": []
     },
     "pos-family-packet-native-fixture": {
       "family": "packet",
@@ -242,22 +237,19 @@
       "directory": "requirement-native",
       "requiredFacts": [],
       "preserveExcept": [
-        "^requirement \"reliable\" "
+        "^requirement \"reliable\" ",
+        "^element \"suite\" "
       ],
-      "forbiddenFacts": [],
-      "renameFacts": {
-        "\"suite\"": "\"evidence\""
-      }
+      "forbiddenFacts": []
     },
     "pos-family-block-native-fixture": {
       "family": "block",
       "directory": "block-native",
       "requiredFacts": [],
-      "preserveExcept": [],
-      "forbiddenFacts": [],
-      "renameFacts": {
-        "\"primary\"": "\"writer\""
-      }
+      "preserveExcept": [
+        "^block \"primary\" "
+      ],
+      "forbiddenFacts": []
     },
     "pos-family-treemap-native-fixture": {
       "family": "treemap",

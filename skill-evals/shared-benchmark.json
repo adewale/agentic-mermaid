@@ -588,7 +588,7 @@
       "files": ["fixtures/mcp-state-failure/input.mmd"],
       "expected_behavior": ["Uses the direct mutate tool with an ordered ops array.", "Checks the mutate response's embedded verify result.", "Does not use execute for a straightforward declarative edit."],
       "assertions": [
-        { "name": "executable-mutation-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "mutate", "--source-file", "fixtures/mcp-state-failure/input.mmd", "--family", "state", "--fact", "state Failed", "--fact", "edge Processing -> Failed : error", "--fact", "edge Failed -> [*]"], "severity": "critical", "oracle": "strong" },
+        { "name": "executable-mutation-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "mutate", "--source-file", "fixtures/mcp-state-failure/input.mmd", "--family", "state", "--fact", "state Failed", "--fact", "edge Processing -> Failed : error", "--fact", "edge Failed -> [*]", "--terminal-state", "Failed"], "severity": "critical", "oracle": "strong" },
         { "name": "embedded-verification", "type": "contains_all", "values": ["verify.ok", "verify.warnings"] },
         { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
       ],
