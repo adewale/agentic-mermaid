@@ -10,6 +10,9 @@ import type { RenderOptions } from '../types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { synthesizeFromGraph } from '../agent/serialize.ts'
+import { renderMermaidSVG as renderSourceSVG, renderMermaidASCII as renderSourceASCII } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const cases = JSON.parse(readFileSync(new URL('../../eval/mermaid-requirement-bench/cases.json', import.meta.url), 'utf8')) as { id: string; source: string; expect: ReturnType<typeof semantic> }[]
 function semantic(body: RequirementBody) {
@@ -30,6 +33,60 @@ function structured(source: string) {
   return narrowed
 }
 describe('native requirement', () => {
+  test('raw entity-like style tokens preserve source and drawing while refusing typed output', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [id, token, gap] of [['i', '#a;', ''], ['t', '#q;', ''], ['n', '#123;', ''], ['key', 'font#quot;weight:bold', ' '], ['impo', '#a;rtantfill:#f96', ' ']] as const) {
+        const source = `requirementDiagram\nrequirement e{\n}classDef ${id}${gap}${token}\n`
+        const parsed = parse(source)
+        if (!parsed.ok) throw new Error('Expected preserved Requirement')
+        const native = parseRequirementDiagram(source)
+        expect(native.classDefs).toMatchObject([{ id, styles: [token] }])
+        expect(parsed.value.body.kind).toBe('opaque')
+        expect(serializeMermaid(parsed.value)).toBe(source)
+        expect(await upstream.accepts(source)).toBe(false)
+        expect(renderMermaidSVG(parsed.value)).toBe(renderSourceSVG(source))
+        expect(renderMermaidASCII(parsed.value)).toBe(renderSourceASCII(source))
+        expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_style_token' }))
+        expect(synthesizeFromGraph({ kind: 'requirement', body: native })).toMatchObject({ ok: false })
+        expect(mutate(structured('requirementDiagram\nrequirement e {\n}'), { kind: 'define_class', name: id, style: token })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+      }
+      for (const [directive, styles] of [
+        ['classDef bad fill:#a;,color:#q;', ['fill:#a;', 'color:#q;']],
+        ['style e font#quot;weight:bold', ['font#quot;weight:bold']],
+        ['style e #a;rtantfill:#f96', ['#a;rtantfill:#f96']],
+      ] as const) {
+        const source = `requirementDiagram\nrequirement e {\n}\n${directive}\n`
+        const parsed = parse(source)
+        if (!parsed.ok) throw new Error('Expected preserved Requirement style')
+        const native = parseRequirementDiagram(source)
+        expect(directive.startsWith('style') ? native.requirements[0]?.directStyles : native.classDefs[0]?.styles).toEqual([...styles])
+        expect(parsed.value.body.kind).toBe('opaque')
+        expect(serializeMermaid(parsed.value)).toBe(source)
+        expect(await upstream.publicAccepts(source)).toBe(false)
+        expect(renderMermaidSVG(parsed.value)).toBe(renderSourceSVG(source))
+        expect(renderMermaidASCII(parsed.value)).toBe(renderSourceASCII(source))
+        expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_style_token' }))
+        expect(synthesizeFromGraph({ kind: 'requirement', body: native })).toMatchObject({ ok: false })
+      }
+      const diagram = structured('requirementDiagram\nrequirement e {\n}')
+      expect(mutate(diagram, { kind: 'set_node_style', id: 'e', style: 'font#quot;weight:bold' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+      // Mermaid's public style prepass strips the last semicolon in values;
+      // those previously accepted styles remain structured and unchanged.
+      for (const token of ['fill:#a;', 'fill:#quot;', 'fill:red;font#quot;weight:bold']) {
+        const neighbor = structured(`requirementDiagram\nrequirement e {\n}\nclassDef safe ${token}`)
+        const written = serializeMermaid(neighbor)
+        expect(await upstream.publicAccepts(written)).toBe(true)
+        expect(structured(written).body).toEqual(neighbor.body)
+      }
+      const edited = mutate(diagram, { kind: 'define_class', name: 'safe', style: 'fill:#abc;stroke:#123' })
+      if (!edited.ok) throw new Error('Expected portable class definition')
+      const written = serializeMermaid(edited.value)
+      expect(await upstream.accepts(written)).toBe(true)
+      expect(structured(written).body.classDefs).toMatchObject([{ id: 'safe', styles: ['fill:#abc', 'stroke:#123'] }])
+    } finally { upstream.close() }
+  })
+
   test('quoted lone CR identities survive structural line endings across native surfaces', () => {
     const names = ['A\rB', 'A\nB', 'C\nD']
     for (const ending of ['\n', '\r', '\r\n']) {

@@ -627,7 +627,7 @@ interface FlowchartGraph {
   linkStyles: Map<number | 'default', Record<string, string>>
 }
 
-interface StateNode { id: string; label?: string; labelContent?: LabelContent; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface StateNode { id: string; kind?: 'note'; label?: string; labelContent?: LabelContent; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateTransition { from: string; to: string; fromClass?: string; toClass?: string; label?: string; labelContent?: LabelContent; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]'); fromClass/toClass class such an endpoint ('[*]:::c --> A')
 interface StateNote { target: string; side: 'left' | 'right'; text: string; textContent?: LabelContent }
@@ -764,7 +764,7 @@ type GanttStatement =
   | { kind: 'section'; ref: number }
   | { kind: 'task'; section: number; ref: number }
   | { kind: 'opaque-block'; lines: string[] }
-interface GanttBody { kind: 'gantt'; title?: string; sections: GanttSection[]; statements?: GanttStatement[] }
+interface GanttBody { kind: 'gantt'; title?: string; axisFormat?: string; sections: GanttSection[]; statements?: GanttStatement[] }
 
 type MindmapShape = 'default' | 'rect' | 'rounded' | 'circle' | 'cloud' | 'bang' | 'hexagon'
 interface MindmapNode { id: string; label: string; shape: MindmapShape; markdown?: true; icon?: string; className?: string; children: MindmapNode[] }
@@ -1037,7 +1037,7 @@ type GanttMutationOp =
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN,
 // SCALE_RANGE_EXCLUDES_ZERO, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
-type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
+type RenderedRegionKind='node'|'note'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
 type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
 type LayoutRect={x:number;y:number;w:number;h:number}
 interface RenderedRegion { id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};cellSpans?:Array<{row:number;start:number;end:number}>;sourceLine?:number }

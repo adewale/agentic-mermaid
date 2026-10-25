@@ -1,5 +1,7 @@
 // ============================================================================
 
+import { readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
+import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 // Journey parse core — the single grammar shared by the renderer parser
 // (src/journey/parser.ts), the structured agent parser
@@ -59,6 +61,11 @@ export function normalizeJourneyActor(value: string): string {
   return normalizeJourneyText(value).split('\n').filter(Boolean).join(' / ')
 }
 
+// XML transport spelling is text inside a classified field. Expand it before
+// formatting, then expand protected grammar escapes once, after formatting.
+const readJourneyText = (value: string): string => readGrammarText(normalizeJourneyText(readGrammarAuthoredText(value)))
+const readJourneyActor = (value: string): string => readGrammarText(normalizeJourneyActor(readGrammarAuthoredText(value)))
+
 export function isJourneyComment(line: string): boolean {
   return line.startsWith('%%') || line.startsWith('#') || line.startsWith('%')
 }
@@ -103,7 +110,11 @@ export interface JourneyWalkEvents {
  * classified before `;`-splitting (block interiors are free text).
  */
 export function walkJourneyLines(lines: string[], startIndex: number, events: JourneyWalkEvents): void {
+  const comments = new Set(lines.flatMap((line, index) => isJourneyComment(line.trim())
+    && !(/^\s*#\w+;/.test(line) && JOURNEY_TASK_RE.test(toEntityMarkers(line).trim())) ? [index] : []))
+  lines = lines.map(toEntityMarkers)
   for (let i = startIndex; i < lines.length; i++) {
+    if (comments.has(i)) continue
     const line = lines[i]!.trim()
     if (!line) continue
     if (isJourneyComment(line)) continue
@@ -122,12 +133,12 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
         return // the unterminated block consumes the rest of the source
     }
     if (accessibility?.form === 'block') {
-      events.accDescr?.(normalizeJourneyText(accessibility.value), i)
+      events.accDescr?.(readJourneyText(accessibility.value), i)
       i = accessibility.endIndex
       const suffix = accessibility.suffixLine ?? ''
       const inlineSuffix = parseAccessibilityDirective([suffix], 0)
       if (inlineSuffix?.form === 'inline') {
-        const text = normalizeJourneyText(inlineSuffix.value)
+        const text = readJourneyText(inlineSuffix.value)
         if (inlineSuffix.title) events.accTitle?.(text, i)
         else events.accDescr?.(text, i)
         continue
@@ -140,7 +151,7 @@ export function walkJourneyLines(lines: string[], startIndex: number, events: Jo
       continue
     }
     if (accessibility?.form === 'inline') {
-      const text = normalizeJourneyText(accessibility.value)
+      const text = readJourneyText(accessibility.value)
       if (accessibility.title) events.accTitle?.(text, i)
       else events.accDescr?.(text, i)
       continue
@@ -160,7 +171,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 
   const accessibility = parseAccessibilityDirective([statement], 0)
   if (accessibility) {
-    const text = normalizeJourneyText(accessibility.value)
+    const text = readJourneyText(accessibility.value)
     if (accessibility.title) events.accTitle?.(text, lineIndex)
     else events.accDescr?.(text, lineIndex)
     return
@@ -168,7 +179,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 
   const titleMatch = statement.match(JOURNEY_TITLE_RE)
   if (titleMatch) {
-    const text = normalizeJourneyText(titleMatch[1]!)
+    const text = readJourneyText(titleMatch[1]!)
     if (!text) return issue('empty_title', `Journey title is empty: "${statement}"`)
     events.title?.(text, lineIndex)
     return
@@ -176,8 +187,8 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 
   const sectionMatch = statement.match(JOURNEY_SECTION_RE)
   if (sectionMatch) {
-    const label = normalizeJourneyText(sectionMatch[1]!)
-    if (!label || label.includes(':')) {
+    const label = readJourneyText(sectionMatch[1]!)
+    if (!label) {
       return issue('section_colon', `Journey section labels must not contain ':': "${statement}"`)
     }
     events.section?.(label, lineIndex)
@@ -186,14 +197,14 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 
   const taskMatch = statement.match(JOURNEY_TASK_RE)
   if (taskMatch) {
-    const text = normalizeJourneyText(taskMatch[1]!)
+    const text = readJourneyText(taskMatch[1]!)
     if (!text) return issue('empty_task_text', `Journey task text is empty: "${statement}"`)
     const rawScore = taskMatch[2]!
     const score = Number(rawScore)
     if (!isValidJourneyScore(score)) return issue('invalid_score', invalidScoreDetail(text, rawScore))
     const actors = (taskMatch[3] ?? '')
       .split(',')
-      .map(normalizeJourneyActor)
+      .map(readJourneyActor)
       .filter(Boolean)
     events.task?.(text, score, actors, lineIndex)
     return
@@ -201,7 +212,7 @@ function classifyStatement(statement: string, lineIndex: number, events: Journey
 
   const taskLike = statement.match(TASK_LIKE_RE)
   if (taskLike) {
-    const text = normalizeJourneyText(taskLike[1]!)
+    const text = readJourneyText(taskLike[1]!)
     const rawScore = taskLike[2]!.trim()
     if (text && rawScore) return issue('invalid_score', invalidScoreDetail(text, rawScore))
   }

@@ -521,9 +521,8 @@ export interface QuadrantPointStyle {
   strokeColor?: string
   /** May carry a px suffix (upstream form, e.g. "5px"). */
   strokeWidth?: string
-  /** Unknown-but-safe `key: value` entries, verbatim (upstream accepts any
-   *  entry and applies only the four above; these round-trip losslessly,
-   *  never render, and verify names them — see src/quadrant/point-style.ts). */
+  /** Unknown-but-safe `key: value` entries retained by the generous reader.
+   * They never render and have no portable Mermaid spelling. */
   extra?: string[]
 }
 
@@ -653,6 +652,8 @@ export type GanttStatement =
 export interface GanttBody {
   kind: 'gantt'
   title?: string
+  /** Effective tick format; distinct from literal task labels and date input. */
+  axisFormat?: string
   sections: GanttBodySection[]
   /** Optional for synthesized payloads; parsed bodies always populate it. */
   statements?: GanttStatement[]
@@ -669,6 +670,8 @@ export interface GanttBody {
  */
 export interface StateNode {
   id: string
+  /** A floating, addressable note; omission denotes an ordinary state. */
+  kind?: 'note'
   /** Optional display label (`state "Label" as id` / `id : Label`), its
    *  Mermaid entity codes (`#35;`) read. */
   label?: string
@@ -1796,7 +1799,7 @@ export interface VerifyOptions {
  * compatibility fallback; built-in families use the more precise container
  * kinds wherever their layout model can prove one.
  */
-export type RenderedRegionKind = 'node' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'
+export type RenderedRegionKind = 'node' | 'note' | 'edge' | 'label' | 'canvas' | 'group' | 'cluster' | 'lane' | 'band' | 'compartment' | 'plot' | 'ring'
 
 export interface RenderedRegion {
   id: string

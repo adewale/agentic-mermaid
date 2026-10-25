@@ -86,9 +86,9 @@ describe('parseJourneyDiagram', () => {
       accDescr: Literal #2: keep &amp; entity text
       Read: 3: Editor`)
 
-    expect(diagram.title).toBe('Book #2: subtitle &amp; notes')
+    expect(diagram.title).toBe('Book #2: subtitle & notes')
     expect(diagram.accessibilityTitle).toBe('Book #2: accessible subtitle')
-    expect(diagram.accessibilityDescription).toBe('Literal #2: keep &amp; entity text')
+    expect(diagram.accessibilityDescription).toBe('Literal #2: keep & entity text')
   })
 
   it('parses multiline accDescr blocks', () => {
@@ -164,10 +164,10 @@ describe('parseJourneyDiagram', () => {
       Do work: 3: Me`)).toThrow('Invalid user journey line')
   })
 
-  it('requires Mermaid-compatible section labels and accepts universal colonless accessibility', () => {
-    expect(() => parse(`journey
+  it('retains colon-bearing section labels and accepts universal colonless accessibility', () => {
+    expect(parse(`journey
       section A:B
-      Do work: 3: Me`)).toThrow('Invalid user journey section')
+      Do work: 3: Me`).sections[0]!.label).toBe('A:B')
     expect(parse(`journey
       accTitle Missing colon
       Do work: 3: Me`).accessibilityTitle).toBe('Missing colon')

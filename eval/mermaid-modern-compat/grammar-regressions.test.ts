@@ -21,6 +21,45 @@ const modern = startModernReference(referenceDir)
 const grammar = startGrammarReference(referenceDir, upstream)
 const results: unknown[] = []
 
+test('Class preserves authored method strings that Mermaid HTML sanitization consumes', async () => {
+  const native = await import(pathToFileURL(join(target, 'src/index.ts')).href) as typeof import('../../src/index.ts')
+  const agent = await import(pathToFileURL(join(target, 'src/agent/index.ts')).href) as typeof import('../../src/agent/index.ts')
+  const members = ['<e()', '<m()', '+assM <swim()', '<<interface    +authorise() bool', '<e>()', '<!e()', '</e()', '<?e()']
+  for (const member of members) {
+    const source = `classDiagram\nclass C {\n${member}\n}\n`
+    expect((await modern.parse(source)).ok).toBe(false)
+    const parsed = am.parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) continue
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(am.serializeMermaid(parsed.value)).toBe(source)
+    expect(agent.renderMermaidSVG(parsed.value)).toBe(native.renderMermaidSVG(source))
+    expect(agent.renderMermaidASCII(parsed.value)).toBe(native.renderMermaidASCII(source))
+    expect(am.verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_html' }))
+    expect(am.mutate(parsed.value, { kind: 'add_class', id: 'Other' }).ok).toBe(false)
+    const safe = am.parseRegisteredMermaid('classDiagram\nclass C')
+    if (!safe.ok || safe.value.body.kind !== 'class') throw new Error('structured Class required')
+    expect(am.mutate(safe.value, { kind: 'add_member', class: 'C', text: member }).ok).toBe(false)
+    expect(am.mutate(safe.value, { kind: 'add_class', id: 'Other', members: [member] }).ok).toBe(false)
+    expect(am.synthesizeFromGraph({ kind: 'class', body: { ...safe.value.body, classes: [{ id: 'C', members: [member] }] } }).ok).toBe(false)
+  }
+  // Closed generic text, comparisons, annotations, and authored entity tokens
+  // remain distinct raw grammar strings and retain their public edit contract.
+  for (const member of ['List<T> get()', '+get() Map<T>', 'a < b()', '<_e()', '<1e()', '<<interface>>', '#60;e()']) {
+    const source = `classDiagram\nclass C {\n${member}\n}\n`
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'class') throw new Error('structured Class required')
+    expect(parsed.value.body.classes[0]!.members).toEqual([member])
+    const edited = am.mutate(parsed.value, { kind: 'rename_class', from: 'C', to: 'Edited' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) continue
+    const written = am.serializeMermaid(edited.value)
+    expect((await modern.parse(written)).ok).toBe(true)
+    const reloaded = am.parseRegisteredMermaid(written)
+    expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
+  }
+})
+
 interface Regression {
   name: string
   family: DiagramKind

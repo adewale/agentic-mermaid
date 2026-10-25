@@ -75,13 +75,14 @@ export function quadrantStatementEnds(lines: readonly string[]): number[] {
 // (`x-axis Low < High`); verify reports it, and the serializer writes it
 // quoted, as Mermaid reads it.
 const QUADRANT_STRING_RE = /^"[^"]*"/
-const NOT_QUADRANT_TEXT_RE = /[<>()[\]{}|@^~:"\n\r\x00-\x08\x0e-\x1f\x7f]/
+const NOT_QUADRANT_TEXT_RE = /[<>()[\]{}|@^~:;"\n\r\x00-\x08\x0e-\x1f\x7f]/
 const QUADRANT_KEYWORD_RE = /(?<![A-Za-z])(?:[xy]-axis|quadrant-[1-4]|quadrantChart|(?:classDef|title)(?![A-Za-z0-9_]))/i
 
 /** The first character or keyword that keeps `text` from being quadrant text Mermaid reads, if any. */
-function quadrantTextError(text: string): string | undefined {
-  const unquoted = text.replace(QUADRANT_STRING_RE, '')
-  return unquoted.match(NOT_QUADRANT_TEXT_RE)?.[0] ?? unquoted.match(QUADRANT_KEYWORD_RE)?.[0]
+function quadrantTextError(text: string, authored = false): string | undefined {
+  const unquoted = authored ? text.replace(QUADRANT_STRING_RE, '') : text
+  // MINUS can continue text, but cannot begin it; SEMI ends a statement.
+  return unquoted.match(NOT_QUADRANT_TEXT_RE)?.[0] ?? unquoted.match(QUADRANT_KEYWORD_RE)?.[0] ?? (text.startsWith('-') ? '-' : undefined)
 }
 
 /** Quadrant text as source: bare where Mermaid reads it so, else one "…" string. */
@@ -92,7 +93,9 @@ export function quadrantTextSource(text: string): string {
 /** Whether quadrantTextSource writes `text` as source Mermaid reads back:
  * text that needs quoting cannot hold a `"`. */
 export function quadrantTextWritable(text: string): boolean {
-  return quadrantTextError(text) === undefined || !text.includes('"')
+  // At the start of a quoted value, %% consumes the opening quote in the
+  // pinned lexer. Entity substitution would change our stored label.
+  return !text.startsWith('%%') && !text.includes('%%{') && (quadrantTextError(text) === undefined || !text.includes('"'))
 }
 
 /** Where Mermaid's quadrant lexer rejects unquoted text: what it rejects. */
@@ -101,7 +104,7 @@ export type QuadrantTextReport = (what: string) => void
 /** A point label, axis text or quadrant label, read as written; `report`
  * hears where Mermaid's lexer rejects it. */
 function quadrantText(text: string, construct: string, report?: QuadrantTextReport): string {
-  const error = quadrantTextError(text)
+  const error = quadrantTextError(text, true)
   if (error !== undefined) report?.(`Quadrant ${construct} ${JSON.stringify(text)} has ${JSON.stringify(error)} outside a quoted string`)
   // A quoted first token can be followed by ordinary text. Remove only its
   // grammar delimiters, preserving whitespace and arrows inside the token.

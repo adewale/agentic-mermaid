@@ -231,6 +231,7 @@ function factsState(out: string[], body: StateBody): void {
     for (const s of states) {
       add(out, `state ${clean(s.id)}`)
       if (s.label) add(out, `state ${clean(s.id)} : ${clean(s.label)}`)
+      if (s.kind === 'note') add(out, `state ${clean(s.id)} kind note`)
       if (s.stereotype) add(out, `state ${clean(s.id)} stereotype ${clean(s.stereotype)}`)
       if (path) add(out, `state ${clean(s.id)} parent ${clean(path)}`)
       if (s.states !== undefined || s.regions !== undefined) {

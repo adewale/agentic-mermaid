@@ -48,6 +48,7 @@ export type Direction = 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
 
 export interface MermaidNode {
   id: string
+  semanticRole?: 'note'
   label: string
   labelContent?: LabelContent
   /** Runtime pixel wrapping; the authored label and its display runs stay intact. */
@@ -216,6 +217,7 @@ export interface PositionedStateNote {
 }
 
 export interface PositionedNode {
+  semanticRole?: 'note'
   labelBlock?: PixelTextBlock
   iconFallbackBlock?: PixelTextBlock
   id: string

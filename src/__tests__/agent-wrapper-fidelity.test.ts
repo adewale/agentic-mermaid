@@ -239,13 +239,14 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     expect(out).not.toContain('%%{init')  // folded, not duplicated
   })
 
-  test('a directive whose payload cannot be parsed is preserved raw in canonical mode', () => {
+  test('an unparsed directive remains repairable source and cannot masquerade as canonical output', () => {
     // A scalar is not a config map, so it cannot be folded into frontmatter.
     const src = '%%{init: definitely-not-an-object}%%\nflowchart TD\n  A --> B'
     const p = parseMermaid(src)
     if (!p.ok) throw new Error('parse failed')
-    const out = serializeMermaid(p.value, { wrapper: 'canonical' })
-    expect(out).toContain('%%{init: definitely-not-an-object}%%')
+    expect(serializeMermaid(p.value)).toContain('%%{init: definitely-not-an-object}%%')
+    expect(() => serializeMermaid(p.value, { wrapper: 'canonical' })).toThrow('init directive payload must be a configuration object')
+    expect(verifyMermaid(p.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_wrapper_config' }))
   })
 
   test('canonical mode folds post-header config out of an opaque body exactly once', () => {
@@ -284,14 +285,6 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
       name: 'an object replaced by null',
       source: '%%{init: {"flowchart":{"curve":"basis"}}}%%\n%%{init: {"flowchart":null}}%%\nflowchart TD\n  A --> B',
     },
-    {
-      name: 'an object replaced by a scalar',
-      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":"reset"}}%%\nflowchart TD\n  A --> B',
-    },
-    {
-      name: 'an object replaced by an array',
-      source: '%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: {"themeVariables":[]}}%%\nflowchart TD\n  A --> B',
-    },
   ])('canonical mode preserves effective config for $name', ({ source }) => {
     // Parsed frontmatter already represents the final directive merge. Folding
     // parseable directives again in authored order must retain that exact
@@ -306,6 +299,15 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
     if (!reparsed.ok) return
     expect(reparsed.value.meta.frontmatter).toEqual(parsed.value.meta.frontmatter)
     expect(serializeMermaid(reparsed.value, { wrapper: 'canonical' })).toBe(canonical)
+  })
+
+  test.each([{ value: 'reset' }, { value: [] }])('canonical themeVariables must be an object, preserving $value for repair', ({ value }) => {
+    const source = `%%{init: {"themeVariables":{"primaryColor":"red"}}}%%\n%%{init: ${JSON.stringify({ themeVariables: value })}}%%\nflowchart TD\n  A --> B`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('parse failed')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    expect(() => serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow('themeVariables must be a configuration object')
+    expect<unknown>(parsed.value.meta.frontmatter?.themeVariables).toEqual(value)
   })
 
   test('canonical mode keeps a directive no later directive shadows', () => {

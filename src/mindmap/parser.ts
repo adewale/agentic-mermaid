@@ -1,6 +1,7 @@
+import { readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
+import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
 import type { MindmapDiagram, MindmapNode, MindmapShape } from './types.ts'
 import {
   parseAccessibilityDirective,
@@ -327,12 +328,13 @@ function paired(text: string): boolean {
 function cleanLabel(value: string): { label: string; markdown: boolean } {
   let label = value.trim()
   const markdown = label.startsWith('"`') && label.endsWith('`"')
-  if (markdown) label = markdownToInlineTags(label.slice(2, -2))
+  if (markdown) label = markdownToInlineTags(readGrammarAuthoredText(label.slice(2, -2)))
   else {
     if (label.startsWith('"') && label.endsWith('"')) label = label.slice(1, -1)
+    label = readGrammarAuthoredText(label)
     label = label.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
   }
-  return { label: normalizeBrTags(label).trim(), markdown }
+  return { label: readGrammarText(normalizeBrTags(label), '*()[]').trim(), markdown }
 }
 
 function markdownToInlineTags(value: string): string {
@@ -341,17 +343,61 @@ function markdownToInlineTags(value: string): string {
     .replace(/\*([\s\S]+?)\*/g, '<i>$1</i>')
 }
 
-function inlineTagsToMarkdown(value: string): string {
-  return value
-    .replace(/<b>([\s\S]*?)<\/b>/gi, '**$1**')
-    .replace(/<i>([\s\S]*?)<\/i>/gi, '*$1*')
+function writeMindmapText(value: string, mode: 'bare' | 'quoted' | 'unquoted' | 'markdown'): string {
+  const text = (part: string) => {
+    const reserved = '#&*' + (mode === 'bare' ? '()[]{}"`' : mode === 'unquoted' ? '' : '"`') + (part.includes('%%{') || mode === 'bare' && /^%%/.test(value) ? '%' : '')
+    let written = encodeMermaidEntities(mode === 'markdown' ? part : part.replace(/\n/g, '<br/>'), reserved)
+    if (mode === 'bare' && /^mindmap\b/i.test(written)) written = `#${written.codePointAt(0)!};${written.slice(1)}`
+    return written
+  }
+  // Formatting delimiters are emitted from modeled tags. Literal stars are
+  // escaped before the Markdown reader, independently of those delimiters.
+  return mode === 'markdown' ? value.split(/(<\/?[bi]>)/gi).map(part => /^<\/?b>$/i.test(part) ? '**' : /^<\/?i>$/i.test(part) ? '*' : text(part)).join('') : text(value)
 }
 
 function plainLabel(value: string): string {
   return value.replace(/<\/?(?:b|i)>/gi, '').trim()
 }
 
+/** Decorations and explicit identities use different lexer states from text.
+ * Anonymous shaped nodes derive their logical identity after label decoding. */
+export function mindmapSerializationProblem(diagram: MindmapDiagram): string | undefined {
+  const visit = (node: MindmapNode): string | undefined => {
+    const anonymous = node.shape !== 'default' && node.id === plainLabel(node.label)
+    if ((!anonymous && node.id.includes('%%{')) || [node.icon, node.className].some(value => value?.includes('%%{'))) {
+      return `Mindmap node "${node.id}" has an explicit identity or decoration containing a directive opener; rename that identity before editing its text`
+    }
+    for (const child of node.children) { const problem = visit(child); if (problem) return problem }
+    return undefined
+  }
+  return visit(diagram.root)
+}
+
+/** Inspect statements independently of indentation: verifier input may be
+ * normalized, but the literal text and its physical line still survive. */
+export function mindmapNonportableTextLines(source: string): Array<{ line: number; message: string }> {
+  const lines = source.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
+  const problems: Array<{ line: number; message: string }> = []
+  if (header < 0) return problems
+  for (const { raw, start } of mindmapStatements(lines, header + 1)) {
+    const text = raw.trim()
+    if (!text || text.startsWith('%%') || /^acc(?:Title|Descr)\b/i.test(text)) continue
+    const node = readNode(text)?.node
+    const payload = readNodeFrame(text)?.label
+    const unprotectedText = text.includes('%%{') || payload !== undefined && /^"[\s\S]*"$/.test(payload)
+      && /["`]/.test(payload.slice(payload.startsWith('"`') ? 2 : 1, payload.endsWith('`"') ? -2 : -1))
+    const problem = unprotectedText ? 'Mindmap label delimiters need grammar escapes for pinned Mermaid; the writer preserves their literal text'
+      : node ? mindmapSerializationProblem({ root: { ...node, children: [] } })
+      : /^::/.test(text) && text.includes('%%{') ? 'Mindmap decoration contains a directive opener with no portable spelling that preserves its text' : undefined
+    if (problem) problems.push({ line: start + 1, message: problem })
+  }
+  return problems
+}
+
 export function serializeMindmap(diagram: MindmapDiagram): string {
+  const problem = mindmapSerializationProblem(diagram)
+  if (problem) throw new MindmapParseError(problem)
   const lines = ['mindmap']
   if (diagram.accessibilityTitle) lines.push(`  accTitle: ${diagram.accessibilityTitle}`)
   if (diagram.accessibilityDescription) {
@@ -365,16 +411,13 @@ export function serializeMindmap(diagram: MindmapDiagram): string {
   }
   const visit = (node: MindmapNode, depth: number): void => {
     const indent = '  '.repeat(depth + 1)
-    let label = node.markdown || HAS_FORMAT_TAGS.test(node.label)
-      ? `"\`${inlineTagsToMarkdown(node.label)}\`"`
-      : node.label.replace(/\n/g, '<br/>')
-    // A shaped node's closing delimiter is syntax outside a quoted label.
-    // Keep nested delimiters as text rather than ending the node early.
-    if (node.shape !== 'default' && !label.startsWith('"`') && /[()\]}]/.test(label)) label = `"${label}"`
-    // Anonymous shapes derive their logical ID from the description. An ID
-    // Mermaid's NODE_ID cannot hold (delimiters, line breaks, the leading word
-    // `mindmap`) cannot be a nodeWithId prefix.
-    const id = node.id === plainLabel(node.label) && (/[()[\]{}\r\n]/.test(node.id) || !NODE_ID_TEXT.test(node.id)) ? '' : node.id
+    const markdown = node.markdown
+    const mode = markdown ? 'markdown' : node.shape === 'default' ? 'bare' : /[()\]}]/.test(node.label) || node.label.startsWith('"') ? 'quoted' : 'unquoted'
+    const payload = writeMindmapText(node.label, mode)
+    const label = markdown ? `"\`${payload}\`"` : mode === 'quoted' ? `"${payload}"` : payload
+    // A label-derived identity stays anonymous if it cannot be an ID token.
+    // Escaping the text never silently creates a different public identity.
+    const id = node.id === plainLabel(node.label) && (/[()[\]{}\r\n]/.test(node.id) || node.id.includes('%%{') || !NODE_ID_TEXT.test(node.id)) ? '' : node.id
     const text = node.shape === 'default' ? label
       : node.shape === 'rect' ? `${id}[${label}]`
       : node.shape === 'rounded' ? `${id}(${label})`

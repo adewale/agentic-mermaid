@@ -41,8 +41,8 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
-import { renderPointStyleEntries } from '../quadrant/point-style.ts'
-import { parseQuadrantChart, quadrantStatementEnds, quadrantTextRejections, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
+import { isValidPointClassName, renderPointStyleEntries } from '../quadrant/point-style.ts'
+import { parseQuadrantChart, quadrantStatementEnds, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
 import { statementText } from '../shared/trailing-comment.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
@@ -54,6 +54,61 @@ function formatNumber(n: number): string {
 
 function isCoord(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1
+}
+
+/** Preserve native styles, but admit only values with an exact 12.2 spelling. */
+function portableStyleProblem(style: QuadrantPointStyle | undefined): string | undefined {
+  if (!style) return
+  if (style.radius !== undefined && (!Number.isSafeInteger(style.radius) || style.radius < 0)) return 'radius requires a non-negative integer'
+  for (const [name, value] of [['color', style.color], ['stroke-color', style.strokeColor]] as const) {
+    if (value !== undefined && !/^#(?:[\da-f]{3}|[\da-f]{6})$/i.test(value)) return `${name} requires a three- or six-digit hexadecimal color`
+  }
+  if (style.strokeWidth !== undefined && (!/^\d+(?:\.\d+)?(?:px)?$/.test(style.strokeWidth) || !Number.isSafeInteger(Number(style.strokeWidth.replace(/px$/, ''))))) {
+    return 'stroke-width requires a non-negative integer pixel width'
+  }
+  if (style.extra?.length) return `style property ${JSON.stringify(style.extra[0]!.split(':')[0])} is not supported`
+}
+
+function canonicalStyle(style: QuadrantPointStyle): QuadrantPointStyle {
+  return { ...style, ...(style.strokeWidth === undefined ? {} : { strokeWidth: `${Number(style.strokeWidth.replace(/px$/, ''))}px` }) }
+}
+
+type QuadrantContent = Pick<QuadrantBody, 'xAxis' | 'yAxis' | 'quadrants' | 'points' | 'classDefs'>
+
+function quadrantWriteProblems(body: QuadrantContent): Array<{ syntax: string; message: string }> {
+  const problems: Array<{ syntax: string; message: string }> = []
+  const text = (value: string | undefined, subject: string) => {
+    if (value !== undefined && !quadrantTextWritable(value)) problems.push({ syntax: 'quadrant_text', message: `${subject} ${JSON.stringify(value)} has no supported lossless Mermaid text spelling` })
+  }
+  const style = (value: QuadrantPointStyle | undefined, subject: string) => {
+    const problem = portableStyleProblem(value)
+    if (problem) problems.push({ syntax: value?.extra?.length ? 'quadrant_style_property' : 'quadrant_style_value', message: `${subject}: ${problem}` })
+  }
+  const className = (name: string | undefined, definition: boolean) => {
+    if (name === undefined) return
+    // Definitions use ordinary text tokens (no underscores or keywords),
+    // whereas ::: enters a word-only lexer state (keywords are ordinary IDs).
+    // Neither position accepts quotes; entities change the stored identity.
+    const portable = isValidPointClassName(name) && (definition
+      ? !name.includes('_') && quadrantTextSource(name) === name
+      : !name.includes('-'))
+    if (!portable) problems.push({ syntax: 'quadrant_class_name', message: `Quadrant class ${definition ? 'definition' : 'reference'} ${JSON.stringify(name)} has no supported lossless Mermaid spelling` })
+  }
+  text(body.xAxis?.near, 'Quadrant x-axis near label')
+  text(body.xAxis?.far, 'Quadrant x-axis far label')
+  text(body.yAxis?.near, 'Quadrant y-axis near label')
+  text(body.yAxis?.far, 'Quadrant y-axis far label')
+  for (const [index, value] of body.quadrants.entries()) if (value != null) text(value, `Quadrant quadrant-${index + 1} label`)
+  for (const point of body.points) {
+    text(point.label, 'Quadrant point label')
+    className(point.className, false)
+    style(point.style, `Quadrant point ${JSON.stringify(point.label)}`)
+  }
+  for (const [name, value] of Object.entries(body.classDefs ?? {})) {
+    className(name, true)
+    style(value, `Quadrant classDef ${JSON.stringify(name)}`)
+  }
+  return problems
 }
 
 // ---- Parser -----------------------------------------------------------------
@@ -69,6 +124,7 @@ function isCoord(n: unknown): n is number {
 export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
   try {
     const parsed = parseQuadrantChart(['quadrantChart', ...lines])
+    if (quadrantWriteProblems(parsed).length > 0) return null
     const body: QuadrantBody = {
       kind: 'quadrant',
       ...(parsed.title === undefined ? {} : { title: parsed.title }),
@@ -77,11 +133,11 @@ export function parseQuadrantBody(lines: string[]): QuadrantBody | null {
       quadrants: [...parsed.quadrants],
       points: parsed.points.map(point => ({
         ...point,
-        ...(point.style === undefined ? {} : { style: { ...point.style } }),
+        ...(point.style === undefined ? {} : { style: canonicalStyle(point.style) }),
       })),
     }
     if (Object.keys(parsed.classDefs).length > 0) {
-      body.classDefs = Object.assign(Object.create(null), parsed.classDefs)
+      body.classDefs = Object.assign(Object.create(null), Object.fromEntries(Object.entries(parsed.classDefs).map(([name, style]) => [name, canonicalStyle(style)])))
     }
     return body
   } catch {
@@ -113,6 +169,8 @@ function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
 }
 
 export function renderQuadrant(body: QuadrantBody): string {
+  const problem = quadrantWriteProblems(body)[0]
+  if (problem) throw new Error(problem.message)
   const lines: string[] = ['quadrantChart']
   appendAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`  title ${encodeMultilineText(body.title)}`)
@@ -126,12 +184,12 @@ export function renderQuadrant(body: QuadrantBody): string {
   }
   for (const p of body.points) {
     const cls = p.className !== undefined ? `:::${p.className}` : ''
-    const tail = renderPointStyleEntries(p.style)
+    const tail = renderPointStyleEntries(p.style && canonicalStyle(p.style))
     lines.push(`  ${renderText(p.label)}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
   }
   // classDefs after points (the upstream docs' canonical order).
   for (const [name, style] of Object.entries(body.classDefs ?? {})) {
-    lines.push(`  classDef ${name} ${renderPointStyleEntries(style)}`)
+    lines.push(`  classDef ${name} ${renderPointStyleEntries(canonicalStyle(style))}`)
   }
   return lines.join('\n') + '\n'
 }
@@ -188,7 +246,7 @@ function validLabel(value: unknown, field: string, opts: { point?: boolean; titl
     return err({ code: 'INVALID_OP', message: `Quadrant ${field} must be non-empty single-line text` })
   }
   if (!opts.title && !quadrantTextWritable(trimmed)) {
-    return err({ code: 'INVALID_OP', message: `Quadrant ${field} ${JSON.stringify(trimmed)} needs quoting for Mermaid, and a quoted string cannot hold a double quote` })
+    return err({ code: 'INVALID_OP', message: `Quadrant ${field} ${JSON.stringify(trimmed)} has no supported lossless Mermaid text spelling` })
   }
   if (opts.point && (trimmed.includes(':') || trimmed.includes('[') || trimmed.includes(']'))) {
     return err({ code: 'INVALID_OP', message: `Quadrant ${field} must not contain ':' or brackets` })
@@ -218,6 +276,8 @@ function findPoint(body: QuadrantBody, label: string): number {
 }
 
 export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Result<QuadrantBody, MutationError> {
+  const problem = quadrantWriteProblems(body)[0]
+  if (problem) return err({ code: 'INVALID_OP', message: problem.message })
   const next = cloneQuadrant(body)
 
   switch (op.kind) {
@@ -332,14 +392,24 @@ export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): Layo
       index = directive.endIndex
       continue
     }
-    for (const what of quadrantTextRejections(statementText(lines, index, ends[index]!).trim())) {
-      warnings.push({
-        code: 'UNSUPPORTED_SYNTAX',
-        syntax: 'quadrant_unquoted_text',
-        line: index + 1,
+    try {
+      const rejections: string[] = []
+      const parsed = parseQuadrantChart(['quadrantChart', statementText(lines, index, ends[index]!).trim()], what => rejections.push(what))
+      for (const what of rejections) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'quadrant_unquoted_text', line: index + 1,
         message: `${what}, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes.`,
       })
-    }
+      for (const problem of quadrantWriteProblems(parsed)) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', ...problem, line: index + 1,
+        message: `${problem.message}. Pinned Mermaid rejects this; the source and native rendering are preserved, and typed editing is unavailable.`,
+      })
+      for (const style of [...parsed.points.map(point => point.style), ...Object.values(parsed.classDefs)]) {
+        if (style?.strokeWidth !== undefined && !portableStyleProblem(style) && !/^\d+px$/.test(style.strokeWidth)) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'quadrant_stroke_width', line: index + 1,
+          message: `Quadrant stroke-width ${JSON.stringify(style.strokeWidth)} is read as a pixel width. Pinned Mermaid requires integer px units; canonical export writes ${canonicalStyle(style).strokeWidth}.`,
+        })
+      }
+    } catch { /* Malformed statements already produce a render diagnostic. */ }
     index = ends[index]!
   }
   return warnings

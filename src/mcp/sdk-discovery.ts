@@ -84,7 +84,7 @@ interface PreservedValidDiagram {
   }
 }
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
-type RenderedRegionKind='node'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
+type RenderedRegionKind='node'|'note'|'edge'|'label'|'canvas'|'group'|'cluster'|'lane'|'band'|'compartment'|'plot'|'ring'
 type DiagramActionSecurity='safe'|'unsafe'|'source-only'|'unsupported'
 type LayoutRect={x:number;y:number;w:number;h:number}
 interface RenderedRegion{id:string;kind:RenderedRegionKind;elementId?:string;parentId?:string;bounds:{x:number;y:number;w:number;h:number};cellSpans?:Array<{row:number;start:number;end:number}>;sourceLine?:number}

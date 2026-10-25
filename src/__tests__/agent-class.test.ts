@@ -2,7 +2,8 @@
 
 import { describe, expect, test } from 'bun:test'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
-import { applyOps, asClass, mutate, mutateChecked, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { applyOps, asClass, mutate, mutateChecked, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, renderMermaidASCII, serializeMermaid, verifyMermaid, synthesizeFromGraph } from '../agent/index.ts'
+import { renderMermaidSVG as renderSourceSVG, renderMermaidASCII as renderSourceASCII } from '../index.ts'
 import type { ClassMutationOp } from '../agent/types.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
@@ -14,6 +15,102 @@ const parse = (s: string) => {
 }
 
 describe('class — parse', () => {
+  test.each([
+    'class Animal:::somecl--ass {\n-int sizeInFeet\n-canE1..*t()\n}\nclassDef someclass fill:#f96',
+    'class A:::a-b',
+    'class A:::note',
+    'class A\nclassDef a-b fill:#f96',
+    'class A\nclassDef class fill:#f96',
+  ])('keeps unspellable style identities source-only: %s', async statement => {
+    const source = `classDiagram\n${statement}\n`
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(source)).toBe(false) }
+    finally { upstream.close() }
+    const diagram = parse(source)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(diagram)).toBe(source)
+    expect(renderMermaidSVG(diagram)).toBe(renderSourceSVG(source))
+    expect(renderMermaidASCII(diagram)).toBe(renderSourceASCII(source))
+    expect(verifyMermaid(diagram).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_name' }))
+    expect(mutate(diagram, { kind: 'add_class', id: 'Another' }).ok).toBe(false)
+  })
+
+  test('uses declaration references for portable style names outside cssClass grammar', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const name of ['-', 'class', 'classDef', 'classDiagram', 'namespace', 'style', 'call', '__proto__', 'classOne']) {
+        const diagram = asClass(parse(`classDiagram\nclass A:::${name}\n`))!
+        expect(diagram).not.toBeNull()
+        const edited = mutate(diagram, { kind: 'rename_class', from: 'A', to: 'Renamed' })
+        expect(edited.ok).toBe(true)
+        if (!edited.ok) continue
+        const output = serializeMermaid(edited.value)
+        expect(await upstream.accepts(output)).toBe(true)
+        expect(asClass(parse(output))!.body).toEqual(edited.value.body)
+        expect(await upstream.project(output, value => [...value.db.getClasses().values()].map((node: { id: string; cssClasses: string }) => ({ id: node.id, classes: node.cssClasses.split(' ').filter(name => name !== 'default') }))))
+          .toEqual({ ok: true, value: [{ id: 'Renamed', classes: [name] }] })
+        expect(renderSourceSVG(serializeMermaid(diagram))).toBe(renderSourceSVG(`classDiagram\nclass A:::${name}\n`))
+      }
+    } finally { upstream.close() }
+  })
+
+  test('rejects unspellable new style identities while keeping safe definition neighbors editable', async () => {
+    const diagram = asClass(parse('classDiagram\nclass A'))!
+    for (const name of ['a-b', 'somecl--ass', 'note', 'o', '_blank']) {
+      expect(mutate(diagram, { kind: 'set_css_class', class: 'A', className: name }).ok).toBe(false)
+      expect(synthesizeFromGraph({ kind: 'class', body: { ...diagram.body, classes: [{ id: 'A', members: [], className: name }] } }).ok).toBe(false)
+    }
+    for (const name of ['a-b', 'class', 'classDef', 'call']) {
+      expect(mutate(diagram, { kind: 'define_class', name, style: 'fill:#f96' }).ok).toBe(false)
+      expect(synthesizeFromGraph({ kind: 'class', body: { ...diagram.body, classDefs: { [name]: { fill: '#f96' } } } }).ok).toBe(false)
+    }
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const name of ['classOne', '__proto__', 'title', 'direction']) {
+        const edited = mutate(diagram, { kind: 'define_class', name, style: 'fill:#f96' })
+        expect(edited.ok).toBe(true)
+        if (!edited.ok) continue
+        const output = serializeMermaid(edited.value)
+        expect(await upstream.accepts(output)).toBe(true)
+        expect(asClass(parse(output))!.body).toEqual(edited.value.body)
+      }
+    } finally { upstream.close() }
+  })
+
+  test.each(['class `"`', 'class `"start`', 'class `"start`\n`"start` --> B'])('keeps a leading double quote in class identity source-only: %s', async statement => {
+    const source = `classDiagram\n${statement}\n`
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(source)).toBe(false) }
+    finally { upstream.close() }
+    const diagram = parse(source)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(diagram)).toBe(source)
+    expect(renderMermaidSVG(diagram)).toBe(renderSourceSVG(source))
+    expect(renderMermaidASCII(diagram)).toBe(renderSourceASCII(source))
+    expect(verifyMermaid(diagram).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_id' }))
+    expect(mutate(diagram, { kind: 'add_class', id: 'Another' }).ok).toBe(false)
+  })
+
+  test('refuses new leading-quote identities but retains portable embedded quotes after editing', async () => {
+    const diagram = asClass(parse('classDiagram\nclass A'))!
+    for (const id of ['"', '"start']) {
+      expect(mutate(diagram, { kind: 'add_class', id }).ok).toBe(false)
+      expect(mutate(diagram, { kind: 'rename_class', from: 'A', to: id }).ok).toBe(false)
+      expect(synthesizeFromGraph({ kind: 'class', body: { ...diagram.body, classes: [{ id, members: [] }] } }).ok).toBe(false)
+    }
+    const upstream = startUpstreamMermaid()
+    try {
+      const portable = asClass(parse('classDiagram\nclass `a"b`\n`a"b` --> B'))!
+      const changed = mutate(portable, { kind: 'add_member', class: 'a"b', text: '+String name' })
+      expect(changed.ok).toBe(true)
+      if (!changed.ok) return
+      const written = serializeMermaid(changed.value)
+      expect(await upstream.accepts(written)).toBe(true)
+      expect(asClass(parse(written))!.body).toEqual(changed.value.body)
+      expect(await upstream.project(written, value => [...value.db.getClasses().keys()])).toEqual({ ok: true, value: ['a"b', 'B'] })
+    } finally { upstream.close() }
+  })
+
   test('deep namespaces retain editable source identity while native work obeys the host limit', () => {
     const depth = 15000
     const lines = [...Array<string>(depth).fill('namespace N {'), 'class A', ...Array<string>(depth).fill('}')]

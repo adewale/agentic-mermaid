@@ -20,6 +20,13 @@ import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 
 export type StateNoteSide = 'left' | 'right'
 
+/** Floating notes have their own authored identity; they are graph endpoints,
+ * not annotations attached to a fabricated state. */
+export function matchFloatingNote(line: string): { id: string; text: string } | null {
+  const match = /^note\s+"([^"]*)"\s+as\s+([\w\p{L}-]+)\s*$/iu.exec(line)
+  return match ? { id: match[2]!, text: match[1]! } : null
+}
+
 export interface StateNoteLineMatch {
   target: string
   side: StateNoteSide

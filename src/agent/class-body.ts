@@ -53,6 +53,44 @@ function setOwn<T>(record: Record<string, T>, key: string, value: T): void {
   Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true })
 }
 
+/** cssClass/classDef take one ALPHA token; ::: also takes a single minus
+ * and reads ordinary statement keywords as names in its class lexer state. */
+function writableStyleClassName(name: string, definition = false): boolean {
+  return definition
+    ? /^\w+$/.test(name) && name !== 'call' && readsAsClassName(name, false, true)
+    : (/^\w+$/.test(name) || name === '-') && readsAsClassName(name, false, false)
+}
+
+/** Raw member strings are authored grammar, so escaping a tag would change
+ * their stored content. A tag opener spanning the method's `(` is consumed
+ * by Mermaid's sanitizer; a name made only of tags is consumed too. */
+function classMemberWriteProblem(member: string): string | undefined {
+  if (parseClassBodyAnnotationToken(member) !== null) return
+  const open = member.indexOf('(')
+  if (open < 0 || !member.includes(')', open)) return
+  const before = member.slice(0, open)
+  const tag = /<[A-Za-z!/?]/
+  if (/<[A-Za-z!/?][^>]*$/.test(before) || (tag.test(before) && before.replace(/<[^>]*>/g, '').replace(/^[#+~-]/, '').trim() === '')) {
+    return `Class member ${JSON.stringify(member)} loses its method name in Mermaid's HTML sanitization and has no supported spelling that preserves its authored string`
+  }
+}
+
+function classBodyWriteProblem(body: ClassBody): string | undefined {
+  for (const node of body.classes) {
+    if (node.id.startsWith('"')) return `Class id ${JSON.stringify(node.id)} starts with a double quote and has no supported lossless Mermaid spelling`
+    for (const name of node.className?.split(/\s+/).filter(Boolean) ?? []) {
+      if (!writableStyleClassName(name)) return `Class style reference ${JSON.stringify(name)} has no supported lossless Mermaid spelling`
+    }
+    for (const member of node.members) {
+      const problem = classMemberWriteProblem(member)
+      if (problem) return problem
+    }
+  }
+  for (const name of Object.keys(body.classDefs ?? {})) {
+    if (!writableStyleClassName(name, true)) return `Class style definition ${JSON.stringify(name)} has no supported lossless Mermaid spelling`
+  }
+}
+
 function projectClassRelation(shared: NonNullable<ReturnType<typeof parseClassRelationship>>): ClassRelation & { fromGeneric?: string; toGeneric?: string } {
   return {
     from: shared.from,
@@ -246,6 +284,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     const cls = classMap.get(id)
     if (cls && cls.className === undefined) cls.className = name
   }
+  if (classBodyWriteProblem(body)) return null
   if (namespaces.length > 0) body.namespaces = namespaces
   // Mermaid cannot write empty namespace blocks. Preserve directly authored
   // ones verbatim instead of promising a portable structured edit.
@@ -374,6 +413,8 @@ function pushClassLines(lines: string[], c: ClassNode, indent: string, deferredM
 }
 
 export function renderClass(body: ClassBody): string {
+  const problem = classBodyWriteProblem(body)
+  if (problem) throw new Error(problem)
   const lines: string[] = ['classDiagram']
   const deferredMembers: string[] = []
   if (body.title) lines.push(`  title ${body.title}`)
@@ -463,7 +504,7 @@ export function renderClass(body: ClassBody): string {
     // the class by its id as written.
     if (c.className) {
       for (const name of c.className.split(/\s+/).filter(Boolean)) {
-        lines.push(/[",]/.test(c.id) ? `  class ${quoteIfNeeded(c.id)}:::${name}` : `  cssClass "${c.id}" ${name}`)
+        lines.push(/[",]/.test(c.id) || !writableStyleClassName(name, true) ? `  class ${quoteIfNeeded(c.id)}:::${name}` : `  cssClass "${c.id}" ${name}`)
       }
     }
     if (c.style) lines.push(`  style ${quoteDirectiveTarget(c.id)} ${serializeStyleProps(c.style)}`)
@@ -517,6 +558,7 @@ function normalizeGeneric(value: unknown): Result<string, MutationError> {
 /** An id the writer can spell: Mermaid's class lexer reads some words as
  *  keywords even in backticks, so no class can be named so. */
 function validateClassId(id: string): MutationError | undefined {
+  if (id.startsWith('"')) return { code: 'INVALID_OP', message: `Class id ${JSON.stringify(id)} starts with a double quote and has no supported lossless Mermaid spelling` }
   if (readsAsClassName(id, true, false)) return undefined
   return { code: 'INVALID_OP', message: `Class id "${id}" is a keyword to Mermaid's class lexer, which reads \`${id}\` as a keyword even in backticks; choose another id` }
 }
@@ -527,6 +569,8 @@ function validateClassMembers(members: readonly string[]): MutationError | undef
     if (decoded === undefined || /[\r\n]/.test(decoded)) {
       return { code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately' }
     }
+    const problem = classMemberWriteProblem(member)
+    if (problem) return { code: 'INVALID_OP', message: problem }
     if (toMermaidLines(decoded).length !== 1) {
       return { code: 'INVALID_OP', message: 'Class members must contain text, not blank lines, comments or init directives' }
     }
@@ -563,6 +607,8 @@ function declareNamespaceOn(b: ClassBody, path: string): void {
 }
 
 export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {
+  const problem = classBodyWriteProblem(body)
+  if (problem) return err({ code: 'INVALID_OP', message: problem })
   const targetId = 'class' in op ? op.class : op.kind === 'rename_class' ? op.from : op.kind === 'add_note' ? op.for : undefined
   if (targetId && body.classes.some(node => node.id === targetId && node.isInterface)) {
     return err({ code: 'INVALID_OP', message: `A lollipop interface occurrence has no standalone class declaration; '${op.kind}' cannot add class-only metadata to '${targetId}'` })
@@ -622,7 +668,7 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       return pruneEmptyNamespaces(b)
     }
     case 'define_class': {
-      if (typeof op.name !== 'string' || !/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'classDef name must contain only letters, digits, underscore, or hyphen' })
+      if (typeof op.name !== 'string' || !writableStyleClassName(op.name, true)) return err({ code: 'INVALID_OP', message: 'classDef name must be one non-reserved word token' })
       const style = parseMutableStyleProps(op.style)
       if (!style.ok)
         return err({
@@ -638,7 +684,7 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
       if (op.className === null) delete c.className
       else {
-        if (!/^[\w-]+$/.test(op.className)) return err({ code: 'INVALID_OP', message: 'CSS class name must contain only letters, digits, underscore, or hyphen' })
+        if (!writableStyleClassName(op.className)) return err({ code: 'INVALID_OP', message: 'CSS class name must have a lossless Mermaid style reference spelling' })
         c.className = op.className
       }
       return ok(b)
@@ -852,6 +898,19 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         })
       }
       const value = node.value
+      const identities = declares(value).concat(value.kind === 'interaction' ? [value.interaction.id] : value.kind === 'note' && value.reference ? [value.reference.id] : [])
+      for (const id of identities) if (id.startsWith('"')) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_id', line: header + 1 + node.source.line,
+        message: `Class id ${JSON.stringify(id)} starts with a double quote, which pinned Mermaid treats as syntax even inside backticks. Its source and native rendering are preserved, but typed editing is unavailable.`,
+      })
+      const styleNames = value.kind === 'classDef' ? value.names
+        : value.kind === 'assignment' ? [value.name]
+          : value.kind === 'class' ? [value.declaration.className]
+            : value.kind === 'annotation' ? [value.annotation.className] : []
+      for (const name of styleNames) if (name !== undefined && !writableStyleClassName(name, value.kind === 'classDef')) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_name', line: header + 1 + node.source.line,
+        message: `Class style ${value.kind === 'classDef' ? 'definition' : 'reference'} ${JSON.stringify(name)} has no supported lossless Mermaid spelling. The source and native rendering are preserved, but typed editing is unavailable.`,
+      })
       if (value.kind === 'annotation' ? value.annotation.placement === 'inline' && value.annotation.className !== undefined : value.kind === 'class' && value.declaration.annotation !== undefined && value.declaration.className !== undefined)
         warnings.push({
           code: 'UNSUPPORTED_SYNTAX',
@@ -893,6 +952,11 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       // method split, `([#+~-])?(.+)\((.*)\)…`, leaves one it cannot split
       // without a name, which fails the render (classTypes.ts parseMember).
       if (value.kind === 'member') {
+        const problem = classMemberWriteProblem(value.text)
+        if (problem) warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_html', line: header + 1 + node.source.line,
+          message: `${problem}. Its source and native rendering are preserved, but typed editing is unavailable.`,
+        })
         const member = value.text.replace(/#\w+;/g, '#').trim()
         if (!(member.startsWith('<<') && member.endsWith('>>')) && member.indexOf(')') > 0 && !/^[#+~-]?.+\(.*\)/.test(member)) warnings.push({
           code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_parenthesis', line: header + 1 + node.source.line,

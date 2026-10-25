@@ -14,7 +14,7 @@ import {
   isConcurrencySeparator,
   isNoteEnd,
   matchHistoryEndpoint,
-  matchNoteLine, matchNoteOpen,
+  matchFloatingNote, matchNoteLine, matchNoteOpen,
   matchStateClassAssignment, matchStateDeclarationLine, matchStateLayoutDirective,
   matchStereotypeDecl, matchTransitionLine, readStateStatements,
   STATE_ALIAS_RE,
@@ -744,6 +744,12 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
     return open ? [open[2]!] : []
   }))
+  const floatingDeclarations = statements.flatMap(statement => {
+    const note = statement.noteBody ? null : matchFloatingNote(statement.text)
+    return note ? [note.id] : []
+  })
+  const floatingNoteIds = new Set(floatingDeclarations)
+  if (floatingNoteIds.size !== floatingDeclarations.length) throw new Error('State floating note aliases must be unique')
   const composites = new Map<string, MermaidSubgraph>()
   let stateGroupCount = 0
   const labeledStateIds = new Set<string>()
@@ -805,7 +811,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (parserObservationActive('state')) observeParserMutation('state', 'add-note', graph.stateNotes.at(-1))
     // A note on an undeclared state declares it (upstream parity) — unless the
     // id is (or later becomes) a composite, which the composite opener handles.
-    if (!compositeStateIds.has(target)) ensureStateNode(graph, compositeStack, target)
+    if (!compositeStateIds.has(target) && !floatingNoteIds.has(target)) ensureStateNode(graph, compositeStack, target)
   }
 
   /** Resolve a transition endpoint: `[*]` pseudostates, `[H]`/`X[H]` history
@@ -828,7 +834,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       registerStateNode(graph, compositeStack, { id, label: historyLabel(history.deep), shape: 'state-history' })
       return id
     }
-    if (!compositeStateIds.has(raw)) ensureStateNode(graph, compositeStack, raw)
+    if (!compositeStateIds.has(raw) && !floatingNoteIds.has(raw)) ensureStateNode(graph, compositeStack, raw)
     return raw
   }
 
@@ -855,6 +861,14 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (matchStateLayoutDirective(line)) continue
 
     // --- notes: `note left|right of X : text` / `note left|right of X` ---
+    const floating = matchFloatingNote(line)
+    if (floating) {
+      if (compositeStateIds.has(floating.id)) throw new Error(`Floating note ${floating.id} conflicts with a composite`)
+      const { text, content } = readStateLabel([floating.text])
+      ensureStateNode(graph, compositeStack, floating.id)
+      graph.nodes.set(floating.id, { id: floating.id, label: text, shape: 'rectangle', semanticRole: 'note', ...(content ? { labelContent: content } : {}) })
+      continue
+    }
     const noteLine = matchNoteLine(line)
     if (noteLine) {
       addNote(noteLine.target, noteLine.side, noteLine.text)
@@ -938,6 +952,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- pseudostate stereotype: `state f1 <<fork|join|choice|history|…>>` ---
     const stereotype = matchStereotypeDecl(line)
     if (stereotype) {
+      if (floatingNoteIds.has(stereotype.id)) throw new Error(`Floating note ${stereotype.id} cannot also be a pseudostate`)
       const shape: NodeShape =
         stereotype.stereotype === 'fork' ? 'state-fork'
         : stereotype.stereotype === 'join' ? 'state-join'
@@ -1057,6 +1072,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (stateAliasMatch) {
       const pieces = [stateAliasMatch[1]!]
       const id = stateAliasMatch[2]!
+      if (floatingNoteIds.has(id)) throw new Error(`Floating note ${id} cannot also have a state label declaration`)
       if (compositeStateIds.has(id)) {
         labelComposite(id, stateAliasMatch[1]!, false)
         continue
@@ -1117,6 +1133,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateDescMatch = line.match(STATE_DESCRIPTION_RE)
     if (stateDescMatch) {
       const id = stateDescMatch[1]!
+      if (floatingNoteIds.has(id)) throw new Error(`Floating note ${id} cannot also have a state description`)
       const piece = stateDescMatch[2]!.trim()
       if (compositeStateIds.has(id)) {
         labelComposite(id, piece, true)
@@ -1139,7 +1156,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
     const declaredId = matchStateDeclarationLine(line)
     if (declaredId !== null) {
-      if (!compositeStateIds.has(declaredId)) registerStateNode(graph, compositeStack, { id: declaredId, label: declaredId, shape: 'rounded' })
+      if (!compositeStateIds.has(declaredId) && !floatingNoteIds.has(declaredId)) registerStateNode(graph, compositeStack, { id: declaredId, label: declaredId, shape: 'rounded' })
       continue
     }
 

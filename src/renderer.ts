@@ -587,8 +587,8 @@ function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: str
   const interaction = includeInteraction && node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
   return marks.group({
     id: `node:${node.id}`,
-    role: 'node',
-    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}" data-shape="${node.shape}"${semanticShape}${interaction}>`,
+    role: node.semanticRole ?? 'node',
+    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}" data-shape="${node.shape}"${node.semanticRole === 'note' ? ' data-note-kind="floating"' : ''}${semanticShape}${interaction}>`,
     close: '</g>',
     children,
     channels,
@@ -646,7 +646,7 @@ function renderNodeShape<T>(marks: DrawingFactory<T>, node: PositionedNode, styl
 
   return marks.shape({
     id: `node-shape:${node.id}`,
-    role: 'node',
+    role: node.semanticRole ?? 'node',
     geometry: piece.geometry,
     paint: piece.paint,
     ...(piece.childPaints ? { childPaints: piece.childPaints } : {}),

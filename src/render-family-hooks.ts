@@ -159,7 +159,7 @@ export const TIMELINE_RENDER_HOOKS = {
 
 export const JOURNEY_RENDER_HOOKS = {
   ...JOURNEY_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderJourneyTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth, ctx.styleFace)),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderJourneyTerminal((ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'), ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth, ctx.styleFace)),
 } satisfies BuiltinRenderHooks
 
 export const XYCHART_RENDER_HOOKS = {
@@ -211,7 +211,7 @@ export const GANTT_RENDER_HOOKS = {
 
 export const MINDMAP_RENDER_HOOKS = {
   ...MINDMAP_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderMindmapTerminal(parseMindmap(ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderMindmapTerminal(parseMindmap(ctx.source.authoredFamilyBody ?? ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 export const GITGRAPH_RENDER_HOOKS = {

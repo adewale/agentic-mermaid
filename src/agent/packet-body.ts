@@ -18,7 +18,9 @@ export function renderPacket(body: PacketBody): string {
   const lines = ['packet']
   appendAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`title ${body.title.replace(/\r?\n/g, '<br/>')}`)
-  for (const field of body.fields) lines.push(`${field.start}${field.end === field.start ? '' : `-${field.end}`}: ${JSON.stringify(field.label)}`)
+  // STRING's escaped percent keeps directive openers literal without changing
+  // the field value; entities would change its authored label instead.
+  for (const field of body.fields) lines.push(`${field.start}${field.end === field.start ? '' : `-${field.end}`}: ${JSON.stringify(field.label).replace(/%%(?=\{)/g, '%\\%')}`)
   return lines.join('\n') + '\n'
 }
 export function mutatePacket(body: PacketBody, op: PacketMutationOp): Result<PacketBody, MutationError> {

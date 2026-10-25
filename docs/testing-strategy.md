@@ -293,6 +293,13 @@ sources we did not write:
   arrows, and round-trip. A long-lived upstream worker
   (`helpers/upstream-mermaid.ts`) lets async properties shrink. Known
   divergences are pinned as explicit cases that fail once fixed.
+  The worker runs Node (CI uses Node 24) with development-only jsdom 26.1.0,
+  public preprocessing and actual DOMPurify; no sanitizer is replaced. The
+  Flowchart grammar property observes authored label operands at live builder
+  calls while still invoking each original method. Sanitized HTML can lose
+  those tokens, so that property is a grammar contract rather than a claim of
+  identical sanitized DB text. Selected modern tests independently inspect
+  public runtime values. Snapshots retain parent fields and explicit cycles.
 
 These exist because our hand-written fixtures encode what we already knew
 the parser modeled. Upstream examples are "adversarial in exactly the

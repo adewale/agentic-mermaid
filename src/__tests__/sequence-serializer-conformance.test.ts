@@ -9,12 +9,14 @@
  * seam where the audit found silent-loss bugs in four families
  * (flowchart-parser-conformance.test.ts is the pattern being extended).
  */
-import { describe, test, expect } from 'bun:test'
+import { afterAll, beforeAll, describe, test, expect } from 'bun:test'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import type { SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
 
 function sequence(src: string): SequenceValidDiagram {
@@ -108,5 +110,102 @@ describe('sequence serializer → renderer-parser conformance (new constructs)',
     // Idempotence: a second serialize of the re-parsed agent body is stable
     const again = sequence(serializeMermaid(d))
     expect(serializeMermaid(again)).toBe(serializeMermaid(d))
+  })
+})
+
+
+describe('sequence identities survive portable structured writing', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  test.each([
+    '%% keep the authored identity\nsequenceDiagram\nactor :',
+    'sequenceDiagram participant > as h',
+    'sequenceDiagram\nparticipant <',
+    'sequenceDiagram\nactor @',
+    'sequenceDiagram\nparticipant :@',
+    'sequenceDiagram\nparticipant >@{ "type": "database", "alias": "Store" }',
+    'sequenceDiagram\nJ->%:',
+    'sequenceDiagram J->accDescr:',
+    'sequenceDiagram\nalt retry\nJ->>accTitle: reply\nend',
+    'sequenceDiagram\nlink >: @http:',
+  ])('unwritable identities retain authored source and native drawing: %s', async source => {
+    expect(await upstream.accepts(source)).toBe(false)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    const edited = mutate(parsed.value, { kind: 'add_participant', id: 'Safe' })
+    expect(edited.ok).toBe(false)
+    if (!edited.ok) expect(edited.error.code).toBe('INVALID_OP')
+  })
+
+  test('declarations, message references and aliases retain their distinct identity grammars', async () => {
+    const source = `sequenceDiagram
+participant % as Percent
+actor accDescr as @: <>
+participant participant
+participant a+b
+accDescr->>@: request
+link @: Menu @ https://example.com
+@->>A@B: reply
+alt retry
+A@B->>accDescr1: retry
+end
+A@B->>title:done
+link title:Menu @ https://example.com/title
+links title:{"":"http:"}`
+    const parsed = sequence(source)
+    const written = serializeMermaid(parsed)
+    const result = await upstream.parse(written)
+    expect(result.ok).toBe(true)
+    if (!result.ok || !result.sequence) throw new Error('upstream rejected portable Sequence identities')
+    const expectedIds = ['%', 'accDescr', 'participant', 'a+b', '@', 'A@B', 'accDescr1', 'title']
+    expect(parsed.body.participants.map(participant => participant.id)).toEqual(expectedIds)
+    expect(sequence(written).body.participants.map(participant => participant.id)).toEqual(expectedIds)
+    expect(result.sequence.actors.map(actor => actor.name)).toEqual(expectedIds)
+    expect(result.sequence.actors.find(actor => actor.name === 'accDescr')!.description).toBe('@: <>')
+    expect(result.sequence.actors.find(actor => actor.name === '@')!.links).toEqual({ Menu: 'https://example.com' })
+    expect(result.sequence.actors.find(actor => actor.name === 'title')!.links).toEqual({ Menu: 'https://example.com/title', '': 'http:' })
+    expect(result.sequence.messages.filter(message => message.from).map(message => [message.from, message.to]))
+      .toEqual([['accDescr', '@'], ['@', 'A@B'], ['A@B', 'accDescr1'], ['A@B', 'title']])
+    expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(parsed))
+    expect(renderMermaidSVG(parsed)).toBe(renderMermaidSVG(source))
+  })
+
+  const invalidOps: SequenceMutationOp[] = [
+    { kind: 'add_participant', id: '>', label: 'Name' },
+    { kind: 'add_participant', id: '@', participantKind: 'actor' },
+    { kind: 'add_message', from: 'A', to: 'accDescr', text: 'reply' },
+    { kind: 'add_message', from: '%', to: 'A', text: 'request' },
+    { kind: 'add_message', from: 'participant', to: 'A', text: 'request' },
+    { kind: 'add_fragment_message', fragmentIndex: 0, from: 'A', to: 'accTitle', text: 'reply' },
+    { kind: 'add_fragment_message', fragmentIndex: 0, from: 'A', to: 'a+b', text: 'reply' },
+    { kind: 'set_participant_label', id: '@', label: 'Renamed' },
+  ]
+  test.each(invalidOps)('typed edits refuse identities that their target syntax cannot preserve: %j', op => {
+    const parsed = sequence('sequenceDiagram\nA->>@: before\nalt retry\n@->>A: again\nend')
+    const before = serializeMermaid(parsed)
+    const result = mutate(parsed, op)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+    expect(serializeMermaid(parsed)).toBe(before)
+  })
+
+  test('typed edits keep legal punctuation in labels and declaration-only IDs', async () => {
+    let parsed = sequence('sequenceDiagram\nA->>@: before')
+    parsed = apply(parsed, { kind: 'add_participant', id: 'accDescr', label: ': < > @' })
+    parsed = apply(parsed, { kind: 'add_message', from: 'accDescr', to: '@', text: 'after' })
+    parsed = apply(parsed, { kind: 'add_message', from: '@', to: 'title', text: 'after' })
+    parsed = apply(parsed, { kind: 'set_participant_label', id: 'A', label: ': < > @' })
+    const written = serializeMermaid(parsed)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(sequence(written).body.participants).toEqual(parsed.body.participants)
+    expect(sequence(written).body.messages.map(({ from, to, text }) => ({ from, to, text })))
+      .toEqual(parsed.body.messages.map(({ from, to, text }) => ({ from, to, text })))
   })
 })

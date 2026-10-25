@@ -78,6 +78,10 @@ export function architectureSourceLines(source: { familyBody: string; familyLine
 // reject (architectureTerminalRejections), and the typed serializer and
 // mutator write titles, ids and icons only in a form they accept.
 const ID_TERMINAL_RE = /^\w(?:[\w-]*\w)?$/
+const ID_KEYWORDS = new Set(['architecture-beta', 'group', 'service', 'junction', 'in', 'align', 'row', 'column'])
+// ARROW_DIRECTION and TITLE precede ID in the pinned lexer and take these
+// prefixes even in a longer id; grammar keywords only take the whole id.
+const ID_TOKEN_PREFIX_RE = /^(?:[LRTB]|title)/
 const ICON_TERMINAL_RE = /^[\w:-]+$/
 const UNQUOTED_TITLE_RE = /^[\w ]+$/ // Keep the writer's conservative bare spelling.
 const UNQUOTED_TITLE_TERMINAL_RE = /^[^[\]\r\n]+$/
@@ -85,11 +89,16 @@ const QUOTED_TITLE_RE = /^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/
 
 /** The syntax error Mermaid's lexer raises for an id, if any. */
 export function architectureIdError(id: string): Error | undefined {
-  return ID_TERMINAL_RE.test(id) ? undefined : syntaxError({
+  if (!ID_TERMINAL_RE.test(id)) return syntaxError({
     what: `Architecture id "${id}" must start and end with a letter, digit or _`,
     expectedForm: 'letters, digits and _, with - only between them',
     example: id.replace(/^-+|-+$/g, '') || 'api',
   })
+  return ID_KEYWORDS.has(id) || ID_TOKEN_PREFIX_RE.test(id) ? syntaxError({
+    what: `Architecture id "${id}" is read as a reserved token by Mermaid`,
+    expectedForm: 'an id other than an architecture keyword, not starting with L, R, T, B or title',
+    example: `node_${id}`,
+  }) : undefined
 }
 
 /** The syntax error Mermaid's lexer raises for an icon name, if any. */
@@ -141,7 +150,7 @@ export function architectureTerminalRejections(statement: string): Array<{ termi
   const line = stripTrailingComment(statement.trim())
   const rejections: Array<{ terminal: ArchitectureTerminal; what: string }> = []
   const id = (value: string | undefined): void => {
-    if (value !== undefined && architectureIdError(value)) rejections.push({ terminal: 'id', what: `Architecture id "${value}" starts or ends with "-" and is read as written` })
+    if (value !== undefined && architectureIdError(value)) rejections.push({ terminal: 'id', what: `Architecture id "${value}" is not a portable Mermaid id and is read as written` })
   }
   const title = (content: string | undefined): void => {
     if (content !== undefined && !UNQUOTED_TITLE_TERMINAL_RE.test(content) && !QUOTED_TITLE_RE.test(content)) {

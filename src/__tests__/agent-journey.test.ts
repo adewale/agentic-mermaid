@@ -2,7 +2,7 @@
 // fallback semantics). Parse / narrow / mutate / verify / serialize, the
 // structured-or-opaque fallback, and round-trip identity.
 
-import { describe, test, expect } from 'bun:test'
+import { afterAll, beforeAll, describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
@@ -13,6 +13,8 @@ import { asJourney } from '../agent/types.ts'
 import type { JourneyValidDiagram, JourneyMutationOp } from '../agent/types.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { describeMermaidTree } from '../agent/describe.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const SRC = `journey
   title My working day
@@ -107,15 +109,15 @@ describe('journey structured parse', () => {
 
   test('preserves Mermaid literal title and accessibility punctuation structurally', () => {
     const d = journey(`journey
-      title Book #2: subtitle &amp; notes
+      title Book #2: subtitle and notes
       accTitle: Book #2: accessible subtitle
       accDescr: Literal #2: keep &amp; entity text
       Read: 3: Editor`)
 
-    expect(d.body.title).toBe('Book #2: subtitle &amp; notes')
+    expect(d.body.title).toBe('Book #2: subtitle and notes')
     expect(d.body.accessibilityTitle).toBe('Book #2: accessible subtitle')
-    expect(d.body.accessibilityDescription).toBe('Literal #2: keep &amp; entity text')
-    expect(serializeMermaid(d)).toContain('title Book #2: subtitle &amp; notes')
+    expect(d.body.accessibilityDescription).toBe('Literal #2: keep & entity text')
+    expect(journey(serializeMermaid(d)).body).toEqual(d.body)
   })
 
   test('preserves Journey multiline label semantics through parse and serialize', () => {
@@ -154,7 +156,7 @@ describe('journey structured parse', () => {
       Triage ticket: 2: Agent: Tier 1, Escalation: API`)
 
     expect(d.body.sections[0]!.tasks[0]!.actors).toEqual(['Agent: Tier 1', 'Escalation: API'])
-    expect(serializeMermaid(d)).toContain('Triage ticket: 2: Agent: Tier 1, Escalation: API')
+    expect(journey(serializeMermaid(d)).body).toEqual(d.body)
   })
 })
 
@@ -165,7 +167,6 @@ describe('journey structured-or-opaque fallback', () => {
     ['non-numeric score line', 'journey\n  Wake: high: Me'],
     ['header suffix', 'journey EXTRA\n  Alpha: 3: Me'],
     ['unknown colonless body line', 'journey\n  section S\n  nonsense\n  Task: 3: Me'],
-    ['section label with colon', 'journey\n  section A:B\n  Task: 3: Me'],
   ]
   for (const [name, src] of opaqueCases) {
     test(`${name} falls back to opaque and round-trips verbatim`, () => {
@@ -244,7 +245,7 @@ describe('journey mutation ops', () => {
     expect(d.body.sections[0]!.tasks[2]!.actors).toEqual(['Sam', 'Cat'])
   })
 
-  test('rejects edits that cannot survive Journey statement/actor delimiters', () => {
+  test('protects statement/actor delimiters through successful edits', () => {
     const d = journey()
     for (const op of [
       { kind: 'set_title', title: 'A; B' },
@@ -253,10 +254,10 @@ describe('journey mutation ops', () => {
       { kind: 'rename_actor', from: 'Me', to: 'A; B' },
     ] as JourneyMutationOp[]) {
       const result = mutate(d, op)
-      expect(result.ok).toBe(false)
-      if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(journey(serializeMermaid(result.value)).body).toEqual(result.value.body)
     }
-    expect(apply(d, { kind: 'set_title', title: 'A &amp; B' }).body.title).toBe('A &amp; B')
+    expect(apply(d, { kind: 'set_title', title: 'A & B' }).body.title).toBe('A & B')
   })
 
   test('error paths: missing targets, invalid score, unknown actor', () => {
@@ -264,8 +265,8 @@ describe('journey mutation ops', () => {
       [{ kind: 'remove_section', index: 9 }, 'SECTION_NOT_FOUND'],
       [{ kind: 'remove_task', sectionIndex: 0, taskIndex: 9 }, 'TASK_NOT_FOUND'],
       [{ kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 6 }, 'INVALID_OP'],
-      [{ kind: 'add_section', label: 'has: colon' }, 'INVALID_OP'],
-      [{ kind: 'add_task', sectionIndex: 0, text: 'has: colon', score: 3 }, 'INVALID_OP'],
+      [{ kind: 'add_section', label: '' }, 'INVALID_OP'],
+      [{ kind: 'add_task', sectionIndex: 0, text: '', score: 3 }, 'INVALID_OP'],
       [{ kind: 'rename_actor', from: 'Nobody', to: 'Anyone' }, 'ACTOR_NOT_FOUND'],
     ]
     for (const [op, code] of cases) {
@@ -345,7 +346,7 @@ describe('journey ordering + accessibility ops', () => {
     expect(d.body.accessibilityTitle).toBe('Accessible: overview')
     expect(d.body.accessibilityDescription).toBe('First line\nSecond line')
     const out = serializeMermaid(d)
-    expect(out).toContain('accTitle: Accessible: overview')
+    expect(journey(out).body.accessibilityTitle).toBe('Accessible: overview')
     expect(out).toContain('accDescr {')
     expect(journey(out).body).toEqual(d.body)
     d = apply(d, { kind: 'set_accessibility_title', title: null })
@@ -368,8 +369,6 @@ describe('journey ordering + accessibility ops', () => {
       [{ kind: 'set_accessibility_title', title: '   ' }, 'INVALID_OP'],
       // ';' terminates a journey statement and '{'/'}' delimit the accDescr
       // block form — text carrying them would not survive serialize → re-parse.
-      [{ kind: 'set_accessibility_title', title: 'a; b' }, 'INVALID_OP'],
-      [{ kind: 'set_accessibility_description', description: 'has { brace' }, 'INVALID_OP'],
     ]
     for (const [op, code] of cases) {
       const r = mutate(journey(), op)
@@ -500,5 +499,70 @@ describe('journey round-trip property', () => {
       ),
       fcParameters({ numRuns: 50 }),
     )
+  })
+})
+
+
+describe('Journey field escapes preserve literal text', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(() => upstream.close())
+
+  test.each([
+    '%% Keep this task\njourney\n  Book #2: 3: Editor',
+    'journey journey:5',
+    'journey\n  journey review: 4: Me',
+    'journey\n  Review &amp; revise: 3: Me',
+    'journey\n  title &lt;',
+    'journey\n  section &mp;\n  Read: 4: Editor',
+    'journey\n  Read: 4: &lt;',
+  ])('retains literal native text through editable portable output: %s', async source => {
+    expect(await upstream.accepts(source)).toBe(false)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    if (parsed.value.body.kind !== 'journey') throw new Error('Expected editable Journey')
+    const written = serializeMermaid(parsed.value)
+    expect(await upstream.publicAccepts(written), written).toBe(true)
+    expect(journey(written).body).toEqual(parsed.value.body)
+    expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'journey_nonportable_text' }))
+    expect(mutate(parsed.value, { kind: 'set_title', title: 'Safe title' }).ok).toBe(true)
+  })
+
+  const unwritable: JourneyMutationOp[] = [
+    { kind: 'set_title', title: '&lt;' },
+    { kind: 'add_section', label: '&amp;' },
+    { kind: 'set_section_label', index: 0, label: '&mp;' },
+    { kind: 'add_task', sectionIndex: 0, text: 'journey review', score: 3 },
+    { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'Book #2' },
+    { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: '&lt;' },
+    { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['&lt;'] },
+    { kind: 'rename_actor', from: 'Me', to: '&lt;' },
+  ]
+  test.each(unwritable)('writes text without leaking grammar tokens: %j', async op => {
+    const parsed = journey()
+    const before = serializeMermaid(parsed)
+    const result = mutate(parsed, op)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(await upstream.publicAccepts(serializeMermaid(result.value))).toBe(true)
+      expect(journey(serializeMermaid(result.value)).body).toEqual(result.value.body)
+    }
+    expect(serializeMermaid(parsed)).toBe(before)
+  })
+
+  test('neighboring task words and accessibility literals remain editable and reload intact', async () => {
+    let parsed = journey('journey\n  section Reading\n  journeys: 3: Editor')
+    parsed = apply(parsed, { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'journeyed' })
+    parsed = apply(parsed, { kind: 'set_accessibility_title', title: 'Book #2 &amp;' })
+    parsed = apply(parsed, { kind: 'set_accessibility_description', description: 'Read &lt; and #2' })
+    const written = serializeMermaid(parsed)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(journey(written).body).toEqual(parsed.body)
+    expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(parsed))
   })
 })

@@ -1,3 +1,4 @@
+import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { deferredDependency } from '../layout/certification-error.ts'
 // ============================================================================
@@ -37,6 +38,10 @@ import type { PositionedTreemap } from '../treemap/types.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import { renderErrorOrigin } from './error-origin.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
+import { blockUnsupportedSyntaxWarnings } from './block-body.ts'
+import { ishikawaUnsupportedSyntaxWarnings } from './ishikawa-body.ts'
+import { journeyUnsupportedSyntaxWarnings } from './journey-body.ts'
+import { requirementUnsupportedSyntaxWarnings } from './requirement-body.ts'
 import { classUnsupportedSyntaxWarnings } from './class-body.ts'
 import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
@@ -70,7 +75,10 @@ import { c4DiagnosticMessage } from '../c4/parser.ts'
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
   const family = getFamily(d.kind)
-  return familyConfigDiagnostics(d.kind, roots, family?.config, family?.configDiagnostics)
+  const warnings: LayoutWarning[] = familyConfigDiagnostics(d.kind, roots, family?.config, family?.configDiagnostics)
+  try { canonicalWrapperConfig(d.meta) }
+  catch (error) { warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_wrapper_config', message: error instanceof Error ? error.message : String(error) }) }
+  return warnings
 }
 
 const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end', 'state-fork', 'state-join', 'state-choice', 'state-history'])
@@ -85,7 +93,12 @@ const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'sta
  */
 function hasOnlyHeader(d: ValidDiagram): boolean {
   if (d.meta.accessibility.title !== undefined || d.meta.accessibility.descr !== undefined) return false
-  if (d.body.kind === 'opaque') return sourceHasOnlyHeader(d.kind, d.body.source)
+  if (d.body.kind === 'opaque') {
+    // Timeline permits an inline body statement after its header. Preserve its
+    // authored bytes, but count the same normalized statements as the parser.
+    const source = d.kind === 'timeline' ? normalizeMermaidSource(d.body.source).familyText : d.body.source
+    return sourceHasOnlyHeader(d.kind, source)
+  }
   const serialize = getFamily(d.kind)?.serialize
   if (!serialize) return false
   try {
@@ -413,25 +426,6 @@ function flowchartShapeSubstitutionWarnings(d: ValidDiagram): LayoutWarning[] {
   return warnings
 }
 
-// Upstream's quadrant grammar accepts ANY `key: value` style entry and
-// applies only radius/color/stroke-color/stroke-width; unknown-but-safe
-// entries are preserved verbatim on the body (point-style.ts `extra`) and
-// never render. P4: name them instead of staying silent.
-function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
-  if (d.body.kind !== 'quadrant') return []
-  const inert = new Set<string>()
-  const collect = (style?: { extra?: string[] }) => {
-    for (const entry of style?.extra ?? []) inert.add(entry.slice(0, entry.indexOf(':')).trim())
-  }
-  for (const point of d.body.points) collect(point.style)
-  for (const style of Object.values(d.body.classDefs ?? {})) collect(style)
-  return [...inert].sort().map(property => ({
-    code: 'UNSUPPORTED_SYNTAX',
-    syntax: 'quadrant_style_property',
-    message: `Quadrant style property "${property}" is preserved in source for upstream compatibility but has no effect on rendered points (rendered properties: radius, color, stroke-color, stroke-width).`,
-  }))
-}
-
 /** Agentic Mermaid retains semicolon-separated Journey statements for
  * backwards compatibility, but pinned Mermaid rejects that spelling. Diagnose
  * the authored boundary rather than claiming its rendered tasks are native. */
@@ -478,6 +472,10 @@ function treemapNumericExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
  * the authored source, a rule may read a canonical line as authored. */
 const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined) => LayoutWarning[]>> = {
   architecture: architectureUnsupportedSyntaxWarnings,
+  block: blockUnsupportedSyntaxWarnings,
+  ishikawa: ishikawaUnsupportedSyntaxWarnings,
+  journey: journeyUnsupportedSyntaxWarnings,
+  requirement: requirementUnsupportedSyntaxWarnings,
   class: classUnsupportedSyntaxWarnings,
   er: erUnsupportedSyntaxWarnings,
   flowchart: flowchartUpstreamRejectedSyntaxWarnings,
@@ -697,7 +695,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
 
   const d = parsed as ValidDiagram
   const familySourceWarnings =
-    d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
+    d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
   const bareHeader = hasOnlyHeader(d)
   // The header starts the body, on the line after the authored wrapper.

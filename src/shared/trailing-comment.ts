@@ -10,6 +10,12 @@
 // `title Bob's chart %% note` stays text, as in Mermaid's lexers.
 const TOKEN_START = /[\s[({,:=]/
 
+/** Call only for a grammar-classified comment. Keep a directive-looking
+ * comment out of Mermaid's universal init-directive prepass. */
+export function writeMermaidComment(line: string): string {
+  return line.replace(/^(\s*%%)\{/, '$1 {')
+}
+
 /**
  * Offset of the `%%` that starts a trailing comment on one statement line, or
  * -1. A `%%` inside a "…" or '…' string (backslash escapes) is text, as is one

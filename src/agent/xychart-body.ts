@@ -96,7 +96,7 @@ export function parseXyChartBody(lines: readonly string[]): XyChartBody | null {
       ...(axis.categories !== undefined ? { categories: [...axis.categories] } : {}),
       ...(axis.rangeAuthored && axis.range !== undefined ? { range: { ...axis.range } } : {}),
     })
-    return {
+    const body: XyChartBody = {
       kind: 'xychart',
       ...(chart.title !== undefined ? { title: chart.title } : {}),
       ...(chart.accessibility?.title !== undefined ? { accessibilityTitle: chart.accessibility.title } : {}),
@@ -112,6 +112,8 @@ export function parseXyChartBody(lines: readonly string[]): XyChartBody | null {
         ...(series.pointLabels !== undefined ? { pointLabels: [...series.pointLabels] } : {}),
       })),
     }
+    renderXyChart(body)
+    return body
   } catch {
     return null
   }

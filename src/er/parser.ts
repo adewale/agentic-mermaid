@@ -181,7 +181,7 @@ function readErStyleText(text: string): Record<string, string> {
 export function writeErStyleText(style: Readonly<Record<string, string>>): string | undefined {
   let encoded = false
   const pairs: string[] = []
-  for (const [key, value] of Object.entries(style)) {
+  const part = (value: string): string | undefined => {
     let written = ''
     for (const char of value) {
       if (!ER_STYLE_UNREAD_RE.test(char) && char !== ',') { written += char; continue }
@@ -190,7 +190,12 @@ export function writeErStyleText(style: Readonly<Record<string, string>>): strin
       written += entity
       encoded = true
     }
-    pairs.push(`${key}:${written}`)
+    return written
+  }
+  for (const [key, value] of Object.entries(style)) {
+    const writtenKey = part(key), writtenValue = part(value)
+    if (writtenKey === undefined || writtenValue === undefined) return undefined
+    pairs.push(`${writtenKey}:${writtenValue}`)
   }
   return pairs.join(',') + (encoded ? ';' : '')
 }
@@ -294,7 +299,9 @@ export function isErKeywordName(id: string): boolean {
  * name: a keyword name, or one that starts with a number, which Mermaid's
  * lexer takes first (`2px` reads as `2` and `px`). */
 export function erNameNeedsQuotes(id: string): boolean {
-  return isErKeywordName(id) || (/^\d/.test(id) && !/^\d+(?:\.\d+)?$/.test(id))
+  // The cardinality `1` looks across line breaks for the next entity name.
+  // Quote its identity even in a standalone declaration before another line.
+  return id === '1' || isErKeywordName(id) || (/^\d/.test(id) && !/^\d+(?:\.\d+)?$/.test(id))
 }
 
 /** Offset of the `}` that ends an attribute block in `text`, or -1: the

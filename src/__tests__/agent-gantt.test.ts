@@ -21,7 +21,9 @@ import { asGantt } from '../agent/types.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { renderMermaidASCII as renderSourceASCII, renderMermaidSVG as renderSourceSVG } from '../index.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { useTestChildren } from './helpers/test-child.ts'
@@ -84,6 +86,58 @@ function shape(d: GanttValidDiagram) {
 }
 
 describe('gantt structured parse', () => {
+  test('literal directive words retain task meaning, dependencies, and dates through portable export and typed edits', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['call', 'Call', 'title', 'section', 'accDescription', 'ganttish', '2014-01-01a', 'call-me', 'href', 'accDescription #']) {
+        const source = `gantt\n  ${label}:a, 2024-01-01, 2d\n  Ship :ship, after a, 1d\n`
+        const diagram = gantt(source)
+        const exported = serializeMermaid(diagram)
+        expect(gantt(exported).body, label).toEqual(diagram.body)
+        const reference = await upstream.project(exported, d => d.db.getTasks().map((task: any) => ({
+          label: task.task.trim(), id: task.id, start: task.startTime.toISOString(), end: task.endTime.toISOString(),
+        })))
+        if (!reference.ok) throw new Error('Expected pinned Gantt tasks')
+        expect(reference.value.map((task: { label: string }) => ({ ...task, label: projectEntityMarkers(task.label) })), label).toEqual([
+          { label, id: 'a', start: '2024-01-01T00:00:00.000Z', end: '2024-01-03T00:00:00.000Z' },
+          { label: 'Ship', id: 'ship', start: '2024-01-03T00:00:00.000Z', end: '2024-01-04T00:00:00.000Z' },
+        ])
+        expect(renderSourceSVG(exported), label).toBe(renderSourceSVG(source))
+        expect(renderSourceASCII(exported), label).toBe(renderSourceASCII(source))
+        const edited = apply(gantt('gantt\n  Build :a, 2024-01-01, 2d\n  Ship :ship, after a, 1d\n'), { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label })
+        const reloaded = gantt(serializeMermaid(edited))
+        expect(reloaded.body.sections[0]!.tasks.map(task => [task.label, task.taskId, task.start, task.end])).toEqual([
+          [label, 'a', '2024-01-01', '2d'], ['Ship', 'ship', 'after a', '1d'],
+        ])
+        const schedule = resolveGanttSchedule(parseGanttModel(normalizeMermaidSource(serializeMermaid(reloaded)).lines))
+        expect(schedule.tasks.map(task => [task.start, task.end])).toEqual([
+          [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 3)], [Date.UTC(2024, 0, 3), Date.UTC(2024, 0, 4)],
+        ])
+      }
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('directive-like task text remains editable with its native schedule', async () => {
+    const source = 'gantt\n  Build :build, 2024-01-01, 2d\n  ki%%{wi :ship, after build, 1d\n'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+    if (parsed.value.body.kind !== 'gantt') throw new Error('Expected editable Gantt')
+    expect(parsed.value.body.kind).toBe('gantt')
+    const written = serializeMermaid(parsed.value)
+    expect(gantt(written).body).toEqual(parsed.value.body)
+    expect(renderMermaidSVG(parsed.value)).toBe(renderSourceSVG(source))
+    expect(renderSourceASCII(source)).toContain('ki%%{wi')
+    for (const op of [{ kind: 'set_title', title: '%%{literal' }, { kind: 'rename_section', index: 0, label: '%%{literal' }] as const) expect(mutate(gantt(), op).ok).toBe(false)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.publicAccepts(source)).toBe(false)
+      expect(await upstream.publicAccepts(written)).toBe(true)
+    } finally { upstream.close() }
+  })
+
   test.each(['alien content', 'topAxis :2024-01-01, 2d'])('preserves unsupported %s during an edit without drawing it as a task', unsupported => {
     const source = `gantt\n  Build :build, 2024-01-01, 2d\n  %% keep this note\n  ${unsupported}\n  Ship :ship, after build, 1d\n`
     const diagram = gantt(source)
@@ -253,7 +307,44 @@ describe('gantt structured parse', () => {
   })
 })
 
-describe('gantt whole-opaque fallback (structure-level failures)', () => {
+describe('gantt lexical text and structure-level failures', () => {
+  test('keyword-like task labels remain editable without changing scheduling or drawing', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['gantt', 'gantt-plan', 'ki%%{wi', '2014-01-01', '2014-01-01 later', 'href "', 'call worker', 'accDescription text']) {
+        const source = `gantt\n  Build :a, 2024-01-01, 2d\n  ${label}:b, after a, 1d\n  Ship :ship, after b, 1d\n`
+        expect(await upstream.accepts(source), label).toBe(false)
+        const parsed = parseMermaid(source)
+        if (!parsed.ok) throw new Error('Expected source-preserved Gantt')
+        if (parsed.value.body.kind !== 'gantt') throw new Error('Expected editable Gantt')
+        expect(parsed.value.body.kind, label).toBe('gantt')
+        const written = serializeMermaid(parsed.value)
+        expect(await upstream.accepts(written), written).toBe(true)
+        expect(gantt(written).body, label).toEqual(parsed.value.body)
+        const schedule = resolveGanttSchedule(parseGanttModel(normalizeMermaidSource(source).lines))
+        expect(schedule.tasks.map(task => [task.label, task.id, task.start, task.end]), label).toEqual([
+          ['Build', 'a', Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 3)],
+          [label, 'b', Date.UTC(2024, 0, 3), Date.UTC(2024, 0, 4)],
+          ['Ship', 'ship', Date.UTC(2024, 0, 4), Date.UTC(2024, 0, 5)],
+        ])
+        expect(renderMermaidSVG(parsed.value), label).toBe(renderSourceSVG(source))
+        expect(renderMermaidASCIIWithMeta(parsed.value, { useAscii: true, colorMode: 'none' }).ascii, label).toBe(renderSourceASCII(source, { useAscii: true, colorMode: 'none' }))
+        expect(verifyMermaid(parsed.value).warnings, label).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_task_label', line: 3 }))
+        expect(mutate(parsed.value, { kind: 'set_title', title: 'Changed' }).ok, label).toBe(true)
+        for (const op of [
+          { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label },
+          { kind: 'add_task', sectionIndex: 0, label, start: '2024-01-01', end: '1d' },
+        ] as const) {
+          const edited = mutate(gantt(), op)
+          expect(edited.ok, label).toBe(true)
+          if (edited.ok) expect(await upstream.accepts(serializeMermaid(edited.value)), label).toBe(true)
+        }
+      }
+    } finally {
+      upstream.close()
+    }
+  })
+
   const opaqueCases: Array<[string, string]> = [
     ['header suffix', 'gantt LR\n  Task :t1, 2024-01-01, 1d'],
     ['duplicate task ids', 'gantt\n  A :x, 2024-01-01, 1d\n  B :x, 2024-01-02, 1d'],
@@ -341,12 +432,10 @@ describe('gantt mutation ops (every declared op round-trips)', () => {
       [{ kind: 'remove_task', sectionIndex: 0, taskIndex: 9 }, 'TASK_NOT_FOUND'],
       [{ kind: 'add_task', sectionIndex: 9, label: 'X', end: '1d' }, 'SECTION_NOT_FOUND'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', taskId: 'core', end: '1d' }, 'DUPLICATE_TASK'],
-      [{ kind: 'add_task', sectionIndex: 0, label: 'Has : colon', end: '1d' }, 'INVALID_OP'],
+      [{ kind: 'add_task', sectionIndex: 0, label: 'Has\nnewline', end: '1d' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', end: 'has, comma' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', taskId: 'bad id', end: '1d' }, 'INVALID_OP'],
       [{ kind: 'add_task', sectionIndex: 0, label: 'X', end: '' }, 'INVALID_OP'],
-      [{ kind: 'add_task', sectionIndex: 0, label: 'section trap', end: '1d' }, 'INVALID_OP'],
-      [{ kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label: 'title trap' }, 'INVALID_OP'],
       [{ kind: 'set_title', title: '' }, 'INVALID_OP'],
       [{ kind: 'add_section', label: 'with : colon' }, 'INVALID_OP'],
     ]

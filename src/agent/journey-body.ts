@@ -16,6 +16,8 @@
 // unchanged — the legacy renderer keeps parsing canonical source.
 // ============================================================================
 
+import { toEntityMarkers } from '../shared/mermaid-entities.ts'
+import { readAuthoredGrammarAccessibility, writeGrammarText } from '../shared/grammar-text.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   JourneyBody, JourneySection, JourneyTask, JourneyMutationOp,
@@ -25,7 +27,7 @@ import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex, setOptionalField } from './body-utils.ts'
 import {
   walkJourneyLines, normalizeJourneyText, normalizeJourneyActor,
-  isValidJourneyScore, hasJourneyStatementDelimiter, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
+  isValidJourneyScore, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
 } from '../journey/parse-core.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -34,8 +36,44 @@ export type JourneyBodyParse =
   | { ok: true; body: JourneyBody }
   | { ok: false; issue: JourneyParseIssue }
 
+type JourneyTextField = 'title' | 'section' | 'task' | 'actor'
+
+function nonportableJourneyText(text: string, field: JourneyTextField): string | undefined {
+  if (text.includes(';') || (field === 'task' && (text.includes('#') || /^journey\b/i.test(text)))) {
+    return `Journey ${field} text "${text}" needs grammar escapes to preserve its literal text in pinned Mermaid`
+  }
+  return undefined
+}
+
+/** Diagnose authored tokens that require the field codec on export. */
+export function journeyUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
+  const lines = source.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*journey\b/i.test(line))
+  const warnings = new Map<number, LayoutWarning>()
+  const check = (text: string, field: JourneyTextField, lineIndex: number): void => {
+    const lexical = toEntityMarkers(lines[lineIndex] ?? '')
+    const problem = nonportableJourneyText(field === 'task' ? lexical.split(':', 1)[0]!.trim() : lexical, field)
+    if (field === 'section' && /^\s*section\s+[^\n]*:/i.test(lexical) && !warnings.has(lineIndex)) warnings.set(lineIndex, {
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'journey_section_colon', line: lineIndex + 1, message: `Section label ${JSON.stringify(text)} is read literally; the writer escapes its colon for pinned Mermaid.`,
+    })
+    if (problem && !warnings.has(lineIndex)) warnings.set(lineIndex, {
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'journey_nonportable_text', line: lineIndex + 1,
+      message: `${problem}. The writer protects this field with entity codes.`,
+    })
+  }
+  walkJourneyLines(lines, header + 1, {
+    title: (text, line) => check(text, 'title', line),
+    section: (text, line) => check(text, 'section', line),
+    task: (text, _score, actors, line) => {
+      check(text, 'task', line)
+      actors.forEach(actor => check(actor, 'actor', line))
+    },
+  })
+  return [...warnings.values()]
+}
+
 function formatJourneyInline(value: string): string {
-  return value.split(/\r?\n/).map(part => part.trim()).join('<br>')
+  return writeGrammarText(value.split(/\r?\n/).map(part => part.trim()).join('<br>'), ':;,%{}\\', /^(?:journey\b|title\s|section\s|accTitle\b|accDescr\b)/i)
 }
 
 /**
@@ -45,6 +83,7 @@ function formatJourneyInline(value: string): string {
  * opaque fallback can carry its reason.
  */
 export function parseJourneyBody(lines: string[], accessibility: import('./types.ts').Accessibility = {}): JourneyBodyParse {
+  accessibility = readAuthoredGrammarAccessibility(accessibility)
   const body: JourneyBody = {
     kind: 'journey',
     sections: [],
@@ -75,7 +114,7 @@ export function parseJourneyBody(lines: string[], accessibility: import('./types
       implicitSection().tasks.push({ id: `task-${tIdx++}`, text, score, actors })
     },
     issue: issue => {
-      firstIssue = issue
+      firstIssue ??= issue
       return 'stop'
     },
   })
@@ -95,7 +134,7 @@ export function renderJourney(body: JourneyBody): string {
     if (body.accessibilityDescription.includes('\n')) {
       lines.push('  accDescr {')
       for (const line of body.accessibilityDescription.split(/\r?\n/)) {
-        lines.push(`    ${line.trim()}`)
+        lines.push(`    ${formatJourneyInline(line.trim())}`)
       }
       lines.push('  }')
     } else {
@@ -105,7 +144,7 @@ export function renderJourney(body: JourneyBody): string {
   for (const section of body.sections) {
     if (section.label !== undefined) lines.push(`  section ${formatJourneyInline(section.label)}`)
     for (const task of section.tasks) {
-      const actors = task.actors.length > 0 ? `: ${task.actors.join(', ')}` : ''
+      const actors = task.actors.length > 0 ? `: ${task.actors.map(formatJourneyInline).join(', ')}` : ''
       lines.push(`    ${formatJourneyInline(task.text)}: ${task.score}${actors}`)
     }
   }
@@ -134,13 +173,13 @@ function makeIdAllocator(body: JourneyBody): (prefix: 'section' | 'task') => str
   return prefix => prefix === 'section' ? section() : task()
 }
 
-function normalizeOpText(value: string, field: string, opts: { allowColon?: boolean } = {}): Result<string, MutationError> {
+function normalizeOpText(value: string, field: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string` })
   const normalized = normalizeJourneyText(value)
-  if (!normalized || (!opts.allowColon && normalized.includes(':')) || hasJourneyStatementDelimiter(normalized)) {
+  if (!normalized) {
     return err({
       code: 'INVALID_OP',
-      message: `Journey ${field} must be non-empty${opts.allowColon ? '' : ', must not contain :'}, and must not contain statement-delimiter semicolons`,
+      message: `Journey ${field} must be non-empty`,
     })
   }
   return ok(normalized)
@@ -156,8 +195,8 @@ function normalizeAccessibilityOpText(
   if (value === null) return ok(undefined)
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Journey ${field} must be a string or null` })
   const normalized = normalizeJourneyText(value)
-  if (!normalized || /[{}]/.test(normalized) || hasJourneyStatementDelimiter(normalized)) {
-    return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty and must not contain statement-delimiter semicolons, {, or }` })
+  if (!normalized) {
+    return err({ code: 'INVALID_OP', message: `Journey ${field} must be non-empty` })
   }
   return ok(normalized)
 }
@@ -167,8 +206,8 @@ function normalizeActors(actors: string[] | undefined): Result<string[], Mutatio
   for (const raw of actors ?? []) {
     if (typeof raw !== 'string') return err({ code: 'INVALID_OP', message: 'Journey actor must be a string' })
     const normalized = normalizeJourneyActor(raw)
-    if (!normalized || normalized.includes(',') || hasJourneyStatementDelimiter(normalized)) {
-      return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty and must not contain commas or statement-delimiter semicolons' })
+    if (!normalized) {
+      return err({ code: 'INVALID_OP', message: 'Journey actor must be non-empty' })
     }
     out.push(normalized)
   }
@@ -184,7 +223,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
 
   switch (op.kind) {
     case 'set_title': {
-      const title = setOptionalField(next, 'title', op.title, value => normalizeOpText(value, 'title', { allowColon: true }))
+      const title = setOptionalField(next, 'title', op.title, value => normalizeOpText(value, 'title'))
       if (!title.ok) return title
       break
     }
@@ -329,7 +368,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     return err({ code: 'INVALID_OP', message: 'Journey edit cannot be represented losslessly by Mermaid syntax' })
   }
 
-  return ok(next)
+  return ok(reparsed.body)
 }
 
 function journeySemantics(body: JourneyBody): unknown {

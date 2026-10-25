@@ -7,6 +7,7 @@ import { err, ok } from './types.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { parseMutableStyleProps, serializeStyleProps } from '../shared/style-props.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
 
 export function parseRequirementBody(input: string[] | string, accessibility: Accessibility = {}): RequirementBody | null {
@@ -15,6 +16,7 @@ export function parseRequirementBody(input: string[] | string, accessibility: Ac
       ? input.replace(/^[^\r\n]*/, 'requirementDiagram')
       : ['requirementDiagram', ...input]
     const body = parseRequirementDiagram(source)
+    if (requirementStyleProblem(body)) return null
     body.accessibilityTitle = accessibility.title ?? body.accessibilityTitle
     body.accessibilityDescription = accessibility.descr ?? body.accessibilityDescription
     return body
@@ -30,6 +32,8 @@ function quoted(value: string): string {
   return `"${value.replace(/\r\n/g, '\r\r\n')}"`
 }
 export function renderRequirement(body: RequirementBody): string {
+  const problem = requirementStyleProblem(body)
+  if (problem) throw new Error(problem)
   const lines = ['requirementDiagram', `  direction ${body.direction}`]
   appendAccessibilityLines(lines, body)
   for (const def of body.classDefs) if (def.styles.length) lines.push(`  classDef ${def.id} ${def.styles.join(',')}`)
@@ -58,6 +62,29 @@ export function renderRequirement(body: RequirementBody): string {
   }
   for (const edge of body.relations) lines.push(`  ${quoted(edge.src)} - ${edge.type} -> ${quoted(edge.dst)}`)
   return lines.join('\n') + '\n'
+}
+
+function requirementStyleHasEntity(prefix: string, styles: string[]): boolean {
+  // Entity markers are not tokens in the style lexer. The public prepass
+  // can remove the final marker's semicolon after a property colon, so test
+  // the complete emitted style line rather than rejecting safe CSS colors.
+  return /#\w+;/.test(mermaidEntityPrepass(prefix + styles.join(',')).slice(prefix.length))
+}
+
+function requirementStyleProblem(body: RequirementBody): string | undefined {
+  const definition = body.classDefs.find(def => requirementStyleHasEntity(`classDef ${def.id} `, def.styles))
+  const node = [...body.requirements, ...body.elements].find(item => requirementStyleHasEntity(`style ${quoted(item.name)} `, item.directStyles ?? []))
+  const target = definition ? `classDef ${definition.id}` : node ? `style ${node.name}` : undefined
+  return target && `Requirement ${target} contains an entity-like style token that pinned Mermaid cannot read, so the authored source must be preserved`
+}
+
+export function requirementUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
+  try {
+    const problem = requirementStyleProblem(parseRequirementDiagram(cleanupMermaidSource(source).authoredPayloadText))
+    return problem ? [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'requirement_style_token', message: problem }] : []
+  } catch {
+    return []
+  }
 }
 function assertNode(node: Requirement | RequirementElement): void {
   if (typeof node.name !== 'string' || !node.name.trim()) throw new Error('Node name must be non-empty text')
@@ -150,6 +177,7 @@ export function mutateRequirement(body: RequirementBody, op: RequirementMutation
         break
       case 'define_class': {
         if (!/^\w+$/.test(op.name)) throw new Error('Class name must be a word')
+        if (requirementStyleHasEntity(`classDef ${op.name} `, [op.style])) throw new Error('Requirement class style contains an entity-like token that pinned Mermaid cannot read')
         const parsed = parseMutableStyleProps(op.style)
         if (!parsed.ok) throw new Error(`Invalid style: ${parsed.reason}`)
         const styles = serializeStyleProps(parsed.value).split(',')
@@ -168,6 +196,7 @@ export function mutateRequirement(body: RequirementBody, op: RequirementMutation
         const node = find(op.id)
         if (op.style === null) node.directStyles = []
         else {
+          if (requirementStyleHasEntity(`style ${quoted(node.name)} `, [op.style])) throw new Error('Requirement node style contains an entity-like token that pinned Mermaid cannot read')
           const parsed = parseMutableStyleProps(op.style)
           if (!parsed.ok) throw new Error(`Invalid style: ${parsed.reason}`)
           node.directStyles = serializeStyleProps(parsed.value).split(',')

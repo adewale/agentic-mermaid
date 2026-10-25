@@ -51,13 +51,12 @@ const MERMAID_ARROW_FOR_LOCAL = new Map([...LOCAL_ARROW_ALIASES].map(local => {
   return [local, mermaid]
 }))
 
-const arrowAlternatives = [...SEQUENCE_ARROW_HEADS.keys()]
-  .sort((a, b) => b.length - a.length)
+const sequenceArrowTokens = [...SEQUENCE_ARROW_HEADS.keys()].sort((a, b) => b.length - a.length)
+const arrowAlternatives = sequenceArrowTokens
   .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   .join('|')
 const SEQUENCE_MESSAGE_PREFIX_RE = new RegExp(String.raw`^(\S+?)(\(\))?\s*(${arrowAlternatives})`)
 const SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE = new RegExp(String.raw`^(\S+?)\s+(\(\))\s*(${arrowAlternatives})`)
-const SEQUENCE_SPACED_CENTRAL_ACTOR_RE = /^[\p{L}\p{N}_.$@]+$/u
 const SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS = new Set([
   'participant', 'actor', 'note', 'alt', 'else', 'loop', 'rect', 'opt',
   'par', 'and', 'end', 'activate', 'deactivate', 'autonumber', 'box',
@@ -75,6 +74,42 @@ const MERMAID_SEQUENCE_ACTOR_RE = /[^\/\\\+\()\+<\->\->:\n,;]+((?!(\-x|\-\-x|\-\
 function mermaidSequenceActorAt(line: string, index: number): string {
   MERMAID_SEQUENCE_ACTOR_RE.lastIndex = index
   return MERMAID_SEQUENCE_ACTOR_RE.exec(line)?.[0].trim() ?? ''
+}
+
+/** Keep the token's physical end separate from its trimmed identity. Spaces
+ * may belong inside an ACTOR token or precede the central-connection token. */
+interface SequenceMessagePrefix { from: string; arrow: string; end: number; centralStart: boolean; spacedCentral: boolean }
+
+function sequenceMessagePrefix(line: string): SequenceMessagePrefix | undefined {
+  MERMAID_SEQUENCE_ACTOR_RE.lastIndex = 0
+  const actor = MERMAID_SEQUENCE_ACTOR_RE.exec(line)
+  if (!actor) return undefined
+  let end = actor[0].length
+  const central = line.startsWith('()', end)
+  const spacedCentral = central && /\s$/.test(actor[0])
+  if (central) end += 2
+  while (end < line.length && /\s/.test(line[end]!)) end++
+  const arrow = sequenceArrowTokens.find(token => line.startsWith(token, end))
+  if (!arrow) return undefined
+  end += arrow.length
+  return { from: actor[0].trim(), arrow, end, centralStart: central, spacedCentral }
+}
+
+/** A typed writer must preserve an ID in the lexer state where it writes it.
+ * Declarations admit IDs such as `accDescr` and `%`; message references admit
+ * `@`, but cannot use a declaration keyword or consume the message colon. */
+export function sequenceActorIdCanSerialize(id: string, context: 'declaration' | 'sender' | 'receiver'): boolean {
+  if (!id || id.trim() !== id || /[\r\n]/.test(id) || id.startsWith('#')) return false
+  if (context === 'declaration') return !/[<>:,;@]/.test(id) && !id.includes('%%{')
+  if (id.startsWith('%') || id.includes('%%')) return false
+  const keyword = id.toLowerCase()
+  const leadingWord = /^(\w+)\s/.exec(keyword)?.[1]
+  if (leadingWord && SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(leadingWord)) return false
+  if (/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})(?=\s)/.test(id)) return false
+  if (SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(keyword)
+    && !['title', 'link', 'links', 'properties', 'details'].includes(keyword)) return false
+  if (context === 'receiver' && ['acctitle', 'accdescr'].includes(keyword)) return false
+  return mermaidSequenceActorAt(`${id}${context === 'sender' ? '->>Z:' : ':'}`, 0) === id
 }
 
 export interface ParsedSequenceMessageLine {
@@ -125,29 +160,33 @@ export function getSequenceBlockScope(block: Block): SequenceBlockScope | undefi
 
 /** One message-line grammar shared by renderer and agent parsers. */
 export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLine | null {
-  const adjacentMatch = line.match(SEQUENCE_MESSAGE_PREFIX_RE)
-  const spacedMatch = adjacentMatch ? null : line.match(SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE)
-  const match = adjacentMatch ?? spacedMatch
-  if (!match || !isMessageArrow(match[3]!)) return null
-  // Mermaid interprets punctuation-bearing sender prefixes differently here
-  // (or rejects them). Admit only IDs confirmed by the pinned oracle for this
-  // narrow whitespace form; broader Sequence identity grammar belongs to #264.
-  if (spacedMatch && (
-    !SEQUENCE_SPACED_CENTRAL_ACTOR_RE.test(match[1]!)
-    || /^(?:[0-9]+(?:\.[0-9]{1,2})?|\.[0-9]{1,2})$/.test(match[1]!)
-    || SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(match[1]!.toLowerCase())
+  let prefix = sequenceMessagePrefix(line)
+  if (!prefix) {
+    // Keep the reader's documented local arrow aliases. The official actor
+    // token may consume those characters rather than stop at the local arrow.
+    const adjacent = line.match(SEQUENCE_MESSAGE_PREFIX_RE)
+    const legacy = adjacent ?? line.match(SEQUENCE_SPACED_CENTRAL_START_PREFIX_RE)
+    if (legacy) prefix = { from: legacy[1]!, centralStart: Boolean(legacy[2]), arrow: legacy[3]!, end: legacy[0].length, spacedCentral: !adjacent }
+  }
+  if (!prefix || !isMessageArrow(prefix.arrow)) return null
+  const { from, arrow, centralStart, spacedCentral } = prefix
+  // Earlier lexer rules reserve numeric and statement-keyword prefixes in the
+  // whitespace form of a central connection; they are not ACTOR tokens here.
+  if (spacedCentral && (
+    /^(?:[0-9]+(?:\.[0-9]{1,2})?|\.[0-9]{1,2})$/.test(from)
+    || SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS.has(from.toLowerCase())
   )) return null
   // A single scan after the arrow admits optional spaces around Mermaid's
   // central-connection and activation markers. Avoid adjacent optional \s*
   // regex groups, which can backtrack quadratically on a long malformed line.
-  let tail = line.slice(match[0].length).trimStart()
+  let tail = line.slice(prefix.end).trimStart()
   const centralEnd = tail.startsWith('()')
   if (centralEnd) tail = tail.slice(2).trimStart()
   const activationMark = tail[0] === '+' || tail[0] === '-' ? tail[0] : undefined
   // The sender-spaced central grammar does not combine with an activation
   // marker. Mermaid rejects this shape, so do not silently promote it to a
   // verified native message.
-  if (spacedMatch && activationMark) return null
+  if (spacedCentral && activationMark) return null
   if (activationMark) tail = tail.slice(1).trimStart()
   const colon = tail.indexOf(':')
   if (colon < 1) return null
@@ -155,8 +194,8 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   // The text may be empty (`A->>B:`), as upstream's; so it is when a `#`
   // comment follows the colon (`A->>B: #a#`).
   const label = tail.slice(colon + 1).trimStart()
-  if (!to || /\s/.test(to)) return null
-  if (spacedMatch && (
+  if (!to) return null
+  if (spacedCentral && (
     /[+<>]/.test(to)
     || to.includes('()')
     || SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS.has(to.toLowerCase())
@@ -167,11 +206,10 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   // line, and what was meant is unclear: leave the statement unread. Where
   // Mermaid's sender runs on past our arrow, it reads another message.
   const sender = mermaidSequenceActorAt(line, 0)
-  if (sender.length <= match[1]!.length && (sender !== match[1] || mermaidSequenceActorAt(line, line.length - tail.length) !== to)) return null
-  const arrow = match[3]!
+  if (sender.length <= from.length && (sender !== from || mermaidSequenceActorAt(line, line.length - tail.length) !== to)) return null
   return {
-    from: match[1]!, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark,
-    to, label, centralStart: Boolean(match[2]), centralEnd,
+    from, arrow: MERMAID_ARROW_FOR_LOCAL.get(arrow) ?? arrow, activationMark,
+    to, label, centralStart, centralEnd,
     ...(LOCAL_ARROW_ALIASES.has(arrow) ? { localArrow: arrow } : {}),
   }
 }
@@ -755,13 +793,18 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     }
   }
   if (line.includes('@{')) return null
-  const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as(\s*)(.+))?$/i)
+  // The ID lexer recognizes an alias only after a single token. Otherwise
+  // its wider rule consumes the complete name, including internal spaces.
+  const ordinary = line.match(/^(participant|actor)\s+/i)
   if (!ordinary) return null
-  const id = ordinary[2]!
+  const rest = line.slice(ordinary[0].length)
+  const named = rest.match(/^(\S+?)\s+as(\s*)(.+)$/i)
+  if (!named && (!rest || /\s/.test(rest) && /[<>:\n,;@]/.test(rest))) return null
+  const id = named ? named[1]! : rest.trim()
   const keyword = ordinary[1]!.toLowerCase() as 'participant' | 'actor'
   return {
-    id, label: ordinary[4]?.trim() ?? id, type: keyword, keyword, aliased: ordinary[4] !== undefined,
-    ...(ordinary[3] === '' ? { unspacedAlias: true } : {}),
+    id, label: named?.[3]?.trim() ?? id, type: keyword, keyword, aliased: Boolean(named),
+    ...(named?.[2] === '' ? { unspacedAlias: true } : {}),
   }
 }
 

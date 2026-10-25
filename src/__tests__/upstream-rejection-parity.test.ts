@@ -80,7 +80,7 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
 ]
 
 // Unquoted quadrant text Mermaid's quadrant lexer does not read as text.
-const QUADRANT_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+const QUADRANT_READ_GENEROUSLY: ReadonlyArray<[...GenerousRow, ('quadrant' | 'opaque')?]> = [
   ['a < in an unquoted point label', 'quadrantChart\n  A < B: [0.3, 0.4]', 'A &lt; B', 'quadrant_unquoted_text', 2],
   ['a < in unquoted axis text', 'quadrantChart\n  x-axis Low < High', 'Low &lt; High', 'quadrant_unquoted_text', 2],
   ['a <br/> in an unquoted quadrant label', 'quadrantChart\n  quadrant-1 Grow<br/>fast', 'fast', 'quadrant_unquoted_text', 2],
@@ -88,7 +88,7 @@ const QUADRANT_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['parentheses in unquoted axis text', 'quadrantChart\n  y-axis Low (cheap) --> High', 'Low (cheap)', 'quadrant_unquoted_text', 2],
   ['a second arrow in axis text', 'quadrantChart\n  x-axis Low --> Mid --> High', 'Mid --&gt; High', 'quadrant_unquoted_text', 2],
   ['a colon in an unquoted quadrant label', 'quadrantChart\n  quadrant-1 Grow: fast', 'Grow: fast', 'quadrant_unquoted_text', 2],
-  ['a string after unquoted text', 'quadrantChart\n  title Growth\n  quadrant-1 Grow "fast"', 'Grow', 'quadrant_unquoted_text', 3],
+  ['a string after unquoted text', 'quadrantChart\n  title Growth\n  quadrant-1 Grow "fast"', 'Grow', 'quadrant_unquoted_text', 3, 'opaque'],
   // A keyword where a word can start is a token of its own upstream.
   ['a keyword in an unquoted quadrant label', 'quadrantChart\n  quadrant-1 Grow x-axis fast', 'Grow x-axis fast', 'quadrant_unquoted_text', 2],
   ['a quadrant keyword glued to a digit', 'quadrantChart\n  quadrant-1 a quadrant-12', 'a quadrant-12', 'quadrant_unquoted_text', 2],
@@ -411,13 +411,24 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect(readGenerously(source, text)).toEqual({ typed: 'class', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
 
-  test.each(QUADRANT_READ_GENEROUSLY)('quadrant: %s is read, drawn and reported', (_construct, source, text, syntax, line) => {
-    expect(readGenerously(source, text)).toEqual({ typed: 'quadrant', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+  test.each(QUADRANT_READ_GENEROUSLY)('quadrant: %s is read, drawn and reported', (_construct, source, text, syntax, line, typed = 'quadrant') => {
+    expect(readGenerously(source, text)).toEqual({ typed, draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+    if (typed === 'opaque') {
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    }
   })
 
   test.each(ARCHITECTURE_READ_GENEROUSLY)('architecture: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
-    expect(readGenerously(source, text)).toEqual({ typed: 'architecture', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+    // Titles can be quoted portably; these IDs and icons have no spelling
+    // that keeps their meaning, so they retain the authored source instead.
+    const typed = syntax === 'architecture_title' ? 'architecture' : 'opaque'
+    expect(readGenerously(source, text)).toEqual({ typed, draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok && typed === 'opaque') expect(serializeMermaid(parsed.value)).toBe(source + '\n')
   })
 
   test.each(XYCHART_READ_GENEROUSLY)('xychart: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
@@ -637,12 +648,12 @@ describe('accept what pinned Mermaid accepts', () => {
 
 // The typed C4 serializer writes each reader extension in a spelling pinned
 // Mermaid reads as ours reads the source: one statement per line, quoted and
-// named arguments. An empty boundary, a standalone direction and the legend
+// named arguments. A standalone direction and the legend
 // and tag directives have no such spelling, and Mermaid cannot read a body
 // holding a statement with no native interpretation: those are written as
 // authored.
 // [construct, source, kept as written]
-const C4_NO_MERMAID_SPELLING = new Set(['c4_empty_boundary', 'c4_direction', 'c4_directive_extension'])
+const C4_NO_MERMAID_SPELLING = new Set(['c4_direction', 'c4_directive_extension'])
 const C4_WRITTEN: ReadonlyArray<readonly [string, string, boolean]> = [
   ...C4_READ_GENEROUSLY.map(([construct, source, , syntax]) => [construct, source, C4_NO_MERMAID_SPELLING.has(syntax)] as const),
   ['a semicolon, statements on one line and a comment taking the line break', 'C4Context\n  Person(a, "A"); Person(b, "B") Person(c, "C") %% note\n  Rel(a, b, "uses");Rel(b, c, "calls")', false],

@@ -1,3 +1,4 @@
+import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { restoreBodyComments } from './body-comments.ts'
 // ============================================================================
 // serializeMermaid: ValidDiagram → canonical Mermaid source.
@@ -17,7 +18,6 @@ import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
 import {
-  mergeFrontmatterMaps,
   mermaidInitDirectiveIdentity,
   mermaidInitDirectives,
   stripMermaidInitDirectives,
@@ -38,7 +38,7 @@ export interface SerializeOptions {
    * 'canonical' synthesizes Mermaid's documented shape
    * instead: one frontmatter block with `title`/`displayMode` at the top
    * level and everything else nested under `config:`, init directives folded
-   * in (re-emitted raw only when their payload could not be folded), and
+   * in (invalid configuration must be repaired before canonical export), and
    * wrapper comments dropped. Diagrams without a captured wrapper (e.g.
    * synthesized from JSON payloads) always use canonical synthesis.
    */
@@ -62,7 +62,13 @@ export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}):
   const bodySource = mode === 'canonical'
     ? stripMermaidInitDirectives(preservedBody)
     : preservedBody
-  return wrapperPrefix(d.meta, mode, bodySource) + bodySource
+  // Family writers may use configuration for values their statement token
+  // cannot hold. Fold those directives after authored configuration, before
+  // removing them from the body, so canonical export retains their meaning.
+  const meta = mode === 'canonical'
+    ? { ...d.meta, initDirectives: [...d.meta.initDirectives, ...mermaidInitDirectives(preservedBody)] }
+    : d.meta
+  return wrapperPrefix(meta, mode, bodySource) + bodySource
 }
 
 /** The wrapper text to emit before the diagram body for the given policy. */
@@ -119,17 +125,12 @@ function postWrapperInitDirectives(meta: ValidDiagramMeta, bodySource: string): 
  * authored order. Re-emitting an earlier raw directive is never safe: even if
  * one of its fields remains live, another may have been overridden later, and
  * Mermaid would apply that stale raw value after the synthesized frontmatter.
- * Unparseable directives are preserved raw so canonicalization does not
- * silently lose syntax it cannot project.
+ * Unparseable directives fail canonical export; verbatim mode preserves
+ * their authored source for repair.
  */
 export function renderMeta(meta: ValidDiagramMeta): string {
   const parts: string[] = []
-  let effectiveFrontmatter = mergeFrontmatterMaps({}, meta.frontmatter ?? {})
-  for (const directive of meta.initDirectives) {
-    if (Object.keys(directive.parsed).length > 0) {
-      effectiveFrontmatter = mergeFrontmatterMaps(effectiveFrontmatter, directive.parsed)
-    }
-  }
+  const effectiveFrontmatter = canonicalWrapperConfig(meta)
   if (Object.keys(effectiveFrontmatter).length > 0) {
     const top: Record<string, unknown> = {}
     const config: Record<string, unknown> = {}
@@ -140,10 +141,6 @@ export function renderMeta(meta: ValidDiagramMeta): string {
     const doc: Record<string, unknown> = { ...top }
     if (Object.keys(config).length > 0) doc.config = config
     parts.push(`---\n${stringifyMermaidYaml(doc)}---\n`)
-  }
-  for (const d of meta.initDirectives) {
-    if (Object.keys(d.parsed).length > 0) continue
-    parts.push(d.raw.trimEnd() + '\n')
   }
   return parts.join('')
 }

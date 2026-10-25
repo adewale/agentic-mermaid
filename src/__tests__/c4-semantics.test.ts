@@ -114,7 +114,9 @@ Rel(e,r,"Nested endpoints")`
     expect(body.boundaries.at(-2)).toMatchObject({ alignment: 'left' })
     expect(body.relationships[0]).toMatchObject({ source: 'e', target: 'r' })
     expect(body.diagnostics.some(diagnostic => diagnostic.message.includes('empty boundary'))).toBe(true)
-    expect(renderC4(body)).toBe(source)
+    const written = renderC4(body)
+    expect(written).toContain('UpdateLayoutConfig("")')
+    expect(parseC4Diagram(written).boundaries).toEqual(body.boundaries)
   })
 
   test('ordered repeated relationships retain authored and effective endpoints and index', () => {
@@ -154,7 +156,12 @@ UpdateLayoutConfig($c4BoundaryInRow="2",$c4ShapeInRow="3")`
     expect(body.elements[0]).toMatchObject({ label: 'A, (B) {C} %% text', description: 'First\nSecond', tags: ['public', 'important'], link: 'https://example.com' })
     expect(body.elements[1]).toMatchObject({ technology: 'SQL', description: 'Stores "quoted" values', style: { bgColor: '#ffffff', fontColor: '#111111', borderColor: '#336699' } })
     expect(body.layout).toMatchObject({ shapesPerRow: 3, boundariesPerRow: 2 })
-    expect(renderC4(body)).toBe(source)
+    const written = renderC4(body)
+    const reloaded = readC4Source(written)
+    expect(reloaded.elements[0]).toMatchObject({ label: 'A, (B) {C} %% text', description: 'First\nSecond', tags: ['public', 'important'], link: 'https://example.com' })
+    expect(reloaded.elements[1]).toMatchObject({ technology: 'SQL', description: 'Stores "quoted" values', style: { bgColor: '#ffffff', fontColor: '#111111', borderColor: '#336699' } })
+    expect(reloaded.layout).toMatchObject({ shapesPerRow: 3, boundariesPerRow: 2 })
+    expect(written).toContain('$tags="public+important"')
   })
 
   test('display breaks are interpreted before entities; IDs and links never interpret display syntax', () => {
@@ -285,6 +292,82 @@ UpdateElementStyle(g,$borderColor="navy")`
     expect(body.directives).toHaveLength(0)
   })
 
+  test('layout no-ops construct a real attribute without inventing settings or children', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const source = 'C4Context\nUpdateLayoutConfig("5","3")\nSystem(a,"A")'
+      for (const noop of ['UpdateLayoutConfig()', 'UpdateLayoutConfig ( )', 'UpdateLayoutConfig("")']) {
+        const body = readC4Source(`${source}\n${noop}`)
+        expect(body.directives).toHaveLength(1)
+        expect(body.layout).toMatchObject({ shapesPerRow: 5, boundariesPerRow: 3 })
+        expect(body.diagnostics.some(item => item.syntax === 'c4_empty_layout_arguments')).toBe(noop !== 'UpdateLayoutConfig("")')
+        const written = renderC4(body)
+        expect(await upstream.publicAccepts(written), written).toBe(true)
+        expect(readC4Source(written).diagnostics).toEqual([])
+        expect(readC4Source(written).elements.map(node => node.id)).toEqual(['a'])
+        expect(renderC4(readC4Source(written))).toBe(written)
+      }
+      const edited = edit(readC4Source(source), { kind: 'add_directive', name: 'UpdateLayoutConfig', args: [] })
+      expect(edited.directives).toHaveLength(1)
+      expect(edited.layout).toMatchObject({ shapesPerRow: 5, boundariesPerRow: 3 })
+      const result = await upstream.project(renderC4(edited), diagram => ({ shapes: diagram.db.getC4ShapeInRow(), boundaries: diagram.db.getC4BoundaryInRow() }))
+      expect(result).toEqual({ ok: true, value: { shapes: 5, boundaries: 3 } })
+    } finally { upstream.close() }
+  })
+
+  test('directive constructors retain logical fields across positional runtime slots', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const source = 'C4Context\nUpdateLayoutConfig("5","3")\nSystem(a,"A")\nSystem(b,"B")\nRel(a,b,"Uses")'
+      for (const args of [
+        [{ name: 'c4BoundaryInRow', value: '2' }],
+        [{ name: 'c4BoundaryInRow', value: '2' }, { name: 'c4ShapeInRow', value: '4' }],
+      ]) {
+        const body = edit(readC4Source(source), { kind: 'add_directive', name: 'UpdateLayoutConfig', args })
+        const written = renderC4(body)
+        const result = await upstream.project(written, diagram => ({ shapes: diagram.db.getC4ShapeInRow(), boundaries: diagram.db.getC4BoundaryInRow() }))
+        expect(result).toEqual({ ok: true, value: { shapes: args.length === 1 ? 5 : 4, boundaries: 2 } })
+        expect(body.layout).toMatchObject({ shapesPerRow: args.length === 1 ? 5 : 4, boundariesPerRow: 2 })
+        expect(body.directives.at(-1)!.args.map(arg => arg.name)).toEqual([undefined, undefined])
+      }
+      let body = edit(readC4Source(source), { kind: 'add_directive', name: 'UpdateElementStyle', args: [{ name: 'fontColor', value: 'blue' }, { name: 'elementName', value: 'a' }, { name: 'bgColor', value: 'red' }] })
+      body = edit(body, { kind: 'add_directive', name: 'UpdateRelStyle', args: [{ name: 'to', value: 'b' }, { name: 'lineColor', value: 'green' }, { name: 'from', value: 'a' }] })
+      expect(body.elements[0]!.style).toMatchObject({ bgColor: 'red', fontColor: 'blue' })
+      expect(body.relationships[0]!.style).toMatchObject({ lineColor: 'green' })
+      const result = await upstream.project(renderC4(body), diagram => ({
+        element: diagram.db.getC4ShapeArray('global')[0], relationship: diagram.db.getRels()[0],
+      }))
+      expect(result.ok).toBe(true)
+      if (!result.ok) throw new Error(result.error)
+      expect(result.value.element).toMatchObject({ alias: 'a', bgColor: 'red', fontColor: 'blue' })
+      expect(result.value.relationship).toMatchObject({ from: 'a', to: 'b', lineColor: 'green' })
+    } finally { upstream.close() }
+  })
+
+  test('named declaration identities cannot leak objects into positional runtime slots', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const source = 'C4Container\nBoundary($label="Group",$alias="g") {\nSystem($label="Alpha",$alias="a")\nContainer(b,"Beta",$techn="HTTP")\nRel($label="Uses",$to="b",$from="a")\n}'
+      const body = readC4Source(source)
+      const written = renderC4(body)
+      const result = await upstream.project(written, diagram => ({
+        groups: diagram.db.getBoundaries().map((group: any) => ({ id: group.alias, label: group.label.text, parent: group.parentBoundary })),
+        nodes: diagram.db.getC4ShapeArray('g').map((node: any) => ({ id: node.alias, label: node.label.text, parent: node.parentBoundary })),
+        edges: diagram.db.getRels().map((edge: any) => ({ from: edge.from, to: edge.to, label: edge.label.text })),
+      }))
+      expect(result).toEqual({ ok: true, value: {
+        groups: [{ id: 'global', label: 'global', parent: '' }, { id: 'g', label: 'Group', parent: 'global' }],
+        nodes: [{ id: 'a', label: 'Alpha', parent: 'g' }, { id: 'b', label: 'Beta', parent: 'g' }],
+        edges: [{ from: 'a', to: 'b', label: 'Uses' }],
+      } })
+      const reloaded = readC4Source(written)
+      expect(reloaded.boundaries.map(node => [node.id, node.label, node.parentId])).toEqual([['g', 'Group', undefined]])
+      expect(reloaded.elements.map(node => [node.id, node.label, node.parentId])).toEqual([['a', 'Alpha', 'g'], ['b', 'Beta', 'g']])
+      expect(reloaded.relationships.map(edge => [edge.from, edge.to, edge.label])).toEqual([['a', 'b', 'Uses']])
+      expect(renderC4(reloaded)).toBe(written)
+    } finally { upstream.close() }
+  })
+
   test('failed operations are atomic and cannot smuggle fields or invalid directives', () => {
     const body = parseC4Diagram(source), before = renderC4(body)
     const ops = [
@@ -339,6 +422,54 @@ UpdateElementStyle(g,$borderColor="navy")`
       expect(projectEntityMarkers(breakLineTags(result.value.elements[0].label))).toBe(label)
       expect(projectEntityMarkers(result.value.elements[3].label)).toBe('\u3000 Padded label ')
       expect(result.value.relationships.map((record: { from: string; to: string; label: string }) => ({ from: projectEntityMarkers(record.from), to: projectEntityMarkers(record.to), label: projectEntityMarkers(record.label) }))).toEqual([{ from: '資料 é 👩‍💻', to: 'A\nB', label: 'Quoted "edge"' }])
+    } finally { upstream.close() }
+  })
+
+
+  test('new directive-like C4 argument text keeps exact identities and values in portable output', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const original = 'C4Context\nPerson(a,"A")\nSystem(b,"B")\nRel(a,b,"Uses")'
+      for (const text of ['%%{text', 'prefix %%{init: {}}%% suffix', '%%{literal #37; and "quote"']) {
+        let body = readC4Source(original)
+        body = edit(body, { kind: 'update_element', id: 'a', changes: { label: text, description: text, link: text } })
+        body = edit(body, { kind: 'rename_element', from: 'a', to: text })
+        body = edit(body, { kind: 'update_relationship', id: body.relationships[0]!.id, changes: { label: text, technology: text } })
+        body = edit(body, { kind: 'set_title', title: text })
+        const written = renderC4(body)
+        // The public prepass sees directive openers before quoted arguments.
+        // The same worker must recover from that rejected source and parse
+        // the corrected export with its literal text intact.
+        expect(await upstream.publicAccepts('C4Context\nPerson(a,"%%{text")')).toBe(false)
+        expect(await upstream.publicAccepts(written), written).toBe(true)
+        expect(written).toContain('System(b,"B")')
+        const reloaded = readC4Source(written)
+        expect(reloaded.elements[0]).toMatchObject({ id: text, label: text, description: text, link: text })
+        expect(reloaded.relationships[0]).toMatchObject({ from: text, to: 'b', label: text, technology: text })
+        expect(reloaded.title).toBe(text)
+        const upstreamValues = await upstream.project(written, diagram => ({
+          element: diagram.db.getC4ShapeArray('global')[0],
+          relationship: diagram.db.getRels()[0],
+          title: diagram.db.getTitle(),
+        }))
+        expect(upstreamValues.ok).toBe(true)
+        if (!upstreamValues.ok) throw new Error(upstreamValues.error)
+        expect(projectEntityMarkers(upstreamValues.value.element.alias)).toBe(text)
+        expect(projectEntityMarkers(upstreamValues.value.element.label.text)).toBe(text)
+        expect(projectEntityMarkers(upstreamValues.value.relationship.from)).toBe(text)
+        expect(projectEntityMarkers(upstreamValues.value.relationship.label.text)).toBe(text)
+        expect(projectEntityMarkers(upstreamValues.value.title)).toBe(text)
+        const publicParsed = parseRegisteredMermaid(written)
+        expect(publicParsed.ok).toBe(true)
+        if (!publicParsed.ok) throw new Error(JSON.stringify(publicParsed.error))
+        expect(publicParsed.value.body.kind).toBe('c4')
+        expect(renderMermaidSVG(publicParsed.value)).toBe(renderMermaidSVG(written))
+        expect(renderMermaidASCII(publicParsed.value)).toBe(renderMermaidASCII(written))
+      }
+      const authored = 'C4Context\nPerson(a,"%%{text")'
+      const portable = renderC4(readC4Source(authored))
+      expect(await upstream.publicAccepts(portable)).toBe(true)
+      expect(readC4Source(portable).elements[0]).toMatchObject({ id: 'a', label: '%%{text' })
     } finally { upstream.close() }
   })
 

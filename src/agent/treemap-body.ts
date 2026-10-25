@@ -7,26 +7,36 @@ import { labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { hierarchyDescendants, validateHierarchy } from '../shared/hierarchy-model.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
+import { writeGrammarText } from '../shared/grammar-text.ts'
 
 export function parseTreemapBody(lines: string[]): TreemapBody | null {
   try {
-    return parseTreemapDiagram(['treemap', ...lines])
+    const body = parseTreemapDiagram(['treemap', ...lines])
+    renderTreemap(body)
+    return body
   } catch {
     return null
   }
 }
 
 function quoted(value: string): string {
-  if (!value.includes('"')) return `"${value.replace(/\r?\n/g, '<br/>')}"`
-  if (!value.includes("'")) return `'${value.replace(/\r?\n/g, '<br/>')}'`
-  throw new Error('Treemap labels must be representable in single or double quotes')
+  return `"${treemapText(value, '"%')}"`
+}
+
+function treemapText(value: string, reserved: string): string {
+  // Newlines are text, as are authored <br/> and entity-looking strings.
+  // Escape after the hash layer, then read once after token classification.
+  return writeGrammarText(value, reserved).replace(/\r/g, '#13;').replace(/\n/g, '#10;')
 }
 
 export function renderTreemap(body: TreemapBody): string {
   validateHierarchy(body.nodes)
   const lines = ['treemap']
-  appendAccessibilityLines(lines, body)
-  if (body.title !== undefined) lines.push(`title ${body.title.replace(/\r?\n/g, '<br/>')}`)
+  appendAccessibilityLines(lines, {
+    ...(body.accessibilityTitle !== undefined ? { accessibilityTitle: writeGrammarText(body.accessibilityTitle, ':;,%{}') } : {}),
+    ...(body.accessibilityDescription !== undefined ? { accessibilityDescription: writeGrammarText(body.accessibilityDescription, ':;,%{}') } : {}),
+  })
+  if (body.title !== undefined) lines.push(`title ${treemapText(body.title, '%')}`)
   const children = new Map<string | undefined, typeof body.nodes>()
   for (const node of body.nodes) {
     const list = children.get(node.parentId) ?? []
@@ -42,12 +52,16 @@ export function renderTreemap(body: TreemapBody): string {
     lines.push(`${'  '.repeat(depth)}${quoted(node.label)}${value === undefined ? '' : `: ${value}`}${node.className ? `:::${node.className}` : ''}`)
     for (const child of [...(children.get(node.id) ?? [])].reverse()) pending.push({ node: child, depth: depth + 1 })
   }
-  for (const [name, props] of Object.entries(body.classDefs))
+  for (const [name, props] of Object.entries(body.classDefs)) {
+    // The pinned CLASS_DEF token requires at least two name characters;
+    // references use the separate, single-character-capable ID2 token.
+    if (!/^[A-Za-z_]\w+$/.test(name)) throw new Error('Treemap class definitions require at least two identifier characters')
     lines.push(
       `classDef ${name} ${Object.entries(props)
         .map(([key, value]) => `${key}:${value}`)
         .join(',')};`,
     )
+  }
   return lines.join('\n') + '\n'
 }
 

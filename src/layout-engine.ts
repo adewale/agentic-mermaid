@@ -1793,6 +1793,7 @@ function extractNodesAndGroups(
         nodes.push({
           id: child.id,
           label: mNode.label,
+          ...(mNode.semanticRole ? { semanticRole: mNode.semanticRole } : {}),
           ...(mNode.labelContent ? { labelContent: mNode.labelContent } : {}),
           ...(mNode.labelBlock ? { labelBlock: mNode.labelBlock } : {}),
           shape: mNode.shape,

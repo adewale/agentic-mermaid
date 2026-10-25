@@ -4,6 +4,7 @@ import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
 import { stripTrailingComment } from '../shared/trailing-comment.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import type { TreemapBody, TreemapNode } from './types.ts'
+import { readAuthoredGrammarAccessibility, readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
 
 /** Flat authored order is retained independently of value-sorted placement. */
 export function parseTreemapDiagram(input: string | readonly string[]): TreemapBody {
@@ -12,7 +13,7 @@ export function parseTreemapDiagram(input: string | readonly string[]): TreemapB
   const lines = scanned.familyLines
   const first = lines.findIndex(line => line.trim() && !line.trim().startsWith('%%'))
   if (!/^treemap(?:-beta)?\s*$/i.test(stripTrailingComment(lines[first]?.trim() ?? ''))) throw new Error('Treemap source must start with treemap')
-  const body: TreemapBody = { kind: 'treemap', nodes: [], classDefs: Object.create(null), ...accessibilityFields(scanned.accessibility) }
+  const body: TreemapBody = { kind: 'treemap', nodes: [], classDefs: Object.create(null), ...accessibilityFields(readAuthoredGrammarAccessibility(scanned.accessibility)) }
   const stack: { indent: number; node: TreemapNode }[] = []
   for (let i = first + 1; i < lines.length; i++) {
     const raw = lines[i]!
@@ -21,7 +22,7 @@ export function parseTreemapDiagram(input: string | readonly string[]): TreemapB
     observeParserStatement('treemap', 'statement', raw, { line: i + 1, unit: 'normalized' })
     const title = /^title(?:\s+(.*))?$/i.exec(line)
     if (title) {
-      body.title = title[1] ?? ''
+      body.title = readGrammarText(readGrammarAuthoredText(title[1] ?? ''), '\r\n')
       observeParserMutation('treemap', 'set-title', body.title)
       continue
     }
@@ -46,7 +47,7 @@ export function parseTreemapDiagram(input: string | readonly string[]): TreemapB
       const value = match[3] === undefined ? undefined : Number(match[3].replace(/[,_]/g, ''))
       assertDiagramWorkLimit('nesting', stack.length + (value === undefined ? 1 : 0))
       if (value !== undefined && (!Number.isFinite(value) || value < 0)) throw new Error(`Invalid Treemap value at line ${i + 1}`)
-      const node: TreemapNode = { id: `treemap-${body.nodes.length}`, label: match[1] ?? match[2]!, ...(parentId ? { parentId } : {}), ...(value === undefined ? {} : { value }), ...(match[4] ? { className: match[4] } : {}) }
+      const node: TreemapNode = { id: `treemap-${body.nodes.length}`, label: readGrammarText(readGrammarAuthoredText(match[1] ?? match[2]!), '\r\n'), ...(parentId ? { parentId } : {}), ...(value === undefined ? {} : { value }), ...(match[4] ? { className: match[4] } : {}) }
       body.nodes.push(node)
       if (parserObservationActive('treemap')) observeParserMutation('treemap', 'add-node', node, { line: i + 1, column: indent + line.length - remaining.length + 1, unit: 'normalized' })
       if (value === undefined) stack.push({ indent: rowIndent, node })

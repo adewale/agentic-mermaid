@@ -1,11 +1,7 @@
 import { syntaxError } from '../shared/syntax-error.ts'
 
 /** Shared Timeline line grammar consumed by the renderer and agent parsers. */
-export function normalizeTimelineBreaks(value: string): string {
-  // Pinned Mermaid Timeline forces a line break only for this exact spelling.
-  // Other tags, literal backslash-n, quotes, and Markdown remain authored text.
-  return value.replace(/<br>/g, '\n')
-}
+export { normalizeTimelineBreaks } from './text.ts'
 
 export type TimelineHeader =
   | { readonly kind: 'supported'; readonly direction?: 'LR' | 'TD'; readonly hasInlineComment: boolean }

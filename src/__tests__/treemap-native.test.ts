@@ -399,3 +399,32 @@ describe('native Treemap', () => {
     expect(verifyMermaid(parsed.value).ok).toBe(false)
   })
 })
+
+
+test('Treemap source-only labels and definition names retain hierarchy and refuse lossy typed edits', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const suffix of ['"%%{literal": 2', '"Leaf": 2\nclassDef i fill:#f96;']) {
+      const source = `treemap\n"Root"\n  ${suffix}\n`
+      expect(await upstream.publicAccepts(source)).toBe(false)
+      const result = parseRegisteredMermaid(source)
+      expect(result.ok).toBe(true)
+      if (!result.ok) throw Error(JSON.stringify(result.error))
+      const portableText = suffix.startsWith('"%%{')
+      expect(result.value.body.kind).toBe(portableText ? 'treemap' : 'opaque')
+      if (portableText) expect(await upstream.publicAccepts(serializeMermaid(result.value))).toBe(true)
+      else expect(serializeMermaid(result.value)).toBe(source)
+      expect(renderMermaidSVG(result.value)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(result.value)).toBe(renderMermaidASCII(source))
+      expect(parseTreemapDiagram(source).nodes[1]?.parentId).toBe('treemap-0')
+      expect(mutate(result.value, { kind: 'set_label', id: 'treemap-1', label: 'Changed' }).ok).toBe(portableText)
+    }
+    const result = parseRegisteredMermaid('treemap\n"Root"\n  "Leaf": 2:::i\nclassDef ii fill:#f96;')
+    if (!result.ok) throw Error(JSON.stringify(result.error))
+    expect(result.value.body.kind).toBe('treemap')
+    expect(await upstream.publicAccepts(serializeMermaid(result.value))).toBe(true)
+    expect(mutate(result.value, { kind: 'define_class', name: 'i', style: 'fill:#f96' }).ok).toBe(false)
+    expect(mutate(result.value, { kind: 'set_label', id: 'treemap-1', label: '%%{literal' }).ok).toBe(true)
+  } finally { upstream.close() }
+})

@@ -5,9 +5,11 @@
 //   (i)   upstream accepts every generated source — validates the generator;
 //   (ii)  parseRegisteredMermaid accepts it as a structured flowchart;
 //   (iii) vertices, edges (endpoints, stroke, arrowheads, label) and subgraphs
-//         agree with upstream's flowchart DB;
+//         agree with the real upstream grammar builder operands before sanitization;
 //   (iv)  parse → serialize → re-parse preserves all of the above;
-//   (v)   upstream reads the serialized source as the same diagram.
+//   (v)   upstream accepts the export and retains those authored operands.
+// This is a grammar contract, not equality with HTML sanitized by DOMPurify;
+// the live builder wrappers observe inputs and always call the real methods.
 //
 // Upstream runs in a child process (helpers/upstream-mermaid.ts), so the async
 // property keeps shrinking against it: a disagreement is reported as a minimal
@@ -346,16 +348,53 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(verifyMermaid(written).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
   })
 
+  // Observe label operands at the real builder boundary while still calling
+  // every original method, including DOMPurify. Grammar parity concerns the
+  // author's tokens; sanitized DB text is deliberately lossy for e.g. `<a`.
+  async function grammarParse(source: string): Promise<UpstreamParse> {
+    const result = await upstream.project(source, async diagram => {
+      const db = diagram.db
+      const vertices = new Map<string, string>(), edges: string[] = [], groups = new Map<string, string>()
+      const vertex = db.addVertex, link = db.addSingleLink, group = db.addSubGraph
+      db.clear()
+      db.addVertex = function (...args: any[]) {
+        if (args[1] !== undefined) vertices.set(args[0], args[1].text.trim())
+        return vertex.apply(db, args)
+      }
+      db.addSingleLink = function (...args: any[]) {
+        edges.push((args[2].text?.text ?? '').trim().replace(/^"([\s\S]*)"$/, '$1'))
+        return link.apply(db, args)
+      }
+      db.addSubGraph = function (...args: any[]) {
+        const id = group.apply(db, args)
+        if (!groups.has(id)) groups.set(id, args[2].text.trim())
+        return id
+      }
+      try {
+        await diagram.parser.parse(diagram.text)
+        return {
+          type: diagram.type,
+          flowchart: {
+            vertices: [...db.getVertices().values()].map((node: any) => ({ id: node.id, type: node.type, text: vertices.get(node.id) ?? node.text })),
+            edges: db.getEdges().map((edge: any, index: number) => ({ start: edge.start, end: edge.end, type: edge.type, stroke: edge.stroke, text: edges[index] ?? edge.text })),
+            subgraphs: db.getSubGraphs().map((node: any) => ({ id: node.id, title: groups.get(node.id) ?? node.title, nodes: node.nodes })),
+          },
+        }
+      } finally { db.addVertex = vertex; db.addSingleLink = link; db.addSubGraph = group }
+    })
+    return result.ok ? { ok: true, ...result.value } : result
+  }
+
   test('(i)–(v) upstream and our parser agree on every generated flowchart', async () => {
     await fc.assert(
       fc.asyncProperty(sourceArb, async source => {
-        const upstreamParse = await upstream.parse(source)
+        const upstreamParse = await grammarParse(source)
         // (i) the generator only produces Mermaid 12.2.0 flowcharts.
         expect({ source, upstream: upstreamParse.ok ? 'accepted' : upstreamParse.error }).toEqual({ source, upstream: 'accepted' })
         if (!upstreamParse.ok) return
         // (ii) our public parser accepts it as a structured flowchart.
         const graph = parseOurs(source)
-        // (iii) the same vertices, edges and subgraphs as upstream's DB, and
+        // (iii) the same authored vertices, edges and subgraphs as upstream's live builder calls, and
         // the faithfulness counter reports upstream's counts.
         const expected = theirs(upstreamParse)
         expect({ source, ...ours(graph) }).toEqual({ source, ...expected })
@@ -371,12 +410,12 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
         expect({ serialized, ...ours(parseOurs(serialized)) }).toEqual({ serialized, ...expected })
         const reparsed = parseRegisteredMermaid(serialized)
         expect(reparsed.ok && countStructuralElements(reparsed.value)).toEqual(countStructuralElements(parsed.value))
-        // (v) the serialized source is Mermaid that upstream reads the same way.
-        const upstreamReparse = await upstream.parse(serialized)
+        // (v) the real parser accepts the export and retains the authored builder operands.
+        const upstreamReparse = await grammarParse(serialized)
         expect({ serialized, upstream: upstreamReparse.ok ? theirs(upstreamReparse) : upstreamReparse.error })
           .toEqual({ serialized, upstream: expected })
       }),
-      fcParameters({ numRuns: 100 }),
+      fcParameters({ numRuns: 100, examples: [['flowchart TB\n  A[alpha] -->|"<a"| A']] }),
     )
   }, 20_000)
 

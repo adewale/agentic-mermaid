@@ -56,10 +56,9 @@ export interface QuadrantPointStyle {
   color?: string
   strokeColor?: string
   strokeWidth?: string
-  /** Unknown-but-safe `key: value` entries, verbatim in source order.
-   *  Upstream's jison grammar accepts any entry and applies only the four
-   *  properties above; these round-trip losslessly, never render, and are
-   *  named by verify's quadrant_style_property diagnostic. */
+  /** Native extension: unknown-but-safe `key: value` entries, verbatim in
+   * source order. These stay inert and source-preserved; pinned Mermaid
+   * rejects them, as verify's quadrant_style_property diagnostic explains. */
   extra?: string[]
 }
 
@@ -139,11 +138,8 @@ export function parsePointStyleEntries(tail: string, subject = 'quadrant point s
         break
       }
       default: {
-        // Upstream accepts any `key: value` entry and applies only the four
-        // known properties (its parser suite pins `classDef constructor
-        // fill:#ff0000`). Safe values are preserved verbatim and stay inert;
-        // unsafe characters remain a hard error (the value would land in a
-        // style="" attribute on serialize).
+        // Safe native extensions stay preserved and inert. The structured
+        // writer refuses them because pinned Mermaid rejects unknown keys.
         if (!SAFE_EXTRA_VALUE_RE.test(value)) return { ok: false, error: `style property "${key}" has unsupported characters: "${value}"` }
         style.extra = style.extra ?? []
         style.extra.push(`${key}: ${value}`)

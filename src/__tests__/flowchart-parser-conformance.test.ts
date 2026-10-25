@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
-import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidASCII } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { applyOps } from '../agent/core.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
@@ -24,6 +24,58 @@ function parseAgent(source: string) {
 }
 
 describe('flowchart parser conformance safety floor (issue #36)', () => {
+  test.each([
+    '%% keep this comment\nflowchart TD\nclass',
+    'flowchart TD\nclassDef\nstyle',
+    'graph TB;subgraph s;graph;end',
+    'graph TD\nA-->B\nlinkStyle==>t',
+    'flowchart TD\nclass-name[Task] --> B',
+    'flowchart TD\nsubgraph class[Phase]\nA\nend\nclass --> B',
+  ])('keyword vertex identities stay native and source-preserved: %s', async source => {
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+      const diagram = parseAgent(source)
+      expect(diagram.body.kind).toBe('opaque')
+      expect(serializeMermaid(diagram)).toBe(`${source}\n`)
+      expect(renderMermaidSVG(diagram)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(diagram)).toBe(renderMermaidASCII(source))
+      const edited = mutate(diagram, { kind: 'set_direction', direction: 'LR' })
+      expect(edited.ok).toBe(false)
+      if (!edited.ok) expect(edited.error.code).toBe('INVALID_OP')
+    } finally { upstream.close() }
+  })
+
+  test('portable keyword neighbours and group-only keyword ids keep typed authoring', async () => {
+    const source = 'flowchart TD\nsubgraph class[Phase]\nClass[Capital] --> class_name[Underscore]\nend\nclassDef1 --> graph1\nstylex --> linkStyle1'
+    const diagram = parseAgent(source)
+    expect(diagram.body.kind).toBe('flowchart')
+    const upstream = startUpstreamMermaid()
+    try {
+      const written = serializeMermaid(diagram)
+      expect(await upstream.accepts(written)).toBe(true)
+      const reread = parseGraph(written)
+      expect([...reread.nodes.keys()]).toEqual(['Class', 'class_name', 'classDef1', 'graph1', 'stylex', 'linkStyle1'])
+      expect(reread.subgraphs[0]?.id).toBe('class')
+      expect(reread.subgraphs[0]?.nodeIds).toEqual(['Class', 'class_name'])
+    } finally { upstream.close() }
+  })
+
+  test.each([
+    { kind: 'add_node', id: 'class', label: 'Class' },
+    { kind: 'rename_node', from: 'A', to: 'style' },
+    { kind: 'add_edge', from: 'linkStyle', to: 'A' },
+    { kind: 'add_edge', from: 'A', to: 'graph' },
+    { kind: 'add_node', id: 'end-name', label: 'Task' },
+  ] as const)('typed node creation refuses nonportable identities in $kind', op => {
+    const diagram = asFlowchart(parseAgent('flowchart TD\nA[Start] --> B[End]'))!
+    const result = mutate(diagram, op)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('INVALID_OP')
+    expect([...diagram.body.graph.nodes.keys()]).toEqual(['A', 'B'])
+    expect(diagram.body.graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B']])
+  })
+
   test('anonymous group titles containing link syntax write a valid stable identifier', async () => {
     const source = 'graph TD;A-->B;subgraph "title in quotes --xs";c-->d;end;'
     const diagram = parseAgent(source)
@@ -478,4 +530,37 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(graph.classAssignments.get('A')).toBe('animate')
     expect(graph.classDefs.get('animate')).toEqual({ 'stroke-dasharray': '9,5', stroke: '#333' })
   })
+})
+
+
+test('Flowchart style token collisions preserve authored source across all style owners', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const declaration of ['classDef hot stroke-w(idth:4px', 'style A border:1px solid r==>ed', 'linkStyle 0 ==> stroke-width:1px', 'classDef hot font-family:"Quoted"', 'style A label:ndQ backgro/]und:#fff', 'classDef class fill:red', 'class A 1style']) {
+      const source = `flowchart LR\nA --> B\n${declaration}\n`
+      expect(await upstream.publicAccepts(source)).toBe(false)
+      const diagram = parseAgent(source)
+      expect(diagram.body.kind).toBe('opaque')
+      expect(serializeMermaid(diagram)).toBe(source)
+      expect(renderMermaidSVG(diagram)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(diagram)).toBe(renderMermaidASCII(source))
+    }
+    for (const id of ['1subgraph', '1end', '1classDef', '1style']) {
+      const diagram = parseAgent(`flowchart LR\n${id}`)
+      expect(diagram.body.kind).toBe('opaque')
+      expect(mutate(parseAgent('flowchart LR\nA'), { kind: 'rename_node', from: 'A', to: id }).ok).toBe(false)
+    }
+    const diagram = parseAgent('flowchart LR\nA --> B')
+    for (const name of ['class', 'style', 'subgraph', 'end', '1style']) {
+      expect(mutate(diagram, { kind: 'define_class', name, style: 'fill:red' }).ok).toBe(false)
+      expect(mutate(diagram, { kind: 'set_node_class', id: 'A', className: name }).ok).toBe(false)
+    }
+    for (const style of ['border:1px solid r==>ed', 'font-family:"Quoted"', 'font-size:var(--size)']) {
+      expect(mutate(diagram, { kind: 'define_class', name: 'hot', style }).ok).toBe(false)
+      expect(mutate(diagram, { kind: 'set_node_style', id: 'A', style }).ok).toBe(false)
+    }
+    const portable = parseAgent('flowchart LR\n1subgraphx --> a-subgraph\nclassDef hot font-family:Arial,font-size:50%,border:1px solid red')
+    expect(portable.body.kind).toBe('flowchart')
+    expect(await upstream.publicAccepts(serializeMermaid(portable))).toBe(true)
+  } finally { upstream.close() }
 })

@@ -172,6 +172,22 @@ export function parseC4Arguments(text: string): C4Argument[] {
   })
 }
 
+/** The attribute lexer consumes an unquoted argument through the next comma,
+ * including a closing parenthesis. A final argument therefore needs a closed
+ * double-quoted token. Named values use the non-empty string_kv_value state.
+ * This checks token structure, independently of a declaration's semantics. */
+export function c4ArgumentsArePortable(args: readonly C4Argument[], positionalFields: readonly string[] = []): boolean {
+  return args.length > 0 && args.length >= positionalFields.length && args.every((arg, index) => {
+    if (arg.name && (index < positionalFields.length || positionalFields.includes(arg.name))) return false
+    if (arg.raw.includes('%%{')) return false
+    const text = (arg.name ? arg.raw.replace(/^\s*\$[A-Za-z_][A-Za-z_0-9]*\s*=/, '') : arg.raw).trim()
+    if (arg.name) return /^"[^"]+"$/.test(text)
+    if (text.startsWith('"')) return /^"[^"]*"$/.test(text)
+    if (arg.raw === '' && index < args.length - 1) return true
+    return index < args.length - 1 && text.length > 0 && !/^[\$']|[()\r\n]/.test(text)
+  })
+}
+
 export function c4ArgumentFields(args: readonly C4Argument[], names: readonly string[]): Record<string, string> {
   const fields: Record<string, string> = Object.create(null)
   for (let index = 0; index < args.length; index++) {
@@ -217,6 +233,21 @@ function diagnostic(body: C4Body, statementId: string, syntax: string, message: 
 // The directives pinned Mermaid's C4 grammar knows, besides the element,
 // boundary and relationship macros.
 const MERMAID_C4_DIRECTIVES = new Set(['UpdateElementStyle', 'UpdateRelStyle', 'UpdateLayoutConfig'])
+
+export function c4DirectiveFields(name: string): readonly string[] | undefined {
+  return name === 'UpdateElementStyle' ? ELEMENT_STYLE : name === 'UpdateRelStyle' ? REL_STYLE
+    : name === 'UpdateLayoutConfig' ? ['c4ShapeInRow', 'c4BoundaryInRow'] : undefined
+}
+
+/** Style targets and all layout values are positional in the pinned DB,
+ * even when the lexer accepts a named argument in that slot. */
+export function c4DirectiveArgumentsArePortable(record: C4Directive): boolean {
+  const fields = c4DirectiveFields(record.name)
+  if (!fields) return c4ArgumentsArePortable(record.args)
+  if (record.name === 'UpdateLayoutConfig') return c4ArgumentsArePortable(record.args) && record.args.every((arg, index) => !arg.name || arg.name === fields[index])
+  const required = record.name === 'UpdateElementStyle' ? 1 : 2
+  return c4ArgumentsArePortable(record.args, fields.slice(0, required))
+}
 
 export function c4DirectiveCategory(name: string): C4Directive['category'] {
   if (name === 'UpdateElementStyle') return 'element-style'
@@ -350,6 +381,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
   if (parserObservationActive('c4')) observeParserMutation('c4', 'initialize', body)
   body.statements = statements(source)
   const parents: string[] = []
+  const boundaryStatements = new Set<string>()
   const ids = new Set<string>()
   let header = false
   // Pinned Mermaid C4 needs a line break after each statement and after a
@@ -423,10 +455,19 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       continue
     }
     const macro = call[1]!, args = parseC4Arguments(call[2]!)
+    // The pinned grammar needs a statement inside every boundary. An empty
+    // layout argument is a true no-op: neither layout value passes its >= 1
+    // assignment guard. Treat its spelling as trivia, not an authored setting.
+    if (macro === 'UpdateLayoutConfig' && (args.length === 0 || args.length === 1 && !args[0]!.name && args[0]!.value === '') && !call[3]) {
+      if (parents.length) boundaryStatements.add(parents.at(-1)!)
+      if (text[macro.length] !== '(' || !c4ArgumentsArePortable(args)) diagnostic(body, statement.id, 'c4_empty_layout_arguments', 'An empty layout call is a no-op; the writer supplies the attribute required by pinned Mermaid')
+      statement.kind = 'trivia'; continue
+    }
     if (/[\r\n]/.test(call[2]!.replace(/"[^"]*"|'[^']*'/g, ''))) diagnostic(body, statement.id, 'c4_multiline_arguments', 'Line breaks between C4 arguments are a reader extension; quoted multiline text remains supported')
     if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'c4_empty_named_argument', 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
     const mermaidMacro = Boolean(element && !(element[1] === 'Person' && element[2])) || Object.hasOwn(BOUNDARIES, macro) || RELATIONS.has(macro) || MERMAID_C4_DIRECTIVES.has(macro)
+    if (mermaidMacro && parents.length) boundaryStatements.add(parents.at(-1)!)
     // Mermaid's lexer enters a macro's state at its name and reads only `(` there.
     if (mermaidMacro && text[macro.length] !== '(') diagnostic(body, statement.id, 'c4_space_before_arguments', `Pinned Mermaid reads "(" only straight after ${macro} and rejects whitespace between them; ours reads the call. Write ${macro}( with no space`)
     if (element && !(element[1] === 'Person' && element[2])) {
@@ -495,9 +536,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       else if (!macro.startsWith('Update')) diagnostic(body, statement.id, 'c4_directive_extension', `${macro} is a reader extension; pinned Mermaid does not accept this directive`)
     }
     const knownNames = element ? c4ElementFields(macro) : BOUNDARIES[macro] ? c4BoundaryFields(macro) : RELATIONS.has(macro) ? c4RelationshipFields(macro)
-      : macro === 'UpdateElementStyle' ? ELEMENT_STYLE : macro === 'UpdateRelStyle' ? REL_STYLE
-        : macro === 'UpdateLayoutConfig' ? ['c4ShapeInRow', 'c4BoundaryInRow']
-          : macro === 'AddElementTag' ? ELEMENT_TAG : macro === 'AddRelTag' ? REL_TAG : undefined
+      : c4DirectiveFields(macro) ?? (macro === 'AddElementTag' ? ELEMENT_TAG : macro === 'AddRelTag' ? REL_TAG : undefined)
     if (knownNames) {
       const assigned = new Set<string>()
       for (let index = 0; index < args.length; index++) {
@@ -512,6 +551,9 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     }
     if (args.some(arg => /^\s*'/.test(arg.raw) || /\\["']/.test(arg.raw))) {
       diagnostic(body, statement.id, 'c4_quoted_string_extension', 'Quoted-string extension is preserved; typed edits write Mermaid entity escapes')
+    } else if (mermaidMacro && !c4ArgumentsArePortable(args)
+      && !body.diagnostics.some(item => item.statementId === statement.id && ['c4_multiline_arguments', 'c4_empty_named_argument'].includes(item.syntax))) {
+      diagnostic(body, statement.id, 'c4_argument_spelling', 'Argument text is retained as its native value; the writer emits complete quoted argument tokens instead of ambiguous imported spelling')
     }
   }
   if (!header) throw new Error('C4: missing diagram header')
@@ -527,9 +569,8 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
     statement.entityId = relationship.id; statement.signature = c4RecordSignature(relationship)
   }
   resolveC4Directives(body, admitWork)
-  const occupiedBoundaries = new Set([...body.elements, ...body.boundaries].map(record => record.parentId))
   for (const boundary of body.boundaries) {
-    if (!occupiedBoundaries.has(boundary.id)) diagnostic(body, boundary.statementId, 'c4_empty_boundary', 'An empty boundary is retained as a native draft; pinned Mermaid requires a declaration inside its block')
+    if (!boundaryStatements.has(boundary.id)) diagnostic(body, boundary.statementId, 'c4_empty_boundary', 'An empty boundary is retained; the writer supplies a no-op layout statement because pinned Mermaid requires a statement inside its block')
   }
   if (body.directives.some(directive => directive.name === 'direction')) {
     const direction = body.directives.find(directive => directive.name === 'direction')!

@@ -1,10 +1,38 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
 import { renderIshikawa } from '../agent/ishikawa-body.ts'
 import { parseRegisteredMermaid, asIshikawa, layoutMermaidWithReceipt, mutate, serializeMermaid, verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 describe('native Ishikawa', () => {
+  test('keyword labels retain their literal cause tree through portable typed spelling', async () => {
+    for (const source of ['ishikawa\nishikawa', 'ishikawa\nProblem\n  ISHIKAWA-beta guide\n    Detail']) {
+      expect(await upstream.accepts(source)).toBe(false)
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('ishikawa')
+      expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
+      expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+      expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_label' }))
+      expect(mutate(parsed.value, { kind: 'set_effect', label: 'Changed' }).ok).toBe(true)
+    }
+    const parsed = parseRegisteredMermaid('ishikawa\nishikawas\n  About ishikawa')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('ishikawa')
+    expect(await upstream.accepts(serializeMermaid(parsed.value))).toBe(true)
+    for (const label of ['ishikawa', 'ISHIKAWA-beta guide']) {
+      expect(mutate(parsed.value, { kind: 'set_effect', label }).ok).toBe(true)
+      expect(mutate(parsed.value, { kind: 'add_cause', label }).ok).toBe(true)
+      expect(mutate(parsed.value, { kind: 'set_label', id: 'cause-1', label }).ok).toBe(true)
+    }
+  })
   test('box padding and corners reserve real space while the spine marker follows edge ink', () => {
     const source = 'ishikawa\nSlow release\nProcess\n  Manual checks\nTools\n  Slow builds',
       style = { roles: { node: { paddingX: 31, paddingY: 37, cornerRadius: 11, fontWeight: 400 }, edge: { strokeColor: '#ff00ff' } } },

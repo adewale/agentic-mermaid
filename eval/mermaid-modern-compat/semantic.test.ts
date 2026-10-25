@@ -8,7 +8,7 @@ import fc from 'fast-check'
 import { fcParameters } from '../../src/__tests__/helpers/fc-parameters.ts'
 import { admitCurrentReference, currentReferencePin, startModernReference, type ReferenceReply } from './reference.ts'
 import { startGrammarReference } from './grammar-reference.ts'
-import type { FlowchartValidDiagram } from '../../src/agent/types.ts'
+import type { FlowchartValidDiagram, JourneyMutationOp, ParsedDiagram } from '../../src/agent/types.ts'
 import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
 import { censusDisplayText, labelCensus } from './label-census.ts'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
@@ -21,6 +21,8 @@ const target = resolve(process.env.AM_MODERN_TARGET_DIR ?? ROOT)
 const reportPath = resolve(process.env.AM_MODERN_GATE_REPORT ?? join(HERE, 'output/semantic-gate.json'))
 const PIN = currentReferencePin
 const am = await import(pathToFileURL(join(target, 'src/agent/core.ts')).href) as typeof import('../../src/agent/core.ts')
+const terminalApi = await import(pathToFileURL(join(target, 'src/ascii/index.ts')).href) as typeof import('../../src/ascii/index.ts')
+const terminalModel = await import(pathToFileURL(join(target, 'src/ascii/terminal-document.ts')).href) as typeof import('../../src/ascii/terminal-document.ts')
 let oracle: ReturnType<typeof startModernReference> | undefined
 let admittedReference: ReturnType<typeof admitCurrentReference> | undefined
 const results: Array<{ name: string; origin: string; status: 'passed' | 'failed'; error?: string }> = []
@@ -372,6 +374,383 @@ semantic('Quadrant writer preserves reserved axis text and declared point values
     // so no rendered coordinates or diagram-size counts stand in for meaning.
     expect(after.actions.value).toEqual(before.actions.value)
   } finally { grammar.close() }
+})
+
+semantic('Timeline text fields remain text across keyword, separator and directive contexts', 'packages/mermaid/src/diagrams/timeline/parser/timeline.jison; reviewed field-context writer contract', async () => {
+  const built = am.buildMermaid('timeline', [
+    { kind: 'set_title', title: 'Report %%{literal' },
+    { kind: 'add_section', label: 'Phase: next' },
+    { kind: 'add_period', sectionIndex: 0, label: 'section Phase', events: ['First: next', 'tail:'] },
+    { kind: 'add_period', sectionIndex: 0, label: 'title' },
+    { kind: 'add_period', sectionIndex: 0, label: '2026', events: ['%%{literal', '#37; literal'] },
+  ])
+  expect(built.ok).toBe(true)
+  if (!built.ok) throw new Error(JSON.stringify(built.error))
+  const source = am.serializeMermaid(built.value)
+  const reference = await accepted(source)
+  const displayed = (value: string): string => censusDisplayText(value).trim()
+  expect((reference.snapshot.data.getSections as string[]).map(displayed)).toEqual(['Phase: next'])
+  const tasks = reference.snapshot.data.getTasks as unknown as Array<{ task: string; section: string; events: string[] }>
+  expect(tasks.map(task => ({ label: displayed(task.task), section: displayed(task.section), events: task.events.map(displayed) }))).toEqual([
+    { label: 'section Phase', section: 'Phase: next', events: ['First: next', 'tail:'] },
+    { label: 'title', section: 'Phase: next', events: [] },
+    { label: '2026', section: 'Phase: next', events: ['%%{literal', '#37; literal'] },
+  ])
+  const reloaded = am.parseRegisteredMermaid(source)
+  if (!reloaded.ok || reloaded.value.body.kind !== 'timeline') throw new Error('Expected editable Timeline')
+  expect(reloaded.value.body).toEqual(built.value.body)
+  const moved = am.mutate(reloaded.value, { kind: 'move_period', fromSection: 0, fromIndex: 1, toSection: 0, toIndex: 0 })
+  expect(moved.ok).toBe(true)
+  if (!moved.ok) throw new Error(moved.error.message)
+  await accepted(am.serializeMermaid(moved.value))
+  const svg = am.renderMermaidSVG(moved.value)
+  expect(svg).toContain('section Phase')
+  expect(svg).not.toContain('&#116;itle')
+})
+
+semantic('Sequence spaced actor tokens retain identities through declarations, editing and rendering', 'packages/mermaid/src/diagrams/sequence/parser/sequenceDiagram.jison: ACTOR and ID states', async () => {
+  const source = 'sequenceDiagram\nparticipant Alice Smith\nactor Bob Jones\nAlice Smith->>Bob Jones: first\nBob Jones-->>Alice Smith: second\nNote over Alice Smith,Bob Jones: Shared note'
+  const expected = await accepted(source)
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'sequence') throw new Error('Expected editable Sequence')
+  expect(parsed.value.body.participants.map(participant => [participant.id, participant.label, participant.kind])).toEqual([
+    ['Alice Smith', 'Alice Smith', 'participant'], ['Bob Jones', 'Bob Jones', 'actor'],
+  ])
+  expect(parsed.value.body.messages.map(message => [message.from, message.to, message.text])).toEqual([
+    ['Alice Smith', 'Bob Jones', 'first'], ['Bob Jones', 'Alice Smith', 'second'],
+  ])
+  const after = await accepted(am.serializeMermaid(parsed.value))
+  expect(after.snapshot.data.getActors).toEqual(expected.snapshot.data.getActors)
+  expect(after.snapshot.data.getMessages).toEqual(expected.snapshot.data.getMessages)
+  const edited = am.mutate(parsed.value, { kind: 'set_message_text', index: 0, text: 'Revised' })
+  if (!edited.ok) throw new Error(edited.error.message)
+  const reloaded = am.parseRegisteredMermaid(am.serializeMermaid(edited.value))
+  if (!reloaded.ok || reloaded.value.body.kind !== 'sequence') throw new Error('Expected editable reload')
+  expect(reloaded.value.body.messages[0]).toMatchObject({ from: 'Alice Smith', to: 'Bob Jones', text: 'Revised' })
+  await accepted(am.serializeMermaid(edited.value))
+  expect(am.renderMermaidSVG(edited.value)).toContain('data-id="Alice Smith"')
+  expect(am.renderMermaidASCII(edited.value)).toContain('Revised')
+  expect(am.verifyMermaid(edited.value).ok).toBe(true)
+  for (const [declaration, id, label] of [
+    ['participant Alice Smith as Caller', 'Alice Smith as Caller', 'Alice Smith as Caller'],
+    ['participant Alice as Caller', 'Alice', 'Caller'],
+  ]) {
+    const input = `sequenceDiagram\n${declaration}\n${id}->>Bob: hello`
+    const reference = await accepted(input)
+    const parsed = am.parseRegisteredMermaid(input)
+    if (!parsed.ok || parsed.value.body.kind !== 'sequence') throw new Error('Expected editable declaration')
+    expect(parsed.value.body.participants[0]).toMatchObject({ id, label })
+    expect((await accepted(am.serializeMermaid(parsed.value))).snapshot.data.getActors).toEqual(reference.snapshot.data.getActors)
+  }
+  expect(am.mutate(parsed.value, { kind: 'set_participant_label', id: 'Alice Smith', label: 'Caller' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+  expect(parsed.value.body.participants[0]!.id).toBe('Alice Smith')
+  const added = am.mutate(parsed.value, { kind: 'add_participant', id: 'Carol White', participantKind: 'actor' })
+  if (!added.ok) throw new Error(added.error.message)
+  const actors = (await accepted(am.serializeMermaid(added.value))).snapshot.data.getActors as unknown as Array<[string, { type: string; description: string }]>
+  expect(actors.find(([id]) => id === 'Carol White')?.[1]).toMatchObject({ type: 'actor', description: 'Carol White' })
+})
+
+semantic('Canonical wrappers reject unknown configuration meaning and normalize concrete color whitespace', 'Mermaid public parse; theme-base.js derives palette colors even outside the owning diagram family', async () => {
+  for (const [source, problem] of [
+    ['%%{init: definitely-not-an-object}%%\nmindmap\n root', 'init directive payload'],
+    ['---\nconfig:\n  themeVariables: 1\'\n---\nmindmap\n root', 'themeVariables must be'],
+    ['---\nconfig:\n  theme: base\n  themeVariables:\n    git0: "##374151"\n---\nmindmap\n root', 'themeVariables.git0'],
+  ]) {
+    if (!oracle) throw new Error('Reference unavailable')
+    expect((await oracle.parse(source!)).ok).toBe(false)
+    const parsed = am.parseRegisteredMermaid(source!)
+    if (!parsed.ok || parsed.value.body.kind !== 'mindmap') throw new Error('Expected editable diagram with repairable wrapper')
+    expect(am.serializeMermaid(parsed.value)).toContain(source!.slice(0, source!.indexOf('mindmap')))
+    expect(() => am.serializeMermaid(parsed.value, { wrapper: 'canonical' })).toThrow(problem!)
+  }
+  const source = '---\nconfig:\n  theme: base\n  themeVariables:\n    cScale1: "\\r#00FF00"\n---\nradar-beta\naxis A\ncurve c{1}'
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok) throw new Error('Expected Radar')
+  const written = am.serializeMermaid(parsed.value, { wrapper: 'canonical' })
+  await accepted(written)
+  const reload = am.parseRegisteredMermaid(written)
+  if (!reload.ok) throw new Error('Expected reload')
+  expect(reload.value.meta.frontmatter?.themeVariables).toEqual({ cScale1: '#00FF00' })
+  expect(am.renderMermaidSVG(written)).toBe(am.renderMermaidSVG(source))
+  const empty = am.parseRegisteredMermaid('%%{init: {}}%%\nmindmap\n root')
+  if (!empty.ok) throw new Error('Expected empty init object')
+  await accepted(am.serializeMermaid(empty.value, { wrapper: 'canonical' }))
+})
+
+semantic('Gantt calendar formats and preserved comments export without changing dates or tick text', 'packages/mermaid/src/diagrams/gantt/parser/gantt.jison: axisFormat excludes hash; gantt config axisFormat accepts text', async () => {
+  for (const format of ['%#:%M', '%H:%#', '#']) {
+    const source = `---\nconfig:\n  gantt:\n    barHeight: 24\n---\ngantt\ndateFormat HH:mm\naxisFormat ${format}\nInitial: milestone, m1, 17:49, 2m\nTask: t1, after m1, 10m\n%%{ retained comment`
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'gantt') throw new Error('Expected editable Gantt')
+    const edited = am.mutate(parsed.value, { kind: 'rename_task', sectionIndex: 0, taskIndex: 1, label: 'Renamed' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    for (const wrapper of ['verbatim', 'canonical'] as const) {
+      const written = am.serializeMermaid(edited.value, { wrapper })
+      const reply = await accepted(written)
+      expect((reply.snapshot.data.getConfig as { axisFormat: string }).axisFormat).toBe(format)
+      const reload = am.parseRegisteredMermaid(written)
+      if (!reload.ok || reload.value.body.kind !== 'gantt') throw new Error('Expected Gantt reload')
+      expect<unknown>(reload.value.body).toEqual(edited.value.body)
+      expect(am.renderMermaidSVG(written)).toBe(am.renderMermaidSVG(edited.value))
+      expect(am.renderMermaidASCII(written)).toBe(am.renderMermaidASCII(edited.value))
+      expect(written).toContain('%% { retained comment')
+    }
+  }
+})
+
+semantic('C4 empty boundaries export without fabricated children or changed layout', 'packages/mermaid/src/diagrams/c4/c4Db.ts: updateLayoutConfig ignores empty arguments', async () => {
+  const source = 'C4Context\nUpdateLayoutConfig("5","3")\nBoundary(outer,"Outer") {\nBoundary(inner,"Inner") { }\n}\nPerson(p,"Person")\nRel(p,inner,"visits")'
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'c4') throw new Error('Expected editable C4')
+  const written = am.serializeMermaid(parsed.value)
+  const reference = await accepted(written)
+  expect(reference.snapshot.data.getC4ShapeInRow).toBe(5)
+  expect(reference.snapshot.data.getC4BoundaryInRow).toBe(3)
+  expect((reference.snapshot.data.getC4ShapeArray as Array<{ alias: string }>).map(node => node.alias)).toEqual(['p'])
+  expect((reference.snapshot.data.getBoundaries as Array<{ alias: string; parentBoundary: string }>).map(node => [node.alias, node.parentBoundary])).toEqual([['global', ''], ['outer', 'global'], ['inner', 'outer']])
+  const reloaded = am.parseRegisteredMermaid(written)
+  if (!reloaded.ok || reloaded.value.body.kind !== 'c4') throw new Error('Expected editable C4 reload')
+  expect(reloaded.value.body.directives).toHaveLength(1)
+  expect(am.verifyMermaid(written).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  expect(reloaded.value.body.layout).toEqual(parsed.value.body.layout)
+  expect(reloaded.value.body.boundaries.map(node => [node.id, node.parentId])).toEqual([['outer', undefined], ['inner', 'outer']])
+  expect(am.serializeMermaid(reloaded.value)).toBe(written)
+  const drawing = (input: string) => am.renderMermaidSVG(input).replace(/am-[a-z0-9]+/g, 'am-scope').replace(/ data-source-line="\d+"/g, '')
+  expect(drawing(written)).toBe(drawing(source))
+  expect(am.renderMermaidASCII(written)).toBe(am.renderMermaidASCII(source))
+})
+
+semantic('C4 known argument values compile to complete tokens while retaining containment and relationships', 'packages/mermaid/src/diagrams/c4/parser/c4Diagram.jison: attribute, string and string_kv_value states', async () => {
+  for (const [declaration, label] of [['Person(A,n)', 'n'], ['Person(A,=)', '='], ['Person(A,""o)', '""o'], ['Person(A,"%%{literal")', '%%{literal']] as const) {
+    const source = `C4Context\nSystem_Boundary(g,"Group") {\n${declaration}\nPerson(B,"B")\nRel(A,B,"uses")\n}`
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'c4') throw new Error('Expected editable C4')
+    expect(parsed.value.body.elements[0]).toMatchObject({ id: 'A', label, parentId: 'g' })
+    const written = am.serializeMermaid(parsed.value)
+    const reference = await accepted(written)
+    const shapes = reference.snapshot.data.getC4ShapeArray as unknown as Array<{ alias: string; label: { text: string }; parentBoundary: string }>
+    expect(shapes.map(shape => ({ id: shape.alias, label: censusDisplayText(shape.label.text), parent: shape.parentBoundary }))).toEqual([
+      { id: 'A', label, parent: 'g' }, { id: 'B', label: 'B', parent: 'g' },
+    ])
+    const reloaded = am.parseRegisteredMermaid(written)
+    if (!reloaded.ok || reloaded.value.body.kind !== 'c4') throw new Error('Expected editable C4 reload')
+    expect(reloaded.value.body.elements[0]).toMatchObject({ id: 'A', label, parentId: 'g' })
+    expect(reloaded.value.body.relationships[0]).toMatchObject({ from: 'A', to: 'B', label: 'uses' })
+    expect(am.renderMermaidSVG(parsed.value)).toBe(am.renderMermaidSVG(written))
+    expect(am.renderMermaidASCII(parsed.value)).toBe(am.renderMermaidASCII(written))
+  }
+})
+
+semantic('Gantt task text cannot introduce keyword or date tokens or change dependency dates', 'packages/mermaid/src/diagrams/gantt/parser/gantt.jison: taskTxt and taskData', async () => {
+  for (const label of ['gantt-plan', '2014-01-01 later', 'call worker', 'href "target"', 'title Launch', 'Plan: next %%{literal', '#37; literal']) {
+    const source = 'gantt\ndateFormat YYYY-MM-DD\nBuild :a, 2024-01-01, 2d\nNext :b, after a, 1d\nShip :ship, after b, 1d'
+    const original = am.parseRegisteredMermaid(source)
+    if (!original.ok || original.value.body.kind !== 'gantt') throw new Error('Expected Gantt')
+    const changed = am.mutate(original.value, { kind: 'rename_task', sectionIndex: 0, taskIndex: 1, label })
+    expect(changed.ok, label).toBe(true)
+    if (!changed.ok) throw new Error(changed.error.message)
+    const written = am.serializeMermaid(changed.value)
+    const reference = await accepted(written)
+    const tasks = reference.snapshot.data.getTasks as unknown as Array<{ id: string; task: string; startTime: string; endTime: string }>
+    expect(tasks.map(task => [task.id, censusDisplayText(task.task), task.startTime, task.endTime])).toEqual([
+      ['a', 'Build', '2024-01-01T00:00:00.000Z', '2024-01-03T00:00:00.000Z'],
+      ['b', label, '2024-01-03T00:00:00.000Z', '2024-01-04T00:00:00.000Z'],
+      ['ship', 'Ship', '2024-01-04T00:00:00.000Z', '2024-01-05T00:00:00.000Z'],
+    ])
+    const reload = am.parseRegisteredMermaid(written)
+    if (!reload.ok || reload.value.body.kind !== 'gantt') throw new Error('Expected editable Gantt reload')
+    expect(reload.value.body.sections[0]!.tasks[1]).toMatchObject({ label, taskId: 'b', start: 'after a', end: '1d' })
+    expect(am.renderMermaidSVG(changed.value)).toBe(am.renderMermaidSVG(written))
+  }
+})
+
+semantic('Block quoted payloads preserve formatting, literal entities, identity and containment', 'packages/mermaid/src/diagrams/block/parser/block.jison: string tokens; authored formatting contract', async () => {
+  const source = 'block\nblock:g["Group"]\na["A"]\nb["B"]\nend\na --> b'
+  const original = am.parseRegisteredMermaid(source)
+  if (!original.ok || original.value.body.kind !== 'block') throw new Error('Expected Block')
+  const labels = ['%%{literal "quote"', '<b>bold</b> #lt;b#gt; #35;37;', '`literal tick']
+  let changed = original.value
+  for (const [id, label] of [['g', labels[0]!], ['a', labels[1]!], ['b', labels[2]!]]) {
+    const result = am.mutate(changed, { kind: 'update_block', id: id!, changes: { label } })
+    if (!result.ok) throw new Error(result.error.message)
+    changed = result.value
+  }
+  const linked = am.mutate(changed, { kind: 'add_edge', from: 'b', to: 'a', label: '%%{edge "quote"' })
+  if (!linked.ok) throw new Error(linked.error.message)
+  const written = am.serializeMermaid(linked.value)
+  const reference = await accepted(written)
+  interface ReferenceBlock { id: string; label: string; children?: ReferenceBlock[] }
+  const blocks = reference.snapshot.data.getBlocks as unknown as ReferenceBlock[]
+  expect(blocks.map(node => [node.id, censusDisplayText(node.label), node.children?.map(child => child.id)])).toEqual([
+    ['g', labels[0], ['a', 'b']],
+  ])
+  expect(blocks[0]!.children?.map(node => censusDisplayText(node.label))).toEqual(['bold <b> #37;', '`literal tick'])
+  const edges = reference.snapshot.data.getEdges as unknown as Array<{ start: string; end: string; label: string }>
+  expect(edges.map(edge => [edge.start, edge.end, censusDisplayText(edge.label)])).toEqual([['a', 'b', ''], ['b', 'a', '%%{edge "quote"']])
+  const reload = am.parseRegisteredMermaid(written)
+  if (!reload.ok || reload.value.body.kind !== 'block') throw new Error('Expected editable Block reload')
+  expect(reload.value.body.root.children?.[0]).toMatchObject({ id: 'g', label: labels[0], children: [{ id: 'a', label: labels[1] }, { id: 'b', label: labels[2] }] })
+  const svg = am.renderMermaidSVG(linked.value)
+  expect(svg).toBe(am.renderMermaidSVG(written))
+  expect(svg).toContain('font-weight="bold"')
+  expect(svgLabels(svg).join('\n')).toContain('bold <b> #37;')
+  expect(am.renderMermaidASCII(linked.value)).toContain('bold <b> #37;')
+})
+
+semantic('Journey literal text is independent of statement tokens and actor separators', 'packages/mermaid/src/diagrams/user-journey/parser/journey.jison; grammar-neutral text contract', async () => {
+  const source = 'journey\nsection Work\nRead: 3: Me\nShip: 5: Me, Cat'
+  const original = am.parseRegisteredMermaid(source)
+  if (!original.ok || original.value.body.kind !== 'journey') throw new Error('Expected Journey')
+  let diagram: ParsedDiagram = original.value
+  const ops: JourneyMutationOp[] = [
+    { kind: 'set_title', title: 'Book &lt; #2; %%{literal' },
+    { kind: 'set_section_label', index: 0, label: 'Part: &amp;' },
+    { kind: 'set_task_text', sectionIndex: 0, taskIndex: 0, text: 'journey: #35; &lt;' },
+    { kind: 'set_task_actors', sectionIndex: 0, taskIndex: 0, actors: ['A; B', 'C, D'] },
+    { kind: 'set_accessibility_title', title: 'Read &lt; %%{ ;' },
+    { kind: 'set_accessibility_description', description: 'First { literal }\nSecond; %%{ #35;' },
+  ]
+  for (const op of ops) {
+    const edited = am.mutate(diagram, op)
+    if (!edited.ok) throw new Error(edited.error.message)
+    diagram = edited.value
+  }
+  const written = am.serializeMermaid(diagram)
+  const tasks = (await accepted(written)).snapshot.data.getTasks as unknown as Array<{ task: string; people: string[]; score: number }>
+  expect(tasks.map(task => [censusDisplayText(task.task), task.score, task.people.map(censusDisplayText)])).toEqual([
+    ['journey: #35; &lt;', 3, ['A; B', 'C, D']], ['Ship', 5, ['Me', 'Cat']],
+  ])
+  const reload = am.parseRegisteredMermaid(written)
+  if (!reload.ok || reload.value.body.kind !== 'journey') throw new Error('Expected editable Journey reload')
+  expect<unknown>(reload.value.body).toEqual(diagram.body)
+  expect(am.renderMermaidSVG(diagram)).toBe(am.renderMermaidSVG(written))
+  expect(am.renderMermaidASCII(diagram)).toContain('journey: #35; &lt;')
+})
+
+semantic('Ishikawa keyword-like labels remain text without changing cause ownership', 'packages/mermaid/src/diagrams/ishikawa/parser/ishikawa.jison; grammar-neutral text contract', async () => {
+  const source = 'ishikawa\naccTitle: X &amp; Y\nProblem &amp; effect\n  Process\n    Delay\n  People'
+  const original = am.parseRegisteredMermaid(source)
+  if (!original.ok || original.value.body.kind !== 'ishikawa') throw new Error('Expected Ishikawa')
+  const edited = am.mutate(original.value, { kind: 'set_label', id: 'cause-1', label: 'ishikawa: %%{literal #35; &lt;' })
+  if (!edited.ok) throw new Error(edited.error.message)
+  expect(edited.value.meta.accessibility.title).toBe('X & Y')
+  const written = am.serializeMermaid(edited.value)
+  await accepted(written)
+  const reload = am.parseRegisteredMermaid(written)
+  if (!reload.ok || reload.value.body.kind !== 'ishikawa') throw new Error('Expected editable Ishikawa reload')
+  expect(reload.value.body.nodes).toEqual([
+    { id: 'effect', label: 'Problem & effect' }, { id: 'cause-1', label: 'ishikawa: %%{literal #35; &lt;', parentId: 'effect' },
+    { id: 'cause-2', label: 'Delay', parentId: 'cause-1' }, { id: 'cause-3', label: 'People', parentId: 'effect' },
+  ])
+  expect(am.renderMermaidSVG(edited.value)).toBe(am.renderMermaidSVG(written))
+  expect(am.renderMermaidASCII(edited.value)).toContain('ishikawa: %%{literal #35; &lt;')
+})
+
+semantic('Treemap quoted text retains hierarchy and quantities through delimiter escapes', 'packages/mermaid/src/diagrams/treemap/parser/treemap.jison; grammar-neutral text contract', async () => {
+  const source = 'treemap\naccTitle: X &amp; Y\n"Portfolio &amp; assets"\n  "First": 20\n  "Second": 30'
+  const original = am.parseRegisteredMermaid(source)
+  if (!original.ok || original.value.body.kind !== 'treemap') throw new Error('Expected Treemap')
+  const label = 'Both "quotes" and \'apostrophes\' %%{literal #35; &lt;\nLiteral <br/> #10;'
+  const edited = am.mutate(original.value, { kind: 'set_label', id: 'treemap-1', label })
+  if (!edited.ok) throw new Error(edited.error.message)
+  const written = am.serializeMermaid(edited.value)
+  await accepted(written)
+  const reload = am.parseRegisteredMermaid(written)
+  if (!reload.ok || reload.value.body.kind !== 'treemap') throw new Error('Expected editable Treemap reload')
+  expect(reload.value.body.nodes).toEqual([
+    { id: 'treemap-0', label: 'Portfolio & assets' }, { id: 'treemap-1', label, value: 20, parentId: 'treemap-0' },
+    { id: 'treemap-2', label: 'Second', value: 30, parentId: 'treemap-0' },
+  ])
+  expect(reload.value.meta.accessibility.title).toBe('X & Y')
+  expect(reload.value.body.accessibilityTitle).toBe('X & Y')
+  expect(am.renderMermaidSVG(written)).toContain('X &amp; Y')
+  expect(am.renderMermaidSVG(edited.value)).toBe(am.renderMermaidSVG(written))
+  for (const line of label.split('\n')) expect(am.renderMermaidASCII(edited.value)).toContain(line)
+})
+
+semantic('Floating State notes are addressable note nodes with retained scope and connected endpoints', 'packages/mermaid/src/diagrams/state/parser/stateDiagram.jison: note NOTE_TEXT AS ID (upstream drops its semantic action)', async () => {
+  const source = 'stateDiagram-v2\nN1 --> N2\nstate Group {\nA\nnote "Inner #lt;b#gt;" as N1\nA --> N1\n}\nnote "Outer<br/>next" as N2\nN2 --> Group'
+  await accepted(source)
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'state') throw new Error('Expected editable State')
+  expect(parsed.value.body.states).toEqual([
+    expect.objectContaining({ id: 'Group', states: [expect.objectContaining({ id: 'A' }), expect.objectContaining({ id: 'N1', kind: 'note', label: 'Inner <b>' })] }),
+    expect.objectContaining({ id: 'N2', kind: 'note', label: 'Outer\nnext' }),
+  ])
+  const changed = am.mutate(parsed.value, { kind: 'rename_state', from: 'N1', to: 'Memo' })
+  if (!changed.ok) throw new Error(changed.error.message)
+  const written = am.serializeMermaid(changed.value)
+  await accepted(written)
+  const reload = am.parseRegisteredMermaid(written)
+  if (!reload.ok || reload.value.body.kind !== 'state') throw new Error('Expected editable State reload')
+  expect(reload.value.body.states[0]).toMatchObject({ id: 'Group', states: [expect.objectContaining({ id: 'A' }), expect.objectContaining({ id: 'Memo', kind: 'note', label: 'Inner <b>' })], transitions: [{ from: 'A', to: 'Memo' }] })
+  expect(reload.value.body.transitions).toEqual([{ from: 'Memo', to: 'N2' }, { from: 'N2', to: 'Group' }])
+  const svg = am.renderMermaidSVG(changed.value)
+  expect(svg).toContain('data-id="Memo"')
+  expect(svg).toContain('data-note-kind="floating"')
+  expect(svgLabels(svg)).toContain('Inner <b>')
+  const terminal = am.renderMermaidASCIIWithMeta(changed.value, { useAscii: true, colorMode: 'none' })
+  expect(terminal.warnings.filter(warning => warning.code === 'ASCII_RENDER_FAILED')).toEqual([])
+  expect(terminal.regions.filter(region => region.kind === 'note').sort((a, b) => a.id.localeCompare(b.id)).map(region => [region.id, region.parentId, region.projectedText])).toEqual([
+    ['Memo', 'Group', 'Inner <b>'], ['N2', undefined, 'Outer\nnext'],
+  ])
+  expect(terminal.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual(expect.arrayContaining([['A', 'Memo'], ['Memo', 'N2'], ['N2', 'Group']]))
+  const receipt = terminalApi.renderMermaidASCIIWithReceipt(written, { useAscii: true, colorMode: 'none' })
+  const document = terminalModel.terminalDocumentOf(receipt)
+  if (!document) throw new Error('Expected retained terminal document')
+  const entries = [...document.entries()], rows = receipt.text.split('\n')
+  for (const edge of document.regions().filter(region => region.kind === 'edge')) {
+    const start = edge.ports?.find(port => port.end === 'start'), end = edge.ports?.find(port => port.end === 'end')
+    if (!start || !end) throw new Error(`Missing ports for ${edge.id}`)
+    const ink = new Set(entries.filter(([x, y, cell]) => /stroke|marker/.test(cell.kind ?? '')
+      && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)
+      && rows[y]?.[x] && rows[y]![x] !== ' ').map(([x, y]) => `${x},${y}`))
+    const contacts = (port: typeof start) => [...ink].filter(key => {
+      const [x, y] = key.split(',').map(Number)
+      return Math.abs(x! - port.x) + Math.abs(y! - port.y) <= 1
+    })
+    for (const port of [start, end]) {
+      expect(contacts(port).length).toBeGreaterThan(0)
+      const frame = entries.filter(([x, y, cell]) => Math.abs(x - port.x) + Math.abs(y - port.y) <= 1
+        && /stroke|marker/.test(cell.kind ?? '') && cell.owners.some(owner => owner.id === port.nodeId && ['node', 'note', 'cluster', 'group'].includes(owner.kind ?? 'node')))
+      expect(contacts(port).some(key => {
+        const [x, y] = key.split(',').map(Number)
+        return frame.some(([fx, fy]) => Math.abs(fx - x!) + Math.abs(fy - y!) <= 1)
+      })).toBe(true)
+    }
+    const queue = contacts(start), seen = new Set(queue)
+    for (let at = 0; at < queue.length; at++) {
+      const [x, y] = queue[at]!.split(',').map(Number)
+      for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
+        if (ink.has(next) && !seen.has(next)) { seen.add(next); queue.push(next) }
+      }
+    }
+    expect(contacts(end).some(key => seen.has(key)), `${edge.from}->${edge.to} has connected emitted ink`).toBe(true)
+  }
+
+})
+
+semantic('Mindmap escaped labels retain anonymous identities, formatting and nested ownership', 'packages/mermaid/src/diagrams/mindmap/parser/mindmap.jison: NSTR/NSTR2 and nodeWithoutId', async () => {
+  const source = 'mindmap\nroot(R &amp; D)\n  ["`Say "hi" and `tick``"]\n    nested[Child]\n  {{%%{t}}'
+  const parsed = am.parseRegisteredMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'mindmap') throw new Error('Expected editable Mindmap')
+  const expected = parsed.value.body.root
+  expect(expected.label).toBe('R & D')
+  expect(expected.children.map(node => [node.id, node.label, node.children.map(child => child.id)])).toEqual([
+    ['Say "hi" and `tick`', 'Say "hi" and `tick`', ['nested']], ['%%{t', '%%{t', []],
+  ])
+  const written = am.serializeMermaid(parsed.value)
+  await accepted(written)
+  expect(am.renderMermaidSVG(written)).toBe(am.renderMermaidSVG(source))
+  expect(am.renderMermaidASCII(written)).toBe(am.renderMermaidASCII(source))
+  const reload = am.parseRegisteredMermaid(written)
+  if (!reload.ok || reload.value.body.kind !== 'mindmap') throw new Error('Expected editable Mindmap reload')
+  expect(reload.value.body.root).toEqual(expected)
+  const edited = am.mutate(parsed.value, { kind: 'rename_node', from: '%%{t', to: 'literal' })
+  if (!edited.ok) throw new Error(edited.error.message)
+  await accepted(am.serializeMermaid(edited.value))
+  expect(am.renderMermaidSVG(edited.value)).toContain('Say &quot;hi&quot; and `tick`')
+  expect(am.renderMermaidASCII(edited.value)).toContain('Say "hi" and `tick`')
 })
 
 beforeAll(() => {

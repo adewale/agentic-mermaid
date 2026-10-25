@@ -5,6 +5,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { maskAccessibilityDirectivesForSourceMap, sourcePreservationSpans } from '../family-detection.ts'
 import { getFamily } from './families.ts'
+import { writeMermaidComment } from '../shared/trailing-comment.ts'
 import { edgeSourceMapKey, findEdgeIndexById } from './flowchart-body.ts'
 
 interface CommentStatement {
@@ -188,7 +189,7 @@ export function restoreBodyComments(bodySource: string, kind: ParsedDiagram['kin
     const endLine = location && 'endLine' in location ? location.endLine : location?.line
     const at = location ? comment.placement === 'before' ? location.line - 1 : endLine! : lines.length
     const list = insertions.get(at) ?? []
-    list.push(comment.raw.startsWith('%%{') ? `%% ${comment.raw.slice(2)}` : comment.raw); insertions.set(at, list)
+    list.push(writeMermaidComment(comment.raw)); insertions.set(at, list)
   }
   return lines.flatMap((line, index) => [...(insertions.get(index) ?? []), line]).concat(insertions.get(lines.length) ?? []).join('\n') + '\n'
 }

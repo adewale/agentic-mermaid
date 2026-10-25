@@ -11,7 +11,7 @@ export const ISHIKAWA_SVG_HOOKS = {
     const config = ctx.source.config.ishikawa as Record<string, unknown> | undefined
     return layoutResult(
       layoutIshikawaDiagram(
-        parseIshikawaDiagram(ctx.source.familyBody),
+        parseIshikawaDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody),
         ctx.renderOptions,
         ctx.styleFace,
         typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,

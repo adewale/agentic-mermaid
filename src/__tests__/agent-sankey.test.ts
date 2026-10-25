@@ -3,11 +3,41 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { decodeXML } from 'entities'
 import type { SankeyBody, SankeyMutationOp, SankeyValidDiagram } from '../agent/index.ts'
-import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { SankeyRuntimeConfig } from '../index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120'
+
+test('Sankey directive-like identities and accessibility remain source-preserved extensions', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const [body, syntax] of [
+      ['source,%%{target,1', 'sankey_directive_text'],
+      ['source%%{name,target,1', 'sankey_directive_text'],
+      ['accTitle: Flows\nsource,target,1', 'sankey_accessibility'],
+      ['accDescr {\nFlow description\n}\nsource,target,1', 'sankey_accessibility'],
+    ]) {
+      const source = `sankey-beta\n${body}\n`
+      expect(await upstream.accepts(source)).toBe(false)
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+      expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax }))
+      expect(mutate(parsed.value, { kind: 'rename_node', from: 'source', to: 'changed' }).ok).toBe(false)
+    }
+    for (const op of [
+      { kind: 'add_link', source: '%%{new', target: 'Homes', value: 1 },
+      { kind: 'rename_node', from: 'Coal', to: '%%{renamed' },
+    ] satisfies SankeyMutationOp[]) expect(mutate(sankey(BASIC), op).ok).toBe(false)
+    const portable = sankey('sankey-beta\nsource,%target,1')
+    expect(await upstream.accepts(serializeMermaid(portable))).toBe(true)
+  } finally { upstream.close() }
+})
 
 // Quoting is independent of the production serializer. Distinct prefixes
 // construct acyclic inputs without filtering punctuation or Unicode.
@@ -107,13 +137,13 @@ describe('sankey agent surface · parse and narrow', () => {
     expect(serializeMermaid(d)).toBe('sankey-beta\n  Pumped heat,"Heating, ""homes""",193.026\n')
   })
 
-  test('accessibility directives ride in meta and survive serialization (structured body)', () => {
+  test('accessibility directives ride in meta and retain source without typed regeneration', () => {
     const p = parseMermaid('sankey-beta\naccTitle: T\nA,B,1')
     expect(p.ok).toBe(true)
     if (p.ok) {
-      expect(p.value.body.kind).toBe('sankey')
+      expect(p.value.body.kind).toBe('opaque')
       expect(p.value.meta.accessibility).toEqual({ title: 'T' })
-      expect(serializeMermaid(p.value)).toContain('accTitle: T')
+      expect(serializeMermaid(p.value)).toBe('sankey-beta\naccTitle: T\nA,B,1\n')
     }
   })
 

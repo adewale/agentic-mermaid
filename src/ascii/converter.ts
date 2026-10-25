@@ -48,6 +48,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, c
       // Use the parser ID as the unique identity key to avoid collisions
       // when multiple nodes share the same label (e.g. A[Web Server], C[Web Server]).
       name: id,
+      ...(mNode.semanticRole ? { semanticRole: mNode.semanticRole } : {}),
       // The label's display text is drawn inside the box: formatting tags
       // style the SVG runs and are not characters, so the cells show what
       // the SVG shows.

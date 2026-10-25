@@ -8,6 +8,7 @@ import type { BlockBody } from './types.ts'
 import { tokenize } from './lexer.ts'
 import { T, TOKEN_NAMES } from './tokens.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
+import { readBlockText } from './text-codec.ts'
 import type { Block, Statement } from './types.ts'
 export type BlockBuilder = Pick<BlockDb, 'typeStr2Type' | 'edgeStrToEdgeData' | 'edgeStrToEdgeStartData' | 'edgeStrToThickness' | 'edgeStrToPattern' | 'generateId' | 'setHierarchy'>
 interface NodeInfo {
@@ -53,12 +54,12 @@ export function parseBlock(src: string, db: BlockBuilder): void {
     const id = expect(T.NODE_ID)
     if (types[i]! === T.NODE_DSTART) {
       const open = texts[i++]!
-      const label = expect(T.STR)
+      const label = readBlockText(expect(T.STR))
       return { id, label, typeStr: open + expect(T.NODE_DEND) }
     }
     if (types[i]! === T.BLOCK_ARROW_START) {
       const open = texts[i++]!
-      const label = expect(T.STR)
+      const label = readBlockText(expect(T.STR))
       const directions = [expect(T.DIR)]
       while (types[i]! === T.DIR) directions.push(texts[i++]!)
       return { id, label, typeStr: open + expect(T.BLOCK_ARROW_END), directions }
@@ -80,7 +81,7 @@ export function parseBlock(src: string, db: BlockBuilder): void {
       let label = ''
       if (types[i++]! === T.START_LINK) {
         expect(T.LINK_LABEL)
-        label = expect(T.STR)
+        label = readBlockText(expect(T.STR))
         expect(T.LINK)
       }
       const link = texts[i - 1]!

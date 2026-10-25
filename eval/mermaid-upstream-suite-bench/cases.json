@@ -12895,8 +12895,12 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "labelsContain": [
+        "This is a floating note"
+      ]
     }
   },
   {
@@ -12913,8 +12917,12 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "labelsContain": [
+        "This is a floating note"
+      ]
     }
   },
   {
@@ -12931,8 +12939,12 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "labelsContain": [
+        "This is a floating note"
+      ]
     }
   },
   {
@@ -12949,8 +12961,12 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 0,
+      "labelsContain": [
+        "This is a floating note"
+      ]
     }
   },
   {

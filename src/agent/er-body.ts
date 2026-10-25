@@ -92,6 +92,9 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
       for (const reference of references) {
         if (!reference.quoted && isErKeywordName(reference.id)) warn(header + entry.line + 1, 'er_keyword_name', `ER name ${reference.id} is read as a name, where Mermaid reads a keyword`, `quote it ("${reference.id}")`)
       }
+      const classNames = syntax.kind === 'class' ? syntax.classNames : references.flatMap(reference => reference.className?.split(' ') ?? [])
+      for (const name of classNames) if (!writableErClassName(name)) warn(header + entry.line + 1, 'er_class_name', `ER class name ${JSON.stringify(name)} has no supported lossless spelling`, 'the source and drawing are preserved, but typed editing is unavailable')
+      if ((syntax.kind === 'style' || syntax.kind === 'class-def') && writeErStyleText(syntax.props) === undefined) warn(header + entry.line + 1, 'er_style_text', 'ER style text contains a property or value with no supported lossless spelling', 'the source and drawing are preserved, but typed editing is unavailable')
       if (syntax.kind === 'attribute' && syntax.generous) warn(header + entry.line + 1, 'er_attribute_form', 'An attribute with keys apart or after its comment is read as its type, name, keys and comment', 'write its keys comma-separated before the comment (`int id PK, FK "c"`)')
       if (syntax.kind === 'relation' && syntax.relation.unreadLabel) {
         const { label } = syntax.relation
@@ -130,6 +133,23 @@ function erStyleUnwritable(subject: string, style: Readonly<Record<string, strin
  * identity, so it is not re-spelled with entity codes as text is. */
 function writableErId(id: string): boolean {
   return parseErEntityId(id) !== null || (id !== '' && !/["%\\\r\n]/.test(id))
+}
+
+/** Class references use idList, which has neither numeric nor quoted tokens. */
+function writableErClassName(name: string): boolean {
+  return /^[\w-]+$/.test(name) && !/^\d/.test(name) && !isErKeywordName(name)
+}
+
+function erBodyWriteProblem(body: ErBody): string | undefined {
+  for (const entity of body.entities) {
+    for (const name of entity.className?.trim().split(/[ \t]+/) ?? []) {
+      if (!writableErClassName(name)) return `ER class name ${JSON.stringify(name)} has no supported lossless Mermaid spelling`
+    }
+    if (entity.style && writeErStyleText(entity.style) === undefined) return `ER entity ${JSON.stringify(entity.id)} has style text with no supported lossless Mermaid spelling`
+  }
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) {
+    if (writeErStyleText(style) === undefined) return `ER classDef ${JSON.stringify(name)} has style text with no supported lossless Mermaid spelling`
+  }
 }
 
 // ---- Parser ---------------------------------------------------------------
@@ -279,7 +299,7 @@ function readErBody(lines: string[]): ErBody | null {
     const parentId = placement.owner.get(group.id)
     if (parentId !== undefined) group.parentId = parentId
   }
-  return body
+  return erBodyWriteProblem(body) ? null : body
 }
 
 // ---- Serializer -----------------------------------------------------------
@@ -350,6 +370,8 @@ function insertAfterCreatingStatement(body: ErBody, id: string, statement: ErSta
 }
 
 export function renderEr(body: ErBody): string {
+  const problem = erBodyWriteProblem(body)
+  if (problem) throw new Error(problem)
   const written = writeEr(body, [])
   const position = new Map(written.order.map((id, index) => [id, index]))
   // The suffix after the rightmost inversion already appears in body order.
@@ -492,7 +514,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
         const group = groupById.get(statement.id)
         if (group) {
           // Quoted where Mermaid cannot read it bare, as an entity name is.
-          const id = parseErEntityId(group.id) !== null && !erNameNeedsQuotes(group.id) ? group.id : `"${group.id}"`
+          const id = parseErEntityId(group.id) !== null && !/^\d/.test(group.id) && !erNameNeedsQuotes(group.id) ? group.id : `"${group.id}"`
           lines.push(`  subgraph ${id}${group.label !== decodeErText(group.id) ? ` [${writeErTitle(group.label, group.labelContent)}]` : ''}`)
           fold.open(statement.id)
         }
@@ -522,7 +544,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     for (const relation of body.relations) pushRelation(relation)
   }
 
-  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${writeErStyleText(style) ?? serializeStyleProps(style)}`)
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${writeErStyleText(style)}`)
   for (const entity of body.entities) {
     const reference = renderErEntityReference({ ...entity, label: undefined })
     const classes = entity.className?.trim().split(/[ \t]+/).join(',')
@@ -530,8 +552,8 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     // written bare there; a `class` line cannot name one at all, so its class
     // goes on the entity itself (`"one":::foo`).
     const classLine = classes === undefined ? undefined
-      : erNameNeedsQuotes(entity.id) ? `  ${reference}:::${classes}` : `  class ${reference} ${classes}`
-    const styleLine = entity.style ? `  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference} ${writeErStyleText(entity.style) ?? serializeStyleProps(entity.style)}` : undefined
+      : !writableErClassName(entity.id) ? `  ${reference}:::${classes}` : `  class ${reference} ${classes}`
+    const styleLine = entity.style ? `  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference} ${writeErStyleText(entity.style)}` : undefined
     if (styleLine) fold.style(entity.id)
     // `class` applies only to an entity that exists, so it follows the `style`
     // line that creates one.
@@ -610,6 +632,8 @@ function normalizeErEntityLabel(value: string | null | undefined, field: string)
 }
 
 export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, MutationError> {
+  const problem = erBodyWriteProblem(body)
+  if (problem) return err({ code: 'INVALID_OP', message: problem })
   const b = cloneEr(body)
   const find = (id: string) => b.entities.find(e => e.id === id)
 
@@ -725,7 +749,7 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       if (!entity) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.entity} not found` })
       if (op.className === null) delete entity.className
       else {
-        if (!/^[\w-]+$/.test(op.className)) return err({ code: 'INVALID_OP', message: 'ER class name must contain only letters, digits, underscore, or hyphen' })
+        if (!writableErClassName(op.className)) return err({ code: 'INVALID_OP', message: 'ER class name must have a nonnumeric, nonkeyword spelling using letters, digits, underscore, or hyphen' })
         entity.className = op.className
       }
       return ok(b)

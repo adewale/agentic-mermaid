@@ -1,5 +1,7 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { mutateMindmap, parseMindmapBody, renderMindmapBody, verifyMindmap } from '../agent/mindmap-body.ts'
+import { parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import type { MindmapBody, MindmapMutationOp, MutationError, Result } from '../agent/types.ts'
 
 function body(): MindmapBody {
@@ -112,18 +114,23 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expectError({ kind: 'set_label', id: 'a', label: 'dest' }, 'DUPLICATE_NODE', "Mindmap node 'dest' already exists")
   })
 
-  test('default-node edits reject text that would reparse as decoration or a different shape', () => {
+  test('literal default-node text is escaped independently of shape and decoration syntax', () => {
     const unstable = ['A[B]', 'A(B)', 'A((B))', 'A{{B}}', 'A)B(', 'A))B((', '**A**', '"A"', '%%']
     for (const value of unstable) {
-      const message = `Default mindmap node text '${value}' is not serialization-stable; choose a bordered shape for decorated labels`
-      expectError({ kind: 'rename_node', from: 'a', to: value }, 'INVALID_OP', message)
-      expectError({ kind: 'set_label', id: 'a', label: value }, 'INVALID_OP', message)
-      expectError({ kind: 'add_node', id: value, label: value, parent: 'root' }, 'INVALID_OP', message)
+      for (const op of [
+        { kind: 'rename_node', from: 'a', to: value },
+        { kind: 'set_label', id: 'a', label: value },
+        { kind: 'add_node', id: value, label: value, parent: 'root' },
+      ] as const) {
+        const next = apply(op)
+        expect(child(next, value)?.label).toBe(value)
+        expect(parseMindmapBody(renderMindmapBody(next))).toEqual(next)
+      }
     }
 
-    const formatted = "Mindmap node text 'formatted/*Label*' is not serialization-stable; choose an id and label that do not conflict with rect delimiters"
-    expectError({ kind: 'add_node', id: 'formatted', label: '*Label*', parent: 'root', shape: 'rect' }, 'INVALID_OP', formatted)
-    expectError({ kind: 'set_label', id: 'box', label: '*Label*' }, 'INVALID_OP', "Mindmap node text 'box/*Label*' is not serialization-stable; choose an id and label that do not conflict with rect delimiters")
+    const formatted = apply({ kind: 'add_node', id: 'formatted', label: '*Label*', parent: 'root', shape: 'rect' })
+    expect(child(formatted, 'formatted')?.label).toBe('*Label*')
+    expect(parseMindmapBody(renderMindmapBody(formatted))).toEqual(formatted)
 
     for (const value of ['A%%comment', 'a %% b']) {
       const edited = apply({ kind: 'set_label', id: 'a', label: value })
@@ -216,5 +223,90 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     ])
     expect(warnings.map(warning => warning.code === 'LABEL_OVERFLOW' ? warning.target : '')).toEqual(['root', 'leaf', 'box', 'dest'])
     expect(verifyMindmap(body(), { labelCharCap: 100 })).toEqual([])
+  })
+})
+
+
+describe('Mindmap grammar escapes keep identity and native drawing', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(() => upstream.close())
+
+  test.each([
+    'mindmap\n["```"]',
+    'mindmap\nroot\n  ["`Say "hi"`"]\n    nested[Child]',
+    'mindmap\nroot\n  {{%%{t}}\n    nested[Child]',
+    'mindmap [%%{g]',
+  ])('repairs label delimiters without changing source meaning: %s', async source => {
+    expect(await upstream.accepts(source)).toBe(false)
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('mindmap')
+    const written = serializeMermaid(parsed.value)
+    expect(await upstream.accepts(written)).toBe(true)
+    if (parsed.value.body.kind !== 'mindmap') throw new Error('Expected Mindmap')
+    expect(parseMindmapBody(written).root).toEqual(parsed.value.body.root)
+    expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mindmap_nonportable_text' }))
+  })
+
+  const unwritable: MindmapMutationOp[] = [
+    { kind: 'set_icon', id: 'box', icon: 'fa:%%{text' },
+    { kind: 'set_node_class', id: 'box', className: '%%{text' },
+  ]
+  test.each(unwritable)('typed edits cannot introduce a directive opener: %j', op => {
+    const input = body()
+    const before = renderMindmapBody(input)
+    expect(mutateMindmap(input, op)).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(renderMindmapBody(input)).toBe(before)
+  })
+
+  test.each(['Say "hi"', 'Use `tick`', '%%{text'])('Markdown edits retain literal delimiters: %s', async label => {
+    const input = parseMindmapBody('mindmap\nroot["`Root`"]\n  child["`Child`"]')
+    const next = apply({ kind: 'set_label', id: 'child', label }, input)
+    const written = renderMindmapBody(next)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(parseMindmapBody(written)).toEqual(next)
+    expect(child(next, 'child')?.label).toBe(label)
+  })
+
+  test('HTML formatting retains its syntax mode through unrelated edits and reloads', async () => {
+    for (const label of ['<b>Bold</b>', '&lt;i&gt;Italic&lt;/i&gt; literal #42;star#42;']) {
+      const source = `mindmap\nroot(${label})\n  child["\`**Markdown**\`"]`
+      const input = parseMindmapBody(source)
+      expect(input.root.markdown).toBeUndefined()
+      expect(input.root.children[0]!.markdown).toBe(true)
+      const written = renderMindmapBody(input)
+      expect(parseMindmapBody(written)).toEqual(input)
+      expect(await upstream.publicAccepts(written)).toBe(true)
+      expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+      let next = apply({ kind: 'set_icon', id: 'root', icon: 'fa fa-tree' }, input)
+      next = apply({ kind: 'set_node_class', id: 'root', className: 'highlight' }, next)
+      expect(next.root).toEqual({ ...input.root, icon: 'fa fa-tree', className: 'highlight' })
+      const exported = renderMindmapBody(next)
+      expect(await upstream.publicAccepts(exported)).toBe(true)
+      expect(parseMindmapBody(exported)).toEqual(next)
+      // Accessibility is a documented native extension in this family.
+      const titled = apply({ kind: 'set_accessibility_title', title: 'Formatted tree' }, next)
+      expect(titled.root).toEqual(next.root)
+      expect(titled.accessibilityTitle).toBe('Formatted tree')
+      expect(parseMindmapBody(renderMindmapBody(titled))).toEqual(titled)
+      expect(verifyMermaid(renderMindmapBody(titled)).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mindmap_accessibility' }))
+    }
+  })
+
+  test('ordinary quotes, percent text, nested identity and Markdown emphasis remain portable', async () => {
+    let input = parseMindmapBody('mindmap\nroot["`Root`"]\n  child["`Child`"]\n    nested[Grandchild]')
+    input = apply({ kind: 'set_label', id: 'child', label: '<b>Bold</b> %% text' }, input)
+    input = apply({ kind: 'set_label', id: 'nested', label: 'Say "hi"' }, input)
+    const written = renderMindmapBody(input)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(parseMindmapBody(written)).toEqual(input)
+    expect(input.root.children[0]!.children[0]!.id).toBe('nested')
   })
 })

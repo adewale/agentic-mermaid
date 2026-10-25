@@ -6,6 +6,11 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { hierarchyChildren, hierarchyDescendants, validateHierarchy } from '../shared/hierarchy-model.ts'
+import { writeGrammarText } from '../shared/grammar-text.ts'
+
+// The header token takes this prefix at every node, before the free-text rule.
+// Quotes remain literal label text, so they cannot shield the same label.
+const NONPORTABLE_LABEL = /^ishikawa\b/i
 
 export function parseIshikawaBody(lines: string[]): IshikawaBody | null {
   try {
@@ -16,14 +21,28 @@ export function parseIshikawaBody(lines: string[]): IshikawaBody | null {
 }
 
 function assertIshikawaLabel(label: unknown): asserts label is string {
-  if (typeof label !== 'string' || !label || label !== label.trim() || /[\r\n]/.test(label) || /^(?:%%|accTitle\b|accDescr\b)/i.test(label)) throw new Error('Ishikawa labels must be nonempty single-line text without surrounding whitespace or Mermaid directives')
+  if (typeof label !== 'string' || !label || label !== label.trim() || /[\r\n]/.test(label)) throw new Error('Ishikawa labels must be nonempty single-line text without surrounding whitespace')
+}
+
+export function ishikawaUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
+  try {
+    parseIshikawaDiagram(source)
+    const lines = source.split(/\r?\n/), header = lines.findIndex(line => /^\s*ishikawa(?:-beta)?\s*$/i.test(line))
+    return lines.flatMap((line, index) => index > header && NONPORTABLE_LABEL.test(line.trim()) ? [{
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'ishikawa_label', line: index + 1,
+      message: `Ishikawa label "${line.trim()}" is read literally. The writer shields its keyword prefix for pinned Mermaid.`,
+    }] : [])
+  } catch { return [] }
 }
 
 export function renderIshikawa(body: IshikawaBody): string {
   validateHierarchy(body.nodes)
   if (body.nodes.length && (body.nodes[0]!.parentId !== undefined || body.nodes.slice(1).some(node => node.parentId === undefined))) throw new Error('Ishikawa must have one effect first, with every cause below it')
   const lines = ['ishikawa']
-  appendAccessibilityLines(lines, body)
+  appendAccessibilityLines(lines, {
+    ...(body.accessibilityTitle !== undefined ? { accessibilityTitle: writeGrammarText(body.accessibilityTitle, ':;,%{}') } : {}),
+    ...(body.accessibilityDescription !== undefined ? { accessibilityDescription: writeGrammarText(body.accessibilityDescription, ':;,%{}') } : {}),
+  })
   const children = hierarchyChildren(body.nodes)
   const pending = [...(children.get(undefined) ?? [])].reverse().map(node => ({ node, depth: 0 }))
   let written = 0
@@ -31,7 +50,7 @@ export function renderIshikawa(body: IshikawaBody): string {
     const { node, depth } = pending.pop()!
     assertIshikawaLabel(node.label)
     written++
-    lines.push(`${'  '.repeat(depth)}${node.label}`)
+    lines.push(`${'  '.repeat(depth)}${writeGrammarText(node.label, '%', /^(?:ishikawa\b|accTitle\b|accDescr\b)/i)}`)
     for (const child of [...(children.get(node.id) ?? [])].reverse()) pending.push({ node: child, depth: depth + 1 })
   }
   if (written !== body.nodes.length) throw new Error('Ishikawa causes must be connected below the effect')
