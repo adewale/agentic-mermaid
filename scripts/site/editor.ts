@@ -240,6 +240,7 @@ async function generateEditorHtml(): Promise<string> {
       compress: {
         defaults: false, join_vars: true, evaluate: true, unused: true, keep_fargs: true,
         dead_code: true, conditionals: true, booleans: true, comparisons: true,
+        reduce_vars: true, sequences: true,
       },
       format: { comments: 'some', inlineScript: true },
     })
