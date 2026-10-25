@@ -4,8 +4,8 @@ import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { accessibilityDescriptionText, accessibilityTitleText, appendAccessibilityLines } from './accessibility-envelope.ts'
-import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { nativeAccessibilityText } from './accessibility-envelope.ts'
+import { appendNativeAccessibilityLines, parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { hierarchyChildren, hierarchyDescendants, validateHierarchy } from '../shared/hierarchy-model.ts'
 import { writeGrammarText } from '../shared/grammar-text.ts'
 
@@ -37,7 +37,7 @@ export function ishikawaUnsupportedSyntaxWarnings(source: string): LayoutWarning
       const directive = parseAccessibilityDirective(lines, index)
       if (!directive) continue
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_accessibility', line: index + 1,
-        message: 'Ishikawa accessibility is a native extension. Pinned Mermaid reads these directives as fishbone nodes instead of title or description metadata.' })
+        message: 'Ishikawa accessibility metadata is carried in native comments on export. External Mermaid ignores this metadata; diagram topology is preserved.' })
       index = directive.endIndex
     }
     return warnings
@@ -48,10 +48,7 @@ export function renderIshikawa(body: IshikawaBody): string {
   validateHierarchy(body.nodes)
   if (body.nodes.length && (body.nodes[0]!.parentId !== undefined || body.nodes.slice(1).some(node => node.parentId === undefined))) throw new Error('Ishikawa must have one effect first, with every cause below it')
   const lines = ['ishikawa']
-  appendAccessibilityLines(lines, {
-    ...(body.accessibilityTitle !== undefined ? { accessibilityTitle: writeGrammarText(body.accessibilityTitle, ':;,%{}') } : {}),
-    ...(body.accessibilityDescription !== undefined ? { accessibilityDescription: writeGrammarText(body.accessibilityDescription, ':;,%{}') } : {}),
-  })
+  appendNativeAccessibilityLines(lines, body)
   const children = hierarchyChildren(body.nodes)
   const pending = [...(children.get(undefined) ?? [])].reverse().map(node => ({ node, depth: 0 }))
   let written = 0
@@ -80,10 +77,10 @@ export function mutateIshikawa(body: IshikawaBody, op: IshikawaMutationOp): Resu
         else next.nodes.push({ id: 'effect', label: op.label })
         break
       case 'set_accessibility_title':
-        next.accessibilityTitle = op.title == null ? undefined : accessibilityTitleText(op.title)
+        next.accessibilityTitle = op.title == null ? undefined : nativeAccessibilityText(op.title)
         break
       case 'set_accessibility_description':
-        next.accessibilityDescription = op.description == null ? undefined : accessibilityDescriptionText(op.description)
+        next.accessibilityDescription = op.description == null ? undefined : nativeAccessibilityText(op.description)
         break
       case 'add_cause': {
         const parentId = op.parentId ?? next.nodes[0]?.id

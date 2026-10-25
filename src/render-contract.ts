@@ -47,7 +47,7 @@ import type {
   FamilyRequestNormalizationResult,
 } from './agent/families.ts'
 import type { DiagramKind, FamilyId } from './agent/types.ts'
-import { requireRegisteredMermaidFamilyDescriptor } from './family-detection.ts'
+import { classifyMermaidFamilyDescriptorFromFirstLine, familyDetectionDiagnostic, MermaidFamilyDetectionError } from './family-detection.ts'
 import { getBackendDescriptor } from './scene/backend.ts'
 import type { BackendDescriptor, HostBackendPolicy } from './scene/backend.ts'
 import {
@@ -971,14 +971,16 @@ function serializableOptionCandidate(options: RenderOptions): Record<string, unk
 
 function capturedRequestFamily(
   source: NormalizedMermaidSource,
+  classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine>,
 ): FamilyDescriptor {
-  return requireRegisteredMermaidFamilyDescriptor(
-    source.lines[0] ?? source.firstLine,
+  if (classification.kind === 'registered') return classification.family
+  throw new MermaidFamilyDetectionError(familyDetectionDiagnostic(
+    classification.kind === 'unknown' ? { ...classification, header: source.lines[0] ?? source.firstLine } : classification,
     source.originalText,
-    'strict',
     source.authoredWrapperLength ?? source.wrapperSource?.length ?? 0,
     source.authoredHeader ?? source.lines[0] ?? source.firstLine,
-  )
+    null,
+  ))
 }
 
 function assertFamilyGeometryOptions(
@@ -1826,7 +1828,12 @@ export function resolveRenderRequestForExecution(
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
-  const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {})
+  let classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
+  const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {}, firstLine => {
+    if (resolutionOptions.familyDescriptor) return resolutionOptions.familyDescriptor
+    classification = classifyMermaidFamilyDescriptorFromFirstLine(firstLine)
+    return classification.kind === 'registered' ? classification.family : null
+  })
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
@@ -1834,7 +1841,7 @@ export function resolveRenderRequestForExecution(
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
-  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource)
+  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, classification!)
   // Pie keeps its authored label spelling in its own chunk (pieFamilyLines).
   const source = detectedSource
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {

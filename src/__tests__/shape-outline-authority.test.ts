@@ -4,7 +4,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, shapePorts } from '../route-contracts.ts'
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
-import { clipEdgeToShape } from '../shape-clipping.ts'
+import { clipEdgeToShape, isOutwardShapeApproach, trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { paintsNodeFill, pointOnShapeSide, shapeOutline, shapeRoutingProfile } from '../shape-outline.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { NodeShape, PositionedNode } from '../types.ts'
@@ -140,6 +140,46 @@ describe('canonical shape outline authority', () => {
       expect(clipEdgeToShape([contact!, adjacent!], hexagon, true)[0]).toEqual(expected)
       expect(clipEdgeToShape([adjacent!, contact!], hexagon, false)[1]).toEqual(expected)
     }
+  })
+
+  test.each(['rectangle', 'circle', 'ellipse', 'stadium', 'cylinder', 'hexagon'] as const)('late %s terminal clipping retains the existing exterior subpath', shape => {
+    const y = shape === 'circle' ? 50 : 30
+    const owner = { ...node(shape), x: 0, y: 0, width: 100, height: y * 2 }
+    // At this centerline every listed painted outline has extrema x=0/100.
+    const points = [{ x: 100, y }, { x: -40, y }, { x: -40, y: 100 }]
+    const expected = [{ x: 0, y }, { x: -40, y }, { x: -40, y: 100 }]
+    expect(trimOccludedShapeEndpoint(points, owner, true)).toEqual(expected)
+    expect(trimOccludedShapeEndpoint([...points].reverse(), owner, false)).toEqual([...expected].reverse())
+  })
+
+  test('outward contact distinguishes smooth tangency, sharp vertices and rectangular corners without a scale cutoff', () => {
+    const circle = { ...node('circle'), x: 0, y: 0, width: 100, height: 100 }
+    expect(isOutwardShapeApproach(circle, { x: 50, y: 0 }, { x: 150, y: 0 })).toBe(false)
+    const stadium = { ...node('stadium'), x: 0, y: 0, width: 200, height: 100 }
+    expect(isOutwardShapeApproach(stadium, { x: 150, y: 0 }, { x: 250, y: 0 })).toBe(false)
+    const diamond = { ...node('diamond'), x: 0, y: 0, width: 100, height: 100 }
+    expect(isOutwardShapeApproach(diamond, { x: 50, y: 0 }, { x: -50, y: 0 })).toBe(true)
+    const rectangle = { ...node('rectangle'), x: 0, y: 0, width: 100, height: 100 }
+    expect(isOutwardShapeApproach(rectangle, { x: 50, y: 0 }, { x: 100, y: 0 })).toBe(false)
+    expect(isOutwardShapeApproach(rectangle, { x: 100, y: 0 }, { x: 150, y: 0 })).toBe(true)
+    const large = { ...circle, width: 2e10, height: 2e10 }
+    expect(isOutwardShapeApproach(large, { x: 2e10, y: 1e10 }, { x: 3e10, y: 1e10 })).toBe(true)
+  })
+
+  test('terminal clipping preserves exterior stale prefixes, including concave gaps inside the layout box', () => {
+    const rectangle = { ...node('rectangle'), x: 0, y: 0, width: 100, height: 60 }
+    const outside = [{ x: 120, y: 30 }, { x: 50, y: 30 }, { x: -40, y: 30 }]
+    expect(trimOccludedShapeEndpoint(outside, rectangle, true)).toBe(outside)
+    const hourglass = { ...node('diamond', 'hourglass'), x: 0, y: 0, width: 100, height: 60 }
+    const gap = [{ x: 90, y: 30 }, { x: 50, y: 30 }, { x: 50, y: 100 }]
+    expect(trimOccludedShapeEndpoint(gap, hourglass, true)).toBe(gap)
+    const envelope = node('rectangle', 'cloud')
+    expect(trimOccludedShapeEndpoint(outside, envelope, true)).toBe(outside)
+    const circle = { ...node('circle'), x: 0, y: 0, width: 100, height: 100 }
+    const excursion = [{ x: 50, y: 0 }, { x: 150, y: 0 }, { x: 150, y: 100 }, { x: 50, y: 100 }, { x: 50, y: 150 }]
+    expect(trimOccludedShapeEndpoint(excursion, circle, true)).toBe(excursion)
+    const concaveExcursion = [{ x: 81, y: 10 }, { x: 81, y: 50 }, { x: 81, y: 100 }]
+    expect(trimOccludedShapeEndpoint(concaveExcursion, hourglass, true)).toBe(concaveExcursion)
   })
 
   test('polygon clipping repairs a contact whose shaft re-enters a concave outline', () => {

@@ -75,8 +75,8 @@ const CLASS_READ_GENEROUSLY: ReadonlyArray<[...GenerousRow, ('class' | 'opaque')
   ['a method with no name in a member statement', 'classDiagram\n  class A\n  A : (x)', '(x)', 'class_member_parenthesis', 3],
   ['a second header inside a namespace', 'classDiagram\n  namespace Zoo {\n    classDiagram\n    class Animal\n  }', 'Animal', 'class_repeated_header', 3],
   // Before the first colon of a classDef or style, Mermaid's class grammar takes only words, `#`, `%` and commas.
-  ['a hyphen before the first colon of a classDef', 'classDiagram\n  class A:::thick\n  classDef thick stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3, 'opaque'],
-  ['a hyphen before the first colon of a style', 'classDiagram\n  class A\n  style A stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3, 'opaque'],
+  ['a hyphen before the first colon of a classDef', 'classDiagram\n  class A:::thick\n  classDef thick stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3, 'class'],
+  ['a hyphen before the first colon of a style', 'classDiagram\n  class A\n  style A stroke-width:4px', 'stroke-width="4"', 'class_style_text', 3, 'class'],
 ]
 
 // Unquoted quadrant text Mermaid's quadrant lexer does not read as text.
