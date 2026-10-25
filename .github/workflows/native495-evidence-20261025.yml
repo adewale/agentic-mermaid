@@ -1,0 +1,114 @@
+name: "Native #495 goals and attribution at frozen selected runtime"
+on:
+  push:
+    branches:
+      - codex/native495-5010-bench-20261025
+permissions:
+  contents: read
+jobs:
+  fixed-target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Dispatch original target at the immutable qualification branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/native495-5010-qualification-20261025 --jq .object.sha)" = 5010e9c2859c7c76c20ce2b11d8cfa3b54deb8ee
+          gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
+          {"ref":"codex/native495-5010-qualification-20261025","inputs":{"evidence-scope":"fixed","baseline-ref":"12d293836b25ae44f09a178c84c0a6eb9ceff80d","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          JSON
+  native-study:
+    name: Native 402 AA-AA-AB / ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - id: main
+            reference: 12d293836b25ae44f09a178c84c0a6eb9ceff80d
+          - id: increment
+            reference: 46720c679e000e7b34925d68be4134e791a8ef88
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 5010e9c2859c7c76c20ce2b11d8cfa3b54deb8ee
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.19.0
+          package-manager-cache: false
+      - name: Build verified packages at both frozen source pins
+        env:
+          REFERENCE_SHA: ${{ matrix.reference }}
+        run: >
+          test "$(git rev-parse HEAD)" =
+          5010e9c2859c7c76c20ce2b11d8cfa3b54deb8ee
+
+          mkdir -p native495-study
+
+          npm install -g npm@11.18.0 --ignore-scripts
+
+          test "$(npm --version)" = 11.18.0
+
+          bun install --frozen-lockfile
+
+          bun run build
+
+          bun run scripts/ci/verify-publish-package.ts --pack-destination
+          native495-study/candidate-package
+
+          git fetch --no-tags origin "$REFERENCE_SHA"
+
+          git worktree add --detach "$RUNNER_TEMP/native495-reference"
+          "$REFERENCE_SHA"
+
+          test "$(git -C "$RUNNER_TEMP/native495-reference" rev-parse HEAD)" =
+          "$REFERENCE_SHA"
+
+          (
+            cd "$RUNNER_TEMP/native495-reference"
+            bun install --frozen-lockfile
+            bun run build
+            bun run scripts/ci/verify-publish-package.ts --pack-destination "$GITHUB_WORKSPACE/native495-study/baseline-package"
+          )
+      - name: Acquire the three complete predeclared reports
+        env:
+          REFERENCE_SHA: ${{ matrix.reference }}
+          COMPARISON_ID: ${{ matrix.id }}
+        run: |
+          python - <<'PYTHON'
+          import datetime,hashlib,json,os,pathlib,subprocess
+          root=pathlib.Path('native495-study').resolve()
+          baseline=root/'baseline-package/package.tgz'
+          candidate=root/'candidate-package/package.tgz'
+          policy={'declaredAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'comparison':os.environ['COMPARISON_ID'],'baselineSource':os.environ['REFERENCE_SHA'],'candidateSource':'5010e9c2859c7c76c20ce2b11d8cfa3b54deb8ee','checkoutSource':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'workflowRevision':os.environ.get('GITHUB_SHA'),'order':['aa1','aa2','ab'],'rounds':5,'reps':3,'elkCache':'off','scope':'All maintained release inputs and literal ordered402 corpus. Main comparison measures the whole selected stack. Increment comparison holds routing and all other code constant and isolates only the two selected #495 runtime shortcuts. Independent same-host controls per comparison; no controls/timings pooled across jobs.','noResampling':True,'interpretation':'Native render-return timing and a separate V8 memory pair per report. No semantic-peer tail, peak RSS or native/WASM allocation claim. Material gain must exceed maximum symmetric A/A deviation plus two percentage points. SourceRevision in reports inherits the evidence-wrapper event; the verified checkoutSource and package identities bind actual production/harness source.'}
+          assert policy['checkoutSource']==policy['candidateSource']
+          (root/'predeclared-policy.json').write_text(json.dumps(policy,indent=2)+'\n')
+          statuses=[]
+          for name in policy['order']:
+           chosen=candidate if name=='ab' else baseline
+           cmd=['bun','eval/benchmark/release-bench.ts','--out',str(root/name),'--rounds','5','--reps','3','--budget-ms','2400000','--elk-cache','off','--runtime-source',os.environ['RUNNER_TEMP']+'/native495-reference','--baseline-tarball',str(baseline),'--baseline-sha256',hashlib.sha256(baseline.read_bytes()).hexdigest(),'--candidate-tarball',str(chosen),'--candidate-sha256',hashlib.sha256(chosen.read_bytes()).hexdigest()]
+           with (root/(name+'.log')).open('w') as log:
+            r=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
+           statuses.append({'name':name,'exit':r.returncode,'endedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()})
+           (root/'status.json').write_text(json.dumps(statuses,indent=2)+'\n')
+           print(json.dumps(statuses[-1]),flush=True)
+          raise SystemExit(any(s['exit']!=0 for s in statuses))
+          PYTHON
+      - name: Retain all archives reports clocks and adverse results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native495-5010-${{ matrix.id }}-${{ github.run_id }}
+          path: native495-study/
+          if-no-files-found: error
+          retention-days: 30
