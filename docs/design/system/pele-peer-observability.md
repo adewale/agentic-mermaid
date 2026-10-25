@@ -1,4 +1,8 @@
-# Pele rendered endpoint adapter
+# Historical Pele 1.6 rendered endpoint adapter
+
+This adapter is restricted to the historical frozen 1.6.0 pin. It does not
+qualify the active Pele 1.9 policy. A 1.9 installation fails the exact-pin
+selection guard; its rendered contract needs separate review and fresh controls.
 
 `pele-1.6.0-rendered-ids-v1` observes the published `pele@1.6.0` SVG after
 the render/consumption clock. The benchmark selects it only for the exact

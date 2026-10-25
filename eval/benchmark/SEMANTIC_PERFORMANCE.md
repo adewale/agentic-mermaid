@@ -77,7 +77,9 @@ depending on V8 optimization, producing a 3.82 MB same-package artifact in
 Mesh full-receipt profiles. The indexed loop preserves exact bytes, checksum
 and getter order. API bindings, default font/measurer options, XML-validation
 font options and the actual source-freshness mechanism enter report metadata.
-The frozen Pele lane remains version 1.6.0; later source research at 1.10.0
+The historical frozen Pele lane remains version 1.6.0; active 1.9 policy and
+later source research at 1.10.0 require their own reviewed adapter and controls.
+The historical adapter does not qualify the active pin. Source research
 does not silently update that pin or turn a public SVG API into browser mount
 timing. Neither fresh identities nor one authored label edit means every
 unchanged label receives fresh text preparation.
