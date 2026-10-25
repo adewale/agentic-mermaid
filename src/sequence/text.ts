@@ -72,6 +72,9 @@ export function writeSequenceText(value: string, content?: LabelContent, prefix 
   // The readers trim statement text before decoding entities. Preserve typed
   // boundary spaces without turning them into statement indentation.
   source = normalizeSequenceMessageText(source).replace(/^ +| +$/g, spaces => '#32;'.repeat(spaces.length))
+  // Comments are recognized before TXT/ALIAS payloads. Keep a literal pair
+  // shielded until field decoding, including a directive-looking opener.
+  source = source.replace(/%%/g, '%#37;')
   // Mermaid's global style prepass can start in an actor ID and reach a
   // label colon. Check the full statement, then hide only payload colons
   // from that lexical pass; entity expansion restores the public value.
