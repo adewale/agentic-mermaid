@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
 import { cpus } from 'node:os'
-import { writeFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join, relative } from 'node:path'
+import { assertBenchmarkExecutionAllowed } from '../benchmark/ci-policy.ts'
 import { categoricalPalette, categoricalPaletteWithDiagnostics } from '../../src/shared/categorical-palette.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../../src/palette-catalog.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const REPORT = join(import.meta.dir, 'report.json')
+const REPORT = process.env.AM_BENCH_SUITE_OUT ? join(process.env.AM_BENCH_SUITE_OUT, 'palette-report.json') : join(import.meta.dir, 'report.json')
 const COUNTS = Array.from({ length: 18 }, (_unused, index) => index + 7)
 const LARGE_COUNTS = [25, 64, 256, 1000] as const
 const WARMUP_CALLS = 200
@@ -103,6 +104,7 @@ function assertCleanWorktree(): void {
 }
 
 function record(): void {
+  assertBenchmarkExecutionAllowed()
   assertCleanWorktree()
   const fixtures = benchmarkFixtures()
   const ordered = seededShuffle(fixtures, ORDER_SEED)
@@ -165,6 +167,7 @@ function record(): void {
       'The recording commit is informational and can become unreachable after a squash merge.',
     ],
   }
+  mkdirSync(dirname(REPORT), { recursive: true })
   writeFileSync(REPORT, `${JSON.stringify(report, null, 2)}\n`)
   console.log(`Recorded ${timings.length} palette samples in ${repoPath(REPORT)}`)
 }

@@ -85,11 +85,65 @@ does not stop a selected project's update. A campaign lock serializes preparatio
 and timing against their shared cache. After an interrupted process, verify that
 its recorded PID has stopped before removing a leftover `project-campaign.lock`.
 
-The cache is currently specific to the community API/browser/CLI campaign.
+The retained store now has independent lanes for the community API/browser/CLI
+campaign and the portable SVG campaign. Both can retain a current record for the
+same project without overwriting each other. Report, test and independent-suite
+edits do not invalidate the measured community producer closure. Analysis-only
+price and noise-policy changes can regenerate portable reports from raw samples.
 Explicitly invoking a legacy Dave, release, PR or source-diagnostic runner starts
 its owning protocol again; paired controls are intentionally part of those
 experiments. Historical reports are retained as historical evidence and are not
 silently admitted into the new cache under a different protocol.
+
+## Portable family, scaling and resource campaign
+
+The portable package adds 49 authored cases: 23 family representatives, 15
+scaling cases, eight adversarial interactions and three invalid inputs. Its public
+SVG adapters currently support Pele, Agentic Mermaid, Beautiful Mermaid and
+Ondine Node packages. The wider community runner retains its additional runtimes
+and invocation paths. Dave, pinned-Mermaid scoring and the historical six-core
+lane remain unchanged.
+
+```sh
+node eval/benchmark/portable/build.ts --out /tmp/mermaid-benchmark-kit
+node /tmp/mermaid-benchmark-kit/run.mjs \
+  --project obsidianmd/pele --artifact-root /path/to/installed/pele \
+  --rounds 5 --samples 31 --cold-samples 20 \
+  --records /tmp/mermaid-records --out /tmp/pele-run \
+  --observer /usr/bin/time --allow-partial
+python3 eval/benchmark/portable/charts.py \
+  --report /tmp/pele-run/report.json --out /tmp/pele-charts
+```
+
+Copy the four compiled artifact files (`run.mjs`, `worker.mjs`, `execution.mjs`,
+`package.json`) and `harness-artifact.json` together. That kit needs Node 24 and
+the supplied external project artifact; it needs no Agentic source, Git, npm
+installation or harness dependencies. Compiled measurement-worker and execution
+bytes identify the protocol. Report-only changes can reuse samples. Source-mode
+execution instead checks the committed measurement-producer Git objects.
+
+The default experiment uses five rounds, three same-artifact replicas (A0/A1/B),
+31 warm batch means and 20 fresh-process first-use calls per replica/round/case.
+Cold processes may import concurrently, then wait behind a complete idle barrier;
+only one API call executes at a time. Import preparation time is not ranked as
+serial import cost. Every distinct returned SVG is checked outside clocks;
+byte-identical immutable outputs reuse their admission. Warm sample p95 describes
+batch means, not a request tail. Comment-varied inputs change source bytes while
+keeping the same semantic graph; they do not prove uncached layout work.
+
+Memory uses a later phase of fixed-work fresh processes. Current RSS/heap at the
+API boundary and post-GC retention precede output qualification. Import/prelude
+controls are retained. GNU time, when configured, records whole-worker CPU/peak
+RSS, including later qualification. Missing native/WASM/GPU observations are not
+zero. A 0/10/100/1000-call comment-variation probe adds bounded retention evidence,
+not proof against all leaks. CPU prices must be supplied; live model costs need
+actual dated usage evidence. The runner makes no provider calls.
+
+The report keeps acceptance, failed declared criteria, unmeasured semantics and
+timing calibration separate. `--allow-partial` permits a process exit for an
+incomplete report; it never turns unmeasured criteria into passes. Repeating an
+unchanged command reuses the exact record. Cancellation or failed cleanup cannot
+publish a completed record.
 
 ## Extraction boundary
 

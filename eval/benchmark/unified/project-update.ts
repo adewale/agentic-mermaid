@@ -1,16 +1,17 @@
 import { execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, readSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { cpus, hostname, release } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
-import { createRequire } from 'node:module'
 import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
-import { communityCoreWorkloads, prepareCommunity, rankCommunityObservations, runCommunitySuite, selectCommunityProjects, verifyFrozenBrowserEngine, verifyProvidedCommunityArtifact } from './community.ts'
-import { prepareCommunityBrowsers, type PreparedCommunityBrowser } from './community-browser.ts'
-import { communityCliCacheIdentity, runCommunityCliSuite } from './community-cli.ts'
 import { captureInstalledDependencyClosure } from './artifact-dependencies.ts'
+import { communityCoreWorkloads, prepareCommunity, rankCommunityObservations, runCommunitySuite, selectCommunityProjects, verifyFrozenBrowserEngine, verifyProvidedCommunityArtifact } from './community.ts'
+import { type PreparedCommunityBrowser, prepareCommunityBrowsers } from './community-browser.ts'
+import { communityCliCacheIdentity, runCommunityCliSuite } from './community-cli.ts'
+import { communityProtocolIdentity } from './community-protocol-identity.ts'
 import type { CommunityNode, PreparedCommunity } from './community-types.ts'
-import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, publishProjectRecord, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from './project-records.ts'
+import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord, publishProjectRecord, stableValue } from './project-records.ts'
 import { withReferenceLabels } from './qualification.ts'
 import { parseOptions } from './run.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
@@ -55,12 +56,7 @@ function protocolContext(options: UnifiedRunOptions, inputs: unknown) {
   const root = options.harnessRoot ?? options.root
   // Git object IDs identify committed protocols; compare literal frozen inputs once,
   // rather than hashing our source or maintaining an invalidation version by hand.
-  const paths = ['eval/benchmark', 'eval/shared', 'eval/mermaid-family-portfolio', 'eval/mermaid-upstream-suite-bench', 'eval/mermaid-modern-compat', 'src/agent/families.ts']
-  const dirty = git(root, 'status', '--porcelain', '--untracked-files=all', '--', ...paths)
-  if (dirty) throw Error('Commit benchmark/protocol changes before measuring or reusing records; the Git protocol identity must describe the executing code')
-  const code = git(root, 'ls-tree', '-r', 'HEAD', '--', ...paths)
-    .split('\n')
-    .filter(line => /\.(?:ts|mjs|py|dart)$|\teval\/benchmark\/package\.json$/.test(line))
+  const code = communityProtocolIdentity(root)
   const require = createRequire(join(root, 'package.json'))
   const dependencies = captureInstalledDependencyClosure(join(root, 'eval/benchmark'))
   const version = (command: string) => {
@@ -302,7 +298,7 @@ async function runProjectUpdatesUnlocked(options: UnifiedRunOptions, settings: {
       attempt,
       updates: [],
       records: inspectCurrentProjectRecords(store)
-        .filter(item => item.evidenceRetained)
+        .filter(item => item.evidenceRetained && (item.record.identity.lane ?? 'community') === 'community')
         .map(item => item.record),
     }
   const updates = await updateProjectRecords(
@@ -348,7 +344,7 @@ async function runProjectUpdatesUnlocked(options: UnifiedRunOptions, settings: {
     })),
     options.communityForce,
   )
-  const inspected = inspectCurrentProjectRecords(store),
+  const inspected = inspectCurrentProjectRecords(store).filter(item => (item.record.identity.lane ?? 'community') === 'community'),
     records = inspected.filter(item => item.evidenceRetained).map(item => item.record),
     unavailable = inspected.filter(item => !item.evidenceRetained).map(item => item.record)
   if (settings.markdown) updateProjectMarkdown(settings.markdown, records, catalog.nodes, unavailable)

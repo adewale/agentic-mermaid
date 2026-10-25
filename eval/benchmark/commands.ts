@@ -14,6 +14,8 @@ const commands: Record<string, string[]> = {
   bench: [process.execPath, 'run', resolve(directory, 'unified/run.ts')],
   community: [process.execPath, 'run', resolve(directory, 'unified/community-campaign.ts')],
   'community:update': [process.execPath, 'run', resolve(directory, 'unified/project-update.ts')],
+  portable: [process.execPath, 'run', resolve(directory, 'portable/run.ts')],
+  'portable:build': [process.execPath, 'run', resolve(directory, 'portable/build.ts')],
   prs: [process.execPath, 'run', resolve(directory, 'unified/pr-campaign.ts')],
 }
 if (!command || !commands[command]) throw Error(`Use one of: ${Object.keys(commands).join(', ')}`)

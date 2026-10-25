@@ -13,6 +13,45 @@ catalog members and acquired/built 83 artifacts. The rebased catalog has 88
 members; those four additional entries do not inherit measurements from the
 older run. The [inventory](INVENTORY.md) lists the current executable boundaries.
 
+## Changes prompted by this assessment
+
+The [overview](OVERVIEW.md) describes the suite's current layers and contracts.
+The following changes add evidence paths without rewriting historical results:
+
+- The portable project campaign adds 49 authored cases: 23 family
+  representatives, 15 scaling inputs, eight interacting-feature cases and three
+  invalid inputs. Dave and the six-case fixed core keep their original roles.
+- The Pele qualifier compares public-model identities, endpoint multiplicity
+  and selected fields with independently authored expectations. Reviewed
+  flowchart, class, state, ER and simple sequence paint projections add actual
+  owned geometry, approximate attachment and scoped marker/label correspondence.
+  Correctness preflight now fully checks the declared criteria in 28 positive
+  cases; 18 positive cases still have unmeasured paint scopes. This count is not
+  complete visual or Mermaid semantic fidelity. A failed canvas or label check
+  also withholds semantic completion even when graph topology matches.
+- First-use, repeated work, controls and resources have explicit separate
+  protocols. The sampling plan requests five rounds and 20 fresh first-use
+  samples per case/round; calibration still depends on the actual completed
+  samples and control stability. Same-artifact Pele replicas qualify the
+  method, rather than establishing a product speedup.
+- Neutral benchmark execution has a concrete extraction boundary: the compiled
+  portable program accepts an external project artifact without Agentic Mermaid
+  source or Git. Source-stage diagnostics and repository-owned suites remain
+  optional adapters with different prerequisites.
+- Editor delivery, palette timing and the explicit Modern Mermaid application
+  comparison are enrolled in the controller instead of being hidden standalone
+  exceptions. Paid model/private skill workflows retain their external evidence
+  requirements.
+- Actual packed-package testing exposed the maintained community report being
+  included by the public `docs/*.md` glob. The package excludes that benchmark
+  report while retaining public API documentation; the reviewed shipping manifest
+  does not need to admit benchmark material.
+
+The remaining limitations below still matter when interpreting an observation.
+New sampling machinery does not retroactively calibrate the older three-round
+comparison, and a stronger flowchart oracle does not prove every family's
+rendered meaning or perceptual quality.
+
 ## What we can trust
 
 | Area | Judgment | Why |
@@ -145,10 +184,11 @@ requiring product source or its development dependency tree.
 
 ### “All suites” still needs a precise definition
 
-The current controller lists 49 entries, including correctness and preparation;
-only 48 are automatically eligible. Standalone editor-delivery, palette timing,
-Modern Mermaid application comparisons and private skill/model workflows are
-outside that selection. The inventory makes these visible. Missing external
+The controller list includes correctness and preparation alongside performance.
+Editor delivery and palette timing now have controller entries; portable project
+and Modern Mermaid application campaigns need explicit inputs. Private
+skill/model workflows and callable external judges retain their separate
+evidence requirements. The inventory makes these boundaries visible. Missing
 prerequisites should remain blocked records rather than silently omitted jobs.
 
 The most useful next benchmark work is to improve direct operation and semantic
