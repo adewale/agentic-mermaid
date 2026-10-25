@@ -23,7 +23,7 @@ import { visualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
 import { safeCssColor } from '../shared/css-color.ts'
-import { measuredText, type MeasuredTerminalText, type TerminalCell, type TerminalMarker, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
+import { measuredText, terminalCellConnections, type MeasuredTerminalText, type TerminalCell, type TerminalMarker, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
 import type { PathOccupancy } from './occupancy.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { allocateFacePort } from './terminal-geometry.ts'
@@ -1649,7 +1649,7 @@ function feasibleLabel(document: Canvas, label: GraphLabel, route: readonly Draw
 /** Admit actual route contributions, rather than guessed grid corridors.
  * Different units may cross perpendicularly; collinear ink and opaque markers
  * cannot stand for independent relationships at the same terminal cell. */
-function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][]): Set<AsciiEdge> {
+function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], projected: Canvas): Set<AsciiEdge> {
   const edges = new Map(graph.edges.map(edge => [terminalEdgeOwner(graph, edge).id, edge]))
   const occupied = new Map<string, Map<object | string, { edges: Set<AsciiEdge>; mask: number; marker: boolean }>>()
   for (const stage of layers) for (const layer of stage) for (const [x, y, cell] of layer.entries()) {
@@ -1660,13 +1660,65 @@ function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][]):
       const unit = edge.bundle ?? edge.sharedTrunk ?? edge
       const previous = units.get(unit) ?? { edges: new Set<AsciiEdge>(), mask: 0, marker: false }
       const mask = cell.stroke?.mask ?? 0
-      previous.edges.add(edge); previous.mask |= (mask & 5 ? 5 : 0) | (mask & 10 ? 10 : 0)
+      previous.edges.add(edge); previous.mask |= mask
       previous.marker ||= cell.kind === 'marker'
       units.set(unit, previous)
     }
     occupied.set(point, units)
   }
   const conflicts = new Set<AsciiEdge>()
+  // Logical adjacency does not prove a visible route: projection can leave
+  // half-strokes in its interior or replace the final bend with a marker.
+  // Index the actual combined paint once, preserving every shared owner,
+  // then admit each retained route through its own cardinal glyph contacts.
+  const routes = new Map<AsciiEdge, Map<string, number>>()
+  for (const [x, y, cell] of projected.entries()) {
+    // Arrowheads terminate at their tail; they are never transit junctions.
+    if (cell.marker?.shape === 'arrow') continue
+    const ports = terminalCellConnections(cell)
+    if (!ports) continue
+    for (const owner of cell.owners) {
+      const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
+      if (!edge || edge.cellAllocation) continue
+      const cells = routes.get(edge) ?? new Map<string, number>()
+      cells.set(`${x},${y}`, ports); routes.set(edge, cells)
+    }
+  }
+  const normals = { T: [0, -1, 1, 4], R: [1, 0, 2, 8], B: [0, 1, 4, 1], L: [-1, 0, 8, 2] } as const
+  for (const region of projected.regions()) {
+    const edge = region.kind === 'edge' ? edges.get(region.id) : undefined
+    if (!edge || edge.cellAllocation || edge.style === 'invisible') continue
+    const start = region.ports?.find(port => port.end === 'start'), end = region.ports?.find(port => port.end === 'end')
+    if (!start?.side || !end?.side) { conflicts.add(edge); continue }
+    const [sx, sy, sourceOut, sourceContact] = normals[start.side], [tx, ty, , targetContact] = normals[end.side]
+    const markerX = end.x + tx * (end.markerOffset ?? 1), markerY = end.y + ty * (end.markerOffset ?? 1)
+    let exit = `${start.x + sx},${start.y + sy}`, tip = `${markerX},${markerY}`
+    let sourceRequired = sourceContact
+    const cells = routes.get(edge)
+    const opposite = { T: 'B', R: 'L', B: 'T', L: 'R' } as const
+    if (edge.hasArrowStart && (!edge.startMarker || edge.startMarker === 'arrow')) {
+      const marker = projected.cell(start.x + sx * (start.markerOffset ?? 0), start.y + sy * (start.markerOffset ?? 0))
+      if (marker?.marker?.shape !== 'arrow' || marker.marker.direction !== opposite[start.side]) { conflicts.add(edge); continue }
+    }
+    if (edge.hasArrowEnd && (!edge.endMarker || edge.endMarker === 'arrow')) {
+      const marker = projected.cell(markerX, markerY)
+      if (marker?.marker?.shape !== 'arrow' || marker.marker.direction !== opposite[end.side]) { conflicts.add(edge); continue }
+      tip = `${markerX + tx},${markerY + ty}`
+      // A one-cell arrow can meet its source face directly. Only an actual
+      // owned junction on that face can supply its tail, never an invented port.
+      if (exit === `${markerX},${markerY}` && tip === `${start.x},${start.y}` && ((cells?.get(tip) ?? 0) & sourceOut)) { exit = tip; sourceRequired = sourceOut }
+    }
+    if (!((cells?.get(exit) ?? 0) & sourceRequired) || !((cells?.get(tip) ?? 0) & targetContact)) { conflicts.add(edge); continue }
+    const queue = [exit], seen = new Set(queue)
+    for (let index = 0; index < queue.length && !seen.has(tip); index++) {
+      const key = queue[index]!, comma = key.indexOf(','), x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1)), ports = cells!.get(key)!
+      for (const [dx, dy, out, into] of Object.values(normals)) {
+        const next = `${x + dx},${y + dy}`
+        if ((ports & out) && ((cells!.get(next) ?? 0) & into) && !seen.has(next)) { seen.add(next); queue.push(next) }
+      }
+    }
+    if (!seen.has(tip)) conflicts.add(edge)
+  }
   for (const units of occupied.values()) {
     const contributions = [...units.values()]
     if (contributions.length < 2) continue
@@ -1773,12 +1825,12 @@ function drawGraphCandidate(graph: AsciiGraph): Canvas | Set<AsciiEdge> {
     drawing.stroke(point.x, point.y, graph.config.graphDirection === 'LR' ? graph.config.reverseDirection ? 13 : 7 : 14, { ascii: graph.config.useAscii })
     add(6, drawing, owners, 'junction')
   }
-  const conflicts = retainedRouteConflicts(graph, layers)
-  if (conflicts.size) return conflicts
   const allocated = graph.edges.filter(edge => edge.cellAllocation)
   const retained = allocated.length ? document.blank() : document
   if (retained !== document) retained.overlay(document)
   for (const stage of layers) for (const layer of stage) retained.overlay(layer)
+  const conflicts = retainedRouteConflicts(graph, layers, retained)
+  if (conflicts.size) return conflicts
   const retainedLabels: Canvas[] = []
   const retainedApproaches = graphPortApproaches(retained), retainedRoutes = graphLabelRoutes(retained, labels)
   for (const label of labels) {

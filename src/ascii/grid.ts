@@ -417,12 +417,19 @@ function nodeBounds(node: AsciiNode): GridBounds | null {
   return { minX: x, minY: y, maxX: x + 2, maxY: y + 2 }
 }
 
-/** Reserve terminal capacity for the complete containment tree, rather than
- * assuming the normal card-to-card gap also fits arbitrarily nested frames.
- * Logical placement and routes stay fixed; only empty spacer rows/columns grow. */
-function reserveContainerEnvelopes(graph: AsciiGraph): void {
-  if (!graph.subgraphs.length) return
-  const projected = projectNodeEnvelopes(graph)
+/** Reserve complete painted envelopes across the containment tree. Logical
+ * blocks choose safe separating cuts; shared track widths can still make
+ * centred physical cards exceed those blocks. */
+function reserveProtectedEnvelopes(graph: AsciiGraph): void {
+  let projected = projectNodeEnvelopes(graph)
+  // Ordinary cards contained by their disjoint logical blocks need no pair
+  // scan. Compound frames, or cards enlarged beyond a block, need measured
+  // separation rather than the logical-placement assumption.
+  if (!graph.subgraphs.length && graph.nodes.every(node => {
+    const end = gridToDrawingCoord(graph, { x: node.gridCoord!.x + 2, y: node.gridCoord!.y + 2 })
+    const bounds = projected.get(node)!
+    return bounds.maxX <= end.x && bounds.maxY <= end.y
+  })) return
   interface Envelope { bounds: GridBounds; logical: GridBounds; node?: AsciiNode; group?: AsciiSubgraph }
   const envelopes: Envelope[] = []
   for (const [node, bounds] of projected) envelopes.push({ node, bounds, logical: nodeBounds(node)! })
@@ -434,39 +441,64 @@ function reserveContainerEnvelopes(graph: AsciiGraph): void {
     if (a.group && b.node) return a.group.nodes.includes(b.node)
     if (b.group && a.node) return b.group.nodes.includes(a.node)
     if (a.group && b.group) return isAncestorOrSelf(a.group, b.group) || isAncestorOrSelf(b.group, a.group)
-    return true // individual cards already occupy disjoint logical blocks
+    return false
   }
-  const rows = new Map<number, number>(), columns = new Map<number, number>()
   const clearance = 2 // one visible terminal cell between unrelated envelopes
-  for (let index = 0; index < envelopes.length; index++) for (let next = index + 1; next < envelopes.length; next++) {
-    const a = envelopes[index]!, b = envelopes[next]!
-    if (related(a, b)) continue
-    const first = a.bounds, second = b.bounds
-    if (first.maxX + clearance <= second.minX || second.maxX + clearance <= first.minX
-      || first.maxY + clearance <= second.minY || second.maxY + clearance <= first.minY) continue
-    const candidates: Array<{ axis: 'x' | 'y'; index: number; extra: number }> = []
-    for (const axis of ['x', 'y'] as const) {
-      const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'
-      if (a.logical[max] < b.logical[min]) candidates.push({ axis, index: b.logical[min] - 1, extra: first[max] + clearance - second[min] })
-      if (b.logical[max] < a.logical[min]) candidates.push({ axis, index: a.logical[min] - 1, extra: second[max] + clearance - first[min] })
+  interface Constraint { axis: 'x' | 'y'; index: number; left: Envelope; right: Envelope }
+  const active = new Map<string, Constraint>(), declined = new Set<string>()
+  const measure = (): void => {
+    projected = projectNodeEnvelopes(graph)
+    for (const envelope of envelopes) envelope.bounds = envelope.node ? projected.get(envelope.node)! : {
+      minX: envelope.group!.minX, minY: envelope.group!.minY,
+      maxX: envelope.group!.maxX, maxY: envelope.group!.maxY,
     }
-    // A separating logical gap can only gain capacity when other reservations
-    // grow. Batch the largest deficit per spacer: no repeated paint/settle loop.
-    candidates.sort((a, b) => a.extra - b.extra || (a.axis === (graph.config.graphDirection === 'TD' ? 'y' : 'x') ? -1 : 1))
-    const candidate = candidates[0]
-    if (!candidate) {
+  }
+  for (;;) {
+    // At cut k the left members end by k, so their drawing anchors and widths
+    // read only tracks below k. Later cuts cannot enlarge that left envelope;
+    // right anchors only stay or increase. Re-solve the ordered cuts whenever
+    // a newly witnessed pair activates a lower cut. Each round adds a finite
+    // envelope pair; this is constraint closure, not a settling-radius limit.
+    for (const axis of ['x', 'y'] as const) {
+      const cuts = new Map<number, Constraint[]>()
+      for (const constraint of active.values()) if (constraint.axis === axis) {
+        const constraints = cuts.get(constraint.index) ?? []
+        constraints.push(constraint); cuts.set(constraint.index, constraints)
+      }
+      for (const [index, constraints] of [...cuts].sort(([a], [b]) => a - b)) {
+        measure()
+        const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'
+        const extra = Math.max(0, ...constraints.map(({ left, right }) => left.bounds[max] + clearance - right.bounds[min]))
+        const sizes = axis === 'x' ? graph.columnWidth : graph.rowHeight
+        if (extra) sizes.set(index, (sizes.get(index) ?? 0) + extra)
+      }
+    }
+    measure()
+    let activated = false
+    for (let index = 0; index < envelopes.length; index++) for (let next = index + 1; next < envelopes.length; next++) {
+      const a = envelopes[index]!, b = envelopes[next]!, key = `${index}:${next}`
+      if (related(a, b) || active.has(key) || declined.has(key)) continue
+      const first = a.bounds, second = b.bounds
+      if (first.maxX + clearance <= second.minX || second.maxX + clearance <= first.minX
+        || first.maxY + clearance <= second.minY || second.maxY + clearance <= first.minY) continue
+      const candidates: Array<Constraint & { extra: number }> = []
+      for (const axis of ['x', 'y'] as const) {
+        const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'
+        if (a.logical[max] < b.logical[min]) candidates.push({ axis, index: b.logical[min] - 1, left: a, right: b, extra: first[max] + clearance - second[min] })
+        if (b.logical[max] < a.logical[min]) candidates.push({ axis, index: a.logical[min] - 1, left: b, right: a, extra: second[max] + clearance - first[min] })
+      }
+      candidates.sort((a, b) => a.extra - b.extra || (a.axis === (graph.config.graphDirection === 'TD' ? 'y' : 'x') ? -1 : 1))
+      const candidate = candidates[0]
+      if (candidate) { active.set(key, candidate); activated = true; continue }
+      declined.add(key)
       const firstId = a.group?.id ?? a.node!.name, secondId = b.group?.id ?? b.node!.name
       graph.canvas.report({
         code: 'TERMINAL_GEOMETRY_COLLISION', feature: `container-envelope:${firstId}:${secondId}`,
         message: `Unrelated envelopes ${firstId} and ${secondId} interleave in both logical axes; spacer capacity cannot separate them.`,
       })
-      continue
     }
-    const reservations = candidate.axis === 'x' ? columns : rows
-    reservations.set(candidate.index, Math.max(reservations.get(candidate.index) ?? 0, candidate.extra))
+    if (!activated) return
   }
-  for (const [index, extra] of columns) graph.columnWidth.set(index, (graph.columnWidth.get(index) ?? 0) + extra)
-  for (const [index, extra] of rows) graph.rowHeight.set(index, (graph.rowHeight.get(index) ?? 0) + extra)
 }
 
 /** Measure cards and complete nested frames from the same grid projection. */
@@ -912,7 +944,7 @@ export function createMapping(graph: AsciiGraph): void {
     const retainedTrunks = new Set(graph.edges.filter(edge => !selected.has(edge)).map(edge => edge.sharedTrunk))
     graph.trunkJunctions = original.junctions.filter(junction => retainedTrunks.has(junction.trunk))
     reserveGraphEdgeCapacity(graph, () => projectNodeEnvelopes(graph), selected)
-    reserveContainerEnvelopes(graph)
+    reserveProtectedEnvelopes(graph)
     for (const node of graph.nodes) {
       node.drawn = original.drawn.get(node)!
       node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)

@@ -197,6 +197,15 @@ const strokePorts: Readonly<Record<string, number>> = {
 const portGlyph = new Map(Object.entries(strokePorts).map(([glyph, ports]) => [ports, glyph]))
 const styledPorts: Readonly<Record<string, number>> = { '┄': 10, '╌': 10, '┈': 10, '━': 10, '═': 10, '┆': 5, '┊': 5, '╎': 5, '┃': 5, '║': 5, '╔': 6, '╗': 12, '╚': 3, '╝': 9 }
 const asciiPorts: Readonly<Record<string, number>> = { '-': 10, '=': 10, '.': 10, '|': 5, ':': 5, '+': 15 }
+
+/** Cardinal contacts of the emitted glyph. ASCII shafts and junctions expose
+ * their complete visible axes even when a semantic stroke has one port. */
+export function terminalCellConnections(cell: Readonly<TerminalCell>): number {
+  if (cell.kind === 'stroke') return strokePorts[cell.glyph] ?? styledPorts[cell.glyph] ?? asciiPorts[cell.glyph] ?? 0
+  if (cell.kind !== 'marker' || !cell.marker) return 0
+  if (cell.marker.shape === 'arrow') return cell.marker.direction === 'T' || cell.marker.direction === 'B' ? 5 : 10
+  return cell.marker.shape === 'wide-circle' || cell.marker.shape === 'cross' ? 15 : 0
+}
 const flipXGlyph: Readonly<Record<string, string>> = {
   '>': '<', '<': '>', '►': '◄', '◄': '►', '▶': '◀', '◀': '▶',
   '┌': '┐', '┐': '┌', '└': '┘', '┘': '└', '├': '┤', '┤': '├',
