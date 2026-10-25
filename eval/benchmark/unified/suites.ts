@@ -90,7 +90,7 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
     policy: 'Requires the completed sibling community artifacts; fresh-process CLI variants use matched fixed inputs. Child RSS/CPU are a separate post-latency diagnostic pass; source aliases are not additional independent engines.',
   })
   for (const [script, command] of Object.entries(pkg.scripts)) {
-    if (!script.startsWith('bench:') || script === 'bench:charts' || script === 'bench:peers:qualify' || /eval\/benchmark\/(?:commands|unified\/(?:run|pr-campaign|project-update|update-scorecard)|suite)\.ts/.test(command)) continue
+    if (!script.startsWith('bench:') || script === 'bench:charts' || script === 'bench:peers:qualify' || /eval\/benchmark\/(?:commands|portable\/(?:run|build)|unified\/(?:run|pr-campaign|project-update|update-scorecard)|suite)\.ts/.test(command)) continue
     const id = script.slice('bench:'.length),
       args = ['bun', 'run', script],
       prerequisites: string[] = []
@@ -400,5 +400,72 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
       prerequisites: [],
       policy: 'Explicit campaign selection only; nesting this orchestrator inside the full suite would repeat the entire workload campaign. Use bench:prs for frozen-head target comparisons.',
     })
+  const portableArgs = [
+    'bun',
+    'run',
+    'eval/benchmark/portable/run.ts',
+    '--project',
+    options.portableProject ?? 'unconfigured',
+    '--artifact-root',
+    options.portableArtifactRoot ?? root,
+    '--adapter',
+    options.portableAdapter ?? 'pele',
+    '--out',
+    out('portable-community'),
+    '--records',
+    join(root, 'bench-report/project-records'),
+    '--rounds',
+    String(options.rounds),
+    '--samples',
+    '31',
+    '--cold-samples',
+    '20',
+    '--allow-partial',
+  ]
+  if (options.portableObserver) portableArgs.push('--observer', options.portableObserver)
+  if (options.communityForce) portableArgs.push('--force')
+  suites.push({
+    id: 'portable-community',
+    title: 'Portable balanced-family, scaling, fidelity and resource qualification',
+    kind: 'script',
+    smoke: false,
+    automatic: false,
+    source: 'eval/benchmark/portable/run.ts',
+    command: portableArgs,
+    prerequisites: [!options.portableProject && 'Provide --portable-project', (!options.portableArtifactRoot || !existsSync(join(options.portableArtifactRoot, 'package.json'))) && 'Provide an installed --portable-artifact-root'].filter((value): value is string => !!value),
+    policy: 'Explicit project artifact only; unchanged records are reused. Full calibration needs --rounds 5,31 warm sample means and20 fresh processes per replica/round/case. Paint scope and unavailable resources remain explicit.',
+  })
+  suites.push({
+    id: 'editor-delivery',
+    title: 'Observed editor request graph and export delivery',
+    kind: 'script',
+    smoke: false,
+    source: 'eval/benchmark/editor-delivery-bench.ts',
+    command: ['bun', 'run', 'eval/benchmark/editor-delivery-bench.ts', '--site', site, '--out', out('editor-delivery'), '--rounds', String(options.rounds), '--corpus', 'official'],
+    prerequisites: [...siteMissing, ...browserMissing],
+    policy: 'Observed local browser request/export closure and warm official-corpus output parity; not first-use family admission.',
+  })
+  suites.push({
+    id: 'palette-performance',
+    title: 'Palette generation cost and deterministic operation counts',
+    kind: 'script',
+    smoke: false,
+    source: 'eval/palette-performance/run.ts',
+    command: ['bun', 'run', 'eval/palette-performance/run.ts', '--record'],
+    prerequisites: [],
+    policy: 'Owning deterministic fixture matrix and shuffled warm samples; output goes to the campaign directory. No renderer speed claim.',
+  })
+  const modernOutside = !resolve(options.out).startsWith(resolve(root) + '/')
+  suites.push({
+    id: 'modern-editor',
+    title: 'External Modern Mermaid application and dependency engines',
+    kind: 'script',
+    smoke: false,
+    automatic: false,
+    source: 'eval/modern-mermaid/run.mjs',
+    command: ['bun', 'eval/modern-mermaid/run.mjs', options.modernEditorRoot ?? 'unconfigured', out('modern-editor')],
+    prerequisites: [(!options.modernEditorRoot || !existsSync(join(options.modernEditorRoot, 'package.json'))) && 'Provide --modern-editor-root checkout', !modernOutside && 'Modern Mermaid outputs require --out outside the source repository'].filter((value): value is string => !!value),
+    policy: 'Explicit external application comparison with its own frozen resume protocol; engine, app, themes and exports stay separate.',
+  })
   return suites
 }

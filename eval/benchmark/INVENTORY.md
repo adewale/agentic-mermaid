@@ -11,12 +11,13 @@ List the currently enrolled commands without executing them:
 bun run bench --list --profile full
 ```
 
-The reviewed catalog contains **49 suite definitions**: 48 eligible for full
-selection and the explicitly selected PR campaign. Selection does not imply
-that prerequisites are available or that the suite passes. The earlier published
-campaign enrolled 46 entries; it is evidence for that recorded revision, not a
-fresh execution of the current catalog. Exact commands, arguments, prerequisites
-and measured-target policies come from [unified/suites.ts](unified/suites.ts).
+The controller's list gives the current definition count and default selection.
+Explicit campaigns require their own project or checkout inputs; selection does
+not imply that prerequisites are available or that a suite passes. The earlier
+published campaign enrolled 46 entries; it is evidence for that recorded
+revision, not a fresh execution of the current catalog. Exact commands,
+arguments, prerequisites and measured-target policies come from
+[unified/suites.ts](unified/suites.ts).
 
 ## Performance and delivery suites
 
@@ -29,6 +30,7 @@ commands; each owning protocol controls the meaning of its measurements.
 | `invocation` | [unified/invocation.ts](unified/invocation.ts) | Installed library entries across runtimes; browser, worker and editor paths; Node/native CLI; MCP transports. Output/functionality qualification accompanies invocation clocks. |
 | `community` | [unified/community.ts](unified/community.ts) | Catalog-driven API/browser comparisons, fixed core timing, broader feature qualification, shipped payloads and scoped memory diagnostics. |
 | `community-cli` | [unified/community-cli.ts](unified/community-cli.ts) | Matched fresh CLI latency; a separate GNU time pass measures child CPU and peak RSS. Requires prepared community artifacts. |
+| `portable-community` | [portable/run.ts](portable/run.ts) | Explicit project-artifact campaign with authored family/scaling/adversarial cases, scoped semantic/paint checks, repeated controls, fresh-process first-use samples and separate resource probes. Requires `--portable-project` and `--portable-artifact-root`; excluded from automatic nesting. |
 | `samples` | [sample-bench.ts](sample-bench.ts) | Small local source-render timing sample; useful for smoke diagnosis, not broad competitive ranking. |
 | `dave` | [dave-bench.ts](dave-bench.ts) | Original Dave-style browser comparison on pinned Mermaid source cases. Exact candidate-archive mode uses the release-browser runner. Acceptance and shared-success timing are separate. |
 | `micro` | [micro-bench.ts](micro-bench.ts) | Fixed small-to-large graph API microbenchmarks. |
@@ -40,9 +42,11 @@ commands; each owning protocol controls the meaning of its measurements.
 | `release:browser` | [release-browser-bench.ts](release-browser-bench.ts) | Exact archived browser candidates/baselines, pinned corpus acceptance and time, delivery and scoped browser diagnostics. |
 | `render-stages` | [render-stage-bench.ts](render-stage-bench.ts) | Official-corpus SVG receipt stage costs. |
 | `editor-preview` | [editor-preview-bench.ts](editor-preview-bench.ts) | Actual editor preview lifecycle and request/DOM boundaries. |
+| `editor-delivery` | [editor-delivery-bench.ts](editor-delivery-bench.ts) | Per-interaction requested graph, worker work, compressed delivered bytes and official-corpus editor behavior. Requires the selected built site. |
 | `editor-session` | [editor-session-bench.ts](editor-session-bench.ts) | Cold editor sessions and subsequent interactions. |
 | `editor-ownership` | [editor-ownership-bench.ts](editor-ownership-bench.ts) | Frozen original/candidate ownership pages; requires both real variants and their assets. |
 | `renderer-profile` | [renderer-profile.ts](renderer-profile.ts) | Packaged/browser attribution and CPU profiles; requires the verified Bezel wrapper. |
+| `palette-performance` | `../palette-performance/run.ts --record` | Warm palette-generation timing by built-in theme/category count. Requires a clean committed checkout and retains its own recorded work scope. |
 
 ## Functionality and correctness suites
 
@@ -87,6 +91,7 @@ orchestrator is a separate activity.
 | Suite ID | Entry | Scope |
 | --- | --- | --- |
 | `family-portfolio` | [unified/portfolio.ts](unified/portfolio.ts) | Builds registry-derived balanced inputs outside the checkout; preparation, not a speed result. |
+| `modern-editor` | `../modern-mermaid/run.mjs` | Explicit external application/dependency-engine comparison with its own frozen resume identity; requires its separately supplied checkout. |
 | `agent-live` | `../agent-usage/live.ts` | Actual provider/model task behavior and observed token usage. Explicit model and credentials required. |
 | `agent-subagent` | `../agent-usage/capture-subagent-prompt-eval.ts` | External prompt dispatch and transcript evaluation. Templates alone are not a completed model evaluation. |
 | `prs` | [unified/pr-campaign.ts](unified/pr-campaign.ts) | Explicit frozen-head main/PR campaign, paired controls and optional functionality/invocation evidence. Excluded from automatic nesting to avoid repeating campaigns. |
@@ -99,10 +104,10 @@ others require external inputs or paid model runs.
 
 | Entry or command | What it adds | Relationship to the controller |
 | --- | --- | --- |
-| [editor-delivery-bench.ts](editor-delivery-bench.ts) `--site DIR --out DIR [--rounds N] [--corpus official]` | Per-interaction requested graph, worker work, compressed delivered bytes and official-corpus editor behavior. | Standalone delivery diagnostic; not currently enrolled. |
+| [editor-delivery-bench.ts](editor-delivery-bench.ts) `--site DIR --out DIR [--rounds N] [--corpus official]` | Direct invocation of the enrolled editor-delivery diagnostic. | The `editor-delivery` controller entry supplies the selected built site. |
 | `../../scripts/site/website-payload-report.ts` | Built website payload/compression report. | Build-artifact diagnostic; distinct from observed navigation/first-render request closure. |
-| `bun run ../palette-performance/run.ts --record` from this directory | Warm palette-generation timing by built-in theme/category count. Requires a clean committed checkout. | Standalone; deterministic work-count tests remain separate owning correctness tests. |
-| `bun ../modern-mermaid/run.mjs CHECKOUT OUTPUT_DIRECTORY` from this directory | External Modern Mermaid editor, dependency-engine comparison, themes/examples/exports and request behavior. | Standalone external application comparison with its own explicit resume protocol. |
+| `bun run ../palette-performance/run.ts --record` from this directory | Direct invocation of palette-generation timing; deterministic work-count tests remain separate. | Enrolled as `palette-performance`; requires a clean committed checkout. |
+| `bun ../modern-mermaid/run.mjs CHECKOUT OUTPUT_DIRECTORY` from this directory | Direct external Modern Mermaid editor, dependency-engine, theme/example/export and request comparison. | Enrolled as explicit `modern-editor`; retains its own resume protocol. |
 | `bun ../modern-mermaid/summarize.mjs OUTPUT_DIRECTORY` from this directory | Summarizes that existing evidence. | Reporting only. |
 | `bun ../mermaidseqbench/runner.ts` from this directory | IBM MermaidSeqBench parse/verify/structured/roundtrip counts. | Its corpus also has an enrolled imported-test owner; not an independent second performance vote. |
 | `bun ../agent-usage/run.ts` from this directory | Stored Code Mode task replay, trace linting and task oracles. | Agent replay owning tests cover related behavior; this is not live model efficiency. |

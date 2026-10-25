@@ -10,7 +10,9 @@
     "bench": "bun run commands.ts bench",
     "community": "bun run commands.ts community",
     "prs": "bun run commands.ts prs",
-    "community:update": "bun run commands.ts community:update"
+    "community:update": "bun run commands.ts community:update",
+    "portable": "bun run commands.ts portable",
+    "portable:build": "bun run commands.ts portable:build"
   },
   "engines": {
     "bun": ">=1.4.0",

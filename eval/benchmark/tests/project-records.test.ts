@@ -49,6 +49,21 @@ function fixture() {
   return { store: join(root, 'store'), evidence, identity, record }
 }
 describe('immutable project benchmark records', () => {
+  test('different benchmark lanes retain independent current records for the same project', () => {
+    const f = fixture(),
+      community = f.record('community-first')
+    const portable = { ...f.record('portable-first'), identity: { ...f.identity(), lane: 'portable-svg' } }
+    publishProjectRecord(f.store, community)
+    publishProjectRecord(f.store, portable)
+    expect(findProjectRecord(f.store, community.identity)?.id).toBe('community-first')
+    expect(findProjectRecord(f.store, { ...community.identity, lane: 'community' })?.id).toBe('community-first')
+    expect(findProjectRecord(f.store, portable.identity)?.id).toBe('portable-first')
+    const portableNext = { ...portable, id: 'portable-next', identity: { ...portable.identity, artifact: { version: 'next' } } }
+    publishProjectRecord(f.store, portableNext)
+    expect(loadCurrentProjectRecords(f.store).map(record => record.id)).toEqual(['community-first', 'portable-next'])
+    activateProjectRecord(f.store, portable)
+    expect(loadCurrentProjectRecords(f.store).map(record => record.id)).toEqual(['community-first', 'portable-first'])
+  })
   test('reuses the same full identity and invalidates artifact, protocol and measurement changes', () => {
     const f = fixture(),
       attempt = f.record('first')

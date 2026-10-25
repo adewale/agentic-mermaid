@@ -9,6 +9,7 @@ import { displayText } from '../../../src/multiline-utils.ts'
 import { qualifyOutput } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedRunOptions, UnifiedSuiteResult, UnifiedWorkload } from './types.ts'
 import { familyFeatureWorkloads, getWorkloadEvidence, type WorkloadEvidence } from './workloads.ts'
+import { runOperationDiagnostics, runOperationWitnesses, typedBodyContains, type OperationWitnessResult } from './operation-witnesses.ts'
 
 type AgentApi = typeof import('../../../src/agent/core.ts')
 type ProbeResult = { findings?: string[]; bytes?: number; metrics?: BenchmarkObservation['metrics']; detail?: string; status?: BenchmarkObservation['status'] }
@@ -255,10 +256,13 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
   }
   const workloads = familyFeatureWorkloads(options.profile)
   const mutationCoverage = new Map<string, Set<string>>()
+  const operationEvidence: { family: string; witnesses: OperationWitnessResult[] }[] = []
+  const operationDiagnostics: { family: string; diagnostics: ReturnType<typeof runOperationDiagnostics> }[] = []
   const featureEvidence: Array<Record<string, unknown>> = []
   const observedFamilies = new Set<string>()
   const record = (workload: UnifiedWorkload, operation: string, format: string, work: () => ProbeResult): void => {
     const begin = performance.now()
+    const precomputed = operation.startsWith('typed-operation-')
     try {
       const result = work()
       observations.push({
@@ -270,10 +274,10 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
         operation,
         format,
         mode: 'functionality-probe',
-        samplesMs: [performance.now() - begin],
+        ...(precomputed ? {} : { samplesMs: [performance.now() - begin] }),
         ...result,
         status: result.status ?? (result.findings?.length ? 'failed' : 'passed'),
-        metrics: { modulePath: entry!, ...result.metrics },
+        metrics: { modulePath: entry!, ...(precomputed ? { timingScope: 'functionality-only; operation executed before envelope recording' } : {}), ...result.metrics },
       })
     } catch (error) {
       observations.push({
@@ -286,9 +290,9 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
         format,
         mode: 'functionality-probe',
         status: 'failed',
-        samplesMs: [performance.now() - begin],
+        ...(precomputed ? {} : { samplesMs: [performance.now() - begin] }),
         findings: [errorText(error)],
-        metrics: { modulePath: entry! },
+        metrics: { modulePath: entry!, ...(precomputed ? { timingScope: 'functionality-only; operation executed before envelope recording' } : {}) },
       })
     }
   }
@@ -384,7 +388,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
         const findings: string[] = []
         if (!built.verify.ok) findings.push(`Typed blank build did not verify: ${JSON.stringify(built.verify.warnings)}`)
         if (!api.describeMermaidFacts(again.value).some(fact => fact.includes('UnifiedBenchmarkWitness'))) findings.push('Typed blank build lost the independently requested witness')
-        mutationCoverage.set(workload.family, new Set([...(mutationCoverage.get(workload.family) ?? []), ...operations.map(operation => operation.kind)]))
+        if (!findings.length) mutationCoverage.set(workload.family, new Set([...(mutationCoverage.get(workload.family) ?? []), ...operations.map(operation => operation.kind)]))
         return { findings, bytes: Buffer.byteLength(built.source), metrics: { mutationCount: operations.length }, detail: 'Actual nonempty create/build → verify → serialize → reparse through the target public declarative API.' }
       })
     if (workload.id === `registry:${workload.family}`)
@@ -404,9 +408,88 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
           if ((operation.kind === 'set_title' && fact.startsWith('title ')) || (operation.kind === 'set_accessibility_title' && fact.startsWith('accessibility title '))) continue
           if (!facts.includes(fact)) findings.push(`Non-destructive mutation dropped prior fact: ${fact}`)
         }
-        mutationCoverage.set(workload.family, new Set([...(mutationCoverage.get(workload.family) ?? []), operation.kind]))
+        if (!findings.length) mutationCoverage.set(workload.family, new Set([...(mutationCoverage.get(workload.family) ?? []), operation.kind]))
         return { findings, bytes: Buffer.byteLength(source), metrics: { mutation: operation.kind }, detail: 'Actual target mutation, independently requested value and preserved prior facts; not a proof of every advertised mutation operation.' }
       })
+    if (workload.id === `registry:${workload.family}`) {
+      const witnesses = runOperationWitnesses(api, workload.family, diagram as any)
+      operationEvidence.push({ family: workload.family, witnesses })
+      const diagnostics = runOperationDiagnostics(api, workload.family)
+      operationDiagnostics.push({ family: workload.family, diagnostics })
+      for (const diagnostic of diagnostics)
+        record({ ...workload, id: `operation-diagnostic:${workload.family}:${diagnostic.kind}` }, 'typed-operation-semantic-boundary', 'source', () => ({
+          status: diagnostic.status,
+          findings: diagnostic.findings,
+          detail: 'An edit whose meaning cannot be serialized must reject atomically. This adversarial input remains separate from the representable positive witness.',
+        }))
+      for (const witness of witnesses) {
+        for (const phase of ['positive', 'rejection'] as const)
+          record({ ...workload, id: `operation:${workload.family}:${witness.kind}:${phase}` }, `typed-operation-${phase}`, 'source', () => ({
+            status: witness[phase].status,
+            findings: witness[phase].findings,
+            detail: witness[phase].detail,
+            metrics: { operationKind: witness.kind, contractPhase: phase, ...(phase === 'positive' ? { requestedOperation: JSON.stringify(witness.positive.requestedOperation ?? null) } : {}) },
+          }))
+        if (witness.positive.status === 'passed') mutationCoverage.set(workload.family, new Set([...(mutationCoverage.get(workload.family) ?? []), witness.kind]))
+      }
+      record(workload, 'direct-api:createMermaid', 'ir', () => {
+        if (typeof api.createMermaid !== 'function') return { status: 'blocked', detail: 'Target has no public createMermaid' }
+        const created = api.createMermaid(workload.family as any)
+        return { findings: created.kind === workload.family && created.body.kind === workload.family ? [] : ['Create returned a different family or non-structured body'], detail: 'Direct public blank factory; an empty model is distinct from a successful populated render.' }
+      })
+      record(workload, 'direct-api:mutateChecked', 'ir', () => {
+        const operation = mutationWitnessForFamily(api, workload.family)
+        if (!operation || typeof api.mutateChecked !== 'function') return { status: 'blocked', detail: 'Target has no admitted positive checked mutation stimulus' }
+        const changed = api.mutateChecked(diagram, operation)
+        if (!changed.ok) throw Error(JSON.stringify(changed.error))
+        const source = api.serializeMermaid(changed.value),
+          again = api.parseRegisteredMermaid(source)
+        return {
+          findings: changed.value.kind === workload.family && typedBodyContains(changed.value.body, 'UnifiedBenchmarkWitness') && again.ok && again.value.kind === workload.family && typedBodyContains(again.value.body, 'UnifiedBenchmarkWitness') ? [] : ['Checked positive mutation lost its authored value'],
+          detail: 'Positive public checked edit; per-kind malformed rejection and original-input immutability are recorded separately.',
+        }
+      })
+      const operations = structuralBuildWitnessForFamily(api, workload.family)
+      for (const method of ['buildMermaid', 'buildChecked'] as const)
+        record(workload, `direct-api:${method}`, 'ir', () => {
+          if (!operations || typeof api[method] !== 'function') return { status: 'blocked', detail: 'Target has no admitted authored build witness or this public builder' }
+          const result = api[method](workload.family as any, operations)
+          if (!result.ok) throw Error(JSON.stringify(result.error))
+          const findings = result.value.kind === workload.family && result.value.body.kind === workload.family && typedBodyContains(result.value.body, 'UnifiedBenchmarkWitness') ? [] : ['Builder lost the independently authored value in the typed model']
+          const source = api.serializeMermaid(result.value),
+            again = api.parseRegisteredMermaid(source)
+          if (!again.ok || again.value.kind !== workload.family || !typedBodyContains(again.value.body, 'UnifiedBenchmarkWitness')) findings.push('Built value was lost on serialize/reparse')
+          return { findings, detail: 'Direct public builder with authored operands; source echoes and descriptor declarations cannot satisfy the typed-value expectation.' }
+        })
+      for (const method of ['describeMermaid', 'describeMermaidTree', 'describeMermaidSource'] as const)
+        record(workload, `direct-api:${method}`, 'query', () => {
+          if (!operations || typeof api[method] !== 'function') return { status: 'blocked', detail: 'Target has no admitted query stimulus or this public query' }
+          const built = api.applyOps({ family: workload.family, ops: operations })
+          if (!built.ok) throw Error(JSON.stringify(built.error))
+          const parsed = api.parseRegisteredMermaid(built.source)
+          if (!parsed.ok) throw Error('Query input did not parse')
+          const result = method === 'describeMermaidSource' ? api.describeMermaidSource(built.source, { format: 'facts' }) : method === 'describeMermaidTree' ? api.describeMermaidTree(parsed.value) : api.describeMermaid(parsed.value, { format: 'facts' })
+          const findings = (typeof result === 'string' ? result : JSON.stringify(result)).includes('UnifiedBenchmarkWitness') ? [] : ['Public query omitted the independently authored witness']
+          if (typeof result !== 'string' && result.kind !== workload.family) findings.push('Public query reported another family')
+          return { findings, detail: 'Direct public query over a populated authored model. This proves its declared witness, not every query field or all function overloads.' }
+        })
+      if (workload.family === 'flowchart') {
+        const source = 'flowchart LR\nA[Start] --> B[End]\nB --> A\nclick A href "https://example.com/benchmark"\n'
+        for (const method of ['analyzeMermaid', 'analyzeMermaidSource', 'collectActionRecords'] as const)
+          record({ ...workload, id: `query:${method}:authored-feedback-and-action`, source }, `direct-api:${method}`, 'query', () => {
+            if (typeof api[method] !== 'function') return { status: 'blocked', detail: 'Target has no corresponding public analysis query' }
+            const parsed = api.parseRegisteredMermaid(source)
+            if (!parsed.ok) throw Error('Authored analysis stimulus did not parse')
+            const answer = method === 'analyzeMermaidSource' ? api.analyzeMermaidSource(source) : method === 'collectActionRecords' ? api.collectActionRecords(parsed.value) : api.analyzeMermaid(parsed.value)
+            const result = method === 'analyzeMermaidSource' ? ('ok' in answer && answer.ok ? answer.value : undefined) : answer
+            if (!result) throw Error('Source analysis did not return a successful typed result')
+            const actions = Array.isArray(result) ? result : 'actions' in result ? result.actions : []
+            const findings = actions.some(action => action.target === 'A' && action.href === 'https://example.com/benchmark' && action.executable === false) ? [] : ['Analysis lost the independently authored non-executable action']
+            if (!Array.isArray(result) && (!('feedbackEdges' in result) || !result.feedbackEdges.some(edge => edge.from === 'B' && edge.to === 'A'))) findings.push('Analysis lost the independently authored feedback endpoint pair')
+            return { findings, detail: 'Direct analysis/actions query checks authored endpoints and safe action records without executing the action.' }
+          })
+      }
+    }
     featureEvidence.push({
       caseId: workload.id,
       family: workload.family,
@@ -422,6 +505,7 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
     const advertisedOperations = api.hasOpSchema(family.id) ? Object.keys(api.opMenu(family.id)) : []
     const observedOperations = [...(mutationCoverage.get(family.id) ?? [])]
     const unexercisedOperations = advertisedOperations.filter(operation => !observedOperations.includes(operation))
+    const direct = operationEvidence.find(entry => entry.family === family.id)?.witnesses ?? []
     const rows = observations.filter(observation => observation.family === family.id)
     return {
       family: family.id,
@@ -432,11 +516,15 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
       advertisedOperations,
       observedOperations,
       unexercisedOperations,
+      positiveAttemptedOperations: direct.filter(witness => witness.positive.status !== 'blocked').map(witness => witness.kind),
+      positiveFailedOperations: direct.filter(witness => witness.positive.status === 'failed').map(witness => witness.kind),
+      checkedRejectionOperations: direct.filter(witness => witness.rejection.status === 'passed').map(witness => witness.kind),
+      missingPositiveOperations: advertisedOperations.filter(kind => !direct.some(witness => witness.kind === kind && witness.positive.status !== 'blocked')),
       capabilityEvidence: api.getFamily(family.id)?.capabilityEvidence ?? [],
     }
   })
   if (familyCoverage.some(family => family.unexercisedOperations.length))
-    gaps.push('The generic lifecycle suite runs one independently requested non-destructive mutation per family; other mutation kinds require their existing owning suites. No all-operation completeness claim is inferred from one witness or from descriptor declarations.')
+    gaps.push('Some advertised operation kinds have no passing positive semantic witness. Per-kind positive, checked-rejection, failed and missing cells are retained separately; setup actions and malformed-op rejection do not substitute for positive semantics.')
   const formatOnly = observations.filter(row => row.operation.startsWith('render-') && row.metrics?.qualificationScope === 'format-only').length
   if (formatOnly) gaps.push(`${formatOnly} output probes have format/round-trip invariants but no independently declared label expectations. Community comparison should acquire pinned-reference label expectations before timing.`)
   gaps.push(
@@ -453,6 +541,15 @@ export async function runFamilySuite(options: UnifiedRunOptions): Promise<Unifie
         method: 'Fresh public target-package lifecycle calls. Independent stored counts/labels are distinguished from metamorphic source-preservation checks. Builtin descriptor conformance declarations are not counted as freshly executed tests.',
         familyCoverage,
         featureEvidence,
+        operationEvidence,
+        operationDiagnostics,
+        operationContractSummary: {
+          advertised: operationEvidence.reduce((sum, family) => sum + family.witnesses.length, 0),
+          positivePassed: operationEvidence.flatMap(family => family.witnesses).filter(witness => witness.positive.status === 'passed').length,
+          positiveFailed: operationEvidence.flatMap(family => family.witnesses).filter(witness => witness.positive.status === 'failed').length,
+          positiveMissing: operationEvidence.flatMap(family => family.witnesses).filter(witness => witness.positive.status === 'blocked').length,
+          checkedRejectionPassed: operationEvidence.flatMap(family => family.witnesses).filter(witness => witness.rejection.status === 'passed').length,
+        },
       },
       null,
       2,

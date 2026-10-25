@@ -227,7 +227,9 @@
     "bench:test": "bun run eval/benchmark/commands.ts test",
     "bench:typecheck": "bun run eval/benchmark/commands.ts typecheck",
     "bench:lint": "bun run eval/benchmark/commands.ts lint",
-    "bench:community:update": "bun run eval/benchmark/unified/project-update.ts"
+    "bench:community:update": "bun run eval/benchmark/unified/project-update.ts",
+    "bench:portable": "bun run eval/benchmark/portable/run.ts",
+    "bench:portable:build": "bun run eval/benchmark/portable/build.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
