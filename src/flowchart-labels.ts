@@ -70,6 +70,9 @@ export function parseFlowchartLabel(raw: string, alreadyUnquoted = false): Parse
   const markdown = quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')
   const authored = markdown ? `\`${unquoted.slice(1, -1).trim()}\`` : unquoted.trim()
   const normalized = markdown ? normalizeBrTags(unquoted.slice(1, -1).trim(), false) : normalizePlainLabel(authored)
+  // Only entity decoding can make the public string need a distinct display
+  // reading. Ordinary labels have no sidecar to retain or compare here.
+  if (!normalized.includes('#') && !normalized.includes('ﬂ°')) return { text: normalized, markdown }
   const text = decodeLabelEntities(normalized)
   const prepared = replaceDisplayTextTokens(prepareDisplayText(normalized), /&#(?:\d+|[xX][0-9a-fA-F]+);|#\w+;/g,
     token => token.startsWith('&') ? token : decodeMermaidEntities(token, ENTITY_REFUSAL))
