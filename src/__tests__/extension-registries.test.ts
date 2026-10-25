@@ -46,6 +46,50 @@ const registerBackendFromJs = registerBackend as unknown as (
   options?: { readonly compatibility?: Readonly<Record<string, string>> },
 ) => () => void
 
+test('Sequence geometry captured by a replaced native producer cannot poison later original rendering', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    import { sceneLowering, nativeDrawingOf, inheritNativeDrawing } from './src/scene/drawing.ts'
+    import { withRenderStageObserver } from './src/render-stages.ts'
+    const original = getFamily('sequence'), lower = original.lowerScene
+    const producer = nativeDrawingOf(lower), originalSource = sceneLowering(producer)
+    const options = { embedFontImport: false }
+    for (const late of [false, true]) for (const warm of [false, true]) {
+      const source = 'sequenceDiagram\\nProducer' + late + warm + 'A->>Producer' + late + warm + 'B: isolated'
+      const restoreFamily = replaceFamilyForTest('sequence', { ...original })
+      let expected
+      try { expected = renderMermaidSVGWithReceipt(source, options) } finally { restoreFamily() }
+      if (warm) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+      let captured, calls = 0
+      const custom = sceneLowering((factory, context) => {
+        calls++
+        captured = context.positioned
+        return producer(factory, context)
+      })
+      if (!late) inheritNativeDrawing(custom, lower)
+      try {
+        const actual = withRenderStageObserver(sample => {
+          if (late && sample.stage === 'layout') inheritNativeDrawing(custom, lower)
+        }, () => renderMermaidSVGWithReceipt(source, options))
+        assert.deepEqual(actual, expected)
+      }
+      finally { inheritNativeDrawing(originalSource, lower) }
+      assert.equal(calls, 1)
+      const reads = []
+      Object.defineProperty(captured.messages[0].points[0], 'x', { enumerable: true, get() {
+        reads.push('escaped coordinate')
+        throw new Error('escaped caller geometry')
+      } })
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+      assert.deepEqual(reads, [])
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 describe('shared extension identity', () => {
   test('requires kind-qualified IDs and rejects replacement with owner evidence', () => {
     expect(canonicalExtensionId('look', 'acme/report')).toBe('look:acme/report')
