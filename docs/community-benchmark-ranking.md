@@ -10,7 +10,9 @@ This set uses Pele **1.9.0**, Agentic **0.4.2** from product source
 `f8a2437b19e67a850145b786f72baf719da52837`, and the pinned Mermaid source
 `1fb7869866dd619168d840291c9c54b4f129758b`. Agentic's frozen archive is
 `6ee46d4915028a25dd97dcbe4b834b1e3c5686537e2857dedf582b876eadd275`.
-Newer main commits are not represented by these product measurements.
+The collection used harness commit `e2c2524890a04aea6300864623efd20a3d923af8`.
+The tooling was subsequently rebased onto `cc6fc54a`; newer product commits and
+changed protocol closures are not represented by these measurements.
 
 ### Current matched costs
 
