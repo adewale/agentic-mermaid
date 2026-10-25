@@ -1,10 +1,12 @@
-import { assertBackendConformance, isBuiltinDefaultBackend } from './backend.ts'
-import { nativeDrawingOf } from './drawing.ts'
+import { assertBackendConformance, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
-import { positionedForNativeProducer, retainedFamilyProjection } from '../positioning.ts'
+import { positionFamilyForNativeRender, positionedForNativeProducer, retainedFamilyProjection } from '../positioning.ts'
+import { hasOriginalOwnedFamilyHooks } from '../experimental/owned-family.ts'
+import { measureRenderStage } from '../render-stages.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { admitFamilyScene } from './admission.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
@@ -17,6 +19,58 @@ interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification
 interface PositionedNative { drawing: NativeDrawing; certification?: PaintLayoutCertification }
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
 const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
+
+interface PrivateSequenceOperation {
+  readonly request: ResolvedRenderRequest
+  readonly layout: FamilyLayoutResult
+  readonly producer: DrawingProducer
+}
+const sequenceOperations = new WeakMap<ResolvedRenderRequest, PrivateSequenceOperation>()
+const sequenceContexts = new WeakMap<object, PrivateSequenceOperation>()
+
+function originalSequenceProducer(request: ResolvedRenderRequest): DrawingProducer | undefined {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  if (!hasOriginalOwnedFamilyHooks(plan.family, 'sequence') || request.output !== 'svg'
+    || plan.mode !== 'scene' || !plan.executionDecision || plan.textMeasurement
+    || request.appearance.styled || request.appearance.face
+    || plan.backend?.inputName !== 'default' || !isOriginalEnrolledDefaultBackend(plan.backend.backend)) return undefined
+  const lower = plan.family.lowerScene
+  const producer = nativeDrawingOf(lower)
+  return producer && producer === originalNativeDrawingOf(lower) ? producer : undefined
+}
+
+/** Only the closed positioning/consumption entry below can establish this
+ * association. Public positioned values and factories have no grant surface. */
+export function isPrivateSequenceNativeOperation(context: object, producer: object): boolean {
+  const operation = sequenceContexts.get(context)
+  return !!operation && operation.producer === producer
+    && sequenceOperations.get(operation.request) === operation
+    && originalSequenceProducer(operation.request) === producer
+}
+
+export interface PreparedNativePositionedRender {
+  readonly layout: FamilyLayoutResult
+  /** Presence means the original drawing stage already ran, even on bypass. */
+  readonly native?: { readonly drawing: NativeDrawing | undefined }
+}
+
+/** Position and consume before any positioned value leaves this operation.
+ * There is deliberately no caller-supplied continuation or persistent brand.
+ * Layout and drawing observations retain their original sibling boundaries. */
+export function prepareNativePositionedForRender(request: ResolvedRenderRequest): PreparedNativePositionedRender {
+  const layout = measureRenderStage('layout', () => positionFamilyForNativeRender(request))
+  const producer = originalSequenceProducer(request)
+  if (!producer) return { layout }
+  const operation: PrivateSequenceOperation = { request, layout, producer }
+  const previous = sequenceOperations.get(request)
+  sequenceOperations.set(request, operation)
+  try {
+    return { layout, native: { drawing: measureRenderStage('drawing', () => retainedNativeDrawing(request, layout)) } }
+  } finally {
+    if (previous) sequenceOperations.set(request, previous)
+    else sequenceOperations.delete(request)
+  }
+}
 
 /** Lower once from the actual positioned artifact, shared by SVG, layout,
  * verification and receipt consumers. No source parse or layout is repeated. */
@@ -68,8 +122,16 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
-  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
-    { positioned: positionedForNativeProducer(layout, producer!), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
+  const context = { positioned: positionedForNativeProducer(layout, producer!), colors, resolved: resolvedFamilyRenderContextOf(request) }
+  const operation = sequenceOperations.get(request)
+  if (operation?.layout === layout && operation.producer === producer) sequenceContexts.set(context, operation)
+  let drawing: NativeDrawing
+  try {
+    drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(producer!,
+      context, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
+  } finally {
+    sequenceContexts.delete(context)
+  }
   requests.set(request, { drawing })
   return drawing
 }

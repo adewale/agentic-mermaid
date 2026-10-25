@@ -13,7 +13,6 @@ import type { FamilyLayoutResult } from './agent/families.ts'
 import type { PositionedDiagram, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { inlineResolvedColors } from './theme.ts'
-import { positionFamilyForNativeRender } from './positioning.ts'
 import {
   receiptOf,
   canonicalTextDigest,
@@ -31,7 +30,7 @@ import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
-import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification } from './scene/positioned.ts'
+import { retainedPositionedScene, retainedNativeDrawing, positionedPaintCertification, prepareNativePositionedForRender, type PreparedNativePositionedRender } from './scene/positioned.ts'
 import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
@@ -143,6 +142,7 @@ function renderPositionedWithTextMeasurement(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  native?: PreparedNativePositionedRender['native'],
 ): ResolvedGraphicalExecution {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   if ((executionPlan.mode !== 'scene' && executionPlan.mode !== 'family-svg') || !executionPlan.executionDecision) {
@@ -155,7 +155,7 @@ function renderPositionedWithTextMeasurement(
   let preparedText = false
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
-    const drawing = measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
+    const drawing = native ? native.drawing : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
@@ -218,11 +218,9 @@ export function renderResolvedMermaidSVG(
   request: ResolvedRenderRequest,
   securityDiagnostics: OutputSecurityDiagnostic[],
 ): ResolvedGraphicalExecution {
-  return renderPositionedMermaidSVG(
-    request,
-    measureRenderStage('layout', () => positionFamilyForNativeRender(request)),
-    securityDiagnostics,
-  )
+  const prepared = prepareNativePositionedForRender(request)
+  return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
+    renderPositionedWithTextMeasurement(request, prepared.layout, securityDiagnostics, prepared.native))
 }
 
 /**
