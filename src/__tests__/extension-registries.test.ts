@@ -174,11 +174,12 @@ test('Sequence geometry captured by a replaced native producer cannot poison lat
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
     import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
     import { sceneLowering, nativeDrawingOf, inheritNativeDrawing } from './src/scene/drawing.ts'
+    import { withRenderStageObserver } from './src/render-stages.ts'
     const original = getFamily('sequence'), lower = original.lowerScene
     const producer = nativeDrawingOf(lower), originalSource = sceneLowering(producer)
     const options = { embedFontImport: false }
-    for (const warm of [false, true]) {
-      const source = 'sequenceDiagram\\nProducer' + warm + 'A->>Producer' + warm + 'B: isolated'
+    for (const late of [false, true]) for (const warm of [false, true]) {
+      const source = 'sequenceDiagram\\nProducer' + late + warm + 'A->>Producer' + late + warm + 'B: isolated'
       const restoreFamily = replaceFamilyForTest('sequence', { ...original })
       let expected
       try { expected = renderMermaidSVGWithReceipt(source, options) } finally { restoreFamily() }
@@ -189,8 +190,13 @@ test('Sequence geometry captured by a replaced native producer cannot poison lat
         captured = context.positioned
         return producer(factory, context)
       })
-      inheritNativeDrawing(custom, lower)
-      try { assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected) }
+      if (!late) inheritNativeDrawing(custom, lower)
+      try {
+        const actual = withRenderStageObserver(sample => {
+          if (late && sample.stage === 'layout') inheritNativeDrawing(custom, lower)
+        }, () => renderMermaidSVGWithReceipt(source, options))
+        assert.deepEqual(actual, expected)
+      }
       finally { inheritNativeDrawing(originalSource, lower) }
       assert.equal(calls, 1)
       const reads = []
