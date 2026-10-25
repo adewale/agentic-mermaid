@@ -144,7 +144,7 @@ A[Start] -->|first| B[Finish]
 A -->|second| C[Finish]
 classDef hot color:#ff0000,stroke:#00ff00
 class A hot
-style A color:#0000ff
+style A color:#0000ff,fill:#f00
 linkStyle 0 stroke:#ff00ff,color:#00ffff
 linkStyle 1 stroke:#ffff00`, { colorMode: 'truecolor' })
   const doc = terminalDocumentOf(result)!
@@ -154,6 +154,12 @@ linkStyle 1 stroke:#ffff00`, { colorMode: 'truecolor' })
   expect(cells.some(cell => cell.owners.some(owner => owner.id === 'edge#0:A->B') && cell.kind === 'text' && cell.color === '#00ffff')).toBe(true)
   expect(cells.some(cell => cell.owners.some(owner => owner.id === 'edge#1:A->C') && cell.kind === 'stroke' && cell.color === '#ffff00')).toBe(true)
   expect(result.text).toContain('\x1b[38;2;0;0;255m')
+  const projection = expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'node:A:style:fill' })
+  expect(doc.diagnostics).toContainEqual(projection)
+  expect(result.terminalStyle.diagnostics).toContainEqual(projection)
+  const certification = result.receipt.layoutCertification
+  if (certification?.unit !== 'cell') throw new Error('Expected terminal cell certification')
+  expect(certification.projections).toContainEqual(expect.objectContaining({ feature: 'node:A:style:fill' }))
   expect(doc.regions().filter(region => region.kind === 'edge').every(region => region.bundle === undefined)).toBe(true)
 })
 

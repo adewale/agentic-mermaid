@@ -20,7 +20,7 @@ import { drawBox } from './draw.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 import { getShapeDimensions } from './shapes/index.ts'
 import { placeCompoundItems } from './compound-placement.ts'
-import { reserveGraphEdgeCapacity, GRAPH_EDGE_APPROACH } from './graph-capacity.ts'
+import { reserveGraphEdgeCapacity, graphRoutingUnits, unsafeGraphContacts, GRAPH_EDGE_APPROACH } from './graph-capacity.ts'
 
 // ============================================================================
 // Grid coordinate → drawing coordinate conversion
@@ -891,25 +891,45 @@ export function createMapping(graph: AsciiGraph): void {
     reserveSubgraphHeaders(graph)
   }
 
-  reserveGraphEdgeCapacity(graph, () => projectNodeEnvelopes(graph))
-  if (graph.edges.some(edge => edge.cellAllocation)) {
-    graph.bundles = []
-    graph.trunkJunctions = []
-    for (const edge of graph.edges) { delete edge.bundle; delete edge.sharedTrunk; delete edge.pathToJunction }
+  const units = graphRoutingUnits(graph), selected = new Set<AsciiEdge>()
+  const original = {
+    columns: new Map(graph.columnWidth), rows: new Map(graph.rowHeight),
+    bundles: graph.bundles, junctions: graph.trunkJunctions,
+    edges: new Map(graph.edges.map(edge => [edge, { startDir: edge.startDir, endDir: edge.endDir, bundle: edge.bundle, sharedTrunk: edge.sharedTrunk, pathToJunction: edge.pathToJunction }])),
+    insets: new Map(graph.subgraphs.map(group => [group, group.insets ? { ...group.insets } : undefined])),
+    canvas: graph.canvas, drawn: new Map(graph.nodes.map(node => [node, node.drawn])),
   }
-
-  reserveContainerEnvelopes(graph)
-
-  // Convert grid coords → drawing coords and generate box drawings
-  for (const node of graph.nodes) {
-    node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)
-    node.drawing = drawBox(node, graph)
+  const project = (): void => {
+    graph.columnWidth = new Map(original.columns); graph.rowHeight = new Map(original.rows)
+    graph.offsetX = 0; graph.offsetY = 0; graph.canvas = original.canvas.blank()
+    graph.canvas.overlay(original.canvas)
+    for (const [group, insets] of original.insets) group.insets = insets ? { ...insets } : undefined
+    for (const [edge, route] of original.edges) {
+      Object.assign(edge, route); delete edge.cellAllocation; delete edge.cellRoute
+      if (selected.has(edge)) { delete edge.bundle; delete edge.sharedTrunk; delete edge.pathToJunction }
+    }
+    graph.bundles = original.bundles.filter(bundle => !bundle.edges.some(edge => selected.has(edge)))
+    const retainedTrunks = new Set(graph.edges.filter(edge => !selected.has(edge)).map(edge => edge.sharedTrunk))
+    graph.trunkJunctions = original.junctions.filter(junction => retainedTrunks.has(junction.trunk))
+    reserveGraphEdgeCapacity(graph, () => projectNodeEnvelopes(graph), selected)
+    reserveContainerEnvelopes(graph)
+    for (const node of graph.nodes) {
+      node.drawn = original.drawn.get(node)!
+      node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)
+      node.drawing = drawBox(node, graph)
+    }
+    setCanvasSizeToGrid(graph.canvas, graph.columnWidth, graph.rowHeight)
+    calculateSubgraphBoundingBoxes(graph)
+    offsetDrawingForSubgraphs(graph)
   }
+  graph.reserveRouteUnits = edges => {
+    const before = selected.size
+    for (const edge of edges) for (const member of units.get(edge) ?? [edge]) selected.add(member)
+    if (selected.size === before) return false
+    project(); return true
+  }
+  if (!graph.reserveRouteUnits(unsafeGraphContacts(graph))) project()
 
-  // Set canvas size and compute subgraph bounding boxes
-  setCanvasSizeToGrid(graph.canvas, graph.columnWidth, graph.rowHeight)
-  calculateSubgraphBoundingBoxes(graph)
-  offsetDrawingForSubgraphs(graph)
 }
 
 // ============================================================================
@@ -941,7 +961,7 @@ function mirrorHorizontalGrid(graph: AsciiGraph): void {
   }
   // TD is the only bundling mode, so an LR-derived RL projection has no
   // EdgeBundle/pathToJunction state to mirror.
-  graph.trunkJunctions = graph.trunkJunctions.map(point)
+  graph.trunkJunctions = graph.trunkJunctions.map(junction => ({ ...point(junction), trunk: junction.trunk }))
 
   const mirroredGrid = new OccupancyMap<AsciiNode>()
   for (const [key, node] of graph.grid) {
@@ -974,7 +994,7 @@ function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
     groups.set(key, list)
   }
 
-  const junctionKeys = new Set(graph.trunkJunctions.map(gridKey))
+  const junctionKeys = new Set(graph.trunkJunctions.map(junction => `${junction.trunk}:${gridKey(junction)}`))
 
   for (const edges of groups.values()) {
     if (edges.length < 2) continue
@@ -1011,9 +1031,9 @@ function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
       edge.path = [...trunk, ...mergePath(route).slice(1)]
       first.sharedTrunk ??= `trunk:${first.id ?? first.sourceIndex}`
       edge.sharedTrunk = first.sharedTrunk
-      const key = gridKey(branchPoint)
+      const key = `${first.sharedTrunk}:${gridKey(branchPoint)}`
       if (!junctionKeys.has(key)) {
-        graph.trunkJunctions.push(branchPoint)
+        graph.trunkJunctions.push({ ...branchPoint, trunk: first.sharedTrunk })
         junctionKeys.add(key)
       }
       increaseGridSizeForPath(graph, edge.path)
