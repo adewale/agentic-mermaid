@@ -248,3 +248,19 @@ project every private Mermaid DB/config/logger assertion; those callbacks remain
 unavailable. The wider monorepo census and literal-source replay retain their
 own units and cannot add assertion-pass credit. Exact error wording, rejected
 input, typed semantics and visible drawing quality are reported separately.
+
+## One tool version per comparison set
+
+The active version manifest is [`tool-versions.json`](tool-versions.json). Pele
+is pinned to **1.9.0** across Dave, Node peers, community acquisition, portable
+runs, startup/resources and original-assertion comparisons. Registry `latest`
+cannot override its set pin. Actual installed identities are checked before
+measurement/cache admission; report readers reject mixed versions for any tool
+before replacing reports or charts. Explicit baseline/version experiments are
+named separately, rather than assigning different releases to different suites.
+
+Historical receipts keep their measured versions and dates. To review an older
+uniform set, the chart reader accepts an explicit historical version manifest.
+It cannot combine Pele 1.6 and 1.9 into one set. Changing a pin requires new
+measurements only for affected tool/artifact lanes; already matching records
+retain their clocks and original dates.

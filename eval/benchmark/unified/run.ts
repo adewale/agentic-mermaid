@@ -9,6 +9,7 @@ import { subprocessTreeTerminator } from './process-tree.ts'
 import { type SuiteExecution, type UnifiedReport, writeUnifiedReport } from './report.ts'
 import { benchmarkSuites, type SuiteDefinition, type SuiteOptions } from './suites.ts'
 import type { BenchmarkObservation, UnifiedSuiteResult } from './types.ts'
+import { assertBenchmarkSetVersions, assertBenchmarkToolVersion, type BenchmarkToolVersion } from '../tool-versions.ts'
 
 const DRIVER = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const now = () => new Date().toISOString()
@@ -118,6 +119,11 @@ export function parseOptions(argv: string[]): RunnerOptions {
   const startupSurfaces = options.get('startup-surfaces')?.split(',') as RunnerOptions['startupSurfaces']
   if (startupSurfaces && (!startupSurfaces.length || new Set(startupSurfaces).size !== startupSurfaces.length || startupSurfaces.some(surface => !['library', 'cli', 'mcp', 'browser'].includes(surface)))) throw Error('--startup-surfaces needs unique library,cli,mcp,browser values')
   if (liveProvider && !['anthropic', 'openai-compatible'].includes(liveProvider)) throw new Error('--live-provider must be anthropic or openai-compatible')
+  if (!options.has('list')) admitSelectedArtifacts({
+    portableArtifactRoot: path('portable-artifact-root'), portableProject: options.get('portable-project'),
+    communityArtifacts: path('community-artifacts'), communityPreparedFile: path('community-prepared'),
+    communityCatalogFile: path('community-catalog'), communityProjects: projects, harnessRoot: DRIVER,
+  })
   return {
     root: path('target') ?? DRIVER,
     harnessRoot: DRIVER,
@@ -179,6 +185,35 @@ export function parseOptions(argv: string[]): RunnerOptions {
     communityQualificationProtocol: options.get('community-qualification-protocol'),
   }
 }
+
+/** Admission precedes acquisition/cache activation and does not alter clocks. */
+function admitSelectedArtifacts(options: Partial<RunnerOptions>): void {
+  const selected = (project: string) => !options.communityProjects || options.communityProjects.includes(project)
+  if (options.portableArtifactRoot) {
+    const manifest = join(options.portableArtifactRoot, 'package.json')
+    if (existsSync(manifest)) {
+      const pkg = readJson(manifest)
+      const project = options.portableProject ?? (pkg.name === 'pele' ? 'obsidianmd/pele' : pkg.name)
+      if (selected(project)) assertBenchmarkToolVersion(project, pkg.version, manifest)
+    }
+  }
+  const catalog = options.communityCatalogFile ?? join(options.harnessRoot ?? DRIVER, 'docs/mermaid-community.json')
+  if (existsSync(catalog)) for (const node of readJson(catalog).nodes ?? []) {
+    if (node.id === 'obsidianmd/pele' && selected(node.id)) assertBenchmarkToolVersion(node.id, node.benchmark?.version ?? '', `${catalog} explicit acquisition pin`)
+  }
+  if (options.communityArtifacts && existsSync(options.communityArtifacts)) for (const [project, artifact] of Object.entries(readJson(options.communityArtifacts)) as [string, { version?: string }][]) {
+    if (selected(project)) assertBenchmarkToolVersion(project, artifact.version ?? '', options.communityArtifacts)
+  }
+  if (options.communityPreparedFile && existsSync(options.communityPreparedFile)) for (const entry of readJson(options.communityPreparedFile)) {
+    if (entry.artifact && selected(entry.node.id)) assertBenchmarkToolVersion(entry.node.id, entry.artifact.version ?? '', options.communityPreparedFile)
+  }
+}
+
+function owningToolVersions(value: any, source: string): BenchmarkToolVersion[] {
+  if (Array.isArray(value.toolVersions)) return assertBenchmarkSetVersions(value.toolVersions)
+  if (Array.isArray(value.identities)) return assertBenchmarkSetVersions(value.identities.map((entry: any) => ({ tool: entry.name, version: entry.version, source, ...(entry.name === 'agentic-mermaid' && entry.label !== 'candidate' ? { variant: entry.label } : {}) })))
+  return []
+}
 function git(root: string, args: string[]): string | undefined {
   try {
     return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
@@ -205,6 +240,7 @@ function declaredReports(directory: string, notBefore: number) {
   const gaps: string[] = [],
     artifacts: string[] = []
   let status: 'failed' | 'blocked' | undefined
+  const toolVersions: BenchmarkToolVersion[] = []
   for (const name of readdirSync(directory).filter(name => /(?:report|summary|editor-preview|editor-session|ownership|renderer-profile|qualification-status|gates)\.json$/.test(name))) {
     const file = join(directory, name)
     if (!statSync(file).isFile() || statSync(file).mtimeMs < notBefore - 1) continue
@@ -212,6 +248,7 @@ function declaredReports(directory: string, notBefore: number) {
     try {
       const value = readJson(file)
       if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+      toolVersions.push(...owningToolVersions(value, file))
       const checks = Array.isArray(value.checks) ? value.checks.filter((check: any) => check.ok === false) : []
       if (value.status === 'failed' || value.ok === false || checks.length) {
         status = 'failed'
@@ -225,7 +262,7 @@ function declaredReports(directory: string, notBefore: number) {
       gaps.push(`Cannot read fresh owning report ${name}: ${String(error)}`)
     }
   }
-  return { status, gaps, artifacts }
+  return { status, gaps, artifacts, toolVersions: assertBenchmarkSetVersions(toolVersions) }
 }
 async function subprocess(command: string[], cwd: string, env: NodeJS.ProcessEnv, logPath: string, timeoutMs: number) {
   const stream = createWriteStream(logPath),
@@ -434,6 +471,7 @@ export async function runUnified(options: RunnerOptions): Promise<UnifiedReport>
           ...(suite.kind === 'script' ? ['Process completion is recorded; detailed per-input qualification remains in the owning suite artifacts.'] : []),
         ],
         artifacts: [execution.log, ...owning.artifacts],
+        toolVersions: owning.toolVersions,
       }
     }
     writeUnifiedReport(options.out, report)
@@ -450,6 +488,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     if (argv.length !== 4 || argv[0] !== '--worker-suite' || argv[2] !== '--worker-job' || !argv[1] || !argv[3]) throw new Error('Invalid internal suite worker invocation')
     const options = readJson(argv[3]) as SuiteOptions & { resultPath: string }
     try {
+      admitSelectedArtifacts(options)
       const result = await runInternal(argv[1], options)
       writeFileSync(options.resultPath, JSON.stringify(result, null, 2) + '\n')
       process.exitCode = result.status === 'failed' ? 1 : result.status === 'blocked' ? 2 : 0

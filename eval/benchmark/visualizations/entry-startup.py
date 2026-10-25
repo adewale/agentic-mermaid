@@ -19,7 +19,11 @@ import json
 import math
 from pathlib import Path
 from statistics import median
+import sys
 from textwrap import fill
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from tool_versions import DEFAULT_MANIFEST, assert_tool_versions, canonical_tool, read_tool_versions
 
 
 BASE = ("suite", "surface", "runtime", "family", "caseId", "operation", "format", "mode")
@@ -79,26 +83,147 @@ def group_key(project, row):
     return canonical(value)
 
 
+def startup_identity_file(file):
+    file = Path(file).resolve()
+    identity = file.parent / "identity.json"
+    if not identity.is_file() and (file.parent / "cache.json").is_file():
+        directory = load(file.parent / "cache.json").get("evidenceDirectory")
+        if directory:
+            identity = Path(directory) / "identity.json"
+    return identity
+
+
+def artifact_package(identity):
+    artifact = identity.get("artifact", {})
+    package = artifact.get("package", artifact)
+    metadata = package.get("packageMetadata", {})
+    return (metadata.get("version") or package.get("version") or package.get("artifact", {}).get("version"),
+            metadata.get("name") or package.get("packageName") or package.get("name"))
+
+
+def executed(row):
+    metrics = row.get("metrics", {})
+    if metrics.get("runtimeExecuted") is True or row.get("samplesMs"):
+        return True
+    if any(isinstance(metrics.get(key), bool) for key in ("observedAccepted", "observedParserAccepted", "parseAccepted")):
+        return True
+    return row.get("status") in ("passed", "failed") and row.get("mode") not in ("declaration", "not-executed")
+
+
+def version_claims(startup, required_files, upstream_files, dave_file, manifest):
+    """Read only declared owning receipt paths; never search recursively for a version."""
+    claims, package_owners = [], defaultdict(set)
+
+    def add(tool, version, source, package=None, variant=None):
+        tool = canonical_tool(tool, manifest)
+        if package:
+            package_owners[package].add(tool)
+        claims.append({"tool": tool, "version": version, "source": str(source), **({"variant": variant} if variant is not None else {})})
+
+    def owner_of(row):
+        metrics = row.get("metrics", {})
+        return canonical_tool(metrics.get("project") or metrics.get("implementation") or row.get("surface", "").split(":")[0], manifest)
+
+    for project, file in startup:
+        file = Path(file).resolve()
+        result = load(file)
+        identity_file = startup_identity_file(file)
+        if not identity_file.is_file():
+            if any(executed(row) for row in result.get("observations", [])):
+                raise ValueError("Missing owning startup artifact version receipt: " + str(identity_file))
+            continue
+        identity = load(identity_file)
+        if canonical_tool(identity.get("project"), manifest) != canonical_tool(project, manifest):
+            raise ValueError("Owning startup identity names a different selected project: " + str(identity_file))
+        version, name = artifact_package(identity)
+        add(identity["project"], version, identity_file, name)
+
+    for file in required_files:
+        file = Path(file).resolve()
+        result = load(file)
+        owners = set()
+        for declared in result.get("artifacts", []):
+            support_file = Path(declared)
+            if not support_file.is_absolute():
+                support_file = file.parent / support_file
+            if support_file.name != "required-family-support.json":
+                continue
+            identity_file = support_file.parent / "identity.json"
+            if not support_file.is_file() or not identity_file.is_file():
+                raise ValueError("Missing owning required-family artifact receipt: " + str(identity_file))
+            support, identity = load(support_file), load(identity_file)
+            owner = canonical_tool(identity.get("project"), manifest)
+            if canonical_tool(support.get("project"), manifest) != owner:
+                raise ValueError("Required-family support and identity name different projects: " + str(support_file))
+            owners.add(owner)
+            version, name = artifact_package(identity)
+            add(owner, version, identity_file, name)
+        for row in result.get("observations", []):
+            if executed(row) and owner_of(row) not in owners:
+                raise ValueError("Missing executed required-family artifact version for " + owner_of(row) + " at " + str(file))
+
+    for file in upstream_files:
+        file = Path(file).resolve()
+        result = load(file)
+        receipts = [(file, result)] if isinstance(result.get("evidence", {}).get("results"), list) else []
+        if not receipts:
+            for declared in result.get("artifacts", []):
+                receipt = Path(declared)
+                if not receipt.is_absolute():
+                    receipt = file.parent / receipt
+                if receipt.name == "upstream-test-assertions-report.json":
+                    receipts.append((receipt, load(receipt)))
+        owners = set()
+        for source, receipt in receipts:
+            for row in receipt.get("evidence", {}).get("results", []):
+                artifact = row.get("artifact") or {}
+                tool = artifact.get("project") or row.get("project") or row.get("engine") or artifact.get("name")
+                if not artifact and not row.get("callbacks"):
+                    continue
+                owner = canonical_tool(tool, manifest)
+                owners.add(owner)
+                add(owner, artifact.get("version"), str(source) + "#evidence.results/" + str(row.get("engine")), artifact.get("name"))
+        for row in result.get("observations", []):
+            if executed(row) and owner_of(row) not in owners:
+                raise ValueError("Missing executed upstream artifact version for " + owner_of(row) + " at " + str(file))
+
+    if dave_file:
+        result = load(dave_file)
+        identities = defaultdict(list)
+        for identity in result.get("identities", []):
+            identities[identity.get("label")].append(identity)
+        for engine in result.get("engines", []):
+            receipts = identities.get(engine.get("label"), [])
+            if len(receipts) != 1:
+                raise ValueError("Missing or ambiguous executed Dave artifact identity for " + str(engine.get("label")) + " at " + str(dave_file))
+            identity = receipts[0]
+            add(identity.get("project") or identity.get("name"), identity.get("version"), str(Path(dave_file).resolve()) + "#identities/" + str(engine.get("label")), variant="baseline" if identity.get("label") == "baseline" else None)
+
+    # Unknown package names can be linked to a canonical owner only through an
+    # explicit owning artifact receipt. Ambiguous fork/package aliases fail.
+    for claim in claims:
+        owners = package_owners.get(claim["tool"], set())
+        if len(owners) > 1:
+            raise ValueError("Ambiguous owning projects for package " + claim["tool"])
+        if owners:
+            claim["tool"] = next(iter(owners))
+    return claims
+
+
 def summarize_startup(project, file):
     file = Path(file).resolve()
     result = load(file)
-    identity_file = file.parent / "identity.json"
-    if not identity_file.is_file() and (file.parent / "cache.json").is_file():
-        directory = load(file.parent / "cache.json").get("evidenceDirectory")
-        if directory:
-            identity_file = Path(directory) / "identity.json"
+    identity_file = startup_identity_file(file)
     package_version = None
     if identity_file.is_file():
         identity = load(identity_file)
-        if identity.get("project") != project:
+        if canonical_tool(identity.get("project")) != canonical_tool(project):
             raise ValueError("Owning identity names a different startup project")
-        artifact = identity.get("artifact", {})
-        package = artifact.get("package", artifact)
-        package_version = package.get("packageMetadata", {}).get("version") or package.get("artifact", {}).get("version")
+        package_version, _name = artifact_package(identity)
     if not result.get("finishedAt") or not isinstance(result.get("observations"), list):
         raise ValueError("Startup input is not a completed measured result: " + str(file))
     rows = result["observations"]
-    declared_projects = {row.get("metrics", {}).get("project") for row in rows} - {None}
+    declared_projects = {canonical_tool(row["metrics"]["project"]) for row in rows if row.get("metrics", {}).get("project") is not None}
     if declared_projects - {project}:
         raise ValueError("Explicit project differs from startup observations: " + str(declared_projects))
     seen = set()
@@ -289,6 +414,8 @@ def summary_markdown(summary):
         lines.append(f"| {result['project']} | {result['startedAt']} → {result['finishedAt']} | {result['observationCount']} | {canonical(result['statuses'])} |")
     lines += ["", "Latency p95 uses nearest rank and requires at least20 independent observations. Each reported distribution retains its raw samples and attempted statuses. Namespace discovery, page/API readiness, single returned artifacts, and editor eight-edit completion are different workloads.", "", "Resource diagnostics use their actual count (normally5 round samples), median and observed range. No resource p95 is reported. GNU time peak RSS covers whole child lifetime; CPU has10ms per-field resolution and zero is censored below that resolution. Baseline differences are descriptive, may be negative, and do not attribute allocations.", "", "JS heap, external memory and RSS overlap and cannot be stacked. Browser document V8 heap excludes worker/native/GPU/process memory; editor DOM retains the preview after consumer sink release. Native CLI and MCP server have no injected JS snapshots. SDK latency cannot certify later server exit status.", "", "Initial editor preview completion, browser-only launch duration and browser-only module-import duration remain unmeasured. launchToReadyMs directly measures launch through API availability; it is not a paint/preview signal. Full editor mode submits8 edits, not one.", "", "## Inputs", ""]
     lines += [f"- {result['project']}: `{result['source']}`" for result in summary["startup"]]
+    lines += ["", "## Uniform tool versions", "", "Manifest: `" + summary["toolVersions"]["manifest"] + "`. Every supplied lane was checked before report output. Owning receipt paths remain in summary.json.", "", "| Tool | Version | Explicit variant |", "|---|---|---|"]
+    lines += [f"| {claim['tool']} | {claim['version']} | {claim.get('variant', '—')} |" for claim in summary["toolVersions"]["claims"]]
     for name in ("requiredFamily", "upstream"):
         lines += [f"- {name}: `{source}`" for source in summary[name]["sources"]]
     if summary["requiredFamily"]["cells"]:
@@ -300,7 +427,7 @@ def summary_markdown(summary):
         for row in summary["upstream"]["groups"]:
             lines.append(f"| {row['project']} | {row['family']} | {canonical(row['statuses'])} | {row['executedAssertions']} | {row['passedAssertions']} |")
     if summary.get("dave"):
-        lines += ["", "## Dave corpus", "", f"Input: `{summary['dave']['source']}`. {summary['dave']['scope']}. Three corpus rounds do not support p95. Each pair keeps its own matched input set. Dave's Pele version is recorded separately from the startup project version."]
+        lines += ["", "## Dave corpus", "", f"Input: `{summary['dave']['source']}`. {summary['dave']['scope']}. Three corpus rounds do not support p95. Each pair keeps its own matched input set. Actual tool versions match the same comparison-set manifest used by the other supplied lanes."]
     return "\n".join(lines) + "\n"
 
 
@@ -516,18 +643,28 @@ def main():
     parser.add_argument("--required-family", action="append", default=[], metavar="RESULT_JSON")
     parser.add_argument("--upstream", action="append", default=[], metavar="REPORT_JSON")
     parser.add_argument("--dave", metavar="BROWSER_REPORT_JSON")
+    parser.add_argument("--tool-versions", type=Path, default=DEFAULT_MANIFEST, metavar="MANIFEST_JSON", help="Uniform comparison-set version pins; defaults to the maintained tool-versions.json")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--summary-only", action="store_true")
     args = parser.parse_args()
-    startup = []
+    startup_inputs = []
     projects = set()
-    for specification in args.startup:
-        project, separator, path = specification.partition("=")
-        if not separator or not project or project in projects:
-            parser.error("Each --startup needs one unique explicit PROJECT=RESULT_JSON")
-        projects.add(project)
-        startup.append(summarize_startup(project, path))
-    summary = {"schema": "public-entry-evidence-visualization-v1", "statistics": {"latencyP95": "nearest rank; only n>=20", "resource": "median/min/max; no p95; normally5 independent round diagnostics", "comparison": "descriptive, distinct boundaries; no aggregate or causal speedup score"}, "startup": startup, "requiredFamily": summarize_required(args.required_family), "upstream": summarize_upstream(args.upstream), "dave": summarize_dave(args.dave)}
+    try:
+        manifest = read_tool_versions(args.tool_versions)
+        for specification in args.startup:
+            project, separator, path = specification.partition("=")
+            if not separator or not project:
+                parser.error("Each --startup needs one unique explicit PROJECT=RESULT_JSON")
+            project = canonical_tool(project, manifest)
+            if project in projects:
+                parser.error("Each --startup needs one unique canonical project")
+            projects.add(project)
+            startup_inputs.append((project, path))
+        admitted_versions = assert_tool_versions(version_claims(startup_inputs, args.required_family, args.upstream, args.dave, manifest), args.tool_versions)
+    except (ValueError, OSError, TypeError, KeyError) as error:
+        parser.error(str(error))
+    startup = [summarize_startup(project, path) for project, path in startup_inputs]
+    summary = {"schema": "public-entry-evidence-visualization-v1", "toolVersions": {"manifest": str(args.tool_versions.resolve()), "claims": admitted_versions, "scope": "One actual artifact version per canonical tool and explicitly declared variant across all supplied lanes; missing executed-artifact receipts and mixed versions are rejected before report output."}, "statistics": {"latencyP95": "nearest rank; only n>=20", "resource": "median/min/max; no p95; normally5 independent round diagnostics", "comparison": "descriptive, distinct boundaries; no aggregate or causal speedup score"}, "startup": startup, "requiredFamily": summarize_required(args.required_family), "upstream": summarize_upstream(args.upstream), "dave": summarize_dave(args.dave)}
     args.out.mkdir(parents=True, exist_ok=True)
     save(args.out / "summary.json", summary)
     (args.out / "summary.md").write_text(summary_markdown(summary))

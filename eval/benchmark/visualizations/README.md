@@ -19,10 +19,29 @@ python3 eval/benchmark/visualizations/entry-startup.py \
 Python 3 and matplotlib are required to render. `--summary-only` uses the standard
 library and skips all plotting imports. Optional inputs can be omitted. Keep the
 owning attempt directory and its resource/payload artifacts: relative and absolute
-artifact references are resolved from the declared result. Where present, the
-retained `identity.json` supplies the actual package version for figure labels.
+artifact references are resolved from the declared result. The retained
+`identity.json` supplies the actual package version for startup figure labels.
 Run retained-record ownership checks before reporting; this exporter reads those
 inputs without replacing their admission checks.
+
+Before writing any report, the shared `../tool_versions.py` guard checks actual
+artifact versions across every supplied lane against `../tool-versions.json`.
+Startup versions come from owning identities, upstream versions from
+`evidence.results[].artifact`, family versions from declared support files and
+their parent identities, and Dave versions from its actual engine identities.
+Missing executed-artifact receipts, conflicting versions of any canonical tool,
+or a mismatch with a maintained pin fail without replacing existing output.
+Package/engine aliases normalize to canonical project IDs; labels do not select
+a release. The summary retains admitted versions and every receipt source.
+
+An explicitly historical **uniform** comparison can select its own version
+manifest with `--tool-versions /path/to/historical-tool-versions.json`. Keep its
+raw evidence unchanged. There is no mixed-version override; a manifest does not
+permit multiple releases of the same primary tool within a comparison. The Dave
+candidate shares the default variant with startup, family and upstream receipts;
+only an explicitly separate Dave baseline gets the `baseline` variant. A
+baseline cannot bypass a manifest pin. Copy the shared helper and
+manifest alongside the reader when extracting this reporting package.
 
 The output includes:
 
@@ -55,8 +74,9 @@ negative. The figures do not attribute allocations or add overlapping components
 
 Browser payload charts count unique fetched file bodies per actual operation,
 round, and fresh sample. Per-file gzip totals are estimates; HTTP overhead and
-compressed wire transfer remain unmeasured. Dave's pinned peer versions and
-matched cohorts stay separate from entry startup versions and clocks.
+compressed wire transfer remain unmeasured. Dave's matched cohorts and rendering
+clocks stay separate from entry startup clocks; a combined set must use the same
+tool versions in both lanes.
 
 Family cells certify the authored format/label witness only. Original upstream
 callbacks retain failed, unavailable, and skipped outcomes; executed assertion

@@ -16,6 +16,7 @@ import { workingRevision } from './revision-tree.ts'
 import { browserPerformanceOptions, configureAgenticEngines, configureBrowserPage, type BrowserElkCache } from './browser-config.ts'
 import { browserMemoryDiagnostics, sharedMemoryInputs } from './browser-memory.ts'
 import { bezelEngine } from './bezel.ts'
+import { assertBenchmarkSetVersions, assertBenchmarkToolVersion, benchmarkToolPins } from './tool-versions.ts'
 
 export interface Engine {
   label: string
@@ -101,6 +102,7 @@ function install(spec: string, name: string, label: string, parent: string, expe
   }
   const root = join(prefix, 'node_modules', name)
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
+  assertBenchmarkToolVersion(name, pkg.version, `${label} installed artifact`)
   const { integrity } = installedNpmPackagePin(prefix, root, name, pkg.version, join(prefix, 'package-lock.json'))
   if (expectedIntegrity && expectedIntegrity !== integrity) throw new Error(`${label}: package identity differs from the requested artifact`)
   return { label, name, version: pkg.version, root, kind: name === 'agentic-mermaid' ? 'agentic' : name as 'pele' | 'mermaid',
@@ -255,7 +257,7 @@ async function main() {
       ? assertNormalizedNpmRuntimes(engines.find(engine => engine.label === 'baseline')!.identity.runtime!, candidate.identity.runtime!)
       : (assertMatchedAgenticRuntimes(engines.map(engine => engine.identity.runtime!)), { mode: 'matched' as const })
     writeFileSync(join(out, 'browser-runtime-comparison.json'), `${JSON.stringify(runtimeComparison, null, 2)}\n`)
-    engines.push(install('pele@1.6.0', 'pele', 'pele', temporary), install('mermaid@12.2.0', 'mermaid', 'mermaid', temporary))
+    engines.push(install(`pele@${benchmarkToolPins['obsidianmd/pele'].version}`, 'pele', 'pele', temporary), install(`mermaid@${benchmarkToolPins['mermaid-js/mermaid'].version}`, 'mermaid', 'mermaid', temporary))
     if (bezel) engines.push(bezel)
     if (diagnostics.dart) {
       const root = join(temporary, 'dart')
@@ -340,7 +342,8 @@ async function main() {
       runtimeComparison, payload, ...(memory ? { memory } : {}), ...summary }
     // Keep artifact identity separate from per-engine acceptance summaries.
     const identities = engines.map(({ root, ...engine }) => engine)
-    writeFileSync(reportPath, `${JSON.stringify({ ...report, identities }, null, 2)}\n`)
+    const toolVersions = assertBenchmarkSetVersions(identities.map(engine => ({ tool: engine.name, version: engine.version, source: `Dave ${engine.label}`, ...(engine.name === 'agentic-mermaid' && engine.label !== 'candidate' ? { variant: engine.label } : {}) })))
+    writeFileSync(reportPath, `${JSON.stringify({ ...report, identities, toolVersions }, null, 2)}\n`)
     const lines = ['# Browser and competitor scorecard (advisory)', '',
       ...(comparisonMode === 'normalized-npm-compound' ? ['> Normalized npm compound comparison, not an isolated PR gain. Only the external consumer dependency graph is normalized to current frozen pins; original IIFE/lazy bundles are unchanged and their embedded dependency equality is not established.', ''] : []),
       `${inputs.length}/${inventory.occurrenceCount} upstream fence occurrences, ${inventory.distinctCount} distinct examples across ${inventory.pages.length} pages. Chromium ${browserVersion}; ${rounds} counterbalanced rounds.`, '',

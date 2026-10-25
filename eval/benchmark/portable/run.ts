@@ -12,6 +12,7 @@ import { PORTABLE_MEASUREMENT_PROTOCOL, type PortableArtifact, type PortableJob,
 import { portableMarkdown, portableSummary } from './report.ts'
 import type { BenchmarkObservation } from './observation.ts'
 import type { UsageEvidence } from './costs.ts'
+import { assertBenchmarkToolVersion } from '../tool-versions.ts'
 
 export interface PortableOptions {
   project: string
@@ -119,6 +120,7 @@ export async function runPortable(options: PortableOptions) {
   resetPortableCancellation()
   const testCases = portableCases(options.cohorts),
     artifact = resolveArtifact(options.project, options.artifactRoot, options.adapter, options.node, options.entry)
+  assertBenchmarkToolVersion(options.project, artifact.version, 'portable SVG artifact')
   if (!testCases.length) throw Error('No selected cases')
   const sampling = {
     rounds: options.rounds,

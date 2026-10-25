@@ -572,7 +572,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
       '',
       '### Dave exact pinned corpus',
       '',
-      'All 1095 original source occurrences, unchanged browser and clock policy, three rounds. Complete attempt costs include failures and cannot reward fast rejection. Dave uses historical Pele 1.6.0; expanded community Pele 1.9.0 is a separate version/boundary.',
+      'All 1095 original source occurrences, unchanged browser and clock policy, three rounds. Complete attempt costs include failures and cannot reward fast rejection. Actual comparator versions are read from admitted identities and must agree throughout this comparison set.',
       '',
       '| Implementation | Version | Accepted / 1095 | Median complete attempt portfolio, ms |',
       '|---|---|---:|---:|',
@@ -690,7 +690,7 @@ export function updateCommunityScorecard(run: string, output: string, prs?: stri
     for (const row of dave.matched ?? []) lines.push(`| ${escape(row.comparator)} | ${row.inputIds?.length ?? 'N/A'} | ${number(row.medianRatio, 3)}× |`)
     lines.push(
       '',
-      'Dave attempt costs include each engine’s own accepted/rejected workload. Only matched-pair portfolios support a speed ratio. Dave keeps historical Pele1.6/Mermaid12.2/Bezel pins; the wider community measures separate versions and clocks.',
+      'Dave attempt costs include each engine’s own accepted/rejected workload. Only matched-pair portfolios support a speed ratio. Actual tool versions must agree across the admitted comparison set; clocks and public boundaries remain separate.',
       '',
       '| Parser | Portable criteria passed / scored in each round | Eligible positive cases |',
       '|---|---|---:|',

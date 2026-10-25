@@ -12,6 +12,7 @@ import { projectReportView } from './project-report-view.ts'
 import { runRetainedSuite } from './retained-suite.ts'
 import type { UnifiedRunOptions, UnifiedSuiteResult } from './types.ts'
 import { runUpstreamTestScoreSuite, UPSTREAM_TEST_SCORE_PRODUCERS } from './upstream-test-score.ts'
+import { assertBenchmarkSetVersions, assertBenchmarkToolVersion } from '../tool-versions.ts'
 
 interface RetainedCampaignOptions extends UnifiedRunOptions {
   benchmarkRecordStore?: string
@@ -34,6 +35,7 @@ const combine = (id: string, startedAt: string, results: UnifiedSuiteResult[]): 
   observations: results.flatMap(result => result.observations),
   gaps: [...new Set(results.flatMap(result => result.gaps))],
   artifacts: results.flatMap(result => result.artifacts ?? []),
+  toolVersions: assertBenchmarkSetVersions(results.flatMap(result => result.toolVersions ?? [])),
 })
 function missingProjects(options: RetainedCampaignOptions, available: readonly string[], suite: string): UnifiedSuiteResult[] {
   return (options.communityProjects ?? [])
@@ -76,6 +78,7 @@ export async function runRetainedEntryStartupSuite(options: RetainedCampaignOpti
   )
   for (const project of projects) {
     const artifact = resolveArtifact(project.id, project.root, project.adapter, node)
+    assertBenchmarkToolVersion(project.id, artifact.version, 'entry startup artifact')
     const settings = { profile: options.profile, rounds: options.rounds, samplesPerRound: options.startupSamples ?? (options.profile === 'full' ? 5 : 1), resourceSamplesPerRound: 1, surfaces: options.startupSurfaces ?? ['library', 'cli', 'mcp', 'browser'], timeoutMs: 60_000 }
     const actual: EntryStartupOptions = {
       ...options,
@@ -126,7 +129,7 @@ export async function runRetainedEntryStartupSuite(options: RetainedCampaignOpti
         return runEntryStartupSuite(run, await prepareEntryStartup(run))
       },
     })
-    results.push(projectReportView(retained, project.id))
+    results.push({ ...projectReportView(retained, project.id), toolVersions: [{ tool: project.id, version: artifact.version, source: 'entry-startup' }] })
   }
   const result = combine('entry-startup', startedAt, results)
   if (!results.length) result.gaps.push('No selected project has a configured startup artifact/adapter; no peer was invoked')
@@ -152,6 +155,7 @@ export async function runRetainedUpstreamTestSuite(options: RetainedCampaignOpti
     'upstream-test-assertions',
   )
   for (const project of projects) {
+    assertBenchmarkToolVersion(project.id, JSON.parse(readFileSync(join(project.root, project.adapter === 'reference' ? 'node_modules/mermaid/package.json' : 'package.json'), 'utf8')).version, 'original upstream assertion artifact')
     const artifact = () => (project.adapter === 'reference' ? { referencePackage: JSON.parse(readFileSync(join(reference, 'node_modules/mermaid/package.json'), 'utf8')), installed: captureInstalledDependencyClosure(reference) } : artifactIdentity(resolveArtifact(project.id, project.root, project.adapter, node)))
     const retained = await runRetainedSuite({
       out: join(options.out, Buffer.from(project.id).toString('base64url')),
@@ -172,7 +176,7 @@ export async function runRetainedUpstreamTestSuite(options: RetainedCampaignOpti
         }),
       measure: directory => runUpstreamTestScoreSuite({ ...options, out: directory, nodeExecutable: node, communityProjects: [project.id] }),
     })
-    results.push(projectReportView(retained, project.id))
+    results.push({ ...projectReportView(retained, project.id), toolVersions: [{ tool: project.id, version: JSON.parse(readFileSync(join(project.root, project.adapter === 'reference' ? 'node_modules/mermaid/package.json' : 'package.json'), 'utf8')).version, source: 'upstream-test-assertions' }] })
   }
   const result = combine('upstream-test-assertions', startedAt, results)
   if (!results.length) result.gaps.push('No selected project has a configured original-assertion adapter; no peer was invoked')

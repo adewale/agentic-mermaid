@@ -400,7 +400,8 @@ unchanged 1095-occurrence corpus/browser/clock policy and historical comparator
 versions, and the same reviewed 580-positive/586-raw parser fixture universe.
 Parser replay sources come from the admitted Git blob and independently expected
 criteria remain identical; actual shipped parser bytes must match the new
-tarball. Dave Pele 1.6 and community Pele 1.9 retain separate scopes. Complete
+tarball. Actual tool versions must agree throughout the comparison set; older
+version experiments remain separate historical sets. Complete
 attempt cost includes failures, while each matched Dave ratio uses its own
 explicit shared-success input set. Current parser timings use the common
 all-engine/all-round positive-success cohort.

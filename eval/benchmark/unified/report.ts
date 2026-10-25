@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BenchmarkObservation, BenchmarkStatus, UnifiedSuiteResult } from './types.ts'
+import { assertBenchmarkSetVersions } from '../tool-versions.ts'
 
 export interface SuiteExecution {
   id: string
@@ -63,6 +64,14 @@ export function coverageRows(observations: readonly BenchmarkObservation[]) {
 }
 export function writeUnifiedReport(out: string, report: UnifiedReport): void {
   const observations = report.suites.flatMap(suite => suite.result?.observations ?? [])
+  assertBenchmarkSetVersions([
+    ...report.suites.flatMap(suite => suite.selected ? suite.result?.toolVersions ?? [] : []),
+    ...observations.flatMap(row => typeof row.metrics?.implementation === 'string' && typeof row.metrics.version === 'string' ? [{
+      tool: typeof row.metrics.variantOf === 'string' ? row.metrics.variantOf : row.metrics.implementation,
+      version: row.metrics.version, source: `${row.suite}/${row.surface}`,
+      ...(typeof row.metrics.variant === 'string' ? { variant: row.metrics.variant } : {}),
+    }] : []),
+  ])
   const coverage = coverageRows(observations)
   writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   writeFileSync(join(out, 'coverage.json'), JSON.stringify({ scope: 'Executed observations only; a missing cell is unmeasured, never an inferred pass.', rows: coverage }, null, 2) + '\n')
