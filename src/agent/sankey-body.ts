@@ -24,7 +24,7 @@ import { parseAccessibilityDirective } from '../shared/accessibility-directives.
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
-import type { LayoutWarning, MutationError, Result, SankeyBody, SankeyMutationOp, VerifyOptions } from './types.ts'
+import type { Accessibility, LayoutWarning, MutationError, Result, SankeyBody, SankeyMutationOp, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 
 const HEADER_RE = /^sankey(?:-beta)?\s*:?\s*$/i
@@ -40,7 +40,8 @@ function formatNumber(n: number): string {
  * the source. Accessibility remains source-preserved/opaque, and model states
  * that cannot uphold link addressing stay opaque.
  */
-export function parseSankeyBody(lines: string[]): SankeyBody | null {
+export function parseSankeyBody(lines: string[], accessibility: Accessibility = {}): SankeyBody | null {
+  if (accessibility.title !== undefined || accessibility.descr !== undefined) return null
   if (lines.some(raw => /^\s*acc(?:Title|Descr)\b/i.test(raw))) return null
   const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['sankey-beta', ...lines]
   try {
@@ -69,6 +70,7 @@ export function sankeyBodyProblem(body: SankeyBody, allowEmptyDraft = false): st
         return `Every typed sankey link needs a non-empty ${field} label.`
       }
       if (/[\r\n]/.test(label)) return `Sankey ${field} labels cannot contain line breaks.`
+      if (label.includes('%%{')) return `Sankey ${field} labels cannot contain a directive opener; CSV has no escape that preserves this identity.`
     }
     if (!Number.isFinite(link.value) || link.value < 0) {
       return `Sankey link "${link.source}" -> "${link.target}" needs a non-negative finite value.`
@@ -281,10 +283,15 @@ export function sankeyUnsupportedSyntaxWarnings(canonicalSource: string, authore
     if (!trimmed || trimmed.startsWith('%%')) continue
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
-    if (directive) { index = directive.endIndex; continue }
+    if (directive) {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_accessibility', line: index + 1, message: 'Sankey accessibility metadata is rendered and preserved as authored. Pinned Mermaid has no Sankey accessibility statement, so this source cannot accept typed edits.' })
+      index = directive.endIndex
+      continue
+    }
     // Mermaid trims whitespace from the end of the source.
     const raw = authoredLine?.(index + 1) ?? lines[index]!
     const row = index === last ? raw.trimEnd() : raw
+    if (row.includes('%%{')) warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sankey_directive_text', line: index + 1, message: 'A Sankey node name containing a directive opener is read as written. Pinned Mermaid rejects it, and CSV has no escape preserving the name; this source remains preserved without typed edits.' })
     const outside = /[^\x20-\x7E\r]/u.exec(row)?.[0]
     if (outside !== undefined) {
       const what = outside === '\t' ? 'a tab' : `${JSON.stringify(outside)} (U+${outside.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')})`

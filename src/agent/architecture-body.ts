@@ -13,9 +13,9 @@
 //   align row|column <id> <id> ...   (upstream v11.16.0 — shared shape parser
 //     in src/architecture/align.ts; preserved and honored by layout)
 //
-// Structured-or-opaque: every renderer-supported declaration above plus
-// accTitle/accDescr and `{group}` endpoints is modeled. Any other non-blank,
-// non-comment syntax falls back losslessly to an opaque body.
+// Structured-or-opaque: renderer-supported declarations, accTitle/accDescr and
+// `{group}` endpoints are modeled when ids/icons have a portable spelling.
+// Other source falls back losslessly to an opaque body.
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -55,7 +55,8 @@ function sourceLabel(value: string): string {
  * only if EVERY non-blank, non-comment line is a modeled group, service,
  * junction, or edge, AND the diagram is internally consistent (no duplicate
  * ids, every `in` parent and every edge endpoint resolves). Otherwise returns
- * null (opaque fallback).
+ * null (opaque fallback). Readable ids and icons without a portable spelling
+ * also stay source-preserved so typed edits cannot regenerate rejected source.
  */
 export function parseArchitectureBody(
   lines: string[],
@@ -92,6 +93,7 @@ export function parseArchitectureBody(
     if (statement.kind === 'group') {
       const declared = statement.declaration
       const { id, icon, parentId } = declared
+      if (architectureIdError(id) || (icon && architectureIconError(icon))) return null
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       groupIds.add(id)
@@ -103,6 +105,7 @@ export function parseArchitectureBody(
     if (statement.kind === 'service') {
       const declared = statement.declaration
       const { id, icon, iconText, parentId } = declared
+      if (architectureIdError(id) || (icon && architectureIconError(icon))) return null
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
@@ -113,6 +116,7 @@ export function parseArchitectureBody(
 
     if (statement.kind === 'junction') {
       const { id, parentId } = statement
+      if (architectureIdError(id)) return null
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
@@ -267,7 +271,7 @@ function allIds(b: ArchitectureBody): Set<string> {
 function validId(value: unknown, field: string): Result<string, MutationError> {
   const error = typeof value === 'string' ? architectureIdError(value) : undefined
   if (typeof value !== 'string' || error) {
-    return err({ code: 'INVALID_OP', message: `Architecture ${field} must be letters, digits and _, with - only between them, got ${JSON.stringify(value)}` })
+    return err({ code: 'INVALID_OP', message: error?.message ?? `Architecture ${field} must be a string, got ${JSON.stringify(value)}` })
   }
   return ok(value)
 }
@@ -661,7 +665,7 @@ function unknownArchitectureIcon(target: string, icon?: string): LayoutWarning |
 }
 
 const ARCHITECTURE_PORTABLE_FORM = {
-  id: 'start and end an id with a letter, digit or _, with - only between them',
+  id: 'avoid architecture keywords and prefixes L, R, T, B or title, and keep dashes only inside the id',
   icon: 'name an icon with letters, digits, _, - and : only',
   title: 'put the whole title in double quotes',
 } as const

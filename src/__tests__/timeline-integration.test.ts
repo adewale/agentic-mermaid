@@ -5,7 +5,7 @@ import { describe, it, expect } from 'bun:test'
 import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
-import { parseRegisteredMermaid, asTimeline, serializeMermaid, verifyMermaid, renderMermaidASCII } from '../agent/index.ts'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid, renderMermaidASCII } from '../agent/index.ts'
 import { DefaultBackend, getFamily } from '../agent/core.ts'
 import type { PositionedTimelineDiagram } from '../timeline/types.ts'
 import type { TimelineFamilyPalette } from '../timeline/renderer.ts'
@@ -49,9 +49,9 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     const source = `timeline\n2020 : A\n${label} : Ship`
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
-    const diagram = asTimeline(parsed.value)!
-    expect(diagram.body.sections[0]!.periods.map(period => period.label)).toEqual(['2020', label])
-    const serialized = serializeMermaid(diagram)
+    expect(parsed.value.body.kind).toBe('timeline')
+    const serialized = serializeMermaid(parsed.value)
+    expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
     for (const input of [source, serialized]) {
       const svg = render(input)
       expect(svg).toContain(`>${label}</text>`)
@@ -64,7 +64,8 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     }
     const reparsed = parseRegisteredMermaid(serialized)
     if (!reparsed.ok) throw new Error(JSON.stringify(reparsed.error))
-    expect(asTimeline(reparsed.value)!.body).toEqual(diagram.body)
+    expect(reparsed.value.body.kind).toBe('timeline')
+    expect(serializeMermaid(reparsed.value)).toBe(serialized)
   })
 
   it('renders a basic timeline to valid SVG', () => {

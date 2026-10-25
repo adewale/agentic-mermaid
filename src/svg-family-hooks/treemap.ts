@@ -9,7 +9,7 @@ export const TREEMAP_SVG_HOOKS = {
   configDiagnostics: diagnoseTreemapConfig,
   normalizeRequest: ctx => ({ familyConfig: { treemap: resolveTreemapConfig(ctx.source.config.treemap as Record<string, unknown> | undefined) } }),
   layout: ctx => {
-    const body = parseTreemapDiagram(ctx.source.familyBody)
+    const body = parseTreemapDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
     body.title ??= typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined
     return layoutResult(layoutTreemapDiagram(body, ctx.renderOptions, (ctx.familyConfig as { treemap: ReturnType<typeof resolveTreemapConfig> }).treemap, ctx.styleFace))
   },

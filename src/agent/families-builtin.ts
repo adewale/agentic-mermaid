@@ -27,6 +27,7 @@ import { type ClassStatementNode, readClassStatements } from '../class/parser.ts
 import { type ErSourceStatement, type ParsedErRelationshipSyntax, readErStatements } from '../er/parser.ts'
 import { readGanttStatements } from '../gantt/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
+import { getFrontmatterScalar, normalizeMermaidSource } from '../mermaid-source.ts'
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
@@ -34,8 +35,9 @@ import { SequenceParticipantIdError } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
-import { assertUnambiguousTimelineSections, isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
+import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { adoptStatementAccessibility } from './accessibility-envelope.ts'
+import { grammarAccessibilityFields } from '../shared/grammar-text.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { mutateClass, parseClassBody, renderClass, verifyClass } from './class-body.ts'
 import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
@@ -46,7 +48,7 @@ import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
 import { mutateGantt, parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
 import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
 import { mutateJourney, parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
-import { mutateMindmap, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
+import { mindmapSerializationProblem, mutateMindmap, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
 import { mutatePie, parsePieBody, renderPie, verifyPie } from './pie-body.ts'
 import { mutateQuadrant, parseQuadrantBody, renderQuadrant, verifyQuadrant } from './quadrant-body.ts'
 import { mutateRadar, parseRadarBody, renderRadar, verifyRadar } from './radar-body.ts'
@@ -68,6 +70,7 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
   kind: K,
   opts: {
     headerOk?: (header: string) => boolean
+    ownsAccessibility?: boolean
     parseBody: (lines: string[], accessibility: import('./types.ts').Accessibility, rawBodyLines: string[]) => Extract<DiagramBody, { kind: K }> | null
     serialize: (body: Extract<DiagramBody, { kind: K }>) => string
     mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>
@@ -81,6 +84,7 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
       const raw = ctx.source.familyBody.split(/\r?\n/)
       const headerAt = raw.findIndex(line => line.trim() === lines[0]?.trim())
       const body = headerOk ? opts.parseBody(lines.slice(1), ctx.meta.accessibility, raw.slice(headerAt + 1)) : null
+      if (body && opts.ownsAccessibility && ('accessibilityTitle' in body || 'accessibilityDescription' in body)) ctx.meta.accessibility = grammarAccessibilityFields(body)
       return ok(body ?? { kind: 'opaque', family: kind, source: opaqueSource })
     },
     serialize: body => {
@@ -122,7 +126,7 @@ function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMa
   return {
     parse: ({ source, opaqueSource }) => {
       if (containsFlowchartOpaqueSyntax(source.familyBody)) return ok<DiagramBody>({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
-      return parseFlowchartBody(source.familyBody)
+      return parseFlowchartBody(source.familyBody, opaqueSource)
     },
     buildSourceMap: (body, canonicalSource) => (body.kind === 'flowchart' ? buildFlowchartSourceMap(body as FlowchartBody, canonicalSource) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
     serialize: body => {
@@ -290,8 +294,9 @@ function extractTimelineLabels(source: string): ExtractedLabel[] {
 // render path must reject it instead of silently projecting LR geometry.
 function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
   if (body.kind !== 'opaque' || body.family !== 'timeline') return []
-  const lines = body.source.split(/\r?\n/)
-  const header = lines.map(line => parseTimelineHeader(decodeXML(line))).find(candidate => candidate !== null)
+  // Match parsing/rendering: an inline body statement is split off the header
+  // before its suffix is classified as a direction.
+  const header = parseTimelineHeader(decodeXML(normalizeMermaidSource(body.source).familyLines[0] ?? ''))
   if (header?.kind !== 'unsupported') return []
   return [
     {
@@ -305,16 +310,18 @@ function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
 }
 
 export const TIMELINE_AGENT_HOOKS = {
-  renderSource: () => 'canonical',
+  renderSource: () => 'serialized',
   extractLabels: extractTimelineLabels,
   verify: body => verifyOpaqueTimeline(body),
   parse: ({ lines, opaqueSource, meta }) => {
     const header = parseTimelineHeader(lines[0] ?? '')
-    try { assertUnambiguousTimelineSections(lines.slice(1)) }
-    catch (error) { return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }]) }
     // Native rendering accepts inline header comments, but the structured
     // serializer does not retain them. Preserve authored source instead.
     const body = header?.kind === 'supported' && !header.hasInlineComment ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
+    if (body) meta.accessibility = {
+      ...(body.accessibilityTitle !== undefined ? { title: body.accessibilityTitle } : {}),
+      ...(body.accessibilityDescription !== undefined ? { descr: body.accessibilityDescription } : {}),
+    }
     if (body && header?.kind === 'supported' && header.direction) body.direction = header.direction
     return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
   },
@@ -884,6 +891,7 @@ export const JOURNEY_AGENT_HOOKS = {
   // structured body; opaque fallbacks keep the universal label-extraction path.
   verify: (body, opts) => (body.kind === 'journey' ? verifyJourney(body, opts) : body.kind === 'opaque' ? verifyOpaqueJourney(body) : []),
   .../* @__PURE__ */ structuredFamilyHooks('journey', {
+    ownsAccessibility: true,
     headerOk: h => /^journey\s*$/i.test(h),
     parseBody: (lines, accessibility) => {
       const outcome = parseJourneyBody(lines, accessibility)
@@ -1242,6 +1250,8 @@ export const GANTT_AGENT_HOOKS = {
   parse: ({ source, lines, opaqueSource }) => {
     const headerOk = /^gantt\s*$/i.test(stripTrailingComment(lines[0]?.trim() ?? ''))
     const body = headerOk ? parseGanttBody(lines.slice(1), ganttRawBodyLines(source.familyBody)) : null
+    const axisFormat = getFrontmatterScalar<string>(source.frontmatter, ['gantt', 'axisFormat'])
+    if (body && body.axisFormat === undefined && typeof axisFormat === 'string') body.axisFormat = axisFormat
     return ok(body ?? { kind: 'opaque', family: 'gantt', source: opaqueSource })
   },
   serialize: body => {
@@ -1284,12 +1294,13 @@ export const ARCHITECTURE_AGENT_HOOKS = {
 
 // ---- Mindmap ---------------------------------------------------------------
 export const MINDMAP_AGENT_HOOKS = {
-  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
+  renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
   parse: ({ source, opaqueSource }) => {
     try {
       // The opaque source starts at the header, after the wrapper's lines.
-      return ok(parseMindmapBody(source.familyBody, opaqueSource))
+      const body = parseMindmapBody(source.familyBody, opaqueSource)
+      return ok(mindmapSerializationProblem(body, opaqueSource) ? { kind: 'opaque', family: 'mindmap', source: opaqueSource } : body)
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }

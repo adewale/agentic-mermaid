@@ -211,7 +211,7 @@ export const GANTT_RENDER_HOOKS = {
 
 export const MINDMAP_RENDER_HOOKS = {
   ...MINDMAP_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderMindmapTerminal(parseMindmap(ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderMindmapTerminal(parseMindmap(ctx.source.authoredFamilyBody ?? ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 export const GITGRAPH_RENDER_HOOKS = {

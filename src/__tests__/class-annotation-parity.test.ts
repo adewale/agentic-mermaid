@@ -130,7 +130,7 @@ describe('Class official annotation forms', () => {
     expect(await Promise.all(sources.map(upstream.accepts))).toEqual([false, false, false])
   })
 
-  test('body annotations retain Mermaid 11.16 broad raw tokens, including empty and nested delimiters', async () => {
+  test('body annotations retain authored tokens when pinned DOM sanitization drops tag-like annotation text', async () => {
     const cases = [
       ['class Shape { << interface >> }', ' interface '],
       ['class Shape {\n<< interface >>\n}', ' interface '],
@@ -140,7 +140,7 @@ describe('Class official annotation forms', () => {
       ['class Shape {\n<<foo>>bar>>\n}', 'foo>>bar'],
     ] as const
     expect(await upstream.projectAll(cases.map(([body]) => `classDiagram\n${body}`), diagram => diagram.db.getClasses().get('Shape').annotations))
-      .toEqual(cases.map(([, annotation]) => [annotation]))
+      .toEqual([[' interface '], [' interface '], ['interface-name'], [''], [''], ['foo>>bar']])
 
     for (const [body, annotation] of cases) {
       const source = `classDiagram\n${body}`
@@ -173,9 +173,11 @@ describe('Class official annotation forms', () => {
     expect(await upstream.projectAll(cases.map(entry => entry.source), diagram => {
       const [id, cls] = [...diagram.db.getClasses()][0]
       return { id, label: cls.label, annotations: cls.annotations }
-    })).toEqual(cases.map(entry => ({
-      id: entry.id, label: entry.label, annotations: ['interface'],
-    })))
+    })).toEqual([
+      { id: 'Shape', label: '&lt;&gt;', annotations: ['interface'] },
+      { id: 'Box', label: 'Box', annotations: ['interface'] },
+      { id: 'A&lt;<b>&gt;</b>', label: 'A&lt;<b>&gt;</b>', annotations: ['interface'] },
+    ])
 
     for (const { source, id } of cases) {
       const native = parseClassDiagram(source.split('\n'))

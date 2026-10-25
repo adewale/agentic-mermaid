@@ -70,6 +70,7 @@ function assertConforms(model: Model, real: Real): void {
   if (!reparsed.ok) return
   expect({ source, facts: describeMermaidFacts(reparsed.value) }).toEqual({ source, facts: modelFacts(model) })
   expect({ source, body: bodyAsModel(reparsed.value) }).toEqual({ source, body: modelShape(model) })
+  expect(asEr(reparsed.value)?.body.entities).toEqual(real.diagram.body.entities)
   expect(serializeMermaid(reparsed.value)).toBe(source)
 }
 
@@ -224,7 +225,7 @@ const INITIAL = [
   '  b2 ||--o{ SHIPMENT : carries',
   '  end',
   '  end',
-  '  style Product fill:#f00',
+  '  style Product fill:#f00;',
   '',
 ].join('\n')
 
@@ -237,7 +238,7 @@ describe('ER typed editing API against a shadow model', () => {
       { source: 'erDiagram\n  A ||--o{ B : x\n  C ||--o{ D : y', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A\n  B\n  C ||--o{ D : y\n' },
       { source: 'erDiagram\n  subgraph G\n    A["Alpha"] ||--o{ B : x\n  end', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  subgraph G\n  A["Alpha"]\n  B\n  end\n' },
       // A `style` line re-creates A, but not its label.
-      { source: 'erDiagram\n  A["Alpha"] ||--o{ B : x\n  style A fill:#f00', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A["Alpha"]\n  B\n  style A fill:#f00\n' },
+      { source: 'erDiagram\n  A["Alpha"] ||--o{ B : x\n  style A fill:#f00', op: { kind: 'remove_relation', index: 0 }, serialized: 'erDiagram\n  A["Alpha"]\n  B\n  style A fill:#f00;\n' },
     ] as const
     for (const { source, op, serialized } of cases) {
       const parsed = parseRegisteredMermaid(source)
@@ -252,7 +253,7 @@ describe('ER typed editing API against a shadow model', () => {
     }
     // An entity that only a `style` line creates round-trips untouched as before.
     const styled = parseRegisteredMermaid('erDiagram\n  style A fill:#f00')
-    expect(styled.ok && serializeMermaid(styled.value)).toBe('erDiagram\n  style A fill:#f00\n')
+    expect(styled.ok && serializeMermaid(styled.value)).toBe('erDiagram\n  style A fill:#f00;\n')
   })
 
   test('an entity keeps its subgraph and position when the relation that placed it goes', () => {
@@ -323,15 +324,15 @@ describe('ER typed editing API against a shadow model', () => {
 
   test('a class on an entity that only its style line creates survives serialization', () => {
     // `class` applies only to an entity that already exists, so it follows the `style` line.
-    expectRoundTrip('erDiagram\n  style A fill:#f00\n  class A hot', [], 'erDiagram\n  style A fill:#f00\n  class A hot\n', ['A'])
+    expectRoundTrip('erDiagram\n  style A fill:#f00\n  class A hot', [], 'erDiagram\n  style A fill:#f00;\n  class A hot\n', ['A'])
     expectRoundTrip(
       'erDiagram\n  B ||--o{ A : x\n  style A fill:#f00',
       [{ kind: 'set_entity_class', entity: 'A', className: 'hot' }, { kind: 'remove_relation', index: 0 }],
-      'erDiagram\n  B\n  style A fill:#f00\n  class A hot\n',
+      'erDiagram\n  B\n  style A fill:#f00;\n  class A hot\n',
       ['B', 'A'],
     )
     // A declared entity keeps `class` before `style`.
-    expectRoundTrip('erDiagram\n  A\n  class A hot\n  style A fill:#f00', [], 'erDiagram\n  A\n  class A hot\n  style A fill:#f00\n', ['A'])
+    expectRoundTrip('erDiagram\n  A\n  class A hot\n  style A fill:#f00', [], 'erDiagram\n  A\n  class A hot\n  style A fill:#f00;\n', ['A'])
   })
 
   test('the initial diagram matches its model and serializes to its own source', () => {

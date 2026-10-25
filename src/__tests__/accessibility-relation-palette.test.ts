@@ -17,7 +17,7 @@ describe('typed relation accessibility', () => {
   test('registry-enrolls every relation-bearing family with one inspectable ARIA object per typed relation', () => {
     const enrolled: string[] = []
     for (const entry of Object.values(METAMORPHIC_FAMILIES)) {
-      const source = entry.build(Math.max(2, entry.kRange[0]), 'Rel')
+      const source = entry.build(Math.max(2, entry.kRange[0]), 'rel')
       const parsed = parseMermaid(source)
       expect(parsed.ok, entry.family).toBe(true)
       if (!parsed.ok) continue

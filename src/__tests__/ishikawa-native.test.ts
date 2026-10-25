@@ -1,10 +1,59 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
 import { renderIshikawa } from '../agent/ishikawa-body.ts'
 import { parseRegisteredMermaid, asIshikawa, layoutMermaidWithReceipt, mutate, serializeMermaid, verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 describe('native Ishikawa', () => {
+  test('accessibility line endings cannot create fishbone nodes or escape the Result contract', async () => {
+    const parsed = parseRegisteredMermaid('ishikawa\nEffect\n  Child')
+    if (!parsed.ok || parsed.value.body.kind !== 'ishikawa') throw new Error('Expected typed Ishikawa')
+    const before = serializeMermaid(parsed.value)
+    for (const description of ['one\rtwo', 'one\r\ntwo', 'one\n  two']) {
+      const edited = mutate(parsed.value, { kind: 'set_accessibility_description', description })
+      expect(edited.ok).toBe(true)
+      if (!edited.ok || edited.value.body.kind !== 'ishikawa') continue
+      expect(edited.value.body.accessibilityDescription).toBe('one\ntwo')
+      expect(edited.value.body.nodes).toEqual(parsed.value.body.nodes)
+      const written = serializeMermaid(edited.value)
+      const reloaded = parseRegisteredMermaid(written)
+      expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
+      expect(verifyMermaid(written).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_accessibility' }))
+    }
+    for (const title of ['one\rtwo', 'one\r\ntwo', 'one\ntwo', '']) {
+      expect(mutate(parsed.value, { kind: 'set_accessibility_title', title })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    }
+    expect(serializeMermaid(parsed.value)).toBe(before)
+  })
+
+  test('keyword labels retain their literal cause tree through portable typed spelling', async () => {
+    for (const source of ['ishikawa\nishikawa', 'ishikawa\nProblem\n  ISHIKAWA-beta guide\n    Detail']) {
+      expect(await upstream.accepts(source)).toBe(false)
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      expect(parsed.value.body.kind).toBe('ishikawa')
+      expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
+      expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+      expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+      expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'ishikawa_label' }))
+      expect(mutate(parsed.value, { kind: 'set_effect', label: 'Changed' }).ok).toBe(true)
+    }
+    const parsed = parseRegisteredMermaid('ishikawa\nishikawas\n  About ishikawa')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('ishikawa')
+    expect(await upstream.accepts(serializeMermaid(parsed.value))).toBe(true)
+    for (const label of ['ishikawa', 'ISHIKAWA-beta guide']) {
+      expect(mutate(parsed.value, { kind: 'set_effect', label }).ok).toBe(true)
+      expect(mutate(parsed.value, { kind: 'add_cause', label }).ok).toBe(true)
+      expect(mutate(parsed.value, { kind: 'set_label', id: 'cause-1', label }).ok).toBe(true)
+    }
+  })
   test('box padding and corners reserve real space while the spine marker follows edge ink', () => {
     const source = 'ishikawa\nSlow release\nProcess\n  Manual checks\nTools\n  Slow builds',
       style = { roles: { node: { paddingX: 31, paddingY: 37, cornerRadius: 11, fontWeight: 400 }, edge: { strokeColor: '#ff00ff' } } },

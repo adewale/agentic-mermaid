@@ -82,7 +82,7 @@ test('Pie authored formatting-looking text remains literal across SVG, terminal,
   }
 })
 
-test('pinned Mermaid Pie DB retains authored markup-like title and section strings', async () => {
+test('pinned Mermaid Pie DB normalizes title HTML while retaining section tokens', async () => {
   const pairs = [
     ['A<br>B', 'T<br>itle'],
     ['A<br/>B', 'T<br/>itle'],
@@ -91,7 +91,7 @@ test('pinned Mermaid Pie DB retains authored markup-like title and section strin
   ] as const
   const sources = pairs.map(([label, title]) => `pie showData\n  title ${title}\n  "${label}" : 1\n`)
   expect(await upstream.projectAll(sources, diagram => ({ title: diagram.db.getDiagramTitle(), sections: [...diagram.db.getSections()] }))).toEqual(
-    pairs.map(([label, title]) => ({ title, sections: [[label, 1]] })),
+    pairs.map(([label, title]) => ({ title: title.replace('<br/>', '<br>'), sections: [[label, 1]] })),
   )
 })
 

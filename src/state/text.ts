@@ -56,8 +56,9 @@ function read(normalized: string, authored: string): { text: string; content?: L
  */
 export function writeStateText(text: string, content?: LabelContent, reserved = ''): string {
   const authored = content?.value === text ? content.authored : undefined
-  if (authored !== undefined) return encodeMermaidAuthoredEntities(authored, reserved)
-  return encodeMermaidEntities(text, reserved).replace(/\\(?=n)/g, '#92;')
+  const written = authored !== undefined ? encodeMermaidAuthoredEntities(authored, reserved) : encodeMermaidEntities(text, reserved).replace(/\\(?=n)/g, '#92;')
+  // Public Mermaid preprocessing recognizes directives even inside text.
+  return written.replace(/%%(?=\{)/g, '#37;%')
 }
 
 /**

@@ -8,10 +8,9 @@
 // serialized header (`flowchart <dir>` vs `stateDiagram-v2`).
 //
 // Contract differences from the narrow structured families, kept on purpose:
-//   - parse ERRORS on bad syntax instead of falling back to opaque. The
-//     legacy parser is broad and has no lossless bail-out mode; silent
-//     opaque fallback would convert crisp parse errors on the flagship
-//     family into render-time failures.
+//   - parse ERRORS on bad syntax. Readable keyword vertex identities that
+//     cannot be serialized portably keep an opaque source-preserved body;
+//     native rendering still reads their authored identities.
 //   - parse consumes the full canonical source (the legacy parser needs the
 //     header) and contributes a SourceMap via the buildSourceMap hook.
 // ============================================================================
@@ -31,6 +30,7 @@ import {
   flowchartTextArrowLabelRanges,
   scanFlowchart,
   checkedFlowchartStyleProps,
+  flowchartStyleValueCanSerialize,
 } from '../flowchart-lexer.ts'
 import { parseFlowchartLabel, writeFlowchartLabelText } from '../flowchart-labels.ts'
 import type { LabelContent } from '../shared/display-text.ts'
@@ -66,9 +66,42 @@ interface SourceStatementSegment {
 
 // ---- Parser -----------------------------------------------------------------
 
-export function parseFlowchartBody(canonicalSource: string): Result<FlowchartBody, ParseError[]> {
+// These tokens cannot be used as vertex identities, even with a quoted label
+// or quoted id. A subgraph declaration has a separate, more generous id rule.
+const NONPORTABLE_NODE_ID = /^\d*(?:classDef|class|style|linkStyle|graph|flowchart|subgraph|end|interpolate)\b/
+
+// Property-name diagnostics belong to the lexer before value spellability is
+// considered. Native CSS reading remains generous; preserve unspellable source.
+function portableStyle(props: Record<string, string>, classDefinition = false): boolean {
+  checkedFlowchartStyleProps(props)
+  return Object.values(props).every(value => flowchartStyleValueCanSerialize(value, classDefinition))
+}
+
+function portableGraphStyles(graph: MermaidGraph): boolean {
+  return [...graph.classDefs.keys(), ...[...graph.classAssignments.values()].flatMap(graphClassNames)].every(name => !NONPORTABLE_NODE_ID.test(name))
+    && [...graph.classDefs.values()].every(props => portableStyle(props, true))
+    && [...graph.nodeStyles.values(), ...graph.linkStyles.values()].every(props => portableStyle(props))
+}
+
+function nonportableNodeId(graph: MermaidGraph): string | undefined {
+  for (const id of graph.nodes.keys()) if (NONPORTABLE_NODE_ID.test(id)) return id
+  for (const edge of graph.edges) {
+    if (NONPORTABLE_NODE_ID.test(edge.source)) return edge.source
+    if (NONPORTABLE_NODE_ID.test(edge.target)) return edge.target
+  }
+  return undefined
+}
+
+function nodeIdError(id: string): MutationError | undefined {
+  return NONPORTABLE_NODE_ID.test(id)
+    ? { code: 'INVALID_OP', message: `Flowchart node id "${id}" is read as a reserved token by Mermaid and has no portable vertex spelling` }
+    : undefined
+}
+
+export function parseFlowchartBody(canonicalSource: string, opaqueSource = canonicalSource): Result<FlowchartBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
   try {
     const graph = parseFlowchartLegacy(canonicalSource)
+    if (nonportableNodeId(graph) !== undefined || !portableGraphStyles(graph)) return ok({ kind: 'opaque', family: 'flowchart', source: opaqueSource })
     return ok({ kind: 'flowchart', graph })
   } catch (e) {
     return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e) }])
@@ -458,6 +491,9 @@ function escapeRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g
 // ---- Serializer -------------------------------------------------------------
 
 export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | 'state'): string {
+  const invalidId = nonportableNodeId(graph)
+  if (invalidId !== undefined) throw new Error(nodeIdError(invalidId)!.message)
+  if (!portableGraphStyles(graph)) throw new Error('Flowchart style contains tokens that cannot be written as Mermaid style properties')
   const lines: string[] = [headerKind === 'state' ? 'stateDiagram-v2' : `flowchart ${graph.direction}`]
   const declaredInline = new Set<string>()
 
@@ -507,7 +543,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
     else if (orphan || needsExplicitDeclaration(node)) lines.push('  ' + `${node.id}${renderShape(node)}`)
   }
 
-  for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props)}`)
+  for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props, true)}`)
   for (const [id, names] of graph.classAssignments) for (const name of graphClassNames(names)) lines.push(`  class ${id} ${name}`)
   for (const [id, style] of graph.nodeStyles) lines.push(`  style ${id} ${styleProps(style)}`)
   // Mermaid rejects an index that names no link, and its style draws nothing.
@@ -587,7 +623,9 @@ function quoteLabel(label: string, content?: LabelContent): string {
  *  double-quoted scalar that upstream's `@{}` reader, and ours
  *  (shared/metadata-yaml.ts), reads back. */
 function quoteMetadataLabel(label: string, content?: LabelContent): string {
-  return quoteMetadataString(writeFlowchartLabelText(label, content))
+  // Mermaid strips directive-like `%%{` text before parsing metadata, even
+  // inside quotes. Its entity prepass shields this percent until display.
+  return quoteMetadataString(writeFlowchartLabelText(label, content).replace(/%%(?=\{)/g, '%#37;'))
 }
 
 /** A `click` href: `"` and `\` backslash-escaped, the form its parser reads
@@ -665,8 +703,16 @@ function markerChar(marker: 'arrow' | 'circle' | 'cross', isStart: boolean): str
   return 'x'
 }
 
-function styleProps(props: Record<string, string>): string {
-  return Object.entries(checkedFlowchartStyleProps(props)).map(([k, v]) => `${k}:${v}`).join(',')
+function styleProps(props: Record<string, string>, classDefinition = false): string {
+  const entries = Object.entries(checkedFlowchartStyleProps(props))
+  return entries.map(([key, value], index) => {
+    const field = `${key}:${classDefinition ? value.replace(/,/g, '\\,') : value}`
+    // addClass resolves every backslash/comma pair after rejoining fields.
+    // Separate a trailing payload backslash from the next field's comma;
+    // the owning CSS consumer trims this style-token whitespace.
+    const boundary = classDefinition && value.endsWith('\\') ? ' ,' : ','
+    return field + (index < entries.length - 1 ? boundary : '')
+  }).join('')
 }
 
 // ---- Mutator ----------------------------------------------------------------
@@ -687,6 +733,8 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
   const done = (): Result<FlowchartBody, MutationError> => ok({ kind: 'flowchart', graph })
   switch (op.kind) {
     case 'add_node': {
+      const invalidId = nodeIdError(op.id)
+      if (invalidId) return err(invalidId)
       if (graph.nodes.has(op.id)) return err({ code: 'DUPLICATE_NODE', message: `Node "${op.id}" already exists` })
       const resolved = resolveShapeValue(op.shape ?? 'rectangle')
       if (!resolved) {
@@ -713,6 +761,8 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       return done()
     }
     case 'rename_node': {
+      const invalidId = nodeIdError(op.to)
+      if (invalidId) return err(invalidId)
       if (!graph.nodes.has(op.from)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.from}" not found` })
       if (graph.nodes.has(op.to)) return err({ code: 'DUPLICATE_NODE', message: `Cannot rename to "${op.to}" — already exists` })
       const node = graph.nodes.get(op.from)!
@@ -750,6 +800,8 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       return err({ code: 'NODE_NOT_FOUND', message: `Target "${op.target}" matches no node or edge` })
     }
     case 'add_edge': {
+      const invalidId = nodeIdError(op.from) ?? nodeIdError(op.to)
+      if (invalidId) return err(invalidId)
       ensureNode(graph, op.from); ensureNode(graph, op.to)
       graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: true })
       return done()
@@ -839,8 +891,8 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       return done()
     }
     case 'define_class': {
-      if (!/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
-      const props = parseStylePropsForOp(op.style, `define_class ${op.name}`, 'fill:#f96,stroke:#333')
+      if (!/^[\w-]+$/.test(op.name) || NONPORTABLE_NODE_ID.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen and must not collide with a Mermaid keyword' })
+      const props = parseStylePropsForOp(op.style, `define_class ${op.name}`, 'fill:#f96,stroke:#333', true)
       if ('message' in props) return err({ code: 'INVALID_OP', message: props.message })
       graph.classDefs.set(op.name, props.value)
       return done()
@@ -849,7 +901,7 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       if (!graph.nodes.has(op.id)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.id}" not found` })
       if (op.className === null) graph.classAssignments.delete(op.id)
       else {
-        if (!/^[\w-]+$/.test(op.className)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen' })
+        if (!/^[\w-]+$/.test(op.className) || NONPORTABLE_NODE_ID.test(op.className)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen and must not collide with a Mermaid keyword' })
         graph.classAssignments.set(op.id, op.className)
       }
       return done()
@@ -906,10 +958,13 @@ function resolveShapeValue(shape: string): ResolvedShapeValue | null {
  *  grammar, two consumers). A style that parses to nothing, or that paints with
  *  something other than a CSS color, is rejected prescriptively instead of
  *  writing a directive the renderer would refuse. */
-function parseStylePropsForOp(style: string, subject: string, example: string): { value: Record<string, string> } | { message: string } {
+function parseStylePropsForOp(style: string, subject: string, example: string, classDefinition = false): { value: Record<string, string> } | { message: string } {
   const parsed = parseMutableStyleProps(style)
   if (parsed.ok) {
-    try { return { value: checkedFlowchartStyleProps(parsed.value) } }
+    try {
+      if (!portableStyle(parsed.value, classDefinition)) return { message: 'Flowchart style value cannot be written losslessly by Mermaid inline-style tokens' }
+      return { value: parsed.value }
+    }
     catch (error) { return { message: error instanceof Error ? error.message : String(error) } }
   }
   if (parsed.reason === 'UNSAFE_PAINT') return { message: unsafeStylePaintError(subject, parsed.paint).message }

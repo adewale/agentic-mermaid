@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { mutateGitGraph, parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from '../agent/gitgraph-body.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import type { GitGraphBody, GitGraphMutationOp, MutationError, Result } from '../agent/types.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const BASE = `gitGraph
   commit id:"base" msg:"Foundation"
@@ -37,6 +40,74 @@ function commit(input: GitGraphBody, id: string) {
 }
 
 describe('GitGraph typed operations — discriminating replay contract', () => {
+  test('branch spelling preserves identities and references through native drawing and portable export', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      // Numeric prefixes, reference punctuation, and reserved tokens all need
+      // quoting. Neighbouring portable names must retain the same identities.
+      for (const name of ['1', '01', '1a', '-dev', '/dev', '.dev', 'dev/', 'dev.', 'titleWorker', 'NORMAL', 'LR', 'gitGraph', '_1', 'true', 'dev-', 'dev/path', 'dev.1']) {
+        const source = `gitGraph
+  commit id:"base"
+  branch ${name}
+  commit id:"feat"
+  switch ${name}
+  checkout main
+  commit id:"head"
+  merge ${name} id:"joined"
+`
+        const parsed = parseRegisteredMermaid(source)
+        if (!parsed.ok || parsed.value.body.kind !== 'gitgraph') throw new Error(`Expected structured GitGraph for ${name}`)
+        const exported = serializeMermaid(parsed.value)
+        const reloaded = parseRegisteredMermaid(exported)
+        expect(reloaded.ok && reloaded.value.body, name).toEqual(parsed.value.body)
+        expect(await upstream.project(exported, diagram => ({
+          branches: [...diagram.db.getBranches().keys()],
+          commits: [...diagram.db.getCommits().values()].map((commit: any) => ({ id: commit.id, branch: commit.branch, parents: commit.parents })),
+        })), name).toEqual({ ok: true, value: {
+          branches: ['main', name],
+          commits: [
+            { id: 'base', branch: 'main', parents: [] },
+            { id: 'feat', branch: name, parents: ['base'] },
+            { id: 'head', branch: 'main', parents: ['base'] },
+            { id: 'joined', branch: 'main', parents: ['head', 'feat'] },
+          ],
+        } })
+        expect(renderMermaidSVG(exported), name).toBe(renderMermaidSVG(source))
+        expect(renderMermaidASCII(exported), name).toBe(renderMermaidASCII(source))
+      }
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('typed creation and rename to numeric branch names export portable declarations and references', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const parsed = parseRegisteredMermaid(BASE)
+      if (!parsed.ok || parsed.value.body.kind !== 'gitgraph') throw new Error('Expected structured GitGraph')
+      const renamed = mutate(parsed.value, { kind: 'rename_branch', from: 'feature', to: '42' })
+      if (!renamed.ok || renamed.value.body.kind !== 'gitgraph') throw new Error('Expected renamed GitGraph')
+      const checked = mutate(renamed.value, { kind: 'checkout_branch', name: '42' })
+      if (!checked.ok) throw new Error('Expected checkout')
+      const created = mutate(checked.value, { kind: 'create_branch', name: '1a' })
+      if (!created.ok || created.value.body.kind !== 'gitgraph') throw new Error('Expected created branch')
+      const exported = serializeMermaid(created.value)
+      expect(await upstream.accepts(exported)).toBe(true)
+      expect(exported).toContain('branch "42" order: 2')
+      expect(exported).toContain('merge "42" id:"merge"')
+      expect(exported).toContain('checkout "42"')
+      expect(exported).toContain('branch "1a"')
+      expect(created.value.body.branches.map(branch => branch.name)).toEqual(['main', '42', 'side', '1a'])
+      expect(created.value.body.commits.find(commit => commit.id === 'feat')).toMatchObject({ branch: '42', parents: ['base'] })
+      expect(created.value.body.commits.find(commit => commit.id === 'merge')).toMatchObject({ branch: 'main', mergeBranch: '42', parents: ['main2', 'feat'] })
+      const reloaded = parseRegisteredMermaid(exported)
+      expect(reloaded.ok && reloaded.value.body).toEqual(created.value.body)
+      expect(parsed.value.body.branches.map(branch => branch.name)).toEqual(['main', 'feature', 'side'])
+    } finally {
+      upstream.close()
+    }
+  })
+
   test('append_commit preserves all authored attributes, escaping, current branch, and input immutability', () => {
     const input = body()
     const next = apply(

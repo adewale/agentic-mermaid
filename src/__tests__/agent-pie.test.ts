@@ -40,6 +40,22 @@ function apply(d: PieValidDiagram, op: PieMutationOp): PieValidDiagram {
 }
 
 describe('pie structured parse', () => {
+  test('directive-like slice labels export without changing label-based addressing', async () => {
+    const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+    const upstream = startUpstreamMermaid()
+    try {
+      const d = pie('pie\n"%%{slice" : 2\n"Other" : 3')
+      const out = serializeMermaid(d)
+      expect(await upstream.accepts(out)).toBe(true)
+      expect(pie(out).body).toEqual(d.body)
+      expect(await upstream.project(out, diagram => [...diagram.db.getSections().entries()])).toEqual({ ok: true, value: [['%%{slice', 2], ['Other', 3]] })
+      const edited = apply(d, { kind: 'set_slice_value', label: '%%{slice', value: 5 })
+      expect(pie(serializeMermaid(edited)).body.slices[0]).toMatchObject({ label: '%%{slice', value: 5 })
+      const renamed = apply(edited, { kind: 'rename_slice', from: 'Other', to: '%%{renamed' })
+      expect(await upstream.accepts(serializeMermaid(renamed))).toBe(true)
+      expect(pie(serializeMermaid(renamed)).body.slices[1]!.label).toBe('%%{renamed')
+    } finally { upstream.close() }
+  })
   test('models showData, title, and labelled positive-valued slices', () => {
     const d = pie()
     expect(d.kind).toBe('pie')

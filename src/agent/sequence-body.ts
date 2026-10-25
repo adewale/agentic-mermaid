@@ -31,12 +31,13 @@ import type {
   SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, SequenceParticipantIdError, type SequenceSourceStatement } from '../sequence/parser.ts'
+import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, sequenceParticipantIdProblem, sequenceActorIdCanSerialize, SequenceParticipantIdError, type SequenceSourceStatement } from '../sequence/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
 import { isCharacterReference, sequenceGrammarText } from '../sequence/family-source.ts'
 import { isSequenceCommentLine, scanSequenceStatementLines, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
+import { writeMermaidComment } from '../shared/trailing-comment.ts'
 import { normalizeSequenceMessageText, readSequenceText, writeSequenceText, writeSequenceControlledText } from '../sequence/text.ts'
 import { readMetadataBlock } from '../shared/metadata-yaml.ts'
 
@@ -144,7 +145,8 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     i++
   }
 
-  return { kind: 'sequence', participants: fold.list().map(typedParticipant), messages, statements }
+  const body: SequenceBody = { kind: 'sequence', participants: fold.list().map(typedParticipant), messages, statements }
+  return serializationIdError(body) ? null : body
 }
 
 const sequenceOpaqueBlock = (lines: string[]): SequenceStatement => ({ kind: 'opaque-block', lines })
@@ -359,6 +361,8 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
 // ---- Serializer -------------------------------------------------------------
 
 export function renderSequence(body: SequenceBody): string {
+  const invalidId = serializationIdError(body)
+  if (invalidId) throw new Error(invalidId.message)
   const lines: string[] = ['sequenceDiagram']
 
   if (body.statements.length > 0) {
@@ -369,12 +373,15 @@ export function renderSequence(body: SequenceBody): string {
     for (const st of body.statements) {
       if (st.kind === 'opaque-block') {
         assertParticipantDeclarations(readSequenceStatements(st.lines))
-        for (const l of st.lines) lines.push(l)
+        for (const l of st.lines) lines.push(isSequenceCommentLine(l) ? writeMermaidComment(l) : l)
       } else if (st.kind === 'participant') {
         const p = body.participants[st.ref]
         if (p) lines.push(renderParticipant(p, mentioned.has(p.id)))
       } else if (st.kind === 'actor-links') {
-        for (const [label, href] of Object.entries(st.links)) lines.push(`  link ${st.actorId}: ${label} @ ${href}`)
+        // No gap after `title:`: it would start the legacy title token.
+        // JSON keeps that spelling safe even for an empty menu label.
+        if (st.actorId.toLowerCase() === 'title') lines.push(`  links ${st.actorId}:${JSON.stringify(st.links)}`)
+        else for (const [label, href] of Object.entries(st.links)) lines.push(`  link ${st.actorId}: ${label} @ ${href}`)
       } else if (st.kind === 'fragment') {
         lines.push(...renderFragment(st.fragment))
       } else {
@@ -387,6 +394,51 @@ export function renderSequence(body: SequenceBody): string {
   }
 
   return lines.join('\n') + '\n'
+}
+
+function actorIdError(id: string, context: 'declaration' | 'sender' | 'receiver'): MutationError | undefined {
+  if (context === 'declaration') {
+    const problem = sequenceParticipantIdProblem(id)
+    return problem ? { code: 'INVALID_OP', message: problem } : undefined
+  }
+  if (sequenceActorIdCanSerialize(id, context)) return undefined
+  return { code: 'INVALID_OP', message: `Sequence participant ID "${id}" has no portable spelling as a ${context}; choose another ID and keep display text in its label` }
+}
+
+function messageIdError(message: Pick<SequenceMessage, 'from' | 'to'>): MutationError | undefined {
+  return actorIdError(message.from, 'sender') ?? actorIdError(message.to, 'receiver')
+}
+
+/** Only modeled statements are rewritten. Preserved blocks keep their source
+ * and remain subject to the existing limits on edits through opaque syntax. */
+function serializationIdError(body: SequenceBody): MutationError | undefined {
+  for (const statement of body.statements) {
+    let invalid: MutationError | undefined
+    if (statement.kind === 'participant') {
+      const participant = body.participants[statement.ref]
+      if (participant) {
+        invalid = actorIdError(participant.id, 'declaration')
+        const keyword = participant.declaration ?? (participant.kind === 'actor' ? 'actor' : 'participant')
+        if (/\s/.test(participant.id) && (participant.label !== readSequenceText(participant.id).value || participant.kind !== keyword || participant.wrap !== undefined)) {
+          invalid = { code: 'INVALID_OP', message: 'Sequence names containing spaces support a bare participant/actor declaration; aliases and type metadata require an ID without spaces' }
+        }
+      }
+    } else if (statement.kind === 'actor-links') {
+      invalid = actorIdError(statement.actorId, 'receiver')
+    } else if (statement.kind === 'message') {
+      const message = body.messages[statement.ref]
+      if (message) invalid = messageIdError(message)
+    } else if (statement.kind === 'fragment') {
+      for (const branch of statement.fragment.branches) {
+        for (const message of branch.messages) {
+          invalid = messageIdError(message)
+          if (invalid) return invalid
+        }
+      }
+    }
+    if (invalid) return invalid
+  }
+  return undefined
 }
 
 function renderFragment(fragment: SequenceFragment): string[] {
@@ -415,6 +467,7 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
   // "participant" }` included) needs the metadata to survive a re-parse.
   const metadata = p.kind !== tag ? `@{ "type": "${p.kind}" }` : ''
   const prefix = `  ${tag} ${p.id}${metadata}`
+  if (/\s/.test(p.id)) return prefix
   const label = writeSequenceControlledText(p.label, p.labelContent, p.wrap, `${prefix} as `)
   return `${prefix}${label !== p.id || redeclared ? ` as ${label}` : ''}`
 }
@@ -439,7 +492,9 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
 function renderMessage(m: SequenceMessage): string {
   const from = `${m.from}${m.centralStart ? '()' : ''}`
   const to = `${m.centralEnd ? '()' : ''}${m.activate ? '+' : m.deactivate ? '-' : ''}${m.to}`
-  const prefix = `  ${from}${m.arrow ?? arrowForStyle(m.style)}${to}: `
+  // `title: ` starts Mermaid's legacy title token; an adjacent message
+  // payload keeps the same actor ID and message text.
+  const prefix = `  ${from}${m.arrow ?? arrowForStyle(m.style)}${to}:${m.to.toLowerCase() === 'title' ? '' : ' '}`
   return prefix + writeSequenceControlledText(m.text, m.textContent, m.wrap, prefix)
 }
 
@@ -487,13 +542,17 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
 
   switch (op.kind) {
     case 'add_participant': {
-      const problem = sequenceParticipantIdProblem(op.id)
-      if (problem) return err({ code: 'INVALID_OP', message: problem })
+      const invalidId = actorIdError(op.id, 'declaration')
+      if (invalidId) return err(invalidId)
       if (participants.some(p => p.id === op.id)) return err({ code: 'DUPLICATE_PARTICIPANT', message: `Participant "${op.id}" already exists` })
       if (op.label !== undefined && (!op.label.trim() || /[\r\n]/.test(op.label))) {
         return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
       }
-      participants.push({ id: op.id, label: op.label ?? op.id, kind: op.participantKind ?? 'participant' })
+      const defaultText = op.label === undefined ? readSequenceText(op.id) : undefined
+      participants.push({
+        id: op.id, label: op.label ?? defaultText!.value, kind: op.participantKind ?? 'participant',
+        ...(defaultText?.content ? { labelContent: defaultText.content } : {}),
+      })
       // A new participant comes after every existing one: declare it right
       // after the statement that creates the last of them (at the top when
       // no statement creates one), never ahead of a participant a later
@@ -520,6 +579,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       return ok(refolded({ kind: 'sequence', participants, messages: keptMessages, statements: rebuilt }))
     }
     case 'add_message': {
+      const invalidId = messageIdError(op)
+      if (invalidId) return err(invalidId)
       if (op.index !== undefined && (!Number.isInteger(op.index) || op.index < 0 || op.index > messages.length)) {
         return err({ code: 'INVALID_OP', message: `Sequence add_message index ${op.index} out of range (0..${messages.length})` })
       }
@@ -544,6 +605,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       break
     }
     case 'set_participant_label': {
+      const invalidId = actorIdError(op.id, 'declaration')
+      if (invalidId) return err(invalidId)
       const p = participants.find(x => x.id === op.id)
       if (!p) return err({ code: 'PARTICIPANT_NOT_FOUND', message: `Participant "${op.id}" not found` })
       const problem = sequenceParticipantIdProblem(p.id)
@@ -552,6 +615,7 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       if (!label || /[\r\n]/.test(label)) {
         return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
       }
+      if (/\s/.test(p.id) && label !== readSequenceText(p.id).value) return err({ code: 'INVALID_OP', message: 'Sequence names containing spaces support a bare participant/actor declaration; an alias requires an ID without spaces' })
       if (p.label !== label || p.labelContent?.value !== p.label) delete p.labelContent
       p.label = label
       // As in Mermaid, a participant's first mention places it and its last
@@ -663,6 +727,8 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       break
     }
     case 'add_fragment_message': {
+      const invalidId = messageIdError(op)
+      if (invalidId) return err(invalidId)
       const target = fragmentStatements(statements)[op.fragmentIndex]
       if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.fragmentIndex}` })
       const branch = findFragmentBranch(statements, op.fragmentIndex, op.branchIndex ?? 0)
@@ -715,7 +781,9 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       return err({ code: 'INVALID_OP', message: unknownOpMessage('sequence', _x) })
     }
   }
-  return ok(refolded({ kind: 'sequence', participants, messages, statements }))
+  const next: SequenceBody = { kind: 'sequence', participants, messages, statements }
+  const invalid = serializationIdError(next)
+  return invalid ? err(invalid) : ok(refolded(next))
 }
 
 /** Keep an edited body the fold of its own statements, which is what its

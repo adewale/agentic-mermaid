@@ -5,6 +5,8 @@ import { asBlock, layoutMermaid, mutate, parseRegisteredMermaid as parse, render
 import { blockShapeNode, layoutBlockDiagram } from '../block/layout.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
 import { blockDisplayText } from '../block/text.ts'
+import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import type { Block, BlockBody, PositionedBlockDiagram } from '../block/types.ts'
 import { lowerPositionedFamilyScene } from '../graphical-render.ts'
 import { onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
@@ -60,6 +62,37 @@ function structured(source: string) {
   const narrowed = asBlock(result.value)
   if (!narrowed) throw Error('Block must retain a native body')
   return narrowed
+}
+function expectOwnedTerminalRoutes(source: string, expected: ReadonlyArray<readonly [string, string]>): void {
+  for (const useAscii of [false, true]) {
+    const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+    const document = terminalDocumentOf(rendered)
+    if (!document) throw new Error('Expected retained terminal document')
+    const entries = [...document.entries()], edges = document.regions().filter(region => region.kind === 'edge')
+    expect(edges.map(edge => [edge.from, edge.to]).sort()).toEqual(expected.map(pair => [...pair]).sort())
+    const ports = edges.flatMap(edge => edge.ports ?? [])
+    expect(new Set(ports.map(port => `${port.x},${port.y}`)).size).toBe(expected.length * 2)
+    for (const edge of edges) {
+      const start = edge.ports?.find(port => port.end === 'start'), end = edge.ports?.find(port => port.end === 'end')
+      if (!start || !end) throw new Error(`Missing actual ports for ${edge.id}`)
+      const owned = entries.filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id))
+      const ink = new Set(owned.filter(([, , cell]) => /stroke|marker/.test(cell.kind ?? '') && cell.glyph.trim()).map(([x, y]) => `${x},${y}`))
+      for (const port of [start, end]) {
+        expect(ink.has(`${port.x},${port.y}`)).toBe(true)
+        expect(entries.some(([x, y, cell]) => Math.abs(x - port.x) + Math.abs(y - port.y) === 1
+          && /stroke|marker/.test(cell.kind ?? '') && cell.glyph.trim() && cell.owners.some(owner => owner.kind === 'node' && owner.id === port.nodeId))).toBe(true)
+      }
+      expect(owned.filter(([, , cell]) => cell.marker?.shape === 'arrow')).toHaveLength(1)
+      const queue = [`${start.x},${start.y}`], seen = new Set(queue)
+      for (let at = 0; at < queue.length; at++) {
+        const [x, y] = queue[at]!.split(',').map(Number)
+        for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
+          if (ink.has(next) && !seen.has(next)) { seen.add(next); queue.push(next) }
+        }
+      }
+      expect(seen.has(`${end.x},${end.y}`), `${edge.from}->${edge.to} has connected emitted ink`).toBe(true)
+    }
+  }
 }
 describe('native block', () => {
   for (const c of cases)
@@ -125,6 +158,106 @@ describe('native block', () => {
     ])
     expect(new Set(body.body.root.children?.map(n => n.id)).size).toBe(4)
     expect(semantic(structured(serializeMermaid(body)).body)).toEqual(semantic(body.body))
+  })
+  test('closing brackets in block ids survive comments, nested groups and typed edits', async () => {
+    const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+    const upstream = startUpstreamMermaid()
+    try {
+      const source = 'block\nblock:group]\n]["Bracket"] a]["Other"]\nend\n] --> a]\n%% keep this comment',
+        parsed = structured(source)
+      expect(await upstream.accepts(source)).toBe(true)
+      const written = serializeMermaid(parsed)
+      expect(await upstream.accepts(written)).toBe(true)
+      expect(semantic(structured(written).body)).toEqual(semantic(parsed.body))
+      expect(parsed.body.root.children?.[0]?.id).toBe('group]')
+      expect(parsed.body.edges.map(edge => [edge.start, edge.end])).toEqual([[']', 'a]']])
+      expect(verifyMermaid(source).ok).toBe(true)
+      expect(verifyMermaid(parsed).ok).toBe(true)
+      expect(renderMermaidSVG(source)).toContain('data-id="]"')
+      expect(renderMermaidASCII(source)).toContain('Bracket')
+      const renamed = mutate(parsed, { kind: 'rename_block', from: 'a]', to: 'next]' })
+      expect(renamed.ok).toBe(true)
+      if (!renamed.ok) throw Error(JSON.stringify(renamed.error))
+      const edited = serializeMermaid(renamed.value)
+      expect(await upstream.accepts(edited)).toBe(true)
+      expect(structured(edited).body.edges.map(edge => [edge.start, edge.end])).toEqual([[']', 'next]']])
+      // `space` before punctuation is a spacer token, not part of an ID.
+      // Accepting the edit would silently split the requested identity.
+      for (const to of ['space]', 'space]tail', 'space!']) {
+        const invalid = mutate(structured('block\na["A"]'), { kind: 'rename_block', from: 'a', to })
+        expect(invalid.ok).toBe(false)
+        if (!invalid.ok) expect(invalid.error.code).toBe('INVALID_OP')
+      }
+
+      // #461's unclosed directive is read as a comment locally. Its bracket
+      // node must not make the comment-preservation check throw.
+      const reduced = 'block\nblock%%{\n] end'
+      const recovered = structured(reduced)
+      expect(recovered.body.root.children?.[0]?.children?.[0]?.id).toBe(']')
+      expect(verifyMermaid(reduced).ok).toBe(true)
+      expect(await upstream.accepts(serializeMermaid(recovered))).toBe(true)
+    } finally { upstream.close() }
+  })
+  test('accessibility extensions stay renderable and source-preserved without typed regeneration', async () => {
+    const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const directive of ['accTitle: A diagram', 'accDescr: A description', 'accDescr {\nFirst line\nSecond line\n}']) {
+        const source = `%% authored comment\nblock\nblock:g\n${directive}\na["Visible"]\nend\n`
+        expect(await upstream.accepts(source)).toBe(false)
+        const result = parse(source)
+        expect(result.ok).toBe(true)
+        if (!result.ok) throw Error(JSON.stringify(result.error))
+        expect(result.value.body.kind).toBe('opaque')
+        expect(serializeMermaid(result.value)).toBe(source)
+        expect(renderMermaidSVG(result.value)).toBe(renderMermaidSVG(source))
+        expect(renderMermaidASCII(result.value)).toBe(renderMermaidASCII(source))
+        expect(renderMermaidSVG(source)).toContain('Visible')
+        for (const input of [source, result.value]) {
+          expect(verifyMermaid(input).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_accessibility' }))
+        }
+        expect(mutate(result.value, { kind: 'rename_block', from: 'a', to: 'b' }).ok).toBe(false)
+      }
+      const literal = structured('block\na["accTitle: label"]')
+      expect(verifyMermaid(literal).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+      expect(await upstream.accepts(serializeMermaid(literal))).toBe(true)
+    } finally { upstream.close() }
+  })
+  test('directive-like node and edge labels preserve authored meaning through typed rewrites', async () => {
+    const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of [
+        'block\na["%%{node #amp; more"]',
+        'block\nblock:g["%%{group"]\na["Child"]\nend',
+        'block\na["A"] b["B"]\na -- "%%{edge" --> b',
+      ]) {
+        expect(await upstream.accepts(source)).toBe(false)
+        const parsed = parse(source)
+        if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+        expect(parsed.value.body.kind).toBe('block')
+        const written = serializeMermaid(parsed.value)
+        expect(await upstream.accepts(written), written).toBe(true)
+        expect(semantic(parseBlockDiagram(written))).toEqual(semantic(parseBlockDiagram(source)))
+        expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
+        expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
+        expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'block_directive_text' }))
+      }
+      const original = structured('block\na["A"] b["B"]')
+      for (const op of [
+        { kind: 'update_block', id: 'a', changes: { label: '%%{edited' } },
+        { kind: 'add_block', block: { id: 'c', label: '%%{added' } },
+        { kind: 'add_edge', from: 'a', to: 'b', label: '%%{edge' },
+      ] as const) {
+        const edited = mutate(original, op)
+        expect(edited.ok).toBe(true)
+        if (edited.ok) expect(await upstream.accepts(serializeMermaid(edited.value))).toBe(true)
+      }
+      expect(original.body.root.children?.map(node => node.label)).toEqual(['A', 'B'])
+      const portable = structured('block\na["%{literal"] b["%#37;{encoded"]')
+      expect(await upstream.accepts(serializeMermaid(portable))).toBe(true)
+      expect(semantic(structured(serializeMermaid(portable)).body)).toEqual(semantic(portable.body))
+    } finally { upstream.close() }
   })
   test('display entities and line breaks retain authored source and measured text', () => {
     const source = 'block\nA["&nbsp;&nbsp;&nbsp;"] B["Wide<br/>middle &amp; visible #lt;b#gt;"]',
@@ -266,7 +399,19 @@ describe('native block', () => {
         }
       expect(verifyMermaid(source).ok).toBe(true)
       expect(renderMermaidSVG(source)).toContain('Write')
+      expectOwnedTerminalRoutes(source, [['A', 'B'], ['B', 'A'], ['A', 'B']])
     }
+  })
+  test('nested reciprocal and parallel links leave a clear channel to cross-container endpoints', () => {
+    const source = 'block\ncolumns 2\nblock:outer["外側 👩🏽‍💻"]\nblock:inner["Inner"]\nA["甲 界 👨‍👩‍👧‍👦"] B["β"]\nend\nend\nblock_generated_1["Authored"]\nA --> B\nB --> A\nA --> B\nA --> block_generated_1\nblock_generated_1 --> A'
+    const diagram = structured(source), written = serializeMermaid(diagram), reload = structured(written)
+    expect(semantic(reload.body)).toEqual(semantic(diagram.body))
+    expect(diagram.body.root.children?.map(node => node.id)).toEqual(['outer', 'block_generated_1'])
+    expect(diagram.body.root.children?.[0]?.children?.[0]?.children?.map(node => node.id)).toEqual(['A', 'B'])
+    expect(renderMermaidSVG(diagram)).toContain('data-parent="inner"')
+    expectOwnedTerminalRoutes(source, [['A', 'B'], ['B', 'A'], ['A', 'B'], ['A', 'block_generated_1'], ['block_generated_1', 'A']])
+    expect(renderMermaidASCII(diagram)).toBe(renderMermaidASCII(source))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
   })
   test('diagonal cross-container input uses its near face instead of opposing a downstream output', () => {
     const source = readFileSync(new URL('../../eval/stable-families/fixtures/block.mmd', import.meta.url), 'utf8'),
@@ -348,4 +493,23 @@ describe('native block', () => {
       fcParameters({ numRuns: 40 }),
     )
   })
+})
+
+
+test('literal quote fragments in native Block IDs retain their identity through comment retention', async () => {
+  const source = 'block\n  colck 1"]umns 3\n  %% retained comment\n'
+  const result = parse(source)
+  expect(result.ok).toBe(true)
+  if (!result.ok) throw Error(JSON.stringify(result.error))
+  expect(result.value.body.kind).toBe('block')
+  const written = serializeMermaid(result.value)
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try { expect(await upstream.accepts(written), written).toBe(true) } finally { upstream.close() }
+  expect(written).toContain('%% retained comment')
+  expect(parseBlockDiagram(written).root.children?.map(node => [node.id, node.label])).toContainEqual(['1"]umns', '1"]umns'])
+  expect(renderMermaidSVG(result.value)).toBe(renderMermaidSVG(source))
+  expect(renderMermaidASCII(result.value)).toBe(renderMermaidASCII(source))
+  expect(() => verifyMermaid(source)).not.toThrow()
+  expect(parseBlockDiagram(source).root.children?.map(node => node.id)).toContain('1"]umns')
 })

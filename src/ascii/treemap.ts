@@ -8,7 +8,7 @@ import { wrapText } from './wrap.ts'
 
 /** A hierarchy/value projection preserves exact quantities in cell geometry. */
 export function renderTreemapTerminal(ctx: AsciiContext) {
-  const body = parseTreemapDiagram(ctx.source.familyBody)
+  const body = parseTreemapDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
   body.title ??= ctx.config.title
   const config = resolveTreemapConfig(ctx.source.config.treemap as Record<string, unknown> | undefined)
   const document = new TerminalDocument()

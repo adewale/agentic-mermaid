@@ -15,6 +15,7 @@ import { classCommentStart, readClassStatements, type ClassStatementNode } from 
 import { tokenize as tokenizeBlock } from '../block/lexer.ts'
 import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
 import { parseKanbanDiagram } from '../kanban/parser.ts'
+import { readGanttStatements } from '../gantt/parser.ts'
 import { statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { statementEndAt } from '../shared/accessibility-directives.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
@@ -400,6 +401,23 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
     // These grammars either expose every real comment in envelope metadata,
     // or keep percent pairs inside their statement text.
     if (['flowchart', 'state', 'journey', 'timeline', 'ishikawa', 'sankey'].includes(diagram.kind)) return comments
+    if (diagram.kind === 'gantt') {
+      const wrapperLines = (normalized.wrapperSource?.match(/\n/g) ?? []).length
+      for (const statement of readGanttStatements(lines.map((line, index) => index < wrapperLines ? '' : line))) {
+        // These payloads own percent pairs as text. Task metadata comments
+        // are already separate comment statements in the shared reader.
+        if (['task', 'title', 'section', 'accessibility', 'click'].includes(statement.kind)) continue
+        statement.raw.forEach((raw, index) => {
+          const start = trailingCommentStart(raw)
+          const line = statement.startLine + index
+          if (start >= 0 && !knownLines.has(line)) {
+            comments.push({ line, text: raw.slice(start + 2).trim() })
+            knownLines.add(line)
+          }
+        })
+      }
+      return comments.sort((a, b) => a.line - b.line)
+    }
     if (diagram.kind === 'block' || diagram.kind === 'requirement') {
       const tokenize = diagram.kind === 'block' ? tokenizeBlock : tokenizeRequirement
       const normalized = normalizeMermaidSource(source)

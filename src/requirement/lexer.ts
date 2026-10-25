@@ -8,6 +8,24 @@ export interface Tokens {
   texts: string[]
   starts: number[]
 }
+
+/** Characters the pin can produce as styleComponent tokens. Its style
+ * state has no quoted-string, parenthesis, decimal-point or Unicode token;
+ * a Mermaid entity marker cannot supply one after preprocessing. Commas
+ * separate declarations and ASCII spaces are skipped by that lexer. */
+export function requirementStyleTextCanSerialize(source: string): boolean {
+  for (let p = 0; p < source.length; p++) {
+    const c = source.charCodeAt(p)
+    if (isWord(c)) continue
+    switch (c) {
+      case 32: case 35: case 44: case 45: case 58: case 59:
+        continue
+      default:
+        return false
+    }
+  }
+  return true
+}
 const enum S {
   INITIAL,
   string,

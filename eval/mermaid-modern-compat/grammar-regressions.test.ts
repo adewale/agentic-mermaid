@@ -21,6 +21,45 @@ const modern = startModernReference(referenceDir)
 const grammar = startGrammarReference(referenceDir, upstream)
 const results: unknown[] = []
 
+test('Class preserves authored method strings that Mermaid HTML sanitization consumes', async () => {
+  const native = await import(pathToFileURL(join(target, 'src/index.ts')).href) as typeof import('../../src/index.ts')
+  const agent = await import(pathToFileURL(join(target, 'src/agent/index.ts')).href) as typeof import('../../src/agent/index.ts')
+  const members = ['<e()', '<m()', '+assM <swim()', '<<interface    +authorise() bool', '<e>()', '<!e()', '</e()', '<?e()']
+  for (const member of members) {
+    const source = `classDiagram\nclass C {\n${member}\n}\n`
+    expect((await modern.parse(source)).ok).toBe(false)
+    const parsed = am.parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) continue
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(am.serializeMermaid(parsed.value)).toBe(source)
+    expect(agent.renderMermaidSVG(parsed.value)).toBe(native.renderMermaidSVG(source))
+    expect(agent.renderMermaidASCII(parsed.value)).toBe(native.renderMermaidASCII(source))
+    expect(am.verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_member_html' }))
+    expect(am.mutate(parsed.value, { kind: 'add_class', id: 'Other' }).ok).toBe(false)
+    const safe = am.parseRegisteredMermaid('classDiagram\nclass C')
+    if (!safe.ok || safe.value.body.kind !== 'class') throw new Error('structured Class required')
+    expect(am.mutate(safe.value, { kind: 'add_member', class: 'C', text: member }).ok).toBe(false)
+    expect(am.mutate(safe.value, { kind: 'add_class', id: 'Other', members: [member] }).ok).toBe(false)
+    expect(am.synthesizeFromGraph({ kind: 'class', body: { ...safe.value.body, classes: [{ id: 'C', members: [member] }] } }).ok).toBe(false)
+  }
+  // Closed generic text, comparisons, annotations, and authored entity tokens
+  // remain distinct raw grammar strings and retain their public edit contract.
+  for (const member of ['List<T> get()', '+get() Map<T>', 'a < b()', '<_e()', '<1e()', '<<interface>>', '#60;e()']) {
+    const source = `classDiagram\nclass C {\n${member}\n}\n`
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'class') throw new Error('structured Class required')
+    expect(parsed.value.body.classes[0]!.members).toEqual([member])
+    const edited = am.mutate(parsed.value, { kind: 'rename_class', from: 'C', to: 'Edited' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) continue
+    const written = am.serializeMermaid(edited.value)
+    expect((await modern.parse(written)).ok).toBe(true)
+    const reloaded = am.parseRegisteredMermaid(written)
+    expect(reloaded.ok && reloaded.value.body).toEqual(edited.value.body)
+  }
+})
+
 interface Regression {
   name: string
   family: DiagramKind
@@ -259,15 +298,29 @@ test.each([
   'C4Context\nPerson_Ext(customerA,b2 $link="https://github.com/mermaidjs")',
   'sequenceDiagram\nparticipant :@',
   'sequenceDiagram\n      participant title:C@{ "type" : "control" }\n      C->C: test',
-  'timeline section a: v',
-  'timeline\n    section abc-123    task1: event1\n      task2: event2: event3\n           : event4: #ev#ent2# : event5',
-  'timeline\n      title ;my;title;\n      section ;a;bc-123;\n     section abc-456 ;ta;sk1;: ;ev;ent1; : ;ev;ent2; : ;ev;e3;',
   'graph TD;style S background:#aaa;\nstyle T b] &   n4ackground:#bbb,border:1px solid red;',
 ])('ambiguous source refuses instead of inventing a portable interpretation: %s', source => {
   const parsed = am.parseRegisteredMermaid(source)
   expect(parsed.ok).toBe(false)
   if (!parsed.ok) expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED' }))
   expect(am.verifyMermaid(source).ok).toBe(false)
+})
+
+test.each([
+  'timeline section a: v',
+  'timeline\n    section abc-123    task1: event1\n      task2: event2: event3\n           : event4: #ev#ent2# : event5',
+  'timeline\n      title ;my;title;\n      section ;a;bc-123;\n     section abc-456 ;ta;sk1;: ;ev;ent1; : ;ev;ent2; : ;ev;e3;',
+])('orphan Timeline events cannot invent a period: %s', async source => {
+  expect((await modern.parse(source)).ok).toBe(false)
+  const parsed = am.parseRegisteredMermaid(source)
+  if (parsed.ok) {
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(am.serializeMermaid(parsed.value).trim()).toBe(source.trim())
+  } else {
+    expect(parsed.error).toContainEqual(expect.objectContaining({ code: 'PARSE_FAILED' }))
+  }
+  expect(am.verifyMermaid(source).ok).toBe(false)
+  expect(() => am.renderMermaidSVG(source)).toThrow()
 })
 
 afterAll(() => {

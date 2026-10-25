@@ -64,17 +64,22 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('2,592 ordinary endpoint/operator/asymmetric-spacing variants keep pinned identity', async () => {
+  // Public parsing plus real DOM sanitization runs twice per source. Partition
+  // the unchanged matrix by its relationship operator so one queued request
+  // cannot exhaust the shared worker's entire per-test execution budget.
+  describe('2,592 ordinary endpoint/operator/asymmetric-spacing variants', () => {
     const ids = ['A', 'Ao', 'Foo', 'Zoo', 'Oo', 'AB', 'B', 'oB']
     const arrows = ['-->', '--|>', '--*', '--o', 'o--', '*--', '<|--', '<--', '..>', '..|>', '--', '..']
     const spaces = ['', ' ', '  ']
-    const statements = ids.flatMap(from => ['B', 'oB', 'out'].flatMap(to => arrows.flatMap(arrow => spaces.flatMap(before => spaces.map(after => `${from}${before}${arrow}${after}${to}`)))))
-    expect(statements).toHaveLength(2_592)
-    const upstreamRelations = await upstreamEndpoints(statements)
-    expect(statements.map(statement => {
-      const relation = parseClassRelationship(statement)
-      return relation ? { from: relation.from, to: relation.to } : null
-    })).toEqual(upstreamRelations)
+    for (const arrow of arrows) test(`${arrow} keeps pinned endpoint identity in all 216 contexts`, async () => {
+      const statements = ids.flatMap(from => ['B', 'oB', 'out'].flatMap(to => spaces.flatMap(before => spaces.map(after => `${from}${before}${arrow}${after}${to}`))))
+      expect(statements).toHaveLength(216)
+      const upstreamRelations = await upstreamEndpoints(statements)
+      expect(statements.map(statement => {
+        const relation = parseClassRelationship(statement)
+        return relation ? { from: relation.from, to: relation.to } : null
+      })).toEqual(upstreamRelations)
+    })
   })
 
   test('pinned Mermaid retains space-bearing endpoint identity and arrow meaning', async () => {
@@ -125,17 +130,19 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('1,020 endpoint/operator/spacing variants agree with pinned Mermaid identity', async () => {
+  describe('1,020 escaped endpoint/operator/spacing variants', () => {
     const ids = ['`A B`', '`A.B`', '`A--B`', '`A..B`', '`A$B`', '`A:B`', '`A;B`', 'A', 'B', 'o', '`o`', '`note`', '`click`', '`class`', '`link`', '`style`', '`cssClass`', '`namespace`', '$A']
     const arrows = ['-->', '..>', '<|--', '--|>', 'o--', '--o', '*--', '--*', '<--', '<..']
-    const statements = ids.flatMap(from => ['B', '`C D`'].flatMap(to => arrows.flatMap(arrow => ['', ' ', '  '].map(space => `${from}${space}${arrow}${space}${to}`))))
-      .filter(statement => statement.includes('`'))
-    expect(statements).toHaveLength(1_020)
-    const upstreamRelations = await upstreamEndpoints(statements)
-    expect(statements.map(statement => {
-      const relation = parseClassRelationship(statement)
-      return relation ? { from: relation.from, to: relation.to } : null
-    })).toEqual(upstreamRelations)
+    for (const arrow of arrows) test(`${arrow} keeps pinned endpoint identity in all 102 contexts`, async () => {
+      const statements = ids.flatMap(from => ['B', '`C D`'].flatMap(to => ['', ' ', '  '].map(space => `${from}${space}${arrow}${space}${to}`)))
+        .filter(statement => statement.includes('`'))
+      expect(statements).toHaveLength(102)
+      const upstreamRelations = await upstreamEndpoints(statements)
+      expect(statements.map(statement => {
+        const relation = parseClassRelationship(statement)
+        return relation ? { from: relation.from, to: relation.to } : null
+      })).toEqual(upstreamRelations)
+    })
   })
 
   test('reserved endpoint spellings fail loudly and do not pass verification', async () => {

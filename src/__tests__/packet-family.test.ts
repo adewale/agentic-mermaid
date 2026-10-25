@@ -10,6 +10,28 @@ import { parsePacketDiagram } from '../packet/parser.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
+test('Packet directive-like labels retain their exact value and interval through export and edits', async () => {
+  const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
+  const upstream = startUpstreamMermaid()
+  try {
+    const source = 'packet\n0-7: "%%{field"\n8-15: "Payload"'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+    const packet = asPacket(parsed.value)!
+    const written = serializeMermaid(packet)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(parsePacketDiagram(written)).toEqual(parsePacketDiagram(source))
+    expect(renderMermaidSVG(written)).toBe(renderMermaidSVG(source))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    const edited = mutate(packet, { kind: 'set_field_label', index: 1, label: '%%{edited' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw Error(JSON.stringify(edited.error))
+    const output = serializeMermaid(edited.value)
+    expect(await upstream.accepts(output)).toBe(true)
+    expect(parsePacketDiagram(output).fields[1]).toMatchObject({ start: 8, end: 15, label: '%%{edited' })
+  } finally { upstream.close() }
+})
+
 test('Packet mirrors each word, including partial final words, without changing field widths', () => {
   const body = parsePacketDiagram('packet\n+8: "DATA"\n+4: "TYPE"\n+1: "EN"\n+6: "RESERVED"')
   const ascending = layoutPacketDiagram(body, {}, { ...resolvePacketConfig(), bitsPerRow: 16 })

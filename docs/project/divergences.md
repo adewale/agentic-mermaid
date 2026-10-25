@@ -4,6 +4,169 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ## What still matters
 
+### Grammar finder triage (#461)
+
+The triage covers all 1,283 distinct inputs retained in four linked workflow
+summaries: 605 reduced and 678 original inputs across 23 families. These are
+retained representatives, not every finder mutation. Silent-read counts are
+not defect counts; invisible separators, header aliases and unwitnessed
+mutations do not receive blanket warnings.
+
+Grammar tokens, authored identities, formatting and literal text are separate
+layers. Writers construct complete field tokens before joining statements;
+readers classify syntax before expanding grammar escapes. The field repairs
+cover Timeline keywords/separators, Sequence ACTOR identities, C4 arguments,
+Gantt task labels, Block formatting, Journey actors and separators, Mindmap
+anonymous identities, Ishikawa cause labels and Treemap quoted text.
+
+Journey, Mindmap, Ishikawa and Treemap share grammar escape interpretation. XML
+transport references expand inside classified fields, before formatting;
+protected grammar escapes expand afterward, once. This prevents an encoded
+separator from becoming a statement and distinguishes a source `&lt;` from an
+edit that literally supplies `&lt;`. Native SVG/terminal consumers use the
+retained authored grammar view rather than decoding that field twice.
+Accessibility values retain the same distinction through body, metadata and
+SVG title/description emission. Treemap newlines retain their text separately
+from literal `<br/>` and entity-looking strings.
+
+Gantt owns its effective axis format as a typed value. The statement lexer
+cannot hold a hash, semicolon or physical newline, so the writer uses Mermaid's
+configuration string for those formats without interpreting the calendar
+format as a display label. Canonical wrappers retain family-generated config.
+Grammar-classified Gantt and Sequence comments protect a directive-looking
+opener instead of emitting it as an init directive.
+
+C4 empty boundaries are portable. An empty block contains
+`UpdateLayoutConfig("")`, which the pinned database treats as a no-op: neither
+layout assignment passes its positive-value guard. It creates no child and
+retains previously configured layout values. The reader treats that spelling
+as trivia; incremental construction and removal of a final child no longer
+need a Mermaid-rejected draft exception.
+
+C4 portability includes the database argument contract, not just lexer
+acceptance. Required aliases, labels, endpoints and style targets are emitted
+positionally. Layout values occupy their declared positions even when the
+input uses reordered or sparse names, because the pinned database ignores
+those names. Missing layout values use an empty positional no-op. Zero-argument
+layout calls are retained as no-op trivia with a warning and export with the
+attribute the grammar requires. These pre-existing writer defects were found
+by checking successful constructors against actual database values.
+
+Mindmap serialization preserves the node's explicit Markdown syntax flag.
+HTML formatting tags do not imply Markdown syntax: converting them changed
+the body on reload and caused unrelated icon, class and accessibility edits
+to fail. HTML and Markdown siblings now retain their respective modes and
+literal stars through native rendering, export and typed edits. Mindmap
+accessibility remains a warned native extension because the pinned grammar
+has no accessibility production.
+
+Floating State notes retain main's independent annotation namespace, containing
+scope and collision-safe rendered IDs. A note alias does not introduce or
+rename an ordinary state with the same name. All four imported floating-note
+cases already render on base `9b64b5f4`; they are controls, not gains attributed
+to this change. Mermaid's pinned grammar accepts the declaration but drops its
+semantic action; retaining the note is intentional.
+
+Block terminal cards reserve actual face demand before routing, growing
+monotonically until allocated ports fit. Nested grid gutters derive from the
+router's protected approach distance and retain a free channel. Shared terminal
+faces reserve distinct contacts when marker meanings conflict; compound or
+parallel classification alone cannot establish safety. Reciprocal/parallel
+Block edges and cross-scope State edges are checked against actual owned
+stroke/marker ink and frame contacts, independently of stored endpoint metadata.
+When contact allocation is required, the current global routing mode may
+unbundle otherwise compatible routes elsewhere in the graph.
+
+Style construction follows each family's grammar and consumer. Flowchart
+class definitions protect value commas and separate a trailing backslash from
+the following declaration; its direct node/link styles have no equivalent
+comma consumer. Functional CSS remains native-readable but source-only when
+Flowchart or Requirement cannot spell it losslessly. Their typed writes refuse
+unsupported values atomically, while native CSS validity stays independent.
+
+Class and State write legacy RGB/HSL colors with equivalent CSS Color 4
+space/slash separators, preserving channel tokens, units, percentages and alpha
+without numeric conversion. Unsupported comma lists remain a bounded native
+source extension. Class memberships precede definitions because its pinned DB
+copies styles eagerly; inline overrides follow definitions. A Class style moves
+an existing admissible property before the first colon or refuses typed
+authoring when none exists. No neutral property is invented. State label edits
+clear the mutually exclusive bare-declaration flag; removing a label restores
+the bare declaration.
+
+The approach takes lexer-state ideas from
+[Pele 1.10.0](https://github.com/obsidianmd/pele/tree/4eff76f98c73b6817800a05773517f35832e4e92),
+which targets Mermaid 12.1.0. Emitted syntax is checked against Mermaid 12.2.0,
+source `1fb7869866dd619168d840291c9c54b4f129758b`; Pele is not a dependency.
+The unit oracle and modern reference both run Node/jsdom with actual
+DOMPurify and public wrapper preprocessing. DB projections retain parent
+fields and explicit cyclic references, with no arbitrary depth truncation.
+The unit helper requires the development-only jsdom 26.1.0 dependency.
+
+Real sanitization exposed previously hidden reference assumptions: Pie titles
+normalize `<br/>` to `<br>`, Class annotation/label text can be removed or
+rewritten, and Flowchart labels can be erased. Native output retains authored
+text where that behavior loses meaning. The Flowchart grammar property
+observes operands to real builder methods and still calls each original
+method, including its sanitizer; it is a grammar contract, not equality with
+lossy sanitized HTML. Separate modern tests inspect the public runtime. These
+reference corrections are not additional native syntax capabilities.
+
+The public-parser replay against main `9b64b5f42a8260696052f8218fccfacd8ae44b80`
+increases accepted typed canonical exports from 755 to 962: **207 additional
+inputs across 17 families**, with no acceptance regressions and no remaining
+crashes. This replaces the earlier comparison against `09425754`; changes
+already merged into main receive no credit here. All 207 gains reload as typed
+bodies. Facts match for 206; one wide Block spacer normalizes generated
+occurrence names while retaining its two cells and authored nodes/endpoints.
+
+The output audit compares raw source, typed rendering and exported source.
+ASCII is identical in 206/207 cases; SVG strings are identical in 203/207.
+Four SVGs differ only in equivalent numeric/`px` stroke widths and generated
+metadata. One State serializer reorders declarations: SVG is identical, while
+a disconnected state and pseudostate exchange terminal positions. Its labels,
+identities, parents and endpoints are unchanged. Canonical serialization does
+not preserve every layout-sensitive declaration order.
+
+The candidate has 992 typed inputs, 250 source-only inputs and 41 explicit parse
+failures. No reference-accepted retained input loses typed admission. The 250
+source-only inputs retain family statements and cannot accept typed edits,
+including edits to portable portions. One Radar input loses only adjacent empty
+frontmatter delimiters under the existing warned `empty_frontmatter` policy.
+Source preservation is not a portability certificate. Invalid identifiers and
+unknown statement structure are not silently renamed or discarded to create a
+portable typed result.
+
+Timeline sections retain the latest period: a same-line event after a section
+belongs to that period in its earlier section. Without a prior period, the
+reader rejects the orphan event instead of inventing a period. An explicit
+empty trimmed section remains native-readable but source-only for typed editing
+because the current writer cannot preserve that lexical category.
+
+All emitted typed canonical documents in the replay are reference-accepted.
+Thirty typed inputs and one source-only Mindmap input have malformed init
+payloads or invalid theme configuration; canonical export rejects them with a
+repair message. Admission follows case-sensitive keys, effective family/theme
+precedence, sanitizer-neutralized values and the actual derived-color inputs.
+It is bounded evidence for these observed classes, not a full config-schema
+proof. Another 28 typed documents need canonical wrapper mode to repair their
+verbatim wrapper spelling. Three GitGraph bodies require their configured main
+branch; their complete documents pass.
+
+Accessibility descriptions normalize physical CR/CRLF to logical newlines before
+refolding. A successful mutation must retain the normalized fields in body,
+metadata and reloaded source. Values a family writer cannot spell without
+closing a description block or creating a directive return `INVALID_OP`
+atomically. Block, Mindmap, Sankey and Ishikawa accessibility remain warned
+native extensions. The pinned Ishikawa parser reads these lines as fishbone
+nodes, even when it accepts the source, so parse acceptance does not establish
+metadata support.
+
+Pinned-suite counts, red/green discrimination, the combined adversarial audit,
+exact-head CI results and publishing evidence belong in the PR description.
+These retained-input counts are separate from upstream test counts and do not
+claim complete Mermaid support.
+
 ### Practical reader fixes checked against Mermaid 12.2.0
 
 The compatibility follow-up uses named upstream assertions before mutation
@@ -91,9 +254,12 @@ separate owning tests.
 
 Requirement preserves whitespace between authored `stroke-dasharray` lengths.
 The pinned parser concatenates style tokens, changing a two-length `5 5`
-pattern into the single length `55`; preserving the authored border pattern
-keeps source, typed edits and Scene paint in agreement. Other style token
-spelling remains canonical, and the serializer still emits accepted syntax.
+pattern into the single length `55`. The native reader also keeps meaningful
+whitespace in font families instead of concatenating `Foo Bar` into `FooBar`.
+These sources remain drawable and source-preserved, with a portability warning;
+typed writes refuse them atomically. Functional CSS and comma-valued lists
+likewise require a supported lossless spelling before typed construction can
+succeed. Portable word, hexadecimal and integer values remain editable.
 
 ### Determinism is structural, not seeded
 
@@ -383,12 +549,12 @@ identified below; this record does not excuse them as opaque preservation.
 | ER keyword spelled as an entity name | **Keep reading and warn (`er_keyword_name`); write the name quoted.** | Implemented: Mermaid's ER lexer reads `end`, `subgraph`, `style`, `class`, the cardinality words (`one`, `many`, `to`) and the parent marker `u-` before a name, so it rejects them bare. Ours reads the evident entity, warns, and quotes the name (and any name Mermaid would split, such as `2px`) on output, which Mermaid reads as that one name. A stray `end` after a misspelled `subgraph` therefore warns rather than drawing silently. |
 | ER names Mermaid's lexer splits | **Read the name whole; write it quoted.** | Implemented: Mermaid reads a bare name only as one UNICODE_TEXT token (letters of any script, digits, `_`, `-`, `*`, `.`) that no keyword, cardinality or leading number takes first. A name starting with a number is two names upstream (`1MANUFACTURER ||--|| ORDER` declares `1` and `MANUFACTURER`; `A ||--o{ 12f : x` is rejected). An alias and a subgraph id must be one such name, and each subgraph title word too (`CUSTOMER[Customer Account]`, `subgraph title1#`, `subgraph g [My (big) group]` are rejected). Ours reads each as written, without a warning, and writes the name, alias, subgraph id or title quoted, which Mermaid reads. A title of names and quoted names (`[a "b c"  d]`) keeps its quotes and blanks, where Mermaid joins the names one space apart. The warnings (`er_number_name`, `er_alias_text`, `er_subgraph_name`) and Mermaid's reading of such a title were removed: 0 of 106,252 real-world diagrams (2,285 ER) use these spellings. |
 | ER relationship spellings Mermaid rejects | **Read them; write Mermaid's spelling.** | Implemented: Mermaid takes an alias only on a declaration of its own (`A[x] ||--o{ B : r` is rejected); ours reads it as A's alias and writes it on A's declaration. Mermaid reads `|o` and `}o` only where a word ends, so `HOUSE ||--|oROOM` is rejected; ours reads the cardinality `|o` before `ROOM` and writes a space between them. Neither is reported: the warnings (`er_relation_alias`, `er_cardinality_space`) were removed, as 0 of 106,252 real-world diagrams use these spellings. |
-| ER style text Mermaid's style lexer rejects | **Read and draw it, and write it with entity codes.** | Implemented: Mermaid's ER `style` and `classDef` read only letters of any script, digits, `_`, `-`, `*`, `#`, `:`, `,`, `;` and blanks, so `stroke-width:0.5px`, `fill:rgb(1,2,3)` and `font-family:"Arial"` are lexical errors upstream. Ours draws them without a warning, and the writer spells each other character, and a comma inside a value, as a two-digit entity code (`stroke-width:0#46;5px;`), ending the line with `;` so Mermaid's entity prepass keeps the code; Mermaid's SVG resolves it. Ours reads such codes back. A character with no two-digit code (`{`, `\|`, `}`, `~`) has no spelling: an edit holding one is refused. The warning (`er_style_text`) was removed: 0 of 106,252 real-world diagrams have an ER `style` or `classDef` line. |
+| ER style text Mermaid's style lexer rejects or discards | **Read and draw it, and construct a lossless entity spelling.** | Implemented: Mermaid's ER `style` and `classDef` lexer skips whitespace and rejects punctuation used by CSS functions and quoted font names. Ours retains those fields. The writer protects field whitespace, delimiters and literal Mermaid entity/marker text with decimal entities whose two-, five- or seven-digit widths cannot be CSS hex colors. Readers classify the property-list grammar before decoding the protected fields. The complete style statement determines its semicolon padding through both global prepass rules, including keyword-like target/class names. `{`, `\|`, `}` and `~` are constructible; the previous two-digit-only refusal was an artificial limit and is removed. Exact functional-color numbers, font names and dash spacing survive typed/native reload and the real pinned DB after Mermaid's marker/HTML resolution. The existing generous CSS-semicolon reading remains. Invalid XML characters, lone surrogates and control characters whose HTML numeric references change their value are refused atomically rather than substituted; ordinary TAB, CR/LF field data and Unicode whitespace have entity spellings. |
 | C4 statements sharing a line | **Keep reading and warn; write a line break.** | Implemented: pinned Mermaid C4 needs a line break after each statement and after a boundary's `{` (only `}` may share the line before it), and its comment rule takes the line break after a comment. Ours reads `System_Boundary(b, "B") { Person(a, "A") }`, juxtaposed statements and a statement followed by a comment and another line, and reports each (`c4_statements_on_one_line`), as it reports `;` separators (`c4_semicolon_separator`). The C4 writer writes a line break after each such statement and in place of each `;`; a comment sharing the line moves to a line of its own, and a statement split out after a boundary's `{` goes one level deeper. Statements with no warning keep their exact bytes. A placement hint the layout cannot honour is reported as `c4_layout_conflict`. |
 | C4 unquoted argument text | **Read it as written, without a warning.** | Mermaid's attribute lexer reads unquoted text up to the next comma, so after the last comma it takes the `)` too (a single space before `)` as well), and `$name=` takes only a quoted value: it rejects `Person(a, Ann Lee)`, `"Ann" )` and `$descr=Banker`, or reads on into the next statement. Ours reads them as written and keeps the authored bytes. The warning (`c4_unquoted_argument`) was removed: 0 of 106,252 real-world diagrams use the construct. |
 | C4 arguments whose quotes Mermaid pairs otherwise | **Read them as written, without a warning.** | Text glued to a quote, a quote inside unquoted text, a `$` not followed by `name="…"`, or an unclosed quote: Mermaid rejects the diagram or, where a later comma, quote or `=` lets it read on into later statements, reads it otherwise. Ours reads the argument text as written (`"Ann"x` is the label `"Ann"x`), draws it and keeps the authored bytes. The refusal (`c4_argument_quoting`) was removed: 0 of 106,252 real-world diagrams use the construct. |
 | C4 whitespace between a macro's name and `(` | **Keep reading and warn (`c4_space_before_arguments`).** | Implemented: Mermaid's lexer reads only a `(` straight after the macro's name, so `Person (a, "A")`, or a line break before the `(`, is a lexical error upstream. The writer drops the blank, so pinned Mermaid reads its output. |
-| C4 argument lists Mermaid reads into other fields | **Keep ours, which follows our own quote and parenthesis pairing, without a warning.** | Where Mermaid's attribute lexer accepts the list but fills other fields (text glued to a quote, a blank before a comma after a quoted argument, a comma inside parentheses, a blank inside a `$name`), ours keeps its reading and the authored bytes. The warning (`c4_argument_reading`) was removed: 0 of 106,252 real-world diagrams use the construct. The writer respells the other C4 reader extensions with quoted and named arguments (`Person(a, "Ann", $descr="A customer")`); an empty boundary, a standalone `direction`, `SHOW_LEGEND` and the tag directives, and bodies with unknown statements or arguments have no meaning-preserving spelling and are written as authored. |
+| C4 argument lists Mermaid reads into other fields | **Keep ours, which follows our own quote and parenthesis pairing, without a warning.** | Where Mermaid's attribute lexer accepts the list but fills other fields (text glued to a quote, a blank before a comma after a quoted argument, a comma inside parentheses, a blank inside a `$name`), ours keeps its reading and the authored bytes. The warning (`c4_argument_reading`) was removed: 0 of 106,252 real-world diagrams use the construct. The writer respells the other C4 reader extensions with quoted and named arguments (`Person(a, "Ann", $descr="A customer")`); empty boundaries use a no-op statement; standalone `direction`, `SHOW_LEGEND` and tag directives, and bodies with unknown statements or arguments still have no meaning-preserving spelling and are written as authored. Required identity arguments and layout settings are emitted in their pinned positional slots even when the source names them in another order. |
 | C4 blanks at either end of an argument | **Trim them, as Mermaid does.** | Implemented: Mermaid's C4 grammar trims every argument, quoted or not, before entity codes are displayed; ours does the same, so `Rel(a, b, " uses")` reads `uses` and `#32;` keeps a blank. The writer spells a typed value's leading or trailing blanks as entity codes. A tab or other control character at either end has no entity spelling, so a typed edit holding one is refused. |
 | `;` between State statements | **Keep reading and warn (`state_semicolon_separator`, `state_text_cut`, `state_note_text_cut`, `mermaid_cleanup`).** | Implemented: Mermaid reads the `;` into a name (`A --> B; B --> C` is a state `B;`) and rejects it after the header; ours ends the statement there, as requested upstream (mermaid-js/mermaid#5410), and writes one statement per line. Text after a description, transition or one-line note colon keeps its `;` and colons, as before. Mermaid ends a description or transition label at `;`, at `::` and before a colon its line ends with, and a one-line note's text at any colon or `;`. It reads entity codes first, after a prepass that drops the `;` ending a line's `style…:…#…;` or `classDef…:…#…;` run. Ours writes such a description or label with `#59;` and `#58;`, and such a note as a block note, spelling a colon that starts the block `#58;` (Mermaid would read a one-line note there). Wherever the prepass would strip a `;` from a line it writes (a description, a label, a quoted name or a note line), it writes that text's colons `#58;`. Mermaid reads all of these back as the text. Verify reports the source forms: `state_text_cut`, except where Mermaid reads the text whole (an entity code's `;`, a colon followed by text or blanks, the text after `state "…" as X`, quoted names, block notes); `state_note_text_cut`; and `mermaid_cleanup` for text whose `;` the prepass drops. Verify reads the authored line whether given source or the diagram parsed from it. A block note whose text starts with a colon (after any blank lines) is a one-line note to Mermaid, which then rejects `end note`; ours reads the block, the writer spells that colon `#58;`, and verify reports `state_note_block_colon`. |
 | State `}` right after a name, a `}` that closes nothing, and a blank line between `state X` and `{` | **Keep reading; warn for the brace (`state_brace_after_name`, `state_brace_unopened`).** | Implemented: Mermaid reads `A}` as a name, and the rest of the line after `state "…" as` (`A }` too), and inside a composite then rejects it as unclosed; at the top level it draws a state named `A}`, and a lone `}` that closes nothing is a state named `}`. Ours drops a `}` that closes nothing on every surface (the typed body used to go opaque). Mermaid also rejects a blank line before a `{` on its own line (a comment line is fine). Ours closes the composite and takes the `{`, and writes portable output. The blank line is not yet reported: the reader sees comment lines and blank lines alike. |
@@ -432,7 +598,7 @@ identified below; this record does not excuse them as opaque preservation.
 | Sequence local arrow spellings | **Keep reading them, warn (`sequence_local_arrow`), and write Mermaid's arrow.** | Implemented: ours reads twelve spellings Mermaid's lexer lacks (`-\|`, `-/`, `-\`, `\|-`, `/-`, `\-` and their dashed forms), each drawn as the Mermaid arrow with the same heads and line style (`-\|` as `-\\`, `-/` as `-//`, `\|-` as `\\-`, `/-` as `//-`). The writer writes the Mermaid arrow, including in lines a fragment or opaque block keeps verbatim. Where Mermaid's sender id runs past the spelling into one of its own arrows (`A\|-B->>C`), Mermaid reads a message from `A\|-B` to `C`; ours reads the spelling as the arrow, from `A` to `B->>C`, with no warning that Mermaid reads it otherwise. Reading Mermaid's message there was removed: 0 of 106,252 real-world diagrams use the construct. |
 | Sequence deactivating an inactive participant | **Keep drawing, ignore the deactivation, and warn (`sequence_inactive_deactivation`).** | Implemented: Mermaid counts activations and rejects a deactivation at zero. The writer keeps the `-`, so that output is still rejected. |
 | BUG-51: Sankey's `parseFloat` leniency | **Keep strict numeric rejection.** `12x` and `x12` do not specify an unambiguous valid flow value. | The reader retains source as opaque and rendering refuses the invalid value. Upstream accepting a prefix or NaN is not a product requirement. |
-| Timeline events on a section line | **Keep the line one period, drawing all its text, without a warning.** | Mermaid adds the events in `section X: event` to the latest period, which may be in an earlier section, and fails when there is none. The warning (`timeline_section_events`) was removed: 0 of 106,252 real-world diagrams use the construct. |
+| Timeline events on a section line | **Keep the section and attach events to the latest period.** | Implemented: the lexer classifies the section before its event tail. The preceding period retains the event even when it belongs to an earlier section. An event without a prior period is rejected instead of inventing one. |
 | Timeline line starting with the word `timeline` | **Read it as a period and warn (`timeline_header_in_body`).** | Implemented: Mermaid's lexer reads the header keyword there (any case) and rejects the line; `timelines` is a period to both. |
 | Sankey characters outside printable ASCII | **Keep the text and warn (`sankey_unsupported_character`).** | Implemented: Mermaid's CSV reader rejects a tab or a non-ASCII character in a row. It has no spelling for such a label, so the writer's output stays rejected: its entity prepass turns `#233;` (any `#name;`, after its `style`/`classDef` semicolon strip) into a non-ASCII placeholder its CSV reader rejects, so verify reports a row holding one too (`sankey_unsupported_character`); ours reads and draws the code as written. The same prepass first drops the last `;` of a line where `style` or `classDef` comes before a `:` and a `#` ahead of it, so Mermaid reads `style:x#a;` as `style:x#a`; ours keeps the `;`, verify reports the line (`mermaid_cleanup`), and Mermaid has no spelling that keeps it. `&eacute;` is drawn as literal text by both. A quote inside an unquoted field is refused, as text after a closing quote already was. |
 | Sankey spaces around a quoted field | **Trim them, without a warning.** | Mermaid's CSV reader rejects a blank after a comma before a quoted field, after a closing quote, or indenting a row that starts with one (trailing whitespace at the end of the source excepted, which it trims). Ours reads the field; the writer emits no such blanks. The warning (`sankey_quoted_field_spacing`) was removed: 0 of 106,252 real-world diagrams use the construct. |

@@ -22,6 +22,7 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
 import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
+import { readGanttTaskLabel } from './task-text.ts'
 import { parseTodayMarkerStyle } from './today-marker.ts'
 
 export const GANTT_TASK_TAGS: readonly GanttTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert']
@@ -153,7 +154,7 @@ type GanttSyntax =
   | { kind: 'title' | 'section'; value: string }
   | { kind: 'directive'; name: Exclude<keyof typeof DIRECTIVE_RES, 'title' | 'section' | 'click'> | 'inclusiveEndDates' | 'topAxis'; value: string }
   | { kind: 'click'; taskId: string; action: 'href' | 'call'; rest: string }
-  | { kind: 'task'; label: string; meta: ParsedTaskMeta }
+  | { kind: 'task'; label: string; labelSource: string; meta: ParsedTaskMeta }
   | { kind: 'invalid'; code: 'GANTT_BAD_DIRECTIVE' | 'GANTT_BAD_TASK'; message: string; structural?: boolean }
 
 export type GanttSourceStatement = GanttSyntax & {
@@ -264,7 +265,7 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
       const rawMeta = stripTrailingComment(line.slice(colon + 1)).trim()
       const meta = parseGanttTaskMeta(rawMeta)
       if (meta) {
-        append({ kind: 'task', label, meta }, [commentOffset < 0 ? rawLine : rawLine.slice(0, commentOffset)])
+        append({ kind: 'task', label: readGanttTaskLabel(label), labelSource: label, meta }, [commentOffset < 0 ? rawLine : rawLine.slice(0, commentOffset)])
         if (commentOffset >= 0) append({ kind: 'comment' }, [rawLine.slice(commentOffset)])
       } else append({ kind: 'invalid', code: 'GANTT_BAD_TASK', message: `Invalid task metadata "${rawMeta}"` })
     } else append({ kind: 'invalid', code: 'GANTT_BAD_DIRECTIVE', message: `Unrecognized gantt line "${line}"` })

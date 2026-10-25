@@ -5,7 +5,7 @@ import { terminalArtifact } from './terminal-artifact.ts'
 import { wrapText } from './wrap.ts'
 
 export function renderIshikawaTerminal(ctx: AsciiContext) {
-  const body = parseIshikawaDiagram(ctx.source.familyBody)
+  const body = parseIshikawaDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
   const document = new TerminalDocument()
   document.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'ishikawa.fishbone', message: 'The fishbone is projected as a cause/effect hierarchy; parent identities and complete labels are retained.' })
   if (ctx.config.title) for (const line of wrapText(ctx.config.title, ctx.options.targetWidth)) document.line([{ text: line, role: 'text', owner: { id: 'title', kind: 'label' } }])

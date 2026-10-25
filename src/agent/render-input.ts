@@ -34,7 +34,7 @@ export function renderSourceForParsedDiagram(input: ParsedDiagram): string {
   // and config, init directives), so a parsed diagram draws what its saved
   // source draws.
   const body = input.canonicalSource
-  const wrapper = wrapperPrefix(input.meta, 'verbatim', body)
+  const wrapper = wrapperPrefix(input.meta, 'verbatim', body, input.kind)
   return body.startsWith(wrapper) ? body : wrapper + body
 }
 

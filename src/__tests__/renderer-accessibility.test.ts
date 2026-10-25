@@ -5,6 +5,46 @@ import { describe, test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import { describeMermaidSource, describeMermaidTree } from '../agent/describe.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
+import { mutate } from '../agent/mutate.ts'
+import { serializeMermaid } from '../agent/serialize.ts'
+
+test('successful accessibility edits close through body, metadata and source without creating statements', () => {
+  const parsed = parseMermaid('packet\n0-7: "Payload"')
+  if (!parsed.ok) throw new Error('Expected Packet')
+  const original = structuredClone(parsed.value)
+  for (const description of ['one\n}\naccDescr {\ntwo', '{unfinished', 'one\r\ntwo', 'ordinary description']) {
+    const result = mutate(parsed.value, { kind: 'set_accessibility_description', description })
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_OP')
+    } else {
+      const expected = description.replace(/\r\n?/g, '\n')
+      const reload = parseMermaid(serializeMermaid(result.value))
+      if (!reload.ok || result.value.body.kind !== 'packet' || reload.value.body.kind !== 'packet') throw new Error('Expected Packet reload')
+      expect(result.value.body.accessibilityDescription).toBe(expected)
+      expect(result.value.meta.accessibility.descr).toBe(expected)
+      expect(reload.value.body.accessibilityDescription).toBe(expected)
+      expect(reload.value.body.fields).toEqual(original.body.kind === 'packet' ? original.body.fields : [])
+    }
+    expect(parsed.value).toEqual(original)
+  }
+  for (const title of ['%%{init: {"theme":"dark"}}%%', 'ordinary title']) {
+    const result = mutate(parsed.value, { kind: 'set_accessibility_title', title })
+    if (!result.ok) {
+      expect(result.error.code).toBe('INVALID_OP')
+    } else {
+      const reload = parseMermaid(serializeMermaid(result.value))
+      if (!reload.ok || result.value.body.kind !== 'packet' || reload.value.body.kind !== 'packet') throw new Error('Expected Packet reload')
+      expect(result.value.body.accessibilityTitle).toBe(title)
+      expect(result.value.meta.accessibility.title).toBe(title)
+      expect(reload.value.body.accessibilityTitle).toBe(title)
+      expect(reload.value.meta.initDirectives).toEqual(original.meta.initDirectives)
+      expect(reload.value.meta.frontmatter).toEqual(original.meta.frontmatter)
+    }
+    expect(parsed.value).toEqual(original)
+  }
+  const control = mutate(parsed.value, { kind: 'set_accessibility_title', title: 'ordinary title' })
+  expect(control.ok).toBe(true)
+})
 
 describe('#7254/#7255 SVG accessibility', () => {
   test('accTitle → <title>, accDescr → <desc>, role + ARIA references on root', () => {

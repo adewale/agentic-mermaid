@@ -512,7 +512,8 @@ function readQuotedText(text: string): { value: string; endIndex: number } | nul
  * `"` and `\` are entity codes, which Mermaid and this reader both read as
  * the character; a backslash escape is ours alone. */
 export function renderXYChartText(value: string, mode: 'free' | 'token' | 'list' | 'quoted'): string {
-  const quoted = `"${encodeMermaidEntities(value, '"\\')}"`
+  if (!value.length) throw new Error('Empty XYChart text has no portable quoted spelling')
+  const quoted = `"${encodeMermaidEntities(value, value.includes('%%') ? '"\\%' : '"\\')}"`
   if (mode === 'quoted') return quoted
   // Mermaid discards whitespace between bare tokens and reserves chart
   // keywords. Quoting preserves labels rather than merely accepting them in
@@ -520,7 +521,7 @@ export function renderXYChartText(value: string, mode: 'free' | 'token' | 'list'
   const bare = /^[A-Za-z_][A-Za-z0-9_]*$/.test(value)
     // Axis-title mode tokenizes digits as range numbers, unlike category text.
     && (mode !== 'token' || !/\d/.test(value))
-    && !/^(?:title|bar|line|xychart|horizontal|vertical|accTitle|accDescr)$/i.test(value)
+    && !/^(?:title|bar|line|xychart|horizontal|vertical|accTitle|accDescr)/i.test(value)
   return bare && value.length > 0 ? value : quoted
 }
 

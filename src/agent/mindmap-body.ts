@@ -3,10 +3,12 @@ import type {
 } from './types.ts'
 import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import { mindmapNestedShapeLines, mindmapStatementEnds, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { mindmapNestedShapeLines, mindmapNonportableTextLines, mindmapSerializationProblem, mindmapStatementEnds, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
+
+export { mindmapSerializationProblem } from '../mindmap/parser.ts'
 
 /** Parsed bodies whose authored header pinned Mermaid rejects for the space
  * after it. The canonical source keeps no blank line or trailing whitespace,
@@ -68,9 +70,9 @@ function validText(value: unknown, field: string): Result<string, MutationError>
 
 const SHAPES: MindmapShape[] = ['default', 'rect', 'rounded', 'circle', 'cloud', 'bang', 'hexagon']
 
-function stableNodeSyntax(id: string, label: string, shape: MindmapShape): boolean {
+function stableNodeSyntax(id: string, label: string, shape: MindmapShape, markdown?: true): boolean {
   try {
-    const reparsed = parseMindmap(serializeMindmap({ root: { id, label, shape, children: [] } })).root
+    const reparsed = parseMindmap(serializeMindmap({ root: { id, label, shape, ...(markdown ? { markdown } : {}), children: [] } })).root
     return reparsed.id === id && reparsed.label === label && reparsed.shape === shape
   } catch {
     return false
@@ -107,6 +109,8 @@ function unstableDecorationError(field: 'icon' | 'class', value: string): Result
 }
 
 export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<MindmapBody, MutationError> {
+  const problem = mindmapSerializationProblem(body)
+  if (problem) return err({ code: 'INVALID_OP', message: problem })
   const next = cloneBody(body)
   const allIds = (): Set<string> => {
     const ids = new Set<string>()
@@ -145,7 +149,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       if (allIds().has(to.value)) return err({ code: 'DUPLICATE_NODE', message: `Mindmap node '${to.value}' already exists` })
       // Valid default-shape nodes use their label as identity by construction.
       const nextLabel = found.node.shape === 'default' ? to.value : found.node.label
-      if (!stableNodeSyntax(to.value, nextLabel, found.node.shape)) return unstableNodeError(to.value, nextLabel, found.node.shape)
+      if (!stableNodeSyntax(to.value, nextLabel, found.node.shape, found.node.markdown)) return unstableNodeError(to.value, nextLabel, found.node.shape)
       found.node.label = nextLabel
       found.node.id = to.value
       return ok(next)
@@ -156,7 +160,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       const label = validText(op.label, 'label'); if (!label.ok) return label
       const nextId = found.node.shape === 'default' ? label.value : found.node.id
       if (found.node.shape === 'default' && label.value !== found.node.id && allIds().has(label.value)) return err({ code: 'DUPLICATE_NODE', message: `Mindmap node '${label.value}' already exists` })
-      if (!stableNodeSyntax(nextId, label.value, found.node.shape)) return unstableNodeError(nextId, label.value, found.node.shape)
+      if (!stableNodeSyntax(nextId, label.value, found.node.shape, found.node.markdown)) return unstableNodeError(nextId, label.value, found.node.shape)
       found.node.id = nextId
       found.node.label = label.value
       return ok(next)
@@ -179,7 +183,7 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       if (!found) return err({ code: 'NODE_NOT_FOUND', message: `Mindmap node '${op.id}' not found` })
       if (!SHAPES.includes(op.shape)) return err({ code: 'INVALID_OP', message: `Mindmap shape must be one of: ${SHAPES.join(', ')}` })
       if (op.shape === 'default' && found.node.id !== found.node.label) return err({ code: 'INVALID_OP', message: 'Default mindmap shape requires id and label to match' })
-      if (!stableNodeSyntax(found.node.id, found.node.label, op.shape)) return unstableNodeError(found.node.id, found.node.label, op.shape)
+      if (!stableNodeSyntax(found.node.id, found.node.label, op.shape, found.node.markdown)) return unstableNodeError(found.node.id, found.node.label, op.shape)
       found.node.shape = op.shape
       return ok(next)
     }
@@ -251,6 +255,10 @@ export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): Layou
     })
     index = directive.endIndex + 1
   }
+  for (const problem of mindmapNonportableTextLines(canonicalSource)) warnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: 'mindmap_nonportable_text', line: problem.line,
+    message: `${problem.message}. The source is preserved; change this text to unlock typed Mindmap edits.`,
+  })
   return warnings.sort((left, right) => left.line - right.line)
 }
 

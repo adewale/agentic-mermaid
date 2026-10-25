@@ -531,9 +531,8 @@ export interface QuadrantPointStyle {
   strokeColor?: string
   /** May carry a px suffix (upstream form, e.g. "5px"). */
   strokeWidth?: string
-  /** Unknown-but-safe `key: value` entries, verbatim (upstream accepts any
-   *  entry and applies only the four above; these round-trip losslessly,
-   *  never render, and verify names them — see src/quadrant/point-style.ts). */
+  /** Unknown-but-safe `key: value` entries retained by the generous reader.
+   * They never render and have no portable Mermaid spelling. */
   extra?: string[]
 }
 
@@ -663,6 +662,8 @@ export type GanttStatement =
 export interface GanttBody {
   kind: 'gantt'
   title?: string
+  /** Effective tick format; distinct from literal task labels and date input. */
+  axisFormat?: string
   sections: GanttBodySection[]
   /** Optional for synthesized payloads; parsed bodies always populate it. */
   statements?: GanttStatement[]
