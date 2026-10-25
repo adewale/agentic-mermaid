@@ -28,6 +28,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
+import { trackedExamples } from '../../eval/heuristic-tracker/catalog.ts'
 
 const IDS = 'ABCDEFGH'.split('')
 const DIRECTIONS = ['TD', 'LR', 'RL', 'BT'] as const
@@ -161,6 +162,16 @@ describe('regression: ROUTE_LABEL_ON_SHARED_TRUNK is repaired', () => {
     for (const edge of positioned.edges.filter(edge => edge.label)) expect(edge.labelPosition).toBeDefined()
     return auditRouteContracts(positioned, graph).map(f => f.code)
   }
+
+  it.each(['TD', 'BT', 'LR', 'RL'])('feedback exits leave a private label segment in %s', direction => {
+    const source = trackedExamples().find(example => example.group === 'contact-sheet' && example.name === 'AJ')!.source
+      .replace('flowchart TD', `flowchart ${direction}`)
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+      .toEqual(graph.edges.map(edge => ({ source: edge.source, target: edge.target, label: edge.label })))
+    expect(auditRouteContracts(positioned, graph)).toEqual([])
+  })
 
   it('mixed labeled+unlabeled duplicate pair is separated into lanes (E→F twice)', () => {
     const src = [

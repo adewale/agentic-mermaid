@@ -32,7 +32,7 @@ describe('typed Scene SVG writer', () => {
       attributes: { className: 'node hot', data: { label: 'a & "b"' } },
     })
     expect(sceneNodeSerialization(shape)).toBe(
-      '<rect class="node hot" data-label="a &amp; &quot;b&quot;" x="0.3333333333333333" y="2" width="30" height="12" rx="3"'
+      '<rect class="node hot" data-label="a &amp; &quot;b&quot;" x="0.333333333333" y="2" width="30" height="12" rx="3"'
       + ' fill="&quot;/&gt;&lt;script&gt;" fill-opacity="0.5" stroke="#123456" stroke-width="1.5" transform="rotate(45 1 2)"'
       + ' data-id="card" data-role="node" />')
     const path = marks.shape({ id: 'p', role: 'chrome', geometry: { kind: 'path', d: 'M 0 0 L 2 3 Z" onload="bad' }, paint: { fill: 'none' } })

@@ -1,4 +1,5 @@
 import { WeightedLru } from './experimental/weighted-lru.ts'
+import { formatSvgNumber, formatSvgNumericAttribute } from './shared/svg-number.ts'
 import { estimatedResidency } from './experimental/cache-residency.ts'
 // ============================================================================
 // Theme system — CSS custom property-based theming for mermaid SVG diagrams.
@@ -418,8 +419,8 @@ export function svgOpenTag(
   const attrBlock = extraAttrs ? ` ${extraAttrs}` : ''
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
-    `width="${overrides?.width ?? width}" height="${overrides?.height ?? height}" style="${style}"${attrBlock}>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${formatSvgNumber(width)} ${formatSvgNumber(height)}" ` +
+    `width="${formatSvgNumericAttribute('width', String(overrides?.width ?? width))}" height="${formatSvgNumericAttribute('height', String(overrides?.height ?? height))}" style="${style}"${attrBlock}>`
   )
 }
 

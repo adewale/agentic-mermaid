@@ -1,4 +1,13 @@
+import { formatSvgNumericAttribute, SVG_LONG_DECIMAL } from './shared/svg-number.ts'
 import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
+
+/** Fallback for opaque family and extension SVG. Typed writers format their
+ * own numeric fields before serialization, so ordinary native output skips
+ * the lexical scan. Authored text and IDs are never numeric fields. */
+export function formatSvgNumbers(svg: string): string {
+  if (!SVG_LONG_DECIMAL.test(svg)) return svg
+  return transformSvgAttributes(svg, ({ name, value }) => formatSvgNumericAttribute(name, value))
+}
 
 /**
  * Post-process an SVG string into compact form:

@@ -116,7 +116,23 @@ function assertOutlines(
   const raw = backend.render(scene, backendContext)
   const rawCss = svgCssText(raw)
   const before = outlineElements(raw, rawCss), after = outlineElements(svg)
-  expect(after.map(element => element.key), `${context}: bind actual SVG primitives`).toEqual(before.map(element => element.key))
+  expect(after.length, `${context}: bind actual SVG primitives`).toBe(before.length)
+  after.forEach((element, index) => {
+    const actual: string[] = JSON.parse(element.key), expected: string[] = JSON.parse(before[index]!.key)
+    actual.forEach((value, field) => {
+      // Identity stays exact. Numeric fields may change decimal spelling at
+      // the public SVG boundary, within the writer's twelve-digit precision.
+      if (field === 0 || field >= 1 + GEOMETRY_ATTRIBUTES.indexOf('data-id')) {
+        expect(value, context).toBe(expected[field]!)
+        return
+      }
+      const numbers = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g
+      const a = value.match(numbers) ?? [], b = expected[field]!.match(numbers) ?? []
+      expect(value.replace(numbers, '#').replace(/[\s,]/g, ''), context).toBe(expected[field]!.replace(numbers, '#').replace(/[\s,]/g, ''))
+      expect(a.length, context).toBe(b.length)
+      a.forEach((token, number) => expect(Math.abs(Number(token) - Number(b[number])), context).toBeLessThanOrEqual(5e-12 * Math.max(Math.abs(Number(token)), Math.abs(Number(b[number])), Number.MIN_VALUE)))
+    })
+  })
   const starts = new Map<string, number[]>()
   before.forEach((element, index) => starts.set(element.key, [...(starts.get(element.key) ?? []), index]))
   const roles = new Set<string>()

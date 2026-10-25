@@ -13,17 +13,18 @@ import { hasDomSvgIdentityRole } from './identity.ts'
 import { serializeTransform } from './transforms.ts'
 import { connectorInlineLabelText } from './bounds.ts'
 import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 
 /** One append-only writer for a mark. Attribute emission does not allocate
  * arrays, one-element spread operands, or temporary `name="value"` strings.
- * JavaScript's string builder also preserves the public number spelling. */
+ * Numeric fields use the shared SVG spelling at this write boundary. */
 class SvgWriter {
   value = ''
 
   raw(text: string): void { this.value += text }
 
   attribute(name: string, value: string | number): void {
-    this.value += ` ${name}="${typeof value === 'number' ? value : escapeAttr(value)}"`
+    this.value += ` ${name}="${typeof value === 'number' ? formatSvgNumber(value) : escapeAttr(formatSvgNumericAttribute(name, value))}"`
   }
 }
 

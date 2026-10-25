@@ -48,6 +48,47 @@ function apply(d: QuadrantValidDiagram, op: QuadrantMutationOp): QuadrantValidDi
   return r.value
 }
 
+test('Quadrant header separators share the direct reader and public routing boundary', async () => {
+  const source = 'quadrantChart; A: [0.1, 0.2];; B: [0.3, 0.4];'
+  const expected = [{ label: 'A', x: 0.1, y: 0.2 }, { label: 'B', x: 0.3, y: 0.4 }]
+  expect(parseQuadrantChart([source]).points).toEqual(expected)
+  expect(quadrant(source).body.points).toEqual(expected)
+  expect(renderMermaidSVG(source)).toBe(renderMermaidSVG('quadrantChart\nA: [0.1, 0.2]\nB: [0.3, 0.4]'))
+  const upstream = startUpstreamMermaid()
+  try { expect(await upstream.accepts(source)).toBe(true) }
+  finally { upstream.close() }
+})
+
+test('semicolon-separated Quadrant statements retain quoted text, styles and editable points', async () => {
+  const source = `quadrantChart
+title Semicolons; stay in the title
+x-axis "Low; reach" --> High; quadrant-1 "Top; right"
+classDef hot radius: 8; "A; one":::hot: [0.1, 0.2]; B: [0.3, 0.4] radius: 12; C: [0.6, 0.7]; %% D: [0.9, 0.9]
+`
+  const diagram = quadrant(source)
+  expect(diagram.body.title).toBe('Semicolons; stay in the title')
+  expect(diagram.body.xAxis).toEqual({ near: 'Low; reach', far: 'High' })
+  expect(diagram.body.quadrants[0]).toBe('Top; right')
+  expect(diagram.body.classDefs).toEqual({ hot: { radius: 8 } })
+  expect(diagram.body.points).toEqual([
+    { label: 'A; one', x: 0.1, y: 0.2, className: 'hot' },
+    { label: 'B', x: 0.3, y: 0.4, style: { radius: 12 } },
+    { label: 'C', x: 0.6, y: 0.7 },
+  ])
+  const edited = apply(diagram, { kind: 'rename_point', from: 'B', to: 'Edited; B' })
+  const output = serializeMermaid(edited)
+  expect(quadrant(output).body).toEqual(edited.body)
+  expect(renderMermaidSVG(source)).toContain('A; one')
+  expect(renderMermaidASCII(source)).toContain('A; one')
+  const upstream = startUpstreamMermaid()
+  try {
+    expect(await upstream.accepts(source)).toBe(true)
+    expect(await upstream.accepts(output)).toBe(true)
+    expect(await upstream.project(output, value => value.db.getQuadrantData().points.map((point: { text: { text: string } }) => point.text.text).sort()))
+      .toEqual({ ok: true, value: ['A; one', 'C', 'Edited; B'] })
+  } finally { upstream.close() }
+})
+
 describe('quadrant structured parse', () => {
   test('quotes leading minus and semicolon text through editing and portable reload', async () => {
     const source = 'quadrantChart\n  x-axis - --> High\n  y-axis Low --> ;\n  quadrant-2 A;B\n  -point: [0.2, 0.8]\n'
