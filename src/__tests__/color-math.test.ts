@@ -5,12 +5,24 @@
  */
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
-import { parseHex, tryParseHex, tryParseCssColor, toHex, mixHex, isHexColor, isSixDigitHex, luma255 } from '../shared/color-math.ts'
+import { parseHex, tryParseHex, tryParseCssColor, toHex, mixHex, isHexColor, isSixDigitHex, luma255, ensureContrast } from '../shared/color-math.ts'
 
 const channel = fc.integer({ min: 0, max: 255 })
 const hexColor = fc.tuple(channel, channel, channel).map(([r, g, b]) => toHex(r, g, b))
 
 describe('shared color math', () => {
+  test.each([
+    ['#aaaaaa', '#ffffff', 4.5, undefined, '#767676'],
+    ['#777777', '#ffffff', 4.5, undefined, '#767676'],
+    ['#abc', '#fff', 7, undefined, '#525a62'],
+    ['#8888', '#888888', 3, '#fff', '#ececec'],
+    ['red', '#ffffff', 4.5, undefined, '#000000'],
+    [' #123456 ', '#123456', 7, undefined, '#b8c2cb'],
+    ['var(--ink)', '#ffffff', 4.5, undefined, 'var(--ink)'],
+  ] as const)('contrast adjustment retains the first rounded passing color for %s on %s', (candidate, background, minimum, fallback, expected) => {
+    expect(ensureContrast(candidate, background, minimum, fallback)).toBe(expected)
+  })
+
   test('parseHex ∘ toHex is the identity on channels', () => {
     fc.assert(fc.property(channel, channel, channel, (r, g, b) => {
       const [r2, g2, b2] = parseHex(toHex(r, g, b))
