@@ -116,11 +116,20 @@ Repeated `subgraph` IDs merge their members into one group, retaining the first 
 
 A later `state A { … }` block adds its states to the one composite A, as Mermaid 12.2 does; the body stays source-preserved. Three readings differ from Mermaid's, each chosen so the drawing keeps what the author wrote, as repeated Flowchart groups keep their first declaration:
 
-- **Placement.** A stays where its first block is. Mermaid moves A into the composite holding its last nested block, and a block at the top level never moves it back: `state A {…}` followed by `state P { state A {…} }` draws A inside P there and at the top level here.
+- **Placement.** A retains its first established scope: its first reference inside a composite, or its first block if no such reference preceded it. A root reference alone establishes no parent. Mermaid moves A into the composite holding its last nested block, and a block at the top level never moves it back: `state A {…}` followed by `state P { state A {…} }` draws A inside P there and at the top level here.
 - **Regions.** A block reopening a composite split by `--` continues its last region. Mermaid draws the reopened states directly in A, beside its regions.
 - **Direction.** The first block that sets a `direction` sets A's. Mermaid also keeps the first block's, but ignores a direction set only in a later block, which ours draws. In a composite split by `--`, the later block's direction sets the region it continues, as a direction written after the last `--` does.
 
-Labels follow the rule for a composite mentioned outside its block: a label in a later block, or a description or alias between blocks, labels A, and several are joined into its label and reported (`state_composite_description`), where Mermaid rejects them. A state reopened inside itself is still the author's duplicate identity, which layout refuses.
+Labels follow the rule for a composite mentioned outside its block: a label in a later block, or a description or alias between blocks, labels A, and several are joined into its label and reported (`state_composite_description`), where Mermaid rejects them. A state reopened inside itself is still the author's duplicate identity, which native parsing refuses; the editable API preserves its source as opaque.
+
+### Floating State notes retain their authored content
+
+Mermaid 12.2 accepts `note "text" as N` but drops it from its State database.
+We preserve N, its text and its composite or concurrent-region scope as a
+floating annotation. A note and a state with the same name remain separate
+identities. The typed body, edits, writer, SVG and terminal output retain the
+annotation; it participates in layout as a scoped object without an invented
+attachment to a state. Serialization uses the accepted quoted-note syntax.
 
 ### Mutation surface is intentionally narrower than Mermaid syntax
 
@@ -552,3 +561,14 @@ Those validation items remain in `TODO.md`.
 Valid empty Gantt templates render an explicit empty state while verification retains `EMPTY_DIAGRAM`. This deliberately differs from legacy imported no-task render-error expectations and does not fabricate a schedule. Repeated GitGraph commit labels retain all occurrences using separate public identities; source references resolve to the latest preceding occurrence, and an unexpressible typed cherry-pick is rejected. Explicit duplicate merge IDs remain errors. Strict rendering continues to reject raw Mermaid `themeCSS`, whose selectors can alter document geometry outside declarative Style and certified paint.
 
 State class/style assignments to undeclared targets remain pending authored directives and never create phantom nodes; later declarations and typed additions apply them. Lollipop Class endpoints retain independent interface occurrences and authored labels, distinct from ordinary classes with the same spelling. These repairs preserve source meaning rather than reproducing accidental data loss or inventing new diagram syntax.
+
+### Sequence wrapping geometry
+
+`wrap:` / `nowrap:` and the diagram wrap default are semantic controls, not
+displayed text. Agentic retains them through parsing and typed edits, including
+participant aliases, messages, notes, groups and fragment captions. The controls
+are read before entity decoding, so encoded control-looking text stays literal.
+Soft wrapping is measured in the output adapter: SVG uses a 240-pixel text budget
+and terminal rendering a 40-cell budget (or a smaller requested target). Authored
+line breaks survive `nowrap:`. Mermaid's renderer geometry is not the layout
+contract; text, explicit controls and their inheritance are.
