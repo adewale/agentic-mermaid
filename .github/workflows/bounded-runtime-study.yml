@@ -1,0 +1,247 @@
+name: Bounded consumed runtime assessment
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline-sha:
+        description: Exact source baseline (M for warm A; A for cold B)
+        type: string
+        required: true
+      candidate-sha:
+        description: Exact source candidate (A or B)
+        type: string
+        required: true
+      study-kind:
+        type: choice
+        options: [warm-a, cold-b]
+        default: warm-a
+      track-schedule:
+        type: choice
+        options: [peer-block-v1, paired-cold-ordinal-v1]
+        default: peer-block-v1
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      scopes: ${{ steps.design.outputs.scopes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - name: Freeze the declared source, scope and selection contract
+        id: design
+        env:
+          BASELINE_SOURCE: ${{ inputs.baseline-sha }}
+          CANDIDATE_SOURCE: ${{ inputs.candidate-sha }}
+          STUDY_KIND: ${{ inputs.study-kind }}
+          TRACK_SCHEDULE: ${{ inputs.track-schedule }}
+        run: |
+          set -euo pipefail
+          [[ "$BASELINE_SOURCE" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$CANDIDATE_SOURCE" =~ ^[a-f0-9]{40}$ ]]
+          case "$STUDY_KIND" in warm-a|cold-b) ;; *) exit 1;; esac
+          case "$TRACK_SCHEDULE" in peer-block-v1|paired-cold-ordinal-v1) ;; *) exit 1;; esac
+          mkdir -p bounded-packages
+          node --input-type=module <<'JS'
+          import { writeFileSync, appendFileSync } from 'node:fs'
+          const kind = process.env.STUDY_KIND
+          const phases = kind === 'warm-a' ? ['warm-new-source', 'exact-repeat'] : ['first-use']
+          const scopes = phases.flatMap(phase => ['svg-utf8', 'receipt-json-utf8'].flatMap(consumer => ['off', 'on'].map(cache => ({ phase, consumer, cache }))))
+          if (kind === 'cold-b') scopes.push({ phase: 'exact-repeat', consumer: 'receipt-json-utf8', cache: 'on' })
+          appendFileSync(process.env.GITHUB_OUTPUT, `scopes=${JSON.stringify(scopes)}\n`)
+          const totals = kind === 'warm-a' ? { timingClocks: 144720, allocationProbes: 2160, diagnosticReplays: 720, warmWorkers: 240, freshColdWorkers: 0 } : { timingClocks: 25650, allocationProbes: 1350, diagnosticReplays: 450, warmWorkers: 30, freshColdWorkers: 9000 }
+          writeFileSync('bounded-packages/design.json', JSON.stringify({ baselineSource: process.env.BASELINE_SOURCE, candidateSource: process.env.CANDIDATE_SOURCE, harnessRevision: process.env.GITHUB_SHA, kind, schedule: process.env.TRACK_SCHEDULE, scopes, workloads: ['flow5', 'seq20', 'ishikawa133'], rounds: 5, warmClocks: 201, coldClocks: 21, allocationProbes: 3, totals, reportOrder: ['aa-1', 'aa-2', 'candidate'], performanceQualified: false, selection: { improvement: 'paired median ratio < 1/(largest symmetric AA spread * 1.02); calibrated under unchanged maintained ceilings', aPrimary: ['seq20/warm-new-source/svg-utf8/off/allocation', 'ishikawa133/warm-new-source/receipt-json-utf8/off/allocation'], bPrimary: 'seq20/first-use/svg-utf8/off/allocation', bCorroboration: 'seq20/first-use/svg-utf8/on/allocation ratio < 1', retain: 'provisional only; at least one applicable primary improves and no calibrated mandatory regression', uncalibrated: 'unresolved; prevents full qualification', repeats: false } }, null, 2) + '\n')
+          JS
+      - name: Build both exact source archives once
+        env:
+          BASELINE_SOURCE: ${{ inputs.baseline-sha }}
+          CANDIDATE_SOURCE: ${{ inputs.candidate-sha }}
+        run: |
+          set -euo pipefail
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(node --version)" = v24.19.0
+          test "$(bun --version)" = 1.4.2
+          test "$(npm --version)" = 11.18.0
+          bun install --frozen-lockfile
+          for side in baseline candidate; do
+            source_sha="$BASELINE_SOURCE"
+            if [ "$side" = candidate ]; then source_sha="$CANDIDATE_SOURCE"; fi
+            git fetch --no-tags origin "$source_sha"
+            source_tree="$RUNNER_TEMP/bounded-runtime-$side"
+            git worktree add --detach "$source_tree" "$source_sha"
+            test "$(git -C "$source_tree" rev-parse HEAD)" = "$source_sha"
+            (
+              cd "$source_tree"
+              bun install --frozen-lockfile
+              bun run build
+              bun run scripts/ci/verify-publish-package.ts --pack-destination "$GITHUB_WORKSPACE/bounded-packages/$side/package"
+              git diff --exit-code
+              mkdir -p "$GITHUB_WORKSPACE/bounded-packages/$side/runtime-source"
+              cp bun.lock package.json "$GITHUB_WORKSPACE/bounded-packages/$side/runtime-source/"
+              jq -n --arg source "$source_sha" --arg harness "$GITHUB_SHA" --arg workflow "${GITHUB_WORKFLOW_SHA:-}" \
+                --arg archive "$(jq -er '.sha256' "$GITHUB_WORKSPACE/bounded-packages/$side/package/package-manifest.json")" \
+                '{sourceRevision:$source,harnessRevision:$harness,workflowRevision:$workflow,archiveSha256:$archive,performanceQualified:false}' \
+                > "$GITHUB_WORKSPACE/bounded-packages/$side/provenance.json"
+              closure="$GITHUB_WORKSPACE/bounded-packages/$side/closure"
+              mkdir -p "$closure"
+              node -p 'JSON.stringify(process.versions,null,2)' > "$closure/runtime.json"
+              bun --version > "$closure/bun-version.txt"
+              npm --version > "$closure/npm-version.txt"
+              node "$GITHUB_WORKSPACE/node_modules/publint/src/cli.js" --version > "$closure/publint-version.txt"
+              node "$GITHUB_WORKSPACE/node_modules/@arethetypeswrong/cli/dist/index.js" --version > "$closure/attw-version.txt"
+              cp dist/metafile-esm.json "$closure/metafile-esm.json"
+              cp scripts/build/browser-lazy-budgets.json "$closure/browser-lazy-budgets.json"
+              cap_exit=0
+              bun scripts/build/browser-lazy-report.ts --json > "$closure/browser-lazy-report.json" \
+                2> "$closure/browser-lazy-report.stderr.log" || cap_exit=$?
+              jq -n --argjson exit "$cap_exit" '{exit:$exit,retried:false}' > "$closure/browser-lazy-report-status.json"
+              test "$cap_exit" -eq 0
+              archive="$GITHUB_WORKSPACE/bounded-packages/$side/package/package.tgz"
+              integrity="$(jq -er '.integrity' "$GITHUB_WORKSPACE/bounded-packages/$side/package/package-manifest.json")"
+              bun run "$GITHUB_WORKSPACE/eval/benchmark/release-baseline.ts" \
+                --install "$archive" --prefix "$RUNNER_TEMP/closed-consumer-$side" \
+                --runtime-source "$source_tree" --out "$closure/runtime" --label "$side" \
+                --expected-integrity "$integrity" > "$closure/installation.json"
+              node "$GITHUB_WORKSPACE/eval/benchmark/installed-package-capture.mjs" \
+                "$RUNNER_TEMP/closed-consumer-$side/node_modules/agentic-mermaid" \
+                "$closure/installed.json.gz" > "$closure/consumer-capture.json"
+              node "$GITHUB_WORKSPACE/node_modules/publint/src/cli.js" run "$archive" --strict \
+                > "$closure/publint.log" 2>&1
+              node "$GITHUB_WORKSPACE/node_modules/@arethetypeswrong/cli/dist/index.js" \
+                "$archive" --profile esm-only --exclude-entrypoints ./browser --format json \
+                > "$closure/attw.json" 2> "$closure/attw.stderr.log"
+            )
+          done
+          cmp bounded-packages/baseline/runtime-source/package.json bounded-packages/candidate/runtime-source/package.json
+          cmp bounded-packages/baseline/runtime-source/bun.lock bounded-packages/candidate/runtime-source/bun.lock
+          node eval/benchmark/compare-installed-packages.mjs \
+            bounded-packages/baseline/closure/installed.json.gz \
+            bounded-packages/candidate/closure/installed.json.gz bounded-packages/closure-comparison
+      - name: Retain exact closed archives and frozen source policies
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: bounded-runtime-packages-${{ github.run_id }}
+          path: bounded-packages/
+          if-no-files-found: error
+          retention-days: 30
+
+  study:
+    needs: artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ matrix.phase == 'first-use' && 45 || 30 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.artifact.outputs.scopes) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: bounded-runtime-packages-${{ github.run_id }}
+          path: bounded-packages
+      - name: Reverify the frozen package and harness inputs
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          npm install -g npm@11.18.0 --ignore-scripts
+          test "$(node --version)" = v24.19.0
+          test "$(bun --version)" = 1.4.2
+          test "$(npm --version)" = 11.18.0
+          test "$(jq -er '.harnessRevision' bounded-packages/design.json)" = "$GITHUB_SHA"
+          for side in baseline candidate; do
+            (cd "bounded-packages/$side/package" && sha256sum --check package.sha256)
+            expected_source="$(jq -er '.baselineSource' bounded-packages/design.json)"
+            if [ "$side" = candidate ]; then expected_source="$(jq -er '.candidateSource' bounded-packages/design.json)"; fi
+            test "$(jq -er '.sourceRevision' "bounded-packages/$side/provenance.json")" = "$expected_source"
+            test "$(jq -er '.harnessRevision' "bounded-packages/$side/provenance.json")" = "$GITHUB_SHA"
+            test "$(jq -er '.archiveSha256' "bounded-packages/$side/provenance.json")" = "$(jq -er '.sha256' "bounded-packages/$side/package/package-manifest.json")"
+          done
+          cmp bounded-packages/baseline/runtime-source/package.json bounded-packages/candidate/runtime-source/package.json
+          cmp bounded-packages/baseline/runtime-source/bun.lock bounded-packages/candidate/runtime-source/bun.lock
+      - name: Acquire the fixed same-host A/A, A/A, A/B reports once
+        env:
+          STUDY_PHASE: ${{ matrix.phase }}
+          STUDY_CONSUMER: ${{ matrix.consumer }}
+          STUDY_CACHE: ${{ matrix.cache }}
+          TRACK_SCHEDULE: ${{ inputs.track-schedule }}
+        run: |
+          set -euo pipefail
+          bun run eval/benchmark/bounded-runtime-study.ts \
+            --baseline bounded-packages/baseline/package/package.tgz \
+            --baseline-sha256 "$(jq -er '.sha256' bounded-packages/baseline/package/package-manifest.json)" \
+            --candidate bounded-packages/candidate/package/package.tgz \
+            --candidate-sha256 "$(jq -er '.sha256' bounded-packages/candidate/package/package-manifest.json)" \
+            --runtime-source bounded-packages/baseline/runtime-source \
+            --phase "$STUDY_PHASE" --consumer "$STUDY_CONSUMER" --cache "$STUDY_CACHE" \
+            --schedule "$TRACK_SCHEDULE" --out bounded-result
+      - name: Retain every raw report, adverse observation and scorecard
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: bounded-runtime-scope-${{ github.run_id }}-${{ matrix.phase }}-${{ matrix.consumer }}-${{ matrix.cache }}
+          path: bounded-result/
+          if-no-files-found: error
+          retention-days: 30
+
+  selection:
+    needs: [artifact, study]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+      - run: bun install --frozen-lockfile
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: bounded-runtime-scope-${{ github.run_id }}-*
+          path: bounded-scopes
+      - name: Apply the predeclared provisional keep/drop rule
+        env:
+          STUDY_KIND: ${{ inputs.study-kind }}
+        run: |
+          mkdir -p bounded-selection
+          bun --eval '
+          const { readFileSync, writeFileSync, readdirSync } = await import("node:fs")
+          const { boundedRuntimeSelection } = await import("./eval/benchmark/bounded-runtime-study.ts")
+          try {
+            const cards = readdirSync("bounded-scopes").map(path => JSON.parse(readFileSync(`bounded-scopes/${path}/scorecard.json`, "utf8")))
+            const result = boundedRuntimeSelection(process.env.STUDY_KIND, cards)
+            writeFileSync("bounded-selection/selection.json", JSON.stringify(result, null, 2) + "\n")
+            if (!result.complete) process.exitCode = 1
+          } catch (error) {
+            writeFileSync("bounded-selection/selection.json", JSON.stringify({ complete: false, performanceQualified: false, error: String(error) }, null, 2) + "\n")
+            process.exitCode = 1
+          }
+          '
+      - name: Retain the whole declared selection without hiding unresolved cells
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: bounded-runtime-selection-${{ github.run_id }}
+          path: bounded-selection/
+          if-no-files-found: error
+          retention-days: 30

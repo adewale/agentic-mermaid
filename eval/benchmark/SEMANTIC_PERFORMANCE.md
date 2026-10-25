@@ -340,3 +340,54 @@ cell that was uncalibrated under blocked scheduling becomes calibrated, and no
 cell becomes newly uncalibrated. Otherwise retain `peer-block-v1` and report no
 demonstrated scheduling gain. Do not repeat this study. The fixed rule is also
 retained in `design.json`; neither outcome establishes a renderer improvement.
+
+## Bounded source selection before full qualification
+
+The separate **Bounded consumed runtime assessment** workflow builds each
+declared source once, closes its actual tarball with the maintained frozen
+installer, 276 complete installed outcomes, exports/errors/declarations/licences,
+tarball type tools and canonical lazy caps, then reuses those exact archives.
+Source/harness/archive provenance is checked before fresh installations and
+clocks. A single packed-report admission helper validates both bounded studies;
+packed SRI is `pins[].identity.integrity`, while registry-peer SRI is top-level.
+The first scheduler workflow's mistaken top-level check remains a preserved
+failed completion; corrected offline validation reads its original data.
+
+Warm A/M selection uses `flow5`, `seq20`, `ishikawa133`, both warm-new-source and
+exact-repeat, both complete consumers and both cache policies: eight isolated
+jobs. Each runs two independent baseline A/A reports followed once by A/B,
+five rounds, 201 individual clocks, three allocation probes and one complete
+diagnostic replay per side/case/round. Totals are 144,720 clocks, 2,160 allocation
+probes and 720 diagnostics. Each job has a 30-minute cap; each report has an
+8-minute watchdog, leaving time to retain failures. No truncated population can
+qualify. Retained selected-case clocks plus warmup cost 70–88 seconds per report;
+charging all historical full-report unattributed wall time to the subset gives
+less than 4.7 minutes per report. These estimates supply no runtime controls.
+
+Optional B/A selection isolates first-use conformance work: four cold scopes
+(both consumers/cache policies), plus one exact-repeat receipt/cache-ON guard.
+It has 7,560 cold clocks, 18,090 warm clocks, 1,350 allocation probes and 450
+diagnostic replays; the cold scopes launch 9,000 independent fresh workers.
+Cold jobs have a 45-minute cap and 12-minute report watchdog. The warm guard has
+the same 30/8-minute caps. Worker/render limits and numeric targets stay fixed.
+
+Improvement requires a paired median ratio below
+`1 / (largest symmetric A/A spread * 1.02)`, with the maintained calibration
+ceilings. A regression-budget pass is distinct. A's frozen primary allocation
+cells are Sequence20/warm-new-source/SVG/OFF and
+Ishikawa133/warm-new-source/full-receipt/OFF; at least one must improve. B's
+primary is Sequence20/first-use/SVG/OFF allocation, with the same ON cell's point
+direction below one. Any calibrated mandatory regression rejects retention.
+Retention remains provisional until full selected-source qualification.
+Uncalibrated cells remain unresolved and prevent full qualification. No report
+is repeated, primary moved, sample replaced or control borrowed between studies.
+B/A retention is conditional on A remaining selected. If A drops, B-on-M is a
+different unqualified source; no B/A gain or qualification transfers to it.
+The frozen M/A/B screens remain old-main hypotheses if upstream changes. Final
+source and dependency integration require fresh correctness and performance
+qualification after rebase; earlier parity does not transfer.
+
+The existing full 566-input release inventory, full browser occurrences and
+16-scope semantic campaign follow justified selection and a final artifact and
+harness freeze. Sequence300 remains in its maintained release fixture; these
+bounded studies add no Sequence300 timer, receipt contract or 2x claim.
