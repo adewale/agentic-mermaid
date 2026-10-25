@@ -209,7 +209,9 @@ test('Sequence geometry captured by a replaced native producer cannot poison lat
         reads.push('escaped coordinate')
         throw new Error('escaped caller geometry')
       } })
-      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+      let restored
+      assert.doesNotThrow(() => { restored = renderMermaidSVGWithReceipt(source, options) })
+      assert.deepEqual(restored, expected)
       assert.deepEqual(reads, [])
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
