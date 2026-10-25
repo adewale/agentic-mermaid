@@ -8,6 +8,8 @@ import { mcpDescribePayload } from '../../src/mcp/describe-payload.ts'
 import { HOSTED_TOOLS } from '../../src/mcp/hosted-server.ts'
 import { describeSdkPayload } from '../../src/mcp/sdk-discovery.ts'
 import { validateMcpToolArguments } from '../../src/mcp/tool-surface.ts'
+import type { ClassRelationKind } from '../../src/agent/types.ts'
+import { classRelationshipMeaning, stateFailureProblems, type StateFailureAddition } from './domain-meaning.ts'
 
 interface ToolProposal {
   tool: string
@@ -21,7 +23,7 @@ export interface HostedMcpExpectation {
   format?: 'text' | 'json' | 'facts'
   detail?: 'signatures' | 'fields'
   requiredFacts?: string[]
-  terminalStates?: string[]
+  stateFailure?: StateFailureAddition
   resultContains?: string[]
   classRelation?: {
     from: string
@@ -120,19 +122,16 @@ export function gradeHostedMcpRequest(text: string, expectation: HostedMcpExpect
           for (const token of expectation.resultContains ?? []) {
             if (!applied.source.includes(token)) problems.push(`result source does not contain ${JSON.stringify(token)}`)
           }
-          if (expectation.requiredFacts?.length || expectation.terminalStates?.length) {
+          if (expectation.requiredFacts?.length || expectation.stateFailure) {
             const parsed = parseRegisteredMermaid(applied.source)
             if (!parsed.ok) problems.push('mutation source does not parse for semantic checks')
             else {
               const checked = checkMermaid(parsed.value, expectation.requiredFacts ?? [])
               problems.push(...checked.missing.map(fact => `result lacks semantic fact: ${fact}`))
-              for (const id of expectation.terminalStates ?? []) {
-                const body = parsed.value.body
-                if (body.kind !== 'state' || !body.states.some(state => state.id === id)
-                  || !body.transitions.some(edge => edge.from === id && edge.to === '[*]')
-                  || body.transitions.some(edge => edge.from === id && edge.to !== '[*]')) {
-                  problems.push(`result must make ${id} terminal, with only an outgoing transition to [*]`)
-                }
+              if (expectation.stateFailure) {
+                const original = expectation.source === undefined ? undefined : parseRegisteredMermaid(expectation.source)
+                if (!original?.ok || original.value.body.kind !== 'state' || parsed.value.body.kind !== 'state') problems.push('failure-state addition requires the supplied and resulting State lifecycle')
+                else problems.push(...stateFailureProblems(original.value.body, parsed.value.body, expectation.stateFailure))
               }
             }
           }
@@ -142,7 +141,8 @@ export function gradeHostedMcpRequest(text: string, expectation: HostedMcpExpect
               problems.push('result source does not parse as a class diagram')
             } else {
               const expected = expectation.classRelation
-              const relation = parsed.value.body.relations.find(value => value.from === expected.from && value.to === expected.to && value.kind === expected.kind && (expected.label === undefined || value.label === expected.label))
+              const meaning = JSON.stringify(classRelationshipMeaning({ from: expected.from, to: expected.to, kind: expected.kind as ClassRelationKind, label: expected.label }))
+              const relation = parsed.value.body.relations.find(value => JSON.stringify(classRelationshipMeaning({ ...value, fromCardinality: undefined, toCardinality: undefined, label: expected.label === undefined ? undefined : value.label })) === meaning)
               if (!relation) {
                 problems.push(`result class diagram lacks ${expected.from} -> ${expected.to} ${expected.kind} relation`)
               }
@@ -172,7 +172,7 @@ if (import.meta.main) {
   delete process.env.AM_TRACE_LOG
   const outputDir = process.argv[2]
   const tool = process.argv[3]
-  if (!outputDir || !tool) throw new Error('usage: hosted-mcp-request.ts OUTPUT_DIR TOOL [--source TEXT | --source-file PATH] [--family ID] [--format text|json|facts] [--detail signatures|fields] [--result-contains text,text] [--fact EXACT_FACT] [--terminal-state ID] [--class-relation from,to,kind[,label]]')
+  if (!outputDir || !tool) throw new Error('usage: hosted-mcp-request.ts OUTPUT_DIR TOOL [--source TEXT | --source-file PATH] [--family ID] [--format text|json|facts] [--detail signatures|fields] [--result-contains text,text] [--fact EXACT_FACT] [--state-failure from,id,label] [--class-relation from,to,kind[,label]]')
   const sourceFile = option('--source-file')
   const sourceLiteral = option('--source')
   if (sourceFile && sourceLiteral !== undefined) throw new Error('use either --source or --source-file, not both')
@@ -185,6 +185,8 @@ if (import.meta.main) {
   if (classRelationParts.length !== 0 && (classRelationParts.length < 3 || classRelationParts.length > 4)) {
     throw new Error('--class-relation requires from,to,kind[,label]')
   }
+  const stateFailureParts = (option('--state-failure') ?? '').split(',')
+  if (option('--state-failure') !== undefined && (stateFailureParts.length !== 3 || stateFailureParts.some(value => !value))) throw new Error('--state-failure requires from,id,label')
   const result = gradeHostedMcpRequest(readFileSync(resolve(outputDir, 'output.md'), 'utf8'), {
     tool,
     ...(sourcePath ? { source: readFileSync(sourcePath, 'utf8') } : sourceLiteral !== undefined ? { source: sourceLiteral } : {}),
@@ -193,7 +195,7 @@ if (import.meta.main) {
     ...(detail ? { detail } : {}),
     resultContains: (option('--result-contains') ?? '').split(',').filter(Boolean),
     requiredFacts: process.argv.flatMap((value, index, args) => value === '--fact' && args[index + 1] ? [args[index + 1]!] : []),
-    terminalStates: process.argv.flatMap((value, index, args) => value === '--terminal-state' && args[index + 1] ? [args[index + 1]!] : []),
+    ...(option('--state-failure') !== undefined ? { stateFailure: { from: stateFailureParts[0]!, id: stateFailureParts[1]!, label: stateFailureParts[2]! } } : {}),
     ...(classRelationParts.length > 0
       ? {
           classRelation: {

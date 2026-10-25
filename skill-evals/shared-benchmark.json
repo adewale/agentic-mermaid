@@ -584,11 +584,11 @@
       "difficulty": "extended",
       "trigger_type": "explicit",
       "success_goals": ["outcome", "process", "efficiency"],
-      "prompt": "Use the attached state-diagram source. On hosted Agentic Mermaid MCP, add an unsuccessful terminal state named Failed and a transition labeled error from Processing into it, plus Failed --> [*] to make it terminal in one structured request. This uses known fields and no custom control flow. Show which embedded verification fields must pass before accepting returned source; do not fabricate a response. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
+      "prompt": "Use the attached state-diagram source. On hosted Agentic Mermaid MCP, add an unsuccessful terminal state named Failed and a transition labeled error from Processing into it, plus Failed --> [*] to make it terminal in one structured request. Retain every existing state, transition and label; make only the requested addition. This uses known fields and no custom control flow. Show which embedded verification fields must pass before accepting returned source; do not fabricate a response. End with one fenced JSON object containing exactly `{\"tool\": <selected tool>, \"arguments\": <argument object>}`.",
       "files": ["fixtures/mcp-state-failure/input.mmd"],
       "expected_behavior": ["Uses the direct mutate tool with an ordered ops array.", "Checks the mutate response's embedded verify result.", "Does not use execute for a straightforward declarative edit."],
       "assertions": [
-        { "name": "executable-mutation-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "mutate", "--source-file", "fixtures/mcp-state-failure/input.mmd", "--family", "state", "--fact", "state Failed", "--fact", "edge Processing -> Failed : error", "--fact", "edge Failed -> [*]", "--terminal-state", "Failed"], "severity": "critical", "oracle": "strong" },
+        { "name": "executable-mutation-request", "type": "script", "command": ["bun", "oracles/hosted-mcp-request.ts", "{output_dir}", "mutate", "--source-file", "fixtures/mcp-state-failure/input.mmd", "--family", "state", "--state-failure", "Processing,Failed,error"], "severity": "critical", "oracle": "strong" },
         { "name": "embedded-verification", "type": "contains_all", "values": ["verify.ok", "verify.warnings"] },
         { "name": "no-execute", "type": "excludes_any", "values": ["execute(code)", "mermaid.execute", "name: 'execute'", "\"name\": \"execute\""] }
       ],

@@ -55,8 +55,7 @@
       "family": "class",
       "directory": "class-payment",
       "requiredFacts": [
-        "class Receipt",
-        "relation PaymentService association Receipt"
+        "class Receipt"
       ],
       "preserveExcept": [],
       "forbiddenFacts": []

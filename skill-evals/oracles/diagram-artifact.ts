@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { describeMermaidFacts, parseRegisteredMermaid, verifyMermaid } from '../../src/agent/index.ts'
 import type { ParsedDiagram, RenderedLayout, VerifyResult } from '../../src/agent/types.ts'
 import data from '../artifact-expectations.json'
+import { classRelationshipMeaning, stateFailureProblems } from './domain-meaning.ts'
 
 interface Expectation {
   family: string
@@ -43,14 +44,16 @@ function verificationMeaning(verification: VerifyResult) {
   return { ok: verification.ok, warningCodes: codes, layout: layoutMeaning(verification.layout) }
 }
 
-/** Relationship declaration indexes are incidental in these graph families.
- * Their native records below retain markers, endpoint sides and multiplicity. */
+/** Native records below own relationship orientation/multiplicity and Pie
+ * insertion order; lexical fact indexes must not impose a second contract. */
 function semanticFacts(diagram: ParsedDiagram): string[] {
   return describeMermaidFacts(diagram).filter(fact => {
-    if (['flowchart', 'class', 'er', 'architecture', 'requirement', 'block'].includes(diagram.body.kind)) return !/^(?:edge|relation)#\d+ /.test(fact)
+    if (diagram.body.kind === 'class') return !/^relation(?:#\d+)? /.test(fact)
+    if (['flowchart', 'er', 'architecture', 'requirement', 'block'].includes(diagram.body.kind)) return !/^(?:edge|relation)#\d+ /.test(fact)
     if (diagram.body.kind === 'c4') return !/^interaction#/.test(fact)
     if (diagram.body.kind === 'sankey') return !/^link#/.test(fact)
     if (diagram.body.kind === 'quadrant') return !/^point#/.test(fact)
+    if (diagram.body.kind === 'pie') return !/^slice#/.test(fact)
     return true
   })
 }
@@ -123,8 +126,7 @@ function checkDomainEdit(actual: ParsedDiagram, original: ParsedDiagram): string
     count('classes', body.classes.length, before.classes.length + 1)
     count('class notes', body.notes.length, before.notes.length)
     count('class namespaces', body.namespaces?.length ?? 0, before.namespaces?.length ?? 0)
-    const relation = (value: (typeof body.relations)[number]) => fields(value, ['from', 'to', 'kind', 'label', 'lineStyle', 'fromCardinality', 'toCardinality', 'markerAt', 'fromKind', 'toKind'])
-    compare('class relationships', body.relations.map(relation), [...before.relations, { ...before.relations[0]!, to: 'Receipt', label: undefined }].map(relation))
+    compare('class relationships', body.relations.map(classRelationshipMeaning), [...before.relations, { from: 'PaymentService', to: 'Receipt', kind: 'association' as const }].map(classRelationshipMeaning))
     for (const original of before.classes) count(`members of ${original.id}`, body.classes.find(value => value.id === original.id)?.members.length ?? -1, original.members.length)
   } else if (body.kind === 'er' && before.kind === 'er') {
     count('ER entities', body.entities.length, before.entities.length + 1)
@@ -147,10 +149,7 @@ function checkDomainEdit(actual: ParsedDiagram, original: ParsedDiagram): string
       ].map(edge),
     )
   } else if (body.kind === 'state' && before.kind === 'state') {
-    const state = (value: (typeof body.states)[number]) => [value.id, value.label ?? null, value.stereotype ?? null, !!value.states, !!value.regions]
-    compare('state identities and scope', body.states.map(state), [...before.states, { id: 'Failed' }].map(state))
-    const transition = (value: (typeof body.transitions)[number]) => fields(value, ['from', 'to', 'label'])
-    compare('state transitions', body.transitions.map(transition), [...before.transitions, { from: 'Processing', to: 'Failed', label: 'error' }, { from: 'Failed', to: '[*]' }].map(transition))
+    problems.push(...stateFailureProblems(before, body, { from: 'Processing', id: 'Failed', label: 'error' }))
   } else if (body.kind === 'kanban' && before.kind === 'kanban') {
     const parser = before.columns.flatMap(column => column.tasks).find(task => task.sourceId === 'parser')!
     const expected = before.columns.map(column => ({ ...column, tasks: column.sourceId === 'done' ? [...column.tasks, parser] : column.tasks.filter(task => task !== parser) }))
@@ -230,7 +229,11 @@ function checkDomainEdit(actual: ParsedDiagram, original: ParsedDiagram): string
     count('radar axes', body.axes.length, before.axes.length + 1)
     count('radar curves', body.curves.length, before.curves.length + 1)
   } else if (body.kind === 'pie' && before.kind === 'pie') {
-    count('pie slices', body.slices.length, before.slices.length + 1)
+    const added = body.slices.filter(slice => slice.label === 'PDF')
+    count('PDF slices', added.length, 1)
+    if (added.some(slice => slice.value !== 10)) problems.push('PDF must have value 10')
+    const slice = (value: (typeof body.slices)[number]) => [value.label, value.value]
+    compare('ordered original pie slices', body.slices.filter(slice => slice.label !== 'PDF').map(slice), before.slices.map(slice), true)
   }
   return problems
 }
