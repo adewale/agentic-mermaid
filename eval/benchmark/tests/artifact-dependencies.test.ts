@@ -21,6 +21,18 @@ function fixture() {
   return { directory, root, install }
 }
 describe('actual installed dependency closure', () => {
+  test.each(['dependencies', 'optionalDependencies', 'peerDependencies'])('retains empty legacy %s arrays as no edges but rejects nonempty arrays', field => {
+    const f = fixture()
+    f.install(f.root, 'candidate', { dependencies: { legacy: '*' } })
+    const legacy = f.install(join(f.root, 'node_modules/legacy'), 'legacy', { [field]: [] })
+    const admitted = captureInstalledDependencyClosure(f.root)
+    expect(admitted.nodes).toHaveLength(1)
+    expect(admitted.edges.map(edge => edge.name)).toEqual(['legacy'])
+    expect(admitted.nodes[0]?.manifest[field]).toEqual([])
+    f.install(legacy, 'legacy', { [field]: ['unbound-dependency'] })
+    expect(() => captureInstalledDependencyClosure(f.root)).toThrow(`Invalid ${field}`)
+  })
+
   test('captures same-version implementation changes without relying on a lockfile or hashing the candidate', () => {
     const f = fixture()
     f.install(f.root, 'candidate', { dependencies: { peer: '^1.0.0' } })

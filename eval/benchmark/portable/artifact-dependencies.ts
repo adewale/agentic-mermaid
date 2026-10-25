@@ -49,6 +49,9 @@ const text = (value: unknown): string | null => (typeof value === 'string' ? val
 function declarations(manifest: Manifest): { name: string; kind: DependencyKind; requested: string; optional: boolean }[] {
   const entries = (key: string) => {
     const value = manifest[key] ?? {}
+    // Legacy npm packages (for example Jison's underscore dependency) published
+    // empty arrays. They declare no edges; preserve the original manifest.
+    if (Array.isArray(value) && value.length === 0) return {}
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error(`Invalid ${key} in installed package manifest`)
     const result = value as Record<string, unknown>
     for (const [name, range] of Object.entries(result)) {
