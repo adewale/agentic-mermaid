@@ -56,15 +56,21 @@ source population on one side.
 Actual warmup calls, elapsed time and completion are retained per observation.
 A failed or incomplete warmup remains an error; it cannot supply a numeric pass.
 Warmup, timing, allocation and diagnostics have separate ordinal counters and
-short authored-label/identifier namespaces. Warmup cycles a fixed 20-variant
-input working set, so faster priming cannot expand the input population. Timed
-source `q1`/`v1_*` therefore
+short authored-label/identifier namespaces. New-source and label-edit warmup
+advance fresh ordinals on every call, exercising the same source-miss path as
+timing instead of priming repeated hits on a 20-variant working set. Faster
+priming can therefore consume more distinct warmup inputs; its actual call count
+remains recorded. Independent counters ensure that timed source `q1`/`v1_*`
 starts identically across peers regardless of how many warm calls fit in the
 elapsed interval. Warmup uses `w*`, allocation `a*`, and diagnostics `d*`, so a
 warm source cannot prime a measured new-source/edit input. Allocation and
 diagnostic inputs also stay identical across sides when timing hits a deadline.
 Exact-repeat and first-use deliberately retain original bytes in every stream.
-Raw calls record their domain; the domain policy enters the control fingerprint.
+Raw calls record their domain; the domain policy and
+`warmupSources: fresh-edit-ordinals-v1` enter the control fingerprint. Controls
+from the earlier cyclic priming policy cannot qualify this method. This fixes
+the priming workload mismatch; it does not establish stationary tails or claim
+that calibration is resolved.
 The privately created UTF-8 Buffer is consumed by indexed reads. Earlier
 for-of traversal could retain about one iterator-result allocation per byte,
 depending on V8 optimization, producing a 3.82 MB same-package artifact in
