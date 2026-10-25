@@ -12,7 +12,7 @@ jobs:
       contents: read
       actions: write
     steps:
-      - name: Retain superseded contrast evidence and qualify the compact exact head
+      - name: Qualify unchanged renderer with indexed UTF-8 consumer and complete populations
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -21,7 +21,7 @@ jobs:
             gh api --method POST repos/adewale/agentic-mermaid/actions/runs/40155781943/cancel || test "$(gh api repos/adewale/agentic-mermaid/actions/runs/40155781943 --jq .status)" = completed
           fi
           head="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-qualification-20261025 --jq .object.sha)"
-          test "$head" = e20e185e1a7a3e70375e43d6d67deb2af370b96b
+          test "$head" = c7fa0ad3384157032dd65b60ca22a246658c00e0
           runtime="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-search-reuse-20261025 --jq .object.sha)"
           test "$runtime" = 35030ff3fb4d3f5c80bb975bc5019886d5eb2558
           gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
