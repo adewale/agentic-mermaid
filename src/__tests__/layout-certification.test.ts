@@ -300,7 +300,7 @@ describe('bounded final layout certification', () => {
       calls = 0
       const crossing = layoutGraphSync(parseMermaid('flowchart TD\nA[Start] --> B{Is it?}\nB -->|Yes| C[OK]\nC --> D[Rethink]\nD --> B\nB ---->|No| E[End]'))
       expect(calls).toBe(1)
-      expect(crossing.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
+      expect(crossing.certification?.preference.compared).toHaveLength(1)
       calls = 0
       const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2'))
       // A distinct route proposal may reuse the same placement even when no
@@ -310,18 +310,33 @@ describe('bounded final layout certification', () => {
     } finally { firstPass.run = run }
   })
 
-  test('a real small crossing graph compares one alternate hierarchy and records its routing trade-off', () => {
+  test('a real crossing graph bounds placement and route comparisons while retaining authored endpoints', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
-    const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
-    expect(positioned.certification).toMatchObject({ strategy: 'separate-hierarchy', attempts: 2 })
-    expect(preference).toMatchObject({
-      reason: 'totalBends', selectedScore: { edgeCrossings: 0, totalBends: 4 },
-      routing: { strategy: 'without-generic-bundling', preference: { reason: 'edgeCrossings' } },
-    })
-    expect(preference.compared[0]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 4 })
-    expect(preference.compared[1]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 3 })
-    expect(preference.selectedScore).toEqual(preference.routing!.preference.selectedScore)
-    expect(preference.selectedScore.area).toBeGreaterThan(preference.compared[0]!.score.area)
+    const positioned = layoutGraphSync(graph), certification = positioned.certification!, preference = certification.preference
+    expect(certification).toMatchObject({ status: 'passed', attempts: 2, hardViolations: 0 })
+    expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
+    expect(positioned.edges.map(edge => [edge.source, edge.target, edge.label ?? null]).sort()).toEqual([
+      ['a1', 'a2', null], ['b1', 'b2', null], ['c1', 'a2', null], ['c1', 'c2', null],
+      ['one', 'two', null], ['three', 'two', null], ['two', 'c2', null],
+    ])
+    expect(positioned.groups.map(group => ({ id: group.id, nodes: group.nodeIds?.toSorted() })).sort((a, b) => a.id.localeCompare(b.id))).toEqual([
+      { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
+    ])
+    expect(preference.compared).toHaveLength(2)
+    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
+    const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
+    expect(placement).toBeDefined()
+    const routing = preference.routing!
+    expect(routing).toBeDefined()
+    expect(routing.preference.compared).toHaveLength(2)
+    expect(new Set(routing.preference.compared.map(candidate => candidate.strategy)).size).toBe(2)
+    expect(routing.preference.compared.find(candidate => candidate.strategy === 'bundled')?.score).toEqual(placement!.score)
+    const selectedRoute = routing.preference.compared.find(candidate => candidate.strategy === routing.strategy)
+    expect(selectedRoute).toBeDefined()
+    expect(preference.selectedScore).toEqual(selectedRoute!.score)
+    expect(preference.selectedScore).toEqual(routing.preference.selectedScore)
+    // This fixture has no title-band projection: its score describes this canvas.
+    expect(preference.selectedScore.area).toBeCloseTo(positioned.width * positioned.height, 5)
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {
