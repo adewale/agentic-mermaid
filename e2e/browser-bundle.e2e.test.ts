@@ -593,7 +593,8 @@ describe('async family-loaded browser renderer', () => {
     const source = mode === 'refined-cycle' ? readFileSync(join(REPO, 'eval/layout-compare/fixtures/cyclic-labelled-15.mmd'), 'utf8')
       : mode === 'large-cross-scope' ? releaseBenchCases().find(input => input.id === 'flowchart:subgraphs-12x8')!.source
       : mode === 'frame-endpoint' ? 'flowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOutside --> Inner'
-      : mode === 'compound' ? '---\ntitle: Deferred providers\n---\nflowchart TD\nsubgraph Outer\n subgraph Inner\n  A["x#hearts;y"] --> B\n end\nend\nOuter --> A'
+      // Keep the compound fallback beyond the unchanged private-rank limit.
+      : mode === 'compound' ? `---\ntitle: Deferred providers\n---\nflowchart LR\nsubgraph Outer\n A["x#hearts;y"]\nend\nOuter ${'-'.repeat(2049)}> A`
       : `flowchart TD\n${mode === 'cross-scope' ? 'Outside --> A\nsubgraph G[Group]\n' : ''}A["x#hearts;y"] ${mode === 'local-limit' ? '-'.repeat(2050) + '>' : '-->'} B${mode === 'cross-scope' ? '\nend' : ''}`
     const options = {
       graphLayout: { backend: 'agentic' as const, ...(fallback ? { fallback: 'elk' as const } : {}) },
