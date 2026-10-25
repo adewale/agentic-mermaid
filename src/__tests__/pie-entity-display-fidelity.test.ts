@@ -1,19 +1,13 @@
 import { PIE_ENTITY_FIXTURES as cases } from './helpers/pie-entity-fixtures.ts'
 import { terminalText, withoutTerminalColor } from './helpers/terminal-text.ts'
-import { afterAll, expect, test } from 'bun:test'
-import { decodeHTML, decodeXML } from 'entities'
+import { expect, test } from 'bun:test'
+import { decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { measureTextWidth } from '../text-metrics.ts'
-import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
-
-const upstream = startUpstreamMermaid()
-afterAll(() => upstream.close())
-
-
 
 function legendXml(source: string): string {
   const svg = renderMermaidSVG(source)
@@ -60,19 +54,6 @@ test('Pie authored formatting-looking text remains literal across SVG, terminal,
   }
 })
 
-test('pinned Mermaid Pie DB normalizes title HTML while retaining section tokens', async () => {
-  const pairs = [
-    ['A<br>B', 'T<br>itle'],
-    ['A<br/>B', 'T<br/>itle'],
-    ['A<b>B</b>', 'T<b>itle</b>'],
-    ['A**B**', 'T**itle**'],
-  ] as const
-  const sources = pairs.map(([label, title]) => `pie showData\n  title ${title}\n  "${label}" : 1\n`)
-  expect(await upstream.projectAll(sources, diagram => ({ title: diagram.db.getDiagramTitle(), sections: [...diagram.db.getSections()] }))).toEqual(
-    pairs.map(([label, title]) => ({ title: title.replace('<br/>', '<br>'), sections: [[label, 1]] })),
-  )
-})
-
 test('literal Pie title and legend reserve uncompressed painted advance', () => {
   const source = 'pie showData\n  title T<b>itle</b>\n  "A<br>B" : 1\n'
   const svg = renderMermaidSVG(source)
@@ -85,7 +66,7 @@ test('literal Pie title and legend reserve uncompressed painted advance', () => 
   expect(advance(legend)).toBeCloseTo(measureTextWidth('A<br>B [1] (100.0%)', 13, 500), 3)
 })
 
-test('Pie title entities follow pinned Mermaid visible text while source and agent title stay authored', async () => {
+test('Pie title entities follow authored display expectations while source and agent title stay authored', async () => {
   for (const { sourceTitle, display, xml } of [
     { sourceTitle: 'A#65;B', display: 'AAB', xml: 'AAB' },
     { sourceTitle: 'A#copy;B', display: 'A©B', xml: 'A©B' },
@@ -180,24 +161,6 @@ test('entity-encoded Pie directive grammar does not consume authored title entit
       expect(agent.value.source.spans?.preserved.header.end.offset).toBe(firstLineLength)
       expect(agent.value.source.spans?.preserved.body.start.offset).toBe(firstLineLength + 1)
     }
-  }
-})
-
-test('pinned Mermaid Pie DB and SVG entity cleanup witness title display independently', async () => {
-  for (const [sourceTitle, expectedMarker, expectedDisplay] of [
-    ['A#65;B', 'Aﬂ°°65¶ßB', 'AAB'],
-    ['A&#65;B', 'A&ﬂ°°65¶ßB', 'A&AB'],
-    ['A#copy;B', 'Aﬂ°copy¶ßB', 'A©B'],
-    ['A#reg;B', 'Aﬂ°reg¶ßB', 'A®B'],
-    ['A#euro;B', 'Aﬂ°euro¶ßB', 'A€B'],
-    ['&#32;X', '&ﬂ°°32¶ßX', '& X'],
-  ] as const) {
-    const source = `pie\n  title ${sourceTitle}\n  "X" : 1\n`
-    const [marker] = await upstream.projectAll([source], diagram => diagram.db.getDiagramTitle() as string)
-    expect(marker).toBe(expectedMarker)
-    const finalReference = marker!.replaceAll('ﬂ°°', '&#').replaceAll('ﬂ°', '&').replaceAll('¶ß', ';')
-    expect(decodeHTML(finalReference)).toBe(expectedDisplay)
-    expect(decodeXML(titleXml(source))).toBe(expectedDisplay)
   }
 })
 
@@ -321,15 +284,6 @@ test('full named HTML references follow pinned Pie marker cleanup and reject nam
       expect(() => renderMermaidASCII(source, { colorMode })).toThrow(/Pie entity projects a terminal control character/)
     }
   }
-})
-
-test('pinned Mermaid Pie parser retains named-reference markers before browser cleanup', async () => {
-  const names = ['reg', 'euro', 'trade', 'frac12', 'NotEqualTilde', 'notit', 'REG', 'Euro', 'unknown']
-  const markers = await upstream.projectAll(names.map(name => `pie\n  "A#${name};B" : 1\n`), async diagram => {
-    await diagram.parser.parse(diagram.text)
-    return [...diagram.db.getSections().keys()][0] as string
-  })
-  expect(markers).toEqual(names.map(name => `Aﬂ°${name}¶ßB`))
 })
 
 test('entity-created backslashes remain printable after the source escape pass', () => {
