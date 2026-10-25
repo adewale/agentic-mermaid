@@ -1016,7 +1016,7 @@ async function main(): Promise<void> {
           const entry = prepared.find(entry => entry.peer.id === peer)!
           const fragments = await runTrackProcess(entry, group.ids, track, { scratch, bundle, timing, sources: trackSources, expectedLabels: trackExpected, elkCache, rawSamples }, group)
           rows.get(peer)!.push(...fragments)
-          if (fragments.some(row => row.status === 'unsupported')) unavailable.add(key)
+          if (entry.error || !entry.peer.svg || entry.peer.runtime !== 'node' || fragments.some(row => row.status === 'unsupported')) unavailable.add(key)
         }
         for (const entry of prepared) {
           const observations = combineColdTrackRows(entry.peer.id, trackWorkloads, track, rows.get(entry.peer.id)!)

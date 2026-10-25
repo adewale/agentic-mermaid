@@ -322,3 +322,12 @@ The scheduling comparison tests the cross-family first-use drift seen in the
 frozen campaign; it does not remove GC calls, select late windows, change targets
 or transfer controls between schedules. A source or method change still needs
 fresh complete matching controls before a final acquisition can qualify.
+
+The selection rule is frozen before dispatch. For each schedule, use the largest
+symmetric A/A ratio across both reports' five rounds for each case/metric, with
+the maintained p50/p95/allocation ceilings of 1.15/1.25/1.10. Select the paired
+schedule provisionally only if all nine cells calibrate, at least one latency
+cell that was uncalibrated under blocked scheduling becomes calibrated, and no
+cell becomes newly uncalibrated. Otherwise retain `peer-block-v1` and report no
+demonstrated scheduling gain. Do not repeat this study. The fixed rule is also
+retained in `design.json`; neither outcome establishes a renderer improvement.

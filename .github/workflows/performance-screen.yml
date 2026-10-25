@@ -96,7 +96,7 @@ jobs:
           cp study-artifact/provenance.json scheduler-study/
           node -p 'JSON.stringify(process.versions,null,2)' > scheduler-study/runtime.json
           jq -n --arg source "$STUDY_SOURCE_SHA" --arg harness "$GITHUB_SHA" \
-            '{sourceRevision:$source,harnessRevision:$harness,status:"prepared",complete:false,performanceQualified:false,scope:"partial diagnostic same-archive controls",order:["blocked-aa1","paired-aa1","paired-aa2","blocked-aa2"],workloads:["flow5","seq20","requirement100"],phase:"first-use",consumer:"svg-utf8",cache:"on",rounds:5,clocksPerCaseSideRound:21,allocationProbesPerCaseSideRound:3,diagnosticWorkersPerCaseSideRound:1,plannedClocks:2520,plannedAllocationProbes:360,plannedDiagnosticWorkers:120,targetsChanged:false}' \
+            '{sourceRevision:$source,harnessRevision:$harness,status:"prepared",complete:false,performanceQualified:false,scope:"partial diagnostic same-archive controls",order:["blocked-aa1","paired-aa1","paired-aa2","blocked-aa2"],workloads:["flow5","seq20","requirement100"],phase:"first-use",consumer:"svg-utf8",cache:"on",rounds:5,clocksPerCaseSideRound:21,allocationProbesPerCaseSideRound:3,diagnosticWorkersPerCaseSideRound:1,plannedClocks:2520,plannedAllocationProbes:360,plannedDiagnosticWorkers:120,targetsChanged:false,methodSelection:{maximumSymmetricSpread:{p50:1.15,p95:1.25,allocation:1.10},pairedMustCalibrateAllNineCells:true,mustRemoveBlockedUncalibratedLatencyCell:true,noNewUncalibratedCell:true,otherwise:"retain peer-block-v1; no demonstrated method gain",repeatStudy:false}}' \
             > scheduler-study/design.json
       - name: Acquire each declared report once, retaining every outcome
         run: |
@@ -126,25 +126,22 @@ jobs:
       - name: Record population completeness without a qualification claim
         if: always()
         run: |
-          node --input-type=module <<'JS'
-          import { readFileSync, writeFileSync } from 'node:fs'
-          const expected = ['blocked-aa1', 'paired-aa1', 'paired-aa2', 'blocked-aa2']
-          const reports = expected.map(id => {
-            try {
-              const report = JSON.parse(readFileSync(`scheduler-study/${id}.json`, 'utf8'))
-              const execution = JSON.parse(readFileSync(`scheduler-study/${id}-execution.json`, 'utf8'))
-              const rows = report.tracks?.observations ?? []
-              const clocks = rows.reduce((n, row) => n + row.callSamplesMs.length, 0)
-              const probes = rows.reduce((n, row) => n + row.allocationSamplesBytes.length, 0)
-              const diagnostics = rows.filter(row => row.diagnostics?.complete).length
-              const complete = execution.exit === 0 && report.status === 'completed' && rows.length === 30 && clocks === 630 && probes === 90 && diagnostics === 30 && rows.every(row => row.status === 'ok' && row.callSamplesMs.length === 21 && row.allocationSamplesBytes.length === 3)
-              return { id, runId: report.runId, complete, clocks, probes, completedDiagnostics: diagnostics }
-            } catch (error) { return { id, complete: false, error: String(error) } }
-          })
-          const complete = reports.every(report => report.complete) && new Set(reports.map(report => report.runId)).size === 4
-          writeFileSync('scheduler-study/completion.json', JSON.stringify({ complete, performanceQualified: false, scope: 'partial diagnostic same-archive controls', reports }, null, 2) + '\n')
-          if (!complete) process.exitCode = 1
-          JS
+          bun --eval '
+          const { readFileSync, writeFileSync } = await import("node:fs")
+          const { validateSchedulerStudy } = await import("./eval/benchmark/scheduler-study-validation.ts")
+          try {
+            const design = JSON.parse(readFileSync("scheduler-study/design.json", "utf8"))
+            const provenance = JSON.parse(readFileSync("scheduler-study/provenance.json", "utf8"))
+            if (design.sourceRevision !== provenance.sourceRevision || design.harnessRevision !== provenance.harnessRevision) throw new Error("Study source/harness provenance differs from declared design")
+            const entries = design.order.map(id => ({ id, report: JSON.parse(readFileSync(`scheduler-study/${id}.json`, "utf8")), execution: JSON.parse(readFileSync(`scheduler-study/${id}-execution.json`, "utf8")) }))
+            const result = validateSchedulerStudy(design, provenance.archiveSha256, entries)
+            writeFileSync("scheduler-study/completion.json", JSON.stringify(result, null, 2) + "\n")
+            if (!result.complete) process.exitCode = 1
+          } catch (error) {
+            writeFileSync("scheduler-study/completion.json", JSON.stringify({ complete: false, performanceQualified: false, error: String(error) }, null, 2) + "\n")
+            process.exitCode = 1
+          }
+          '
       - name: Retain all method populations and acquisition receipts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
