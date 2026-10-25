@@ -12,14 +12,14 @@ jobs:
       contents: read
       actions: write
     steps:
-      - name: Dispatch complete calibrated semantic campaign against pinned main
+      - name: Dispatch full contrast candidate qualification while retaining scanner campaign
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          head="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/cold-peer-calibration --jq .object.sha)"
-          test "$head" = 1da0ca7d91d351184eec56ff8c31b93496386a28
-          runtime="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/native-construction-performance --jq .object.sha)"
-          test "$runtime" = 2ad2d56da931d5aed16d3322c3f2220a0a70de46
+          head="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-qualification-20261025 --jq .object.sha)"
+          test "$head" = 97949e6299ee5714743b1d1e1b835ab659bcdae2
+          runtime="$(gh api repos/adewale/agentic-mermaid/git/ref/heads/codex/contrast-search-reuse-20261025 --jq .object.sha)"
+          test "$runtime" = 187554c5ab174dc86b9ad44d37fdcfbd7e0f07ff
           gh api --method POST repos/adewale/agentic-mermaid/actions/workflows/release-benchmark.yml/dispatches --input - <<'JSON'
-          {"ref":"codex/cold-peer-calibration","inputs":{"evidence-scope":"all","baseline-ref":"9b64b5f42a8260696052f8218fccfacd8ae44b80","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
+          {"ref":"codex/contrast-qualification-20261025","inputs":{"evidence-scope":"all","baseline-ref":"9b64b5f42a8260696052f8218fccfacd8ae44b80","fixed-baseline-sha":"2cff725d219c75b75593b1d3e9bacd74cba7a08e"}}
           JSON
