@@ -1,3 +1,4 @@
+import { parseClassLikeStyleProps } from './shared/class-like-style.ts'
 import { scanStateComments } from './state/comment.ts'
 import { readStateLabel, readStateText } from './state/text.ts'
 import { resolveStateIdentities, type StateIdentities } from './state/identity.ts'
@@ -872,7 +873,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateClassDefMatch = line.match(STATE_CLASS_DEF_RE)
     if (stateClassDefMatch) {
       const names = stateClassDefMatch[1]!.split(',').map(name => name.trim()).filter(Boolean)
-      const props = parseStyleProps(stateClassDefMatch[2]!)
+      const props = parseClassLikeStyleProps(stateClassDefMatch[2]!)
       for (const name of names) {
         graph.classDefs.set(name, props)
         if (parserObservationActive('state')) observeParserMutation('state', 'define-class', { name, props })
@@ -894,7 +895,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateInlineStyle = line.match(STATE_STYLE_RE)
     if (stateInlineStyle) {
       const ids = stateInlineStyle[1]!.split(',').map(id => id.trim()).filter(Boolean)
-      const props = parseStyleProps(stateInlineStyle[2]!)
+      const props = parseClassLikeStyleProps(stateInlineStyle[2]!)
       for (const id of ids) {
         graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
         if (parserObservationActive('state')) observeParserMutation('state', 'set-node-style', { id, props: graph.nodeStyles.get(id) })

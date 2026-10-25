@@ -5,7 +5,7 @@ import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibil
 import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
-import { parseStyleProps } from '../shared/style-props.ts'
+import { parseClassLikeStyleProps } from '../shared/class-like-style.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { classInterfaceSide, createClassInterfaceAllocator } from './interface-occurrences.ts'
 import { classTextLabel, decodeClassText } from './text.ts'
@@ -484,7 +484,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   const classDef = text.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
   if (classDef) {
-    const props = parseStyleProps(withoutStyleComment(classDef[2]!))
+    const props = parseClassLikeStyleProps(withoutStyleComment(classDef[2]!))
     if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props }
   }
   const assignment = text.match(/^(class|cssClass)\s+(.+?)\s+([\w-]+)$/)
@@ -505,7 +505,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const style = text.match(/^style\s+(.+?)\s+(.+)$/)
   if (style) {
     const refs = references(style[1]!)
-    const props = parseStyleProps(withoutStyleComment(style[2]!))
+    const props = parseClassLikeStyleProps(withoutStyleComment(style[2]!))
     if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props }
   }
   const annotation = parseClassAnnotationStatement(text)

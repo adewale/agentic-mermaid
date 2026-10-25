@@ -1,12 +1,20 @@
 // Phase C: structured class diagram support.
 
 import { describe, expect, test } from 'bun:test'
+import { decodeHTML } from 'entities'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
 import { applyOps, asClass, mutate, mutateChecked, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, renderMermaidASCII, serializeMermaid, verifyMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { renderMermaidSVG as renderSourceSVG, renderMermaidASCII as renderSourceASCII } from '../index.ts'
 import type { ClassMutationOp } from '../agent/types.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+// Independent consumer projection: Mermaid resolves DB markers in HTML.
+function logicalStyle(field: string): string {
+  const decoded = decodeHTML(field.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_token, numeric, named) => numeric ? `&#${numeric};` : `&${named};`))
+  const colon = decoded.indexOf(':')
+  return `${decoded.slice(0, colon).trim()}:${decoded.slice(colon + 1).trim()}`
+}
 
 const parse = (s: string) => {
   const r = parseMermaid(s)
@@ -179,10 +187,10 @@ note for A "A \"quote\" and \\ path"`)
 
   test('Class functional paints retain exact channel tokens and alpha through construction and actual renderer data', async () => {
     const paints = [
-      ['rgb(1,2,3)', 'rgb(1 2 3)'],
-      ['rgba(1.125,2.25,3.5,.375)', 'rgba(1.125 2.25 3.5 / .375)'],
-      ['hsl(.125turn,20.25%,30.5%)', 'hsl(.125turn 20.25% 30.5%)'],
-      ['hsla(10.125,20.25%,30.5%,37.5%)', 'hsla(10.125 20.25% 30.5% / 37.5%)'],
+      ['rgb(1,2,3)', 'rgb(1,2,3)'],
+      ['rgba(1.125,2.25,3.5,.375)', 'rgba(1.125,2.25,3.5,.375)'],
+      ['hsl(.125turn,20.25%,30.5%)', 'hsl(.125turn,20.25%,30.5%)'],
+      ['hsla(10.125,20.25%,30.5%,37.5%)', 'hsla(10.125,20.25%,30.5%,37.5%)'],
       ['hsl(0 0% 0% / 0)', 'hsl(0 0% 0% / 0)'],
       ['var(--brand)', 'var(--brand)'],
     ] as const
@@ -203,7 +211,9 @@ note for A "A \"quote\" and \\ path"`)
         expect(diagram.body.classDefs?.hot?.fill).toBe(expected)
         expect(diagram.body.classes[0]!.style?.stroke).toBe(expected)
         const written = serializeMermaid(diagram)
-        expect(await upstream.project(written, d => d.db.getData().nodes.find((node: { id: string }) => node.id === 'A').styles)).toEqual({ ok: true, value: [`fill:${expected}`, `stroke:${expected}`] })
+        const reference = await upstream.project<string[]>(written, d => d.db.getData().nodes.find((node: { id: string }) => node.id === 'A').styles)
+        if (!reference.ok) throw new Error(reference.error)
+        expect(reference.value.map(logicalStyle)).toEqual([`fill:${expected}`, `stroke:${expected}`])
         expect(asClass(parse(written))!.body).toEqual(diagram.body)
         expect(renderMermaidSVG(diagram)).toBe(renderSourceSVG(written))
         const raw = asClass(parse(`classDiagram\nclass A:::hot\nclassDef hot fill:${input}\nstyle A stroke:${input}`))!
@@ -216,11 +226,76 @@ note for A "A \"quote\" and \\ path"`)
       expect(synthesizeFromGraph({ kind: 'class', body: { ...original.body, classDefs: { hot: { 'font-family': 'Inter,serif' } } } }).ok).toBe(false)
       const source = 'classDiagram\nclass A\nstyle A fill:red,font-family:Inter\\,serif\n'
       const retained = parse(source)
-      expect(retained.body.kind).toBe('opaque')
-      expect(serializeMermaid(retained)).toBe(source)
+      expect(asClass(retained)!.body.classes[0]!.style).toEqual({ fill: 'red', 'font-family': 'Inter,serif' })
+      expect(asClass(parse(serializeMermaid(retained)))!.body).toEqual(asClass(retained)!.body)
       expect(renderMermaidSVG(retained)).toBe(renderSourceSVG(source))
       expect(verifyMermaid(retained).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_commas' }))
     } finally { upstream.close() }
+  })
+
+  test('Class style statements keep payloads out of lexer productions and preserve every field', async () => {
+    const style = {
+      fill: 'rgb(1,2,3)',
+      'font-family': 'direction TB, "Inter, Text", serif',
+      custom: 'var(--brand,rgb(1,2,3)) literal:#44; ﬂ°°44¶ß %%{wrap}%% <tag a="b"> \\\ end',
+      stroke: '#123',
+    }
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const id of ['A', '123', 'classOne']) {
+        const original = asClass(parse(`classDiagram\nclass \`${id}\``))!
+        const built = synthesizeFromGraph({ kind: 'class', body: { ...original.body, classes: original.body.classes.map(node => ({ ...node, style })) } })
+        if (!built.ok) throw new Error(JSON.stringify(built.error))
+        const written = serializeMermaid(built.value)
+        const reload = asClass(parse(written))!
+        expect(reload.body.classes[0]!.style).toEqual(style)
+        const reference = await upstream.project(written, d => ({ direction: d.db.getDirection(), nodes: d.db.getData().nodes.map((node: { id: string; styles?: string[]; cssStyles?: string[] }) => ({ id: node.id, styles: node.styles ?? node.cssStyles })) }))
+        if (!reference.ok) throw new Error(reference.error)
+        expect(reference.value.direction).toBe('TB')
+        expect(reference.value.nodes).toHaveLength(1)
+        expect(reference.value.nodes[0]!.id).toBe(id)
+        expect(reference.value.nodes[0]!.styles.map(logicalStyle)).toEqual([
+          'fill:rgb(1,2,3)',
+          'font-family:direction TB, "Inter, Text", serif',
+          'custom:var(--brand,rgb(1,2,3)) literal:#44; ﬂ°°44¶ß %%{wrap}%% <tag a="b"> \\ end',
+          'stroke:#123',
+        ])
+        expect(renderMermaidSVG(built.value)).toBe(renderSourceSVG(written))
+      }
+      // A mutable string also retains commas inside a quoted CSS font name.
+      const original = asClass(parse('classDiagram\nclass A'))!
+      const changed = mutate(original, { kind: 'set_class_style', class: 'A', style: 'fill:red,font-family:"Inter, Text"' })
+      if (!changed.ok) throw new Error(JSON.stringify(changed.error))
+      expect(asClass(parse(serializeMermaid(changed.value)))!.body.classes[0]!.style).toEqual({ fill: 'red', 'font-family': '"Inter, Text"' })
+    } finally { upstream.close() }
+  })
+
+  test.each(['style:#x', 'style:#xclassDef:#y', 'has space', 'style', 'call', 'class', '$dollar'])('refuses inline paint for a Class target outside the style ALPHA production: %s', async id => {
+    const original = asClass(parse(`classDiagram\nclass \`${id}\``))!
+    const before = serializeMermaid(original)
+    expect(mutate(original, { kind: 'set_class_style', class: id, style: 'fill:red' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(synthesizeFromGraph({ kind: 'class', body: { ...original.body, classes: original.body.classes.map(node => ({ ...node, style: { fill: 'red' } })) } }).ok).toBe(false)
+    expect(serializeMermaid(original)).toBe(before)
+    const source = `classDiagram\nclass \`${id}\`\nstyle \`${id}\` fill:red\n`
+    const pin = startUpstreamMermaid()
+    try { expect(await pin.publicAccepts(source)).toBe(false) } finally { pin.close() }
+    const retained = parse(source)
+    expect(retained.body.kind).toBe('opaque')
+    expect(serializeMermaid(retained)).toBe(source)
+  })
+
+  test('style entities are read before CSS backslash escapes without losing the following text', async () => {
+    const source = String.raw`classDiagram\nclass A\nstyle A fill: blue,font-family: A\#44;B`.replaceAll('\\n', '\n')
+    const diagram = asClass(parse(source))!
+    expect(diagram.body.classes[0]!.style).toEqual({ fill: 'blue', 'font-family': String.raw`A\,B` })
+    const written = serializeMermaid(diagram)
+    expect(asClass(parse(written))!.body.classes[0]!.style).toEqual({ fill: 'blue', 'font-family': String.raw`A\,B` })
+    const pin = startUpstreamMermaid()
+    try {
+      const fields = await pin.project<string[]>(written, d => d.db.getData().nodes[0].styles)
+      if (!fields.ok) throw new Error(fields.error)
+      expect(fields.value.map(logicalStyle)).toEqual(['fill:blue', String.raw`font-family:A\,B`])
+    } finally { pin.close() }
   })
 
   test('Class style construction moves an existing ordinary property before lexer keywords and refuses styles without one', async () => {

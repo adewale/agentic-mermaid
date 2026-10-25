@@ -39,7 +39,8 @@ import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
-import { parseMutableStyleProps, portableClassLikeStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { classLikeStyleHasValueCommas, classLikeStyleStatement, portableClassLikeStyleProps } from '../shared/class-like-style.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { ClassBody, ClassMutationOp, ClassNamespaceDecl, ClassNode, ClassNote, ClassRelation, ClassRelationKind, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
@@ -79,6 +80,12 @@ function portableClassStyleProps(style: Readonly<Record<string, string>>): Recor
   return Object.fromEntries(entries)
 }
 
+/** Inline STYLE requires ALPHA, unlike declarations and cssClass targets.
+ * Backticks do not extend this production to arbitrary class identities. */
+function writableInlineStyleTarget(id: string): boolean {
+  return /^\w+$/.test(id) && id !== 'call' && readsAsClassName(id, false, true)
+}
+
 /** Raw member strings are authored grammar, so escaping a tag would change
  * their stored content. A tag opener spanning the method's `(` is consumed
  * by Mermaid's sanitizer; a name made only of tags is consumed too. */
@@ -95,6 +102,7 @@ function classMemberWriteProblem(member: string): string | undefined {
 
 function classBodyWriteProblem(body: ClassBody): string | undefined {
   for (const node of body.classes) {
+    if (node.style && !writableInlineStyleTarget(node.id)) return `Class inline style target ${JSON.stringify(node.id)} is not an ALPHA identifier in Mermaid's style grammar`
     if (node.style && !portableClassStyleProps(node.style)) return `Class style on ${JSON.stringify(node.id)} has no supported lossless Mermaid property/value spelling`
     if (node.id.startsWith('"')) return `Class id ${JSON.stringify(node.id)} starts with a double quote and has no supported lossless Mermaid spelling`
     for (const name of node.className?.split(/\s+/).filter(Boolean) ?? []) {
@@ -536,9 +544,9 @@ export function renderClass(body: ClassBody): string {
   }
   // The pinned Class DB copies definitions onto members only when it reads
   // classDef. Membership must already exist, and inline overrides come last.
-  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(portableClassStyleProps(style)!)}`)
+  for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(classLikeStyleStatement(`  classDef ${name} `, portableClassStyleProps(style)!))
   for (const c of body.classes) {
-    if (c.style) lines.push(`  style ${quoteDirectiveTarget(c.id)} ${serializeStyleProps(portableClassStyleProps(c.style)!)}`)
+    if (c.style) lines.push(classLikeStyleStatement(`  style ${quoteDirectiveTarget(c.id)} `, portableClassStyleProps(c.style)!))
     if (c.href) {
       lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
     }
@@ -727,6 +735,7 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
       if (op.style === null) delete c.style
       else {
+        if (!writableInlineStyleTarget(c.id)) return err({ code: 'INVALID_OP', message: `Class inline style target ${JSON.stringify(c.id)} is not an ALPHA identifier in Mermaid's style grammar` })
         const style = parseMutableStyleProps(op.style)
         if (!style.ok)
           return err({
@@ -753,6 +762,7 @@ function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody
       if (findClass(op.to)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.to} already exists` })
       const invalidId = validateClassId(op.to)
       if (invalidId) return err(invalidId)
+      if (c.style && !writableInlineStyleTarget(op.to)) return err({ code: 'INVALID_OP', message: `Class inline style target ${JSON.stringify(op.to)} is not an ALPHA identifier in Mermaid's style grammar` })
       c.id = op.to
       for (const r of b.relations) {
         if (r.from === op.from) r.from = op.to
@@ -933,11 +943,15 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         })
       }
       const value = node.value
-      if ((value.kind === 'classDef' || value.kind === 'style') && Object.values(value.props).some(property => property.includes(','))) warnings.push({
+      if (value.kind === 'style') for (const reference of value.references) if (!writableInlineStyleTarget(reference.id)) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_target', line: header + 1 + node.source.line,
+        message: `Class inline style target ${JSON.stringify(reference.id)} is outside Mermaid's ALPHA production; quoting does not extend it. Source is preserved; use an explicit named CSS class for this identity.`,
+      })
+      if ((value.kind === 'classDef' || value.kind === 'style') && classLikeStyleHasValueCommas(node.text)) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_commas', line: header + 1 + node.source.line,
         message: portableClassLikeStyleProps(value.props)
-          ? 'Commas inside CSS colors are read as color channels here. Pinned Mermaid splits every comma into separate styles; the writer preserves channels and alpha with CSS space/slash notation.'
-          : 'This style contains a comma value without a supported lossless Class spelling. Source and native rendering are preserved, but typed editing is unavailable.',
+          ? 'Native CSS commas remain inside their property values. Pinned Mermaid splits raw commas into separate styles; the writer protects value delimiters with entity codes.'
+          : 'This style contains text outside the supported SVG attribute domain. Source is preserved, but typed editing is unavailable.',
       })
       const identities = declares(value).concat(value.kind === 'interaction' ? [value.interaction.id] : value.kind === 'note' && value.reference ? [value.reference.id] : [])
       for (const id of identities) if (id.startsWith('"')) warnings.push({

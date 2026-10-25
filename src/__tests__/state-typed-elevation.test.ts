@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
+import { decodeHTML } from 'entities'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
@@ -11,6 +12,13 @@ import { parseMermaid as parseRenderGraph } from '../parser.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { expectNearLinearGrowth } from './helpers/complexity.ts'
 import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
+
+// Independent consumer projection: Mermaid resolves DB markers in HTML.
+function logicalStyle(field: string): string {
+  const decoded = decodeHTML(field.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_token, numeric, named) => numeric ? `&#${numeric};` : `&${named};`))
+  const colon = decoded.indexOf(':')
+  return `${decoded.slice(0, colon).trim()}:${decoded.slice(colon + 1).trim()}`
+}
 
 function state(source: string): StateValidDiagram {
   const parsed = parseMermaid(source)
@@ -672,10 +680,10 @@ stateDiagram-v2
 
   test('State functional paints retain exact channel tokens and alpha through constructors and style consumers', async () => {
     const paints = [
-      ['rgb(1,2,3)', 'rgb(1 2 3)'],
-      ['rgba(1.125,2.25,3.5,.375)', 'rgba(1.125 2.25 3.5 / .375)'],
-      ['hsl(.125turn,20.25%,30.5%)', 'hsl(.125turn 20.25% 30.5%)'],
-      ['hsla(10.125,20.25%,30.5%,37.5%)', 'hsla(10.125 20.25% 30.5% / 37.5%)'],
+      ['rgb(1,2,3)', 'rgb(1,2,3)'],
+      ['rgba(1.125,2.25,3.5,.375)', 'rgba(1.125,2.25,3.5,.375)'],
+      ['hsl(.125turn,20.25%,30.5%)', 'hsl(.125turn,20.25%,30.5%)'],
+      ['hsla(10.125,20.25%,30.5%,37.5%)', 'hsla(10.125,20.25%,30.5%,37.5%)'],
       ['hsl(0 0% 0% / 0)', 'hsl(0 0% 0% / 0)'],
       ['var(--brand)', 'var(--brand)'],
     ] as const
@@ -692,13 +700,15 @@ stateDiagram-v2
         expect(diagram.body.classDefs?.hot?.fill).toBe(expected)
         expect(diagram.body.states[0]!.style?.stroke).toBe(expected)
         const written = serializeMermaid(diagram)
-        expect(await upstream.project(written, d => ({
+        const reference = await upstream.project(written, d => ({
           definitions: d.db.getClasses().get('hot').styles,
           inline: d.db.getStates().get('A').styles,
           // compileStyles consumes these separate class and inline arrays,
           // in that order, rather than folding inline into cssCompiledStyles.
           rendered: d.db.getData().nodes.filter((node: { id: string }) => node.id === 'A').map((node: { cssCompiledStyles: string[]; cssStyles: string[] }) => ({ classes: node.cssCompiledStyles, inline: node.cssStyles })),
-        }))).toEqual({ ok: true, value: { definitions: [`fill:${expected}`], inline: [`stroke:${expected}`], rendered: [{ classes: [`fill:${expected}`], inline: [`stroke:${expected}`] }] } })
+        }))
+        if (!reference.ok) throw new Error(reference.error)
+        expect({ definitions: reference.value.definitions.map(logicalStyle), inline: reference.value.inline.map(logicalStyle), rendered: reference.value.rendered.map((node: { classes: string[]; inline: string[] }) => ({ classes: node.classes.map(logicalStyle), inline: node.inline.map(logicalStyle) })) }).toEqual({ definitions: [`fill:${expected}`], inline: [`stroke:${expected}`], rendered: [{ classes: [`fill:${expected}`], inline: [`stroke:${expected}`] }] })
         expect(state(written).body).toEqual(diagram.body)
         expect(renderAgentSVG(diagram)).toBe(renderMermaidSVG(written))
         const raw = state(`stateDiagram-v2\nA\nclassDef hot fill:${input}\nclass A hot\nstyle A stroke:${input}`)
@@ -706,17 +716,69 @@ stateDiagram-v2
         expect(raw.body.states[0]!.style?.stroke).toBe(expected)
       }
       const original = state('stateDiagram-v2\nA'), before = serializeMermaid(original)
-      expect(mutate(original, { kind: 'set_state_style', id: 'A', style: 'font-family:Inter\\,serif' }).ok).toBe(false)
+      const font = apply(original, { kind: 'set_state_style', id: 'A', style: 'font-family:Inter\\,serif' })
+      expect(state(serializeMermaid(font)).body.states[0]!.style).toEqual({ 'font-family': 'Inter,serif' })
       expect(serializeMermaid(original)).toBe(before)
-      expect(synthesizeFromGraph({ kind: 'state', body: { ...original.body, classDefs: { hot: { 'font-family': 'Inter,serif' } } } }).ok).toBe(false)
+      expect(synthesizeFromGraph({ kind: 'state', body: { ...original.body, classDefs: { hot: { 'font-family': 'Inter,serif' } } } }).ok).toBe(true)
       const source = 'stateDiagram-v2\nA\nstyle A fill:red,font-family:Inter\\,serif\n'
       const retained = parseMermaid(source)
       if (!retained.ok) throw new Error(JSON.stringify(retained.error))
-      expect(retained.value.body.kind).toBe('opaque')
-      expect(serializeMermaid(retained.value)).toBe(source)
+      expect(asState(retained.value)!.body.states[0]!.style).toEqual({ fill: 'red', 'font-family': 'Inter,serif' })
+      expect(state(serializeMermaid(retained.value)).body).toEqual(asState(retained.value)!.body)
       expect(renderAgentSVG(retained.value)).toBe(renderMermaidSVG(source))
       expect(verifyMermaid(retained.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_style_commas' }))
     } finally { upstream.close() }
+  })
+
+  test('State style statements keep payloads out of lexer productions and preserve every field', async () => {
+    const style = {
+      fill: 'rgb(1,2,3)',
+      'font-family': 'direction TB, "Inter, Text", serif',
+      custom: 'var(--brand,rgb(1,2,3)) literal:#44; ﬂ°°44¶ß %%{wrap}%% <tag a="b"> \\\ end',
+      stroke: '#123',
+    }
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const id of ['A']) {
+        const original = state('stateDiagram-v2\ndirection LR\nA')
+        const built = synthesizeFromGraph({ kind: 'state', body: { ...original.body, states: original.body.states.map(node => ({ ...node, style })) } })
+        if (!built.ok) throw new Error(JSON.stringify(built.error))
+        const written = serializeMermaid(built.value)
+        const reload = state(written)
+        expect(reload.body.states[0]!.style).toEqual(style)
+        const reference = await upstream.project(written, d => ({ direction: d.db.getDirection(), nodes: d.db.getData().nodes.map((node: { id: string; styles?: string[]; cssStyles?: string[] }) => ({ id: node.id, styles: node.styles ?? node.cssStyles })) }))
+        if (!reference.ok) throw new Error(reference.error)
+        expect(reference.value.direction).toBe('LR')
+        expect(reference.value.nodes).toHaveLength(1)
+        expect(reference.value.nodes[0]!.id).toBe(id)
+        expect(reference.value.nodes[0]!.styles.map(logicalStyle)).toEqual([
+          'fill:rgb(1,2,3)',
+          'font-family:direction TB, "Inter, Text", serif',
+          'custom:var(--brand,rgb(1,2,3)) literal:#44; ﬂ°°44¶ß %%{wrap}%% <tag a="b"> \\ end',
+          'stroke:#123',
+        ])
+        expect(renderAgentSVG(built.value)).toBe(renderMermaidSVG(written))
+      }
+      // A mutable string also retains commas inside a quoted CSS font name.
+      const original = state('stateDiagram-v2\nA')
+      const changed = mutate(original, { kind: 'set_state_style', id: 'A', style: 'fill:red,font-family:"Inter, Text"' })
+      if (!changed.ok) throw new Error(JSON.stringify(changed.error))
+      expect(state(serializeMermaid(changed.value)).body.states[0]!.style).toEqual({ fill: 'red', 'font-family': '"Inter, Text"' })
+    } finally { upstream.close() }
+  })
+
+  test('style entities are read before CSS backslash escapes without losing the following text', async () => {
+    const source = String.raw`stateDiagram-v2\nA\nstyle A fill: blue,font-family: A\#44;B`.replaceAll('\\n', '\n')
+    const diagram = state(source)
+    expect(diagram.body.states[0]!.style).toEqual({ fill: 'blue', 'font-family': String.raw`A\,B` })
+    const written = serializeMermaid(diagram)
+    expect(state(written).body.states[0]!.style).toEqual({ fill: 'blue', 'font-family': String.raw`A\,B` })
+    const pin = startUpstreamMermaid()
+    try {
+      const fields = await pin.project<string[]>(written, d => d.db.getData().nodes[0].cssStyles)
+      if (!fields.ok) throw new Error(fields.error)
+      expect(fields.value.map(logicalStyle)).toEqual(['fill:blue', String.raw`font-family:A\,B`])
+    } finally { pin.close() }
   })
 
   test('label construction replaces the bare declaration flag and removing a label restores it', () => {

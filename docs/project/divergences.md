@@ -738,3 +738,23 @@ Soft wrapping is measured in the output adapter: SVG uses a 240-pixel text budge
 and terminal rendering a 40-cell budget (or a smaller requested target). Authored
 line breaks survive `nowrap:`. Mermaid's renderer geometry is not the layout
 contract; text, explicit controls and their inheritance are.
+
+### Follow-up to #490: constructive Class/State style fields
+
+Class and State now protect style payload delimiters with Mermaid entity codes,
+then decode once after the reader classifies field boundaries. They retain exact
+RGB/HSL channel spelling and comma-valued fonts, quoted CSS strings, literal
+entity/marker text and directive-looking text. Encoding `direction` protects the
+whole statement from each lexer's earlier complete-line direction production.
+A syntax-space barrier on every property colon prevents a hex paint in one field
+from activating the global entity prepass against another field.
+
+Class still needs an actually requested ordinary first property; a lone
+`stroke-width` or `font-family` cannot be repaired with invented paint. Its inline
+`STYLE ALPHA stylesOpt` production also excludes quoted or keyword targets even
+when the class declaration itself can name them. Such inline styles stay
+source-only; mutation, synthesis and renaming a styled class refuse that target
+domain. Explicit named style-class edits remain available where their own target
+grammar applies. Flowchart functional values and Requirement functions or
+meaningful spaces still have no demonstrated portable field spelling under the
+pin. Invalid XML/control-character values remain outside the writable domain.
