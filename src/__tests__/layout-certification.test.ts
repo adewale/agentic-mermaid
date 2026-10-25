@@ -11,6 +11,8 @@ import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
+import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { invalidEndpointApproaches } from '../route-contracts.ts'
 import type { MermaidGraph, PositionedGraph } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
@@ -337,6 +339,12 @@ describe('bounded final layout certification', () => {
     expect(preference.selectedScore).toEqual(routing.preference.selectedScore)
     // This fixture has no title-band projection: its score describes this canvas.
     expect(preference.selectedScore.area).toBeCloseTo(positioned.width * positioned.height, 5)
+    const assessed = assessLayout(graph, positioned, resolveRenderStyle({}))
+    expect(hardViolations(assessed)).toEqual([])
+    expect(assessed.metrics).toMatchObject({ edgeCrossings: preference.selectedScore.edgeCrossings, totalBends: preference.selectedScore.totalBends })
+    expect(positioned.edges.toSorted((a, b) => a.edgeIndex! - b.edgeIndex!).map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(graph.edges.map((edge, index) => [index, edge.source, edge.target]))
+    const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+    expect(positioned.edges.map(edge => invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target)))).toEqual(graph.edges.map(() => 0))
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {

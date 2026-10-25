@@ -6,7 +6,7 @@ import { parseRegisteredMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidPNG, renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { runBatchLine } from '../cli/index.ts'
 import { handleHostedRequest } from '../mcp/hosted-server.ts'
-import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
+import { normalizeMermaidSource, type MermaidRuntimeConfig } from '../mermaid-source.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { RenderOptions } from '../types.ts'
 
@@ -34,11 +34,13 @@ const SANKEY = 'sankey-beta\nA,B,1'
 const REQUIREMENT = 'requirementDiagram\nrequirement A {\ntext: Card\n}'
 const RADAR = 'radar-beta\n  title Skills\n  axis a, b, c\n  curve x{1,2,3}\n  max 5'
 const ARCHITECTURE = 'architecture-beta\n  group app(cloud)[App]\n  service api(server)[API] in app'
-const XYCHART = '%%{init: {"xyChart":{"showDataLabel":true}}}%%\nxychart\n  title Sales\n  x-axis Region [A, B]\n  y-axis Units 0 --> 2\n  bar [1, 2]'
+const XYCHART_BODY = 'xychart\n  title Sales\n  x-axis Region [A, B]\n  y-axis Units 0 --> 2\n  bar [1, 2]'
+const XYCHART = `%%{init: {"xyChart":{"showDataLabel":true}}}%%\n${XYCHART_BODY}`
 
+const INVALID_OBJECT = { nested: 'red' }
 const INVALID: readonly unknown[] = [
   'notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'oklch(60% 0.2 30)', 'url(#a)',
-  123, null, [], { nested: 'red' },
+  123, null, [], INVALID_OBJECT,
 ]
 const VALID = [
   'rebeccapurple', '#f96', '#3b82', '#112233', '#11223380', 'rgb(255 0 0)',
@@ -86,8 +88,12 @@ interface FamilyAdmission {
   family: string
   /** Minimal source; it must reach every sink below. */
   body: string
-  /** Every paint path the family admits. Each refuses every INVALID value. */
+  /** Every paint path the family admits. Surviving INVALID values are refused. */
   paints: readonly string[]
+  /** Expected effects of this fixture's init program before paint admission. */
+  invalidAfterInit?: (path: string, value: unknown) => { kind: 'removed' } | { kind: 'refused'; value: unknown }
+  /** Control without the fixture's pre-existing init directive. */
+  singleInitBody?: string
   /** Paints that refuse `none`: text ink and operands of derived color-mix(). */
   refusesNone: readonly string[]
   /** Paints where `none` is a legal direct fill or stroke and still renders. */
@@ -244,6 +250,13 @@ const FAMILIES: readonly FamilyAdmission[] = [
     family: 'XY Chart',
     body: XYCHART,
     paints: XYCHART_PAINTS,
+    // detectInit sanitizes an array of directives before merging it. The
+    // fixture already has one init: null object fields are removed, unknown
+    // nested keys are stripped, and null palette elements remain entries.
+    invalidAfterInit: (path, value) => value === null && !path.endsWith('[0]')
+      ? { kind: 'removed' }
+      : { kind: 'refused', value: value === INVALID_OBJECT ? {} : value },
+    singleInitBody: XYCHART_BODY,
     refusesNone: without(XYCHART_PAINTS, XYCHART_STROKES),
     admitsNone: XYCHART_STROKES,
     // This chart has no legend, so legendTextColor has no sink.
@@ -345,9 +358,22 @@ async function expectRefusedOnEveryRoute(
 }
 
 describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
-  test.each([...row.paints])('%s refuses every malformed paint by name', path => {
+  test.each([...row.paints])('%s refuses every surviving malformed paint by name', path => {
     for (const value of INVALID) {
-      expect(() => renderMermaidSVG(init(row.body, [path, value])), shown(value)).toThrow(refusal(path, value))
+      const source = init(row.body, [path, value])
+      const expected = row.invalidAfterInit?.(path, value) ?? { kind: 'refused', value }
+      if (expected.kind === 'removed') {
+        let effective: unknown = normalizeMermaidSource(source).config
+        for (const key of path.split('.')) effective = effective !== null && typeof effective === 'object'
+          ? (effective as Record<string, unknown>)[key]
+          : undefined
+        expect(effective, path).toBeUndefined()
+        expect(() => renderMermaidSVG(source), shown(value)).not.toThrow()
+        expect(() => renderMermaidASCII(source), shown(value)).not.toThrow()
+        expect(verifyMermaid(source).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
+      } else {
+        expect(() => renderMermaidSVG(source), shown(value)).toThrow(refusal(path, expected.value))
+      }
     }
     // Terminal output and verify admit through the same request waist as SVG,
     // so one value proves each is wired for this key.
@@ -357,6 +383,14 @@ describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
     expect(() => renderMermaidASCII(source, { useAscii: false }), 'unicode').toThrow(named)
     expect(verifyMermaid(source).warnings, 'verify').toContainEqual(renderFailed(named))
   })
+
+  if (row.singleInitBody !== undefined) {
+    test.each([...row.paints])('%s keeps single-init null/object refusal at the paint boundary', path => {
+      for (const value of [null, INVALID_OBJECT]) {
+        expect(() => renderMermaidSVG(init(row.singleInitBody!, [path, value])), shown(value)).toThrow(refusal(path, value))
+      }
+    })
+  }
 
   test.each([...row.refusesNone])('%s refuses none', path => {
     const source = init(row.body, [path, 'none'])

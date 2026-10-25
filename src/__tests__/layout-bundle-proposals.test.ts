@@ -6,9 +6,10 @@ import { withRenderStageObserver } from '../render-stages.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { flowchartMesh } from '../../eval/benchmark/release-bench-cases.ts'
 
-// The skip edge crosses a generic fan-in trunk. Keeping its independent route
-// removes that crossing, at the cost of two scored bends and canonical ports.
-const source = 'flowchart TD\nA --> B\nA --> C\nA --> D\nA --> E\nB --> F\nB --> G\nA --> H\nA -->|yes| F'
+// This existing dense fixture still benefits from a route comparison after
+// placement selection. The former small skip-link fixture is now clean in its
+// first proposal because layer alignment preserves outward terminal shafts.
+const source = flowchartMesh(50, 20)
 
 describe('bounded generic bundle proposals', () => {
   test.each([
@@ -59,12 +60,12 @@ describe('bounded generic bundle proposals', () => {
     expect(elkCalls).toBe(placements.length)
     expect(pipelines.at(-1)).toBe(routeProposals[0])
     expect(placements.some(placement => placement.elkResult === routeProposals[0]!.elkResult)).toBe(true)
-    expect(baseline.certification?.preference.selectedScore.edgeCrossings).toBe(1)
-    expect(selected.certification).toMatchObject({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
-    expect(selected.certification?.preference.selectedScore.edgeCrossings).toBe(0)
+    expect(selected.certification).toMatchObject({ status: 'passed', attempts: 2, hardViolations: 0 })
+    expect(selected.certification!.preference.selectedScore.edgeCrossings).toBeLessThan(
+      baseline.certification!.preference.selectedScore.edgeCrossings)
     expect(selected.certification?.preference.routing).toMatchObject({
       strategy: 'without-generic-bundling',
-      preference: { reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0 } },
+      preference: { reason: 'edgeCrossings' },
     })
     const alternatives = selected.certification!.preference.routing!.preference.compared
     expect(alternatives).toHaveLength(2)
@@ -74,18 +75,22 @@ describe('bounded generic bundle proposals', () => {
 
   test('an ordinary alternative failure retains the certified bundled proposal', () => {
     const first = LAYOUT_PIPELINE[0]!, run = first.run
+    let rejected = 0
     first.run = context => {
-      if (!context.mergeEdges) throw new Error('unbundled geometry producer failed')
+      if (!context.mergeEdges) { rejected++; throw new Error('unbundled geometry producer failed') }
       run(context)
     }
     try {
-      const selected = layoutGraphSync(parseMermaid(source))
-      expect(selected.certification).toMatchObject({ status: 'passed', strategy: 'default', hardViolations: 0 })
+      const graph = parseMermaid(source), selected = layoutGraphSync(graph)
+      expect(rejected).toBe(1)
+      expect(selected.certification).toMatchObject({ status: 'passed', hardViolations: 0 })
       expect(selected.certification?.preference.routing).toMatchObject({
         strategy: 'bundled',
-        preference: { reason: 'alternative-invalid', selectedScore: { edgeCrossings: 1 } },
+        preference: { reason: 'alternative-invalid' },
       })
-      expect(selected.edges).toHaveLength(8)
+      expect(hardViolations(assessLayout(graph, selected))).toEqual([])
+      expect(selected.edges.map(edge => [edge.edgeIndex, edge.source, edge.target])).toEqual(
+        graph.edges.map((edge, index) => [index, edge.source, edge.target]))
       expect(selected.edges.every(edge => edge.points.length >= 2)).toBe(true)
     } finally {
       first.run = run

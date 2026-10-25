@@ -6,6 +6,11 @@ import { renderMermaidSVG } from '../index.ts'
 import { describeMermaidSource, describeMermaidTree } from '../agent/describe.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
+import { verifyMermaid } from '../agent/verify.ts'
+import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
+import { synthesizeFromGraph } from '../agent/index.ts'
+import { parseMindmap } from '../mindmap/parser.ts'
+import { decodeXML } from 'entities'
 import { serializeMermaid } from '../agent/serialize.ts'
 
 test('successful accessibility edits close through body, metadata and source without creating statements', () => {
@@ -152,3 +157,166 @@ function parseMermaidOk(src: string) {
   if (!r.ok) throw new Error('parse failed')
   return r.value
 }
+
+
+test('native accessibility comments preserve editable metadata and external topology without changing captured wrappers', async () => {
+  const pin = startUpstreamMermaid()
+  const wrapper = '---\ntitle: Diagram\n---\n%% wrapper rationale\n'
+  const project = (d: UpstreamDiagram) => {
+    if (d.type === 'block') return { blocks: d.db.getBlocks(), edges: d.db.getEdges() }
+    if (d.type === 'mindmap') return d.db.getMindmap()
+    if (d.type === 'ishikawa') return d.db.getRoot()
+    return d.db.getGraph()
+  }
+  try {
+    for (const bare of ['block\nA["A"]', 'sankey-beta\nA,B,1', 'mindmap\n  root((Root))\n    A', 'ishikawa\nEffect\n  Cause']) {
+      const [header, ...body] = bare.split('\n')
+      const source = wrapper + [header, 'accTitle: Accessible', 'accDescr {', 'First line', 'Second line', '}', '%% body rationale', ...body].join('\n')
+      const parsed = parseMermaid(source)
+      if (!parsed.ok || parsed.value.body.kind === 'opaque') throw new Error('Expected editable metadata: ' + source)
+      const written = serializeMermaid(parsed.value)
+      expect(written.startsWith(wrapper)).toBe(true)
+      expect(written.match(/%% body rationale/g)).toHaveLength(1)
+      expect(await pin.project(written, project)).toEqual(await pin.project(wrapper + bare, project))
+      expect(await pin.publicAccepts(written), written).toBe(true)
+      const reload = parseMermaid(written)
+      if (!reload.ok) throw new Error('Expected native comment reload')
+      expect(reload.value.meta.accessibility).toEqual({ title: 'Accessible', descr: 'First line\nSecond line' })
+      expect(reload.value.meta.comments).not.toContainEqual(expect.objectContaining({ text: expect.stringContaining('agentic-mermaid acc') }))
+      expect(serializeMermaid(reload.value)).toBe(written)
+      expect(renderMermaidSVG(written)).toContain('Accessible</title>')
+      expect(renderMermaidSVG(written)).toContain('First line\nSecond line</desc>')
+      expect(verifyMermaid(reload.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: parsed.value.body.kind + '_accessibility' }))
+      const kind = parsed.value.body.kind
+      const edited = kind === 'block' ? mutate(parsed.value, { kind: 'rename_block', from: 'A', to: 'B' })
+        : kind === 'sankey' ? mutate(parsed.value, { kind: 'rename_node', from: 'A', to: 'C' })
+        : kind === 'mindmap' ? mutate(parsed.value, { kind: 'rename_node', from: 'A', to: 'B' })
+        : kind === 'ishikawa' ? mutate(parsed.value, { kind: 'set_label', id: parsed.value.body.nodes[1]!.id, label: 'Changed' }) : undefined
+      if (!edited?.ok) throw new Error('Expected unrelated typed edit: ' + JSON.stringify(edited))
+      expect(edited.value.meta.accessibility).toEqual(reload.value.meta.accessibility)
+      expect(await pin.publicAccepts(serializeMermaid(edited.value))).toBe(true)
+    }
+    for (const bare of ['mindmap\n  root((Root))', 'ishikawa\nEffect\n  Cause']) {
+      const parsed = parseMermaid(bare)
+      if (!parsed.ok) throw new Error('Expected native diagram')
+      for (const title of ['literal #44; &amp; ﬂ°12¶ß', '%%{init:{"theme":"dark"}}%% <b>text</b>', 'Product%%cut', 'A\u2028B', 'A\u2029B', 'A<br>B', 'A<br/>B', 'A\nB']) {
+        const edited = mutate(parsed.value, { kind: 'set_accessibility_title', title })
+        if (!edited.ok) throw new Error('Expected constructive metadata: ' + JSON.stringify(edited))
+        const source = serializeMermaid(edited.value)
+        expect(await pin.publicAccepts(source), source).toBe(true)
+        const reload = parseMermaid(source)
+        if (!reload.ok) throw new Error('Expected literal metadata reload')
+        expect(reload.value.meta.accessibility.title).toBe(title)
+        expect(reload.value.meta.initDirectives).toEqual([])
+        const svg = renderMermaidSVG(source)
+        expect(decodeXML(svg.match(/<title[^>]*>([\s\S]*?)<\/title>/)![1]!)).toBe(title)
+      }
+    }
+  } finally { pin.close() }
+})
+
+
+test('native metadata owns preprocessing, while moved ordinary comments remain comments', () => {
+  for (const bare of ['block\nA["A"]', 'sankey-beta\nA,B,1', 'mindmap\n root((Root))', 'ishikawa\nEffect\n Cause']) {
+    for (const title of ['%%{init: {theme: dark}}%%', '%%{wrap}%%', 'A\u2028B', 'A\u2029B', 'A<br/>B']) {
+      const native = '%% agentic-mermaid accTitle: ' + JSON.stringify(title) + '\n'
+      const parsed = parseMermaid(native + bare)
+      if (!parsed.ok) throw new Error('Expected native field read')
+      expect(parsed.value.meta.accessibility).toEqual({ title })
+      expect(parsed.value.meta.initDirectives).toEqual([])
+      expect(parsed.value.meta.frontmatter?.wrap).toBeUndefined()
+      const written = serializeMermaid(parsed.value)
+      expect(written.match(/%% agentic-mermaid accTitle:/g)).toHaveLength(1)
+      const reload = parseMermaid(written)
+      if (!reload.ok) throw new Error('Expected metadata reload')
+      expect(reload.value.meta.accessibility).toEqual({ title })
+      const body = parsed.value.body
+      if (body.kind !== 'block' && body.kind !== 'sankey' && body.kind !== 'mindmap' && body.kind !== 'ishikawa') throw new Error('Expected native metadata family')
+      const synthesized = synthesizeFromGraph({
+        kind: body.kind,
+        body: body.kind === 'sankey' ? body : { ...body, accessibilityTitle: title },
+        meta: { accessibility: { title } },
+      })
+      if (!synthesized.ok) throw new Error('Expected JSON metadata construction: ' + JSON.stringify(synthesized))
+      expect(synthesized.value.meta.accessibility).toEqual({ title })
+      if (parsed.value.kind === 'mindmap' || parsed.value.kind === 'ishikawa') {
+        const clear = mutate(parsed.value, { kind: 'set_accessibility_title', title: null })
+        if (!clear.ok) throw new Error('Expected leading metadata removal')
+        expect(clear.value.meta.accessibility).toEqual({})
+      }
+      if (parsed.value.kind === 'mindmap') expect(parseMindmap(written).accessibilityTitle).toBe(title)
+    }
+  }
+  for (const bare of ['block\nA["A"]', 'sankey-beta\nA,B,1', 'mindmap\n root((Root))', 'ishikawa\nEffect\n Cause']) {
+    for (const [field, expected] of [['&amp;', '&'], ['&amp;amp;', '&amp;'], ['&#35;44;', ','], ['&lt;br&gt;', '<br>'], ['#amp;amp#59;', '&amp;']] as const) {
+      const source = '%% agentic-mermaid accTitle: ' + JSON.stringify(field) + '\n' + bare
+      const parsed = parseMermaid(source)
+      if (!parsed.ok) throw new Error('Expected authored native field')
+      expect(parsed.value.meta.accessibility.title).toBe(expected)
+      for (const input of [source, serializeMermaid(parsed.value)]) {
+        const svg = renderMermaidSVG(input)
+        expect(decodeXML(svg.match(/<title[^>]*>([\s\S]*?)<\/title>/)![1]!)).toBe(expected)
+      }
+    }
+  }
+  for (const header of ['mindmap', 'mindm&#97;p']) for (const field of ['accTitle', 'accDescr']) {
+    const text = `agentic-mermaid ${field}: "Ordinary comment"`
+    const parsed = parseMermaid(`${header}\n root((Start\n%% ${text}\nEnd))`)
+    if (!parsed.ok) throw new Error('Expected multiline shaped node')
+    const written = serializeMermaid(parsed.value)
+    const reload = parseMermaid(written)
+    if (!reload.ok) throw new Error('Expected ordinary comment reload')
+    expect(reload.value.meta.accessibility).toEqual({})
+    expect(reload.value.meta.comments).toContainEqual(expect.objectContaining({ text }))
+    expect(serializeMermaid(reload.value)).toBe(written)
+  }
+})
+
+
+test('leading native metadata keeps exact header, wrapper and directive source ownership', () => {
+  for (const ending of ['\n', '\r\n', '\r']) {
+    const wrapper = ['---', 'title: Diagram', '---', '%% wrapper rationale', ''].join(ending)
+    const native = '%% agentic-mermaid accTitle: "%%{wrap}%% &amp; #35;44; 👩🏽‍💻"' + ending
+    const init = ['%%{init: {', '"theme": "dark"', '}}%%', ''].join(ending)
+    const source = wrapper + native + init + 'mindmap' + ending + ' root((Root))'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('Expected metadata and config before header')
+    expect(parsed.value.meta.wrapperSource).toBe(wrapper)
+    expect(parsed.value.meta.initDirectives).toHaveLength(1)
+    const spans = parsed.value.source.spans!.preserved
+    const text = (span: { start: { offset: number }; end: { offset: number } }) => source.slice(span.start.offset, span.end.offset)
+    expect(text(spans.header)).toBe('mindmap')
+    expect(text(spans.wrapper!)).toBe(wrapper)
+    expect(spans.initDirectives?.map(text)).toEqual([init])
+    expect(spans.accessibilityDirectives?.map(text)).toEqual([native])
+    const reload = parseMermaid(serializeMermaid(parsed.value))
+    if (!reload.ok) throw new Error('Expected owned metadata reload')
+    expect(reload.value.meta.accessibility).toEqual(parsed.value.meta.accessibility)
+    expect(reload.value.meta.initDirectives).toHaveLength(1)
+  }
+})
+
+
+test('an enclosing init scalar owns native-looking text even after a literal unclosed opener', () => {
+  for (const ending of ['\n', '\r\n', '\r']) for (const title of [undefined, 'ordinary', '%%{init: literal opener']) {
+    const prefix = '%% agentic-mermaid accTitle: "A&B"\n'
+    const init = ['%%{init:', 'sankey:', '  showValues: true', '  prefix: |', '    ' + prefix.trimEnd(), '}%%', ''].join(ending)
+    const native = '%% agentic-mermaid accDescr: "Actual metadata"' + ending
+    const leading = title === undefined ? '' : '%% agentic-mermaid accTitle: ' + JSON.stringify(title) + ending
+    const source = leading + init + native + 'sankey-beta' + ending + 'A,B,1'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('Expected lenient config read')
+    expect(parsed.value.meta.accessibility).toEqual({ ...(title === undefined ? {} : { title }), descr: 'Actual metadata' })
+    expect(parsed.value.meta.frontmatter?.sankey).toMatchObject({ prefix })
+    const spans = parsed.value.source.spans!.preserved
+    const slice = (span: { start: { offset: number }; end: { offset: number } }) => source.slice(span.start.offset, span.end.offset)
+    expect(spans.initDirectives?.map(slice)).toEqual([init])
+    expect(spans.accessibilityDirectives?.map(slice)).toEqual(leading ? [leading, native] : [native])
+    const written = serializeMermaid(parsed.value)
+    const reloaded = parseMermaid(written)
+    if (!reloaded.ok) throw new Error('Expected verbatim config preservation')
+    expect(reloaded.value.meta.frontmatter?.sankey).toMatchObject({ prefix })
+    expect(decodeXML(renderMermaidSVG(source))).toContain('A&B')
+    expect(renderMermaidSVG(source)).not.toContain('A\\u0026B')
+  }
+})

@@ -1,6 +1,48 @@
 import { authoredCssPaintDescription, drawableAuthoredCssPaint } from './css-color.ts'
-import { tryParseCssColor } from './color-math.ts'
 import { syntaxError } from './syntax-error.ts'
+
+export type StyleDeclaration = [property: string, value: string]
+
+export function ownStyleDeclarations(record: Readonly<Record<string, StyleDeclaration[]>> | undefined, name: string): StyleDeclaration[] | undefined {
+  return record && Object.hasOwn(record, name) ? record[name] : undefined
+}
+
+/** Earlier identical declarations are dominated by their later copy. Other
+ * repeats must survive: CSS priority and invalid-value fallback need them. */
+export function compactStyleDeclarations(entries: readonly StyleDeclaration[]): StyleDeclaration[] {
+  const seen = new Map<string, Set<string>>()
+  const retained: StyleDeclaration[] = []
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const [key, value] = entries[index]!
+    let values = seen.get(key)
+    if (!values) { values = new Set(); seen.set(key, values) }
+    if (!values.has(value)) retained.push([key, value])
+    values.add(value)
+  }
+  return retained.reverse()
+}
+
+export function retainedStyleDeclarations(entries: readonly StyleDeclaration[]): StyleDeclaration[] | undefined {
+  const compact = compactStyleDeclarations(entries)
+  return new Set(compact.map(([key]) => key)).size < compact.length ? compact : undefined
+}
+
+export function projectStyleDeclarations(entries: readonly StyleDeclaration[]): Record<string, string> {
+  const ordered = new Map<string, string>()
+  for (const [key, value] of entries) { ordered.delete(key); ordered.set(key, value) }
+  return Object.fromEntries(ordered)
+}
+
+/** A repeated declaration takes its last position as well as its last value.
+ * Keeping its first position can reverse shorthand/longhand precedence. */
+export function mergeStyleProps(...styles: (Readonly<Record<string, string>> | undefined)[]): Record<string, string> {
+  const entries = new Map<string, string>()
+  for (const style of styles) for (const [key, value] of Object.entries(style ?? {})) {
+    entries.delete(key)
+    entries.set(key, value)
+  }
+  return Object.fromEntries(entries)
+}
 
 /** Split CSS-like Mermaid style pairs at a `,` or `;` without splitting
  *  functional color commas. Mermaid joins pairs a `;` separates into one
@@ -10,10 +52,13 @@ function splitStylePairs(value: string): string[] {
   let depth = 0
   let start = 0
   let escaped = false
+  let quote = ''
   for (let index = 0; index < value.length; index++) {
     const char = value[index]
     if (escaped) { escaped = false; continue }
     if (char === '\\') { escaped = true; continue }
+    if (quote) { if (char === quote) quote = ''; continue }
+    if (char === '"' || char === "'") { quote = char; continue }
     if (char === '(') depth++
     else if (char === ')') depth = Math.max(0, depth - 1)
     else if ((char === ',' || char === ';') && depth === 0) { out.push(value.slice(start, index)); start = index + 1 }
@@ -24,15 +69,19 @@ function splitStylePairs(value: string): string[] {
 
 /** Parse Mermaid's `key:value,key:value` paint grammar. */
 export function parseStyleProps(source: string, options: { caseInsensitive?: boolean } = {}): Record<string, string> {
+  return projectStyleDeclarations(parseStyleDeclarations(source, options))
+}
+
+export function parseStyleDeclarations(source: string, options: { caseInsensitive?: boolean } = {}): StyleDeclaration[] {
   const cleaned = source.replace(/;\s*$/, '')
-  const props: Record<string, string> = {}
+  const props: StyleDeclaration[] = []
   for (const pair of splitStylePairs(cleaned)) {
     const colon = pair.indexOf(':')
     if (colon <= 0) continue
     const rawKey = pair.slice(0, colon).trim()
     const key = options.caseInsensitive ? rawKey.toLowerCase() : rawKey
     const value = pair.slice(colon + 1).trim()
-    if (key && value) props[key] = value
+    if (key && value) props.push([key, value])
   }
   return props
 }
@@ -138,25 +187,4 @@ export function parseMutableStyleProps(source: unknown): MutableStyleParseResult
 
 export function serializeStyleProps(style: Record<string, string>): string {
   return Object.entries(style).map(([key, value]) => `${key}:${value}`).join(',')
-}
-
-/** Class and State split every comma in a style value, including escaped
- * commas. CSS Color 4 defines the same RGB/HSL channels and alpha in legacy
- * comma and modern space/slash notation. Change separators only: preserve
- * every numeric token, unit, percentage and function name without rounding.
- * Other comma values (including var() fallbacks) have no supported lossless
- * spelling in these two Mermaid grammars and must stay in native source.
- * https://www.w3.org/TR/css-color-4/#rgb-functions */
-export function portableClassLikeStyleProps(style: Readonly<Record<string, string>>): Record<string, string> | undefined {
-  const entries: [string, string][] = []
-  for (const [property, value] of Object.entries(style)) {
-    if (!value.includes(',')) { entries.push([property, value]); continue }
-    const color = value.match(/^(rgba?|hsla?)\(([^()]*)\)$/i)
-    if (!PAINT_PROPERTIES.some(paint => paint === property) || !color || tryParseCssColor(value) === null) return
-    const channels = color[2]!.split(',').map(token => token.trim())
-    if (channels.length !== 3 && channels.length !== 4) return
-    const alpha = channels.length === 4 ? ` / ${channels[3]}` : ''
-    entries.push([property, `${color[1]}(${channels.slice(0, 3).join(' ')}${alpha})`])
-  }
-  return Object.fromEntries(entries)
 }

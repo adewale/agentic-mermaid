@@ -8,15 +8,13 @@ import type { SankeyRuntimeConfig } from '../index.ts'
 
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120'
 
-test('Sankey directive-like identities and accessibility remain source-preserved extensions', async () => {
+test('Sankey directive-like identities remain source-preserved extensions', async () => {
   const { startUpstreamMermaid } = await import('./helpers/upstream-mermaid.ts')
   const upstream = startUpstreamMermaid()
   try {
     for (const [body, syntax] of [
       ['source,%%{target,1', 'sankey_directive_text'],
       ['source%%{name,target,1', 'sankey_directive_text'],
-      ['accTitle: Flows\nsource,target,1', 'sankey_accessibility'],
-      ['accDescr {\nFlow description\n}\nsource,target,1', 'sankey_accessibility'],
     ]) {
       const source = `sankey-beta\n${body}\n`
       expect(await upstream.accepts(source)).toBe(false)
@@ -136,13 +134,13 @@ describe('sankey agent surface · parse and narrow', () => {
     expect(serializeMermaid(d)).toBe('sankey-beta\n  Pumped heat,"Heating, ""homes""",193.026\n')
   })
 
-  test('accessibility directives ride in meta and retain source without typed regeneration', () => {
+  test('accessibility directives stay editable through native metadata comments', () => {
     const p = parseMermaid('sankey-beta\naccTitle: T\nA,B,1')
     expect(p.ok).toBe(true)
     if (p.ok) {
-      expect(p.value.body.kind).toBe('opaque')
+      expect(p.value.body.kind).toBe('sankey')
       expect(p.value.meta.accessibility).toEqual({ title: 'T' })
-      expect(serializeMermaid(p.value)).toBe('sankey-beta\naccTitle: T\nA,B,1\n')
+      expect(serializeMermaid(p.value)).toBe('sankey-beta\n  %% agentic-mermaid accTitle: "T"\n  A,B,1\n')
     }
   })
 

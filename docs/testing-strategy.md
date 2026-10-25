@@ -773,6 +773,10 @@ Completion requires resolved confirmed in-scope defects, evidence for the
 declared contracts, disclosed remaining limitations, and successful required CI
 for the exact final head. Record the base/head and dependency revision, link
 the CI run, wait for terminal results, then recheck the current base and PR head.
+Read the base branch's live remote ref: the PR's recorded base commit and the
+workflow event's base SHA can be stale. Inspect the actual CI checkout and its
+parents to confirm which base/head combination ran; the workflow run's head SHA
+alone does not identify its merge checkout.
 After a push, follow the new run. A base update requires a fresh check of the
 combined candidate; after code/dependency changes, requalify affected contracts.
 Retained measurements may apply when their shipped/input bytes are unchanged;

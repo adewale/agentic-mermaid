@@ -69,7 +69,7 @@ function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: n
       const candidate = { ...footprint, y }
       return ![...occupied, ...footprints].some(other => intersects(candidate, other)) && !ink.some(([x, y]) => contains(candidate, x, y))
     })!
-    layer.scope({ id: note.id, kind: 'node', parent: { id: note.target, kind: target.kind } }, () => layer.overlay(canvas, box.x, box.y))
+    layer.scope({ id: note.id, kind: 'node', annotationTarget: { id: note.target, kind: target.kind } }, () => layer.overlay(canvas, box.x, box.y))
     plans.push({ note, target, box })
     placed.push(box)
     footprints.push(noteFootprint(box, note.side))

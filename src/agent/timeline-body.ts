@@ -45,9 +45,6 @@ function normalizeTimelineText(value: string): string {
 export function parseTimelineBody(lines: string[], accessibility: Accessibility = {}): TimelineBody | null {
   try {
     const diagram = parseTimelineDiagram(['timeline', ...lines], accessibility)
-    // An explicit empty section is distinct from an implicit unnamed section.
-    // The current writer cannot spell it without source-order/trivia support.
-    if (diagram.sections.some(section => section.label === '')) return null
     return { kind: 'timeline', ...diagram }
   } catch {
     return null
@@ -169,6 +166,11 @@ function normalizeTimelineOpText(value: string, opts: { field: string }): Result
   return ok(normalized)
 }
 
+function normalizeTimelineSectionText(value: string): Result<string, MutationError> {
+  if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Timeline section label must be a string' })
+  return ok(normalizeTimelineText(value))
+}
+
 function normalizeTimelineTitleOpText(value: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: 'Timeline title must be a string' })
   if (/[\r\n\u2028\u2029]/.test(value)) {
@@ -247,7 +249,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       break
     }
     case 'add_section': {
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      const label = normalizeTimelineSectionText(op.label)
       if (!label.ok) return label
       const index = resolveInsertIndex(op.index, body.sections.length, 'Timeline')
       if (!index.ok) return index
@@ -262,7 +264,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'set_section_label': {
       const s = getSection(op.index)
       if (!s) return sectionNotFound(op.index)
-      const label = normalizeTimelineOpText(op.label, { field: 'section label' })
+      const label = normalizeTimelineSectionText(op.label)
       if (!label.ok) return label
       s.label = label.value
       break

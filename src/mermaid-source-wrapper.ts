@@ -70,15 +70,11 @@ export function matchMermaidFrontmatter(text: string): { source: string; yaml: s
   }
   return undefined
 }
-// Outer whitespace is horizontal-only. Using `\s*` at either line boundary
-// consumes preceding blank lines or the next family's indentation because
-// `\s` includes CR/LF. The directive payload itself remains multiline.
-// Mermaid's preprocessing removes an init or wrap directive wherever it
-// stands and applies its configuration (`wrap` sets `wrap: true`): one on a
-// line of its own takes that line with it (an init's payload in group 1);
-// one inside a statement leaves the rest of the statement in place (an
-// init's payload in group 2). A wrap directive has no payload.
-export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init(?:ialize)?\s*:\s*([\s\S]*?)|wrap\s*)\}\s*%%[^\S\r\n]*(?:\r?\n)?|%%\{\s*(?:init(?:ialize)?\s*:\s*([\s\S]*?)|wrap\s*)\}\s*%%/gm
+// Closed directive ownership is independent of its name. The pinned phase
+// selects names by substring and distinguishes one match from multiple matches;
+// retaining the original type and count lets that phase own their meaning.
+// Groups 1/2 remain the argument on a whole line / inside a statement.
+export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*\w+\s*(?::\s*([\s\S]*?))?\}\s*%%[^\S\r\n]*(?:\r\n?|\n)?|%%\{\s*\w+\s*(?::\s*([\s\S]*?))?\}\s*%%/gm
 
 /** Any other directive (`%%{config: …}%%`, `%%{name}%%`), which Mermaid's
  *  preprocessing also removes wherever it stands, applying nothing. Mermaid

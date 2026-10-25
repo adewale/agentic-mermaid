@@ -1,12 +1,20 @@
 // Phase C: structured class diagram support.
 
 import { describe, expect, test } from 'bun:test'
+import { decodeHTML } from 'entities'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
 import { applyOps, asClass, mutate, mutateChecked, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, renderMermaidASCII, serializeMermaid, verifyMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { renderMermaidSVG as renderSourceSVG, renderMermaidASCII as renderSourceASCII } from '../index.ts'
 import type { ClassMutationOp } from '../agent/types.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+// Independent consumer projection: Mermaid resolves DB markers in HTML.
+function logicalStyle(field: string): string {
+  const decoded = decodeHTML(field.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_token, numeric, named) => numeric ? `&#${numeric};` : `&${named};`))
+  const colon = decoded.indexOf(':')
+  return `${decoded.slice(0, colon).trim()}:${decoded.slice(colon + 1).trim()}`
+}
 
 const parse = (s: string) => {
   const r = parseMermaid(s)
@@ -179,10 +187,10 @@ note for A "A \"quote\" and \\ path"`)
 
   test('Class functional paints retain exact channel tokens and alpha through construction and actual renderer data', async () => {
     const paints = [
-      ['rgb(1,2,3)', 'rgb(1 2 3)'],
-      ['rgba(1.125,2.25,3.5,.375)', 'rgba(1.125 2.25 3.5 / .375)'],
-      ['hsl(.125turn,20.25%,30.5%)', 'hsl(.125turn 20.25% 30.5%)'],
-      ['hsla(10.125,20.25%,30.5%,37.5%)', 'hsla(10.125 20.25% 30.5% / 37.5%)'],
+      ['rgb(1,2,3)', 'rgb(1,2,3)'],
+      ['rgba(1.125,2.25,3.5,.375)', 'rgba(1.125,2.25,3.5,.375)'],
+      ['hsl(.125turn,20.25%,30.5%)', 'hsl(.125turn,20.25%,30.5%)'],
+      ['hsla(10.125,20.25%,30.5%,37.5%)', 'hsla(10.125,20.25%,30.5%,37.5%)'],
       ['hsl(0 0% 0% / 0)', 'hsl(0 0% 0% / 0)'],
       ['var(--brand)', 'var(--brand)'],
     ] as const
@@ -203,7 +211,9 @@ note for A "A \"quote\" and \\ path"`)
         expect(diagram.body.classDefs?.hot?.fill).toBe(expected)
         expect(diagram.body.classes[0]!.style?.stroke).toBe(expected)
         const written = serializeMermaid(diagram)
-        expect(await upstream.project(written, d => d.db.getData().nodes.find((node: { id: string }) => node.id === 'A').styles)).toEqual({ ok: true, value: [`fill:${expected}`, `stroke:${expected}`] })
+        const reference = await upstream.project<string[]>(written, d => d.db.getData().nodes.find((node: { id: string }) => node.id === 'A').styles)
+        if (!reference.ok) throw new Error(reference.error)
+        expect(reference.value.map(logicalStyle)).toEqual([`fill:${expected}`, `stroke:${expected}`])
         expect(asClass(parse(written))!.body).toEqual(diagram.body)
         expect(renderMermaidSVG(diagram)).toBe(renderSourceSVG(written))
         const raw = asClass(parse(`classDiagram\nclass A:::hot\nclassDef hot fill:${input}\nstyle A stroke:${input}`))!
@@ -211,42 +221,117 @@ note for A "A \"quote\" and \\ path"`)
         expect(raw.body.classes[0]!.style?.stroke).toBe(expected)
       }
       const original = asClass(parse('classDiagram\nclass A'))!, before = serializeMermaid(original)
-      expect(mutate(original, { kind: 'set_class_style', class: 'A', style: 'font-family:Inter\\,serif' }).ok).toBe(false)
+      const fontOnly = mutate(original, { kind: 'set_class_style', class: 'A', style: 'font-family:Inter\\,serif' })
+      if (!fontOnly.ok) throw new Error(fontOnly.error.message)
+      expect(asClass(parse(serializeMermaid(fontOnly.value)))!.body.classes[0]!.style).toEqual({ 'font-family': 'Inter,serif' })
       expect(serializeMermaid(original)).toBe(before)
-      expect(synthesizeFromGraph({ kind: 'class', body: { ...original.body, classDefs: { hot: { 'font-family': 'Inter,serif' } } } }).ok).toBe(false)
+      expect(synthesizeFromGraph({ kind: 'class', body: { ...original.body, classDefs: { hot: { 'font-family': 'Inter,serif' } } } }).ok).toBe(true)
       const source = 'classDiagram\nclass A\nstyle A fill:red,font-family:Inter\\,serif\n'
       const retained = parse(source)
-      expect(retained.body.kind).toBe('opaque')
-      expect(serializeMermaid(retained)).toBe(source)
+      expect(asClass(retained)!.body.classes[0]!.style).toEqual({ fill: 'red', 'font-family': 'Inter,serif' })
+      expect(asClass(parse(serializeMermaid(retained)))!.body).toEqual(asClass(retained)!.body)
       expect(renderMermaidSVG(retained)).toBe(renderSourceSVG(source))
       expect(verifyMermaid(retained).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_commas' }))
     } finally { upstream.close() }
   })
 
-  test('Class style construction moves an existing ordinary property before lexer keywords and refuses styles without one', async () => {
-    const unsupported = ['stroke-width', 'font-family', 'class', 'classDef', 'classDiagram', 'namespace', 'note', 'click', 'link', 'cssClass', 'href', 'callback', 'o', '_self', '_blank', '_parent', '_top', 'accTitle', 'accDescr']
+  test('Class style statements keep payloads out of lexer productions and preserve every field', async () => {
+    const style = {
+      fill: 'rgb(1,2,3)',
+      'font-family': 'direction TB, "Inter, Text", serif',
+      custom: 'var(--brand,rgb(1,2,3)) literal:#44; ﬂ°°44¶ß %%{wrap}%% <tag a="b"> \\\ end',
+      stroke: '#123',
+    }
     const upstream = startUpstreamMermaid()
     try {
-      for (const property of unsupported) {
-        const original = asClass(parse('classDiagram\nclass A'))!, before = serializeMermaid(original)
+      for (const id of ['A', '123', 'classOne']) {
+        const original = asClass(parse(`classDiagram\nclass \`${id}\``))!
+        const built = synthesizeFromGraph({ kind: 'class', body: { ...original.body, classes: original.body.classes.map(node => ({ ...node, style })) } })
+        if (!built.ok) throw new Error(JSON.stringify(built.error))
+        const written = serializeMermaid(built.value)
+        const reload = asClass(parse(written))!
+        expect(reload.body.classes[0]!.style).toEqual(style)
+        const reference = await upstream.project(written, d => ({ direction: d.db.getDirection(), nodes: d.db.getData().nodes.map((node: { id: string; styles?: string[]; cssStyles?: string[] }) => ({ id: node.id, styles: node.styles ?? node.cssStyles })) }))
+        if (!reference.ok) throw new Error(reference.error)
+        expect(reference.value.direction).toBe('TB')
+        expect(reference.value.nodes).toHaveLength(1)
+        expect(reference.value.nodes[0]!.id).toBe(id)
+        expect(reference.value.nodes[0]!.styles.map(logicalStyle)).toEqual([
+          'fill:rgb(1,2,3)',
+          'font-family:direction TB, "Inter, Text", serif',
+          'custom:var(--brand,rgb(1,2,3)) literal:#44; ﬂ°°44¶ß %%{wrap}%% <tag a="b"> \\ end',
+          'stroke:#123',
+        ])
+        expect(renderMermaidSVG(built.value)).toBe(renderSourceSVG(written))
+      }
+      // A mutable string also retains commas inside a quoted CSS font name.
+      const original = asClass(parse('classDiagram\nclass A'))!
+      const changed = mutate(original, { kind: 'set_class_style', class: 'A', style: 'fill:red,font-family:"Inter, Text"' })
+      if (!changed.ok) throw new Error(JSON.stringify(changed.error))
+      expect(asClass(parse(serializeMermaid(changed.value)))!.body.classes[0]!.style).toEqual({ fill: 'red', 'font-family': '"Inter, Text"' })
+    } finally { upstream.close() }
+  })
+
+  test.each(['style:#x', 'style:#xclassDef:#y', 'has space', 'style', 'call', 'class', '$dollar'])('refuses inline paint for a Class target outside the style ALPHA production: %s', async id => {
+    const original = asClass(parse(`classDiagram\nclass \`${id}\``))!
+    const before = serializeMermaid(original)
+    expect(mutate(original, { kind: 'set_class_style', class: id, style: 'fill:red' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(synthesizeFromGraph({ kind: 'class', body: { ...original.body, classes: original.body.classes.map(node => ({ ...node, style: { fill: 'red' } })) } }).ok).toBe(false)
+    expect(serializeMermaid(original)).toBe(before)
+    const source = `classDiagram\nclass \`${id}\`\nstyle \`${id}\` fill:red\n`
+    const pin = startUpstreamMermaid()
+    try { expect(await pin.publicAccepts(source)).toBe(false) } finally { pin.close() }
+    const retained = parse(source)
+    expect(retained.body.kind).toBe('opaque')
+    expect(serializeMermaid(retained)).toBe(source)
+  })
+
+  test('style entities are read before CSS backslash escapes without losing the following text', async () => {
+    const source = String.raw`classDiagram\nclass A\nstyle A fill: blue,font-family: A\#44;B`.replaceAll('\\n', '\n')
+    const diagram = asClass(parse(source))!
+    expect(diagram.body.classes[0]!.style).toEqual({ fill: 'blue', 'font-family': String.raw`A\,B` })
+    const written = serializeMermaid(diagram)
+    expect(asClass(parse(written))!.body.classes[0]!.style).toEqual({ fill: 'blue', 'font-family': String.raw`A\,B` })
+    const pin = startUpstreamMermaid()
+    try {
+      const fields = await pin.project<string[]>(written, d => d.db.getData().nodes[0].styles)
+      if (!fields.ok) throw new Error(fields.error)
+      expect(fields.value.map(logicalStyle)).toEqual(['fill:blue', String.raw`font-family:A\,B`])
+    } finally { pin.close() }
+  })
+
+  test('Class style construction opens its lexer with an empty CSS declaration, preserving lone and reserved properties', async () => {
+    const needsPrologue = ['stroke-width', 'font-family', String.raw`font\-family`, 'class', 'classDef', 'classDiagram', 'namespace', 'note', 'click', 'link', 'cssClass', 'href', 'callback', 'o', '_self', '_blank', '_parent', '_top', 'accTitle', 'accDescr']
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const property of needsPrologue) {
+        const original = asClass(parse('classDiagram\nclass A:::hot'))!, before = serializeMermaid(original)
         const style = `${property}:x`
         for (const op of [{ kind: 'set_class_style', class: 'A', style }, { kind: 'define_class', name: 'hot', style }] as ClassMutationOp[]) {
-          expect(mutate(original, op)).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+          const edited = mutate(original, op)
+          if (!edited.ok) throw new Error(edited.error.message)
+          const projected = await upstream.project<string[]>(serializeMermaid(edited.value), d => d.db.getData().nodes[0].styles)
+          if (!projected.ok) throw new Error(projected.error)
+          expect(projected.value.map(logicalStyle)).toEqual(['style:', style])
+          expect(serializeMermaid(parse(serializeMermaid(edited.value)))).toBe(serializeMermaid(edited.value))
           expect(serializeMermaid(original)).toBe(before)
         }
-        expect(synthesizeFromGraph({ kind: 'class', body: { ...original.body, classDefs: { hot: { [property]: 'x' } } } }).ok).toBe(false)
+        expect(synthesizeFromGraph({ kind: 'class', body: { ...original.body, classDefs: { hot: { [property]: 'x' } } } }).ok).toBe(true)
         const source = `classDiagram\nclass A\nstyle A ${style}\n`
         const retained = parse(source)
-        expect(retained.body.kind).toBe('opaque')
-        expect(serializeMermaid(retained)).toBe(source)
+        expect(retained.body.kind).toBe('class')
         expect(renderMermaidSVG(retained)).toBe(renderSourceSVG(source))
         expect(verifyMermaid(retained).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_text' }))
         expect(await upstream.publicAccepts(source)).toBe(false)
+        expect(await upstream.publicAccepts(serializeMermaid(retained))).toBe(true)
+        expect(verifyMermaid(serializeMermaid(retained)).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX' && w.syntax === 'class_style_text')).toEqual([])
 
         const typed = asClass(parse(`classDiagram\nclass A:::hot\nclassDef hot ${property}:x,fill:red\nstyle A ${property}:y,stroke:blue`))!
         expect(typed).not.toBeNull()
         const written = serializeMermaid(typed)
-        expect(await upstream.project(written, d => d.db.getData().nodes.find((node: { id: string }) => node.id === 'A').styles)).toEqual({ ok: true, value: ['fill:red', `${property}:x`, 'stroke:blue', `${property}:y`] })
+        const projected = await upstream.project<string[]>(written, d => d.db.getData().nodes.find((node: { id: string }) => node.id === 'A').styles)
+        if (!projected.ok) throw new Error(projected.error)
+        expect(projected.value.map(logicalStyle)).toEqual(['style:', `${property}:x`, 'fill:red', 'style:', `${property}:y`, 'stroke:blue'])
         expect(asClass(parse(written))!.body).toEqual(typed.body)
         expect(renderMermaidSVG(typed)).toBe(renderSourceSVG(written))
       }
@@ -256,6 +341,88 @@ note for A "A \"quote\" and \\ path"`)
         expect(edited.ok).toBe(true)
         if (!edited.ok) continue
         expect(await upstream.project(serializeMermaid(edited.value), d => d.db.getData().nodes.find((node: { id: string }) => node.id === 'A').styles)).toEqual({ ok: true, value: [`${property}:x`] })
+      }
+    } finally { upstream.close() }
+  })
+
+  test.each([
+    { style: 'font-size:24px,font:12px serif', fields: ['style:', 'font-size:24px', 'font:12px serif'] },
+    { style: 'font:12px serif,font-size:24px', fields: ['font:12px serif', 'font-size:24px'] },
+    { style: 'margin-left:8px,margin:0', fields: ['style:', 'margin-left:8px', 'margin:0'] },
+    { style: 'margin:0,margin-left:8px', fields: ['margin:0', 'margin-left:8px'] },
+  ])('Class style cascade survives typed edits, JSON and reload: $style', async ({ style, fields }) => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const original = asClass(parse('classDiagram\nclass A:::hot'))!
+      for (const op of [{ kind: 'set_class_style', class: 'A', style }, { kind: 'define_class', name: 'hot', style }] as ClassMutationOp[]) {
+        const edited = mutate(original, op)
+        if (!edited.ok) throw new Error(edited.error.message)
+        const synthesized = synthesizeFromGraph(JSON.parse(JSON.stringify({ kind: 'class', body: edited.value.body })))
+        if (!synthesized.ok) throw new Error(JSON.stringify(synthesized.error))
+        const written = serializeMermaid(synthesized.value)
+        const reloaded = asClass(parse(written))!
+        expect(serializeMermaid(reloaded)).toBe(written)
+        const renamed = mutate(reloaded, { kind: 'rename_class', from: 'A', to: 'B' })
+        if (!renamed.ok) throw new Error(renamed.error.message)
+        for (const source of [written, serializeMermaid(renamed.value)]) {
+          expect(await upstream.project(source, d => {
+            return d.db.getData().nodes[0].styles
+          })).toEqual({ ok: true, value: fields })
+        }
+      }
+    } finally { upstream.close() }
+  })
+
+  test('Class repeated styles keep the final declaration at its authored position across source statements', async () => {
+    const source = 'classDiagram\nclass A\nstyle A font:10px serif,font-size:24px\nstyle A font:12px serif'
+    const typed = asClass(parse(source))!
+    expect(Object.entries(typed.body.classes[0]!.style!)).toEqual([['font-size', '24px'], ['font', '12px serif']])
+    expect(verifyMermaid(typed).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'class_style_text')).toEqual([])
+    expect(Object.entries(parseClassDiagram(source.split('\n')).classes[0]!.inlineStyle!)).toEqual([['font-size', '24px'], ['font', '12px serif']])
+    const upstream = startUpstreamMermaid()
+    try {
+      const written = serializeMermaid(typed)
+      expect(serializeMermaid(parse(written))).toBe(written)
+      expect(await upstream.project(written, d => {
+        return d.db.getData().nodes[0].styles
+      })).toEqual({ ok: true, value: ['font:10px serif', 'font-size:24px', 'font:12px serif'] })
+    } finally { upstream.close() }
+  })
+
+  test.each([
+    { fields: ['font:24px monospace!important', 'font:12px serif'] },
+    { fields: ['font:24px monospace', 'font:bogus'] },
+    { fields: ['font:10px serif', 'font-size:24px', 'font:12px serif'] },
+  ])('Class preserves repeated CSS values, priority and fallback: %j', async ({ fields }) => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of [
+        `classDiagram\nclass A\nstyle A ${fields.join(',')}`,
+        `classDiagram\nclass A\nstyle A ${fields.slice(0, -1).join(',')}\nstyle A ${fields.at(-1)}`,
+        `classDiagram\nclass A:::hot\nclassDef hot ${fields.slice(0, -1).join(',')}\nclassDef hot ${fields.at(-1)}`,
+      ]) {
+        const typed = asClass(parse(source))!
+        const synthesized = synthesizeFromGraph(JSON.parse(JSON.stringify({ kind: 'class', body: typed.body })))
+        if (!synthesized.ok) throw new Error(JSON.stringify(synthesized.error))
+        const canonical = serializeMermaid(synthesized.value)
+        expect(serializeMermaid(parse(canonical))).toBe(canonical)
+        expect(await upstream.project(canonical, d => d.db.getData().nodes[0].styles)).toEqual({ ok: true, value: fields })
+      }
+      for (const op of [{ kind: 'set_class_style', class: 'A', style: fields.join(',') }, { kind: 'define_class', name: 'hot', style: fields.join(',') }] as const) {
+        const original = asClass(parse('classDiagram\nclass A:::hot'))!
+        const edited = mutate(original, op)
+        if (!edited.ok) throw new Error(edited.error.message)
+        const renamed = mutate(edited.value, { kind: 'rename_class', from: 'A', to: 'B' })
+        if (!renamed.ok) throw new Error(renamed.error.message)
+        expect(await upstream.project(serializeMermaid(renamed.value), d => d.db.getData().nodes[0].styles)).toEqual({ ok: true, value: fields })
+        const replaced = mutate(edited.value, { ...op, style: 'font:32px serif' })
+        if (!replaced.ok) throw new Error(replaced.error.message)
+        expect(await upstream.project(serializeMermaid(replaced.value), d => d.db.getData().nodes[0].styles)).toEqual({ ok: true, value: ['font:32px serif'] })
+        const body = structuredClone(edited.value.body)
+        if (body.kind !== 'class') throw new Error('expected Class')
+        if (op.kind === 'define_class') body.classDefs!.hot!.font = '32px serif'
+        else body.classes[0]!.style!.font = '32px serif'
+        expect(synthesizeFromGraph({ kind: 'class', body }).ok).toBe(false)
       }
     } finally { upstream.close() }
   })

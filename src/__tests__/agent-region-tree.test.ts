@@ -13,6 +13,24 @@ const SOURCE = `flowchart TD
 `
 
 describe('stable region tree MVP', () => {
+  test('terminal State and Class annotations retain target references without claiming containment', () => {
+    const cases = [
+      { source: 'stateDiagram-v2\nstate Outer {\n A --> B\n}\nnote left of Outer: Note', note: 'note#0', target: { id: 'Outer', kind: 'cluster' } },
+      { source: 'stateDiagram-v2\nstate Outer {\n A --> B\n}\nnote left of B: Note', note: 'note#0', target: { id: 'B', kind: 'node' } },
+      { source: 'classDiagram\nnamespace Domain {\n class A\n}\nnote for A "Note"', note: 'note:0', target: { id: 'A', kind: 'node' } },
+    ] as const
+    for (const fixture of cases) for (const useAscii of [false, true]) {
+      const native = renderMermaidASCIIWithMeta(fixture.source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+      expect(native.warnings.some(warning => warning.code === 'ASCII_RENDER_FAILED')).toBe(false)
+      const note = native.regions.find(region => region.id === fixture.note)!
+      expect(note).toMatchObject({ projectedText: 'Note', annotationTarget: fixture.target })
+      expect(note.parentId).toBeUndefined()
+      const target = native.regions.find(region => region.id === fixture.target.id && region.kind === fixture.target.kind)!
+      expect(target).toBeDefined()
+      expect(target.members ?? []).not.toContain(fixture.note)
+    }
+  })
+
   test('flowchart layout JSON flattens nested subgraphs with parent ids and direct members', () => {
     const parsed = parseMermaid(SOURCE)
     expect(parsed.ok).toBe(true)

@@ -1,9 +1,10 @@
-import { readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
+import { readAuthoredGrammarAccessibility, readGrammarAuthoredText, readGrammarText } from '../shared/grammar-text.ts'
 import { encodeMermaidEntities, mermaidEntityPrepass, protectMermaidEntityPrepass, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import type { MindmapDiagram, MindmapNode, MindmapShape } from './types.ts'
 import {
+  appendNativeAccessibilityLines,
   parseAccessibilityDirective,
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
@@ -30,6 +31,7 @@ export function parseMindmap(source: string): MindmapDiagram {
   if (scanned.unclosedIndex !== undefined) {
     throw new MindmapParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
   }
+  const accessibility = readAuthoredGrammarAccessibility(scanned.accessibility)
   const rawLines = scanned.familyLines
   const headerIndex = rawLines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
   if (headerIndex < 0) throw new MindmapParseError('Mindmap source must start with the mindmap header')
@@ -38,12 +40,10 @@ export function parseMindmap(source: string): MindmapDiagram {
   const ids = new Set<string>()
   let root: MindmapNode | undefined
   let lastNode: MindmapNode | undefined
-  const accessibilityTitle = scanned.accessibility.title !== undefined
-    ? normalizeBrTags(scanned.accessibility.title)
-    : undefined
-  const accessibilityDescription = scanned.accessibility.descr !== undefined
-    ? normalizeBrTags(scanned.accessibility.descr)
-    : undefined
+  // Accessibility is plain metadata, not node formatting. In particular a
+  // literal <br/> in a native JSON field is not a physical description line.
+  const accessibilityTitle = accessibility.title
+  const accessibilityDescription = accessibility.descr
 
   if (parserObservationActive('mindmap')) observeParserMutation('mindmap', 'initialize', { accessibilityTitle, accessibilityDescription })
 
@@ -437,16 +437,7 @@ export function serializeMindmap(diagram: MindmapDiagram): string {
   const problem = mindmapSerializationProblem(diagram)
   if (problem) throw new MindmapParseError(problem)
   const lines = ['mindmap']
-  if (diagram.accessibilityTitle) lines.push(`  accTitle: ${diagram.accessibilityTitle}`)
-  if (diagram.accessibilityDescription) {
-    if (diagram.accessibilityDescription.includes('\n')) {
-      lines.push('  accDescr {')
-      for (const line of diagram.accessibilityDescription.split(/\r?\n/)) lines.push(`    ${line.trim()}`)
-      lines.push('  }')
-    } else {
-      lines.push(`  accDescr: ${diagram.accessibilityDescription}`)
-    }
-  }
+  appendNativeAccessibilityLines(lines, diagram)
   const visit = (node: MindmapNode, depth: number): void => {
     const indent = '  '.repeat(depth + 1)
     const text = writeMindmapNode(node)

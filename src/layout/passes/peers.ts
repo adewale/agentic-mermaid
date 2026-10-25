@@ -1,13 +1,79 @@
 import type { MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { onShapeOutline } from '../../layout-rubric.ts'
-import { PORT_EXACT, shapePorts } from '../../route-contracts.ts'
+import { labelRect, PORT_EXACT, shapePorts } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
+import { graphEdgeMarkerPaintRegions } from '../../graph-connectors.ts'
+import { isOutwardShapeApproach, trimOccludedShapeEndpoint } from '../../shape-clipping.ts'
+import type { ResolvedRenderStyle } from '../../styles.ts'
+import type { AxisAlignedBox } from '../../shared/transformed-bounds.ts'
 import { graphReachability, layoutDebug, layoutEnvFlag, layoutFlow, nodeCrossCenter, nodeCrossStart, nodeMainStart } from '../geometry.ts'
 import { positionedEdgeForwardish, sameFlowLayer, packFlowLayerCrossAxis, nodeInsideGroups, symmetricOffsets, doglegBetween, routeClearOfNodes, shiftNodeSetCross, crossShiftSafe } from './shared.ts'
 import { assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
+import { reanchorOffOutlineEndpoints } from './obstacle-routing.ts'
 
-export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
+/** Preserve existing paint witnesses; resizing is not a new label-placement pass. */
+function peerPaintRemainsClear(before: PositionedNode[], nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {
+  const intersects = (a: AxisAlignedBox, b: AxisAlignedBox): boolean =>
+    Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 1e-6 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 1e-6
+  const nodeBox = (node: PositionedNode): AxisAlignedBox => ({ x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height })
+  const beforeMap = new Map(before.map(node => [node.id, node]))
+  const nodeMap = new Map(nodes.map(node => [node.id, node]))
+  const labels = edges.flatMap(edge => {
+    const pill = labelRect(edge, style)
+    if (!pill) return []
+    const halo = Math.max(4, style.lineWidth * (edge.style === 'thick' ? 2 : 1) * 2)
+    return [{ x0: pill.x - halo, y0: pill.y - halo, x1: pill.x + pill.w + halo, y1: pill.y + pill.h + halo }]
+  })
+  for (const label of labels) {
+    if (nodes.some((node, index) => intersects(label, nodeBox(node)) && !intersects(label, nodeBox(before[index]!)))) return false
+  }
+
+  for (const edge of edges) {
+    const markers = graphEdgeMarkerPaintRegions(edge, style)
+    if (markers.length === 0) continue
+    // The endpoint repair removes the prefix now hidden by an enlarged box.
+    // Project that same existing subpath before measuring its painted marker;
+    // measuring the stale endpoint would reserve space inside the new node.
+    let points = edge.points
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    if (source) points = trimOccludedShapeEndpoint(points, source, true)
+    if (target) points = trimOccludedShapeEndpoint(points, target, false)
+    // A packed node can move off the retained shaft entirely. Use the same
+    // bounded constructor as the existing late endpoint repair, on a private
+    // copy; a stale marker is not evidence that the new contact has space.
+    const projection = { ...edge, points }
+    reanchorOffOutlineEndpoints(nodes, [projection], graph)
+    points = projection.points
+    for (const start of [true, false]) {
+      if (!(start ? edge.hasArrowStart : edge.hasArrowEnd)) continue
+      const id = start ? edge.source : edge.target
+      const oldNode = beforeMap.get(id), node = nodeMap.get(id)
+      const oldPoints = start ? edge.points : [...edge.points].reverse()
+      const newPoints = start ? points : [...points].reverse()
+      const oldEnd = oldPoints[0], end = newPoints[0]
+      const oldNext = oldEnd && oldPoints.find(point => point.x !== oldEnd.x || point.y !== oldEnd.y)
+      const next = end && newPoints.find(point => point.x !== end.x || point.y !== end.y)
+      if (oldNode && oldEnd && oldNext && isOutwardShapeApproach(oldNode, oldEnd, oldNext) === true &&
+        (!node || !end || !next || isOutwardShapeApproach(node, end, next) !== true)) return false
+    }
+    const projected = graphEdgeMarkerPaintRegions(projection, style)
+    for (let index = 0; index < markers.length; index++) {
+      const old = markers[index]!, marker = projected[index]
+      if (!old.bounds) continue
+      if (!marker?.bounds) return false
+      const owner = marker.position === 'start' ? edge.source : edge.target
+      // A tip may touch its own endpoint; its tail must still clear the other
+      // endpoint and every foreign card. Labels paint after all markers.
+      if (nodes.some((node, nodeIndex) => node.id !== owner && intersects(marker.bounds!, nodeBox(node)) &&
+        !intersects(old.bounds!, nodeBox(before[nodeIndex]!)))) return false
+      if (labels.some(label => intersects(label, marker.bounds!) && !intersects(label, old.bounds!))) return false
+    }
+  }
+  return true
+}
+
+export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): void {
   const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const incoming = new Map<string, PositionedEdge[]>()
@@ -50,11 +116,13 @@ export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: Posit
   }
 
   let changed = false
+  let before: PositionedNode[] | undefined
   const f = layoutFlow(graph.direction)
   for (const group of peerGroups) {
     const maxWidth = Math.max(...group.map(n => n.width))
     const maxHeight = Math.max(...group.map(n => n.height))
     if (group.every(n => Math.abs(n.width - maxWidth) < 0.5 && Math.abs(n.height - maxHeight) < 0.5)) continue
+    before ??= nodes.map(node => ({ ...node }))
     const ordered = [...group].sort((a, b) => nodeCrossStart(a, graph.direction) - nodeCrossStart(b, graph.direction))
     let cursor = Math.min(...ordered.map(n => nodeCrossStart(n, graph.direction)))
     const mainStart = Math.min(...ordered.map(n => nodeMainStart(n, graph.direction)))
@@ -127,7 +195,17 @@ export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: Posit
     if (clash) { for (const s of snap) { s.n.x = s.x; s.n.y = s.y; s.n.width = s.w; s.n.height = s.h }; continue }
     changed = true
   }
-  if (changed) packFlowLayerCrossAxis(nodes, graph.direction)
+  if (changed) {
+    packFlowLayerCrossAxis(nodes, graph.direction)
+    // Packing and every peer resize form one proposal: checking each group
+    // before the final pack would miss paint occluded by a later cross slide.
+    if (!peerPaintRemainsClear(before!, nodes, edges, graph, style)) {
+      nodes.forEach((node, index) => {
+        const old = before![index]!
+        node.x = old.x; node.y = old.y; node.width = old.width; node.height = old.height
+      })
+    }
+  }
 }
 
 export function centerPeerBarycenters(

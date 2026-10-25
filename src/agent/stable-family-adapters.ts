@@ -450,7 +450,7 @@ export const KANBAN_AGENT_HOOKS = /* @__PURE__ */ hooks('kanban', lines => parse
 
 export const REQUIREMENT_AGENT_HOOKS = /* @__PURE__ */ hooks('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, mutateRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility))
 
-export const BLOCK_AGENT_HOOKS = /* @__PURE__ */ hooks('block', (lines, accessibility) => parseBlockBody(lines.slice(1), accessibility), renderBlock, mutateBlock, verifyBlock)
+export const BLOCK_AGENT_HOOKS = /* @__PURE__ */ hooks('block', (lines, accessibility) => parseBlockBody(lines.slice(1), accessibility), renderBlock, mutateBlock, verifyBlock, undefined, true)
 
 export const TREEMAP_AGENT_HOOKS: FamilyOperations = {
   .../* @__PURE__ */ hooks('treemap', lines => parseTreemapBody(lines.slice(1)), renderTreemap, mutateTreemap, verifyTreemap, undefined, true),

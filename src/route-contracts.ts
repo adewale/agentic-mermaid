@@ -33,7 +33,7 @@ import type {
 import { graphEdgeTextBlock } from './graph-text.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { resolveRenderStyle } from './styles.ts'
-import { clipEdgeToShape } from './shape-clipping.ts'
+import { clipEdgeToShape, isOutwardShapeApproach, trimOccludedShapeEndpoint } from './shape-clipping.ts'
 import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { countPolylineCrossings } from './shared/edge-crossings.ts'
@@ -162,9 +162,7 @@ export function invalidEndpointApproaches(edge: PositionedEdge, source?: Positio
     if (!end || !adjacent) { invalid++; continue }
     const dx = adjacent.x - end.x, dy = adjacent.y - end.y
     if (Math.abs(dx) > EPS && Math.abs(dy) > EPS) continue // the diagonal metric owns this case
-    const side: PortSide = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'E' : 'W' : dy > 0 ? 'S' : 'N'
-    const boundary = pointOnRoutingBoundary(profile.boundary, side, side === 'E' || side === 'W' ? end.y : end.x)
-    if (!boundary || Math.hypot(boundary.x - end.x, boundary.y - end.y) > PORT_TOLERANCE) invalid++
+    if (!isOutwardShapeApproach(node, end, adjacent, PORT_TOLERANCE)) invalid++
   }
   return invalid
 }
@@ -1984,10 +1982,17 @@ export function applyRouteContracts(
       }
     }
     if (!tightened) return false
+    // A shorter hop from an existing port coordinate can turn its valid
+    // normal stub into a tangent (for example vertically off a capsule's E
+    // point). Keep the proven exterior excursion unless both new shafts are
+    // usable contacts; a coordinate alone is not a port proof.
+    const normalized = simplifyPolyline(tightened)
+    const target = nodeMap.get(edge.target)
+    if (invalidEndpointApproaches({ ...edge, points: normalized }, source, target) > 0) return false
     // Same rule as straightening: tightening may never increase crossings.
-    if (countRouteCrossings(simplifyPolyline(tightened), edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
+    if (countRouteCrossings(normalized, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) return false
     const before = edge.points
-    edge.points = simplifyPolyline(tightened)
+    edge.points = normalized
     // Re-place the label if its pill sat on a removed segment.
     if (edge.label && edge.labelPosition) {
       const lp = edge.labelPosition
@@ -2254,6 +2259,9 @@ export function applyRouteContracts(
   for (const edge of positioned.edges) {
     const bundle = bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
     edge.points = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
+    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    if (source) edge.points = trimOccludedShapeEndpoint(edge.points, source, true)
+    if (target) edge.points = trimOccludedShapeEndpoint(edge.points, target, false)
     retainBundleRouteAfterRewrite(edge, bundle)
 
     const edgeIndex = edge.edgeIndex ?? -1
@@ -2307,7 +2315,7 @@ export function applyRouteContracts(
             !other.label && other.edgeIndex !== undefined)
         if (sourceNode && targetNode &&
           (!portAt(sourceNode, edge.points[0]!) || !portAt(targetNode, edge.points[edge.points.length - 1]!) ||
-            routeThroughNodeBBox(edge, ctx) || reciprocal)) {
+            invalidEndpointApproaches(edge, sourceNode, targetNode) > 0 || routeThroughNodeBBox(edge, ctx) || reciprocal)) {
           // Enroll in the fixed-point pool like every other repair: an
           // upgrade blocked now (e.g. a label pill in the vertex lane) may
           // clear once a later repair moves the obstacle.
@@ -2344,6 +2352,8 @@ export function applyRouteContracts(
     const targetNode = nodeMap.get(edge.target)
     if (sourceNode) repairRectLikeEndpointOverflow(edge, sourceNode, true)
     if (targetNode) repairRectLikeEndpointOverflow(edge, targetNode, false)
+    if (sourceNode) edge.points = trimOccludedShapeEndpoint(edge.points, sourceNode, true)
+    if (targetNode) edge.points = trimOccludedShapeEndpoint(edge.points, targetNode, false)
     retainBundleRouteAfterRewrite(edge, bundle)
   }
 

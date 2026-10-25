@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, join, relative, resolve } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import ts from 'typescript'
 import { plainTextFromInlineFormatting } from '../../src/shared/inline-format.ts'
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asJourney, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../../src/agent/index.ts'
@@ -22,6 +23,7 @@ interface TestBlock {
   file: string
   name: string
   body: string
+  skipped: boolean
 }
 
 interface BenchCase {
@@ -103,6 +105,7 @@ interface Ratchet {
 
 const ROOT = process.cwd()
 const BENCH = join(ROOT, 'eval/mermaid-upstream-suite-bench')
+const OUTPUT = resolve(process.env.MERMAID_HARVEST_OUTPUT_DIR ?? BENCH)
 const UPSTREAM = resolve(process.env.MERMAID_UPSTREAM_DIR ?? join(ROOT, '../upstream-mermaid'))
 const UPSTREAM_REVISION = 'a2d9686451df7c4644a3eeca20535bbd4c5776b0'
 const UPSTREAM_REPO = 'mermaid-js/mermaid' as const
@@ -110,119 +113,106 @@ const PINNED_COMPANION_PATH = join(BENCH, 'mindmap-gitgraph-f3dea583.json')
 const PINNED_COMPANION = JSON.parse(readFileSync(PINNED_COMPANION_PATH, 'utf8')) as PinnedCompanionOracle
 const PINNED_FAMILIES = ['mindmap', 'gitgraph'] as const
 
-const FAMILY_CONFIGS: FamilyConfig[] = [
+const FAMILY_CONFIGS: Array<Omit<FamilyConfig, 'consideredBlocks' | 'files'> & { files: Array<{ path: string }> }> = [
   {
     family: 'flowchart',
-    consideredBlocks: 301,
     files: [
-      { path: 'packages/mermaid/src/diagrams/flowchart/flowChartShapes.spec.js', testBlocks: 3 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/flowDb.spec.ts', testBlocks: 13 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-arrows.spec.js', testBlocks: 14 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-comments.spec.js', testBlocks: 9 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-direction.spec.js', testBlocks: 4 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-edges.spec.js', testBlocks: 29 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-interactions.spec.js', testBlocks: 13 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-lines.spec.js', testBlocks: 12 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js', testBlocks: 2 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-node-data.spec.js', testBlocks: 30 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-singlenode.spec.js', testBlocks: 34 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-style.spec.js', testBlocks: 25 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js', testBlocks: 59 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-vertice-chaining.spec.js', testBlocks: 7 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow.spec.js', testBlocks: 25 },
-      { path: 'packages/mermaid/src/diagrams/flowchart/parser/subgraph.spec.js', testBlocks: 22 },
+      { path: 'packages/mermaid/src/diagrams/flowchart/flowChartShapes.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/flowDb.spec.ts' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-arrows.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-comments.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-direction.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-edges.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-interactions.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-lines.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-md-string.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-node-data.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-singlenode.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-style.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-text.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow-vertice-chaining.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/flow.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/flowchart/parser/subgraph.spec.js' },
     ],
   },
   {
     family: 'state',
-    consideredBlocks: 108,
     files: [
-      { path: 'packages/mermaid/src/diagrams/state/parser/state-parser.spec.js', testBlocks: 16 },
-      { path: 'packages/mermaid/src/diagrams/state/parser/state-style.spec.js', testBlocks: 24 },
-      { path: 'packages/mermaid/src/diagrams/state/stateDb.spec.js', testBlocks: 6 },
-      { path: 'packages/mermaid/src/diagrams/state/stateDiagram-v2.spec.js', testBlocks: 32 },
-      { path: 'packages/mermaid/src/diagrams/state/stateDiagram.spec.js', testBlocks: 30 },
+      { path: 'packages/mermaid/src/diagrams/state/parser/state-parser.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/state/parser/state-style.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/state/stateDb.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/state/stateDiagram-v2.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/state/stateDiagram.spec.js' },
     ],
   },
   {
     family: 'sequence',
-    consideredBlocks: 139,
-    files: [{ path: 'packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js', testBlocks: 139 }],
+    files: [{ path: 'packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js' }],
     companionBench: 'src/__tests__/agent-mermaidseqbench.test.ts',
   },
   {
     family: 'class',
-    consideredBlocks: 251,
     files: [
-      { path: 'packages/mermaid/src/diagrams/class/parser/class.spec.js', testBlocks: 2 },
-      { path: 'packages/mermaid/src/diagrams/class/classDiagram.spec.ts', testBlocks: 156 },
-      { path: 'packages/mermaid/src/diagrams/class/classTypes.spec.ts', testBlocks: 93 },
+      { path: 'packages/mermaid/src/diagrams/class/parser/class.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/class/classDiagram.spec.ts' },
+      { path: 'packages/mermaid/src/diagrams/class/classTypes.spec.ts' },
     ],
   },
   {
     family: 'er',
-    consideredBlocks: 142,
     files: [
-      { path: 'packages/mermaid/src/diagrams/er/parser/erDiagram.spec.js', testBlocks: 116 },
-      { path: 'packages/mermaid/src/diagrams/er/parser/subgraph.spec.js', testBlocks: 18 },
-      { path: 'packages/mermaid/src/diagrams/er/erDb.spec.js', testBlocks: 8 },
+      { path: 'packages/mermaid/src/diagrams/er/parser/erDiagram.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/er/parser/subgraph.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/er/erDb.spec.js' },
     ],
   },
   {
     family: 'timeline',
-    consideredBlocks: 11,
-    files: [{ path: 'packages/mermaid/src/diagrams/timeline/timeline.spec.js', testBlocks: 11 }],
+    files: [{ path: 'packages/mermaid/src/diagrams/timeline/timeline.spec.js' }],
   },
   {
     family: 'gantt',
-    consideredBlocks: 68,
     files: [
-      { path: 'packages/mermaid/src/diagrams/gantt/parser/gantt.spec.js', testBlocks: 0 },
-      { path: 'packages/mermaid/src/diagrams/gantt/ganttDb.spec.ts', testBlocks: 0 },
+      { path: 'packages/mermaid/src/diagrams/gantt/parser/gantt.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/gantt/ganttDb.spec.ts' },
     ],
     companionBench: 'eval/mermaid-gantt-bench/',
   },
   {
     family: 'journey',
-    consideredBlocks: 10,
     files: [
-      { path: 'packages/mermaid/src/diagrams/user-journey/parser/journey.spec.js', testBlocks: 7 },
-      { path: 'packages/mermaid/src/diagrams/user-journey/journeyDb.spec.js', testBlocks: 3 },
+      { path: 'packages/mermaid/src/diagrams/user-journey/parser/journey.spec.js' },
+      { path: 'packages/mermaid/src/diagrams/user-journey/journeyDb.spec.js' },
     ],
   },
   {
     family: 'architecture',
-    consideredBlocks: 33,
     files: [
-      { path: 'packages/mermaid/src/diagrams/architecture/architecture.spec.ts', testBlocks: 26 },
-      { path: 'packages/mermaid/src/diagrams/architecture/architectureSeed.spec.ts', testBlocks: 7 },
+      { path: 'packages/mermaid/src/diagrams/architecture/architecture.spec.ts' },
+      { path: 'packages/mermaid/src/diagrams/architecture/architectureSeed.spec.ts' },
     ],
   },
   {
     family: 'xychart',
-    consideredBlocks: 64,
     files: [
-      { path: 'packages/mermaid/src/diagrams/xychart/parser/xychart.jison.spec.ts', testBlocks: 58 },
-      { path: 'packages/mermaid/src/diagrams/xychart/xychartDb.spec.ts', testBlocks: 6 },
+      { path: 'packages/mermaid/src/diagrams/xychart/parser/xychart.jison.spec.ts' },
+      { path: 'packages/mermaid/src/diagrams/xychart/xychartDb.spec.ts' },
     ],
   },
   {
     family: 'pie',
-    consideredBlocks: 14,
-    files: [{ path: 'packages/mermaid/src/diagrams/pie/pie.spec.ts', testBlocks: 14 }],
+    files: [{ path: 'packages/mermaid/src/diagrams/pie/pie.spec.ts' }],
   },
   {
     family: 'quadrant',
-    consideredBlocks: 29,
     files: [
-      { path: 'packages/mermaid/src/diagrams/quadrant-chart/parser/quadrant.jison.spec.ts', testBlocks: 24 },
-      { path: 'packages/mermaid/src/diagrams/quadrant-chart/quadrantDb.spec.ts', testBlocks: 5 },
+      { path: 'packages/mermaid/src/diagrams/quadrant-chart/parser/quadrant.jison.spec.ts' },
+      { path: 'packages/mermaid/src/diagrams/quadrant-chart/quadrantDb.spec.ts' },
     ],
   },
   {
     family: 'radar',
-    consideredBlocks: 19,
-    files: [{ path: 'packages/mermaid/src/diagrams/radar/radar.spec.ts', testBlocks: 19 }],
+    files: [{ path: 'packages/mermaid/src/diagrams/radar/radar.spec.ts' }],
   },
 ]
 
@@ -253,17 +243,29 @@ function main(): void {
   }
   assertPinnedUpstreamRevision()
 
+  const blocksByFile = new Map<string, TestBlock[]>()
+  const configs: FamilyConfig[] = FAMILY_CONFIGS.map(config => {
+    const files = config.files.map(file => {
+      const blocks = extractTestBlocks(readFileSync(join(UPSTREAM, file.path), 'utf8'), config.family, file.path)
+      blocksByFile.set(file.path, blocks)
+      return { path: file.path, testBlocks: blocks.length }
+    })
+    return { ...config, files, consideredBlocks: files.reduce((sum, file) => sum + file.testBlocks, 0) }
+  })
+  if (process.argv.includes('--inventory-only')) {
+    console.log(JSON.stringify(configs.map(config => ({ family: config.family, consideredBlocks: config.consideredBlocks, files: config.files })), null, 2))
+    return
+  }
+
+  mkdirSync(OUTPUT, { recursive: true })
+  const outputDirectory = statSync(realpathSync(OUTPUT)), ledgerDirectory = statSync(realpathSync(BENCH))
+  const inspecting = outputDirectory.dev !== ledgerDirectory.dev || outputDirectory.ino !== ledgerDirectory.ino
   const casesByKey = new Map<string, BenchCase>()
   const exclusions: Exclusion[] = []
-  const extractedByFamily = new Map<Family, number>()
 
-  for (const config of FAMILY_CONFIGS) {
-    if (config.family === 'gantt') continue
+  for (const config of configs) {
     for (const file of config.files) {
-      const abs = join(UPSTREAM, file.path)
-      const text = readFileSync(abs, 'utf8')
-      for (const block of extractTestBlocks(text, config.family, file.path)) {
-        extractedByFamily.set(config.family, (extractedByFamily.get(config.family) ?? 0) + 1)
+      for (const block of blocksByFile.get(file.path)!) {
         const classification = classifyBlock(block)
         if (classification.kind === 'case') {
           const key = `${config.family}\0${classification.source}\0${classification.structured ? 'structured' : 'opaque'}`
@@ -296,38 +298,25 @@ function main(): void {
       }
     }
 
-    const extracted = extractedByFamily.get(config.family) ?? 0
-    if (extracted < config.consideredBlocks) {
-      exclusions.push({
-        id: `${config.family}-unextracted-dynamic-blocks`,
-        families: [config.family],
-        reason: 'unextracted-dynamic-source',
-        disposition: 'WONTFIX',
-        blockCount: config.consideredBlocks - extracted,
-        upstream: {
-          repo: UPSTREAM_REPO,
-          files: config.files.map(file => file.path),
-          blocks: [`${config.consideredBlocks - extracted} upstream test blocks not expressible as direct Mermaid source literals by the harvester`],
-        },
-        summary: 'These upstream blocks build inputs dynamically, assert renderer or database helper behavior, or use table-driven cases that are counted from the spec file but do not expose one portable Mermaid source literal to run through the public agent API.',
-      })
-    }
   }
 
   const cases = [...casesByKey.values()].sort((a, b) => compareCodePointStrings(a.family, b.family) || compareCodePointStrings(a.id, b.id))
-  const manifest = buildManifest(cases, exclusions)
+  const manifest = buildManifest(cases, exclusions, configs)
+  const writeCorpus = (): void => {
+    writeJson(join(OUTPUT, 'cases.json'), cases)
+    writeJson(join(OUTPUT, 'exclusions.json'), exclusions.sort((a, b) => compareCodePointStrings(a.families[0]!, b.families[0]!) || compareCodePointStrings(a.id, b.id)))
+    writeJson(join(OUTPUT, 'manifest.json'), manifest)
+  }
+  // Inspection keeps proposed findings even if the unchanged gap ratchet
+  // refuses a refresh. Default output is never replaced before admission.
+  if (inspecting) writeCorpus()
   const ratchet = buildRatchet(cases, exclusions)
-  writeJson(join(BENCH, 'cases.json'), cases)
-  writeJson(
-    join(BENCH, 'exclusions.json'),
-    exclusions.sort((a, b) => compareCodePointStrings(a.families[0]!, b.families[0]!) || compareCodePointStrings(a.id, b.id)),
-  )
-  writeJson(join(BENCH, 'manifest.json'), manifest)
-  writeJson(join(BENCH, 'ratchet.json'), ratchet)
+  if (!inspecting) writeCorpus()
+  writeJson(join(OUTPUT, 'ratchet.json'), ratchet)
 
   const companionCounts = Object.values(PINNED_COMPANION.accounting)
   const totalCases = cases.length + companionCounts.reduce((sum, row) => sum + row.importedCases, 0)
-  const importedBlocks = cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68 + companionCounts.reduce((sum, row) => sum + row.importedBlocks, 0)
+  const importedBlocks = cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + companionCounts.reduce((sum, row) => sum + row.importedBlocks, 0)
   const excludedBlocks = exclusions.reduce((sum, e) => sum + e.blockCount, 0) + companionCounts.reduce((sum, row) => sum + row.excludedBlocks, 0)
   console.log(`Harvested ${totalCases} cases covering ${importedBlocks} blocks; excluded/accounted ${excludedBlocks}; local-gap budget ${ratchet.budgets.localGaps.totalBlocks}; deferred 0.`)
 }
@@ -344,7 +333,7 @@ function assertPinnedUpstreamRevision(): void {
   }
 }
 
-function buildManifest(cases: BenchCase[], exclusions: Exclusion[]): unknown {
+function buildManifest(cases: BenchCase[], exclusions: Exclusion[], configs: FamilyConfig[]): unknown {
   const importedBlocksByFamily = new Map<Family, number>()
   const importedCasesByFamily = new Map<Family, number>()
   for (const c of cases) {
@@ -368,14 +357,14 @@ function buildManifest(cases: BenchCase[], exclusions: Exclusion[]): unknown {
     },
     scope: 'Current Agentic Mermaid renderable built-in families. Every considered upstream parser/DB block is imported as an executable case, excluded with a documented reason, or delegated to a named family companion bench. Mindmap and GitGraph are pinned separately to their declared compatibility revision.',
     families: [
-      ...FAMILY_CONFIGS.map(config => {
-        const importedBlocks = config.family === 'gantt' ? 68 : (importedBlocksByFamily.get(config.family) ?? 0)
-        const importedCases = config.family === 'gantt' ? 68 : (importedCasesByFamily.get(config.family) ?? 0)
+      ...configs.map(config => {
+        const importedBlocks = importedBlocksByFamily.get(config.family) ?? 0
+        const importedCases = importedCasesByFamily.get(config.family) ?? 0
         const excludedBlocks = excludedBlocksByFamily.get(config.family) ?? 0
         const deferredBlocks = config.consideredBlocks - importedBlocks - excludedBlocks
         return {
           family: config.family,
-          status: config.family === 'gantt' ? 'dedicated-full-family-bench-existing' : 'full-harvest-accounted',
+          status: 'registration-harvest-accounted',
           consideredBlocks: config.consideredBlocks,
           importedCases,
           importedBlocks,
@@ -405,8 +394,8 @@ function buildManifest(cases: BenchCase[], exclusions: Exclusion[]): unknown {
 function buildRatchet(cases: BenchCase[], exclusions: Exclusion[]): Ratchet {
   const companionCounts = Object.values(PINNED_COMPANION.accounting)
   const observed: Ratchet['observed'] = {
-    importedCases: cases.length + 68 + companionCounts.reduce((sum, row) => sum + row.importedCases, 0),
-    importedBlocks: cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + 68 + companionCounts.reduce((sum, row) => sum + row.importedBlocks, 0),
+    importedCases: cases.length + companionCounts.reduce((sum, row) => sum + row.importedCases, 0),
+    importedBlocks: cases.reduce((sum, c) => sum + c.upstream.blocks.length, 0) + companionCounts.reduce((sum, row) => sum + row.importedBlocks, 0),
     localGaps: localGapBudget(exclusions),
   }
   const previous = readRatchet()
@@ -531,7 +520,9 @@ function assertBudgetAtOrBelow(label: string, observed: number, budget: number):
 }
 
 function classifyBlock(block: TestBlock): { kind: 'case'; source: string; structured: boolean; nodes: number; edges: number; groups: number; labels: string[] } | { kind: 'exclude'; reason: string; summary: string; source?: string; ours?: Exclusion['ours'] } {
-  const sources = sourceLiterals(block.body).filter(source => !source.includes('${expr}'))
+  const extraction = sourceLiterals(block.body)
+  const sources = extraction.sources
+  if (block.skipped) return { kind: 'exclude', reason: 'upstream-skipped', summary: 'This is an actual skipped/todo registration in the historical upstream source, not evidence of a missing public feature.', source: sources[0] }
   if (isNegativeTest(block.body)) {
     return {
       kind: 'exclude',
@@ -541,11 +532,11 @@ function classifyBlock(block: TestBlock): { kind: 'case'; source: string; struct
       ours: sources[0] ? localBehavior(sources[0], block.family) : undefined,
     }
   }
-  if (sources.length === 0) {
+  if (extraction.unresolved || sources.length === 0) {
     return {
       kind: 'exclude',
-      reason: 'api-internal',
-      summary: 'The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string.',
+      reason: 'source-extraction-limit',
+      summary: 'No constant Mermaid source could be recovered from this actual registration. This extraction limit does not establish that the behavior is private, unsupported, or WONTFIX.',
     }
   }
   const portableSources = sources.filter(source => !isHarvestedHelperLiteral(source, block.family))
@@ -723,7 +714,7 @@ function safeVerify(diagram: ParsedDiagram): { ok: boolean; warnings?: ReturnTyp
 }
 
 function exclusionForBlock(block: TestBlock, reason: string, summary: string, source?: string, ours?: Exclusion['ours']): Exclusion {
-  const isWontfix = !LOCAL_GAP_REASONS.has(reason)
+  const isWontfix = !LOCAL_GAP_REASONS.has(reason) && reason !== 'source-extraction-limit'
   return {
     id: `${block.family}-excluded-${slug(relative('packages/mermaid/src/diagrams', block.file))}-${slug(block.name)}`,
     families: [block.family],
@@ -765,88 +756,140 @@ function blockLabel(block: TestBlock): string {
   return `${block.file} :: ${block.name}`
 }
 
+/** TypeScript owns lexical boundaries, including comments, quoted method text,
+ * callback braces and table-driven/dynamic registration names. */
 function extractTestBlocks(text: string, family: Family, file: string): TestBlock[] {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
   const blocks: TestBlock[] = []
-  const re = /\b(?:it|test)\s*(?:\.each\s*\([\s\S]*?\))?\s*\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    let p = re.lastIndex
-    while (/\s/.test(text[p] ?? '')) p++
-    if (text[p] !== ',') continue
-    p++
-    while (/\s/.test(text[p] ?? '')) p++
-    const brace = text.indexOf('{', p)
-    if (brace < 0 || brace - p > 300) continue
-    const end = findMatchingBrace(text, brace)
-    if (end < 0) continue
-    blocks.push({ family, file, name: unescapeDescription(m[2] ?? 'unnamed upstream block'), body: text.slice(p, end + 1) })
-    re.lastIndex = end + 1
+  function registration(node: ts.Expression): { test: boolean; skipped: boolean } {
+    if (ts.isIdentifier(node)) return { test: node.text === 'it' || node.text === 'test', skipped: false }
+    if (ts.isCallExpression(node)) return registration(node.expression)
+    if (ts.isTaggedTemplateExpression(node)) return registration(node.tag)
+    if (ts.isPropertyAccessExpression(node)) {
+      const base = registration(node.expression)
+      return { test: base.test, skipped: base.skipped || node.name.text === 'skip' || node.name.text === 'todo' }
+    }
+    return { test: false, skipped: false }
   }
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node)) {
+      const kind = registration(node.expression)
+      const callback = node.arguments.find(argument => ts.isArrowFunction(argument) || ts.isFunctionExpression(argument))
+      const pending = ts.isPropertyAccessExpression(node.expression) && (node.expression.name.text === 'skip' || node.expression.name.text === 'todo')
+      if (kind.test && (callback || pending) && node.arguments[0]) {
+        const name = constantString(node.arguments[0]) ?? node.arguments[0].getText(source)
+        blocks.push({ family, file, name, body: callback?.getText(source) ?? '', skipped: kind.skipped })
+        return
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
   return blocks
 }
 
-function findMatchingBrace(text: string, start: number): number {
-  let depth = 0
-  let quote: '"' | "'" | '`' | null = null
-  let escaped = false
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i]!
-    if (escaped) {
-      escaped = false
-      continue
+/** Evaluate only syntax-owned string constants. Never execute upstream code. */
+function constantString(node: ts.Node): string | undefined {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text
+  if (ts.isParenthesizedExpression(node)) return constantString(node.expression)
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = constantString(node.left), right = constantString(node.right)
+    if (left !== undefined && right !== undefined) return left + right
+  }
+  if (ts.isTemplateExpression(node)) {
+    let value = node.head.text
+    for (const span of node.templateSpans) {
+      const expression = constantString(span.expression)
+      if (expression === undefined) return undefined
+      value += expression + span.literal.text
     }
-    if (quote) {
-      if (ch === '\\') {
-        escaped = true
-      } else if (ch === quote) {
-        quote = null
+    return value
+  }
+  return undefined
+}
+
+/** Only actual source argument values can become candidate cases. Unknown
+ * bindings, mutations, tags and dynamic expressions remain extraction limits. */
+function sourceLiterals(body: string): { sources: string[]; unresolved: boolean } {
+  const source = ts.createSourceFile('upstream-callback.ts', body, ts.ScriptTarget.Latest, true)
+  const values = new Set<string>()
+  // The compiler binder owns lexical scope, destructuring and var hoisting.
+  // Extraction admits only immutable local string constants after binding.
+  const options: ts.CompilerOptions = { target: ts.ScriptTarget.Latest, noLib: true, noResolve: true, noEmit: true }
+  const host = ts.createCompilerHost(options)
+  host.getSourceFile = name => name === source.fileName ? source : undefined
+  host.fileExists = name => name === source.fileName
+  host.readFile = name => name === source.fileName ? source.text : undefined
+  const checker = ts.createProgram([source.fileName], options, host).getTypeChecker()
+  function evaluate(node: ts.Node, active = new Set<ts.Node>()): string | undefined {
+    if (active.has(node)) return undefined
+    const next = new Set(active); next.add(node)
+    if (ts.isIdentifier(node)) {
+      const binding = checker.getSymbolAtLocation(node)?.valueDeclaration
+      if (!binding || !ts.isVariableDeclaration(binding) || !ts.isVariableDeclarationList(binding.parent) || !(binding.parent.flags & ts.NodeFlags.Const)) return undefined
+      return binding.initializer && binding.getStart(source) < node.getStart(source) ? evaluate(binding.initializer, next) : undefined
+    }
+    if (ts.isParenthesizedExpression(node)) return evaluate(node.expression, next)
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      const left = evaluate(node.left, next), right = evaluate(node.right, next)
+      return left !== undefined && right !== undefined ? left + right : undefined
+    }
+    if (ts.isTemplateExpression(node)) {
+      let value = node.head.text
+      for (const span of node.templateSpans) {
+        const expression = evaluate(span.expression, next)
+        if (expression === undefined) return undefined
+        value += expression + span.literal.text
       }
-      continue
+      return value
     }
-    if (ch === '"' || ch === "'" || ch === '`') {
-      quote = ch
-    } else if (ch === '{') {
-      depth++
-    } else if (ch === '}') {
-      depth--
-      if (depth === 0) return i
+    return constantString(node)
+  }
+  let unresolved = false
+  function visit(node: ts.Node): void {
+    if (ts.isCallExpression(node)) {
+      const name = ts.isIdentifier(node.expression) ? node.expression.text : ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : ''
+      const argument = name === 'render' ? 1 : ['parse', 'getDiagramFromText', 'preprocessDiagram', 'detectType'].includes(name) ? 0 : undefined
+      const json = ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText(source) === 'JSON'
+      if (argument !== undefined && !json) {
+        const value = node.arguments[argument] ? evaluate(node.arguments[argument]!) : undefined
+        if (value === undefined) unresolved = true
+        else if (headerPattern.test(value) && value.split(/\r?\n/).length < 220) values.add(value.trim())
+      }
     }
+    ts.forEachChild(node, visit)
   }
-  return -1
-}
-
-function sourceLiterals(body: string): string[] {
-  const values: string[] = []
-  const re = /(?:`(?:\\.|[^`])*`|'(?:\\.|[^'])*'|"(?:\\.|[^"])*")/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(body)) !== null) {
-    const value = unquote(m[0])
-    if (headerPattern.test(value) && value.split(/\r?\n/).length < 220) values.push(value.trim())
-  }
-  return [...new Set(values)]
-}
-
-function unquote(raw: string): string {
-  if (raw[0] === '`') {
-    const withoutInterpolation = raw.replace(/\$\{[^}]*\}/g, '\\${expr}')
-    try {
-      return Function(`return ${withoutInterpolation}`)() as string
-    } catch {
-      return raw.slice(1, -1).replace(/\$\{[^}]*\}/g, '${expr}')
-    }
-  }
-  try {
-    return Function(`return ${raw}`)() as string
-  } catch {
-    return raw.slice(1, -1)
-  }
+  visit(source)
+  return { sources: [...values], unresolved }
 }
 
 function isNegativeTest(body: string): boolean {
-  if (/\.(?:toThrow|toThrowError)\s*\(|rejects\.|throws/.test(body) && !/not\.toThrow/.test(body)) return true
-  // `let error = false; try { … } catch { error = true } expect(error).toBe(true)`
-  const flag = body.match(/catch\s*(?:\([^)]*\))?\s*\{\s*(\w+)\s*=\s*true;?\s*\}/)
-  return flag !== null && new RegExp(`expect\\(\\s*${flag[1]}\\s*\\)\\.toBe\\(true\\)`).test(body)
+  const source = ts.createSourceFile('upstream-assertions.ts', body, ts.ScriptTarget.Latest, true)
+  const caught = new Set<string>(), asserted = new Set<string>()
+  let negative = false
+  function visit(node: ts.Node): void {
+    if (ts.isCatchClause(node)) {
+      function assignments(child: ts.Node): void {
+        if (ts.isBinaryExpression(child) && child.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(child.left) && child.right.kind === ts.SyntaxKind.TrueKeyword) caught.add(child.left.text)
+        ts.forEachChild(child, assignments)
+      }
+      assignments(node.block)
+    }
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+      const matcher = node.expression.name.text
+      let receiver: ts.Expression = node.expression.expression
+      let negated = false, rejects = false
+      while (ts.isPropertyAccessExpression(receiver)) {
+        negated ||= receiver.name.text === 'not'; rejects ||= receiver.name.text === 'rejects'
+        receiver = receiver.expression
+      }
+      if (!negated && (matcher === 'toThrow' || matcher === 'toThrowError' || matcher === 'throws' || rejects)) negative = true
+      if (!negated && matcher === 'toBe' && node.arguments[0]?.kind === ts.SyntaxKind.TrueKeyword && ts.isCallExpression(receiver) && ts.isIdentifier(receiver.expression) && receiver.expression.text === 'expect' && receiver.arguments[0] && ts.isIdentifier(receiver.arguments[0])) asserted.add(receiver.arguments[0].text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return negative || [...caught].some(name => asserted.has(name))
 }
 
 function uniqueCaseId(cases: Map<string, BenchCase>, base: string): string {
@@ -872,15 +915,13 @@ function slug(text: string): string {
   return base || 'block'
 }
 
-function unescapeDescription(text: string): string {
-  return text
-    .replace(/\\([`"'])/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 function writeJson(path: string, value: unknown): void {
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`)
+  const scratch = mkdtempSync(join(dirname(path), '.harvest-'))
+  try {
+    const staged = join(scratch, basename(path))
+    writeFileSync(staged, `${JSON.stringify(value, null, 2)}\n`)
+    renameSync(staged, path)
+  } finally { rmSync(scratch, { recursive: true, force: true }) }
 }
 
 main()

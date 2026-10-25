@@ -334,13 +334,14 @@ it('prototype styles paint readable label ink against an opaque halo', async () 
 
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
-  // Paired macOS/Bun 1.4.2 builds against 9b64b5f4:
-  // raw 4,089,380 → 4,129,363; gzip 1,267,292 → 1,281,321.
-  // Five production codec/config modules share the same engine; dependency
-  // inputs are unchanged. Keep ~11 KB raw / 3 KB gzip headroom; the
+  // Paired macOS/Bun 1.4.2 builds against f8a2437b:
+  // raw 4,129,457 → 4,415,772; gzip 1,281,591 → 1,328,243.
+  // The pinned config programs and geometry contracts add the measured cost. The
+  // module graph contains no upstream parser/renderer; one embedded program
+  // serves both main and worker realms. Remaining headroom is ~5 KB raw / 0.7 KB gzip;
   // single-engine graph and relative payload gates also apply.
-  expect(html.byteLength).toBeLessThanOrEqual(4_140_000)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_284_500)
+  expect(html.byteLength).toBeLessThanOrEqual(4_421_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_329_000)
 })
 
 it('standalone editor renders and verifies with one persistent Blob worker', async () => {
