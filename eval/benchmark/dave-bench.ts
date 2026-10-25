@@ -1,6 +1,6 @@
 import './ci-policy-enforce.ts'
 // Everyday entry to the existing exact-artifact browser scorecard. Keep the
-// implementation shared with publication CI; only warm-up policy differs.
+// implementation shared with the local release browser suite; warm-up differs.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'

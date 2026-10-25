@@ -1,11 +1,11 @@
 import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs'
-import { cpus, hostname, release } from 'node:os'
 import { join, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { portableCases, PORTABLE_COHORT_PROTOCOL, type PortableCohort } from './cohorts.ts'
-import { artifactIdentity, byteDigest, harnessIdentity, portableDirectory, readJson, resolveArtifact, runtimeIdentity } from './artifacts.ts'
+import { environmentIdentity } from './environment.ts'
+import { artifactIdentity, byteDigest, harnessIdentity, portableDirectory, readJson, resolveArtifact } from './artifacts.ts'
 import { activateProjectRecord, findProjectRecord, inspectCurrentProjectRecords, publishProjectRecord, stableValue, type ProjectBenchmarkIdentity, type ProjectBenchmarkRecord } from './project-records.ts'
 import { assertPortableRunning, PortableCancelled, resetPortableCancellation, measurePortableProject, terminatePortableWorkers } from './execution.ts'
 import { PORTABLE_MEASUREMENT_PROTOCOL, type PortableArtifact, type PortableJob, type PortableWorkerResult, type Replica } from './protocol.ts'
@@ -99,19 +99,7 @@ function observerIdentity(path?: string) {
   if (!/GNU\s*Time/i.test(version)) throw Error('Resource observer must be GNU time')
   return { status: 'available', path, version, sha256: byteDigest(path) }
 }
-function environmentIdentity(node: string) {
-  const runtime = runtimeIdentity(node)
-  return {
-    runtime,
-    nodeSha256: byteDigest(runtime.executable),
-    host: hostname(),
-    cpu: cpus().map(cpu => cpu.model),
-    kernel: release(),
-    cpuLimit: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : null,
-    memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : null,
-    environment: Object.fromEntries(['NODE_OPTIONS', 'NODE_ENV', 'TZ', 'LANG', 'LC_ALL', 'LC_NUMERIC', 'AGENTIC_MERMAID_EXPERIMENTS'].map(name => [name, process.env[name] ?? null])),
-  }
-}
+
 function listFiles(directory: string, root = directory): string[] {
   return readdirSync(directory, { withFileTypes: true })
     .flatMap(entry => (entry.isDirectory() ? listFiles(join(directory, entry.name), root) : entry.isFile() ? [relative(root, join(directory, entry.name))] : []))

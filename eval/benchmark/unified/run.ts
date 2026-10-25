@@ -23,7 +23,7 @@ export interface RunnerOptions extends SuiteOptions {
   allowIncomplete: boolean
 }
 export function parseOptions(argv: string[]): RunnerOptions {
-  const flags = new Set(['--list', '--allow-incomplete', '--community-force'])
+  const flags = new Set(['--list', '--allow-incomplete', '--community-force', '--benchmark-force'])
   const allowed = new Set([
     'profile',
     'suites',
@@ -50,6 +50,14 @@ export function parseOptions(argv: string[]): RunnerOptions {
     'live-model',
     'community-artifacts',
     'community-projects',
+    'projects',
+    'benchmark-records',
+    'startup-samples',
+    'startup-surfaces',
+    'node-executable',
+    'bun-executable',
+    'startup-observer',
+    'native-executable',
     'community-catalog',
     'community-records',
     'portable-project',
@@ -102,6 +110,11 @@ export function parseOptions(argv: string[]): RunnerOptions {
     communityCoverage = options.get('community-coverage') ?? 'once'
   if (!['frozen', 'latest'].includes(communityPolicy) || !['once', 'repeated'].includes(communityCoverage)) throw Error('Invalid community artifact or coverage policy')
   const liveProvider = options.get('live-provider')
+  if (options.has('projects') && options.has('community-projects')) throw Error('Use --projects or --community-projects, not both')
+  const projects = (options.get('projects') ?? options.get('community-projects'))?.split(',')
+  if (projects?.some(project => !project) || (projects && new Set(projects).size !== projects.length)) throw Error('--projects needs unique nonempty project IDs')
+  const startupSurfaces = options.get('startup-surfaces')?.split(',') as RunnerOptions['startupSurfaces']
+  if (startupSurfaces && (!startupSurfaces.length || new Set(startupSurfaces).size !== startupSurfaces.length || startupSurfaces.some(surface => !['library', 'cli', 'mcp', 'browser'].includes(surface)))) throw Error('--startup-surfaces needs unique library,cli,mcp,browser values')
   if (liveProvider && !['anthropic', 'openai-compatible'].includes(liveProvider)) throw new Error('--live-provider must be anthropic or openai-compatible')
   return {
     root: path('target') ?? DRIVER,
@@ -131,7 +144,15 @@ export function parseOptions(argv: string[]): RunnerOptions {
     liveProvider,
     liveModel: options.get('live-model'),
     communityArtifacts: path('community-artifacts'),
-    communityProjects: options.get('community-projects')?.split(','),
+    communityProjects: projects,
+    benchmarkRecordStore: path('benchmark-records'),
+    benchmarkForce: options.has('benchmark-force'),
+    startupSamples: options.has('startup-samples') ? positive('startup-samples', 5) : undefined,
+    startupSurfaces,
+    nodeExecutable: path('node-executable'),
+    bunExecutable: path('bun-executable'),
+    observerExecutable: path('startup-observer'),
+    nativeExecutable: path('native-executable'),
     communityCatalogFile: path('community-catalog'),
     communityRecordStore: path('community-records'),
     communityForce: options.has('community-force'),
@@ -269,6 +290,9 @@ async function runInternal(id: string, options: SuiteOptions): Promise<UnifiedSu
     community: ['project-update.ts', 'runIncrementalCommunitySuite'],
     'pinned-reference-score': ['reference-score.ts', 'runReferenceScoreSuite'],
     'community-cli': ['project-update.ts', 'runRetainedCommunityCliSuite'],
+    'stable-support': ['stable-support-run.ts', 'runStableSupportSuite'],
+    'entry-startup': ['retained-campaigns.ts', 'runRetainedEntryStartupSuite'],
+    'upstream-test-assertions': ['retained-campaigns.ts', 'runRetainedUpstreamTestSuite'],
   }
   const [file, name] = entry[id] ?? []
   if (!file || !name) throw new Error(`No internal suite ${id}`)
@@ -436,7 +460,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }
   if (argv.includes('--help')) {
     console.log(
-      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --ownership-site FROZEN_ORIGINAL_CANDIDATE_DIR --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --community-artifacts PEER_ADAPTER_MANIFEST\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
+      'bun run bench [--profile smoke|full] [--list] [--suites ID,...] [--out DIR] [--rounds N]\n  --target CHECKOUT --package-root INSTALLED_PACKAGE\n  --candidate-tarball FILE --candidate-sha256 HEX\n  --baseline DIRECTORY | --baseline-npm SELECTOR; --baseline-ref GIT_REF\n  --baseline-tarball FILE --baseline-sha256 HEX | --baseline-lock FILE\n  --site WEBSITE_PUBLIC --ownership-site FROZEN_ORIGINAL_CANDIDATE_DIR --executable CHROMIUM --bezel-dir VERIFIED_WRAPPER\n  --mermaid-dir PINNED_SOURCE --reference-dir INDEPENDENT_INSTALL\n  --community-artifacts PEER_ADAPTER_MANIFEST --projects OWNER/PROJECT,...\n  --benchmark-records DIR --benchmark-force\n  --startup-samples N --startup-surfaces library,cli,mcp,browser\n  --node-executable NODE --bun-executable BUN --startup-observer GNU_TIME --native-executable AM\n  --live-provider anthropic|openai-compatible --live-model MODEL\n  --timeout-ms N --allow-incomplete\nSmoke enrolls every family in bounded adapters; full selects every maintained suite, including Dave, current-reference tests and historical imported corpora. Missing prerequisites remain blocked. Exit: 0 complete, 1 failed, 2 incomplete. --allow-incomplete permits blocked suites but never failures.',
     )
     return
   }

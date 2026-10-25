@@ -7,10 +7,11 @@ import { mutationWitnessForFamily, structuralBuildWitnessForFamily } from './fam
 import { decodeToolPayload, type InvocationOptions, invocationHarnessRoot, invocationRow } from './invocation.ts'
 import { qualifyOutput } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedWorkload } from './types.ts'
+import type { StartupInvocationOptions } from './entry-startup.ts'
 
-async function ready(command: string, args: string[], cwd: string): Promise<{ child: ChildProcess; url: string; log: () => string }> {
+async function ready(command: string, args: string[], cwd: string, processGroup = false): Promise<{ child: ChildProcess; url: string; log: () => string }> {
   return await new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(command, args, { cwd, env: process.env, detached: processGroup, stdio: ['ignore', 'pipe', 'pipe'] })
     let text = ''
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
@@ -51,6 +52,18 @@ async function stop(child: ChildProcess) {
     ),
   ])
 }
+export async function finishStartupMcpObserver(observer: ChildProcess): Promise<void> {
+  if (observer.exitCode !== null || observer.signalCode !== null) return
+  const closed = new Promise<void>(resolve => observer.once('close', () => resolve()))
+  if (!observer.pid || process.platform === 'win32') throw Error('GNU time HTTP server shutdown requires an owned POSIX process group')
+  // GNU time ignores interactive SIGINT/SIGQUIT while waiting. Signal its
+  // owned group like a terminal Ctrl-C: the actual HTTP server handles SIGINT,
+  // exits gracefully, and time remains alive to reap/write the wait4 record.
+  // Killing the observer itself could silently discard that resource record.
+  try { process.kill(-observer.pid, 'SIGINT') } catch (error) { if (observer.exitCode === null && observer.signalCode === null) throw error }
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try { await Promise.race([closed, new Promise<never>((_, reject) => { timeout = setTimeout(() => { try { process.kill(-observer.pid!, 'SIGKILL') } catch {} reject(Error('Observed MCP server did not terminate gracefully')) }, 3000) })]) } finally { if (timeout) clearTimeout(timeout) }
+}
 async function hostedEntry(options: InvocationOptions, out: string): Promise<string> {
   const root = options.root,
     require = createRequire(join(options.harnessRoot ?? invocationHarnessRoot, 'package.json')),
@@ -71,7 +84,8 @@ const server=createServer(async(req,res)=>{try{const chunks=[];for await(const c
   await esbuild.build({ entryPoints: [source], outfile: entry, bundle: true, platform: 'node', format: 'esm', target: 'es2022', loader: { '.ttf': 'binary', '.wasm': 'binary' }, external: [...external, '@resvg/resvg-wasm'], logLevel: 'silent' })
   return entry
 }
-export async function runInvocationMcp(options: InvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
+export async function runInvocationMcp(options: InvocationOptions & StartupInvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
+  if (options.startupOnly) return await runInvocationMcpStartup(options, workloads)
   const root = options.packageRoot ?? options.root,
     out = join(options.out, 'mcp')
   mkdirSync(out, { recursive: true })
@@ -241,5 +255,95 @@ export async function runInvocationMcp(options: InvocationOptions, workloads: Un
     'Hosted HTTP adapter uses the actual target handler and resvg-WASM/font bytes on Node over a real socket; Cloudflare workerd scheduling, Dynamic Worker isolate startup and remote network latency require a deployed/runtime-specific campaign.',
     'Hosted compute Cache API is intentionally absent/disabled in local transport probes; warm server reuse and deployed compute-cache hits must not be conflated.',
   )
+  return { rows, gaps, artifacts }
+}
+
+/** The first real call follows initialize/list immediately. It never inherits
+ * the ordinary invocation suite's concurrent probes or warmup portfolio. */
+export async function runInvocationMcpStartup(options: InvocationOptions & StartupInvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
+  const root = options.packageRoot ?? options.root, out = join(options.out, 'mcp-startup')
+  mkdirSync(out, { recursive: true })
+  const harness = options.harnessRoot ?? invocationHarnessRoot
+  const require = createRequire(join(harness, existsSync(join(harness, 'eval/benchmark/package.json')) ? 'eval/benchmark/package.json' : 'package.json'))
+  const module = async (name: string) => await import(pathToFileURL(require.resolve(name)).href)
+  const [{ Client }, { StdioClientTransport }, { SSEClientTransport }] = await Promise.all([module('@modelcontextprotocol/sdk/client/index.js'), module('@modelcontextprotocol/sdk/client/stdio.js'), module('@modelcontextprotocol/sdk/client/sse.js')])
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')), rows: BenchmarkObservation[] = [], gaps: string[] = [], artifacts: string[] = []
+  const bins = Object.entries(pkg.bin ?? {}).filter(([name]) => name.includes('mcp')) as [string, string][]
+  if (!bins.length) return { rows: [{ ...invocationRow('mcp', workloads[0]!, 'entry-inventory', 'rpc', 'declaration'), status: 'not-applicable', detail: 'Package declares no MCP executable.' }], gaps, artifacts }
+  const runtimes = options.startupRuntimes ?? [{ name: 'node', executable: options.nodeExecutable ?? 'node', version: 'unobserved' }]
+  const definitions = [
+    { name: 'render_svg', format: 'svg', options: {} },
+    { name: 'render_ascii', format: 'ascii', options: { useAscii: true } },
+    { name: 'render_ascii', format: 'unicode', options: { useAscii: false } },
+    { name: 'render_png', format: 'png', options: {} },
+  ]
+  for (const [alias, relative] of bins) for (const runtime of runtimes) for (const transportName of options.startupMcpTransports ?? ['stdio', 'http-sse'] as const) for (const def of definitions) for (let round = 1; round <= options.rounds; round++) for (let sample = 1; sample <= (options.startupSamplesPerRound ?? 1); sample++) for (const resourcePass of options.startupObserverExecutable && sample === 1 ? [false, true] : [false]) {
+    const w = workloads[0]!, row = invocationRow(`mcp:${alias}:${transportName}`, w, def.name, def.format, 'process-initialize-first-fully-consumed-tool')
+    row.runtime = runtime.name
+    row.metrics = { round, sample, runtimeVersion: runtime.version, independentFreshServer: true, executionHost: 'published MCP executable', clock: resourcePass ? 'separate whole-server GNU time diagnostic; not a latency sample' : 'before SDK transport/server creation through initialize, tools/list, first public call, decode and full response serialization; qualification after clock', lifecycleScope: resourcePass ? 'actual GNU time wait4 exit status; owned HTTP group SIGINT requests server graceful shutdown with exit0 while GNU time ignores interactive signal; stdio EOF drains naturally; signal termination/nonzero rejected' : 'first complete tool response qualified; SDK close has no public server exit-status field, so later server lifecycle unmeasured, not a full-process certificate', memoryScope: resourcePass ? 'GNU time peak of actual server process lifetime through initialization/first consumed tool and graceful teardown; parent SDK excluded; server JS heap snapshots unavailable' : 'server resources collected in separate fresh pass; parent SDK memory is not server memory' }
+    if (resourcePass) row.mode = 'fresh-mcp-server-resource'
+    let server: Awaited<ReturnType<typeof ready>> | undefined, client: any, serverStderr = ''
+    const resourceFile = join(out, `${alias}-${runtime.name}-${transportName}-${def.format}-${round}-${sample}.time`)
+    try {
+      const bin = join(root, relative)
+      if (!existsSync(bin)) throw Error('Published MCP executable absent: ' + relative)
+      const started = performance.now()
+      client = new Client({ name: 'agentic-mermaid-entry-startup', version: '1.0.0' })
+      const serverArgs = [bin, ...(transportName === 'http-sse' ? ['--transport', 'http', '--port', '0'] : [])]
+      const command = resourcePass ? options.startupObserverExecutable! : runtime.executable
+      const args = resourcePass ? ['-f', 'user_seconds=%U\nsystem_seconds=%S\npeak_rss_kib=%M\nexit_code=%x', '-o', resourceFile, '--', runtime.executable, ...serverArgs] : serverArgs
+      const transport = transportName === 'stdio' ? new StdioClientTransport({ command, args, cwd: root, stderr: 'pipe', env: { LC_ALL: 'C' } }) : ((server = await ready(command, args, root, resourcePass)), new SSEClientTransport(new URL(server.url + '/sse')))
+      if ('stderr' in transport && transport.stderr) transport.stderr.on('data', (chunk: Buffer) => { serverStderr = (serverStderr + chunk.toString()).slice(-6000) })
+      await client.connect(transport)
+      const initializeMs = performance.now() - started
+      const listed = await client.listTools(), listedJson = JSON.stringify(listed), readyMs = performance.now() - started
+      const tools = new Set<string>(listed.tools.map((tool: any) => tool.name))
+      let tool = def.name, requestArgs: Record<string, unknown> = { source: w.source, ...def.options }
+      if (!tools.has(tool) && def.format !== 'png') {
+        const execute = ['execute_code', 'execute'].find(name => tools.has(name))
+        if (execute) {
+          tool = execute
+          requestArgs = { code: `return mermaid.${def.format === 'svg' ? 'renderMermaidSVGWithReceipt' : 'renderMermaidASCIIWithReceipt'}(${JSON.stringify(w.source)}${def.format === 'svg' ? '' : ', ' + JSON.stringify({ useAscii: def.format === 'ascii', colorMode: 'none' })})` }
+        }
+      }
+      if (!tools.has(tool)) { row.status = 'unsupported'; row.detail = 'Initialized published tools provide no reviewed public render workflow for ' + def.format }
+      else {
+      row.operation = tool
+      row.metrics = { ...row.metrics, actualTool: tool, requestArguments: JSON.stringify(requestArgs), workflow: tool === def.name ? 'direct advertised render tool' : 'advertised code tool invoking public receipt-bearing SDK; no synthetic render tool' }
+      const callStart = performance.now(), response = await client.callTool({ name: tool, arguments: requestArgs }), payload = decodeToolPayload(response), serialized = JSON.stringify(response)
+      const firstCallMs = performance.now() - callStart, firstResultMs = performance.now() - started
+      row.samplesMs = resourcePass ? undefined : [firstResultMs]; row.bytes = Buffer.byteLength(serialized)
+      row.metrics = { ...row.metrics, initializeMs, initializedAndToolsConsumedMs: readyMs, discoveryBytes: Buffer.byteLength(listedJson), firstCallAndConsumptionMs: firstCallMs }
+      const artifact = payload?.svg ?? payload?.text ?? (payload?.png_base64 ? new Uint8Array(Buffer.from(payload.png_base64, 'base64')) : payload?.png ? new Uint8Array(payload.png) : undefined) ?? payload
+      const q = qualifyOutput(w, artifact, def.format)
+      // Receipt-bearing tool envelopes must be retained and qualified after the
+      // clock; serializing only their SVG would hide protocol work.
+      {
+        const { assertInvocationReceipt } = await import('./invocation-receipt.ts')
+        try { assertInvocationReceipt(payload.receipt, def.format) } catch (error) { q.findings.push(String(error)); q.ok = false }
+      }
+      row.metrics = { ...row.metrics, receiptPresent: !!payload?.receipt }
+      row.status = q.ok ? 'passed' : 'failed'; row.findings = q.findings
+      }
+    } catch (error) { row.status = 'failed'; row.detail = String(error) + (serverStderr ? '\n' + serverStderr : '') }
+    finally {
+      await client?.close().catch(() => {})
+      if (server && resourcePass) {
+        try { await finishStartupMcpObserver(server.child) } catch (error) { row.status = 'failed'; row.detail = [row.detail, String(error)].filter(Boolean).join('\n') }
+      }
+      if (server) await stop(server.child)
+    }
+    if (resourcePass) {
+      try {
+        const { parseStartupResource } = await import('./entry-startup.ts'), text = readFileSync(resourceFile, 'utf8'), exit = /^exit_code=(\d+)$/m.exec(text)
+        artifacts.push(resourceFile)
+        row.metrics = { ...row.metrics, ...parseStartupResource(text), serverExitCode: exit ? Number(exit[1]) : null, cpuScope: 'whole server process; 10ms per field resolution, zero censored below observer resolution; no CPU allocation attribution', baselineScope: 'matched empty runtime control in library resource lane; no subtraction or native/JS-heap attribution claimed' }
+        if (!exit || Number(exit[1]) !== 0 || /Command terminated by signal|Command exited with non-zero status/.test(text)) throw Error('Observed MCP server lifecycle did not exit0 after graceful shutdown: ' + text.trim())
+      } catch (error) { row.status = 'failed'; row.detail = [row.detail, String(error)].filter(Boolean).join('\n') }
+    }
+    rows.push(row)
+  }
+  rows.push({ ...invocationRow('mcp:hosted-streamable', workloads[0]!, 'entry-inventory', 'rpc', 'declaration'), status: 'blocked', detail: 'Hosted handler is a source-hosted/deployed interface, not an installed package entry. No package startup or deployment memory sample is manufactured.' })
+  gaps.push('MCP server JS heap/per-import checkpoints cannot be observed through its public protocol; GNU time measures whole fresh-server peak RSS/CPU in a separate pass. Parent SDK RSS is never substituted.', 'Hosted/deployed MCP startup remains a separate unmeasured interface; package startup does not claim Cloudflare cold-start coverage.')
   return { rows, gaps, artifacts }
 }

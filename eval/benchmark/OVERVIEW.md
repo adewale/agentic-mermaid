@@ -14,6 +14,20 @@ For individual entry points and prerequisites, use the [inventory](INVENTORY.md)
 The [assessment](ASSESSMENT.md) explains the limits of existing measurements.
 The [package guide](README.md) covers installation, updates and extraction seams.
 
+## Primary questions
+
+| Question | Owning benchmark | What the result can establish |
+| --- | --- | --- |
+| How well do we render Mermaid's docs? | Original Dave browser comparison | Every official fence occurrence remains in its denominator. SVG acceptance and shared-success time are measured; acceptance alone does not certify drawing fidelity. |
+| How well do we match Mermaid's own tests? | `upstream-test-assertions`, alongside the existing selected-input `pinned-reference-score` | Execute original pinned assertions where a reviewed public-model adapter exists; retain every other inventoried declaration as unprojected. Selected historical input replay is a separate score. |
+| Do we cover every required diagram family? | `stable-support`, with `family` functionality | Executed public SVG/label admission for every policy-stable family, plus unresolved exclusions conservatively retained. Native operations and painted fidelity need their own evidence. |
+| How quickly can each entry return its first usable result? | `entry-startup`, alongside the wider `invocation` matrix | Fresh process through fully consumed first payload; import/readiness/API clocks remain separate. Browser launch, CLI inputs, factory setup, optional backends and MCP initialization belong inside their declared startup boundaries. |
+| How much memory and CPU does it use? | Separate paired resource passes in `entry-startup` and the portable campaign | Whole-child high-water RSS/CPU and named JS/RSS snapshots. Browser document heap is not whole-browser, worker, native or GPU memory. |
+
+[Measurement rules](MEASUREMENT.md) explain how these lanes address interface
+changes, selection bias, warmup, missing cases and overfitting. Public docs and
+public tests are external validation, not a secret holdout.
+
 ## The layers
 
 | Layer | Question | Main suites | Evidence and limits |
@@ -193,3 +207,28 @@ usage or prices means unavailable dollar cost. A counter below its resolution
 is censored evidence, not free execution. No current score proves complete
 perceptual quality, every API combination or production behavior on every
 device.
+
+## Required-family gaps and upstream assertions
+
+The pinned policy currently labels 20 families stable. The benchmark does not
+quietly remove a family because its header has a legacy `-beta` spelling. It
+also retains Event Modeling and ZenUML until their exclusions have been reviewed.
+Those two pending requirements do not mean 22 independently certified stable
+families. [Event Modeling #501](https://github.com/adewale/agentic-mermaid/issues/501)
+and [ZenUML #502](https://github.com/adewale/agentic-mermaid/issues/502) contain
+public reproductions, actual peer observations and related open/closed community
+work. They track product work separately from the benchmark.
+
+A successful preservation parse is not native support: both missing types can
+retain exact source while rendering remains unsupported. Beta/experimental
+probes stay visible as supplements. Unresolved maturity or a missing required
+positive blocks a complete-comparison admission claim. The declared gate checks
+representative SVG format and authored labels; it is not a certificate of all
+features or painted topology.
+
+The new original-assertion lane uses the current pinned Mindmap/GitGraph spec
+callbacks without replacing their expectations. A public-model facade cannot
+project every private Mermaid DB/config/logger assertion; those callbacks remain
+unavailable. The wider monorepo census and literal-source replay retain their
+own units and cannot add assertion-pass credit. Exact error wording, rejected
+input, typed semantics and visible drawing quality are reported separately.

@@ -6,8 +6,10 @@ import { gzipSync } from 'node:zlib'
 import { entryImport, type InvocationOptions, invocationHarnessRoot, invocationRow } from './invocation.ts'
 import { qualifyOutput } from './qualification.ts'
 import type { BenchmarkObservation, UnifiedWorkload } from './types.ts'
+import type { StartupInvocationOptions } from './entry-startup.ts'
+import { assertInvocationReceipt } from './invocation-receipt.ts'
 
-export async function runInvocationBrowser(options: InvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
+export async function runInvocationBrowser(options: InvocationOptions & StartupInvocationOptions, workloads: UnifiedWorkload[]): Promise<{ rows: BenchmarkObservation[]; gaps: string[]; artifacts: string[] }> {
   const root = options.packageRoot ?? options.root,
     site = join(options.root, 'website/public'),
     out = join(options.out, 'browser')
@@ -16,10 +18,10 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
     gaps: string[] = [],
     artifacts: string[] = [],
     pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')),
-    require = createRequire(join(options.harnessRoot ?? invocationHarnessRoot, 'package.json')),
+    require = createRequire(join(options.harnessRoot ?? invocationHarnessRoot, options.startupOnly && existsSync(join(options.harnessRoot ?? invocationHarnessRoot, 'eval/benchmark/package.json')) ? 'eval/benchmark/package.json' : 'package.json')),
     { chromium } = require('playwright')
   const checker = join(out, 'receipt-checker.js')
-  await require('esbuild').build({ entryPoints: [join(import.meta.dir, 'invocation-receipt.ts')], outfile: checker, bundle: true, platform: 'browser', format: 'iife', globalName: '__unifiedReceipt', target: 'es2022', logLevel: 'silent' })
+  if (!options.startupOnly) await require('esbuild').build({ entryPoints: [join(import.meta.dir, 'invocation-receipt.ts')], outfile: checker, bundle: true, platform: 'browser', format: 'iife', globalName: '__unifiedReceipt', target: 'es2022', logLevel: 'silent' })
   const mapFile = (pathname: string) => {
     const base = pathname.startsWith('/pkg/') ? root : site,
       part = pathname.startsWith('/pkg/') ? pathname.slice(4) : pathname
@@ -53,14 +55,15 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
     })
     return { files, bytes: files.reduce((n, f) => n + f.bytes, 0), gzip: files.reduce((n, f) => n + f.gzip, 0) }
   }
-  const iife = entryImport(pkg.exports?.['./browser']),
-    lazy = entryImport(pkg.exports?.['./browser/lazy']),
+  const peer = options.startupAdapter === 'pele'
+  const iife = entryImport(pkg.exports?.[peer ? './global' : './browser']),
+    lazy = entryImport(pkg.exports?.[peer ? './lazy' : './browser/lazy']),
     runtime = join(site, 'editor/runtime'),
     workerCandidates = existsSync(runtime) ? readdirSync(runtime).filter(name => /^browser-preview-worker-.*\.js$/.test(name)) : [],
     worker = workerCandidates.length === 1 ? '/editor/runtime/' + workerCandidates[0] : undefined
   let actualBrowser = 'chromium:unavailable'
   try {
-    for (const surface of ['global', 'lazy', 'worker', 'editor'] as const) {
+    for (const surface of (peer ? ['global', 'lazy'] : ['global', 'lazy', 'worker', 'editor']) as readonly ('global' | 'lazy' | 'worker' | 'editor')[]) {
       const resource = surface === 'global' ? iife && join(root, iife) : surface === 'lazy' ? lazy && join(root, lazy) : surface === 'worker' ? worker && join(site, worker) : join(site, 'editor/index.html')
       if (!resource || !existsSync(resource)) {
         rows.push({
@@ -72,12 +75,21 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
         })
         continue
       }
-      for (let round = 1; round <= options.rounds; round++) {
+      const supportedOperations = peer ? [surface === 'lazy' ? 'svg-async' : 'svg'] : surface === 'editor' ? ['input-preview'] : surface === 'lazy' ? ['svg', 'svg-receipt'] : surface === 'worker' ? ['preview', 'ascii', 'unicode', 'png'] : ['svg', 'svg-async', 'svg-receipt', 'ascii', 'unicode', 'png']
+      const iterations = Array.from({ length: options.rounds }, (_, index) => index + 1).flatMap<{ round: number; sample: number; requestedOperation: string | undefined; resourcePass: boolean }>(round => options.startupOnly ? Array.from({ length: options.startupSamplesPerRound ?? 1 }, (_, index) => index + 1).flatMap(sample => supportedOperations.flatMap(requestedOperation => (sample === 1 ? [false, true] : [false]).map(resourcePass => ({ round, sample, requestedOperation, resourcePass })))) : [{ round, sample: 1, requestedOperation: undefined, resourcePass: false }])
+      for (const { round, sample, requestedOperation, resourcePass } of iterations) {
+        const launchStart = performance.now()
         const browser = await chromium.launch({ headless: true, executablePath: options.executable ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined) }),
           context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'block' }),
           fetched = new Set<string>(),
           page = await context.newPage(),
           errors: string[] = []
+        const heapSnapshots: Record<string, unknown> = {}
+        const heapSnapshot = async (name: string) => {
+          const session = await context.newCDPSession(page)
+          heapSnapshots[name] = await session.send('Runtime.getHeapUsage')
+          await session.detach()
+        }
         actualBrowser = `chromium:${browser.version()}`
         context.on('request', (request: any) => {
           const u = new URL(request.url())
@@ -86,6 +98,7 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
         await context.route('**/*', (route: any) => (new URL(route.request().url()).origin === origin ? route.continue() : route.abort()))
         page.on('pageerror', (e: Error) => errors.push(String(e)))
         try {
+          if (resourcePass) { await page.goto(origin + '/blank'); await heapSnapshot('beforeTargetLoad') }
           const loadStart = performance.now()
           await page.goto(origin + (surface === 'editor' ? '/editor/?empty=1' : '/blank'))
           if (surface === 'global') await page.addScriptTag({ url: origin + '/pkg/' + iife!.replace(/^\.\//, '') })
@@ -161,19 +174,21 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
                   g.__invocationWorker.postMessage({ id, operation, source, options: { security: 'strict', embedFontImport: false }, ...(operation === 'png' ? { output: 1 } : {}) })
                 })
             }, origin + worker)
+          const pageToReadyMs = performance.now() - loadStart, launchToReadyMs = performance.now() - launchStart
+          if (resourcePass) await heapSnapshot('apiReady')
           rows.push({
             ...invocationRow(`browser:${surface}`, workloads[0]!, 'load', 'module', 'fresh-browser'),
             family: '*',
             caseId: 'surface-load',
-            samplesMs: [performance.now() - loadStart],
-            metrics: { round, browser: browser.version(), clock: 'navigation and supported API availability; worker first handshake belongs to first artifact', cachePolicy: 'artifact defaults' },
+            samplesMs: resourcePass ? undefined : [pageToReadyMs],
+            metrics: { round, sample, resourcePass, requestedOperation: requestedOperation ?? null, browser: browser.version(), launchToReadyMs: resourcePass ? null : launchToReadyMs, clock: resourcePass ? 'separate resource diagnostic; CDP checkpoints excluded from latency samples' : 'navigation and supported API availability; worker first handshake belongs to first artifact; browser launch reported separately', cachePolicy: 'artifact defaults' },
           })
-          await page.addScriptTag({ url: origin + '/__unified/receipt-checker.js' })
+          if (!options.startupOnly) await page.addScriptTag({ url: origin + '/__unified/receipt-checker.js' })
           const initial = [...fetched]
           for (const [index, w] of workloads.entries()) {
             if (surface === 'editor') {
               const row = invocationRow('browser:editor', w, 'input-preview', 'svg', options.profile === 'full' ? 'eight-input-burst-to-latest-verified-DOM' : 'changed-input-to-verified-DOM')
-              row.metrics = { round, clock: 'input event through current labelled SVG DOM, status, receipt authority and two animation frames' }
+              row.metrics = { round, sample, clock: 'input event through current labelled SVG DOM, status, receipt authority and two animation frames' }
               try {
                 const result = await page.evaluate(
                   async ({ source, index, round, edits }: { source: string; index: number; round: number; edits: number }) => {
@@ -225,12 +240,13 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
                   },
                   { source: w.source, index, round, edits: options.profile === 'full' ? 8 : 1 },
                 )
+                const completeMs = performance.now() - launchStart
                 const q = qualifyOutput(w, result.svg, 'svg')
-                row.samplesMs = [result.ms]
+                row.samplesMs = resourcePass ? undefined : [options.startupOnly ? completeMs : result.ms]
                 row.bytes = result.bytes
                 row.findings = q.findings
                 row.status = q.ok && !result.staleAuthority && result.receiptAuthority ? 'passed' : 'failed'
-                row.metrics = { ...row.metrics, receiptAuthority: result.receiptAuthority, staleAuthority: result.staleAuthority, editorStatus: result.status }
+                row.metrics = { ...row.metrics, receiptAuthority: result.receiptAuthority, staleAuthority: result.staleAuthority, editorStatus: result.status, launchToReadyMs, pageToReadyMs, inputToCurrentDomMs: result.ms, ...(options.startupOnly ? { clock: 'browser launch through page/API readiness, first authored input and current verified preview DOM; prepared fixture HTTP server excluded', independentFreshBrowser: true } : {}) }
               } catch (e) {
                 row.status = 'failed'
                 row.detail = String(e)
@@ -238,16 +254,16 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
               rows.push(row)
               continue
             }
-            const operations = surface === 'lazy' ? ['svg', 'svg-receipt'] : surface === 'worker' ? ['preview', 'ascii', 'unicode', ...(options.profile === 'full' ? ['png'] : [])] : ['svg', 'svg-async', 'svg-receipt', 'ascii', 'unicode', ...(options.profile === 'full' ? ['png'] : [])]
+            const operations = requestedOperation ? [requestedOperation] : surface === 'lazy' ? ['svg', 'svg-receipt'] : surface === 'worker' ? ['preview', 'ascii', 'unicode', ...(options.profile === 'full' ? ['png'] : [])] : ['svg', 'svg-async', 'svg-receipt', 'ascii', 'unicode', ...(options.profile === 'full' ? ['png'] : [])]
             for (const operation of operations) {
               const format = operation === 'preview' || operation.startsWith('svg') ? 'svg' : operation,
-                row = invocationRow(`browser:${surface}`, w, operation, format, 'first-and-warm-consumed')
-              row.metrics = { round, clock: surface === 'worker' ? 'main thread request through message clone/worker reply and consumed artifact' : 'public API through consumed UTF8/receipt or PNG; subsequent validation excluded' }
+                row = invocationRow(`browser:${surface}`, w, operation, format, options.startupOnly ? resourcePass ? 'fresh-browser-resource' : 'browser-launch-to-first-consumed' : 'first-and-warm-consumed')
+              row.metrics = { round, sample, clock: surface === 'worker' ? 'main thread request through message clone/worker reply and consumed artifact' : 'public API through consumed UTF8/receipt or PNG; subsequent validation excluded' }
               try {
                 const result = await page.evaluate(
-                  async ({ source, surface, operation }: { source: string; surface: string; operation: string }) => {
+                  async ({ source, surface, operation, startupOnly, peer }: { source: string; surface: string; operation: string; startupOnly: boolean; peer: boolean }) => {
                     const g = globalThis as any,
-                      api = surface === 'global' ? g.agenticMermaid : g.__invocationApi
+                      api = surface === 'global' ? peer ? g.pele : g.agenticMermaid : g.__invocationApi
                     const raster = async (svg: string, context: any) => {
                       const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
                       try {
@@ -268,7 +284,7 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
                       }
                     }
                     const call = () =>
-                      surface === 'worker'
+                      peer ? operation === 'svg-async' ? api.renderAsync(source) : api.render(source) : surface === 'worker'
                         ? g.__invocationCall(operation, source)
                         : operation === 'svg'
                           ? api.renderMermaidSVG
@@ -286,14 +302,17 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
                     const invoke = async () => {
                       const started = performance.now(),
                         value = await call()
-                      if (surface === 'worker' || operation === 'svg-receipt' || operation === 'ascii' || operation === 'unicode' || operation === 'png') g.__unifiedReceipt.assertInvocationReceipt(value?.receipt, operation === 'preview' || operation.startsWith('svg') ? 'svg' : operation)
-                      const artifact = value?.svg ?? value?.text ?? value?.png ?? value,
-                        bytes = artifact instanceof Uint8Array ? artifact : new TextEncoder().encode(typeof artifact === 'string' ? artifact : JSON.stringify(artifact)),
-                        receipt = value?.receipt ? new TextEncoder().encode(JSON.stringify(value.receipt)) : undefined
-                      g.__unifiedInvocationSink = [bytes, receipt]
-                      return { ms: performance.now() - started, artifact, bytes: bytes.length + (receipt?.length ?? 0), receiptOutput: value?.receipt?.output }
+                      if (!startupOnly && (surface === 'worker' || operation === 'svg-receipt' || operation === 'ascii' || operation === 'unicode' || operation === 'png')) g.__unifiedReceipt.assertInvocationReceipt(value?.receipt, operation === 'preview' || operation.startsWith('svg') ? 'svg' : operation)
+                      const artifactKey = value && typeof value === 'object' ? ['svg', 'text', 'png'].find(key => value[key] !== undefined) : undefined,
+                        artifact = artifactKey ? value[artifactKey] : value,
+                        bytes = artifact instanceof Uint8Array ? new Uint8Array(artifact) : new TextEncoder().encode(typeof artifact === 'string' ? artifact : JSON.stringify(artifact)),
+                        sidecars = artifactKey ? Object.fromEntries(Object.entries(value).filter(([key]) => key !== artifactKey)) : undefined,
+                        metadata = sidecars ? new TextEncoder().encode(JSON.stringify(sidecars)) : undefined
+                      g.__unifiedInvocationSink = [value, bytes, metadata]
+                      return { ms: performance.now() - started, artifact, bytes: bytes.length + (metadata?.length ?? 0), receipt: value?.receipt, receiptOutput: value?.receipt?.output }
                     }
                     const first = await invoke()
+                    if (startupOnly) return { firstMs: first.ms, samples: [] as number[], bytes: first.bytes, artifacts: [first.artifact instanceof Uint8Array ? Array.from(first.artifact) : first.artifact], receipt: first.receipt, receiptOutput: first.receiptOutput }
                     await invoke()
                     const samples = [],
                       artifacts = [first.artifact]
@@ -302,16 +321,21 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
                       samples.push(sample.ms)
                       artifacts.push(sample.artifact)
                     }
-                    return { firstMs: first.ms, samples, bytes: first.bytes, artifacts: artifacts.map(artifact => (artifact instanceof Uint8Array ? Array.from(artifact) : artifact)), receiptOutput: first.receiptOutput }
+                    return { firstMs: first.ms, samples, bytes: first.bytes, artifacts: artifacts.map(artifact => (artifact instanceof Uint8Array ? Array.from(artifact) : artifact)), receipt: first.receipt, receiptOutput: first.receiptOutput }
                   },
-                  { source: w.source, surface, operation },
+                  { source: w.source, surface, operation, startupOnly: !!options.startupOnly, peer },
                 )
+                // Consume the complete Playwright-transferred envelope before
+                // stopping the process-to-result clock. Validation follows it.
+                if (options.startupOnly) Buffer.from(JSON.stringify(result))
+                const launchToFirstResultMs = performance.now() - launchStart
                 const checks = result.artifacts.map((artifact: unknown) => qualifyOutput(w, format === 'png' ? new Uint8Array(artifact as number[]) : artifact, format))
+                if (options.startupOnly && !peer && (surface === 'worker' || operation === 'svg-receipt' || operation === 'ascii' || operation === 'unicode' || operation === 'png')) assertInvocationReceipt(result.receipt, format)
                 row.status = checks.every((q: { ok: boolean }) => q.ok) ? 'passed' : 'failed'
                 row.findings = [...new Set(checks.flatMap((q: { findings: string[] }) => q.findings))] as string[]
-                row.samplesMs = result.samples
+                row.samplesMs = resourcePass ? undefined : options.startupOnly ? [launchToFirstResultMs] : result.samples
                 row.bytes = result.bytes
-                row.metrics = { ...row.metrics, firstInputMs: result.firstMs, receiptOutput: result.receiptOutput ?? null }
+                row.metrics = { ...row.metrics, firstInputMs: result.firstMs, receiptOutput: result.receiptOutput ?? null, ...(options.startupOnly ? { independentFreshBrowser: true, launchToReadyMs, pageToReadyMs, clock: 'browser launch through navigation/module/API readiness and first complete artifact/all enumerable sidecars, including transfer to controller; prepared fixture HTTP server and subsequent qualification excluded' } : {}) }
               } catch (e) {
                 row.status = 'failed'
                 row.detail = String(e)
@@ -319,13 +343,16 @@ export async function runInvocationBrowser(options: InvocationOptions, workloads
               rows.push(row)
             }
           }
+          if (resourcePass) await heapSnapshot('afterConsumed')
+          if (resourcePass) await page.evaluate(() => { (globalThis as any).__unifiedInvocationSink = undefined })
           const session = await context.newCDPSession(page)
           await session.send('HeapProfiler.collectGarbage')
           const heap = await session.send('Runtime.getHeapUsage')
           await session.detach()
-          rows.push({ ...invocationRow(`browser:${surface}`, workloads[0]!, 'heap-checkpoint', 'memory', 'after-portfolio'), family: '*', caseId: 'browser-memory', metrics: { round, usedSize: heap.usedSize, totalSize: heap.totalSize, scope: 'main document V8 heap; worker/native/GPU memory excluded' } })
-          const report = { surface, round, initial: payload(new Set(initial)), allFamilies: payload(fetched), browser: browser.version(), errors }
-          const path = join(out, `${surface}-${round}-payload.json`)
+          if (resourcePass) heapSnapshots.afterReleaseAfterGc = heap
+          rows.push({ ...invocationRow(`browser:${surface}`, workloads[0]!, 'heap-checkpoint', 'memory', options.startupOnly ? resourcePass ? 'fresh-browser-resource-heap' : 'post-first-output-held-heap' : 'after-portfolio'), family: '*', caseId: 'browser-memory', metrics: { round, sample, requestedOperation: requestedOperation ?? null, resourcePass, checkpoint: options.startupOnly ? resourcePass ? 'after-consumer-sink-release-and-GC' : 'output-held-after-GC' : 'after-portfolio-and-GC', usedSize: heap.usedSize, totalSize: heap.totalSize, scope: 'main document V8 heap only; worker/native/GPU/whole-process peak excluded; module/renderer state remains' + (surface === 'editor' ? '; editor preview DOM continues to own rendered SVG' : '') } })
+          const report = { surface, round, sample, resourcePass, heapSnapshots, initial: payload(new Set(initial)), allFamilies: payload(fetched), browser: browser.version(), errors }
+          const path = join(out, `${surface}-${round}-${sample}-${requestedOperation ?? 'portfolio'}-${resourcePass ? 'resource' : 'latency'}-payload.json`)
           writeFileSync(path, JSON.stringify(report, null, 2))
           artifacts.push(path)
           rows.push({
