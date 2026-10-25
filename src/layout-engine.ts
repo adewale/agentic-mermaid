@@ -1303,7 +1303,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['alignLayerNodes'], mutates: ['positions', 'dimensions'], determinism: 'in-place',
     // This preparation pass equalizes dimensions and may move peer centers.
     // The following alignment passes own the final barycenter contract.
-    run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph) },
+    run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph, c.style) },
   },
   {
     id: 'alignForkRejoinPeerCenters', doc: 'center fork/rejoin hubs on their peer barycenter',
