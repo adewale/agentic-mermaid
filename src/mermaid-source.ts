@@ -1073,6 +1073,9 @@ function extractInitDirectives(text: string, base: MermaidFrontmatterMap, family
   const body = stripMermaidDirectives(text)
   const header = toMermaidLines(body)[0]?.split(/\s/)[0] ?? ''
   const detected = pinnedMermaidDiagramType(family?.id ?? header)
+  // The base is already a fresh, admitted canonical map. An empty merge has
+  // no directive state to process or configuration to clone.
+  if (layers.length === 0 && Object.keys(base).length === 0) return { body, frontmatter: base }
   const inits = layers.filter(layer => /(?:init\b)|(?:initialize\b)/.test(layer.kind)).map(layer => layer.payload)
   const wrap = layers.some(layer => layer.kind === 'wrap')
   try {
