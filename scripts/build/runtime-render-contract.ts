@@ -73,9 +73,9 @@ interface BrowserBuild {
   onResolve(options: { filter: RegExp }, callback: (args: { path: string; resolveDir: string }) => { path: string } | undefined): void
 }
 
-/** A split browser graph needs one error identity, not a separate fetched
- * facade. Inline the canonical leaf declarations into its existing backend
- * owner and redirect every leaf import there. Source/Node keep the leaf. */
+/** Share canonical runtime primitives through the existing browser backend
+ * chunk. Error and generated-identity leaves keep one module identity without
+ * separate requests. Source and Node retain their original modules. */
 function runtimeLayoutBackendSource(source: string, path: string): string {
   const errorPath = resolve(dirname(path), 'certification-error.ts')
   const errors = readFileSync(errorPath, 'utf8')
@@ -103,7 +103,14 @@ function runtimeLayoutBackendSource(source: string, path: string): string {
     return false
   })
   if (imports !== 1 || exports !== 1) throw new Error('Expected one canonical layout error import and export')
-  return `${errors}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+  const identities = readFileSync(resolve(dirname(path), '../shared/generated-identity.ts'), 'utf8')
+  const identityFile = ts.createSourceFile('generated-identity.ts', identities, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  if (identityFile.statements.length !== 2 || !ts.isTypeAliasDeclaration(identityFile.statements[0]!)
+    || identityFile.statements[0]!.name.text !== 'GeneratedIdentityKey'
+    || !ts.isFunctionDeclaration(identityFile.statements[1]!) || identityFile.statements[1]!.name?.text !== 'generatedIds') {
+    throw new Error('Unsupported canonical generated identity declarations')
+  }
+  return `${errors}\n${identities}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
 /** Pipeline prose is for Node-side inspection and generated documentation.
@@ -209,13 +216,15 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
 }
 
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceLayoutErrors = false } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
-      if (coalesceLayoutErrors) {
+      if (coalesceRuntimePrimitives) {
         const backendPath = fileURLToPath(new URL('../../src/layout/backend.ts', import.meta.url))
         const errorPath = resolve(dirname(backendPath), 'certification-error.ts')
+        const identityPath = resolve(dirname(backendPath), '../shared/generated-identity.ts')
+        build.onResolve({ filter: /[\\/]generated-identity\.ts$/ }, args => resolve(args.resolveDir, args.path) === identityPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]certification-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === errorPath ? { path: backendPath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]layout[\\/]backend\.ts$/ }, ({ path }) => path !== backendPath ? undefined : ({
           contents: runtimeLayoutBackendSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
