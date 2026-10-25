@@ -50,14 +50,23 @@ describe('Class layout backends', () => {
     expect(renderMermaidSVGWithReceipt(fixture, { graphLayout: { backend: 'elk' } }).svg).toBe(renderMermaidSVGWithReceipt(fixture).svg)
   })
 
-  test('retains lollipop interfaces and treats generated-looking authored identities as cards', () => {
-    for (const source of ['classDiagram\nConsumer --() API : uses', 'classDiagram\nclass `ns:Authored`\nclass B\n`ns:Authored` --> B']) {
-      const parsed = parseClassDiagram(toMermaidLines(source)), placed = layoutClassDiagram(parsed, native)
-      if (source.includes('ns:Authored')) expect(placed.classes.map(cls => cls.id)).toContain('ns:Authored')
-      expect(placed.classes.map(cls => [cls.id, cls.isInterface])).toEqual(parsed.classes.map(cls => [cls.id, cls.isInterface || undefined]))
-      expect(placed.namespaces).toEqual([])
-      expect(renderMermaidSVGWithReceipt(source, native).receipt.layoutCertification?.status).toBe('passed')
-    }
+  test.each([
+    ['lollipop', 'classDiagram\nConsumer --() API : uses'],
+    ['authored prefix and edge', 'classDiagram\nclass `ns:Authored`\nclass B\n`ns:Authored` --> B'],
+    ['authored prefix and note', 'classDiagram\nclass `ns:Domain`["Authored card"]\nnote for `ns:Domain` "owned note"'],
+    ['namespace collision', 'classDiagram\nnamespace Domain {\nclass `ns:Domain`["Authored card"]\nclass `ns:Domain#1`\nclass B\n}\n`ns:Domain` --> B : relation\nnote for `ns:Domain` "owned note"'],
+    ['nested namespace collision', 'classDiagram\nnamespace Outer {\nnamespace Domain {\nclass `ns:Outer.Domain`["Nested card"]\nclass `ns:Outer.Domain#1`\nclass B\n}\n}\n`ns:Outer.Domain` --> B : relation\nnote for `ns:Outer.Domain` "owned note"'],
+  ].flatMap(([name, source]) => (['elk', 'agentic'] as const).map(backend => ({ name, source: source!, backend }))))('retains $name with $backend', ({ source, backend }) => {
+    const options = { graphLayout: { backend, fallback: 'none' as const } }
+    const parsed = parseClassDiagram(toMermaidLines(source)), placed = layoutClassDiagram(parsed, options)
+    expect(placed.classes.map(cls => [cls.id, cls.label, cls.isInterface])).toEqual(parsed.classes.map(cls => [cls.id, cls.label, cls.isInterface || undefined]))
+    expect(placed.namespaces.map(ns => ns.id)).toEqual(source.includes('namespace Outer') ? ['Outer', 'Outer.Domain'] : source.includes('namespace Domain') ? ['Domain'] : [])
+    expect(placed.notes.map(note => [note.for, note.text])).toEqual(parsed.notes.map(note => [note.for, note.text]))
+    const result = renderMermaidSVGWithReceipt(source, options)
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+    for (const cls of parsed.classes.filter(cls => !cls.isInterface)) expect(result.svg).toContain(cls.label)
+    if (source.includes('owned note')) expect(result.svg).toContain('owned note')
+    if (source.includes('relation')) expect(result.svg).toContain('relation')
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'])('retains independent namespace frames, members and labels in %s', direction => {
