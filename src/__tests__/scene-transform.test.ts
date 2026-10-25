@@ -1,11 +1,29 @@
 import { describe, expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { nodeProblems } from '../scene/fidelity.ts'
-import { geometryBounds, nodePaintBounds, nodeWorldBounds } from '../scene/bounds.ts'
+import { geometryBounds, nodePaintBounds, nodeWorldBounds, transformedBounds, visitTypedPathSegments } from '../scene/bounds.ts'
 import { RoughBackend } from '../scene/rough-backend.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 
 describe('Scene transforms are typed semantic geometry', () => {
+  test('matrix bounds observe a mutable caller box in corner order on every call', () => {
+    const reads: string[] = []
+    const values = { x0: -2, y0: 1, x1: 4, y1: 8 }
+    const box = Object.defineProperties({}, Object.fromEntries(Object.keys(values).map(key => [key, {
+      get() { reads.push(key); return values[key as keyof typeof values] },
+    }]))) as typeof values
+    const matrix = { kind: 'matrix' as const, a: 2, b: -1, c: 3, d: 4, e: 10, f: -5 }
+    const first = transformedBounds(box, matrix)
+    expect(first).toEqual({ x0: 9, y0: -5, x1: 42, y1: 29 })
+    expect(reads).toEqual(['x0', 'y0', 'x1', 'y1', 'x0', 'y0', 'x0', 'y1', 'x1', 'y0', 'x1', 'y1'])
+    values.x1 = 9
+    reads.length = 0
+    expect(transformedBounds(box, matrix)).toEqual({ x0: 9, y0: -10, x1: 52, y1: 29 })
+    expect(first).toEqual({ x0: 9, y0: -5, x1: 42, y1: 29 })
+    expect(reads).toHaveLength(12)
+    expect(transformedBounds(values, { ...matrix, a: Number.MAX_VALUE })).toBeUndefined()
+  })
+
   test.each([
     ['matrix(,1,1,0,0,0)', { a: 0, b: 1, c: 1, d: 0, e: 0, f: 0 }],
     ['matrix(1,0,0,1,0,)', { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }],
@@ -148,6 +166,20 @@ describe('Scene transforms are typed semantic geometry', () => {
 })
 
 describe('typed SVG path bounds', () => {
+  test('a path visitor can retain each segment hull independently', () => {
+    const segments: Array<{ x0: number; y0: number; x1: number; y1: number }> = []
+    expect(visitTypedPathSegments('M0 0 C10 30 20 -40 30 0 L50 20 Q70 80 90 0', segment => {
+      segments.push(segment.bounds)
+      return true
+    })).toBe(true)
+    expect(segments).toEqual([
+      { x0: 0, y0: -40, x1: 30, y1: 30 },
+      { x0: 30, y0: 0, x1: 50, y1: 20 },
+      { x0: 50, y0: 0, x1: 90, y1: 80 },
+    ])
+    expect(new Set(segments).size).toBe(3)
+  })
+
   test.each([
     ['M1 2 H10 V20 h-5 v-4 L-3 8 Z', { x0: -3, y0: 2, x1: 10, y1: 20 }],
     ['m1 2 9 18 -5 -4 -8 -8 z', { x0: -3, y0: 2, x1: 10, y1: 20 }],
