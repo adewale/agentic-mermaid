@@ -858,7 +858,7 @@ class Figures:
         self.out, self.items, self.gaps = out, [], []
         out.mkdir(parents=True, exist_ok=True)
 
-    def save(self, figure, name, title, note, rows):
+    def save(self, figure, name, title, note, rows,footer_inches=None):
         if getattr(self,'latest_phase',False):name='latest-'+name;title='Latest independent target: '+title
         if getattr(self,'historical_prs',False):
             name='historical-'+name;title='Historical PR snapshot: '+title
@@ -881,7 +881,8 @@ class Figures:
             note+=' Explicit baseline protocol repair: '+str(census.get('eligibleInputCount'))+' eligible positives from '+str(census.get('rawInputCount'))+' retained raw inputs; '+str(census.get('diagnosticInputCount'))+' reviewed diagnostic inputs remain separate. Fresh scoped rerun, not product improvement or a new full run.'
         figure.suptitle(title, fontsize=13)
         figure.text(.01, .012, fill(note, 145), fontsize=7, va='bottom')
-        figure.tight_layout(rect=(0, .09, 1, .95))
+        bottom=max(.09,footer_inches/figure.get_figheight())if footer_inches is not None else .09
+        figure.tight_layout(rect=(0, bottom, 1, .95))
         for extension in ('svg', 'png', 'pdf'):
             figure.savefig(self.out / f'{name}.{extension}', bbox_inches='tight')
         self.plt.close(figure)
@@ -1060,7 +1061,7 @@ class Figures:
         outputs=sorted({row.get('output')for row in resource_rows})
         for output in outputs:
             rows=sorted([dict(row)for row in resource_rows if row.get('output')==output],key=lambda row:row['implementation'])
-            figure,axes=self.plt.subplots(1,2,figsize=(12,max(4,len(rows)*.45)),sharey=True)
+            figure,axes=self.plt.subplots(1,2,figsize=(12,max(6,len(rows)*.45+1.7)),sharey=True)
             labels=[row['implementation']+' ['+str(row.get('runtime','unrecorded'))+']'for row in rows]
             for y,row in enumerate(rows):
                 row['caseResources']=[diagnostic for diagnostic in result.get('diagnostics',[])if tool(diagnostic)==row['implementation']and diagnostic.get('format')==output]
@@ -1090,7 +1091,7 @@ class Figures:
             from matplotlib.patches import Patch
             axes[1].legend(handles=[Patch(color='#147d92',label='user CPU'),Patch(color='#92b7c1',label='system CPU')],fontsize=7)
             note='Separate GNU time pass after all plain CLI latency rounds, same qualified fixed-source/label cohort. Peak RSS = maximum case high-water mark; CPU = sum across cases. Each per-case user/system field has10ms reporting grain. CPU intervals use conservative20ms × case-count allowance, not confidence intervals; reported zero is censored < upper bound, never free CPU or zero-latency. Runtime/shared code included; not PSS, allocation, leak proof or a process-tree sum. Do not pool with varying-portfolio Node worker RSS or V8 heaps.'
-            self.save(figure,'cli-fixed-resource-'+str(output),'Fixed-work fresh CLI resources: '+str(output),note,rows)
+            self.save(figure,'cli-fixed-resource-'+str(output),'Fixed-work fresh CLI resources: '+str(output),note,rows,footer_inches=1.7)
         # File bytes have a delivery identity independent from resource success.
         # Interpreters are external runtimes, never compiled tool payloads.
         footprints=[]
